@@ -104,9 +104,18 @@ export const validateReviewedFontCandidate = (candidate, originalBytes, licenseB
   try {
     font = decodeFont(bytes);
     const normalized = value => String(value || '').replace(/[^a-z0-9]/giu, '').toLowerCase();
-    if (normalized(font.familyName) !== normalized(candidate.family)
-      || !font.numGlyphs || !font.unitsPerEm || !font.characterSet?.length) {
-      throw new Error('Original font family or glyph metadata does not match the reviewed candidate.');
+    // Variable optical-size fonts can report a style-qualified family in the
+    // legacy name table (e.g. the Bricolage 96pt instance). The immutable source
+    // SHA already proves exact file identity; retain a family-prefix check and
+    // require matching declared axes and readable glyphs below.
+    const actualFamily = normalized(font.familyName);
+    const expectedFamily = normalized(candidate.family);
+    if (!actualFamily.startsWith(expectedFamily)) {
+      throw new Error('Original font reported family "' + String(font.familyName)
+        + '", expected "' + candidate.family + '".');
+    }
+    if (!font.numGlyphs || !font.unitsPerEm || !font.characterSet?.length) {
+      throw new Error('Original font "' + candidate.assetId + '" lacks valid glyph metadata.');
     }
     const weightDescriptor = axisMetadata(font, candidate);
     const covered = new Set(font.characterSet);
@@ -144,7 +153,13 @@ export const verifyReviewedFontSources = async ({
     const response = await fetchSource(url, { signal: AbortSignal.timeout(20_000) });
     if (!response.ok) throw new Error('Pinned original font source unavailable: ' + candidate.assetId);
     const bytes = Buffer.from(await response.arrayBuffer());
-    const validated = validateReviewedFontCandidate(candidate, bytes, notice);
+    let validated;
+    try {
+      validated = validateReviewedFontCandidate(candidate, bytes, notice);
+    } catch (error) {
+      throw new Error(candidate.assetId + ': '
+        + (error instanceof Error ? error.message : 'Source validation failed.'));
+    }
     return { candidate, ...validated, sourceUrl: url, licensePath };
   }));
   return { items: verified, sourceRevision: manifest.upstreamRevision, manifestDigest: curatedFontManifestDigest(manifestBytes) };

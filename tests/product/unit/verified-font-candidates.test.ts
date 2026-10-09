@@ -51,7 +51,8 @@ describe('original font candidate verification before Pipeline publication', () 
     expect(result.glyphCount).toBeGreaterThan(50);
     expect(result.fontWeightRange).toBe('400');
     expect(result.specimen).toContain('0123456789');
-    expect(decodeFont(bytes).familyName).toBe(result.family);
+    const decoded = decodeFont(bytes);
+    expect('familyName' in decoded ? decoded.familyName : null).toBe(result.family);
   });
 
   it('constructs only immutable pinned official Google Fonts URLs', () => {
