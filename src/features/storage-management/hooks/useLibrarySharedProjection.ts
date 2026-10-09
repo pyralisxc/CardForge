@@ -45,6 +45,11 @@ export interface PublishedLibraryObject {
   description: string;
   specialtyTags: string[];
   useCaseTags: string[];
+  semanticRole: string | null;
+  visualFamily: string | null;
+  variantOfAssetId: string | null;
+  variantKind: string | null;
+  compatibilityTags: string[];
   studioDestinations: StudioAssetDestination[];
 }
 
@@ -132,6 +137,11 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     description: pipelineByAssetId.get(asset.id)?.description ?? '',
     specialtyTags: pipelineByAssetId.get(asset.id)?.specialtyTags ?? [],
     useCaseTags: pipelineByAssetId.get(asset.id)?.useCaseTags ?? [],
+    semanticRole: pipelineByAssetId.get(asset.id)?.semanticRole ?? null,
+    visualFamily: pipelineByAssetId.get(asset.id)?.visualFamily ?? null,
+    variantOfAssetId: pipelineByAssetId.get(asset.id)?.variantOfAssetId ?? null,
+    variantKind: pipelineByAssetId.get(asset.id)?.variantKind ?? null,
+    compatibilityTags: pipelineByAssetId.get(asset.id)?.compatibilityTags ?? [],
     studioDestinations: asset.studioDestinations ?? getDefaultStudioAssetDestinations({
       kind: asset.kind === 'border' || asset.kind === 'frame' ? 'image' : asset.kind,
       metadata: asset.style ? { payload: { kind: asset.style.kind } } : undefined,
@@ -155,6 +165,11 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     description: pipelineByAssetId.get(font.value)?.description ?? '',
     specialtyTags: pipelineByAssetId.get(font.value)?.specialtyTags ?? [],
     useCaseTags: pipelineByAssetId.get(font.value)?.useCaseTags ?? [],
+    semanticRole: pipelineByAssetId.get(font.value)?.semanticRole ?? null,
+    visualFamily: pipelineByAssetId.get(font.value)?.visualFamily ?? null,
+    variantOfAssetId: pipelineByAssetId.get(font.value)?.variantOfAssetId ?? null,
+    variantKind: pipelineByAssetId.get(font.value)?.variantKind ?? null,
+    compatibilityTags: pipelineByAssetId.get(font.value)?.compatibilityTags ?? [],
     studioDestinations: ['typography.font'],
   }));
   const sets = (catalog.sets?.items ?? []).map((set): PublishedLibraryObject => ({
@@ -175,6 +190,11 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     description: set.description,
     specialtyTags: set.specialtyTags,
     useCaseTags: set.useCaseTags,
+    semanticRole: pipelineByAssetId.get(set.id)?.semanticRole ?? null,
+    visualFamily: pipelineByAssetId.get(set.id)?.visualFamily ?? null,
+    variantOfAssetId: pipelineByAssetId.get(set.id)?.variantOfAssetId ?? null,
+    variantKind: pipelineByAssetId.get(set.id)?.variantKind ?? null,
+    compatibilityTags: pipelineByAssetId.get(set.id)?.compatibilityTags ?? [],
     studioDestinations: [],
   }));
   return [...sets, ...assets, ...fonts].toSorted((left, right) => left.name.localeCompare(right.name));
