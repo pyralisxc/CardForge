@@ -48,6 +48,7 @@ export const CARDFORGE_SEMANTIC_ROLE_OPTIONS = [
   { id: 'badge', label: 'Badge / Emblem', description: 'Compact identifying emblem or labeled badge.' },
   { id: 'stat-component', label: 'Stat Component', description: 'Visual component intended to hold or emphasize a numeric/stat value.' },
   { id: 'shape', label: 'Shape', description: 'Reusable authored geometric shape or structural primitive.' },
+  { id: 'style-recipe', label: 'Style Recipe', description: 'Reusable appearance recipe for another semantic element rather than a standalone visual asset.' },
   { id: 'font', label: 'Font', description: 'Governed user-facing typeface family or face.' },
 ] as const satisfies readonly ContentTaxonomyOption[];
 
@@ -90,13 +91,38 @@ const semanticRolesByAssetType: Record<string, readonly PipelineSemanticRole[]> 
   dividers: ['divider', 'title-plate', 'text-frame', 'border'],
   icons: ['icon', 'resource-pip', 'mechanic-symbol', 'ornament', 'badge', 'stat-component'],
   imageAssets: ['artwork', 'foundation', 'border', 'text-frame', 'ornament', 'badge'],
-  elementPresets: ['material', 'foundation', 'border', 'text-frame', 'shape'],
+  elementPresets: ['material', 'foundation', 'border', 'text-frame', 'shape', 'style-recipe'],
   fonts: ['font'],
 };
 
 const semanticRoleSet = new Set<string>(CARDFORGE_SEMANTIC_ROLE_OPTIONS.map((option) => option.id));
 const variantKindSet = new Set<string>(CARDFORGE_VARIANT_KIND_OPTIONS.map((option) => option.id));
 const compatibilityTagSet = new Set<string>(CARDFORGE_COMPATIBILITY_OPTIONS.map((option) => option.id));
+
+export const getDefaultPipelineSemanticRole = (
+  assetType: unknown,
+  studioDestination?: unknown,
+): PipelineSemanticRole | null => {
+  if (assetType === 'templates') return studioDestination === 'template.back' ? 'template-back' : 'template-front';
+  if (assetType === 'sets') return 'set';
+  if (assetType === 'textures') return 'surface-texture';
+  if (assetType === 'dividers') return 'divider';
+  if (assetType === 'icons') return 'icon';
+  if (assetType === 'imageAssets') {
+    if (studioDestination === 'image.border.front' || studioDestination === 'image.border.back') return 'border';
+    if (studioDestination === 'image.frame.front' || studioDestination === 'image.frame.back') return 'foundation';
+    return 'artwork';
+  }
+  if (assetType === 'elementPresets') {
+    if (studioDestination === 'style.material') return 'material';
+    if (studioDestination === 'style.border') return 'border';
+    if (studioDestination === 'style.textFrame') return 'text-frame';
+    if (studioDestination === 'style.shape') return 'shape';
+    return 'style-recipe';
+  }
+  if (assetType === 'fonts') return 'font';
+  return null;
+};
 
 export const getPipelineSemanticRoleOptions = (
   assetType: unknown,
