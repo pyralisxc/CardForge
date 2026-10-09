@@ -506,6 +506,11 @@ export const finalizeContributorTemplatePipelineDraft = async ({
     sourceNotes?: unknown;
     specialtyTags?: unknown;
     useCaseTags?: unknown;
+    semanticRole?: unknown;
+    visualFamily?: unknown;
+    variantKind?: unknown;
+    variantLabel?: unknown;
+    compatibilityTags?: unknown;
     requestedStudioDestination?: unknown;
   };
 }): Promise<void> => {
@@ -530,6 +535,23 @@ export const finalizeContributorTemplatePipelineDraft = async ({
   if (!normalized.value.specialtyTags?.length) throw new PipelineStoreError('Choose at least one specialty.', 400);
   if (!normalized.value.useCaseTags?.length) throw new PipelineStoreError('Choose at least one use-case tag.', 400);
   if (!normalized.value.requestedStudioDestination) throw new PipelineStoreError('Choose where this Template belongs in Studio.', 400);
+  if (!normalized.value.semanticRole) throw new PipelineStoreError('Choose what semantic role this Template serves.', 400);
+
+  const { error: semanticUpdateError } = await supabase
+    .from('cardforge_contributor_asset_submissions')
+    .update({
+      semantic_role: normalized.value.semanticRole,
+      visual_family: normalized.value.visualFamily ?? null,
+      variant_kind: normalized.value.variantKind ?? 'base',
+      variant_label: normalized.value.variantLabel ?? null,
+      compatibility_tags: normalized.value.compatibilityTags ?? [],
+    })
+    .eq('id', submissionId)
+    .eq('contributor_id', contributorId)
+    .eq('status', 'draft');
+  if (semanticUpdateError) {
+    throw new PipelineStoreError('Unable to save this Template’s semantic classification before submission.', 500);
+  }
 
   await runRegistryCommand(async () => {
     await submitTemplatePipelineDraft({
