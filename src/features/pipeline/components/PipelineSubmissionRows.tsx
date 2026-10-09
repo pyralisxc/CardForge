@@ -32,10 +32,15 @@ import {
   getPipelineTypeLabel,
 } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import {
+  CARDFORGE_COMPATIBILITY_OPTIONS,
   CARDFORGE_SPECIALTY_OPTIONS,
   CARDFORGE_USE_CASE_OPTIONS,
+  CARDFORGE_VARIANT_KIND_OPTIONS,
   formatContentTaxonomyTag,
+  getSemanticRoleOptions,
   hasRequiredPipelineClassification,
+  type PipelineSemanticRole,
+  type PipelineVariantKind,
 } from '@/features/pipeline/lib/contentTaxonomy';
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
 import { isRepositoryStyle } from '@/features/pipeline/lib/registryContentValidation';
@@ -61,6 +66,11 @@ export function EditSubmissionForm({
   sourceNotes,
   specialtyTags,
   useCaseTags,
+  semanticRole,
+  visualFamily,
+  variantKind,
+  variantLabel,
+  compatibilityTags,
   requestedStudioDestination,
   destinationOptions,
   isDraft,
@@ -71,6 +81,11 @@ export function EditSubmissionForm({
   onSourceNotesChange,
   onSpecialtyTagsChange,
   onUseCaseTagsChange,
+  onSemanticRoleChange,
+  onVisualFamilyChange,
+  onVariantKindChange,
+  onVariantLabelChange,
+  onCompatibilityTagsChange,
   onRequestedStudioDestinationChange,
   onCancel,
   onSave,
@@ -83,6 +98,11 @@ export function EditSubmissionForm({
   sourceNotes: string;
   specialtyTags: string;
   useCaseTags: string;
+  semanticRole: PipelineSemanticRole;
+  visualFamily: string;
+  variantKind: PipelineVariantKind;
+  variantLabel: string;
+  compatibilityTags: string;
   requestedStudioDestination: string;
   destinationOptions: Array<{ value: string; label: string }>;
   isDraft: boolean;
@@ -93,6 +113,11 @@ export function EditSubmissionForm({
   onSourceNotesChange: (value: string) => void;
   onSpecialtyTagsChange: (value: string) => void;
   onUseCaseTagsChange: (value: string) => void;
+  onSemanticRoleChange: (value: PipelineSemanticRole) => void;
+  onVisualFamilyChange: (value: string) => void;
+  onVariantKindChange: (value: PipelineVariantKind) => void;
+  onVariantLabelChange: (value: string) => void;
+  onCompatibilityTagsChange: (value: string) => void;
   onRequestedStudioDestinationChange: (value: string) => void;
   onCancel: () => void;
   onSave: () => void;
@@ -112,6 +137,38 @@ export function EditSubmissionForm({
         Description
         <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" value={description} onChange={(event) => onDescriptionChange(event.target.value)} />
       </label>
+      <div className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Content identity</p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+            Semantic role
+            <select className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" value={semanticRole} onChange={(event) => onSemanticRoleChange(event.target.value as PipelineSemanticRole)}>
+              {getSemanticRoleOptions(assetType).map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+            Visual family / pack
+            <input className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" maxLength={80} value={visualFamily} onChange={(event) => onVisualFamilyChange(event.target.value)} />
+          </label>
+          <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+            Family relationship
+            <select className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" value={variantKind} onChange={(event) => onVariantKindChange(event.target.value as PipelineVariantKind)}>
+              {CARDFORGE_VARIANT_KIND_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+            Variant label
+            <input className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" maxLength={80} value={variantLabel} onChange={(event) => onVariantLabelChange(event.target.value)} />
+          </label>
+        </div>
+        <ControlledTaxonomySelect
+          label="Compatibility"
+          selectedIds={parseTaxonomySelection(compatibilityTags)}
+          options={CARDFORGE_COMPATIBILITY_OPTIONS}
+          onChange={(value) => onCompatibilityTagsChange(value.join(','))}
+          emptyLabel="Optional compositional traits."
+        />
+      </div>
       <div className="grid gap-3 md:grid-cols-2">
         <ControlledTaxonomySelect
           label="Specialties"
@@ -272,6 +329,10 @@ export function AssetRow({
               <div><dt className="uppercase tracking-[0.12em]">Owner override</dt><dd className="break-all text-[var(--cf-text-muted)]">{submission.ownerStatusOverride || submission.ownerAccessTierOverride ? [submission.ownerStatusOverride, submission.ownerAccessTierOverride].filter(Boolean).join(' / ') : 'None - automatic'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Live catalog id</dt><dd className="break-all text-[var(--cf-text-muted)]">{submission.registryAssetId ?? 'Not published'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Studio placement</dt><dd className="text-[var(--cf-text-muted)]">{submission.requestedStudioDestination ? getPipelineStudioDestinationLabel(submission.requestedStudioDestination) : 'Not confirmed'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Semantic role</dt><dd className="text-[var(--cf-text-muted)]">{formatContentTaxonomyTag(submission.semanticRole)}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Visual family</dt><dd className="text-[var(--cf-text-muted)]">{submission.visualFamily ?? 'Independent object'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Family variant</dt><dd className="text-[var(--cf-text-muted)]">{formatContentTaxonomyTag(submission.variantKind)}{submission.variantLabel ? ` · ${submission.variantLabel}` : ''}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Compatibility</dt><dd className="text-[var(--cf-text-muted)]">{submission.compatibilityTags.length ? submission.compatibilityTags.map(formatContentTaxonomyTag).join(', ') : 'Not specified'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Specialties</dt><dd className="text-[var(--cf-text-muted)]">{submission.specialtyTags.length ? submission.specialtyTags.map(formatContentTaxonomyTag).join(', ') : 'Not confirmed'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Use cases</dt><dd className="text-[var(--cf-text-muted)]">{submission.useCaseTags.length ? submission.useCaseTags.map(formatContentTaxonomyTag).join(', ') : hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, []) ? 'General reusable resource' : 'Not confirmed'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Source and rights</dt><dd className="text-[var(--cf-text-muted)]">{submission.sourceNotes || 'Not confirmed'}</dd></div>
