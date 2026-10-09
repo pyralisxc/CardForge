@@ -590,3 +590,10 @@ html[data-site-inline-editing="true"] [data-site-media-slot] {
 html[data-site-inline-editing="true"] [data-site-media-slot]:hover {
   outline-style: solid;
 }
+
+
+html[data-site-inline-editing="true"] [data-site-content-slug]:focus-visible,
+html[data-site-inline-editing="true"] [data-site-media-slot]:focus-visible {
+  outline: 3px solid var(--public-brass, #d7a849);
+  outline-offset: 5px;
+}

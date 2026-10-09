@@ -56,6 +56,7 @@ export function PublicSiteMediaLiveEditor({
   showWatermarkPresentation = false,
   focusSlot = null,
   publicationEnvironment,
+  onDirtyChange,
 }: {
   initialAssets: SiteMediaAsset[];
   initialSiteConfiguration: PublicSiteConfiguration;
@@ -64,6 +65,7 @@ export function PublicSiteMediaLiveEditor({
   showWatermarkPresentation?: boolean;
   focusSlot?: SiteMediaAsset['slot'] | null;
   publicationEnvironment: OwnerPublicationEnvironment;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { toast } = useToast();
   const publicationPresentation = getOwnerPublicationPresentation(publicationEnvironment);
@@ -75,6 +77,15 @@ export function PublicSiteMediaLiveEditor({
   const [savingBrandSettings, setSavingBrandSettings] = useState(false);
   const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
   const visibleDrafts = focusSlot ? drafts.filter((asset) => asset.slot === focusSlot) : drafts;
+  const isDirty = Boolean(
+    Object.values(files).some(Boolean)
+    || drafts.some((draft) => {
+      const saved = initialAssets.find((asset) => asset.slot === draft.slot);
+      return saved && (draft.alt !== saved.alt || JSON.stringify(draft.presentation) !== JSON.stringify(saved.presentation));
+    })
+    || JSON.stringify(brandSettings) !== JSON.stringify(initialSiteConfiguration)
+  );
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   useEffect(() => {
     setDrafts(initialAssets);
@@ -137,12 +148,12 @@ export function PublicSiteMediaLiveEditor({
       setInputVersion((current) => current + 1);
       toast({ title: publicationPresentation.publishedTitle, description: publicationPresentation.publishedDescription(asset.label) });
     } catch (error) {
-      const message = error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError')
-        ? 'This publish took too long. The current live image is unchanged; try a smaller image or try again.'
-        : error instanceof Error
-          ? error.message
-          : 'Unable to publish the public image.';
-      toast({ title: 'Site media not published', description: message, variant: 'destructive' });
+      const uncertain = error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError');
+      const message = uncertain
+        ? 'The image publication result could not be confirmed. Reload the page and inspect the current image before attempting another publication.'
+        : error instanceof Error ? error.message : 'Unable to publish the public image.';
+      if (uncertain) setRestoreNotice(message);
+      toast({ title: uncertain ? 'Image result unconfirmed' : 'Site media not published', description: message, variant: 'destructive' });
     } finally {
       setBusySlot(null);
     }
@@ -190,13 +201,12 @@ export function PublicSiteMediaLiveEditor({
   return (
     <section className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 sm:p-6">
       {restoreNotice ? <div role="status" className="mb-4 border border-amber-500/45 p-3 text-sm"><p>{restoreNotice}</p><Button type="button" className="mt-2" variant="outline" onClick={() => window.location.reload()}>Reload media</Button></div> : null}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">Visual publishing</p>
-        <h2 className="mt-1 font-serif text-2xl text-[var(--cf-text-strong)]">Site media</h2>
-        <p className="mt-2 max-w-4xl text-sm leading-6 text-[#a98a7a]">
-          Replace every public brand and marketing image from one catalog. JPEG, PNG, and WebP files up to 12 MB are supported. Changes stay in these previews until you publish them, and the previous version remains available for a one-step restore.
+      {!focusSlot ? <div>
+        <h2 className="font-serif text-xl text-[var(--cf-text-strong)]">Site media</h2>
+        <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
+          Select one owned image or brand asset. Publication and one-step restore use CardForge's existing protected media owner.
         </p>
-      </div>
+      </div> : null}
       <div className="mt-6 grid gap-6">
         {showWatermarkPresentation ? <article className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
           <h3 className="font-serif text-xl text-[var(--cf-accent-text)]">Watermark presentation</h3>
