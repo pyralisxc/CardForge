@@ -65,6 +65,7 @@ export function PublicSiteHeader({
             <Image
               src={brand.markUrl}
               alt=""
+              data-site-media-slot="brand.mark"
               fill
               priority
               unoptimized

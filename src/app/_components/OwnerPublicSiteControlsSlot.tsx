@@ -17,7 +17,7 @@ export async function OwnerPublicSiteControlsSlot({ currentPath }: { currentPath
     initialBlocks={payload.siteContentBlocks}
     initialMedia={payload.siteMedia}
     initialSiteConfiguration={payload.siteConfiguration}
-    siteOperationsEditor={currentPath === '/' ? <OwnerPublicSiteOperations /> : undefined}
+    siteOperationsEditor={<OwnerPublicSiteOperations />}
     roadmapRulesEditor={currentPath === '/roadmap' ? <OwnerRoadmapRulesLiveEditor initialSettings={payload.siteMechanics} /> : undefined}
   />;
 }
