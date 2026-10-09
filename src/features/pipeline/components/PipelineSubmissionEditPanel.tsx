@@ -7,6 +7,7 @@ import { getStudioAssetDestinationDefinition } from '@/domain/templates';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import {
+  normalizeCompatibilityTags,
   normalizeContentTaxonomyTags,
   type PipelineSemanticRole,
   type PipelineVariantKind,
@@ -63,7 +64,7 @@ export function PipelineSubmissionEditPanel({
           visualFamily,
           variantKind,
           variantLabel,
-          compatibilityTags: normalizeContentTaxonomyTags(compatibilityTags),
+          compatibilityTags: normalizeCompatibilityTags(compatibilityTags),
           requestedStudioDestination,
         }),
       });
