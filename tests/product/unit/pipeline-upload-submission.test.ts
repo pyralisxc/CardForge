@@ -53,6 +53,11 @@ describe('Pipeline partial classification edits', () => {
 const taxonomy = {
   specialtyTags: ['games'],
   useCaseTags: ['tcg'],
+  semanticRole: 'divider' as const,
+  visualFamily: 'test-family',
+  variantOfAssetId: null,
+  variantKind: null,
+  compatibilityTags: [] as string[],
 };
 
 const VALID_PNG_BYTES = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVQImWP4z8DQAMIMMAYAOOgF/Q/eI6wAAAAASUVORK5CYII=', 'base64');
@@ -140,7 +145,7 @@ describe('contributor asset upload submission', () => {
     storage.download.mockResolvedValue({ data: bytes, error: null });
     const upload = { storagePath: 'contributor-1/sets/test.cardforge', fileName: 'test.cardforge', fileSizeBytes: bytes.size, mimeType: 'application/vnd.cardforge.project+zip' };
     const result = createUploadedPipelineSubmission({ contributorId: 'contributor-1', contributorEmail: 'contributor@example.com',
-      maxFileSizeMb: 25, assetType: 'sets', studioDestination: null, ...taxonomy, name: 'Test Set', description: '', previewUrl: '', uploadedFile: upload });
+      maxFileSizeMb: 25, assetType: 'sets', studioDestination: null, ...taxonomy, semanticRole: 'set', name: 'Test Set', description: '', previewUrl: '', uploadedFile: upload });
     if (hasCards) {
       await expect(result).resolves.toBeUndefined();
       expect(mockedCreatePipelineSubmission).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ assetType: 'sets', sourceMimeType: upload.mimeType }) }));
@@ -200,6 +205,9 @@ describe('contributor asset upload submission', () => {
         studioDestination: 'element.divider',
         specialtyTags: ['games'],
         useCaseTags: ['tcg'],
+        semanticRole: 'divider',
+        visualFamily: 'test-family',
+        compatibilityTags: [],
         sourceUrl: 'https://cdn.example/gold-divider.png',
         sourceStorageBucket: 'cardforge-contributor-assets',
         sourceStoragePath: uploadedFile.storagePath,
@@ -217,7 +225,7 @@ describe('contributor asset upload submission', () => {
 
     await createUploadedPipelineSubmission({
       contributorId: 'contributor-1', contributorEmail: 'contributor@example.com', maxFileSizeMb: 25,
-      assetType: 'icons', studioDestination: 'element.icon', ...taxonomy, name: 'Safe Vector', description: '', previewUrl: '',
+      assetType: 'icons', studioDestination: 'element.icon', ...taxonomy, semanticRole: 'icon', name: 'Safe Vector', description: '', previewUrl: '',
       uploadedFile: {
         storagePath: 'contributor-1/icons/safe-vector.cfsvg', fileName: 'safe-vector.svg',
         fileSizeBytes: sourceBlob.size, mimeType: 'image/svg+xml',
