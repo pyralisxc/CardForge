@@ -29,11 +29,29 @@ describe('unified Library view', () => {
     expect(getPipelineRevisionLabel({ id: 'known', revisionNumber: 3 })).toBe('Revision 3');
   });
 
-  it.each(['business card', 'business-card', 'networking'])('keeps published usage guidance and classification visible and searchable: %s', (query) => {
+  it.each([
+    'business card',
+    'business-card',
+    'networking',
+    'resource pip',
+    'foundry sigils',
+    'small size',
+  ])('keeps published meaning, family, compatibility, and usage guidance searchable: %s', (query) => {
     const publishedItems = projectPublishedLibraryObjects({
       access: 'free', templates: { defaults: [] }, fonts: { fonts: [] }, sets: { items: [] },
       assets: { templates: [{ id: 'name-card', kind: 'template', name: 'Name Card Theme', url: '/api/templates#name-card', accessTier: 'free' }], imageAssets: [], textures: [], dividers: [], icons: [], elementPresets: [] },
-      pipeline: { items: [{ id: 'name-card', lineageId: 'original', description: 'A contact card for networking.', specialtyTags: ['business'], useCaseTags: ['business-card'] }] },
+      pipeline: { items: [{
+        id: 'name-card',
+        lineageId: 'original',
+        description: 'A contact card for networking.',
+        specialtyTags: ['business'],
+        useCaseTags: ['business-card'],
+        semanticRole: 'resource-pip',
+        visualFamily: 'foundry-sigils',
+        variantOfAssetId: null,
+        variantKind: null,
+        compatibilityTags: ['small-size'],
+      }] },
     } as never);
     const capture: { current?: ReturnType<typeof useUnifiedLibraryView> } = {};
     function Harness() {
@@ -50,6 +68,14 @@ describe('unified Library view', () => {
     expect(detail.summary).toBe('A contact card for networking.');
     expect(detail.meta).toContainEqual(['Specialties', 'Business']);
     expect(detail.meta).toContainEqual(['Use cases', 'Business Card']);
+    expect(detail.meta).toContainEqual(['Semantic role', 'Resource Pip']);
+    expect(detail.meta).toContainEqual(['Visual family', 'Foundry Sigils']);
+    expect(detail.meta).toContainEqual(['Compatibility', 'Small Size']);
+    expect(capture.current?.sharedTypes).toEqual(expect.arrayContaining([
+      'Role: Resource Pip',
+      'Family: Foundry Sigils',
+      'Compatible: Small Size',
+    ]));
   });
 
   it.each([false, true])('preserves Personal items and search state when a source has failed: %s', (sourceFailed) => {
