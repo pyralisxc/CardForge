@@ -52,6 +52,7 @@ export function ResponsiveSiteMediaImage({
       {...imageProps}
       src={src}
       alt={media.alt}
+      data-site-media-slot={media.slot}
       data-preview-viewport={previewViewport}
       className={`site-media-responsive-image ${media.presentation.fit === 'cover' ? 'object-cover' : 'object-contain'} ${className}`}
       style={{ ...presentationStyle, ...style }}

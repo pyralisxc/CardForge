@@ -53,12 +53,14 @@ export function PublicSiteMediaLiveEditor({
   onAssetsChange,
   onSiteConfigurationChange,
   showWatermarkPresentation = false,
+  focusSlot = null,
 }: {
   initialAssets: SiteMediaAsset[];
   initialSiteConfiguration: PublicSiteConfiguration;
   onAssetsChange: (assets: SiteMediaAsset[]) => void;
   onSiteConfigurationChange: (settings: PublicSiteConfiguration) => void;
   showWatermarkPresentation?: boolean;
+  focusSlot?: SiteMediaAsset['slot'] | null;
 }) {
   const { toast } = useToast();
   const [drafts, setDrafts] = useState(initialAssets);
@@ -68,6 +70,7 @@ export function PublicSiteMediaLiveEditor({
   const [brandSettings, setBrandSettings] = useState(initialSiteConfiguration);
   const [savingBrandSettings, setSavingBrandSettings] = useState(false);
   const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
+  const visibleDrafts = focusSlot ? drafts.filter((asset) => asset.slot === focusSlot) : drafts;
 
   useEffect(() => {
     setDrafts(initialAssets);
@@ -201,10 +204,10 @@ export function PublicSiteMediaLiveEditor({
           </div>
           <Button type="button" className="mt-4 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={savingBrandSettings || JSON.stringify(brandSettings) === JSON.stringify(initialSiteConfiguration)} onClick={() => void saveBrandSettings()}>{savingBrandSettings ? 'Saving presentation...' : 'Save watermark presentation'}</Button>
         </article> : null}
-        {([...new Set(drafts.map((asset) => asset.group))] as SiteMediaAsset['group'][]).map((group) => <details key={group} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)]" open={group === 'brand' || drafts.every((asset) => asset.group === group)}>
-          <summary className="cursor-pointer px-4 py-3 font-serif text-xl text-[var(--cf-accent-text)]">{mediaGroupLabels[group]} <span className="ml-2 text-xs font-sans text-[var(--cf-text-subtle)]">{drafts.filter((asset) => asset.group === group).length} assets</span></summary>
+        {([...new Set(visibleDrafts.map((asset) => asset.group))] as SiteMediaAsset['group'][]).map((group) => <details key={group} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)]" open={Boolean(focusSlot) || group === 'brand' || visibleDrafts.every((asset) => asset.group === group)}>
+          <summary className="cursor-pointer px-4 py-3 font-serif text-xl text-[var(--cf-accent-text)]">{mediaGroupLabels[group]} <span className="ml-2 text-xs font-sans text-[var(--cf-text-subtle)]">{visibleDrafts.filter((asset) => asset.group === group).length} assets</span></summary>
           <div className="grid gap-6 border-t border-[var(--cf-border-subtle)] p-4">
-          {drafts.filter((asset) => asset.group === group).map((draft) => {
+          {visibleDrafts.filter((asset) => asset.group === group).map((draft) => {
           const published = initialAssets.find((asset) => asset.slot === draft.slot) ?? draft;
           return (
             <OwnerMediaEditor

@@ -580,3 +580,13 @@ html[data-site-inline-editing="true"] [data-site-content-slug][data-site-inline-
   white-space: pre-wrap;
   background-color: color-mix(in srgb, var(--public-brass, #d7a849) 18%, var(--cf-surface, #17120d));
 }
+
+/* Visible media uses the exact Owner media slot, not a separate page-builder model. */
+html[data-site-inline-editing="true"] [data-site-media-slot] {
+  outline: 2px dashed var(--public-brass, #d7a849);
+  outline-offset: 4px;
+  cursor: pointer;
+}
+html[data-site-inline-editing="true"] [data-site-media-slot]:hover {
+  outline-style: solid;
+}
