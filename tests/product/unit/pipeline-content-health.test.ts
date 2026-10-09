@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildPipelineContentHealth } from '@/features/pipeline/lib/pipelineContentHealth';
 import { buildPipelineContentReview } from '@/features/pipeline/lib/pipelineContentReview';
+import { getDefaultSemanticRole } from '@/features/pipeline/lib/contentTaxonomy';
 import { resolveTemplateCardFormat } from '@/domain/card-formats';
 import type { PipelineProgramView, PipelineSubmission } from '@/features/pipeline/lib/pipelineProgram';
 import { createElement } from 'react';
@@ -9,19 +10,29 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { PipelineContentHealthPanel } from '@/features/pipeline/components/PipelineContentHealthPanel';
 import type { CardForgeCatalogManifest } from '@/features/pipeline/lib/catalogManifest';
 
-const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgramView => ({
-  submissions: [{
-    id: 'revision-id', lineageId: 'lineage-id', registryAssetId: 'registry-id',
-    name: 'Published object', status: 'published', assetType: 'sets',
-    requestedStudioDestination: null, specialtyTags: ['games'], useCaseTags: ['playing-cards'],
-    sourceUrl: 'https://example.com/set.cardforge', sourcePayload: null,
-    sourceNotes: 'Original artwork', previewUrl: 'https://example.com/preview.webp',
-    editorialReviewStatus: 'pending', editorialReviewNote: '', editorialReviewedBy: null, editorialReviewedAt: null,
-    revisionNumber: 1, baseRevisionNumber: null, updatedAt: '2026-09-01T00:00:00Z',
-    ...overrides,
-  }],
-  totalSubmissionCount: 1,
-} as PipelineProgramView);
+const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgramView => {
+  const assetType = overrides.assetType ?? 'sets';
+  const requestedStudioDestination = overrides.requestedStudioDestination
+    ?? (assetType === 'sets' ? null : assetType === 'templates' ? 'template.front' : null);
+  return {
+    submissions: [{
+      id: 'revision-id', lineageId: 'lineage-id', registryAssetId: 'registry-id',
+      name: 'Published object', status: 'published', assetType,
+      requestedStudioDestination, specialtyTags: ['games'], useCaseTags: ['playing-cards'],
+      semanticRole: getDefaultSemanticRole(assetType, requestedStudioDestination),
+      visualFamily: null,
+      variantKind: 'base',
+      variantLabel: null,
+      compatibilityTags: [],
+      sourceUrl: 'https://example.com/set.cardforge', sourcePayload: null,
+      sourceNotes: 'Original artwork', previewUrl: 'https://example.com/preview.webp',
+      editorialReviewStatus: 'pending', editorialReviewNote: '', editorialReviewedBy: null, editorialReviewedAt: null,
+      revisionNumber: 1, baseRevisionNumber: null, updatedAt: '2026-09-01T00:00:00Z',
+      ...overrides,
+    }],
+    totalSubmissionCount: 1,
+  } as PipelineProgramView;
+};
 
 describe('Pipeline content health', () => {
   it.each(['textures', 'dividers', 'icons', 'imageAssets', 'elementPresets', 'fonts', 'templates', 'sets'] as const)('uses the same General resource policy in health and review for %s', (assetType) => {
@@ -175,7 +186,15 @@ describe('Pipeline content health', () => {
     program.totalSubmissionCount = 80;
     const review = buildPipelineContentReview(program);
     expect(review.coverage.complete).toBe(false);
-    expect(review.entries[0]?.classification).toEqual({ specialtyTags: [], useCaseTags: [] });
+    expect(review.entries[0]?.classification).toEqual({
+      specialtyTags: [],
+      useCaseTags: [],
+      semanticRole: 'set',
+      visualFamily: null,
+      variantKind: 'base',
+      variantLabel: null,
+      compatibilityTags: [],
+    });
     expect(review.entries[0]?.classificationNeedsReview).toBe(true);
     expect(buildPipelineContentReview(null).coverage.complete).toBe(false);
   });
