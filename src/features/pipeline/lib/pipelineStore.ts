@@ -46,6 +46,7 @@ import {
   normalizePipelineSemanticRole,
   normalizePipelineVariantAssetId,
   normalizePipelineVariantKind,
+  normalizePipelineVisualFamily,
   normalizeSpecialtyTags,
   normalizeUseCaseTags,
 } from './contentTaxonomy';
@@ -527,6 +528,100 @@ export const updatePipelineSubmissionDetails = async ({
     throw new PipelineStoreError('Unable to edit Pipeline submission.', 500);
   }
 
+};
+
+export const updatePipelineSemanticTaxonomy = async ({
+  submissionId,
+  semanticRole,
+  visualFamily,
+  variantOfAssetId,
+  variantKind,
+  compatibilityTags,
+  currentUserId,
+  currentContributorIds = [currentUserId],
+}: {
+  submissionId: string;
+  semanticRole: unknown;
+  visualFamily?: unknown;
+  variantOfAssetId?: unknown;
+  variantKind?: unknown;
+  compatibilityTags?: unknown;
+  currentUserId: string;
+  currentContributorIds?: string[];
+}): Promise<PipelineProgramView> => {
+  if (!currentUserId) throw new PipelineStoreError('Owner identity is required to reclassify shared content.', 403);
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
+
+  const { data: rows, error: loadError } = await supabase
+    .from('cardforge_contributor_asset_submissions')
+    .select('id,asset_type,registry_asset_id,target_registry_asset_id,purge_state')
+    .eq('id', submissionId)
+    .limit(1);
+  if (loadError) throw new PipelineStoreError('Unable to load this Pipeline revision for reclassification.', 500);
+  const row = rows?.[0] as {
+    id?: string;
+    asset_type?: unknown;
+    registry_asset_id?: string | null;
+    target_registry_asset_id?: string | null;
+    purge_state?: unknown;
+  } | undefined;
+  if (!row?.id) throw new PipelineStoreError('Pipeline revision was not found.', 404);
+  if (row.purge_state) throw new PipelineStoreError('This Pipeline revision is being permanently deleted.', 409);
+
+  const normalizedRole = normalizePipelineSemanticRole(semanticRole, row.asset_type);
+  const normalizedFamily = normalizePipelineVisualFamily(visualFamily);
+  const normalizedParent = normalizePipelineVariantAssetId(variantOfAssetId);
+  const normalizedVariantKind = normalizePipelineVariantKind(variantKind);
+  const normalizedCompatibility = normalizePipelineCompatibilityTags(compatibilityTags);
+  if (!hasRequiredSemanticTaxonomy({
+    assetType: row.asset_type,
+    semanticRole: normalizedRole,
+    variantOfAssetId: normalizedParent,
+    variantKind: normalizedVariantKind,
+  })) {
+    throw new PipelineStoreError(
+      'Choose a semantic role compatible with this asset type. Variants must identify both a parent asset and variant kind.',
+      400,
+    );
+  }
+  const ownAssetId = row.registry_asset_id ?? row.target_registry_asset_id ?? null;
+  if (normalizedParent && normalizedParent === ownAssetId) {
+    throw new PipelineStoreError('An asset cannot be a variant of itself.', 400);
+  }
+  if (normalizedParent) {
+    const { data: parent, error: parentError } = await supabase
+      .from('cardforge_asset_registry')
+      .select('asset_id')
+      .eq('asset_id', normalizedParent)
+      .maybeSingle();
+    if (parentError) throw new PipelineStoreError('Unable to verify the selected variant family parent.', 503);
+    if (!parent) throw new PipelineStoreError('Choose an existing shared asset as the variant parent.', 400);
+  }
+
+  const { error } = await supabase
+    .from('cardforge_contributor_asset_submissions')
+    .update({
+      semantic_role: normalizedRole,
+      visual_family: normalizedFamily,
+      variant_of_asset_id: normalizedParent,
+      variant_kind: normalizedVariantKind,
+      compatibility_tags: normalizedCompatibility,
+      editorial_review_status: 'pending',
+      editorial_review_note: '',
+      editorial_reviewed_by: null,
+      editorial_reviewed_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', submissionId);
+  if (error) {
+    console.error('Failed to reclassify Pipeline semantic taxonomy:', error);
+    throw new PipelineStoreError('Unable to save the semantic role and family for this revision.', 500);
+  }
+
+  return getPipelineProgramView(currentUserId, currentContributorIds, {
+    includeRegistryRecipePayloads: true,
+  });
 };
 
 export const finalizeContributorTemplatePipelineDraft = async ({
