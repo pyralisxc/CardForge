@@ -195,6 +195,8 @@ export function PublicSiteOwnerLiveControls({
       const slug = field?.dataset.siteContentSlug as SiteContentBlock['slug'] | undefined;
       const block = slug ? contextualBlocks.find((candidate) => candidate.slug === slug) : undefined;
       if (field && block) {
+        // Once a leaf is editable, repeated clicks must position the caret normally.
+        if (inlineElementRef.current === field && !inlineSaving) return;
         event.preventDefault();
         event.stopPropagation();
         if (inlineSaving) return;
@@ -204,7 +206,6 @@ export function PublicSiteOwnerLiveControls({
           openStructuredCopy(block.slug);
           return;
         }
-        if (inlineElementRef.current === field) return; // Preserve the active draft on a second click.
         if (!discardCurrentEdit()) return;
         inlineElementRef.current = field;
         inlineOriginalBodyRef.current = block.body;
@@ -311,6 +312,7 @@ export function PublicSiteOwnerLiveControls({
           {hasMedia ? <TabsContent value="media"><PublicSiteMediaLiveEditor
             initialAssets={contextualMedia}
             focusSlot={focusedMediaSlot}
+            publicationEnvironment={publicationEnvironment}
             initialSiteConfiguration={siteConfiguration}
             onAssetsChange={(nextMedia) => {
               setMedia(nextMedia);

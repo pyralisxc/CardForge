@@ -6,6 +6,7 @@ import { ImageUp, Monitor, RotateCcw, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { getOwnerPublicationPresentation, type OwnerPublicationEnvironment } from '../model/ownerPublicationEnvironment';
 import {
   getSiteMediaDisplaySrc,
   type SiteMediaAsset,
@@ -54,6 +55,7 @@ export function PublicSiteMediaLiveEditor({
   onSiteConfigurationChange,
   showWatermarkPresentation = false,
   focusSlot = null,
+  publicationEnvironment,
 }: {
   initialAssets: SiteMediaAsset[];
   initialSiteConfiguration: PublicSiteConfiguration;
@@ -61,8 +63,10 @@ export function PublicSiteMediaLiveEditor({
   onSiteConfigurationChange: (settings: PublicSiteConfiguration) => void;
   showWatermarkPresentation?: boolean;
   focusSlot?: SiteMediaAsset['slot'] | null;
+  publicationEnvironment: OwnerPublicationEnvironment;
 }) {
   const { toast } = useToast();
+  const publicationPresentation = getOwnerPublicationPresentation(publicationEnvironment);
   const [drafts, setDrafts] = useState(initialAssets);
   const [files, setFiles] = useState<Partial<Record<SiteMediaAsset['slot'], File>>>({});
   const [busySlot, setBusySlot] = useState<SiteMediaAsset['slot'] | null>(null);
@@ -93,14 +97,14 @@ export function PublicSiteMediaLiveEditor({
       onSiteConfigurationChange(body.settings);
       toast(body.receipt && !body.receipt.refreshComplete
         ? {
-            title: 'Watermark presentation published; reload to verify',
+            title: `${publicationPresentation.publishedTitle}; reload to verify`,
             description: body.receipt.message,
           }
         : {
-            title: 'Watermark presentation published',
+            title: publicationPresentation.publishedTitle,
             description: body.receipt?.activityRecorded === false
-              ? 'Card previews and social images now use these settings, but Owner activity history could not be recorded.'
-              : 'Card previews and social images now use these owner-approved settings.',
+              ? `${publicationPresentation.publishedDescription('Watermark presentation')} Owner activity history could not be recorded.`
+              : publicationPresentation.publishedDescription('Watermark presentation'),
           });
     } catch (error) {
       toast({ title: 'Watermark presentation not published', description: error instanceof Error ? error.message : 'Unable to publish watermark presentation.', variant: 'destructive' });
@@ -131,7 +135,7 @@ export function PublicSiteMediaLiveEditor({
       onAssetsChange(result.operations.siteMedia);
       setFiles((current) => ({ ...current, [asset.slot]: undefined }));
       setInputVersion((current) => current + 1);
-      toast({ title: 'Site media published', description: `${asset.label} and its responsive presentation are now live.` });
+      toast({ title: publicationPresentation.publishedTitle, description: publicationPresentation.publishedDescription(asset.label) });
     } catch (error) {
       const message = error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError')
         ? 'This publish took too long. The current live image is unchanged; try a smaller image or try again.'
@@ -171,7 +175,7 @@ export function PublicSiteMediaLiveEditor({
       onAssetsChange(result.operations.siteMedia);
       setFiles((current) => ({ ...current, [asset.slot]: undefined }));
       setInputVersion((current) => current + 1);
-      toast({ title: 'Previous image restored', description: `${asset.label} has been rolled back. The version you replaced is still available.` });
+      toast({ title: 'Previous image restored', description: `${asset.label} was restored in this ${publicationEnvironment === 'production' ? 'live production' : 'non-production'} environment. Its former version is retained.` });
     } catch (error) {
       const message = rejected
         ? error instanceof Error ? error.message : 'Unable to restore the previous image.'
