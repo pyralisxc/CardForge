@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { hasRequiredPipelineClassification } from '@/features/pipeline/lib/contentTaxonomy';
+import {
+  getDefaultSemanticRole,
+  hasRequiredPipelineClassification,
+  normalizeCompatibilityTags,
+} from '@/features/pipeline/lib/contentTaxonomy';
 import { getPipelineStudioDestinationOptions } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import { PIPELINE_TYPES } from '@/features/pipeline/lib/pipelineItems';
 
@@ -60,6 +64,11 @@ const submission = (
   requestedStudioDestination: null,
   specialtyTags: [],
   useCaseTags: [],
+  semanticRole: 'icon',
+  visualFamily: null,
+  variantKind: 'base',
+  variantLabel: null,
+  compatibilityTags: [],
   sourceNotes: '',
   description: '',
   previewUrl: '',
@@ -165,12 +174,57 @@ describe('contributor asset store helpers', () => {
       value: {
         specialtyTags: ['games'],
         useCaseTags: ['tcg'],
+        semanticRole: 'icon',
+        visualFamily: null,
+        variantKind: 'base',
+        variantLabel: null,
+        compatibilityTags: [],
         name: 'Moon Sigil',
         sourceStoragePath: 'contributor-1/icons/moon.svg',
       },
     });
     expect(normalizePipelineSubmissionInput({ assetType: 'tsx', name: 'Executable' }))
       .toEqual({ ok: false, message: 'Choose a supported asset type.' });
+  });
+
+  it('keeps semantic role separate from Studio routing and normalizes family metadata', () => {
+    expect(getDefaultSemanticRole('icons', 'element.icon')).toBe('icon');
+    expect(getDefaultSemanticRole('imageAssets', 'image.border.front')).toBe('border');
+    expect(getDefaultSemanticRole('elementPresets', 'style.textFrame')).toBe('text-frame');
+    expect(normalizeCompatibilityTags('print, full-bleed, print')).toEqual(['print', 'full-bleed']);
+
+    expect(normalizePipelineSubmissionInput({
+      assetType: 'icons',
+      studioDestination: 'element.icon',
+      specialtyTags: ['games'],
+      useCaseTags: ['tcg'],
+      semanticRole: 'ornament',
+      visualFamily: '  Ember   Court ',
+      variantKind: 'treatment',
+      variantLabel: '  gilded ',
+      compatibilityTags: ['recolorable', 'print'],
+      name: 'Corner flourish',
+      sourceUrl: 'https://storage.example.test/flourish.svg',
+    })).toMatchObject({
+      ok: true,
+      value: {
+        semanticRole: 'ornament',
+        visualFamily: 'Ember Court',
+        variantKind: 'treatment',
+        variantLabel: 'gilded',
+        compatibilityTags: ['recolorable', 'print'],
+      },
+    });
+
+    expect(normalizePipelineSubmissionInput({
+      assetType: 'icons',
+      studioDestination: 'element.icon',
+      specialtyTags: ['games'],
+      useCaseTags: ['tcg'],
+      semanticRole: 'font',
+      name: 'Wrong role',
+      sourceUrl: 'https://storage.example.test/wrong.svg',
+    })).toEqual({ ok: false, message: 'Choose a semantic role compatible with this asset type.' });
   });
 
   it('does not allow canonical tags to leak into the wrong taxonomy category', () => {
@@ -234,6 +288,11 @@ describe('contributor asset store helpers', () => {
       requested_studio_destination: 'template.front',
       specialty_tags: ['games', 'tcg'],
       use_case_tags: ['tcg', 'games'],
+      semantic_role: 'template-front',
+      visual_family: 'Moon Court',
+      variant_kind: 'format',
+      variant_label: 'Poker',
+      compatibility_tags: ['front', 'print'],
       name: 'Moon Layout',
       description: 'Layout',
       preview_url: '/api/templates#moon-layout',
@@ -272,6 +331,11 @@ describe('contributor asset store helpers', () => {
       ownerAccessTierOverride: 'free',
       specialtyTags: ['games'],
       useCaseTags: ['tcg'],
+      semanticRole: 'template-front',
+      visualFamily: 'Moon Court',
+      variantKind: 'format',
+      variantLabel: 'Poker',
+      compatibilityTags: ['front', 'print'],
       currentUserVote: 'positive',
       targetRegistryAssetId: 'moon-layout',
       revisionNumber: 2,

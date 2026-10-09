@@ -86,3 +86,150 @@ export const normalizeContentTaxonomyTags = (value: unknown): string[] =>
 export const formatContentTaxonomyTag = (value: string): string => value
   .replace(/-/g, ' ')
   .replace(/\b\w/g, (character) => character.toUpperCase());
+
+export type PipelineTaxonomyAssetType =
+  | 'templates'
+  | 'elementPresets'
+  | 'textures'
+  | 'dividers'
+  | 'icons'
+  | 'imageAssets'
+  | 'fonts'
+  | 'sets';
+
+export const CARDFORGE_SEMANTIC_ROLE_OPTIONS = [
+  { id: 'template-front', label: 'Front Template', description: 'Reusable front-face layout.', assetTypes: ['templates'] },
+  { id: 'template-back', label: 'Back Template', description: 'Reusable back-face layout.', assetTypes: ['templates'] },
+  { id: 'set', label: 'Set', description: 'A complete reusable or playable card Set.', assetTypes: ['sets'] },
+  { id: 'picture', label: 'Picture', description: 'Primary illustrative or photographic content.', assetTypes: ['imageAssets'] },
+  { id: 'foundation', label: 'Foundation', description: 'Full-area background or surface foundation.', assetTypes: ['textures', 'imageAssets'] },
+  { id: 'border', label: 'Border', description: 'Transparent or structural edge treatment.', assetTypes: ['imageAssets', 'elementPresets'] },
+  { id: 'frame', label: 'Frame', description: 'Structural frame surrounding content regions.', assetTypes: ['imageAssets', 'elementPresets'] },
+  { id: 'text-frame', label: 'Text Frame', description: 'Panel or container designed to hold readable text.', assetTypes: ['dividers', 'imageAssets', 'elementPresets'] },
+  { id: 'ornament', label: 'Ornament', description: 'Decorative corner, flourish, accent, or non-semantic embellishment.', assetTypes: ['dividers', 'icons', 'imageAssets', 'elementPresets'] },
+  { id: 'divider', label: 'Divider', description: 'Separator between content regions.', assetTypes: ['dividers', 'elementPresets'] },
+  { id: 'texture', label: 'Texture', description: 'Repeatable or surface-detail texture.', assetTypes: ['textures'] },
+  { id: 'material', label: 'Material', description: 'Reusable material/surface treatment recipe.', assetTypes: ['textures', 'elementPresets'] },
+  { id: 'icon', label: 'Icon', description: 'General-purpose pictogram or compact visual mark.', assetTypes: ['icons', 'elementPresets'] },
+  { id: 'pip', label: 'Pip / Resource Symbol', description: 'Small repeated resource, suit, affinity, or value mark.', assetTypes: ['icons'] },
+  { id: 'symbol', label: 'Mechanic / Type Symbol', description: 'Semantic symbol for a mechanic, type, state, or rule concept.', assetTypes: ['icons'] },
+  { id: 'stat-component', label: 'Stat Component', description: 'UI-like badge, gem, counter, or stat-bearing component.', assetTypes: ['icons', 'imageAssets', 'elementPresets'] },
+  { id: 'shape', label: 'Shape', description: 'Reusable structural or decorative shape.', assetTypes: ['elementPresets'] },
+  { id: 'style', label: 'Style Recipe', description: 'Reusable appearance/style recipe.', assetTypes: ['elementPresets'] },
+  { id: 'font', label: 'Font', description: 'Governed typography family or face.', assetTypes: ['fonts'] },
+] as const satisfies readonly (ContentTaxonomyOption & {
+  assetTypes: readonly PipelineTaxonomyAssetType[];
+})[];
+
+export type PipelineSemanticRole = typeof CARDFORGE_SEMANTIC_ROLE_OPTIONS[number]['id'];
+
+const semanticRoleById = new Map<PipelineSemanticRole, typeof CARDFORGE_SEMANTIC_ROLE_OPTIONS[number]>(
+  CARDFORGE_SEMANTIC_ROLE_OPTIONS.map((option) => [option.id, option]),
+);
+
+export const getSemanticRoleOptions = (
+  assetType: PipelineTaxonomyAssetType,
+): readonly typeof CARDFORGE_SEMANTIC_ROLE_OPTIONS[number][] => (
+  CARDFORGE_SEMANTIC_ROLE_OPTIONS.filter((option) => (
+    (option.assetTypes as readonly PipelineTaxonomyAssetType[]).includes(assetType)
+  ))
+);
+
+export const normalizeSemanticRole = (
+  value: unknown,
+  assetType: unknown,
+): PipelineSemanticRole | null => {
+  if (typeof value !== 'string' || typeof assetType !== 'string') return null;
+  const normalized = normalizeTaxonomyTag(value) as PipelineSemanticRole;
+  const option = semanticRoleById.get(normalized);
+  return option && (option.assetTypes as readonly string[]).includes(assetType)
+    ? normalized
+    : null;
+};
+
+export const hasRequiredPipelineSemanticClassification = (
+  assetType: unknown,
+  semanticRole: unknown,
+): semanticRole is PipelineSemanticRole => normalizeSemanticRole(semanticRole, assetType) !== null;
+
+export const getDefaultSemanticRole = (
+  assetType: PipelineTaxonomyAssetType,
+  studioDestination?: string | null,
+): PipelineSemanticRole => {
+  if (assetType === 'templates') return studioDestination === 'template.back' ? 'template-back' : 'template-front';
+  if (assetType === 'sets') return 'set';
+  if (assetType === 'fonts') return 'font';
+  if (assetType === 'textures') return 'texture';
+  if (assetType === 'dividers') return 'divider';
+  if (assetType === 'icons') return 'icon';
+  if (assetType === 'imageAssets') {
+    if (studioDestination?.startsWith('image.border.')) return 'border';
+    if (studioDestination?.startsWith('image.frame.')) return 'frame';
+    return 'picture';
+  }
+  if (assetType === 'elementPresets') {
+    if (studioDestination === 'style.material') return 'material';
+    if (studioDestination === 'style.border') return 'border';
+    if (studioDestination === 'style.textFrame') return 'text-frame';
+    if (studioDestination === 'style.shape') return 'shape';
+    if (studioDestination === 'style.divider') return 'divider';
+    if (studioDestination === 'style.icon') return 'icon';
+    return 'style';
+  }
+  return 'style';
+};
+
+export const CARDFORGE_VARIANT_KIND_OPTIONS = [
+  { id: 'base', label: 'Base', description: 'Primary member of a visual family.' },
+  { id: 'format', label: 'Format Variant', description: 'Same visual family adapted to a different physical format.' },
+  { id: 'treatment', label: 'Treatment Variant', description: 'Same role/family with a distinct visual treatment.' },
+  { id: 'size', label: 'Size Variant', description: 'Same concept adapted to a different working size.' },
+  { id: 'color', label: 'Color Variant', description: 'Same concept with a deliberate colorway.' },
+  { id: 'finish', label: 'Finish Variant', description: 'Same concept with a digital or production finish treatment.' },
+] as const satisfies readonly ContentTaxonomyOption[];
+
+export type PipelineVariantKind = typeof CARDFORGE_VARIANT_KIND_OPTIONS[number]['id'];
+const variantKindSet = new Set<string>(CARDFORGE_VARIANT_KIND_OPTIONS.map((option) => option.id));
+
+export const isPipelineVariantKind = (value: unknown): value is PipelineVariantKind => (
+  typeof value === 'string' && variantKindSet.has(normalizeTaxonomyTag(value))
+);
+
+export const normalizeVariantKind = (value: unknown): PipelineVariantKind | null => {
+  const normalized = normalizeTaxonomyTag(value);
+  return variantKindSet.has(normalized) ? normalized as PipelineVariantKind : null;
+};
+
+export const normalizeVisualFamily = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().replace(/\s+/g, ' ').slice(0, 80);
+  return normalized || null;
+};
+
+export const normalizeVariantLabel = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().replace(/\s+/g, ' ').slice(0, 80);
+  return normalized || null;
+};
+
+export const CARDFORGE_COMPATIBILITY_OPTIONS = [
+  { id: 'front', label: 'Front Face', description: 'Suitable for front-face composition.' },
+  { id: 'back', label: 'Back Face', description: 'Suitable for back-face composition.' },
+  { id: 'print', label: 'Print', description: 'Reviewed for physical-print use.' },
+  { id: 'digital', label: 'Digital', description: 'Suitable for digital-only presentation or export.' },
+  { id: 'full-bleed', label: 'Full Bleed', description: 'Designed to extend through trim into bleed.' },
+  { id: 'transparent', label: 'Transparent Overlay', description: 'Designed to preserve transparency around its content.' },
+  { id: 'tileable', label: 'Tileable', description: 'Designed for seamless repeated tiling.' },
+  { id: 'recolorable', label: 'Recolorable', description: 'Designed to accept creator-controlled color changes.' },
+  { id: 'small-size-legible', label: 'Small-size Legible', description: 'Reviewed to remain legible at compact card scale.' },
+] as const satisfies readonly ContentTaxonomyOption[];
+
+export type PipelineCompatibilityTag = typeof CARDFORGE_COMPATIBILITY_OPTIONS[number]['id'];
+const compatibilityTagSet = new Set<string>(CARDFORGE_COMPATIBILITY_OPTIONS.map((option) => option.id));
+
+export const isPipelineCompatibilityTag = (value: unknown): value is PipelineCompatibilityTag => (
+  typeof value === 'string' && compatibilityTagSet.has(normalizeTaxonomyTag(value))
+);
+
+export const normalizeCompatibilityTags = (value: unknown): PipelineCompatibilityTag[] =>
+  normalizeCanonicalTags(value, compatibilityTagSet) as PipelineCompatibilityTag[];

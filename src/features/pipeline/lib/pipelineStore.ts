@@ -283,6 +283,11 @@ export const createPipelineSubmission = async ({
     studioDestination?: unknown;
     specialtyTags?: unknown;
     useCaseTags?: unknown;
+    semanticRole?: unknown;
+    visualFamily?: unknown;
+    variantKind?: unknown;
+    variantLabel?: unknown;
+    compatibilityTags?: unknown;
     name?: unknown;
     description?: unknown;
     previewUrl?: unknown;
@@ -326,6 +331,11 @@ export const createPipelineSubmission = async ({
       requested_studio_destination: normalized.value.requestedStudioDestination,
       specialty_tags: normalized.value.specialtyTags,
       use_case_tags: normalized.value.useCaseTags,
+      semantic_role: normalized.value.semanticRole,
+      visual_family: normalized.value.visualFamily,
+      variant_kind: normalized.value.variantKind,
+      variant_label: normalized.value.variantLabel,
+      compatibility_tags: normalized.value.compatibilityTags,
       name: normalized.value.name,
       description: normalized.value.description,
       preview_url: normalized.value.previewUrl,
@@ -395,6 +405,11 @@ export const updatePipelineSubmissionDetails = async ({
     sourceNotes?: unknown;
     specialtyTags?: unknown;
     useCaseTags?: unknown;
+    semanticRole?: unknown;
+    visualFamily?: unknown;
+    variantKind?: unknown;
+    variantLabel?: unknown;
+    compatibilityTags?: unknown;
     requestedStudioDestination?: unknown;
   };
   allowOwnerEdit?: boolean;
@@ -404,7 +419,7 @@ export const updatePipelineSubmissionDetails = async ({
 
   const { data: rows, error: loadError } = await supabase
     .from('cardforge_contributor_asset_submissions')
-    .select('contributor_id,status,source_url,asset_type,specialty_tags,use_case_tags')
+    .select('contributor_id,status,source_url,asset_type,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags')
     .eq('id', submissionId)
     .limit(1);
 
@@ -413,7 +428,19 @@ export const updatePipelineSubmissionDetails = async ({
     throw new PipelineStoreError('Unable to load Pipeline submission.', 500);
   }
 
-  const row = rows?.[0] as { contributor_id?: string; status?: unknown; source_url?: string | null; asset_type?: unknown; specialty_tags?: unknown; use_case_tags?: unknown } | undefined;
+  const row = rows?.[0] as {
+    contributor_id?: string;
+    status?: unknown;
+    source_url?: string | null;
+    asset_type?: unknown;
+    specialty_tags?: unknown;
+    use_case_tags?: unknown;
+    semantic_role?: unknown;
+    visual_family?: unknown;
+    variant_kind?: unknown;
+    variant_label?: unknown;
+    compatibility_tags?: unknown;
+  } | undefined;
   if (!row) throw new PipelineStoreError('Pipeline submission was not found.', 404);
   if (!allowOwnerEdit && row.contributor_id !== contributorId) {
     throw new PipelineStoreError('Only the uploader can edit this asset.', 403);
@@ -442,6 +469,11 @@ export const updatePipelineSubmissionDetails = async ({
       ...(normalized.value.sourceNotes !== undefined ? { source_notes: normalized.value.sourceNotes } : {}),
       ...(normalized.value.specialtyTags !== undefined ? { specialty_tags: normalized.value.specialtyTags } : {}),
       ...(normalized.value.useCaseTags !== undefined ? { use_case_tags: normalized.value.useCaseTags } : {}),
+      ...(normalized.value.semanticRole !== undefined ? { semantic_role: normalized.value.semanticRole } : {}),
+      ...(normalized.value.visualFamily !== undefined ? { visual_family: normalized.value.visualFamily } : {}),
+      ...(normalized.value.variantKind !== undefined ? { variant_kind: normalized.value.variantKind } : {}),
+      ...(normalized.value.variantLabel !== undefined ? { variant_label: normalized.value.variantLabel } : {}),
+      ...(normalized.value.compatibilityTags !== undefined ? { compatibility_tags: normalized.value.compatibilityTags } : {}),
       ...(normalized.value.requestedStudioDestination !== undefined
         ? { requested_studio_destination: normalized.value.requestedStudioDestination }
         : {}),
@@ -474,6 +506,11 @@ export const finalizeContributorTemplatePipelineDraft = async ({
     sourceNotes?: unknown;
     specialtyTags?: unknown;
     useCaseTags?: unknown;
+    semanticRole?: unknown;
+    visualFamily?: unknown;
+    variantKind?: unknown;
+    variantLabel?: unknown;
+    compatibilityTags?: unknown;
     requestedStudioDestination?: unknown;
   };
 }): Promise<void> => {
@@ -498,6 +535,23 @@ export const finalizeContributorTemplatePipelineDraft = async ({
   if (!normalized.value.specialtyTags?.length) throw new PipelineStoreError('Choose at least one specialty.', 400);
   if (!normalized.value.useCaseTags?.length) throw new PipelineStoreError('Choose at least one use-case tag.', 400);
   if (!normalized.value.requestedStudioDestination) throw new PipelineStoreError('Choose where this Template belongs in Studio.', 400);
+  if (!normalized.value.semanticRole) throw new PipelineStoreError('Choose what semantic role this Template serves.', 400);
+
+  const { error: semanticUpdateError } = await supabase
+    .from('cardforge_contributor_asset_submissions')
+    .update({
+      semantic_role: normalized.value.semanticRole,
+      visual_family: normalized.value.visualFamily ?? null,
+      variant_kind: normalized.value.variantKind ?? 'base',
+      variant_label: normalized.value.variantLabel ?? null,
+      compatibility_tags: normalized.value.compatibilityTags ?? [],
+    })
+    .eq('id', submissionId)
+    .eq('contributor_id', contributorId)
+    .eq('status', 'draft');
+  if (semanticUpdateError) {
+    throw new PipelineStoreError('Unable to save this Template’s semantic classification before submission.', 500);
+  }
 
   await runRegistryCommand(async () => {
     await submitTemplatePipelineDraft({

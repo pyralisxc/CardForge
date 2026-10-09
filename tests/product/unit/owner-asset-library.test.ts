@@ -17,6 +17,18 @@ const submission = (
   requestedStudioDestination: null,
   specialtyTags: [],
   useCaseTags: [],
+  semanticRole: assetType === 'templates' ? 'template-front'
+    : assetType === 'fonts' ? 'font'
+      : assetType === 'sets' ? 'set'
+        : assetType === 'textures' ? 'texture'
+          : assetType === 'dividers' ? 'divider'
+            : assetType === 'elementPresets' ? 'style'
+              : assetType === 'imageAssets' ? 'picture'
+                : 'icon',
+  visualFamily: null,
+  variantKind: 'base',
+  variantLabel: null,
+  compatibilityTags: [],
   sourceNotes: '',
   name,
   description: `Description for ${name}`,

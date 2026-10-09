@@ -46,6 +46,11 @@ export interface PublishedPipelineCatalogItem {
   description?: string;
   specialtyTags?: string[];
   useCaseTags?: string[];
+  semanticRole?: string;
+  visualFamily?: string | null;
+  variantKind?: string;
+  variantLabel?: string | null;
+  compatibilityTags?: string[];
   assetType: string;
   previewUrl: string | null;
   access: 'free' | 'paid' | 'contributor';
@@ -66,6 +71,11 @@ export interface PublishedSetCatalogItem {
   description: string;
   specialtyTags: string[];
   useCaseTags: string[];
+  semanticRole?: string;
+  visualFamily?: string | null;
+  variantKind?: string;
+  variantLabel?: string | null;
+  compatibilityTags?: string[];
 }
 
 export interface CardForgeStudioBootstrapManifest {
@@ -181,8 +191,13 @@ export const getCardForgeCatalogManifest = async (
       fileSizeBytes: row.file_size_bytes,
       revision: typeof metadata.revisionNumber === 'number' ? metadata.revisionNumber : 1,
       description: typeof metadata.description === 'string' ? metadata.description : 'A published CardForge Set starter.',
-      specialtyTags: Array.isArray(metadata.specialtyTags) ? metadata.specialtyTags.filter((tag): tag is string => typeof tag === 'string') : [],
-      useCaseTags: Array.isArray(metadata.useCaseTags) ? metadata.useCaseTags.filter((tag): tag is string => typeof tag === 'string') : [],
+      specialtyTags: row.specialty_tags ?? (Array.isArray(metadata.specialtyTags) ? metadata.specialtyTags.filter((tag): tag is string => typeof tag === 'string') : []),
+      useCaseTags: row.use_case_tags ?? (Array.isArray(metadata.useCaseTags) ? metadata.useCaseTags.filter((tag): tag is string => typeof tag === 'string') : []),
+      semanticRole: row.semantic_role,
+      visualFamily: row.visual_family ?? null,
+      variantKind: row.variant_kind ?? 'base',
+      variantLabel: row.variant_label ?? null,
+      compatibilityTags: row.compatibility_tags ?? [],
     };
   });
   return {
@@ -198,6 +213,11 @@ export const getCardForgeCatalogManifest = async (
         description: row.description ?? '',
         specialtyTags: row.specialty_tags ?? [],
         useCaseTags: row.use_case_tags ?? [],
+        semanticRole: row.semantic_role,
+        visualFamily: row.visual_family ?? null,
+        variantKind: row.variant_kind ?? 'base',
+        variantLabel: row.variant_label ?? null,
+        compatibilityTags: row.compatibility_tags ?? [],
         assetType: row.asset_type,
         previewUrl: row.preview_url ?? null,
         access: row.access_tier,
