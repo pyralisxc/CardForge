@@ -12,6 +12,7 @@ import {
   OwnerAssetLibraryPanel,
   type OwnerAssetOverrideInput,
   type OwnerEditorialReviewInput,
+  type OwnerSemanticTaxonomyInput,
 } from '@/features/pipeline/components/OwnerAssetLibraryPanel';
 import { OwnerContributorProgramOverview } from '@/features/pipeline/components/OwnerContributorProgramOverview';
 import { OwnerStudioRoutingPanel } from '@/features/pipeline/components/OwnerStudioRoutingPanel';
@@ -147,6 +148,38 @@ export function OwnerContributorProgramPanel({
     }
   };
 
+  const updateSemanticTaxonomy = async (
+    submissionId: string,
+    input: OwnerSemanticTaxonomyInput,
+  ): Promise<boolean> => {
+    setUpdatingSubmissionId(submissionId);
+    try {
+      const response = await fetch(`/api/pipeline/${submissionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save semantic taxonomy.'));
+      await response.json() as PipelineItemsResponse;
+      await loadProgram();
+      setLastSavedAt(new Date().toISOString());
+      toast({
+        title: 'Semantic taxonomy saved',
+        description: 'Stable asset identity was preserved and editorial readiness returned to Pending for re-review.',
+      });
+      return true;
+    } catch (error) {
+      toast({
+        title: 'Semantic taxonomy not saved',
+        description: error instanceof Error ? error.message : 'Unable to reclassify this Pipeline revision.',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setUpdatingSubmissionId(null);
+    }
+  };
+
   const updateEditorialReview = async (
     submissionId: string,
     input: OwnerEditorialReviewInput,
@@ -266,6 +299,7 @@ export function OwnerContributorProgramPanel({
             updatingSubmissionId={updatingSubmissionId}
             onUpdateOverride={updateOverride}
             onUpdateEditorialReview={updateEditorialReview}
+            onUpdateSemanticTaxonomy={updateSemanticTaxonomy}
             onDeletePermanently={deletePermanently}
           />
         </TabsContent>
