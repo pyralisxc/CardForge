@@ -33,6 +33,13 @@ import {
   type PipelineSemanticRole,
   type PipelineVariantKind,
 } from './contentTaxonomy';
+import {
+  CARDFORGE_CONTENT_STANDARD_VERSION,
+  isPipelineCreationOrigin,
+  normalizePipelineCreationDisclosure,
+  type PipelineCreationDisclosure,
+  type PipelineCreationOrigin,
+} from './contentStandard';
 
 const hasUnsupportedUseCaseSelection = (value: unknown): boolean => {
   const supplied = Array.isArray(value) ? value.length > 0 : typeof value === 'string' ? value.trim().length > 0 : value != null;
@@ -40,7 +47,7 @@ const hasUnsupportedUseCaseSelection = (value: unknown): boolean => {
 };
 
 export type PipelineSubmissionInputResult =
-  | { ok: true; value: Pick<PipelineSubmission, 'assetType' | 'requestedStudioDestination' | 'specialtyTags' | 'useCaseTags' | 'semanticRole' | 'visualFamily' | 'variantKind' | 'variantLabel' | 'compatibilityTags' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
+  | { ok: true; value: Pick<PipelineSubmission, 'assetType' | 'requestedStudioDestination' | 'specialtyTags' | 'useCaseTags' | 'semanticRole' | 'visualFamily' | 'variantKind' | 'variantLabel' | 'compatibilityTags' | 'sourceNotes' | 'creationOrigin' | 'contentStandardVersion' | 'intendedUseEvidence' | 'creationDisclosure' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
   | { ok: false; message: string };
 
 export type PipelineSubmissionEditInputResult =
@@ -56,6 +63,11 @@ export type PipelineSubmissionEditInputResult =
       variantKind?: PipelineVariantKind;
       variantLabel?: string | null;
       compatibilityTags?: PipelineCompatibilityTag[];
+      sourceNotes?: string;
+      creationOrigin?: PipelineCreationOrigin;
+      contentStandardVersion?: string | null;
+      intendedUseEvidence?: string;
+      creationDisclosure?: PipelineCreationDisclosure;
       requestedStudioDestination?: StudioAssetDestination;
     } }
   | { ok: false; message: string };
@@ -88,6 +100,11 @@ export interface PipelineSubmission {
   variantLabel: string | null;
   compatibilityTags: PipelineCompatibilityTag[];
   sourceNotes: string;
+  creationOrigin: PipelineCreationOrigin;
+  contentStandardVersion: string | null;
+  intendedUseEvidence: string;
+  creationDisclosure: PipelineCreationDisclosure;
+  editorialStandardVersion?: string | null;
   editorialReviewStatus?: PipelineEditorialReviewStatus;
   editorialReviewNote?: string;
   editorialReviewedBy?: string | null;
@@ -220,6 +237,11 @@ export interface PipelineSubmissionRow {
   variant_label?: string | null;
   compatibility_tags?: unknown;
   source_notes?: string | null;
+  creation_origin?: unknown;
+  content_standard_version?: string | null;
+  intended_use_evidence?: string | null;
+  creation_disclosure?: unknown;
+  editorial_standard_version?: string | null;
   editorial_review_status?: unknown;
   editorial_review_note?: string | null;
   editorial_reviewed_by?: string | null;
@@ -328,6 +350,11 @@ export const normalizePipelineSubmissionInput = (value: {
   variantKind?: unknown;
   variantLabel?: unknown;
   compatibilityTags?: unknown;
+  sourceNotes?: unknown;
+  creationOrigin?: unknown;
+  contentStandardVersion?: unknown;
+  intendedUseEvidence?: unknown;
+  creationDisclosure?: unknown;
   name?: unknown;
   description?: unknown;
   previewUrl?: unknown;
@@ -376,6 +403,16 @@ export const normalizePipelineSubmissionInput = (value: {
     return { ok: false, message: 'Choose only supported compatibility tags.' };
   }
   const compatibilityTags = normalizeCompatibilityTags(rawCompatibilityTags);
+  const sourceNotes = normalizePipelineLongText(value.sourceNotes, 600);
+  const creationOrigin = isPipelineCreationOrigin(value.creationOrigin)
+    ? value.creationOrigin
+    : 'unknown';
+  const suppliedStandardVersion = normalizePipelineShortText(value.contentStandardVersion, 80);
+  const contentStandardVersion = suppliedStandardVersion === CARDFORGE_CONTENT_STANDARD_VERSION
+    ? suppliedStandardVersion
+    : null;
+  const intendedUseEvidence = normalizePipelineLongText(value.intendedUseEvidence, 1200);
+  const creationDisclosure = normalizePipelineCreationDisclosure(value.creationDisclosure);
   const name = normalizePipelineShortText(value.name, 96);
   if (!name) return { ok: false, message: 'Asset name is required.' };
   const previewUrl = normalizeUrl(value.previewUrl);
@@ -394,6 +431,11 @@ export const normalizePipelineSubmissionInput = (value: {
       variantKind,
       variantLabel,
       compatibilityTags,
+      sourceNotes,
+      creationOrigin,
+      contentStandardVersion,
+      intendedUseEvidence,
+      creationDisclosure,
       name,
       description: normalizePipelineLongText(value.description, 280),
       previewUrl: previewUrl || sourceUrl,
@@ -419,6 +461,11 @@ export const normalizePipelineSubmissionEditInput = (value: {
   variantKind?: unknown;
   variantLabel?: unknown;
   compatibilityTags?: unknown;
+  sourceNotes?: unknown;
+  creationOrigin?: unknown;
+  contentStandardVersion?: unknown;
+  intendedUseEvidence?: unknown;
+  creationDisclosure?: unknown;
   requestedStudioDestination?: unknown;
 }): PipelineSubmissionEditInputResult => {
   const name = normalizePipelineShortText(value.name, 96);
@@ -458,15 +505,27 @@ export const normalizePipelineSubmissionEditInput = (value: {
   if (rawCompatibilityTags?.some((tag) => !isPipelineCompatibilityTag(tag))) {
     return { ok: false, message: 'Choose only supported compatibility tags.' };
   }
+  const creationOrigin = value.creationOrigin !== undefined
+    ? (isPipelineCreationOrigin(value.creationOrigin) ? value.creationOrigin : null)
+    : undefined;
+  if (value.creationOrigin !== undefined && !creationOrigin) {
+    return { ok: false, message: 'Choose a supported creation origin.' };
+  }
+  const suppliedStandardVersion = value.contentStandardVersion !== undefined
+    ? normalizePipelineShortText(value.contentStandardVersion, 80)
+    : undefined;
+  if (
+    suppliedStandardVersion !== undefined
+    && suppliedStandardVersion !== CARDFORGE_CONTENT_STANDARD_VERSION
+  ) {
+    return { ok: false, message: 'Refresh this review form before saving content-standard evidence.' };
+  }
   return {
     ok: true,
     value: {
       name,
       description: normalizePipelineLongText(value.description, 280),
       previewUrl: normalizeUrl(value.previewUrl),
-      ...(value.sourceNotes !== undefined
-        ? { sourceNotes: normalizePipelineLongText(value.sourceNotes, 600) }
-        : {}),
       ...(value.specialtyTags !== undefined
         ? { specialtyTags: normalizeSpecialtyTags(value.specialtyTags) }
         : {}),
@@ -478,6 +537,11 @@ export const normalizePipelineSubmissionEditInput = (value: {
       ...(variantKind ? { variantKind } : {}),
       ...(value.variantLabel !== undefined ? { variantLabel: normalizeVariantLabel(value.variantLabel) } : {}),
       ...(rawCompatibilityTags !== undefined ? { compatibilityTags: normalizeCompatibilityTags(rawCompatibilityTags) } : {}),
+      ...(value.sourceNotes !== undefined ? { sourceNotes: normalizePipelineLongText(value.sourceNotes, 600) } : {}),
+      ...(creationOrigin ? { creationOrigin } : {}),
+      ...(suppliedStandardVersion !== undefined ? { contentStandardVersion: suppliedStandardVersion } : {}),
+      ...(value.intendedUseEvidence !== undefined ? { intendedUseEvidence: normalizePipelineLongText(value.intendedUseEvidence, 1200) } : {}),
+      ...(value.creationDisclosure !== undefined ? { creationDisclosure: normalizePipelineCreationDisclosure(value.creationDisclosure) } : {}),
       ...(requestedStudioDestination ? { requestedStudioDestination } : {}),
     },
   };
@@ -533,6 +597,11 @@ export const mapPipelineSubmissionRow = (
   variantLabel: normalizeVariantLabel(row.variant_label),
   compatibilityTags: normalizeCompatibilityTags(row.compatibility_tags),
   sourceNotes: row.source_notes ?? '',
+  creationOrigin: isPipelineCreationOrigin(row.creation_origin) ? row.creation_origin : 'unknown',
+  contentStandardVersion: row.content_standard_version ?? null,
+  intendedUseEvidence: row.intended_use_evidence ?? '',
+  creationDisclosure: normalizePipelineCreationDisclosure(row.creation_disclosure),
+  editorialStandardVersion: row.editorial_standard_version ?? null,
   editorialReviewStatus: isPipelineEditorialReviewStatus(row.editorial_review_status)
     ? row.editorial_review_status
     : 'pending',
