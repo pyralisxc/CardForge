@@ -439,6 +439,11 @@ export interface CreateUploadedPipelineSubmissionInput {
   studioDestination: unknown;
   specialtyTags: unknown;
   useCaseTags: unknown;
+  semanticRole: unknown;
+  visualFamily: unknown;
+  variantKind: unknown;
+  variantLabel: unknown;
+  compatibilityTags: unknown;
   name: unknown;
   description: unknown;
   previewUrl: unknown;
@@ -453,6 +458,11 @@ export const createUploadedPipelineSubmission = async ({
   studioDestination,
   specialtyTags,
   useCaseTags,
+  semanticRole,
+  visualFamily,
+  variantKind,
+  variantLabel,
+  compatibilityTags,
   name,
   description,
   previewUrl,
@@ -498,6 +508,11 @@ export const createUploadedPipelineSubmission = async ({
         studioDestination: descriptor.studioDestination,
         specialtyTags,
         useCaseTags,
+        semanticRole,
+        visualFamily,
+        variantKind,
+        variantLabel,
+        compatibilityTags,
         name,
         description,
         previewUrl: typeof previewUrl === 'string' && previewUrl.trim() ? previewUrl.trim() : data.publicUrl,
