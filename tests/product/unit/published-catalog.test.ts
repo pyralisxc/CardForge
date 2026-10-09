@@ -91,7 +91,19 @@ describe('published catalog discovery details', () => {
       expect(item).not.toHaveProperty('contributor_email');
     }
     expect(filters).toContainEqual(['cardforge_asset_registry', 'status', 'published']);
-    expect(selections.get('cardforge_contributor_asset_submissions')?.split(',')).toEqual(['id', 'lineage_id', 'source_payload', 'description', 'specialty_tags', 'use_case_tags']);
+    expect(selections.get('cardforge_contributor_asset_submissions')?.split(',')).toEqual([
+      'id',
+      'lineage_id',
+      'source_payload',
+      'description',
+      'specialty_tags',
+      'use_case_tags',
+      'semantic_role',
+      'visual_family',
+      'variant_kind',
+      'variant_label',
+      'compatibility_tags',
+    ]);
     expect(database.from.mock.calls.filter(([table]) => table === 'cardforge_contributor_asset_submissions')).toHaveLength(1);
     expect(JSON.stringify(catalog.pipeline)).not.toContain('private@example.test');
     expect(JSON.stringify(catalog.pipeline)).not.toContain('Private permission notes');
