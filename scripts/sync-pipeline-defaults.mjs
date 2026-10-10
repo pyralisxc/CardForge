@@ -4,7 +4,11 @@ import path from 'path';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
-import { gitBlobSha, verifyReviewedFontSources } from './lib/verifiedFontSources.mjs';
+import {
+  assertPreviewFontPublicationTarget,
+  gitBlobSha,
+  verifyReviewedFontSources,
+} from './lib/verifiedFontSources.mjs';
 
 const configuredOwnerEmail = (value) => {
   const emails = [...new Set((value || '')
@@ -766,9 +770,12 @@ const publishReviewedFirstPartyFonts = async ({
 
 const main = async () => {
   const verifyOnly = process.argv.includes('--verify-reviewed-fonts');
+  const providerPreflight = process.argv.includes('--preflight-reviewed-fonts');
   const publishFonts = process.argv.includes('--publish-reviewed-fonts');
-  if (verifyOnly && publishFonts) throw new Error('Choose verification OR reviewed publication.');
-  const verified = verifyOnly || publishFonts
+  if (Number(verifyOnly) + Number(providerPreflight) + Number(publishFonts) > 1) {
+    throw new Error('Choose one reviewed Font operation: source verification, provider preflight, or publication.');
+  }
+  const verified = verifyOnly || providerPreflight || publishFonts
     ? await verifyReviewedFontSources({ manifestPath: path.join(projectRoot, VERIFIED_FONTS_MANIFEST) })
     : null;
   if (verifyOnly && verified) {
@@ -805,6 +812,11 @@ const main = async () => {
   if (!supabaseUrl || !supabaseSecretKey) {
     throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required.');
   }
+  if (providerPreflight || publishFonts) {
+    // Production URL (or any other project) is forbidden for this reviewed
+    // Preview-only font batch, even if its credentials would otherwise work.
+    assertPreviewFontPublicationTarget(supabaseUrl);
+  }
 
   const supabase = createClient(supabaseUrl, supabaseSecretKey, {
     auth: {
@@ -839,6 +851,32 @@ const main = async () => {
     (existingRegistry || []).map((entry) => [entry.asset_id, entry]),
   );
   const tombstonedAssetIds = new Set((tombstones || []).map((entry) => entry.asset_id));
+
+  if ((providerPreflight || publishFonts) && verified) {
+    // Use the exact same credentials and native Storage provider that would
+    // perform a real upload, but make no writes during preflight.
+    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+    const selectedBucket = (buckets || []).find((bucket) => bucket.id === ASSET_BUCKET);
+    if (bucketError || !selectedBucket || !selectedBucket.public) {
+      throw new Error('Staging Pipeline public asset bucket cannot be verified with the configured key.');
+    }
+    for (const { candidate } of verified.items) {
+      if (tombstonedAssetIds.has(candidate.assetId)) {
+        throw new Error('A reviewed Font candidate is retired/tombstoned: ' + candidate.assetId);
+      }
+      const existing = existingRegistryByAssetId.get(candidate.assetId);
+      if (existing && (existing.metadata?.sourceGitBlobSha !== candidate.gitBlobSha
+        || existing.storage_bucket !== ASSET_BUCKET)) {
+        throw new Error('Existing reviewed Font identity conflicts with current Pipeline state: ' + candidate.assetId);
+      }
+    }
+    if (providerPreflight) {
+      console.log('Card Forge Staging target verified, one active Owner profile selected, public Pipeline bucket accessible.');
+      console.log('All ' + verified.items.length + ' candidate identities are clear or match the same pinned source.');
+      console.log('Read-only preflight passed. No Storage objects or Pipeline rows changed.');
+      return;
+    }
+  }
 
   if (publishFonts && verified) {
     await publishReviewedFirstPartyFonts({

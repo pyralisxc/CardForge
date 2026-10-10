@@ -5,6 +5,7 @@ import { create as decodeFont } from 'fontkit';
 import { describe, expect, it } from 'vitest';
 import {
   curatedFontManifestDigest,
+  assertPreviewFontPublicationTarget,
   gitBlobSha,
   reviewedFontSourceUrl,
   validateReviewedFontCandidate,
@@ -62,6 +63,22 @@ describe('original font candidate verification before Pipeline publication', () 
     );
     expect(() => reviewedFontSourceUrl(manifest, { ...spec, sourceDirectory: 'evil' })).toThrow(/not in/i);
     expect(() => reviewedFontSourceUrl(manifest, { ...spec, assetId: 'unknown-source' })).toThrow(/not in/i);
+  });
+
+  it('rejects every non-staging provider including production before any privileged publication', () => {
+    expect(assertPreviewFontPublicationTarget('https://mjdugheniazuiqoefnnb.supabase.co')).toBe(
+      'https://mjdugheniazuiqoefnnb.supabase.co',
+    );
+    expect(() => assertPreviewFontPublicationTarget('https://mpmmhjjhdxjedbmuctiv.supabase.co'))
+      .toThrow(/outside the verified/i);
+    expect(() => assertPreviewFontPublicationTarget('https://mjdugheniazuiqoefnnb.supabase.co.attacker.test'))
+      .toThrow(/outside the verified/i);
+    expect(() => assertPreviewFontPublicationTarget('https://mjdugheniazuiqoefnnb.supabase.co/path'))
+      .toThrow(/outside the verified/i);
+    expect(() => assertPreviewFontPublicationTarget('http://mjdugheniazuiqoefnnb.supabase.co'))
+      .toThrow(/outside the verified/i);
+    expect(() => assertPreviewFontPublicationTarget(''))
+      .toThrow(/requires the verified/i);
   });
 
   it('produces a deterministic review digest for exact-approved input', () => {
