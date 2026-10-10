@@ -34,6 +34,11 @@ const APPROVED_BOOTSTRAP_REPAIR_HASHES = new Map([
   [`${MIGRATION_ROOT}202605270002_remove_text_frame_presets.sql`, 'c4301bf98325e521ff63dbdb937806f290308c44ba9cf7f4259af7bd712b4560'],
   [`${MIGRATION_ROOT}202607140001_harden_privileged_functions.sql`, '0a6437e14753298869378c89c9d9ad839e92690e7985365692956898d499e618'],
   [`${MIGRATION_ROOT}20260814220651_consolidate_owner_identity.sql`, 'de835efd03c445b6cd3d1340bd9df63a2a0feb806d195752b02ae7db4d918fdb'],
+  // One-time correction of a never-applied isolated Staging migration. The
+  // 20261010030000 GRANT had an extra text parameter (SQLSTATE 42883). The
+  // whole transaction rolled back and neither provider has this applied version.
+  // Allow exactly the two-signature correction; other migration edits fail.
+  [`${MIGRATION_ROOT}20261010030000_first_party_font_registry_source.sql`, '521278dab0c6ef891081ea4ff4684d8d0035048ca0be2e98236b15524e8caba8'],
 ]);
 
 export const parseMigrationChanges = (output) => output
