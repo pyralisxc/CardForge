@@ -1,6 +1,6 @@
 # CardForge Product Direction
 
-Last updated: October 8, 2026
+Last updated: October 10, 2026
 
 Status: living product direction. This document records the intended product model and next delivery sequence. It does not describe shipped behavior. [architecture.md](architecture.md) remains authoritative for shipped ownership and invariants and the live `/roadmap` owns publicly presented capability status and votes.
 
@@ -36,6 +36,8 @@ CardForge has three permanent user-navigation surfaces and one focused workbench
 **Owner is a protected capability layer within Profile.** The Owner's recurring job remains operating CardForge itself—publishing reviewed truth, managing people/services, inspecting accountable history, and resolving operational queues—but it does not create a fourth navigation surface.
 
 The browser Owner experience and the dedicated **CardForge Owner** agent/plugin surface are two clients of the same feature-owned control plane. The Owner plugin is not a fourth private navigation zone and does not share CardForge Studio's creator tool catalog. It reuses the same Clerk identity plus server-resolved Owner authority, canonical state, validation, revision/conflict rules, cache invalidation, and activity history as browser Owner operations.
+
+The target agent installation model has **two CardForge product plugins and four clearly named environment connections**, not four implementations or another Contributor product. CardForge Studio (public creator and scoped Contributor capabilities) and CardForge Owner (private, server-enforced Owner operations) each use their canonical production MCP endpoint. Private Studio Preview and Owner Preview connections target the stable `vercel-preview` endpoints with separate development identity and staging providers; they share the same Studio/Owner code, tool contracts and feature-owned commands. Preview connections must prove authenticated access through the existing provider-native protection and Clerk, and must verify the actual server environment rather than trusting a plugin display name. A plugin or Work browser session is an authorized client, **not** a provider credential, a second state owner, or permission to publish production because staging passed. Production Studio publication and Owner operation have independent gates; staging records never automatically copy into Production.
 
 For the public property, **code defines capability, the Owner publishes presentation, and providers supply the facts they own**. Vercel Preview proves changes to what the site can do; ordinary production copy/media/navigation/SEO/presentation changes publish through the live Owner surface. Do not add a staging-to-production content-promotion CMS merely to reproduce that solo-owner workflow.
 
