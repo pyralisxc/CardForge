@@ -34,3 +34,15 @@ CARDFORGE_FONT_BATCH_APPROVAL="<reviewed manifest SHA-256>" node scripts/sync-pi
 That action requires the existing configured, authenticated CardForge owner profile and Supabase secret credentials; it re-verifies **all four** sources before writing, then uses the same managed Pipeline Storage and canonical owner bootstrap registry RPC as other first-party content. It refuses retired IDs, preserves existing Owner decisions, and checks actual published registry rows afterward. A provider timeout or unreadable post-commit result requires manual inspection before retrying.
 
 Neither a normal site build nor `scripts/sync-pipeline-defaults.mjs` without the explicit flag publishes this candidate batch. It must not be invoked against Production before its own reviewed provider release gate.
+
+## Preview-only provider preflight (required before any publication)
+
+Before enabling the already-reviewed batch, use the exact provider credentials intended for **Card Forge Staging**. The import now **refuses Production, a different project, or an unrecognized Supabase URL**, regardless of a valid review digest. The pinned staging API origin is `https://mjdugheniazuiqoefnnb.supabase.co`; production `mpmmhjjhdxjedbmuctiv` is deliberately not a permitted target for this workflow.
+
+```sh
+node scripts/sync-pipeline-defaults.mjs --preflight-reviewed-fonts
+```
+
+This command verifies the original files and licenses again, checks that the configured key can read the **specific staging project**, finds exactly one active matching Owner Contributor profile, checks access to the existing public Pipeline Storage bucket and confirms candidate IDs are available/not tombstoned. It performs **no storage upload or database mutation**. An unavailable or mismatched provider fails closed.
+
+Once the read-only provider preflight is green in a privileged operator environment, use the earlier `--publish-reviewed-fonts` command with the exact manifest digest and verify all four actual Pipeline rows, Preview Studio discovery, card rendering, and export. The production environment requires a future independently approved workflow—not simply changing the project URL. Never paste service credentials into chat or commit them to Git.

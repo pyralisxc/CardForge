@@ -17,6 +17,28 @@ export const gitBlobSha = (bytes) => createHash('sha1')
 
 export const curatedFontManifestDigest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
+// Approved typography publication in this tranche is strictly a STAGING-only
+// operation. A valid digest and Owner secret are not permission to write to the
+// production Supabase project. This explicit identity check must remain before
+// creating a privileged client or performing any provider operation.
+export const APPROVED_FONT_PREVIEW_SUPABASE_URL = 'https://mjdugheniazuiqoefnnb.supabase.co';
+
+export const assertPreviewFontPublicationTarget = (url) => {
+  let target;
+  try {
+    target = new URL(String(url || ''));
+  } catch {
+    throw new Error('The reviewed Font publication requires the verified Card Forge Staging URL.');
+  }
+  if (target.origin !== APPROVED_FONT_PREVIEW_SUPABASE_URL
+    || target.username || target.password || target.pathname !== '/'
+    || target.search || target.hash) {
+    throw new Error('Refusing Font publication outside the verified Card Forge Staging Supabase project.');
+  }
+  return target.origin;
+};
+
+
 const assertSourceSpec = (manifest) => {
   if (!manifest || manifest.schemaVersion !== 1
     || manifest.publicationState !== 'candidates-require-founder-review'
