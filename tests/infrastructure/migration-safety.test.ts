@@ -42,6 +42,20 @@ describe('migration safety guard', () => {
     expect(isApprovedBootstrapRepair(process.cwd(), unrelated)).toBe(false);
   });
 
+  it('allows only the exact never-applied Staging font GRANT correction', () => {
+    const correction = parseMigrationChanges(
+      'M\tsupabase/migrations/20261010030000_first_party_font_registry_source.sql',
+    )[0]!;
+    expect(isApprovedBootstrapRepair(process.cwd(), correction)).toBe(true);
+    const sql = readFileSync(resolve(process.cwd(),
+      'supabase/migrations/20261010030000_first_party_font_registry_source.sql'), 'utf8');
+    const signature = '  text, text, text, text, text, text, text, text, text, bigint, text, text, text, jsonb';
+    expect(sql.split(signature)).toHaveLength(4);
+    expect(sql).not.toContain('text, text, text, text, text, text, text, text, text, text, bigint');
+    expect(sql).toContain("and p_metadata ->> 'reviewedBatchDigest' ~ '^[a-f0-9]{64}$'");
+    expect(sql).toContain("case when reviewed_first_party_font then 'official' else 'contributor' end");
+  });
+
   it('rejects retired Developer tables in post-cutover migrations', () => {
     expect(findRetiredPostCutoverReferences(
       'supabase/migrations/20260923175630_expand_pipeline_catalog_capacity.sql',

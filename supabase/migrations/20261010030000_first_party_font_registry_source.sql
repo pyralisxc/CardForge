@@ -163,11 +163,11 @@ revoke execute on function public.cardforge_upsert_pipeline_registry_asset(
   text, text, text, text, text, text, text, text, text, bigint, text, text, text, jsonb
 ) from public, anon, authenticated;
 grant execute on function public.cardforge_upsert_pipeline_registry_asset(
-  text, text, text, text, text, text, text, text, text, text, bigint, text, text, text, jsonb
+  text, text, text, text, text, text, text, text, text, bigint, text, text, text, jsonb
 ) to service_role;
 
 comment on function public.cardforge_upsert_pipeline_registry_asset(
-  text, text, text, text, text, text, text, text, text, text, bigint, text, text, text, jsonb
+  text, text, text, text, text, text, text, text, text, bigint, text, text, text, jsonb
 ) is 'Native first-party and Contributor Pipeline import; source-verified OFL original Fonts are official and all other imports/Owner overrides retain their existing behavior.';
 
 commit;
