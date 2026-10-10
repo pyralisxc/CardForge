@@ -17,25 +17,48 @@ export const gitBlobSha = (bytes) => createHash('sha1')
 
 export const curatedFontManifestDigest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
-/**
- * Publication is deliberately confined to Card Forge Staging; credentials
- * alone cannot authorize publishing a reviewed batch to Production.
- */
-export const requireReviewedFontStagingTarget = (supabaseUrl) => {
-  let url;
-  try {
-    url = new URL(supabaseUrl);
-  } catch {
-    throw new Error('Reviewed Font publication requires the exact Card Forge Staging API URL.');
+/** The original notice is published alongside the immutable original font.
+ * It remains byte-for-byte recoverable from this deterministic JSON payload. */
+export const createVerifiedFontLicenseSidecar = ({ candidate, licenseBytes, sourceRevision }) => {
+  const original = Buffer.from(licenseBytes);
+  if (!SHA.test(sourceRevision) || gitBlobSha(original) !== candidate.licenseGitBlobSha) {
+    throw new Error('The source copyright notice differs from the pinned original.');
   }
-  const stagingOrigin = 'https://mjdugheniazuiqoefnnb.supabase.co';
-  if (url.origin !== stagingOrigin || url.pathname !== '/'
-    || url.search || url.hash || url.username || url.password) {
-    throw new Error('Reviewed Font publication is limited to Card Forge Staging (mjdugheniazuiqoefnnb). No production writes are permitted.');
+  const originalNotice = original.toString('utf8');
+  if (!originalNotice.includes('SIL OPEN FONT LICENSE Version 1.1') || !/copyright/iu.test(originalNotice)) {
+    throw new Error('The original font license notice is incomplete.');
   }
-  return stagingOrigin;
+  return Buffer.from(JSON.stringify({
+    license: 'OFL-1.1',
+    copyrightAndLicenseText: originalNotice,
+    sourceRepository: 'https://github.com/google/fonts',
+    sourceRevision,
+    licenseGitBlobSha: candidate.licenseGitBlobSha,
+  }, null, 2) + '\n');
 };
 
+
+
+// Approved typography publication in this tranche is strictly a STAGING-only
+// operation. A valid digest and Owner secret are not permission to write to the
+// production Supabase project. This explicit identity check must remain before
+// creating a privileged client or performing any provider operation.
+export const APPROVED_FONT_PREVIEW_SUPABASE_URL = 'https://mjdugheniazuiqoefnnb.supabase.co';
+
+export const assertPreviewFontPublicationTarget = (url) => {
+  let target;
+  try {
+    target = new URL(String(url || ''));
+  } catch {
+    throw new Error('The reviewed Font publication requires the verified Card Forge Staging URL.');
+  }
+  if (target.origin !== APPROVED_FONT_PREVIEW_SUPABASE_URL
+    || target.username || target.password || target.pathname !== '/'
+    || target.search || target.hash) {
+    throw new Error('Refusing Font publication outside the verified Card Forge Staging Supabase project.');
+  }
+  return target.origin;
+};
 
 
 const assertSourceSpec = (manifest) => {

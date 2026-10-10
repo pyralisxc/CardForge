@@ -35,10 +35,22 @@ That action requires the existing configured, authenticated CardForge owner prof
 
 Neither a normal site build nor `scripts/sync-pipeline-defaults.mjs` without the explicit flag publishes this candidate batch. It must not be invoked against Production before its own reviewed provider release gate.
 
-## Isolated staging publication invariant
+## Preview-only provider preflight (required before any publication)
 
-`--publish-reviewed-fonts` refuses every Supabase project except the exact `Card Forge Staging` API origin `https://mjdugheniazuiqoefnnb.supabase.co`. This check is independent of the secret supplied by an operator. **Production project `mpmmhjjhdxjedbmuctiv` is explicitly prohibited.** The pinned release digest, configured active staging Owner identity, and full source/OFL validation remain mandatory.
+Before enabling the already-reviewed batch, use the exact provider credentials intended for **Card Forge Staging**. The import now **refuses Production, a different project, or an unrecognized Supabase URL**, regardless of a valid review digest. The pinned staging API origin is `https://mjdugheniazuiqoefnnb.supabase.co`; production `mpmmhjjhdxjedbmuctiv` is deliberately not a permitted target for this workflow.
 
-The canonical Pipeline import function marks only signed-in/privileged, source-verified original-font imports as **official**; other historical Contributor uploads remain `contributor`. Every new verified font has an immutable managed original TTF and an accompanying managed JSON document containing the **complete unmodified OFL notice**, with both URLs recorded in registry metadata. The native command requires the committed database row to report `official` and the expected source/license hashes. A source, classification, or post-commit readback mismatch blocks claiming success.
+```sh
+node scripts/sync-pipeline-defaults.mjs --preflight-reviewed-fonts
+```
 
-Review the staging migration `20261010030000_first_party_font_registry_source.sql` before any manual publication. Schema and code gating do not by themselves upload fonts.
+This command verifies the original files and licenses again, checks that the configured key can read the **specific staging project**, finds exactly one active matching Owner Contributor profile, checks access to the existing public Pipeline Storage bucket and confirms candidate IDs are available/not tombstoned. It performs **no storage upload or database mutation**. An unavailable or mismatched provider fails closed.
+
+Once the read-only provider preflight is green in a privileged operator environment, use the earlier `--publish-reviewed-fonts` command with the exact manifest digest and verify all four actual Pipeline rows, Preview Studio discovery, card rendering, and export. The production environment requires a future independently approved workflow—not simply changing the project URL. Never paste service credentials into chat or commit them to Git.
+
+## Native first-party catalog provenance
+
+The staging database's original general-purpose first-party importer marks ordinary assets as `contributor`. Forward migration `20261010030000_first_party_font_registry_source.sql` narrows the existing native routine so **only** pinned original OFL Fonts bearing reviewed source/license and batch-digest metadata are classified as **official**. Other Contributor assets and subsequent Owner decisions remain unchanged.
+
+Publication now stores a deterministic, public JSON sidecar containing the **complete original OFL copyright/license text** next to each immutable `font/ttf` in the existing managed Pipeline bucket. Both published URLs remain discoverable from the canonical registry metadata. Post-commit readback requires `library_source='official'`, the original SHA and the correct managed notice URL. The operator must see that the forward migration has arrived in isolated staging before invoking publication.
+
+The existing `--preflight-reviewed-fonts` command is still the only read-only credentialed gate. It and `--publish-reviewed-fonts` both keep PR #441's exact staging origin restriction and refuse Production; there is no new database or CLI auth model.

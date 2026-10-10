@@ -5,8 +5,9 @@ import { create as decodeFont } from 'fontkit';
 import { describe, expect, it } from 'vitest';
 import {
   curatedFontManifestDigest,
+  assertPreviewFontPublicationTarget,
+  createVerifiedFontLicenseSidecar,
   gitBlobSha,
-  requireReviewedFontStagingTarget,
   reviewedFontSourceUrl,
   validateReviewedFontCandidate,
 } from '../../../scripts/lib/verifiedFontSources.mjs';
@@ -65,19 +66,40 @@ describe('original font candidate verification before Pipeline publication', () 
     expect(() => reviewedFontSourceUrl(manifest, { ...spec, assetId: 'unknown-source' })).toThrow(/not in/i);
   });
 
+  it('rejects every non-staging provider including production before any privileged publication', () => {
+    expect(assertPreviewFontPublicationTarget('https://mjdugheniazuiqoefnnb.supabase.co')).toBe(
+      'https://mjdugheniazuiqoefnnb.supabase.co',
+    );
+    expect(() => assertPreviewFontPublicationTarget('https://mpmmhjjhdxjedbmuctiv.supabase.co'))
+      .toThrow(/outside the verified/i);
+    expect(() => assertPreviewFontPublicationTarget('https://mjdugheniazuiqoefnnb.supabase.co.attacker.test'))
+      .toThrow(/outside the verified/i);
+    expect(() => assertPreviewFontPublicationTarget('https://mjdugheniazuiqoefnnb.supabase.co/path'))
+      .toThrow(/outside the verified/i);
+    expect(() => assertPreviewFontPublicationTarget('http://mjdugheniazuiqoefnnb.supabase.co'))
+      .toThrow(/outside the verified/i);
+    expect(() => assertPreviewFontPublicationTarget(''))
+      .toThrow(/requires the verified/i);
+  });
+
   it('produces a deterministic review digest for exact-approved input', () => {
     const input = Buffer.from(JSON.stringify(manifest));
     expect(curatedFontManifestDigest(input)).toBe(createHash('sha256').update(input).digest('hex'));
   });
-  it('refuses production and lookalike hostnames even with a valid candidate digest', () => {
-    expect(requireReviewedFontStagingTarget('https://mjdugheniazuiqoefnnb.supabase.co'))
-      .toBe('https://mjdugheniazuiqoefnnb.supabase.co');
-    expect(() => requireReviewedFontStagingTarget('https://mpmmhjjhdxjedbmuctiv.supabase.co'))
-      .toThrow(/staging/i);
-    expect(() => requireReviewedFontStagingTarget('https://mjdugheniazuiqoefnnb.supabase.co.evil.test'))
-      .toThrow(/staging/i);
-    expect(() => requireReviewedFontStagingTarget('http://mjdugheniazuiqoefnnb.supabase.co'))
-      .toThrow(/staging/i);
+  it('preserves the entire original copyright notice alongside an immutable official font', () => {
+    const sidecar = createVerifiedFontLicenseSidecar({
+      candidate: spec, licenseBytes: notice, sourceRevision: manifest.upstreamRevision,
+    });
+    const parsed = JSON.parse(sidecar.toString('utf8'));
+    expect(parsed.license).toBe('OFL-1.1');
+    expect(parsed.copyrightAndLicenseText).toBe(notice.toString('utf8'));
+    expect(parsed.licenseGitBlobSha).toBe(gitBlobSha(notice));
+    expect(createVerifiedFontLicenseSidecar({
+      candidate: spec, licenseBytes: notice, sourceRevision: manifest.upstreamRevision,
+    }).equals(sidecar)).toBe(true);
+    expect(() => createVerifiedFontLicenseSidecar({
+      candidate: spec, licenseBytes: Buffer.from('altered'), sourceRevision: manifest.upstreamRevision,
+    })).toThrow(/original/i);
   });
 
 });

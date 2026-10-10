@@ -4,7 +4,12 @@ import path from 'path';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
-import { gitBlobSha, requireReviewedFontStagingTarget, verifyReviewedFontSources } from './lib/verifiedFontSources.mjs';
+import {
+  assertPreviewFontPublicationTarget,
+  createVerifiedFontLicenseSidecar,
+  gitBlobSha,
+  verifyReviewedFontSources,
+} from './lib/verifiedFontSources.mjs';
 
 const configuredOwnerEmail = (value) => {
   const emails = [...new Set((value || '')
@@ -696,33 +701,28 @@ const publishReviewedFirstPartyFonts = async ({
     const objectPath = 'owner-defaults/fonts/' + candidate.assetId + '/' + candidate.gitBlobSha + '.ttf';
     const bucket = supabase.storage.from(ASSET_BUCKET);
 
-    // Ship the immutable original copyright notice alongside each font, not
-    // merely as an external source link. JSON is the managed bucket's permitted
-    // small-document MIME type; the entire original OFL text is retained.
+    // The public Storage bucket allows JSON documents, but not text/plain.
+    // Bundle the *entire original* OFL text as a deterministic JSON sidecar.
     const licenseObjectPath = 'owner-defaults/fonts/' + candidate.assetId
       + '/' + candidate.licenseGitBlobSha + '-OFL.json';
-    const licenseContents = Buffer.from(JSON.stringify({
-      license: 'OFL-1.1',
-      copyrightAndLicenseText: Buffer.from(licenseBytes).toString('utf8'),
-      sourceRepository: 'https://github.com/google/fonts',
-      sourceRevision: verified.sourceRevision,
-      licenseGitBlobSha: candidate.licenseGitBlobSha,
-    }, null, 2) + '\n');
-    const licenseUpload = await bucket.upload(licenseObjectPath, licenseContents, {
-      contentType: 'application/json',
-      upsert: false,
-      cacheControl: '31536000',
+    const licenseContents = createVerifiedFontLicenseSidecar({
+      candidate, licenseBytes, sourceRevision: verified.sourceRevision,
     });
-    if (licenseUpload.error) {
-      // Reuse an interrupted immutable upload only after byte verification.
-      const previous = await bucket.download(licenseObjectPath);
-      if (previous.error || !previous.data
-        || !Buffer.from(await previous.data.arrayBuffer()).equals(licenseContents)) {
-        throw new Error('Original copyright notice could not be preserved for ' + candidate.assetId);
+    const noticeUpload = await bucket.upload(licenseObjectPath, licenseContents, {
+      contentType: 'application/json',
+      cacheControl: '31536000',
+      upsert: false,
+    });
+    if (noticeUpload.error) {
+      // An incomplete prior attempt may leave an immutable sidecar; trust it
+      // only when its *complete* bytes are identical to this reviewed notice.
+      const existingNotice = await bucket.download(licenseObjectPath);
+      if (existingNotice.error || !existingNotice.data
+        || !Buffer.from(await existingNotice.data.arrayBuffer()).equals(licenseContents)) {
+        throw new Error('The full original OFL notice could not be preserved for ' + candidate.assetId);
       }
     }
     const licensePublicUrl = bucket.getPublicUrl(licenseObjectPath).data.publicUrl;
-
     const upload = await bucket.upload(objectPath, bytes, {
       contentType: 'font/ttf',
       upsert: false,
@@ -799,9 +799,12 @@ const publishReviewedFirstPartyFonts = async ({
 
 const main = async () => {
   const verifyOnly = process.argv.includes('--verify-reviewed-fonts');
+  const providerPreflight = process.argv.includes('--preflight-reviewed-fonts');
   const publishFonts = process.argv.includes('--publish-reviewed-fonts');
-  if (verifyOnly && publishFonts) throw new Error('Choose verification OR reviewed publication.');
-  const verified = verifyOnly || publishFonts
+  if (Number(verifyOnly) + Number(providerPreflight) + Number(publishFonts) > 1) {
+    throw new Error('Choose one reviewed Font operation: source verification, provider preflight, or publication.');
+  }
+  const verified = verifyOnly || providerPreflight || publishFonts
     ? await verifyReviewedFontSources({ manifestPath: path.join(projectRoot, VERIFIED_FONTS_MANIFEST) })
     : null;
   if (verifyOnly && verified) {
@@ -838,7 +841,11 @@ const main = async () => {
   if (!supabaseUrl || !supabaseSecretKey) {
     throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required.');
   }
-  if (publishFonts) requireReviewedFontStagingTarget(supabaseUrl);
+  if (providerPreflight || publishFonts) {
+    // Production URL (or any other project) is forbidden for this reviewed
+    // Preview-only font batch, even if its credentials would otherwise work.
+    assertPreviewFontPublicationTarget(supabaseUrl);
+  }
 
   const supabase = createClient(supabaseUrl, supabaseSecretKey, {
     auth: {
@@ -873,6 +880,34 @@ const main = async () => {
     (existingRegistry || []).map((entry) => [entry.asset_id, entry]),
   );
   const tombstonedAssetIds = new Set((tombstones || []).map((entry) => entry.asset_id));
+
+  if ((providerPreflight || publishFonts) && verified) {
+    // Use the exact same credentials and native Storage provider that would
+    // perform a real upload, but make no writes during preflight.
+    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+    const selectedBucket = (buckets || []).find((bucket) => bucket.id === ASSET_BUCKET);
+    if (bucketError || !selectedBucket || !selectedBucket.public) {
+      throw new Error('Staging Pipeline public asset bucket cannot be verified with the configured key.');
+    }
+    for (const { candidate } of verified.items) {
+      if (tombstonedAssetIds.has(candidate.assetId)) {
+        throw new Error('A reviewed Font candidate is retired/tombstoned: ' + candidate.assetId);
+      }
+      const existing = existingRegistryByAssetId.get(candidate.assetId);
+      if (existing && (existing.metadata?.sourceGitBlobSha !== candidate.gitBlobSha
+        || existing.metadata?.sourceKind !== 'reviewed-first-party-original'
+        || existing.library_source !== 'official'
+        || existing.storage_bucket !== ASSET_BUCKET)) {
+        throw new Error('Existing reviewed Font identity conflicts with current Pipeline state: ' + candidate.assetId);
+      }
+    }
+    if (providerPreflight) {
+      console.log('Card Forge Staging target verified, one active Owner profile selected, public Pipeline bucket accessible.');
+      console.log('All ' + verified.items.length + ' candidate identities are clear or match the same pinned source.');
+      console.log('Read-only preflight passed. No Storage objects or Pipeline rows changed.');
+      return;
+    }
+  }
 
   if (publishFonts && verified) {
     await publishReviewedFirstPartyFonts({
