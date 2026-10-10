@@ -6,7 +6,9 @@ on:
     branches: [vercel-preview, main]
     paths:
       - 'plugins/cardforge-studio/**'
+      - 'plugins/cardforge-owner/**'
       - 'scripts/package-cardforge-plugin.mjs'
+      - 'scripts/package-cardforge-preview-plugins.mjs'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/plugin-package.yml'
@@ -37,5 +39,16 @@ jobs:
         with:
           name: cardforge-studio-plugin
           path: dist/plugins/cardforge-studio-*.zip
+          if-no-files-found: error
+          retention-days: 30
+      - name: Build private Preview plugin variants
+        if: github.ref == 'refs/heads/vercel-preview'
+        run: npm run plugin:package:preview
+      - name: Upload private Preview preparation artifacts
+        if: github.ref == 'refs/heads/vercel-preview'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cardforge-private-preview-plugins
+          path: dist/plugins/cardforge-*-preview-*.zip
           if-no-files-found: error
           retention-days: 30
