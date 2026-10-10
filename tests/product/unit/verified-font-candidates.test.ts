@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
   curatedFontManifestDigest,
   gitBlobSha,
+  requireReviewedFontStagingTarget,
   reviewedFontSourceUrl,
   validateReviewedFontCandidate,
 } from '../../../scripts/lib/verifiedFontSources.mjs';
@@ -68,4 +69,15 @@ describe('original font candidate verification before Pipeline publication', () 
     const input = Buffer.from(JSON.stringify(manifest));
     expect(curatedFontManifestDigest(input)).toBe(createHash('sha256').update(input).digest('hex'));
   });
+  it('refuses production and lookalike hostnames even with a valid candidate digest', () => {
+    expect(requireReviewedFontStagingTarget('https://mjdugheniazuiqoefnnb.supabase.co'))
+      .toBe('https://mjdugheniazuiqoefnnb.supabase.co');
+    expect(() => requireReviewedFontStagingTarget('https://mpmmhjjhdxjedbmuctiv.supabase.co'))
+      .toThrow(/staging/i);
+    expect(() => requireReviewedFontStagingTarget('https://mjdugheniazuiqoefnnb.supabase.co.evil.test'))
+      .toThrow(/staging/i);
+    expect(() => requireReviewedFontStagingTarget('http://mjdugheniazuiqoefnnb.supabase.co'))
+      .toThrow(/staging/i);
+  });
+
 });

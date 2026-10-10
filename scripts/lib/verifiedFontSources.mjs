@@ -17,6 +17,27 @@ export const gitBlobSha = (bytes) => createHash('sha1')
 
 export const curatedFontManifestDigest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
+/**
+ * Publication is deliberately confined to Card Forge Staging; credentials
+ * alone cannot authorize publishing a reviewed batch to Production.
+ */
+export const requireReviewedFontStagingTarget = (supabaseUrl) => {
+  let url;
+  try {
+    url = new URL(supabaseUrl);
+  } catch {
+    throw new Error('Reviewed Font publication requires the exact Card Forge Staging API URL.');
+  }
+  const stagingOrigin = 'https://mjdugheniazuiqoefnnb.supabase.co';
+  if (url.origin !== stagingOrigin || url.pathname !== '/'
+    || url.search || url.hash || url.username || url.password) {
+    throw new Error('Reviewed Font publication is limited to Card Forge Staging (mjdugheniazuiqoefnnb). No production writes are permitted.');
+  }
+  return stagingOrigin;
+};
+
+
+
 const assertSourceSpec = (manifest) => {
   if (!manifest || manifest.schemaVersion !== 1
     || manifest.publicationState !== 'candidates-require-founder-review'
@@ -160,7 +181,7 @@ export const verifyReviewedFontSources = async ({
       throw new Error(candidate.assetId + ': '
         + (error instanceof Error ? error.message : 'Source validation failed.'));
     }
-    return { candidate, ...validated, sourceUrl: url, licensePath };
+    return { candidate, ...validated, sourceUrl: url, licensePath, licenseBytes: notice };
   }));
   return { items: verified, sourceRevision: manifest.upstreamRevision, manifestDigest: curatedFontManifestDigest(manifestBytes) };
 };

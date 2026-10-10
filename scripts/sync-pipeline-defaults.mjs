@@ -4,7 +4,7 @@ import path from 'path';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
-import { gitBlobSha, verifyReviewedFontSources } from './lib/verifiedFontSources.mjs';
+import { gitBlobSha, requireReviewedFontStagingTarget, verifyReviewedFontSources } from './lib/verifiedFontSources.mjs';
 
 const configuredOwnerEmail = (value) => {
   const emails = [...new Set((value || '')
@@ -679,6 +679,8 @@ const publishReviewedFirstPartyFonts = async ({
     }
     const present = existingRegistryByAssetId.get(candidate.assetId);
     if (present && (present.metadata?.sourceGitBlobSha !== candidate.gitBlobSha
+      || present.metadata?.sourceKind !== 'reviewed-first-party-original'
+      || present.library_source !== 'official'
       || present.storage_bucket !== ASSET_BUCKET)) {
       throw new Error('Existing Font identity differs from reviewed source. Resolve before publishing: ' + candidate.assetId);
     }
@@ -686,13 +688,41 @@ const publishReviewedFirstPartyFonts = async ({
 
   let published = 0;
   let preserved = 0;
-  for (const { candidate, bytes, sourceUrl, fontWeightRange, glyphCount } of verified.items) {
+  for (const { candidate, bytes, sourceUrl, fontWeightRange, glyphCount, licenseBytes } of verified.items) {
     if (existingRegistryByAssetId.has(candidate.assetId)) {
       preserved++;
       continue; // Never override a subsequent human Owner access/retirement decision.
     }
     const objectPath = 'owner-defaults/fonts/' + candidate.assetId + '/' + candidate.gitBlobSha + '.ttf';
     const bucket = supabase.storage.from(ASSET_BUCKET);
+
+    // Ship the immutable original copyright notice alongside each font, not
+    // merely as an external source link. JSON is the managed bucket's permitted
+    // small-document MIME type; the entire original OFL text is retained.
+    const licenseObjectPath = 'owner-defaults/fonts/' + candidate.assetId
+      + '/' + candidate.licenseGitBlobSha + '-OFL.json';
+    const licenseContents = Buffer.from(JSON.stringify({
+      license: 'OFL-1.1',
+      copyrightAndLicenseText: Buffer.from(licenseBytes).toString('utf8'),
+      sourceRepository: 'https://github.com/google/fonts',
+      sourceRevision: verified.sourceRevision,
+      licenseGitBlobSha: candidate.licenseGitBlobSha,
+    }, null, 2) + '\n');
+    const licenseUpload = await bucket.upload(licenseObjectPath, licenseContents, {
+      contentType: 'application/json',
+      upsert: false,
+      cacheControl: '31536000',
+    });
+    if (licenseUpload.error) {
+      // Reuse an interrupted immutable upload only after byte verification.
+      const previous = await bucket.download(licenseObjectPath);
+      if (previous.error || !previous.data
+        || !Buffer.from(await previous.data.arrayBuffer()).equals(licenseContents)) {
+        throw new Error('Original copyright notice could not be preserved for ' + candidate.assetId);
+      }
+    }
+    const licensePublicUrl = bucket.getPublicUrl(licenseObjectPath).data.publicUrl;
+
     const upload = await bucket.upload(objectPath, bytes, {
       contentType: 'font/ttf',
       upsert: false,
@@ -719,6 +749,7 @@ const publishReviewedFirstPartyFonts = async ({
       licenseGitBlobSha: candidate.licenseGitBlobSha,
       licenseUrl: 'https://raw.githubusercontent.com/google/fonts/'
         + verified.sourceRevision + '/ofl/' + candidate.sourceDirectory + '/OFL.txt',
+      licensePublicUrl,
       originalFontUnmodified: true,
       family: candidate.family,
       category: candidate.category,
@@ -749,12 +780,14 @@ const publishReviewedFirstPartyFonts = async ({
     }, { ...ownerProfile, email: OWNER_EMAIL });
     const { data: readback, error: readbackError } = await supabase
       .from('cardforge_asset_registry')
-      .select('asset_id,asset_type,status,url,storage_path,metadata')
+      .select('asset_id,asset_type,status,library_source,url,storage_path,metadata')
       .eq('asset_id', candidate.assetId)
       .maybeSingle();
     if (readbackError || readback?.status !== 'published' || readback?.asset_type !== 'font'
+      || readback.library_source !== 'official'
       || readback.storage_path !== objectPath || readback.url !== publicUrl
-      || readback.metadata?.sourceGitBlobSha !== candidate.gitBlobSha) {
+      || readback.metadata?.sourceGitBlobSha !== candidate.gitBlobSha
+      || readback.metadata?.licensePublicUrl !== licensePublicUrl) {
       throw new Error('Font publication may have committed but readback is unavailable for '
         + candidate.assetId + '. Inspect the canonical Pipeline registry before retrying.');
     }
@@ -805,6 +838,7 @@ const main = async () => {
   if (!supabaseUrl || !supabaseSecretKey) {
     throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required.');
   }
+  if (publishFonts) requireReviewedFontStagingTarget(supabaseUrl);
 
   const supabase = createClient(supabaseUrl, supabaseSecretKey, {
     auth: {
@@ -828,7 +862,7 @@ const main = async () => {
 
   const { data: existingRegistry, error: registryError } = await supabase
     .from('cardforge_asset_registry')
-    .select('asset_id,url,storage_bucket,storage_path,file_size_bytes,metadata');
+    .select('asset_id,url,storage_bucket,storage_path,file_size_bytes,library_source,metadata');
   if (registryError) throw registryError;
   const { data: tombstones, error: tombstoneError } = await supabase
     .from('cardforge_pipeline_asset_tombstones')

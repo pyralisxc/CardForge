@@ -34,3 +34,11 @@ CARDFORGE_FONT_BATCH_APPROVAL="<reviewed manifest SHA-256>" node scripts/sync-pi
 That action requires the existing configured, authenticated CardForge owner profile and Supabase secret credentials; it re-verifies **all four** sources before writing, then uses the same managed Pipeline Storage and canonical owner bootstrap registry RPC as other first-party content. It refuses retired IDs, preserves existing Owner decisions, and checks actual published registry rows afterward. A provider timeout or unreadable post-commit result requires manual inspection before retrying.
 
 Neither a normal site build nor `scripts/sync-pipeline-defaults.mjs` without the explicit flag publishes this candidate batch. It must not be invoked against Production before its own reviewed provider release gate.
+
+## Isolated staging publication invariant
+
+`--publish-reviewed-fonts` refuses every Supabase project except the exact `Card Forge Staging` API origin `https://mjdugheniazuiqoefnnb.supabase.co`. This check is independent of the secret supplied by an operator. **Production project `mpmmhjjhdxjedbmuctiv` is explicitly prohibited.** The pinned release digest, configured active staging Owner identity, and full source/OFL validation remain mandatory.
+
+The canonical Pipeline import function marks only signed-in/privileged, source-verified original-font imports as **official**; other historical Contributor uploads remain `contributor`. Every new verified font has an immutable managed original TTF and an accompanying managed JSON document containing the **complete unmodified OFL notice**, with both URLs recorded in registry metadata. The native command requires the committed database row to report `official` and the expected source/license hashes. A source, classification, or post-commit readback mismatch blocks claiming success.
+
+Review the staging migration `20261010030000_first_party_font_registry_source.sql` before any manual publication. Schema and code gating do not by themselves upload fonts.
