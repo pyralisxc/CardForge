@@ -105,4 +105,19 @@ describe('migration safety guard', () => {
     expect(migration).toContain("where submission.status in ('archived', 'rejected')");
     expect(migration).toContain("and registry.status = 'published'");
   });
+  it('keeps official source for verified first-party fonts in the native Pipeline function', () => {
+    const sql = readFileSync(resolve(process.cwd(), 'supabase/migrations/20261010030000_first_party_font_registry_source.sql'), 'utf8');
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.cardforge_upsert_pipeline_registry_asset');
+    expect(sql).toContain("p_registry_asset_type = 'font'");
+    expect(sql).toContain("p_metadata ->> 'sourceKind' = 'reviewed-first-party-original'");
+    expect(sql).toContain("p_storage_bucket = 'cardforge-contributor-assets'");
+    expect(sql).toContain("case when reviewed_first_party_font then 'official' else 'contributor' end");
+    expect(sql).toContain("and p_metadata ->> 'reviewedBatchDigest' ~ '^[a-f0-9]{64}$';");
+    expect(sql).toContain("and p_metadata ->> 'sourceGitBlobSha' ~ '^[a-f0-9]{40}$'");
+    expect(sql).toContain('on conflict (asset_id) do update');
+    expect(sql).not.toContain('library_source = excluded.library_source');
+    expect(sql).toContain('to service_role;');
+    expect(sql).not.toMatch(/update public\\.cardforge_asset_registry\\s+set/iu);
+  });
+
 });

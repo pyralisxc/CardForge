@@ -17,6 +17,28 @@ export const gitBlobSha = (bytes) => createHash('sha1')
 
 export const curatedFontManifestDigest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
+/** The original notice is published alongside the immutable original font.
+ * It remains byte-for-byte recoverable from this deterministic JSON payload. */
+export const createVerifiedFontLicenseSidecar = ({ candidate, licenseBytes, sourceRevision }) => {
+  const original = Buffer.from(licenseBytes);
+  if (!SHA.test(sourceRevision) || gitBlobSha(original) !== candidate.licenseGitBlobSha) {
+    throw new Error('The source copyright notice differs from the pinned original.');
+  }
+  const originalNotice = original.toString('utf8');
+  if (!originalNotice.includes('SIL OPEN FONT LICENSE Version 1.1') || !/copyright/iu.test(originalNotice)) {
+    throw new Error('The original font license notice is incomplete.');
+  }
+  return Buffer.from(JSON.stringify({
+    license: 'OFL-1.1',
+    copyrightAndLicenseText: originalNotice,
+    sourceRepository: 'https://github.com/google/fonts',
+    sourceRevision,
+    licenseGitBlobSha: candidate.licenseGitBlobSha,
+  }, null, 2) + '\n');
+};
+
+
+
 // Approved typography publication in this tranche is strictly a STAGING-only
 // operation. A valid digest and Owner secret are not permission to write to the
 // production Supabase project. This explicit identity check must remain before
@@ -182,7 +204,7 @@ export const verifyReviewedFontSources = async ({
       throw new Error(candidate.assetId + ': '
         + (error instanceof Error ? error.message : 'Source validation failed.'));
     }
-    return { candidate, ...validated, sourceUrl: url, licensePath };
+    return { candidate, ...validated, sourceUrl: url, licensePath, licenseBytes: notice };
   }));
   return { items: verified, sourceRevision: manifest.upstreamRevision, manifestDigest: curatedFontManifestDigest(manifestBytes) };
 };

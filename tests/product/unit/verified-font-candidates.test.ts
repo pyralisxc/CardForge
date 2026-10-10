@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
   curatedFontManifestDigest,
   assertPreviewFontPublicationTarget,
+  createVerifiedFontLicenseSidecar,
   gitBlobSha,
   reviewedFontSourceUrl,
   validateReviewedFontCandidate,
@@ -85,4 +86,20 @@ describe('original font candidate verification before Pipeline publication', () 
     const input = Buffer.from(JSON.stringify(manifest));
     expect(curatedFontManifestDigest(input)).toBe(createHash('sha256').update(input).digest('hex'));
   });
+  it('preserves the entire original copyright notice alongside an immutable official font', () => {
+    const sidecar = createVerifiedFontLicenseSidecar({
+      candidate: spec, licenseBytes: notice, sourceRevision: manifest.upstreamRevision,
+    });
+    const parsed = JSON.parse(sidecar.toString('utf8'));
+    expect(parsed.license).toBe('OFL-1.1');
+    expect(parsed.copyrightAndLicenseText).toBe(notice.toString('utf8'));
+    expect(parsed.licenseGitBlobSha).toBe(gitBlobSha(notice));
+    expect(createVerifiedFontLicenseSidecar({
+      candidate: spec, licenseBytes: notice, sourceRevision: manifest.upstreamRevision,
+    }).equals(sidecar)).toBe(true);
+    expect(() => createVerifiedFontLicenseSidecar({
+      candidate: spec, licenseBytes: Buffer.from('altered'), sourceRevision: manifest.upstreamRevision,
+    })).toThrow(/original/i);
+  });
+
 });

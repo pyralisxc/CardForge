@@ -46,3 +46,11 @@ node scripts/sync-pipeline-defaults.mjs --preflight-reviewed-fonts
 This command verifies the original files and licenses again, checks that the configured key can read the **specific staging project**, finds exactly one active matching Owner Contributor profile, checks access to the existing public Pipeline Storage bucket and confirms candidate IDs are available/not tombstoned. It performs **no storage upload or database mutation**. An unavailable or mismatched provider fails closed.
 
 Once the read-only provider preflight is green in a privileged operator environment, use the earlier `--publish-reviewed-fonts` command with the exact manifest digest and verify all four actual Pipeline rows, Preview Studio discovery, card rendering, and export. The production environment requires a future independently approved workflow—not simply changing the project URL. Never paste service credentials into chat or commit them to Git.
+
+## Native first-party catalog provenance
+
+The staging database's original general-purpose first-party importer marks ordinary assets as `contributor`. Forward migration `20261010030000_first_party_font_registry_source.sql` narrows the existing native routine so **only** pinned original OFL Fonts bearing reviewed source/license and batch-digest metadata are classified as **official**. Other Contributor assets and subsequent Owner decisions remain unchanged.
+
+Publication now stores a deterministic, public JSON sidecar containing the **complete original OFL copyright/license text** next to each immutable `font/ttf` in the existing managed Pipeline bucket. Both published URLs remain discoverable from the canonical registry metadata. Post-commit readback requires `library_source='official'`, the original SHA and the correct managed notice URL. The operator must see that the forward migration has arrived in isolated staging before invoking publication.
+
+The existing `--preflight-reviewed-fonts` command is still the only read-only credentialed gate. It and `--publish-reviewed-fonts` both keep PR #441's exact staging origin restriction and refuse Production; there is no new database or CLI auth model.
