@@ -73,6 +73,17 @@ Preview connections are **a target to verify, not an installed/connected claim**
 
 For a Work agent, prove signed-out failure, actual environment identity, Studio Free/Contributor scopes, Owner role rejection, staging catalog reads, revision conflicts and one explicitly approved staging-only write/readback before claiming operational parity. Git Main, Production Supabase and public publication are not authorized by this testing gate. Work item #444 owns the connection bridge; Owner #407, Studio public #408 and first-party fonts #377 keep their own domain gates.
 
+Build both private variants with `npm run plugin:package:preview`. Outputs are `dist/plugins/cardforge-studio-preview-<canonical-version>.zip` and `dist/plugins/cardforge-owner-preview-<canonical-version>.zip`. The builder reads only the canonical product allowlists, preserves Studio skill bytes and production sources, pins the two stable Preview paths, rejects connection overrides/credentials, and uses deterministic archive metadata. Versioning follows the canonical product; do not maintain another Preview source tree. These outputs are preparation artifacts, not an installation receipt. Production package commands and public submission remain separate.
+
+Keep protected ingress ahead of installation:
+
+1. Open the stable Preview in Work's cloud browser. The user signs into Vercel with deployment access, then separately into the CardForge Clerk development instance. A browser cookie does not authorize ChatGPT's remote MCP transport.
+2. Check both Preview MCP paths and OAuth discovery with the supported MCP client. Require a Clerk authentication challenge/metadata rather than Vercel HTML/login redirection, then complete user-controlled OAuth consent. If Vercel intercepts discovery or transport, leave the packages uninstalled and preserve protection. Use the authenticated browser for native Studio/Owner testing; it proves only those browser journeys.
+3. Once ingress is proven, save each package through the host's private plugin creation flow and connect through its user-controlled sign-in/consent. Verify endpoint binding, server environment and same-account catalog reads before writes. Do not repurpose a production-bound app solely because its label says Preview.
+4. Compare the read revision with a small approved Staging mutation and browser readback, and demonstrate stale-revision rejection and wrong-role denial. Keep publication, billing and destructive operations within their own approval gates.
+
+Vercel's documented protection alternatives include scoped browser access, secret-bearing share/automation access, whole-domain exceptions, and an OPTIONS-only allowlist. Neither an OPTIONS-only exception nor browser sign-in establishes persistent remote MCP authorization. Domain exceptions expose the domain and can require a paid add-on; they are not an approved substitute. Do not weaken protection or introduce a proxy/authentication service to manufacture connectivity. Any new provider-supported option must prove least privilege and receive an exact owner decision if it changes exposure or cost.
+
 Before any merge into `main`, the agent must send Cameron the stable Preview link, the exact candidate SHA, and the specific review scope, then wait for explicit approval. A READY Vercel deployment does not authorize a merge.
 
 Accumulated Preview and release sequence:

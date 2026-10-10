@@ -22,3 +22,7 @@ The publishable archive is built from an explicit allowlist and contains only:
 `SUBMISSION.md` remains the store/reviewer listing source in Git, but it is not part of the runtime install archive. The package always targets the canonical production MCP endpoint at `https://cardforges.com/mcp`.
 
 The product test suite builds and extracts the real ZIP in a clean temporary directory to verify its contents, relative references, skill bytes, endpoint, and deterministic output.
+
+## Private Preview connection
+
+`npm run plugin:package:preview` derives both private Studio Preview and Owner Preview archives from their canonical product sources. Studio Preview uses the stable `vercel-preview` `/mcp` endpoint and copies these exact skill bytes; it is not a separate implementation or Contributor product. The production command and archive remain unchanged. See `docs/operations.md#private-preview-plugin-acceptance` for protection, authentication, installation and Staging acceptance gates. Building an archive does not establish a working connection or public availability.
