@@ -112,6 +112,8 @@ describe('migration safety guard', () => {
     expect(sql).toContain("p_metadata ->> 'sourceKind' = 'reviewed-first-party-original'");
     expect(sql).toContain("p_storage_bucket = 'cardforge-contributor-assets'");
     expect(sql).toContain("case when reviewed_first_party_font then 'official' else 'contributor' end");
+    expect(sql).toContain("and p_metadata ->> 'reviewedBatchDigest' ~ '^[a-f0-9]{64}$';");
+    expect(sql).toContain("and p_metadata ->> 'sourceGitBlobSha' ~ '^[a-f0-9]{40}$'");
     expect(sql).toContain('on conflict (asset_id) do update');
     expect(sql).not.toContain('library_source = excluded.library_source');
     expect(sql).toContain('to service_role;');
