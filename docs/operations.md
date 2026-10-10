@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: September 1, 2026
+Last updated: October 10, 2026
 
 This is the current runbook for `https://cardforges.com`. It contains only procedures that remain operationally useful. Completed rollout/cutover instructions belong in Git/provider history.
 
@@ -59,6 +59,19 @@ The former reusable QA accounts are retired. Do not recreate them or treat an ol
 Google's dedicated Preview OAuth client authorizes the stable Preview origin and its `/api/project-sources/google-drive/callback` redirect. The Google app is in Testing, so the selected Google account must also be an allowed test user. Google limits refresh tokens for this external Testing app's Drive grant to seven days; reconnect through the native flow when required ([OAuth app states](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview)). A disconnected Drive account does not imply that Preview OAuth is unsupported. Vercel Authentication, Clerk sign-in, and Drive consent are separate boundaries. Changing the Google app's publishing status affects its clients and is a separate provider decision.
 
 No password, verification secret, API key, OAuth token, or bypass value belongs in the repository. Use Clerk's provider-defined development testing path and the provider dashboards when a fresh authenticated browser session is required.
+
+### Private Preview plugin acceptance
+
+CardForge has **two plugin products**, with four intended environment-distinct connections:
+
+- Production Studio: `https://cardforges.com/mcp` — public submission/release has its own review gate.
+- Production Owner: `https://cardforges.com/mcp/owner` — private, server-authorized Owner only.
+- Preview Studio: `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app/mcp` — private developer/testing, Staging providers only.
+- Preview Owner: `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app/mcp/owner` — private Owner testing, Staging only.
+
+Preview connections are **a target to verify, not an installed/connected claim**. The currently named `CardForge Studio Preview Test` app returned production-compatible font results; confirm its actual endpoint and authority before trusting its name. Vercel Authentication must be reconciled with Clerk development OAuth before a remote Preview plugin can work; never put project-wide bypass credentials into packages, client URLs or public instructions. If native MCP ingress remains unavailable, keep Vercel protection and use authenticated Work cloud-browser/Inspector testing while a narrow provider-safe option is resolved.
+
+For a Work agent, prove signed-out failure, actual environment identity, Studio Free/Contributor scopes, Owner role rejection, staging catalog reads, revision conflicts and one explicitly approved staging-only write/readback before claiming operational parity. Git Main, Production Supabase and public publication are not authorized by this testing gate. Work item #444 owns the connection bridge; Owner #407, Studio public #408 and first-party fonts #377 keep their own domain gates.
 
 Before any merge into `main`, the agent must send Cameron the stable Preview link, the exact candidate SHA, and the specific review scope, then wait for explicit approval. A READY Vercel deployment does not authorize a merge.
 
