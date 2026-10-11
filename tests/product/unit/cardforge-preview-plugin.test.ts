@@ -41,8 +41,8 @@ describe('private Preview plugin derivation', () => {
         const skills = item.product === 'studio' ? [
           'skills/create-cards-and-sets/SKILL.md', 'skills/create-editable-template/SKILL.md',
         ] : [];
-        expect(Object.keys(zip.files).sort()).toEqual(['.codex-plugin/plugin.json', '.mcp.json', ...skills]);
-        const manifest = JSON.parse(await zip.file('.codex-plugin/plugin.json')!.async('string'));
+        expect(Object.keys(zip.files).sort()).toEqual(['.codex-plugin/plugin.json', '.mcp.json', 'mcp.json', 'plugin.json', ...skills].map((file) => `${name}/${file}`).sort());
+        const manifest = JSON.parse(await zip.file(`${name}/.codex-plugin/plugin.json`)!.async('string'));
         expect(manifest).toMatchObject({
           name, version: canonical.version, mcpServers: './.mcp.json',
           interface: {
@@ -51,15 +51,28 @@ describe('private Preview plugin derivation', () => {
             capabilities: canonical.interface.capabilities,
           },
         });
+        const portable = JSON.parse(await zip.file(`${name}/plugin.json`)!.async('string'));
+        expect(portable).toMatchObject({ name, version: canonical.version, extensions: {
+          'com.openai': { interface: manifest.interface },
+        } });
+        expect(portable).not.toHaveProperty('mcpServers');
+        expect(portable).not.toHaveProperty('skills');
+        expect(manifest.interface.shortDescription.length).toBeLessThanOrEqual(30);
+        expect(manifest.interface.defaultPrompt).toEqual(canonical.interface.defaultPrompt);
+        expect(manifest.interface.longDescription).not.toContain('Vercel protection');
+        expect(JSON.parse(await zip.file(`${name}/mcp.json`)!.async('string'))).toEqual({
+          $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
+          mcpServers: { [name]: { type: 'streamable-http', url: `${origin}/mcp${item.product === 'owner' ? '/owner' : ''}` } },
+        });
         expect(manifest.interface.longDescription).toContain('Staging');
         expect(manifest.interface.longDescription).toContain('grants no Owner or Contributor permission');
         expect(manifest.interface.privacyPolicyURL).toBe(canonical.interface.privacyPolicyURL);
         expect(manifest.interface.termsOfServiceURL).toBe(canonical.interface.termsOfServiceURL);
-        expect(JSON.parse(await zip.file('.mcp.json')!.async('string'))).toEqual({ mcpServers: {
+        expect(JSON.parse(await zip.file(`${name}/.mcp.json`)!.async('string'))).toEqual({ mcpServers: {
           [name]: { type: 'http', url: `${origin}/mcp${item.product === 'owner' ? '/owner' : ''}` },
         } });
         for (const skill of skills) {
-          expect(await zip.file(skill)!.async('nodebuffer')).toEqual(readFileSync(join(item.source, skill)));
+          expect(await zip.file(`${name}/${skill}`)!.async('nodebuffer')).toEqual(readFileSync(join(item.source, skill)));
         }
         expect(readFileSync(join(item.source, '.codex-plugin/plugin.json'))).toEqual(item.manifest);
         expect(readFileSync(join(item.source, '.mcp.json'))).toEqual(item.mcp);
