@@ -187,7 +187,14 @@ export const registerOwnerReadTools = ({
           structuredContent: {
             environment: deploymentEnvironment(),
             livePublication: isProduction,
-            siteContentBlock: publication.siteContentBlock,
+            siteContentBlock: {
+              slug: publication.siteContentBlock.slug,
+              group: publication.siteContentBlock.group,
+              section: publication.siteContentBlock.section,
+              label: publication.siteContentBlock.label,
+              body: publication.siteContentBlock.body,
+              updatedAt: publication.siteContentBlock.updatedAt,
+            },
             receipt: publication.receipt,
           },
         };
@@ -217,7 +224,16 @@ export const registerOwnerReadTools = ({
             site: status.site,
             authConfigured: status.authConfigured,
             canonicalOwnerConfigured: status.canonicalOwnerConfigured,
-            billing: status.billing,
+            billing: {
+              productAccessConfigured: status.billing.productAccessConfigured,
+              supportConfigured: status.billing.supportConfigured,
+              webhookConfigured: status.billing.webhookConfigured,
+              missing: [...new Set([
+                ...status.billing.missingProductAccess,
+                ...status.billing.missingDesignerPass,
+                ...status.billing.missingSupport,
+              ])],
+            },
             supabase: status.supabase,
             analytics: status.analytics,
             email: status.email,
