@@ -19,7 +19,10 @@ export const cardforgeMiddleware = (
     return NextResponse.next();
   }
 
-  if (request.nextUrl.pathname === '/mcp') {
+  if (
+    request.nextUrl.pathname === '/mcp'
+    || request.nextUrl.pathname === '/mcp/owner'
+  ) {
     return oauthClerkHandler(request, event);
   }
 
