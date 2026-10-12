@@ -11,9 +11,13 @@ The `0.2.0` surface remains read-heavy:
 - current Owner-controlled site snapshot;
 - provider/readiness projection;
 - recent Owner activity;
-- one bounded site-copy publication command.
+- bounded site-copy publication;
+- current CTA/navigation labels and announcement state with their shared settings revision;
+- single-field CTA/navigation-label and announcement-text publication through the same command as on-page Owner editing.
 
 Site-copy publication requires the exact `updatedAt` revision returned by the Owner snapshot. A stale browser or agent is rejected instead of overwriting newer work. In production that command publishes live; in Preview it changes staging only.
+
+Use `get_owner_site_fields` before `publish_owner_site_field`. Supply the exact settings `updatedAt`; navigation edits also require an item id returned by the read. These tools change text only: link destinations, visibility and announcement enabled state remain contextual reads. A null settings revision cannot be published. After a conflict, reload and review current settings. A committed receipt is terminal even if refresh or activity recording is incomplete; verify state before further changes rather than repeating the write.
 
 It does not expose repository editing or generic database operations. Additional live mutation tools should be added only through the canonical feature-owned Owner command layer so the browser and agent remain peer clients of one state model.
 

@@ -4,7 +4,7 @@ import { getMcpOwnerAccess } from './mcpOwnerAccess';
 import { registerOwnerReadTools } from './mcpOwnerTools';
 import { createOwnerMcpToolError } from './mcpOwnerToolError';
 
-export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.1.0';
+export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.2.0';
 
 export const cardForgeOwnerMcpHandler = createMcpHandler(
   (server) => {
@@ -25,7 +25,7 @@ export const cardForgeOwnerMcpHandler = createMcpHandler(
       'Start by reading current site state, provider readiness, and accountable Owner activity before recommending operational changes.',
       'Never imply that Preview state is live production state.',
       'Do not claim provider configuration or availability beyond the provider-readiness projection returned by CardForge.',
-      'Most Owner tools remain read-oriented. The bounded publish_owner_site_copy tool may change one Owner-controlled copy block only when the caller supplies the exact revision it previously read.',
+      'Most Owner tools remain read-oriented. publish_owner_site_copy changes one copy block; get_owner_site_fields and publish_owner_site_field support CTA labels, navigation labels and announcement text. Each publication requires the exact canonical revision previously read.',
       'Before any site-copy publication, read the current Owner snapshot, preserve its exact updatedAt revision, explain the proposed public change, and never retry a conflict against stale state.',
       'In production, describe publish_owner_site_copy as a live publication. In Preview or another non-production environment, describe it as staging-only and never imply that production changed.',
       'CardForge Studio is a separate creator plugin. Do not use Owner tools as a substitute for Template, Set, card, or connected-project authoring.',

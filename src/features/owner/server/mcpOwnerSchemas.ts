@@ -264,6 +264,60 @@ export const ownerSiteCopyPublishInputSchema = fromJsonSchema<OwnerSiteCopyPubli
   },
 });
 
+const ownerCommittedReceiptSchema = {
+  type: 'object', additionalProperties: false,
+  required: ['committed', 'refreshComplete', 'refreshFailures', 'activityRecorded', 'retryable', 'nextAction', 'message'],
+  properties: {
+    committed: { type: 'boolean' }, refreshComplete: { type: 'boolean' },
+    refreshFailures: { type: 'array', items: { type: 'string' } }, activityRecorded: { type: 'boolean' },
+    retryable: { type: 'boolean' }, nextAction: { type: 'string', enum: ['none', 'reload'] }, message: { type: 'string' },
+  },
+};
+
+const ownerSiteFieldsSchema = {
+  type: 'object', additionalProperties: false,
+  required: ['updatedAt', 'primaryCtaLabel', 'primaryCtaHref', 'announcementEnabled', 'announcementMessage', 'navigation'],
+  properties: {
+    updatedAt: nullableString, primaryCtaLabel: { type: 'string' }, primaryCtaHref: { type: 'string' },
+    announcementEnabled: { type: 'boolean' }, announcementMessage: { type: 'string' },
+    navigation: { type: 'array', items: {
+      type: 'object', additionalProperties: false, required: ['id', 'label', 'href', 'visible'],
+      properties: { id: { type: 'string' }, label: { type: 'string' }, href: { type: 'string' }, visible: { type: 'boolean' } },
+    } },
+  },
+};
+
+export const ownerSiteFieldsOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false, required: ['environment', 'settings'],
+  properties: { environment: { type: 'string' }, settings: ownerSiteFieldsSchema },
+});
+
+export interface OwnerSiteFieldPublishInput {
+  field: 'primaryCtaLabel' | 'navigationLabel' | 'announcementMessage';
+  value: string;
+  navigationId?: 'about' | 'plans' | 'roadmap' | 'account';
+  expectedUpdatedAt: string;
+}
+
+export const ownerSiteFieldPublishInputSchema = fromJsonSchema<OwnerSiteFieldPublishInput>({
+  type: 'object', additionalProperties: false, required: ['field', 'value', 'expectedUpdatedAt'],
+  properties: {
+    field: { type: 'string', enum: ['primaryCtaLabel', 'navigationLabel', 'announcementMessage'] },
+    value: { type: 'string', minLength: 1, maxLength: 240 },
+    navigationId: { type: 'string', enum: ['about', 'plans', 'roadmap', 'account'] },
+    expectedUpdatedAt: { type: 'string', minLength: 1, description: 'Exact settings.updatedAt returned by get_owner_site_fields. Reload after a conflict; never replace it with a guessed timestamp.' },
+  },
+  allOf: [{ if: { properties: { field: { const: 'navigationLabel' } } }, then: { required: ['navigationId'] }, else: { not: { required: ['navigationId'] } } }],
+});
+
+export const ownerSiteFieldPublicationOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false, required: ['environment', 'livePublication', 'settings', 'receipt'],
+  properties: {
+    environment: { type: 'string' }, livePublication: { type: 'boolean' },
+    settings: ownerSiteFieldsSchema, receipt: ownerCommittedReceiptSchema,
+  },
+});
+
 export const ownerSiteCopyPublicationOutputSchema = fromJsonSchema({
   type: 'object',
   additionalProperties: false,
@@ -284,19 +338,6 @@ export const ownerSiteCopyPublicationOutputSchema = fromJsonSchema({
         updatedAt: nullableString,
       },
     },
-    receipt: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['committed', 'refreshComplete', 'refreshFailures', 'activityRecorded', 'retryable', 'nextAction', 'message'],
-      properties: {
-        committed: { type: 'boolean' },
-        refreshComplete: { type: 'boolean' },
-        refreshFailures: { type: 'array', items: { type: 'string' } },
-        activityRecorded: { type: 'boolean' },
-        retryable: { type: 'boolean' },
-        nextAction: { type: 'string', enum: ['none', 'reload'] },
-        message: { type: 'string' },
-      },
-    },
+    receipt: ownerCommittedReceiptSchema,
   },
 });
