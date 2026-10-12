@@ -59,6 +59,10 @@ async function invoke(name: string, input: Record<string, unknown> = {}) {
 }
 
 describe('Owner MCP registered output contracts', () => {
+  it('accepts an empty announcement while requiring nonempty CTA and navigation labels', async () => {
+    expect(await ownerSiteFieldPublishInputSchema['~standard'].validate({ field: 'announcementMessage', value: '', expectedUpdatedAt: settings.updatedAt })).not.toHaveProperty('issues');
+    expect(await ownerSiteFieldPublishInputSchema['~standard'].validate({ field: 'primaryCtaLabel', value: '', expectedUpdatedAt: settings.updatedAt })).toHaveProperty('issues');
+  });
   it('reads exact editable settings revision and contextual destinations without leaking internal fields', async () => {
     mocks.readFields.mockResolvedValue(settings);
     const result = await invoke('get_owner_site_fields');

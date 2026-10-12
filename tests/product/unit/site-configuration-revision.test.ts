@@ -124,6 +124,41 @@ describe('exact-revision canonical Owner site configuration', () => {
     expect(db.row.primary_cta_href).toBe('/account');
   });
 
+  it('allows announcement text to be cleared without enabling it or changing other settings', async () => {
+    db.row.announcement_message = 'Temporary announcement';
+    const before = structuredClone(db.row);
+    const result = await updatePublicSiteVisibleField({ field: 'announcementMessage', value: ' ', expectedUpdatedAt: rev1 });
+    expect(result.announcementMessage).toBe('');
+    expect(result.announcementEnabled).toBe(false);
+    expect(db.previousUpdate).toEqual({ announcement_message: '' });
+    expect(db.row).toEqual({ ...before, announcement_message: '', updated_at: rev2 });
+  });
+
+  it('edits a navigation item supplied by the canonical default projection without replacing existing authored items', async () => {
+    db.row.primary_navigation = (db.row.primary_navigation as Array<Record<string, unknown>>).filter((item) => item.id !== 'plans');
+    const before = structuredClone(db.row.primary_navigation);
+    const projected = (await getPublicSiteConfiguration()).primaryNavigation.find((item) => item.id === 'plans')!;
+    const displayed = (await getPublicSiteConfiguration()).primaryNavigation;
+    expect(projected.label).toBe('Plans');
+    const result = await updatePublicSiteVisibleField({ field: 'navigationLabel', navigationId: 'plans', value: 'Membership', expectedUpdatedAt: rev1 });
+    expect(result.primaryNavigation.find((item) => item.id === 'plans')?.label).toBe('Membership');
+    const existingIds = new Set((before as Array<Record<string, unknown>>).map((item) => item.id));
+    expect(db.row.primary_navigation).toEqual([...(before as unknown[]), ...displayed.filter((item) => !existingIds.has(item.id)).map((item) => item.id === 'plans' ? { ...item, label: 'Membership' } : item)]);
+    expect(db.previousUpdate).toEqual({ primary_navigation: db.row.primary_navigation });
+    expect(db.row.primary_cta_href).toBe('/account');
+  });
+
+  it.each(['plans', 'roadmap', 'account'])('preserves effective order when editing projected %s with multiple missing items', async (navigationId) => {
+    const authored = { id: 'about', label: 'Our story', href: '/about', visible: false, provenance: 'preserve-me' };
+    db.row.primary_navigation = [authored];
+    const before = (await getPublicSiteConfiguration()).primaryNavigation;
+    const result = await updatePublicSiteVisibleField({ field: 'navigationLabel', navigationId, value: 'New label', expectedUpdatedAt: rev1 });
+    expect(result.primaryNavigation).toEqual(before.map((item) => item.id === navigationId ? { ...item, label: 'New label' } : item));
+    expect((db.row.primary_navigation as unknown[])[0]).toEqual(authored);
+    expect(db.row.announcement_enabled).toBe(false);
+    expect(db.updates).toBe(1);
+  });
+
   it('refuses missing revisions, unsupported navigation ids, blank and overlong labels', async () => {
     await expect(updatePublicSiteVisibleField({
       field: 'primaryCtaLabel', value: 'Create', expectedUpdatedAt: null,
@@ -132,7 +167,7 @@ describe('exact-revision canonical Owner site configuration', () => {
       field: 'navigationLabel', navigationId: 'billing', value: 'Billing', expectedUpdatedAt: rev1,
     })).rejects.toMatchObject({ status: 400 });
     await expect(updatePublicSiteVisibleField({
-      field: 'announcementMessage', value: ' ', expectedUpdatedAt: rev1,
+      field: 'primaryCtaLabel', value: ' ', expectedUpdatedAt: rev1,
     })).rejects.toMatchObject({ status: 400 });
     await expect(updatePublicSiteVisibleField({
       field: 'primaryCtaLabel', value: 'x'.repeat(81), expectedUpdatedAt: rev1,

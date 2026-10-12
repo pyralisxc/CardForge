@@ -118,11 +118,11 @@ export const updatePublicSiteConfiguration = async (
   }, input.updatedAt);
 };
 
-const validateOwnerLabel = (value: unknown, maximum: number, label: string): string => {
+const validateOwnerLabel = (value: unknown, maximum: number, label: string, allowEmpty = false): string => {
   if (typeof value !== 'string') throw new PublicSiteConfigurationStoreError('Enter text for the selected field.', 400);
   const normalized = value.trim().replace(/[ \t]+/g, ' ');
-  if (!normalized || normalized.length > maximum) {
-    throw new PublicSiteConfigurationStoreError(label + ' must be between 1 and ' + maximum + ' characters.', 400);
+  if ((!allowEmpty && !normalized) || normalized.length > maximum) {
+    throw new PublicSiteConfigurationStoreError(label + ' must be between ' + (allowEmpty ? 0 : 1) + ' and ' + maximum + ' characters.', 400);
   }
   return normalized;
 };
@@ -139,7 +139,7 @@ export const updatePublicSiteVisibleField = async (
   }
   if (input.field === 'announcementMessage') {
     return publishConfigurationPatch({
-      announcement_message: validateOwnerLabel(input.value, 240, 'Announcement text'),
+      announcement_message: validateOwnerLabel(input.value, 240, 'Announcement text', true),
     }, revision);
   }
   if (input.field !== 'navigationLabel' || typeof input.navigationId !== 'string'
@@ -170,6 +170,16 @@ export const updatePublicSiteVisibleField = async (
     found = true;
     return { ...candidate, label };
   });
-  if (!found) throw new PublicSiteConfigurationStoreError('The selected navigation item is no longer present. Reload Site settings.', 409);
+  if (!found) {
+    // Canonical reads append supported defaults absent from older rows. Persist
+    // that missing tail in the same order so editing a label cannot reorder it.
+    // Existing authored entries (including their metadata) remain verbatim.
+    const existingIds = new Set(row.primary_navigation.flatMap((item: unknown) => (
+      item && typeof item === 'object' && !Array.isArray(item) && typeof (item as Record<string, unknown>).id === 'string'
+        ? [(item as Record<string, unknown>).id] : []
+    )));
+    const missing = hydratePublicSiteConfiguration(row).primaryNavigation.filter((item) => !existingIds.has(item.id));
+    nextNavigation.push(...missing.map((item) => item.id === input.navigationId ? { ...item, label } : item));
+  }
   return publishConfigurationPatch({ primary_navigation: nextNavigation }, revision);
 };
