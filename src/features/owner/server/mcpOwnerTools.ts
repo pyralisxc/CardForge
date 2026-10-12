@@ -5,7 +5,8 @@ import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import { getOwnerActivity } from '@/features/owner/server/ownerActivityStore';
 import { getOwnerIntegrationStatus } from '@/features/owner/server/ownerIntegrationStatus';
 import { getOwnerSiteControlPayload } from '@/features/owner/lib/ownerOperationsStore';
-import { publishOwnerSiteContentBlock } from '@/features/owner/server/ownerSiteCommands';
+import { publishOwnerSiteContentBlock, publishOwnerSiteConfigurationField } from '@/features/owner/server/ownerSiteCommands';
+import { getPublicSiteConfiguration, type PublicSiteConfiguration } from '@/features/public-site/server';
 import type { McpOwnerAccess } from './mcpOwnerAccess';
 import {
   ownerActivityInputSchema,
@@ -14,6 +15,9 @@ import {
   ownerSiteCopyPublishInputSchema,
   ownerProviderReadinessOutputSchema,
   ownerSiteSnapshotOutputSchema,
+  ownerSiteFieldsOutputSchema,
+  ownerSiteFieldPublishInputSchema,
+  ownerSiteFieldPublicationOutputSchema,
 } from './mcpOwnerSchemas';
 
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
@@ -29,6 +33,15 @@ const deploymentEnvironment = (): string => (
   || process.env.NODE_ENV?.trim()
   || 'unknown'
 );
+
+const projectOwnerSiteFields = (settings: PublicSiteConfiguration) => ({
+  updatedAt: settings.updatedAt ?? null,
+  primaryCtaLabel: settings.primaryCtaLabel,
+  primaryCtaHref: settings.primaryCtaHref,
+  announcementEnabled: settings.announcementEnabled,
+  announcementMessage: settings.announcementMessage,
+  navigation: settings.primaryNavigation.map(({ id, label, href, visible }) => ({ id, label, href, visible })),
+});
 
 export const registerOwnerReadTools = ({
   server,
@@ -207,6 +220,48 @@ export const registerOwnerReadTools = ({
             },
             receipt: publication.receipt,
           },
+        };
+      },
+    }),
+  );
+
+  server.registerTool(
+    'get_owner_site_fields',
+    {
+      title: 'Read current Owner-editable site labels and announcement',
+      description: 'Read the canonical CTA label, navigation labels and announcement text with their exact shared settings revision. Link destinations, visibility and announcement enabled state are included as context; publish_owner_site_field changes text only. A null revision cannot be published: configure the existing site settings first.',
+      outputSchema: ownerSiteFieldsOutputSchema,
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    },
+    async () => runObserved({
+      toolName: 'get_owner_site_fields', input: {},
+      execute: async () => ({
+        content: [{ type: 'text', text: 'Loaded current Owner site fields for ' + deploymentEnvironment() + '. Read the exact updatedAt before publishing one field.' }],
+        structuredContent: { environment: deploymentEnvironment(), settings: projectOwnerSiteFields(await getPublicSiteConfiguration()) },
+      }),
+    }),
+  );
+
+  server.registerTool(
+    'publish_owner_site_field',
+    {
+      title: 'Publish one Owner site label or announcement',
+      description: 'Publish one CTA label, exact navigation-item label or announcement text through the same command as on-page Owner editing. Requires settings.updatedAt from get_owner_site_fields. Preserves destinations, visibility and all other settings. In Production this publishes live immediately; Preview changes staging only. Never repeat a committed receipt, even when cache refresh is incomplete. On conflict, reload and review newer settings before another publication.',
+      inputSchema: ownerSiteFieldPublishInputSchema,
+      outputSchema: ownerSiteFieldPublicationOutputSchema,
+      annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+    },
+    async (input) => runObserved({
+      toolName: 'publish_owner_site_field', input,
+      execute: async (access) => {
+        const publication = await publishOwnerSiteConfigurationField({ actor: { userId: access.user.id, email: access.email }, input });
+        const isProduction = deploymentEnvironment() === 'production';
+        return {
+          content: [{ type: 'text', text: publication.receipt.refreshComplete
+            ? input.field + (isProduction ? ' was published live to CardForge.' : ' was published to this non-production CardForge environment only.')
+            : publication.receipt.message }],
+          structuredContent: { environment: deploymentEnvironment(), livePublication: isProduction,
+            settings: projectOwnerSiteFields(publication.settings), receipt: publication.receipt },
         };
       },
     }),
