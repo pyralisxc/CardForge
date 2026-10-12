@@ -5,18 +5,18 @@ import { getBillingConfigStatus } from '@/features/billing/lib/billing';
 import type { McpOwnerAccess } from '@/features/owner/server/mcpOwnerAccess';
 import { registerOwnerReadTools } from '@/features/owner/server/mcpOwnerTools';
 
-const mocks = vi.hoisted(() => ({ publish: vi.fn(), readiness: vi.fn() }));
+const mocks = vi.hoisted(() => ({ publish: vi.fn(), readiness: vi.fn(), site: vi.fn(), access: vi.fn() }));
 vi.mock('@/features/mcp-usage/server', () => ({
   observeMcpToolExecution: ({ execute }: { execute: () => Promise<unknown> }) => execute(),
 }));
 vi.mock('@/features/owner/server/ownerActivityStore', () => ({ getOwnerActivity: vi.fn() }));
-vi.mock('@/features/owner/lib/ownerOperationsStore', () => ({ getOwnerSiteControlPayload: vi.fn() }));
+vi.mock('@/features/owner/lib/ownerOperationsStore', () => ({ getOwnerSiteControlPayload: mocks.site }));
 vi.mock('@/features/owner/server/ownerSiteCommands', () => ({ publishOwnerSiteContentBlock: mocks.publish }));
 vi.mock('@/features/owner/server/ownerIntegrationStatus', () => ({ getOwnerIntegrationStatus: mocks.readiness }));
 
 type RegisteredTool = {
   schema: StandardSchemaV1;
-  handler: (input: Record<string, unknown>) => Promise<{ structuredContent?: Record<string, unknown> }>;
+  handler: (input: Record<string, unknown>) => Promise<{ structuredContent?: Record<string, unknown>; content?: Array<{ type: string; text?: string }> }>;
 };
 const tools = new Map<string, RegisteredTool>();
 const block = {
@@ -29,6 +29,7 @@ afterEach(() => vi.unstubAllEnvs());
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv('VERCEL_ENV', 'preview');
+  mocks.access.mockResolvedValue({ user: { id: 'owner', emailAddresses: ['owner@example.com'], privateMetadata: {} }, email: 'owner@example.com', isOwner: true });
   tools.clear();
   registerOwnerReadTools({
     server: {
@@ -36,7 +37,7 @@ beforeEach(() => {
         tools.set(name, { schema: options.outputSchema, handler });
       },
     } as unknown as Parameters<typeof registerOwnerReadTools>[0]['server'],
-    getAccess: async () => ({ user: { id: 'owner' }, email: 'owner@example.com', isOwner: true }) as McpOwnerAccess,
+    getAccess: async () => await mocks.access() as McpOwnerAccess,
     toolError: (error) => ({ isError: true, content: [{ type: 'text', text: String(error) }] }),
   });
 });
@@ -50,6 +51,25 @@ async function invoke(name: string, input: Record<string, unknown> = {}) {
 }
 
 describe('Owner MCP registered output contracts', () => {
+  it.each(['clerk_private_metadata', 'environment'])('reports server-resolved caller and %s authority without exposing metadata', async (source) => {
+    vi.stubEnv('CARDFORGE_OWNER_ACCOUNT_EMAILS', source === 'environment' ? 'actual@example.com' : 'different@example.com');
+    mocks.access.mockResolvedValue({ user: { id: 'actual-user', emailAddresses: ['actual@example.com'],
+      privateMetadata: source === 'clerk_private_metadata' ? { cardforgeRole: 'owner', unrelatedSecret: 'do-not-disclose' } : {} },
+    email: 'actual@example.com', isOwner: true });
+    mocks.site.mockResolvedValue({
+      businessIdentity: { identityVersion: 1, brandName: 'CardForge', legalOperatorName: 'Operator', websiteUrl: 'https://example.com', supportEmail: 'help@example.com' },
+      siteConfiguration: { homepageTitle: 'Home', homepageDescription: 'Description', announcementEnabled: false,
+        announcementMessage: '', primaryCtaLabel: 'Open', primaryCtaHref: '/studio', primaryNavigation: [], homepageSections: [] },
+      siteContentBlocks: [], siteMedia: [], legalDocuments: [], roadmapItems: [],
+      founderProfile: { heroHeadline: 'Founder', introduction: '', priorities: [], updatedAt: null },
+    });
+    const tool = tools.get('get_owner_site_snapshot')!;
+    const result = await tool.handler({});
+    expect(await tool.schema['~standard'].validate(result.structuredContent)).not.toHaveProperty('issues');
+    expect(result.content?.[0].text).toContain('actual@example.com (actual-user)');
+    expect(result.content?.[0].text).toContain('Owner authority: ' + source);
+    expect(JSON.stringify(result)).not.toContain('do-not-disclose');
+  });
   it.each([true, false])('reports a committed publication when refreshComplete=%s', async (refreshComplete) => {
     const receipt = {
       committed: true, refreshComplete, refreshFailures: refreshComplete ? [] : ['content'],

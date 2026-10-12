@@ -1,4 +1,5 @@
 import { createMcpHandler } from 'mcp-handler';
+import { resolveOwnerAccess } from '@/domain/entitlements';
 
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import { getOwnerActivity } from '@/features/owner/server/ownerActivityStore';
@@ -71,12 +72,21 @@ export const registerOwnerReadTools = ({
     async () => runObserved({
       toolName: 'get_owner_site_snapshot',
       input: {},
-      execute: async () => {
+      execute: async (access) => {
         const site = await getOwnerSiteControlPayload();
+        const ownerAuthority = resolveOwnerAccess({
+          authConfigured: true,
+          isSignedIn: true,
+          emailAddresses: access.user.emailAddresses,
+          privateMetadata: access.user.privateMetadata,
+        }).source;
         return {
           content: [{
             type: 'text',
-            text: 'Loaded the canonical CardForge Owner site snapshot for ' + deploymentEnvironment() + '. No live state was changed.',
+            text: 'Loaded the canonical CardForge Owner site snapshot for ' + deploymentEnvironment()
+              + '. Authenticated CardForge account: ' + (access.email ?? 'no primary email')
+              + ' (' + access.user.id + '). Owner authority: ' + ownerAuthority
+              + '. No live state was changed.',
           }],
           structuredContent: {
             environment: deploymentEnvironment(),
