@@ -11,6 +11,8 @@ import type {
   PrimaryNavigationItem,
   PublicSiteConfiguration,
 } from '@/features/public-site/client';
+import { getOwnerPublicationPresentation, type OwnerPublicationEnvironment } from '@/features/public-site/model/ownerPublicationEnvironment';
+import { loadOwnerSiteControls } from '@/features/owner/model/ownerOperationsClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { OwnerHomepageShowcasePanel } from './OwnerHomepageShowcasePanel';
 
@@ -34,54 +36,91 @@ const move = <T,>(items: T[], index: number, direction: -1 | 1): T[] => {
 export function OwnerSiteConfigurationPanel({
   settings,
   onSettingsChange,
+  publicationEnvironment,
+  onEditorStateChange,
 }: {
   settings: PublicSiteConfiguration;
   onSettingsChange: (settings: PublicSiteConfiguration) => void;
+  publicationEnvironment: OwnerPublicationEnvironment;
+  onEditorStateChange?: (state: { dirty: boolean; saving: boolean }) => void;
 }) {
   const { toast } = useToast();
   const [draft, setDraft] = useState(settings);
   const [saving, setSaving] = useState(false);
+  const [needsReadback, setNeedsReadback] = useState(false);
+  const publication = getOwnerPublicationPresentation(publicationEnvironment);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(settings);
   const [saveError, setSaveError] = useState<string | null>(null);
-  useEffect(() => setDraft(settings), [settings]);
+  useEffect(() => { onEditorStateChange?.({ dirty, saving }); }, [dirty, saving, onEditorStateChange]);
+  useEffect(() => () => { onEditorStateChange?.({ dirty: false, saving: false }); }, [onEditorStateChange]);
 
   const save = async () => {
+    if (saving || needsReadback) return;
     setSaving(true);
     setSaveError(null);
+    let rejected = false;
+    let conflict = false;
     try {
       const response = await fetch('/api/owner/site-configuration', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(draft),
       });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save public site settings.'));
+      if (!response.ok) {
+        rejected = response.status >= 400 && response.status < 500;
+        conflict = response.status === 409;
+        throw new Error(await readApiErrorMessage(response, 'Unable to publish public site settings.'));
+      }
       const body = await response.json() as {
         settings: PublicSiteConfiguration;
         activityRecorded: boolean;
         receipt?: {
+          committed: boolean;
           refreshComplete: boolean;
           activityRecorded: boolean;
           message: string;
         };
       };
+      if (!body.settings?.updatedAt || body.receipt?.committed !== true || typeof body.receipt.refreshComplete !== 'boolean') throw new Error('Invalid publication receipt.');
       setDraft(body.settings);
       onSettingsChange(body.settings);
       if (body.receipt && !body.receipt.refreshComplete) {
         toast({
-          title: 'Public site settings published; reload to verify',
+          title: publication.publishedTitle + '; reload to verify',
           description: body.receipt.message,
         });
       } else {
         toast({
-          title: 'Public site settings published',
+          title: publication.publishedTitle,
           description: body.activityRecorded
-            ? 'The live presentation and Owner change history were updated.'
-            : 'The live presentation was updated, but Owner change history could not be recorded.',
+            ? publication.publishedDescription('Site settings')
+            : publication.publishedDescription('Site settings') + ' Owner change history could not be recorded.',
         });
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to publish public site settings.';
+      const message = rejected && error instanceof Error ? error.message
+        : 'The publication result is unconfirmed. Your draft is preserved. Reload current settings before trying again.';
+      setNeedsReadback(!rejected || conflict);
       setSaveError(message);
-      toast({ title: 'Public site settings not published', description: message, variant: 'destructive' });
+      toast({ title: rejected ? 'Site settings not published' : 'Publication result unconfirmed', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const reloadCurrentSettings = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const current = (await loadOwnerSiteControls()).siteConfiguration;
+      if (!current?.updatedAt) throw new Error('The current settings revision is unavailable. Your draft is preserved.');
+      if (dirty && !window.confirm('Replace your unpublished settings draft with the current published settings?')) return;
+      setDraft(current);
+      onSettingsChange(current);
+      setNeedsReadback(false);
+      setSaveError(null);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Unable to read current settings. Your draft is preserved.');
     } finally {
       setSaving(false);
     }
@@ -107,6 +146,7 @@ export function OwnerSiteConfigurationPanel({
 
   return (
     <section className="space-y-5">
+      <fieldset disabled={saving} className="space-y-5">
       <div className="grid gap-5 xl:grid-cols-2">
         <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
           <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><Megaphone className="h-5 w-5" aria-hidden="true" /><h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Announcement</h2></div>
@@ -178,9 +218,11 @@ export function OwnerSiteConfigurationPanel({
         <OwnerHomepageShowcasePanel examples={showcaseExamples} onChange={updateShowcaseExamples} />
       </div>
 
+      </fieldset>
       <div className="space-y-2">
-        {saveError ? <p role="alert" className="max-w-2xl border border-destructive/45 bg-destructive/10 px-3 py-2 text-sm leading-6 text-destructive">Public site settings were not saved. {saveError}</p> : null}
-        <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={saving || JSON.stringify(draft) === JSON.stringify(settings)} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? 'Saving site controls...' : 'Save site controls'}</Button>
+        {saveError ? <p role="alert" className="max-w-2xl border border-destructive/45 bg-destructive/10 px-3 py-2 text-sm leading-6 text-destructive">{saveError}</p> : null}
+        <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={saving || needsReadback || !dirty} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? publication.publishingActionLabel : publication.publishActionLabel}</Button>
+        {needsReadback ? <Button type="button" variant="outline" disabled={saving} onClick={() => void reloadCurrentSettings()}>Reload current settings</Button> : null}
       </div>
     </section>
   );

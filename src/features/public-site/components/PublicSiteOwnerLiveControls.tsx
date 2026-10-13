@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Check, FilePenLine, Settings2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -15,8 +15,10 @@ import {
   getOwnerPublicationPresentation,
   type OwnerPublicationEnvironment,
 } from '../model/ownerPublicationEnvironment';
-import { PublicSiteCopyLiveEditor, PublicSiteFocusedTextEditor, savePublicSiteContentBlock } from './PublicSiteCopyLiveEditor';
+import { PublicSiteCopyLiveEditor, PublicSiteFocusedTextEditor, savePublicSiteContentBlock, SiteContentPublicationError } from './PublicSiteCopyLiveEditor';
 import { PublicSiteMediaLiveEditor } from './PublicSiteMediaLiveEditor';
+
+export const OwnerPageEditorStateContext = createContext<(state: { dirty: boolean; saving: boolean }) => void>(() => {});
 
 type ContentSlug = SiteContentBlock['slug'];
 type MediaSlot = SiteMediaAsset['slot'];
@@ -92,6 +94,9 @@ export function PublicSiteOwnerLiveControls({
   const [editMode, setEditMode] = useState(false);
   const [drawer, setDrawer] = useState<DrawerView | null>(null);
   const [drawerDirty, setDrawerDirty] = useState(false);
+  const [settingsEditorState, setSettingsEditorState] = useState({ dirty: false, saving: false });
+  const [needsReadback, setNeedsReadback] = useState<'copy' | 'label' | null>(null);
+  const [checkingPublication, setCheckingPublication] = useState(false);
   const [inlineSlug, setInlineSlug] = useState<ContentSlug | null>(null);
   const [copySaving, setCopySaving] = useState(false);
   const [configSaving, setConfigSaving] = useState(false);
@@ -133,15 +138,16 @@ export function PublicSiteOwnerLiveControls({
   }, []);
 
   const abandonDraft = useCallback((): boolean => {
-    if (copySaving || configSaving) return false;
+    if (copySaving || configSaving || settingsEditorState.saving || checkingPublication) return false;
     const element = inlineElementRef.current;
     const dirtyInline = element
       && (element.innerText || element.textContent || '').trim() !== originalBodyRef.current.trim();
-    if ((dirtyInline || drawerDirty) && !window.confirm('Discard unpublished Owner edits?')) return false;
+    if ((dirtyInline || drawerDirty || settingsEditorState.dirty) && !window.confirm('Discard unpublished Owner edits?')) return false;
     finishInlineEdit(true);
     setDrawerDirty(false);
+    setNeedsReadback(null);
     return true;
-  }, [configSaving, copySaving, drawerDirty, finishInlineEdit]);
+  }, [checkingPublication, configSaving, copySaving, drawerDirty, finishInlineEdit, settingsEditorState]);
 
   const inspectOtherTargets = useCallback(() => {
     const rendered = getRenderedPageTargets();
@@ -185,13 +191,14 @@ export function PublicSiteOwnerLiveControls({
   }, [abandonDraft]);
 
   const publishSelectedLabel = useCallback(async (value: string): Promise<boolean> => {
-    if (configSaving || !drawer || (drawer.kind !== 'config-label' && drawer.kind !== 'navigation-label')) return false;
+    if (needsReadback || checkingPublication || configSaving || !drawer || (drawer.kind !== 'config-label' && drawer.kind !== 'navigation-label')) return false;
     if (!siteConfiguration.updatedAt) {
       toast({ title: 'Reload to edit this label', description: 'The current site configuration revision is unavailable.', variant: 'destructive' });
       return false;
     }
     setConfigSaving(true);
     let definitivelyRejected = false;
+    let conflict = false;
     try {
       const response = await fetch('/api/owner/site-configuration', {
         method: 'PATCH',
@@ -205,12 +212,14 @@ export function PublicSiteOwnerLiveControls({
       });
       if (!response.ok) {
         definitivelyRejected = response.status >= 400 && response.status < 500;
+        conflict = response.status === 409;
         throw new Error(await readApiErrorMessage(response, 'Unable to publish this site label.'));
       }
       const publication = await response.json() as {
         settings: PublicSiteConfiguration;
-        receipt: { refreshComplete: boolean; activityRecorded: boolean; message: string };
+        receipt: { committed: boolean; refreshComplete: boolean; activityRecorded: boolean; message: string };
       };
+      if (!publication.settings?.updatedAt || publication.receipt?.committed !== true || typeof publication.receipt.refreshComplete !== 'boolean') throw new Error('Invalid publication receipt.');
       setSiteConfiguration(publication.settings);
       setDrawerDirty(false);
       router.refresh();
@@ -225,10 +234,11 @@ export function PublicSiteOwnerLiveControls({
       return true;
     } catch (error) {
       const uncertain = !definitivelyRejected;
+      if (uncertain || conflict) setNeedsReadback('label');
       toast({
         title: uncertain ? 'Publication result unconfirmed' : 'Site label not published',
         description: uncertain
-          ? 'The request did not return a reliable result. Reload the site to check the current value before trying again.'
+          ? 'The request did not return a reliable result. Your draft is preserved. Check the current published value before trying again.'
           : error instanceof Error ? error.message : 'Unable to publish this site label.',
         variant: 'destructive',
       });
@@ -236,10 +246,10 @@ export function PublicSiteOwnerLiveControls({
     } finally {
       setConfigSaving(false);
     }
-  }, [configSaving, drawer, publicationPresentation, router, siteConfiguration.updatedAt, toast]);
+  }, [checkingPublication, needsReadback, configSaving, drawer, publicationPresentation, router, siteConfiguration.updatedAt, toast]);
 
   const publishCopy = useCallback(async (block: SiteContentBlock, rawBody: string): Promise<boolean> => {
-    if (copySaving) return false;
+    if (copySaving || needsReadback || checkingPublication) return false;
     const body = rawBody.trim();
     if (!body || body.length > block.maxLength) {
       toast({ title: 'Invalid page copy', description: `Use 1–${block.maxLength} characters for ${block.label}.`, variant: 'destructive' });
@@ -269,18 +279,23 @@ export function PublicSiteOwnerLiveControls({
       });
       return true;
     } catch (error) {
-      toast({ title: 'Site copy not published', description: error instanceof Error ? error.message : 'Unable to publish site copy.', variant: 'destructive' });
+      const requiresReadback = error instanceof SiteContentPublicationError && error.needsReadback;
+      if (requiresReadback) setNeedsReadback('copy');
+      toast({ title: requiresReadback ? 'Check current publication before retrying' : 'Site copy not published', description: error instanceof Error ? error.message : 'Unable to publish site copy.', variant: 'destructive' });
       return false;
     } finally {
       setCopySaving(false);
     }
-  }, [copySaving, publicationPresentation, router, toast]);
+  }, [checkingPublication, needsReadback, copySaving, publicationPresentation, router, toast]);
 
   const saveInlineEdit = useCallback(async () => {
     const element = inlineElementRef.current;
     const block = contextualBlocks.find((candidate) => candidate.slug === inlineSlug);
     if (!element || !block || copySaving) return;
-    if (await publishCopy(block, element.innerText || element.textContent || '')) finishInlineEdit(false);
+    const body = element.innerText || element.textContent || '';
+    element.setAttribute('contenteditable', 'false');
+    if (await publishCopy(block, body)) finishInlineEdit(false);
+    else element.setAttribute('contenteditable', 'plaintext-only');
   }, [contextualBlocks, copySaving, finishInlineEdit, inlineSlug, publishCopy]);
 
   useEffect(() => {
@@ -364,7 +379,7 @@ export function PublicSiteOwnerLiveControls({
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
       if (inlineElementRef.current === target) {
-        if (event.key === 'Escape') { event.preventDefault(); finishInlineEdit(true); }
+        if (event.key === 'Escape') { event.preventDefault(); if (!copySaving) finishInlineEdit(true); }
         else if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') { event.preventDefault(); void saveInlineEdit(); }
         else if (event.key === 'Enter' && contextualBlocks.find((b) => b.slug === inlineSlug)?.kind === 'short') {
           event.preventDefault(); void saveInlineEdit();
@@ -396,6 +411,37 @@ export function PublicSiteOwnerLiveControls({
 
   useEffect(() => () => finishInlineEdit(true), [finishInlineEdit]);
 
+  const checkCurrentPublication = async () => {
+    if (checkingPublication || !needsReadback) return;
+    setCheckingPublication(true);
+    try {
+      const response = await fetch('/api/owner/operations?scope=site', { cache: 'no-store' });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to read current publication.'));
+      const current = await response.json() as { siteControls: { siteContentBlocks: SiteContentBlock[]; siteConfiguration: PublicSiteConfiguration } };
+      if (needsReadback === 'copy') {
+        const slug = inlineSlug ?? (drawer?.kind === 'copy' ? drawer.slug : supplementalCopy);
+        const currentBlock = current.siteControls.siteContentBlocks.find((block) => block.slug === slug);
+        if (!currentBlock) throw new Error('The selected published field is unavailable. Your draft is preserved.');
+        if (inlineElementRef.current) originalBodyRef.current = currentBlock.body;
+        setBlocks(current.siteControls.siteContentBlocks);
+      } else {
+        if (!current.siteControls.siteConfiguration?.updatedAt) throw new Error('The current settings revision is unavailable. Your draft is preserved.');
+        setSiteConfiguration(current.siteControls.siteConfiguration);
+      }
+      setNeedsReadback(null);
+      toast({ title: 'Current publication checked', description: 'Your draft is preserved. Review it against the current published value before publishing again.' });
+    } catch (error) {
+      toast({ title: 'Current publication unavailable', description: error instanceof Error ? error.message : 'Your draft is preserved. Try checking again.', variant: 'destructive' });
+    } finally {
+      setCheckingPublication(false);
+    }
+  };
+
+  const recoveryControl = needsReadback ? <div role="alert" className="space-y-2 text-sm">
+    <p>Your draft is preserved. Check the current publication before retrying.</p>
+    <Button type="button" variant="outline" disabled={checkingPublication} onClick={() => void checkCurrentPublication()}>{checkingPublication ? 'Checking publication…' : 'Check current publication'}</Button>
+  </div> : null;
+
   const closeDrawer = (nextOpen: boolean) => {
     if (nextOpen || !abandonDraft()) return;
     setDrawer(null);
@@ -405,9 +451,9 @@ export function PublicSiteOwnerLiveControls({
 
   const renderedCopyEditor = (block: SiteContentBlock) => (
     <PublicSiteCopyLiveEditor
-      key={block.slug + ':' + (block.updatedAt ?? 'bundled')}
+      key={block.slug}
       block={block}
-      busy={copySaving}
+      busy={copySaving || checkingPublication || needsReadback === 'copy'}
       onDirtyChange={setDrawerDirty}
       onPublish={publishCopy}
       publicationEnvironment={publicationEnvironment}
@@ -461,10 +507,12 @@ export function PublicSiteOwnerLiveControls({
     </div> : null}
     {inlineSlug ? <div className="fixed bottom-20 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] flex-wrap items-center gap-2 border border-[var(--public-brass)] bg-[var(--cf-surface)] p-3 shadow-2xl" role="toolbar" aria-label="Inline site copy editor">
       <span className="mr-2 text-sm text-[var(--cf-text-muted)]">Edit the field and publish, or cancel.</span>
-      <Button size="sm" type="button" disabled={copySaving} onClick={() => void saveInlineEdit()}>
+      {recoveryControl}
+      {inlineSlug && needsReadback === null ? <span className="text-xs">Current published value: {blocks.find((block) => block.slug === inlineSlug)?.body}</span> : null}
+      <Button size="sm" type="button" disabled={copySaving || checkingPublication || needsReadback !== null} onClick={() => void saveInlineEdit()}>
         <Check className="mr-2 h-4 w-4" />{copySaving ? publicationPresentation.publishingActionLabel : publicationPresentation.publishActionLabel}
       </Button>
-      <Button size="sm" type="button" variant="outline" disabled={copySaving} onClick={() => finishInlineEdit(true)}>
+      <Button size="sm" type="button" variant="outline" disabled={copySaving || checkingPublication} onClick={() => { finishInlineEdit(true); setNeedsReadback(null); }}>
         <X className="mr-2 h-4 w-4" />Cancel
       </Button>
     </div> : null}
@@ -480,14 +528,16 @@ export function PublicSiteOwnerLiveControls({
           <SheetDescription className="text-[var(--cf-text-muted)]">{publicationPresentation.dialogDescription}</SheetDescription>
         </SheetHeader>
         <div className="mt-4 space-y-4">
+          {recoveryControl}
           {drawer?.kind === 'copy' && selectedCopy ? renderedCopyEditor(selectedCopy) : null}
           {selectedConfigurationLabel ? <PublicSiteFocusedTextEditor
-            key={(drawer?.kind ?? '') + ':' + (drawer?.kind === 'navigation-label' ? drawer.id : drawer?.kind === 'config-label' ? drawer.field : '') + ':' + (siteConfiguration.updatedAt ?? 'unknown')}
+            key={(drawer?.kind ?? '') + ':' + (drawer?.kind === 'navigation-label' ? drawer.id : drawer?.kind === 'config-label' ? drawer.field : '')}
             label={selectedConfigurationLabel.label}
             value={selectedConfigurationLabel.value}
             maxLength={selectedConfigurationLabel.maxLength}
             multiline={drawer?.kind === 'config-label' && drawer.field === 'announcementMessage'}
-            busy={configSaving}
+            allowEmpty={drawer?.kind === 'config-label' && drawer.field === 'announcementMessage'}
+            busy={configSaving || checkingPublication || needsReadback === 'label'}
             onPublish={publishSelectedLabel}
             onDirtyChange={setDrawerDirty}
             publicationEnvironment={publicationEnvironment}
@@ -495,7 +545,7 @@ export function PublicSiteOwnerLiveControls({
           /> : null}
           {drawer?.kind === 'media' && selectedMedia ? renderedMediaEditor(selectedMedia) : null}
           {drawer?.kind === 'settings' ? <>
-            {siteOperationsEditor}
+            <OwnerPageEditorStateContext.Provider value={setSettingsEditorState}>{siteOperationsEditor}</OwnerPageEditorStateContext.Provider>
             {(supplementalSlugs.length > 0 || supplementalMediaSlots.length > 0) ? (
               <details className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                 <summary className="cursor-pointer font-semibold text-[var(--cf-accent-text)]">Other editable content on this page</summary>
