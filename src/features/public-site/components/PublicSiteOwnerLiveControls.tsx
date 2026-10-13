@@ -453,7 +453,8 @@ export function PublicSiteOwnerLiveControls({
     <PublicSiteCopyLiveEditor
       key={block.slug}
       block={block}
-      busy={copySaving || checkingPublication || needsReadback === 'copy'}
+      busy={copySaving}
+      publicationBlocked={checkingPublication || needsReadback === 'copy'}
       onDirtyChange={setDrawerDirty}
       onPublish={publishCopy}
       publicationEnvironment={publicationEnvironment}
@@ -537,7 +538,8 @@ export function PublicSiteOwnerLiveControls({
             maxLength={selectedConfigurationLabel.maxLength}
             multiline={drawer?.kind === 'config-label' && drawer.field === 'announcementMessage'}
             allowEmpty={drawer?.kind === 'config-label' && drawer.field === 'announcementMessage'}
-            busy={configSaving || checkingPublication || needsReadback === 'label'}
+            busy={configSaving}
+            publicationBlocked={checkingPublication || needsReadback === 'label'}
             onPublish={publishSelectedLabel}
             onDirtyChange={setDrawerDirty}
             publicationEnvironment={publicationEnvironment}

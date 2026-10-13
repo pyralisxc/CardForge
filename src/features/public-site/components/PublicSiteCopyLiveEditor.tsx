@@ -72,6 +72,7 @@ export function PublicSiteFocusedTextEditor({
   multiline = false,
   allowEmpty = false,
   busy,
+  publicationBlocked = false,
   onPublish,
   onDirtyChange,
   publicationEnvironment,
@@ -83,6 +84,7 @@ export function PublicSiteFocusedTextEditor({
   multiline?: boolean;
   allowEmpty?: boolean;
   busy: boolean;
+  publicationBlocked?: boolean;
   onPublish: (value: string) => Promise<boolean>;
   onDirtyChange: (dirty: boolean) => void;
   publicationEnvironment: OwnerPublicationEnvironment;
@@ -105,12 +107,12 @@ export function PublicSiteFocusedTextEditor({
         <span className="text-xs text-[var(--cf-text-subtle)]">{body.length}/{maxLength}</span>
       </span>
       {multiline
-        ? <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" maxLength={maxLength} disabled={busy} value={body} onChange={(event) => setBody(event.target.value)} />
-        : <input className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)]" maxLength={maxLength} disabled={busy} value={body} onChange={(event) => setBody(event.target.value)} />}
+        ? <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" maxLength={maxLength} disabled={busy || publicationBlocked} value={body} onChange={(event) => setBody(event.target.value)} />
+        : <input className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)]" maxLength={maxLength} disabled={busy || publicationBlocked} value={body} onChange={(event) => setBody(event.target.value)} />}
     </label>
     <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">{help}</p>
     {dirty ? <p className="text-xs text-[var(--cf-text-subtle)]">Current published value: {value || '(empty)'}</p> : null}
-    <Button type="button" size="sm" className="w-fit" disabled={busy || !dirty || (!allowEmpty && !body.trim())} onClick={() => void onPublish(body)}>
+    <Button type="button" size="sm" className="w-fit" disabled={busy || publicationBlocked || !dirty || (!allowEmpty && !body.trim())} onClick={() => void onPublish(body)}>
       <Check className="mr-2 h-4 w-4" />{busy ? publication.publishingActionLabel : publication.publishActionLabel}
     </Button>
   </section>;
@@ -120,12 +122,14 @@ export function PublicSiteFocusedTextEditor({
 export function PublicSiteCopyLiveEditor({
   block,
   busy,
+  publicationBlocked = false,
   onPublish,
   onDirtyChange,
   publicationEnvironment,
 }: {
   block: SiteContentBlock;
   busy: boolean;
+  publicationBlocked?: boolean;
   onPublish: (block: SiteContentBlock, body: string) => Promise<boolean>;
   onDirtyChange: (dirty: boolean) => void;
   publicationEnvironment: OwnerPublicationEnvironment;
@@ -136,6 +140,7 @@ export function PublicSiteCopyLiveEditor({
     maxLength={block.maxLength}
     multiline={block.kind === 'long'}
     busy={busy}
+    publicationBlocked={publicationBlocked}
     onPublish={(body) => onPublish(block, body)}
     onDirtyChange={onDirtyChange}
     publicationEnvironment={publicationEnvironment}
