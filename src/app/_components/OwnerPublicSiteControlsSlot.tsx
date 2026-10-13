@@ -33,7 +33,7 @@ export async function OwnerPublicSiteControlsSlot({ currentPath }: { currentPath
     initialBlocks={siteContentBlocks}
     initialMedia={siteMedia}
     initialSiteConfiguration={siteConfiguration}
-    siteOperationsEditor={<OwnerPublicSiteOperations />}
+    siteOperationsEditor={<OwnerPublicSiteOperations publicationEnvironment={publicationEnvironment} />}
     roadmapRulesEditor={roadmapSettings ? <OwnerRoadmapRulesLiveEditor initialSettings={roadmapSettings} /> : undefined}
   />;
 }

@@ -2,11 +2,12 @@
 
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 
 import { CardForgeSectionIntro, CardForgeWorkspaceState } from '@/components/ui/cardforge-presentation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { OwnerOperationsPayload, OwnerSiteControlPayload } from '@/features/owner/lib/ownerOperations';
+import { OwnerPageEditorStateContext, type OwnerPublicationEnvironment } from '@/features/public-site/client';
 import { loadOwnerSiteControls } from '@/features/owner/model/ownerOperationsClient';
 
 const panelFallback = () => <CardForgeWorkspaceState state="loading" message="Loading public-site controls…" />;
@@ -22,13 +23,26 @@ const subtabListClassName = 'flex h-auto flex-wrap justify-start rounded-none bo
  * The one protected site-controls read is intentionally fresh on opening the
  * drawer. It replaces the unrelated Owner overview + site fetch chain.
  */
-export function OwnerPublicSiteOperations() {
+export function OwnerPublicSiteOperations({ publicationEnvironment }: {
+  publicationEnvironment: OwnerPublicationEnvironment;
+}) {
   const router = useRouter();
+  const onEditorStateChange = useContext(OwnerPageEditorStateContext);
   const [siteOperations, setSiteOperations] = useState<OwnerSiteControlPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadGeneration, setLoadGeneration] = useState(0);
   const [workspace, setWorkspace] = useState('pages');
+  const [editorState, setEditorState] = useState({ dirty: false, saving: false });
+  const reportEditorState = useCallback((state: { dirty: boolean; saving: boolean }) => {
+    setEditorState(state);
+    onEditorStateChange(state);
+  }, [onEditorStateChange]);
+  const changeWorkspace = (next: string) => {
+    if (editorState.saving || next === workspace) return;
+    if (editorState.dirty && !window.confirm('Discard unpublished site settings?')) return;
+    setWorkspace(next);
+  };
 
   useEffect(() => {
     let active = true;
@@ -60,14 +74,14 @@ export function OwnerPublicSiteOperations() {
 
   return <section className="space-y-4">
     <CardForgeSectionIntro eyebrow="Site settings" title="Controls beyond the page" body="Edit visible content on the page itself. These native settings only manage the values you cannot select in the rendered page." />
-    <Tabs value={workspace} onValueChange={setWorkspace} className="space-y-4">
+    <Tabs value={workspace} onValueChange={changeWorkspace} className="space-y-4">
       <TabsList className={subtabListClassName}>
         <TabsTrigger value="identity" className={subtabClassName}>Brand &amp; Identity</TabsTrigger>
         <TabsTrigger value="pages" className={subtabClassName}>Pages &amp; SEO</TabsTrigger>
         <TabsTrigger value="experience" className={subtabClassName}>Experience &amp; Access</TabsTrigger>
       </TabsList>
       <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" operationsPayload={{ businessIdentity: siteOperations.businessIdentity, roadmapItems: siteOperations.roadmapItems, databaseMetrics: null }} onOperationsChange={updateOperations} /><OwnerFounderProfilePanel operationsPayload={siteOperations} onOperationsChange={updateOperations} /></TabsContent>
-      <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel settings={siteOperations.siteConfiguration} onSettingsChange={(siteConfiguration) => {
+      <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel publicationEnvironment={publicationEnvironment} onEditorStateChange={reportEditorState} settings={siteOperations.siteConfiguration} onSettingsChange={(siteConfiguration) => {
         setSiteOperations((current) => current ? { ...current, siteConfiguration } : current);
         router.refresh();
       }} /></TabsContent>

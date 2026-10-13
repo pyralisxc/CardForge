@@ -19,7 +19,7 @@ export {
 export { PublicSiteHeader } from './components/PublicSiteHeader';
 export { PublicSiteFooter } from './components/PublicSiteFooter';
 export { PublicSiteShell } from './components/PublicSiteShell';
-export { PublicSiteOwnerLiveControls } from './components/PublicSiteOwnerLiveControls';
+export { PublicSiteOwnerLiveControls, OwnerPageEditorStateContext } from './components/PublicSiteOwnerLiveControls';
 export { LiveExampleGallery } from './components/LiveExampleGallery';
 export { OutcomeHero } from './components/OutcomeHero';
 export { StudioProductProof } from './components/StudioProductProof';
@@ -79,3 +79,8 @@ export {
   type SiteMediaSlot,
   type SiteMediaVersion,
 } from './model/siteMedia';
+
+export {
+  getOwnerPublicationPresentation,
+  type OwnerPublicationEnvironment,
+} from './model/ownerPublicationEnvironment';
