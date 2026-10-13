@@ -80,6 +80,14 @@ describe('focused Owner field validation', () => {
     tree = render(PublicSiteFocusedTextEditor, props);
     expect(button(tree, 'Publish to Preview').props.disabled).toBe(!allowEmpty);
   });
+  it('does not claim a request is publishing when retry is blocked for readback', () => {
+    const props = { label: 'Field', value: 'Original', maxLength: 80, busy: false, publicationBlocked: false, publicationEnvironment: 'preview' as const, onPublish: vi.fn(), onDirtyChange: vi.fn() };
+    let tree = render(PublicSiteFocusedTextEditor, props);
+    input(nodes(tree).find((node) => node.type === 'input')!, 'My draft');
+    tree = render(PublicSiteFocusedTextEditor, { ...props, publicationBlocked: true });
+    expect(button(tree, 'Publish to Preview').props.disabled).toBe(true);
+    expect(textOf(tree)).not.toContain('Publishing to Preview');
+  });
   it('blocks typing during publication and reports a remaining normalized draft when publication finishes', () => {
     const report = vi.fn();
     const props = { label: 'Field', value: 'Original', maxLength: 80, busy: false, publicationEnvironment: 'preview' as const, onPublish: vi.fn(), onDirtyChange: report };
