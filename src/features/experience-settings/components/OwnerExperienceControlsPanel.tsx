@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Save, SlidersHorizontal } from 'lucide-react';
 
+import { useEditorDraft, type EditorDraftState } from '@/components/ui/use-editor-draft';
 import { Button } from '@/components/ui/button';
 import { CardForgeSurface } from '@/components/ui/cardforge-presentation';
 import { useToast } from '@/components/ui/use-toast';
@@ -14,6 +15,7 @@ import type { ExperienceSettings } from '../model/experienceSettings';
 type OwnerExperienceControlsPanelProps = {
   settings: ExperienceSettings;
   onSettingsChange: (settings: ExperienceSettings) => void;
+  onEditorStateChange?: (state: EditorDraftState) => void;
 };
 
 type StudioBootstrapResponse = {
@@ -28,14 +30,13 @@ const fieldClassName = 'grid gap-2 border border-[var(--cf-border-subtle)] bg-[v
 export function OwnerExperienceControlsPanel({
   settings,
   onSettingsChange,
+  onEditorStateChange,
 }: OwnerExperienceControlsPanelProps) {
   const { toast } = useToast();
-  const [draft, setDraft] = useState(settings);
-  const [isSaving, setIsSaving] = useState(false);
+  const { draft, setDraft, saving: isSaving, setSaving: setIsSaving, dirty, acceptPublished } = useEditorDraft(settings, onEditorStateChange);
   const [studioTemplates, setStudioTemplates] = useState<TCGCardTemplate[]>([]);
   const [isLoadingStudioTemplates, setIsLoadingStudioTemplates] = useState(true);
 
-  useEffect(() => setDraft(settings), [settings]);
   useEffect(() => {
     let cancelled = false;
     const loadTemplates = async () => {
@@ -63,6 +64,7 @@ export function OwnerExperienceControlsPanel({
   )), [studioTemplates]);
 
   const save = async () => {
+    if (isSaving || !dirty) return;
     setIsSaving(true);
     try {
       const response = await fetch('/api/owner/experience-settings', {
@@ -74,7 +76,7 @@ export function OwnerExperienceControlsPanel({
         throw new Error(await readApiErrorMessage(response, 'Unable to save experience controls.'));
       }
       const result = await response.json() as { settings: ExperienceSettings; activityRecorded?: boolean };
-      setDraft(result.settings);
+      acceptPublished(result.settings);
       onSettingsChange(result.settings);
       toast({
         title: 'Experience controls saved',
@@ -94,7 +96,7 @@ export function OwnerExperienceControlsPanel({
     }
   };
 
-  const unchanged = JSON.stringify(draft) === JSON.stringify(settings);
+  const unchanged = !dirty;
 
   return (
     <CardForgeSurface as="section" className="space-y-5 p-6">
@@ -108,7 +110,7 @@ export function OwnerExperienceControlsPanel({
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <fieldset disabled={isSaving} className="grid gap-4 lg:grid-cols-2">
         <label className={fieldClassName}>
           <span className="font-medium text-[var(--cf-accent-text)]">Fresh Studio starting Template</span>
           <select
@@ -142,7 +144,7 @@ export function OwnerExperienceControlsPanel({
           </select>
           <span className="leading-6 text-[var(--cf-text-subtle)]">Every presentation offers Accept, Accept once, and Decline. Existing visitor choices remain respected.</span>
         </label>
-      </div>
+      </fieldset>
 
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">CardForge presentation</p>
@@ -151,7 +153,7 @@ export function OwnerExperienceControlsPanel({
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <fieldset disabled={isSaving} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <label className={fieldClassName}>
           <span className="font-medium text-[var(--cf-accent-text)]">Presentation palette</span>
           <select className={selectClassName} value={draft.presentationPalette} onChange={(event) => setDraft((current) => ({ ...current, presentationPalette: event.target.value as ExperienceSettings['presentationPalette'] }))}>
@@ -186,7 +188,7 @@ export function OwnerExperienceControlsPanel({
             <option value="high">High</option>
           </select>
         </label>
-      </div>
+      </fieldset>
 
       <CardForgeSurface tone="raised" className="border-[var(--cf-border-strong)] p-4 text-sm leading-6 text-[var(--cf-text-muted)]">
         The default Forge + Brass + Subtle + Standard combination preserves the current CardForge presentation. Raw CSS and arbitrary colors remain code-owned so owner customization cannot bypass accessibility safeguards.

@@ -13,6 +13,7 @@ vi.mock('react', async (importOriginal) => {
         hooks.cells[index] = typeof next === 'function' ? next(hooks.cells[index]) : next;
       }];
     },
+    useMemo: (factory: () => unknown) => factory(),
     useRef: (initial: unknown) => {
       const index = hooks.cursor++;
       if (!(index in hooks.cells)) hooks.cells[index] = { current: initial };
@@ -27,6 +28,13 @@ vi.mock('@/features/public-site/client', async () => await import('@/features/pu
 
 import { PublicSiteFocusedTextEditor, savePublicSiteContentBlock, SiteContentPublicationError } from '@/features/public-site/components/PublicSiteCopyLiveEditor';
 import { OwnerSiteConfigurationPanel } from '@/features/owner/components/OwnerSiteConfigurationPanel';
+import { OwnerBusinessIdentityPanel } from '@/features/business-identity/components/OwnerBusinessIdentityPanel';
+import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/model/businessIdentity';
+import { OwnerFounderProfilePanel } from '@/features/owner/components/OwnerFounderProfilePanel';
+import { DEFAULT_FOUNDER_PROFILE } from '@/features/public-site/model/founderProfile';
+import { OwnerExperienceControlsPanel } from '@/features/experience-settings/components/OwnerExperienceControlsPanel';
+import { DEFAULT_EXPERIENCE_SETTINGS } from '@/features/experience-settings/model/experienceSettings';
+import { combineEditorDraftStates, useEditorDraft } from '@/components/ui/use-editor-draft';
 import { DEFAULT_PUBLIC_SITE_CONFIGURATION } from '@/features/public-site/model/siteConfiguration';
 
 // Exercise the real component handlers with deterministic hook state; no simulated DOM or provider identity.
@@ -156,5 +164,103 @@ describe('Owner site settings recovery', () => {
     expect(onSettingsChange).toHaveBeenLastCalledWith(current);
     expect(nodes(tree).find((node) => node.type === 'textarea' && node.props.maxLength === 240)!.props.value).toBe('Committed remotely');
     expect(textOf(tree)).not.toContain('Reload current settings');
+  });
+});
+
+
+describe('Owner multi-panel draft lifecycle', () => {
+  it('keeps another editor dirty or busy when a clean editor reports its state', () => {
+    expect(combineEditorDraftStates({ business: { dirty: true, saving: false }, founder: { dirty: false, saving: false } })).toEqual({ dirty: true, saving: false });
+    expect(combineEditorDraftStates({ business: { dirty: false, saving: false }, founder: { dirty: true, saving: true } })).toEqual({ dirty: true, saving: true });
+    expect(combineEditorDraftStates({})).toEqual({ dirty: false, saving: false });
+  });
+
+  it('retains a dirty draft and its original baseline across incoming values, then accepts a confirmed result', () => {
+    const DraftHarness = (initial: { value: string; revision: number }) => { hooks.cursor = 0; return useEditorDraft(initial); };
+    let form = DraftHarness({ value: 'Original', revision: 1 });
+    form.setDraft({ value: 'My draft', revision: 1 });
+    form = DraftHarness({ value: 'Newer published value', revision: 2 });
+    expect(form.draft).toEqual({ value: 'My draft', revision: 1 });
+    expect(form.baseline.revision).toBe(1);
+    form.acceptPublished({ value: 'Confirmed', revision: 3 });
+    form = DraftHarness({ value: 'Confirmed', revision: 3 });
+    expect(form.dirty).toBe(false);
+    expect(form.baseline.revision).toBe(3);
+  });
+
+  it('does not replace a confirmed result with unchanged stale parent props', () => {
+    const DraftHarness = (initial: string) => { hooks.cursor = 0; return useEditorDraft(initial); };
+    const form = DraftHarness('Original');
+    form.acceptPublished('Confirmed');
+    DraftHarness('Original');
+    expect(DraftHarness('Original').draft).toBe('Confirmed');
+  });
+
+  it('does not replace a confirmed result with an incoming value already observed while dirty', () => {
+    const DraftHarness = (initial: string) => { hooks.cursor = 0; return useEditorDraft(initial); };
+    let form = DraftHarness('A');
+    form.setDraft('My draft');
+    form = DraftHarness('B');
+    expect(form.baseline).toBe('A');
+    form.acceptPublished('C');
+    DraftHarness('B');
+    expect(DraftHarness('B').draft).toBe('C');
+  });
+
+  it('updates clean drafts from refreshed native settings', () => {
+    const DraftHarness = (initial: string) => { hooks.cursor = 0; return useEditorDraft(initial); };
+    DraftHarness('Original');
+    DraftHarness('Updated');
+    expect(DraftHarness('Updated').draft).toBe('Updated');
+  });
+
+  it('reports identity edits and uses the draft’s original identity version after unrelated refreshes', async () => {
+    const report = vi.fn();
+    const saved = { ...DEFAULT_BUSINESS_IDENTITY, brandName: 'My draft brand', identityVersion: 2 };
+    const onSave = vi.fn(async () => saved);
+    const props = { businessIdentity: DEFAULT_BUSINESS_IDENTITY, onSave, onEditorStateChange: report };
+    let tree = render(OwnerBusinessIdentityPanel, props);
+    const field = nodes(tree).find((node) => node.props.label === 'Brand name')!;
+    (field.props.onChange as (value: string) => void)('My draft brand');
+    tree = render(OwnerBusinessIdentityPanel, { ...props, businessIdentity: { ...DEFAULT_BUSINESS_IDENTITY, identityVersion: 8, brandName: 'Other edit' } });
+    expect(report).toHaveBeenLastCalledWith({ dirty: true, saving: false });
+    expect(nodes(tree).find((node) => node.props.label === 'Brand name')!.props.value).toBe('My draft brand');
+    await click(button(tree, 'Save business identity'));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ brandName: 'My draft brand' }), DEFAULT_BUSINESS_IDENTITY.identityVersion);
+    render(OwnerBusinessIdentityPanel, { ...props, businessIdentity: saved });
+    expect(report).toHaveBeenLastCalledWith({ dirty: false, saving: false });
+  });
+
+  it('preserves Founder draft text when another domain updates the operations payload', () => {
+    const report = vi.fn();
+    const props = { operationsPayload: { founderProfile: DEFAULT_FOUNDER_PROFILE }, onOperationsChange: vi.fn(), onEditorStateChange: report };
+    let tree = render(OwnerFounderProfilePanel, props);
+    const field = nodes(tree).find((node) => node.props.label === 'Hero headline')!;
+    (field.props.onChange as (value: string) => void)('Unpublished story');
+    const refreshed = { ...props, operationsPayload: { founderProfile: { ...DEFAULT_FOUNDER_PROFILE, updatedAt: 'New revision' } } };
+    render(OwnerFounderProfilePanel, refreshed);
+    tree = render(OwnerFounderProfilePanel, refreshed);
+    expect(nodes(tree).find((node) => node.props.label === 'Hero headline')!.props.value).toBe('Unpublished story');
+    expect(report).toHaveBeenLastCalledWith({ dirty: true, saving: false });
+  });
+
+  it('reports Experience edits and disables controls during publication', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ templates: { defaults: [] } }))));
+    const report = vi.fn();
+    const props = { settings: DEFAULT_EXPERIENCE_SETTINGS, onSettingsChange: vi.fn(), onEditorStateChange: report };
+    let tree = render(OwnerExperienceControlsPanel, props);
+    input(nodes(tree).find((node) => node.type === 'select' && node.props.value === 'standard')!, 'high');
+    tree = render(OwnerExperienceControlsPanel, props);
+    expect(report).toHaveBeenLastCalledWith({ dirty: true, saving: false });
+    let rejectSave!: (error: Error) => void;
+    vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/catalog/studio-bootstrap'
+      ? Promise.resolve(new Response(JSON.stringify({ templates: { defaults: [] } })))
+      : new Promise((_resolve, reject) => { rejectSave = reject; }))); 
+    const pending = click(button(tree, 'Save experience controls'));
+    tree = render(OwnerExperienceControlsPanel, props);
+    expect(report).toHaveBeenLastCalledWith({ dirty: true, saving: true });
+    expect(nodes(tree).filter((node) => node.type === 'fieldset').every((node) => node.props.disabled)).toBe(true);
+    rejectSave(new Error('Unavailable'));
+    await pending;
   });
 });
