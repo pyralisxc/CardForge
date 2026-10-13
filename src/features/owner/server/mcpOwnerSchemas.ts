@@ -303,11 +303,14 @@ export const ownerSiteFieldPublishInputSchema = fromJsonSchema<OwnerSiteFieldPub
   type: 'object', additionalProperties: false, required: ['field', 'value', 'expectedUpdatedAt'],
   properties: {
     field: { type: 'string', enum: ['primaryCtaLabel', 'navigationLabel', 'announcementMessage'] },
-    value: { type: 'string', minLength: 1, maxLength: 240 },
+    value: { type: 'string', maxLength: 240 },
     navigationId: { type: 'string', enum: ['about', 'plans', 'roadmap', 'account'] },
     expectedUpdatedAt: { type: 'string', minLength: 1, description: 'Exact settings.updatedAt returned by get_owner_site_fields. Reload after a conflict; never replace it with a guessed timestamp.' },
   },
-  allOf: [{ if: { properties: { field: { const: 'navigationLabel' } } }, then: { required: ['navigationId'] }, else: { not: { required: ['navigationId'] } } }],
+  allOf: [
+    { if: { properties: { field: { const: 'navigationLabel' } } }, then: { required: ['navigationId'] }, else: { not: { required: ['navigationId'] } } },
+    { if: { properties: { field: { enum: ['primaryCtaLabel', 'navigationLabel'] } } }, then: { properties: { value: { minLength: 1 } } } },
+  ],
 });
 
 export const ownerSiteFieldPublicationOutputSchema = fromJsonSchema({
