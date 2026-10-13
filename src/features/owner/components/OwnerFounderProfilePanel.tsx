@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
 import { Save, UserRound } from 'lucide-react';
 
+import { useEditorDraft, type EditorDraftState } from '@/components/ui/use-editor-draft';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import type { OwnerOperationsPayload, OwnerSiteControlPayload } from '@/features/owner/lib/ownerOperations';
@@ -16,29 +16,28 @@ const inputClassName = 'border border-[var(--cf-border)] bg-[var(--cf-canvas)] p
 export function OwnerFounderProfilePanel({
   operationsPayload,
   onOperationsChange,
+  onEditorStateChange,
 }: {
   operationsPayload: Pick<OwnerSiteControlPayload, 'founderProfile'>;
   onOperationsChange: (payload: OwnerOperationsPayload) => void;
+  onEditorStateChange?: (state: EditorDraftState) => void;
 }) {
   const { toast } = useToast();
-  const [profile, setProfile] = useState(operationsPayload.founderProfile);
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    setProfile(operationsPayload.founderProfile);
-  }, [operationsPayload]);
+  const { draft: profile, setDraft: setProfile, saving: isSaving, setSaving: setIsSaving, dirty, acceptPublished } = useEditorDraft(operationsPayload.founderProfile, onEditorStateChange);
 
   const setField = <K extends keyof FounderProfile>(key: K, value: FounderProfile[K]) => {
     setProfile((current) => ({ ...current, [key]: value }));
   };
 
   const saveProfile = async () => {
+    if (isSaving || !dirty) return;
     setIsSaving(true);
     try {
       const next = await updateOwnerOperations({
         kind: 'founderProfile',
         founderProfile: toInput(profile),
       }, 'Unable to save the Cameron profile.');
+      acceptPublished(next.founderProfile);
       onOperationsChange(next);
       toast({ title: 'Cameron profile published', description: 'Founder copy and social links are live without a deploy.' });
     } catch (error) {
@@ -58,7 +57,7 @@ export function OwnerFounderProfilePanel({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6">
+      <fieldset disabled={isSaving} className="mt-6 grid gap-6">
         <div className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-2">
             <TextField label="Hero welcome" value={profile.heroEyebrow} maxLength={80} onChange={(value) => setField('heroEyebrow', value)} />
@@ -97,13 +96,13 @@ export function OwnerFounderProfilePanel({
             <TextField label="Discord HTTPS URL" value={profile.discordUrl ?? ''} maxLength={500} onChange={(value) => setField('discordUrl', value || null)} />
           </div>
 
-          <Button className="w-fit bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving} onClick={saveProfile}>
+          <Button className="w-fit bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving || !dirty} onClick={saveProfile}>
             <Save className="mr-2 h-4 w-4" aria-hidden="true" />
             {isSaving ? 'Publishing profile...' : 'Save Cameron profile'}
           </Button>
         </div>
 
-      </div>
+      </fieldset>
     </section>
   );
 }

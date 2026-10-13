@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ArrowDown, ArrowUp, Megaphone, Save, Search, Settings2 } from 'lucide-react';
 
+import { useEditorDraft } from '@/components/ui/use-editor-draft';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import type {
@@ -45,14 +46,10 @@ export function OwnerSiteConfigurationPanel({
   onEditorStateChange?: (state: { dirty: boolean; saving: boolean }) => void;
 }) {
   const { toast } = useToast();
-  const [draft, setDraft] = useState(settings);
-  const [saving, setSaving] = useState(false);
+  const { draft, setDraft, saving, setSaving, dirty, acceptPublished } = useEditorDraft(settings, onEditorStateChange);
   const [needsReadback, setNeedsReadback] = useState(false);
   const publication = getOwnerPublicationPresentation(publicationEnvironment);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(settings);
   const [saveError, setSaveError] = useState<string | null>(null);
-  useEffect(() => { onEditorStateChange?.({ dirty, saving }); }, [dirty, saving, onEditorStateChange]);
-  useEffect(() => () => { onEditorStateChange?.({ dirty: false, saving: false }); }, [onEditorStateChange]);
 
   const save = async () => {
     if (saving || needsReadback) return;
@@ -82,7 +79,7 @@ export function OwnerSiteConfigurationPanel({
         };
       };
       if (!body.settings?.updatedAt || body.receipt?.committed !== true || typeof body.receipt.refreshComplete !== 'boolean') throw new Error('Invalid publication receipt.');
-      setDraft(body.settings);
+      acceptPublished(body.settings);
       onSettingsChange(body.settings);
       if (body.receipt && !body.receipt.refreshComplete) {
         toast({
@@ -115,7 +112,7 @@ export function OwnerSiteConfigurationPanel({
       const current = (await loadOwnerSiteControls()).siteConfiguration;
       if (!current?.updatedAt) throw new Error('The current settings revision is unavailable. Your draft is preserved.');
       if (dirty && !window.confirm('Replace your unpublished settings draft with the current published settings?')) return;
-      setDraft(current);
+      acceptPublished(current);
       onSettingsChange(current);
       setNeedsReadback(false);
       setSaveError(null);
@@ -146,6 +143,12 @@ export function OwnerSiteConfigurationPanel({
 
   return (
     <section className="space-y-5">
+      <div role="group" aria-label="Site publication" className="sticky top-0 z-10 space-y-2 border border-[var(--cf-border-strong)] bg-[var(--cf-canvas)] p-3 shadow-lg">
+        <p className="text-xs text-[var(--cf-text-subtle)]" role="status">{dirty ? 'Unpublished site settings' : 'No unpublished site settings'}</p>
+        {saveError ? <p role="alert" className="max-w-2xl border border-destructive/45 bg-destructive/10 px-3 py-2 text-sm leading-6 text-destructive">{saveError}</p> : null}
+        <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={saving || needsReadback || !dirty} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? publication.publishingActionLabel : publication.publishActionLabel}</Button>
+        {needsReadback ? <Button type="button" variant="outline" disabled={saving} onClick={() => void reloadCurrentSettings()}>Reload current settings</Button> : null}
+      </div>
       <fieldset disabled={saving} className="space-y-5">
       <div className="grid gap-5 xl:grid-cols-2">
         <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
@@ -219,11 +222,7 @@ export function OwnerSiteConfigurationPanel({
       </div>
 
       </fieldset>
-      <div className="space-y-2">
-        {saveError ? <p role="alert" className="max-w-2xl border border-destructive/45 bg-destructive/10 px-3 py-2 text-sm leading-6 text-destructive">{saveError}</p> : null}
-        <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={saving || needsReadback || !dirty} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? publication.publishingActionLabel : publication.publishActionLabel}</Button>
-        {needsReadback ? <Button type="button" variant="outline" disabled={saving} onClick={() => void reloadCurrentSettings()}>Reload current settings</Button> : null}
-      </div>
+
     </section>
   );
 }

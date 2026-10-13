@@ -2,6 +2,7 @@
 
 import { Database, Rocket } from 'lucide-react';
 
+import type { EditorDraftState } from '@/components/ui/use-editor-draft';
 import { Button } from '@/components/ui/button';
 import {
   OwnerBusinessIdentityPanel,
@@ -27,12 +28,14 @@ export function OwnerReadinessPanel({
   view = 'all',
   compactRoadmap = false,
   onOpenRoadmap,
+  onIdentityEditorStateChange,
 }: {
   operationsPayload: OwnerReadinessPayload;
   onOperationsChange?: (payload: OwnerOperationsPayload) => void;
   view?: 'all' | 'identity' | 'health' | 'roadmap';
   compactRoadmap?: boolean;
   onOpenRoadmap?: () => void;
+  onIdentityEditorStateChange?: (state: EditorDraftState) => void;
 }) {
   const saveBusinessIdentity = async (
     businessIdentity: BusinessIdentityInput,
@@ -44,6 +47,7 @@ export function OwnerReadinessPanel({
       expectedIdentityVersion,
     }, 'Unable to save business identity.');
     onOperationsChange?.(next);
+    return next.businessIdentity;
   };
 
   const metrics = operationsPayload.databaseMetrics;
@@ -65,6 +69,7 @@ export function OwnerReadinessPanel({
       {view === 'all' || view === 'identity' ? <OwnerBusinessIdentityPanel
         businessIdentity={operationsPayload.businessIdentity}
         onSave={saveBusinessIdentity}
+        onEditorStateChange={onIdentityEditorStateChange}
       /> : null}
 
       {view === 'all' || view === 'health' ? <section className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-6">

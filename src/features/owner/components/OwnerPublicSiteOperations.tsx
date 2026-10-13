@@ -2,8 +2,9 @@
 
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
+import { combineEditorDraftStates, type EditorDraftState } from '@/components/ui/use-editor-draft';
 import { CardForgeSectionIntro, CardForgeWorkspaceState } from '@/components/ui/cardforge-presentation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { OwnerOperationsPayload, OwnerSiteControlPayload } from '@/features/owner/lib/ownerOperations';
@@ -33,11 +34,20 @@ export function OwnerPublicSiteOperations({ publicationEnvironment }: {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadGeneration, setLoadGeneration] = useState(0);
   const [workspace, setWorkspace] = useState('pages');
-  const [editorState, setEditorState] = useState({ dirty: false, saving: false });
-  const reportEditorState = useCallback((state: { dirty: boolean; saving: boolean }) => {
-    setEditorState(state);
-    onEditorStateChange(state);
-  }, [onEditorStateChange]);
+  const [editorStates, setEditorStates] = useState<Record<string, EditorDraftState>>({});
+  const editorState = useMemo(() => combineEditorDraftStates(editorStates), [editorStates]);
+  const report = useCallback((key: string, state: EditorDraftState) => {
+    setEditorStates((current) => {
+      if (current[key]?.dirty === state.dirty && current[key]?.saving === state.saving) return current;
+      return { ...current, [key]: state };
+    });
+  }, []);
+  const reportPages = useCallback((state: EditorDraftState) => report('pages', state), [report]);
+  const reportIdentity = useCallback((state: EditorDraftState) => report('identity', state), [report]);
+  const reportFounder = useCallback((state: EditorDraftState) => report('founder', state), [report]);
+  const reportExperience = useCallback((state: EditorDraftState) => report('experience', state), [report]);
+  useEffect(() => { onEditorStateChange(editorState); }, [editorState, onEditorStateChange]);
+  useEffect(() => () => { onEditorStateChange({ dirty: false, saving: false }); }, [onEditorStateChange]);
   const changeWorkspace = (next: string) => {
     if (editorState.saving || next === workspace) return;
     if (editorState.dirty && !window.confirm('Discard unpublished site settings?')) return;
@@ -80,12 +90,12 @@ export function OwnerPublicSiteOperations({ publicationEnvironment }: {
         <TabsTrigger value="pages" className={subtabClassName}>Pages &amp; SEO</TabsTrigger>
         <TabsTrigger value="experience" className={subtabClassName}>Experience &amp; Access</TabsTrigger>
       </TabsList>
-      <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" operationsPayload={{ businessIdentity: siteOperations.businessIdentity, roadmapItems: siteOperations.roadmapItems, databaseMetrics: null }} onOperationsChange={updateOperations} /><OwnerFounderProfilePanel operationsPayload={siteOperations} onOperationsChange={updateOperations} /></TabsContent>
-      <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel publicationEnvironment={publicationEnvironment} onEditorStateChange={reportEditorState} settings={siteOperations.siteConfiguration} onSettingsChange={(siteConfiguration) => {
+      <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" onIdentityEditorStateChange={reportIdentity} operationsPayload={{ businessIdentity: siteOperations.businessIdentity, roadmapItems: siteOperations.roadmapItems, databaseMetrics: null }} onOperationsChange={updateOperations} /><OwnerFounderProfilePanel onEditorStateChange={reportFounder} operationsPayload={siteOperations} onOperationsChange={updateOperations} /></TabsContent>
+      <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel publicationEnvironment={publicationEnvironment} onEditorStateChange={reportPages} settings={siteOperations.siteConfiguration} onSettingsChange={(siteConfiguration) => {
         setSiteOperations((current) => current ? { ...current, siteConfiguration } : current);
         router.refresh();
       }} /></TabsContent>
-      <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel settings={siteOperations.experienceSettings} onSettingsChange={(experienceSettings) => {
+      <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel onEditorStateChange={reportExperience} settings={siteOperations.experienceSettings} onSettingsChange={(experienceSettings) => {
         setSiteOperations((current) => current ? { ...current, experienceSettings } : current);
         router.refresh();
       }} /></TabsContent>
