@@ -79,3 +79,8 @@ export {
   type SiteMediaSlot,
   type SiteMediaVersion,
 } from './model/siteMedia';
+
+export {
+  getOwnerPublicationPresentation,
+  type OwnerPublicationEnvironment,
+} from './model/ownerPublicationEnvironment';

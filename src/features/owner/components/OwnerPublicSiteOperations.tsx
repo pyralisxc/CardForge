@@ -7,8 +7,7 @@ import { useCallback, useContext, useEffect, useState } from 'react';
 import { CardForgeSectionIntro, CardForgeWorkspaceState } from '@/components/ui/cardforge-presentation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { OwnerOperationsPayload, OwnerSiteControlPayload } from '@/features/owner/lib/ownerOperations';
-import { OwnerPageEditorStateContext } from '@/features/public-site/client';
-import type { OwnerPublicationEnvironment } from '@/features/public-site/model/ownerPublicationEnvironment';
+import { OwnerPageEditorStateContext, type OwnerPublicationEnvironment } from '@/features/public-site/client';
 import { loadOwnerSiteControls } from '@/features/owner/model/ownerOperationsClient';
 
 const panelFallback = () => <CardForgeWorkspaceState state="loading" message="Loading public-site controls…" />;

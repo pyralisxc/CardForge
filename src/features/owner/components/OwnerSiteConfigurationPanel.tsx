@@ -11,7 +11,7 @@ import type {
   PrimaryNavigationItem,
   PublicSiteConfiguration,
 } from '@/features/public-site/client';
-import { getOwnerPublicationPresentation, type OwnerPublicationEnvironment } from '@/features/public-site/model/ownerPublicationEnvironment';
+import { getOwnerPublicationPresentation, type OwnerPublicationEnvironment } from '@/features/public-site/client';
 import { loadOwnerSiteControls } from '@/features/owner/model/ownerOperationsClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { OwnerHomepageShowcasePanel } from './OwnerHomepageShowcasePanel';

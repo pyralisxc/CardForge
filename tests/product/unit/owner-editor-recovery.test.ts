@@ -23,7 +23,7 @@ vi.mock('react', async (importOriginal) => {
 });
 vi.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('@/features/owner/components/OwnerHomepageShowcasePanel', () => ({ OwnerHomepageShowcasePanel: () => null }));
-vi.mock('@/features/public-site/client', () => ({}));
+vi.mock('@/features/public-site/client', async () => await import('@/features/public-site/model/ownerPublicationEnvironment')); 
 
 import { PublicSiteFocusedTextEditor, savePublicSiteContentBlock, SiteContentPublicationError } from '@/features/public-site/components/PublicSiteCopyLiveEditor';
 import { OwnerSiteConfigurationPanel } from '@/features/owner/components/OwnerSiteConfigurationPanel';
