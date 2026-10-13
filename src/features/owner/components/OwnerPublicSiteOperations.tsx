@@ -84,7 +84,7 @@ export function OwnerPublicSiteOperations({ publicationEnvironment }: {
 
   return <section className="space-y-4">
     <CardForgeSectionIntro eyebrow="Site settings" title="Controls beyond the page" body="Edit visible content on the page itself. These native settings only manage the values you cannot select in the rendered page." />
-    <Tabs value={workspace} onValueChange={changeWorkspace} className="space-y-4">
+    <Tabs activationMode="manual" value={workspace} onValueChange={changeWorkspace} className="space-y-4">
       <TabsList className={subtabListClassName}>
         <TabsTrigger value="identity" className={subtabClassName}>Brand &amp; Identity</TabsTrigger>
         <TabsTrigger value="pages" className={subtabClassName}>Pages &amp; SEO</TabsTrigger>
