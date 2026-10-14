@@ -18,11 +18,13 @@ const blobToDataUrl = (blob: Blob): Promise<string> => new Promise((resolve, rej
 export const hydrateStudioDocumentAssetValue = async <Value>(
   value: Value,
   assets: StudioDocumentAssetDownload[],
+  signal?: AbortSignal,
 ): Promise<Value> => {
+  signal?.throwIfAborted();
   const replacements = new Map<string, string>();
   for (let start = 0; start < assets.length; start += 4) {
     const hydrated = await Promise.all(assets.slice(start, start + 4).map(async (asset) => {
-      const response = await fetch(asset.signedUrl, { cache: 'no-store' });
+      const response = await fetch(asset.signedUrl, { cache: 'no-store', signal });
       if (!response.ok) throw new Error('CardForge could not download one of this document’s private artwork files.');
       const blob = await response.blob();
       if (blob.type && blob.type !== asset.mimeType) {
@@ -32,10 +34,12 @@ export const hydrateStudioDocumentAssetValue = async <Value>(
     }));
     hydrated.forEach(([id, dataUrl]) => replacements.set(id, dataUrl));
   }
+  signal?.throwIfAborted();
   return replaceStudioDocumentAssetReferences(value, replacements) as Value;
 };
 
 export const hydrateStudioDocumentAssets = (
   document: ProjectDocumentV1,
   assets: StudioDocumentAssetDownload[],
-): Promise<ProjectDocumentV1> => hydrateStudioDocumentAssetValue(document, assets);
+  signal?: AbortSignal,
+): Promise<ProjectDocumentV1> => hydrateStudioDocumentAssetValue(document, assets, signal);

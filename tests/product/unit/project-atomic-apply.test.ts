@@ -25,6 +25,32 @@ describe('atomic project apply', () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
+  it('leaves live and durable work unchanged when installation was cancelled', async () => {
+    const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
+    const before = await raw.getItem('workspace');
+    const state = useProjectStore.getState();
+    const controller = new AbortController(); controller.abort();
+    await expect(applyProjectDocumentToWorkspace(fixture(), 'adopt', { signal: controller.signal })).rejects.toBeDefined();
+    expect(useProjectStore.getState()).toBe(state);
+    expect(await raw.getItem('workspace')).toBe(before);
+  });
+  it('rolls back a cancellation during the native import transaction', async () => {
+    const controller = new AbortController();
+    const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
+    const before = await raw.getItem('workspace');
+    const state = useProjectStore.getState();
+    const put = IDBObjectStore.prototype.put;
+    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
+      const request = put.call(this, value, key);
+      if (key === `project-workspace:${scope}:workspace`) controller.abort();
+      return request;
+    });
+    await expect(applyProjectDocumentToWorkspace(fixture(), 'adopt', { signal: controller.signal })).rejects.toBeDefined();
+    expect(useProjectStore.getState()).toBe(state);
+    expect(await raw.getItem('workspace')).toBe(before);
+    expect(await createBrowserKeyValueStorage(`project-assets:${scope}`).getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).toBeNull();
+  });
+
   it('commits once, and restores workspace and artwork catalogs together', async () => {
     const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
     const assets = createBrowserKeyValueStorage(`project-assets:${scope}`);

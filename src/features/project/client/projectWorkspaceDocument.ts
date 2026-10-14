@@ -247,8 +247,9 @@ export const captureCardProjectDocument = async (cardId: string): Promise<Projec
 export const applyProjectDocumentToWorkspace = async (
   document: ProjectDocumentV1,
   mode: ProjectWorkspaceApplyMode,
-  options: { expectedState?: ProjectState; replaceSetIds?: readonly string[] } = {},
+  options: { expectedState?: ProjectState; replaceSetIds?: readonly string[]; signal?: AbortSignal } = {},
 ): Promise<ProjectWorkspaceApplySummary> => {
+  options.signal?.throwIfAborted();
   const draft = createProjectWorkspaceDraft(options.expectedState);
   const independent = mode === 'copy'
     ? restoreCopiedSetTemplateReferences(
@@ -339,7 +340,8 @@ export const applyProjectDocumentToWorkspace = async (
     draft.getState().setTemplateEditorSelectedTemplateId(activeTemplateId);
   }
 
-  await draft.commit(relatedWrites);
+  options.signal?.throwIfAborted();
+  await draft.commit(relatedWrites, options.signal);
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(PROJECT_FONT_LIBRARY_CHANGE_EVENT));
   return {
     activeSetId: activeSet?.id ?? null,
