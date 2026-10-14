@@ -174,6 +174,10 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
       canvas.width = 64; canvas.height = 64;
       const context = canvas.getContext('2d')!;
       context.fillStyle = '#4f7dc8'; context.fillRect(0, 0, 64, 64);
+      stateValue.userTemplates.forEach((template) => {
+        template.cardBackgroundImageUrl = canvas.toDataURL('image/png');
+        template.appearance = { ...template.appearance, assetSource: `cardforge-browser-asset://${'f'.repeat(64)}` };
+      });
       rasterBlob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Fixture image failed')), 'image/png'));
     }
     const persistedValue = JSON.stringify({ state: stateValue, version: 4 });
@@ -186,7 +190,10 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(objectStoreName, 'readwrite');
       const store = transaction.objectStore(objectStoreName);
-      scopes.forEach((scope) => store.put(record, `project-workspace:${scope}:workspace`));
+      scopes.forEach((scope) => {
+        store.put(record, `project-workspace:${scope}:workspace`);
+        if (lowResolutionArtwork) store.put(new Blob(['<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="none"/></svg>'], { type: 'image/svg+xml' }), `project-content-asset:${scope}:${'f'.repeat(64)}`);
+      });
       stateValue.storedCards.forEach((card, index) => {
         const reference = typeof card.data.artwork === 'string' ? card.data.artwork : '';
         const assetId = reference.replace('cardforge-browser-asset://', '');

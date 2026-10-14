@@ -124,9 +124,9 @@ export const primeProjectBinaryAssetUrls = async (
 };
 
 /** Resolves references embedded inside CSS values such as url(...). */
-export const useProjectBinaryAssetValue = (value: string | null | undefined): string | undefined => {
+export const useProjectBinaryAssetValueResolution = (value: string | null | undefined): { value: string; vectorUrls: string[] } | undefined => {
   const scope = getProjectPersistenceScope();
-  const [resolution, setResolution] = useState<{ scope: string; value: string; resolved: string } | null>(null);
+  const [resolution, setResolution] = useState<{ scope: string; value: string; resolved: string; vectorUrls: string[] } | null>(null);
 
   useEffect(() => {
     if (!value) return;
@@ -138,14 +138,14 @@ export const useProjectBinaryAssetValue = (value: string | null | undefined): st
       const handle = await resolverForScope(scope).acquire(reference);
       if (!active) {
         handle.release();
-        return [reference, reference] as const;
+        return { reference, url: reference, mimeType: '' };
       }
       releases.push(handle.release);
-      return [reference, handle.url] as const;
+      return { reference, url: handle.url, mimeType: handle.mimeType };
     })).then((entries) => {
       if (!active) return;
-      const resolved = entries.reduce((current, [reference, url]) => current.replaceAll(reference, url), value);
-      setResolution({ scope, value, resolved });
+      const resolved = entries.reduce((current, { reference, url }) => current.replaceAll(reference, url), value);
+      setResolution({ scope, value, resolved, vectorUrls: entries.filter((entry) => entry.mimeType === 'image/svg+xml').map((entry) => entry.url) });
     }).catch(() => {
       if (active) setResolution(null);
     });
@@ -156,6 +156,9 @@ export const useProjectBinaryAssetValue = (value: string | null | undefined): st
   }, [scope, value]);
 
   if (!value) return undefined;
-  if (!value.includes('cardforge-browser-asset://')) return value;
-  return resolution?.scope === scope && resolution.value === value ? resolution.resolved : undefined;
+  if (!value.includes('cardforge-browser-asset://')) return { value, vectorUrls: [] };
+  return resolution?.scope === scope && resolution.value === value ? { value: resolution.resolved, vectorUrls: resolution.vectorUrls } : undefined;
 };
+
+/** Compatibility projection over the same CSS resolution lifecycle. */
+export const useProjectBinaryAssetValue = (value: string | null | undefined): string | undefined => useProjectBinaryAssetValueResolution(value)?.value;
