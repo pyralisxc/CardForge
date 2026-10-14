@@ -82,7 +82,9 @@ describe('owner integration status', () => {
     vi.stubEnv('VERCEL_ENV', 'preview');
     vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://preview.example.test');
     vi.stubEnv('SUPABASE_URL', 'https://mjdugheniazuiqoefnnb.supabase.co');
-    const services = getOwnerIntegrationStatus().connectedServices;
+    const snapshot = getOwnerIntegrationStatus();
+    expect(snapshot.publicationEnvironment).toBe('preview');
+    const services = snapshot.connectedServices;
     expect(services.find((service) => service.id === 'vercel')?.statusLabel).toBe('Public URL configured');
     expect(services.find((service) => service.id === 'supabase')).toMatchObject({ identifier: 'mjdugheniazuiqoefnnb', dashboardUrl: 'https://supabase.com/dashboard/project/mjdugheniazuiqoefnnb' });
     expect(services.find((service) => service.id === 'clerk')?.identifier).not.toContain('production');

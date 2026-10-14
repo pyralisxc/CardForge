@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { CardForgeSurface } from '@/components/ui/cardforge-presentation';
 import { useToast } from '@/components/ui/use-toast';
 import type { OwnerOperationsResponse } from '@/features/owner/model/ownerOperationsClient';
+import { getOwnerPublicationPresentation } from '@/features/public-site/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 export function OwnerOperationsSummary({ payload }: { payload: OwnerOperationsResponse }) {
@@ -28,7 +29,7 @@ export function OwnerOperationsSummary({ payload }: { payload: OwnerOperationsRe
   const billingReady = payload.integrationStatus.billing.productAccessConfigured
     && payload.integrationStatus.billing.supportConfigured
     && payload.integrationStatus.billing.webhookConfigured;
-  const creatorPassReady = payload.integrationStatus.billing.productAccessConfigured
+  const productAccessReady = payload.integrationStatus.billing.productAccessConfigured
     && payload.integrationStatus.billing.webhookConfigured;
   const emailReady = payload.integrationStatus.email.resendConfigured
     && payload.integrationStatus.email.fromConfigured
@@ -36,7 +37,7 @@ export function OwnerOperationsSummary({ payload }: { payload: OwnerOperationsRe
   const status = [
     ['Auth', payload.integrationStatus.authConfigured ? 'Clerk' : 'Setup', payload.integrationStatus.authConfigured],
     ['Database', payload.integrationStatus.supabase.configured && payload.overview.configured ? 'Supabase' : 'Setup', payload.integrationStatus.supabase.configured && payload.overview.configured],
-    ['Billing', billingReady ? 'Stripe' : (creatorPassReady ? 'Creator Pass' : 'Setup'), billingReady],
+    ['Billing', billingReady ? 'Stripe' : (productAccessReady ? 'Product access' : 'Setup'), billingReady],
     ['Email', emailReady ? 'Resend' : (payload.integrationStatus.email.resendConfigured ? 'Setup' : 'Mailto'), emailReady],
     ['Domain', payload.integrationStatus.site.usingLocalFallback ? 'Local' : 'Configured', !payload.integrationStatus.site.usingLocalFallback],
     ['Publisher', payload.integrationStatus.canonicalOwnerConfigured ? 'Canonical' : 'Setup', payload.integrationStatus.canonicalOwnerConfigured],
@@ -51,7 +52,8 @@ export function OwnerOperationsSummary({ payload }: { payload: OwnerOperationsRe
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-[var(--cf-text-muted)]">
           <CardForgeSurface tone="inset" className="border-[var(--cf-border-subtle)] px-3 py-2">{payload.ownerAccess.email ?? 'Owner session'}</CardForgeSurface>
-          <a className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-2 text-[var(--cf-accent-text)]" href={payload.integrationStatus.site.publicAppUrl} target="_blank" rel="noreferrer">Open production <ExternalLink className="ml-1 inline h-3.5 w-3.5" /></a>
+          {payload.integrationStatus.publicationEnvironment ? <CardForgeSurface tone="inset" className="border-[var(--cf-border-subtle)] px-3 py-2">{getOwnerPublicationPresentation(payload.integrationStatus.publicationEnvironment).badgeLabel}</CardForgeSurface> : null}
+          <a className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-2 text-[var(--cf-accent-text)]" href={payload.integrationStatus.site.publicAppUrl} target="_blank" rel="noreferrer">Open site <ExternalLink className="ml-1 inline h-3.5 w-3.5" /></a>
         </div>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">

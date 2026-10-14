@@ -5,6 +5,7 @@ import { getConfiguredPublicAppUrl, getPublicAppUrl } from '@/infrastructure/htt
 import { getAnalyticsConfigurationStatus } from '@/features/analytics/server';
 import type { OwnerConnectedService } from '@/features/owner/lib/ownerOperations';
 import { getMetaConfiguration } from '@/features/marketing-distribution/server';
+import { resolveOwnerPublicationEnvironment } from '@/features/public-site/server';
 import { getCanonicalOwnerAccountEmail } from '@/domain/entitlements';
 
 const buildConnectedServices = ({
@@ -204,6 +205,7 @@ export const getOwnerIntegrationStatus = () => {
   const analyticsProjectIdentityVerified = (process.env.CARDFORGE_GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim().toLowerCase() ?? '')
     .endsWith('@cardforge-analytics.iam.gserviceaccount.com');
   return {
+    publicationEnvironment: resolveOwnerPublicationEnvironment(process.env.VERCEL_ENV),
     site: { publicAppUrl, configuredPublicAppUrl, usingLocalFallback: !configuredPublicAppUrl, sitemapUrl: `${publicAppUrl}/sitemap.xml`, robotsUrl: `${publicAppUrl}/robots.txt` },
     authConfigured,
     billing,
