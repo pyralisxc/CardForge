@@ -28,6 +28,7 @@ export type ApiErrorCode =
   | 'contact_request_unavailable'
   | 'contributor_access_required'
   | 'contributor_access_unavailable'
+  | 'experience_controls_conflict'
   | 'experience_controls_invalid'
   | 'experience_controls_unavailable'
   | 'google_drive_auth_required'

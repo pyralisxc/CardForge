@@ -1,19 +1,22 @@
 import type { StandardSchemaV1 } from '@modelcontextprotocol/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DEFAULT_PUBLIC_SITE_CONFIGURATION } from '@/features/public-site/model/siteConfiguration';
 import { getBillingConfigStatus } from '@/features/billing/lib/billing';
 import type { McpOwnerAccess } from '@/features/owner/server/mcpOwnerAccess';
 import { registerOwnerReadTools } from '@/features/owner/server/mcpOwnerTools';
 import { ownerSiteFieldPublishInputSchema } from '@/features/owner/server/mcpOwnerSchemas';
 
-const mocks = vi.hoisted(() => ({ publish: vi.fn(), publishField: vi.fn(), readFields: vi.fn(), readiness: vi.fn(), site: vi.fn(), access: vi.fn() }));
-vi.mock('@/features/public-site/server', () => ({ getPublicSiteConfiguration: mocks.readFields }));
+const mocks = vi.hoisted(() => ({ publish: vi.fn(), publishField: vi.fn(), publishConfiguration: vi.fn(), publishPresentation: vi.fn(), readFields: vi.fn(), readiness: vi.fn(), site: vi.fn(), access: vi.fn() }));
+vi.mock('@/features/public-site/server', () => ({ getPublicSiteConfiguration: mocks.readFields, getFounderProfile: mocks.site }));
+vi.mock('@/features/business-identity/server', () => ({ getBusinessIdentity: mocks.site }));
+vi.mock('@/features/experience-settings/server', () => ({ getExperienceSettings: mocks.site }));
 vi.mock('@/features/mcp-usage/server', () => ({
   observeMcpToolExecution: ({ execute }: { execute: () => Promise<unknown> }) => execute(),
 }));
 vi.mock('@/features/owner/server/ownerActivityStore', () => ({ getOwnerActivity: vi.fn() }));
 vi.mock('@/features/owner/lib/ownerOperationsStore', () => ({ getOwnerSiteControlPayload: mocks.site }));
-vi.mock('@/features/owner/server/ownerSiteCommands', () => ({ publishOwnerSiteContentBlock: mocks.publish, publishOwnerSiteConfigurationField: mocks.publishField }));
+vi.mock('@/features/owner/server/ownerSiteCommands', () => ({ publishOwnerSiteContentBlock: mocks.publish, publishOwnerSiteConfigurationField: mocks.publishField, publishOwnerSiteConfigurationPatch: mocks.publishConfiguration, publishOwnerBusinessIdentity: mocks.publishPresentation, publishOwnerFounderProfile: mocks.publishPresentation, publishOwnerExperienceSettings: mocks.publishPresentation }));
 vi.mock('@/features/owner/server/ownerIntegrationStatus', () => ({ getOwnerIntegrationStatus: mocks.readiness }));
 
 type RegisteredTool = {
@@ -59,6 +62,31 @@ async function invoke(name: string, input: Record<string, unknown> = {}) {
 }
 
 describe('Owner MCP registered output contracts', () => {
+  it('reads complete settings and publishes partial changes with a canonical receipt', async () => {
+    const full = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt };
+    mocks.readFields.mockResolvedValue(full);
+    expect(await invoke('get_owner_site_configuration')).toMatchObject({ settings: full });
+    const receipt = { committed: true, refreshComplete: false, refreshFailures: ['homepage'], activityRecorded: true,
+      retryable: false, nextAction: 'reload', message: 'Saved; reload.' };
+    mocks.publishConfiguration.mockResolvedValue({ settings: full, receipt });
+    const input = { patch: { primaryCtaHref: '/about' }, expectedUpdatedAt: settings.updatedAt };
+    expect(await invoke('publish_owner_site_configuration', input)).toMatchObject({ livePublication: false, receipt });
+    expect(mocks.publishConfiguration).toHaveBeenCalledExactlyOnceWith({ actor: { userId: 'owner', email: 'owner@example.com' }, ...input });
+  });
+  it.each(['identity', 'founder', 'experience'])('uses the native %s publication and terminal receipt', async (area) => {
+    const receipt = { committed: true, refreshComplete: true, refreshFailures: [], activityRecorded: true,
+      retryable: false, nextAction: 'none', message: 'Published.' };
+    mocks.publishPresentation.mockResolvedValue({ value: { updatedAt: settings.updatedAt }, receipt });
+    const input = { area, values: { presentationContrast: 'high' }, ...(area === 'identity' ? { expectedIdentityVersion: 1 } : { expectedUpdatedAt: settings.updatedAt }) };
+    expect(await invoke('publish_owner_presentation', input)).toMatchObject({ area, receipt, livePublication: false });
+    expect(mocks.publishPresentation).toHaveBeenCalledTimes(1);
+  });
+  it.each(['get_owner_site_configuration', 'publish_owner_site_configuration', 'get_owner_presentation_editor', 'publish_owner_presentation'])('fails closed for %s', async (name) => {
+    mocks.access.mockRejectedValue(new Error('Owner access required'));
+    expect(await tools.get(name)!.handler({ area: 'identity', values: {} })).toMatchObject({ isError: true });
+    expect(mocks.publishConfiguration).not.toHaveBeenCalled();
+    expect(mocks.publishPresentation).not.toHaveBeenCalled();
+  });
   it('accepts an empty announcement while requiring nonempty CTA and navigation labels', async () => {
     expect(await ownerSiteFieldPublishInputSchema['~standard'].validate({ field: 'announcementMessage', value: '', expectedUpdatedAt: settings.updatedAt })).not.toHaveProperty('issues');
     expect(await ownerSiteFieldPublishInputSchema['~standard'].validate({ field: 'primaryCtaLabel', value: '', expectedUpdatedAt: settings.updatedAt })).toHaveProperty('issues');

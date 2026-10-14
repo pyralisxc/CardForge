@@ -132,6 +132,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
   templateContent?: boolean;
   cardLimit?: number;
   exportSample?: boolean;
+  lowResolutionArtwork?: boolean;
   mixedTemplates?: boolean;
   needsWorkFixture?: boolean;
 } = {}) => {
@@ -158,7 +159,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     }
     state.storedCards = state.storedCards.map((card) => ({ ...card, backingData: { ...card.data, cardName: `Back · ${card.data.cardName}` } }));
   }
-  await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue }) => {
+  await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue, lowResolutionArtwork }) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(databaseName, 1);
       request.onupgradeneeded = () => {
@@ -167,6 +168,14 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
+    let rasterBlob: Blob | null = null;
+    if (lowResolutionArtwork) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 64;
+      const context = canvas.getContext('2d')!;
+      context.fillStyle = '#4f7dc8'; context.fillRect(0, 0, 64, 64);
+      rasterBlob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Fixture image failed')), 'image/png'));
+    }
     const persistedValue = JSON.stringify({ state: stateValue, version: 4 });
     const record = JSON.stringify({
       cardforgeWorkspaceRecord: 1,
@@ -184,7 +193,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
         const marks = Array.from({ length: 36 }, (_, mark) => `<circle cx="${(mark * 83 + index * 17) % 512}" cy="${(mark * 137 + index * 29) % 720}" r="${12 + (mark % 22)}" fill="#4f7dc8" fill-opacity="0.42"/>`).join('');
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="720"><rect width="512" height="720" fill="#101723"/>${marks}<text x="24" y="680" fill="white" font-size="42">Artifact ${index + 1}</text></svg>`;
         scopes.forEach((scope) => {
-          store.put(new Blob([svg], { type: 'image/svg+xml' }), `project-content-asset:${scope}:${assetId}`);
+          store.put(rasterBlob ?? new Blob([svg], { type: 'image/svg+xml' }), `project-content-asset:${scope}:${assetId}`);
         });
       });
       transaction.oncomplete = () => resolve();
@@ -197,6 +206,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     objectStoreName: BROWSER_STORE,
     scopes: LOCAL_WORKSPACE_SCOPES,
     stateValue: state,
+    lowResolutionArtwork: options.lowResolutionArtwork ?? false,
   });
 };
 

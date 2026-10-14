@@ -4,6 +4,7 @@ import {
   hasCardBacking,
 } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
+import type { SourceImageDetail } from './sourceImageDetail';
 
 import {
   getExportProfile,
@@ -34,6 +35,7 @@ export interface PrintProductionPreflightReport {
   faceCount: number;
   requestedDpi: number;
   effectivePixelsPerInch: number;
+  sourceImageDetail: { measured: boolean; coverage: 'rendered-image-elements'; images: SourceImageDetail[] };
   productionPrepared: boolean;
   pressReady: boolean;
   colorManagement: {
@@ -113,6 +115,7 @@ const deduplicateIssues = (
 export const createPrintProductionPreflight = (
   cards: DisplayCard[],
   requestedDpi: number,
+  sourceImageDetails?: SourceImageDetail[],
 ): PrintProductionPreflightReport => {
   const profile = getExportProfile('physical', requestedDpi);
   const effectivePixelsPerInch = profile.dpi * profile.canvasPixelRatio;
@@ -199,6 +202,19 @@ export const createPrintProductionPreflight = (
     });
   });
 
+  if (sourceImageDetails === undefined) issues.push({
+    code: 'resolution.source_detail_unmeasured', severity: 'warning', scope: 'package',
+    message: 'Source-image detail is measured during rendering. Export canvas density alone does not prove artwork detail.',
+  });
+  sourceImageDetails?.filter((detail) => detail.effectivePpi < 300).forEach((detail) => issues.push({
+    code: 'resolution.source_below_300_ppi', severity: 'warning', scope: detail.scope,
+    message: `Artwork has ${Math.floor(detail.effectivePpi)} effective source PPI at its placed size. A denser export cannot restore missing source detail.`,
+  }));
+  if ([...geometries.values()].some((geometry) => geometry.bleedMm > 0)) issues.push({
+    code: 'bleed.edge_extension_review', severity: 'warning', scope: 'package',
+    message: 'Bleed extends the rendered trim edges; inspect the full-bleed artwork before professional production. Edge extension does not prove authored artwork continuation.',
+  });
+
   issues.push({
     code: 'standards.output_intent_missing',
     severity: 'standards-gap',
@@ -219,6 +235,7 @@ export const createPrintProductionPreflight = (
     faceCount,
     requestedDpi: profile.dpi,
     effectivePixelsPerInch,
+    sourceImageDetail: { measured: sourceImageDetails !== undefined, coverage: 'rendered-image-elements', images: sourceImageDetails ?? [] },
     productionPrepared,
     pressReady,
     colorManagement: {

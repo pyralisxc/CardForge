@@ -5,8 +5,10 @@ import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import { getOwnerActivity } from '@/features/owner/server/ownerActivityStore';
 import { getOwnerIntegrationStatus } from '@/features/owner/server/ownerIntegrationStatus';
 import { getOwnerSiteControlPayload } from '@/features/owner/lib/ownerOperationsStore';
-import { publishOwnerSiteContentBlock, publishOwnerSiteConfigurationField } from '@/features/owner/server/ownerSiteCommands';
-import { getPublicSiteConfiguration, type PublicSiteConfiguration } from '@/features/public-site/server';
+import { publishOwnerSiteContentBlock, publishOwnerSiteConfigurationField, publishOwnerSiteConfigurationPatch, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerExperienceSettings } from '@/features/owner/server/ownerSiteCommands';
+import { getPublicSiteConfiguration, getFounderProfile, type PublicSiteConfiguration } from '@/features/public-site/server';
+import { getBusinessIdentity } from '@/features/business-identity/server';
+import { getExperienceSettings } from '@/features/experience-settings/server';
 import type { McpOwnerAccess } from './mcpOwnerAccess';
 import {
   ownerActivityInputSchema,
@@ -18,6 +20,13 @@ import {
   ownerSiteFieldsOutputSchema,
   ownerSiteFieldPublishInputSchema,
   ownerSiteFieldPublicationOutputSchema,
+  ownerSiteConfigurationOutputSchema,
+  ownerSiteConfigurationPublishInputSchema,
+  ownerSiteConfigurationPublicationOutputSchema,
+  ownerPresentationReadInputSchema,
+  ownerPresentationReadOutputSchema,
+  ownerPresentationPublishInputSchema,
+  ownerPresentationPublicationOutputSchema,
 } from './mcpOwnerSchemas';
 
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
@@ -266,6 +275,63 @@ export const registerOwnerReadTools = ({
       },
     }),
   );
+
+  server.registerTool('get_owner_site_configuration', {
+    title: 'Read complete Owner public-site settings',
+    description: 'Read the same navigation, destinations, visibility, SEO, homepage sections, exact-revision demonstrations and watermark presentation used by browser Site settings. Preserve the exact updatedAt before publishing. Provider prices and code capabilities are not editable settings.',
+    outputSchema: ownerSiteConfigurationOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async () => runObserved({ toolName: 'get_owner_site_configuration', input: {}, execute: async () => ({
+    content: [{ type: 'text', text: 'Loaded complete canonical public-site settings. No presentation changed.' }],
+    structuredContent: { environment: deploymentEnvironment(), settings: await getPublicSiteConfiguration() },
+  }) }));
+
+  server.registerTool('publish_owner_site_configuration', {
+    title: 'Publish Owner public-site settings',
+    description: 'Publish only the requested presentation changes through the browser Site settings command. Read get_owner_site_configuration first and supply its exact updatedAt. Arrays replace their complete collection. Preview changes staging only. Conflict rejects the entire change; read and review newer state. A committed receipt must never be replayed, even if refresh is incomplete.',
+    inputSchema: ownerSiteConfigurationPublishInputSchema,
+    outputSchema: ownerSiteConfigurationPublicationOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  }, async ({ patch, expectedUpdatedAt }) => runObserved({
+    toolName: 'publish_owner_site_configuration', input: { patch, expectedUpdatedAt },
+    execute: async (access) => {
+      const publication = await publishOwnerSiteConfigurationPatch({ actor: { userId: access.user.id, email: access.email }, patch, expectedUpdatedAt });
+      const isProduction = deploymentEnvironment() === 'production';
+      return { content: [{ type: 'text', text: publication.receipt.refreshComplete
+        ? 'Public site settings published to ' + (isProduction ? 'live Production.' : 'this non-production environment only.') : publication.receipt.message }],
+        structuredContent: { environment: deploymentEnvironment(), livePublication: isProduction, ...publication } };
+    },
+  }));
+
+  server.registerTool('get_owner_presentation_editor', {
+    title: 'Read Owner identity, Founder or Experience editor',
+    description: 'Read complete canonical editor values and their current revision. Identity uses identityVersion. Founder and Experience use updatedAt. Omit revision properties from editable values when publishing. These are the same feature owners as the website; unavailable state is an error, not an empty/default editor.',
+    inputSchema: ownerPresentationReadInputSchema, outputSchema: ownerPresentationReadOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async ({ area }) => runObserved({ toolName: 'get_owner_presentation_editor', input: { area }, execute: async () => {
+    const value = area === 'identity' ? await getBusinessIdentity() : area === 'founder' ? await getFounderProfile() : await getExperienceSettings();
+    return { content: [{ type: 'text', text: 'Loaded current ' + area + ' editor; no publication performed.' }],
+      structuredContent: { environment: deploymentEnvironment(), area, value } };
+  } }));
+
+  server.registerTool('publish_owner_presentation', {
+    title: 'Publish Owner identity, Founder or Experience settings',
+    description: 'Publish complete edited values through the same command as the website. Read get_owner_presentation_editor first; preserve its exact identityVersion or updatedAt. Changing legal identity can affect legal-document consistency. Review proposed changes before publication. Preview affects staging only. Conflicts require reload/review; committed receipts must never be replayed even when refresh/history is incomplete.',
+    inputSchema: ownerPresentationPublishInputSchema, outputSchema: ownerPresentationPublicationOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  }, async ({ area, values, expectedIdentityVersion, expectedUpdatedAt }) => runObserved({
+    toolName: 'publish_owner_presentation', input: { area, values, expectedIdentityVersion, expectedUpdatedAt },
+    execute: async (access) => {
+      const actor = { userId: access.user.id, email: access.email };
+      const publication = area === 'identity'
+        ? await publishOwnerBusinessIdentity({ actor, input: values, expectedIdentityVersion: expectedIdentityVersion! })
+        : area === 'founder'
+          ? await publishOwnerFounderProfile({ actor, input: values, expectedUpdatedAt: expectedUpdatedAt! })
+          : await publishOwnerExperienceSettings({ actor, input: { ...values, updatedAt: expectedUpdatedAt } });
+      return { content: [{ type: 'text', text: publication.receipt.message + ' Environment: ' + deploymentEnvironment() + '.' }],
+        structuredContent: { environment: deploymentEnvironment(), livePublication: deploymentEnvironment() === 'production', area, ...publication } };
+    },
+  }));
 
   server.registerTool(
     'get_owner_provider_readiness',

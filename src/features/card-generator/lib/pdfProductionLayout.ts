@@ -192,6 +192,7 @@ export const createPdfPlacementPages = ({
 
 export const createPdfDuplexBackPage = (
   frontPage: PdfCardPlacement[],
+  sheet: { widthMm: number; heightMm: number; flip: 'long-edge' | 'short-edge' },
 ): PdfCardPlacement[] => frontPage.flatMap((front) => {
   if (!hasCardBacking(front.card)) return [];
   const backGeometry = getTemplateProductionGeometryMm(getCardFaceTemplate(front.card, 'back'));
@@ -204,7 +205,17 @@ export const createPdfDuplexBackPage = (
       `${getCardLabel(front.card)} has front/back physical geometry that does not match. Duplex sheets require the same trim size and bleed on both faces.`,
     );
   }
-  return [{ ...front, face: 'back' as const }];
+  if (![sheet.widthMm, sheet.heightMm].every((value) => Number.isFinite(value) && value > 0)) {
+    throw new PdfProductionLayoutError('Duplex sheet dimensions must be positive.');
+  }
+  const portrait = sheet.heightMm >= sheet.widthMm;
+  const mirrorX = sheet.flip === 'long-edge' ? portrait : !portrait;
+  return [{ ...front, face: 'back' as const,
+    imageX: mirrorX ? sheet.widthMm - front.imageX - front.imageWidth : front.imageX,
+    imageY: mirrorX ? front.imageY : sheet.heightMm - front.imageY - front.imageHeight,
+    trimX: mirrorX ? sheet.widthMm - front.trimX - front.trimWidth : front.trimX,
+    trimY: mirrorX ? front.trimY : sheet.heightMm - front.trimY - front.trimHeight,
+  }];
 });
 
 export const getPdfCropMarkSegments = (

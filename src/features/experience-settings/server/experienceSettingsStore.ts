@@ -22,6 +22,7 @@ const EXPERIENCE_SETTINGS_COLUMNS = [
   'presentation_corners',
   'presentation_contrast',
   'studio_default_template_id',
+  'updated_at',
 ].join(',');
 
 export const getExperienceSettings = async (): Promise<ExperienceSettings> => {
@@ -34,7 +35,7 @@ export const getExperienceSettings = async (): Promise<ExperienceSettings> => {
     .limit(1);
   if (error) {
     console.error('Failed to load experience settings:', error);
-    return DEFAULT_EXPERIENCE_SETTINGS;
+    throw new ExperienceSettingsStoreError('Experience settings are temporarily unavailable.', 503);
   }
   return hydrateExperienceSettings(data?.[0] as unknown as Record<string, unknown> | undefined);
 };
@@ -44,24 +45,27 @@ export const updateExperienceSettings = async (
 ): Promise<ExperienceSettings> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new ExperienceSettingsStoreError('Experience settings database is not configured yet.', 503);
+  if (typeof input.updatedAt !== 'string' || !Number.isFinite(Date.parse(input.updatedAt))) {
+    throw new ExperienceSettingsStoreError('Reload the current experience settings before publishing.', 409);
+  }
   let normalized: ExperienceSettings;
   try {
     normalized = normalizeExperienceSettingsInput(input);
   } catch (error) {
     throw new ExperienceSettingsStoreError(error instanceof Error ? error.message : 'Experience settings are invalid.', 400);
   }
-  const { error } = await supabase.from('cardforge_owner_settings').upsert({
-    id: 'cardforge',
+  const { data, error } = await supabase.from('cardforge_owner_settings').update({
     analytics_consent_presentation: normalized.analyticsConsentPresentation,
     presentation_palette: normalized.presentationPalette,
     presentation_accent: normalized.presentationAccent,
     presentation_corners: normalized.presentationCorners,
     presentation_contrast: normalized.presentationContrast,
     studio_default_template_id: normalized.studioDefaultTemplateId,
-  }, { onConflict: 'id' });
+  }).eq('id', 'cardforge').eq('updated_at', input.updatedAt).select(EXPERIENCE_SETTINGS_COLUMNS).limit(1);
   if (error) {
     console.error('Failed to update experience settings:', error);
     throw new ExperienceSettingsStoreError('Unable to update experience settings.');
   }
-  return normalized;
+  if (!data?.[0]) throw new ExperienceSettingsStoreError('Experience settings changed in another session. Reload and review before publishing.', 409);
+  return hydrateExperienceSettings(data[0] as unknown as Record<string, unknown>);
 };

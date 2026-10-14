@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import {
   OwnerBusinessIdentityPanel,
   type BusinessIdentityInput,
+  type BusinessIdentity,
 } from '@/features/business-identity/client';
 import type { OwnerOperationsPayload } from '@/features/owner/lib/ownerOperations';
-import { updateOwnerOperations } from '@/features/owner/model/ownerOperationsClient';
+import { publishOwnerPresentation } from '@/features/owner/model/ownerOperationsClient';
 import { formatOwnerBytes, OwnerFieldHelp, OwnerMetricTile } from './OwnerPanelPrimitives';
 
 type OwnerReadinessPayload = Pick<OwnerOperationsPayload, 'businessIdentity' | 'roadmapItems' | 'databaseMetrics'>;
@@ -41,13 +42,13 @@ export function OwnerReadinessPanel({
     businessIdentity: BusinessIdentityInput,
     expectedIdentityVersion: number,
   ) => {
-    const next = await updateOwnerOperations({
+    const next = await publishOwnerPresentation<BusinessIdentity>({
       kind: 'businessIdentity',
       businessIdentity,
       expectedIdentityVersion,
     }, 'Unable to save business identity.');
-    onOperationsChange?.(next);
-    return next.businessIdentity;
+    if (next.operations) onOperationsChange?.(next.operations);
+    return next.value;
   };
 
   const metrics = operationsPayload.databaseMetrics;

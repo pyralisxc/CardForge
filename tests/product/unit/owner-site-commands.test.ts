@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
+vi.mock('@/features/business-identity/server', () => ({ updateBusinessIdentity: vi.fn(), revalidatePublicIdentityCache: vi.fn() }));
+vi.mock('@/features/experience-settings/server', () => ({ updateExperienceSettings: vi.fn(), revalidateExperienceSettingsCache: vi.fn() }));
 
 const state = vi.hoisted(() => ({
   failTag: false,
@@ -59,6 +61,9 @@ vi.mock('next/cache', () => ({
 }));
 
 vi.mock('@/features/public-site/server', () => ({
+  getPublicSiteConfiguration: async () => state.configuration,
+  PublicSiteConfigurationStoreError: class extends Error {},
+  updateFounderProfile: vi.fn(), revalidateFounderProfile: vi.fn(),
   publishSiteContentBlockRevision: async (...args: unknown[]) => {
     state.updateContent(...args);
     return state.content;
@@ -91,6 +96,7 @@ vi.mock('@/features/owner/server/ownerActivityStore', () => ({
 import {
   publishOwnerSiteConfiguration,
   publishOwnerSiteConfigurationField,
+  publishOwnerSiteConfigurationPatch,
   publishOwnerSiteContentBlock,
 } from '@/features/owner/server/ownerSiteCommands';
 
@@ -102,6 +108,17 @@ beforeEach(() => {
 });
 
 describe('Owner site commands', () => {
+  it('merges a bounded settings patch while preserving untouched settings and the initiating revision', async () => {
+    await publishOwnerSiteConfigurationPatch({ actor: { userId: 'owner', email: null },
+      patch: { homepageTitle: 'New title' }, expectedUpdatedAt: '2026-10-07T00:00:00Z' });
+    expect(state.updateConfiguration).toHaveBeenCalledExactlyOnceWith({ ...state.configuration,
+      homepageTitle: 'New title', updatedAt: '2026-10-07T00:00:00Z' });
+  });
+  it.each([{ updatedAt: 'fake' }, { stripePrice: 1 }, {}])('rejects non-presentation patch %j without writing', async (patch) => {
+    await expect(publishOwnerSiteConfigurationPatch({ actor: { userId: 'owner', email: null }, patch,
+      expectedUpdatedAt: state.configuration.updatedAt })).rejects.toThrow();
+    expect(state.updateConfiguration).not.toHaveBeenCalled();
+  });
   it('returns a committed live-copy receipt without rereading provider state', async () => {
     const result = await publishOwnerSiteContentBlock({
       actor: { userId: 'owner-1', email: 'owner@example.com' },

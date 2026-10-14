@@ -2,6 +2,7 @@ import { BROWSER_PROJECT_ASSET_REFERENCE_PREFIX } from './contentAddressedBrowse
 import { readStructuredBrowserValue } from './structuredBrowserStorage';
 
 export interface ProjectBinaryAssetHandle {
+  mimeType: string;
   url: string;
   release: () => void;
 }
@@ -17,6 +18,7 @@ interface ProjectBinaryAssetResolverOptions {
 }
 
 interface ActiveObjectUrl {
+  mimeType: string;
   url: string;
   references: number;
 }
@@ -65,7 +67,7 @@ export const createProjectBinaryAssetResolver = ({
       if (!(blob instanceof Blob)) {
         throw new Error(`Browser artwork ${assetId.slice(0, 12)}… is unavailable. Restore the recovery copy or import a backup.`);
       }
-      const entry = { url: urlApi.createObjectURL(blob), references: 0 };
+      const entry = { url: urlApi.createObjectURL(blob), mimeType: blob.type, references: 0 };
       active.set(assetId, entry);
       return entry;
     })().finally(() => pending.delete(assetId));
@@ -76,12 +78,13 @@ export const createProjectBinaryAssetResolver = ({
   return {
     acquire: async (reference) => {
       const assetId = getBrowserAssetId(reference);
-      if (!assetId) return { url: reference, release: () => undefined };
+      if (!assetId) return { url: reference, mimeType: '', release: () => undefined };
       const entry = await resolveObjectUrl(assetId);
       entry.references += 1;
       let released = false;
       return {
         url: entry.url,
+        mimeType: entry.mimeType,
         release: () => {
           if (released) return;
           released = true;

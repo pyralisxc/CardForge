@@ -7,7 +7,7 @@ CardForge Owner is the operator-facing companion to CardForge Studio.
 
 The production MCP endpoint is `https://cardforges.com/mcp/owner`. It reuses CardForge's Clerk identity and then fails closed unless the server resolves the linked account as an Owner.
 
-The `0.2.0` surface remains read-heavy:
+The `0.3.0` surface remains read-heavy:
 - current Owner-controlled site snapshot;
 - provider/readiness projection;
 - recent Owner activity;
@@ -22,3 +22,7 @@ Use `get_owner_site_fields` before `publish_owner_site_field`. Supply the exact 
 It does not expose repository editing or generic database operations. Additional live mutation tools should be added only through the canonical feature-owned Owner command layer so the browser and agent remain peer clients of one state model.
 
 `npm run plugin:package:preview` derives the unpublished developer **CardForge Owner Preview** archive from this canonical source, pinned to the stable `vercel-preview` `/mcp/owner` endpoint. It adds no Studio tools, credentials or Owner authority. `npm run plugin:package:owner` continues to produce the unchanged production archive. Follow `docs/operations.md#preview-developer-plugin-acceptance` before installing or connecting Preview.
+
+Full Site settings parity uses `get_owner_site_configuration` and `publish_owner_site_configuration`. Publish only changed settings in `patch`, with the exact `expectedUpdatedAt`. Arrays replace their complete collection; preserve navigation/section entries and exact Template revision pins. Prices, credentials, code capabilities and account permissions are outside these presentation commands.
+
+`get_owner_presentation_editor` and `publish_owner_presentation` reuse the browser's Identity, Founder and Experience feature owners. Read complete values, omit the read-only `identityVersion`/`updatedAt` from edited values, and supply that exact revision separately. Founder permits a null revision only for first publication of a missing/default-backed profile; concurrent creation fails closed. Experience shares the actual Owner settings-row revision with Site settings. Browser and MCP receive the committed canonical value and a terminal receipt; refresh/history failure must not replay the write. Media, legal, roadmap and wider operational parity remain distinct capabilities to complete.

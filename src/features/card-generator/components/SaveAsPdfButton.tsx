@@ -26,6 +26,7 @@ import {
   getPdfCropMarkSegments,
   type PdfCardPlacement,
 } from '@/features/card-generator/lib/pdfProductionLayout';
+import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 import { hasCardBacking } from '@/domain/rendering';
 import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 import { useBrandPresentation } from '@/features/brand-presentation/client';
@@ -128,7 +129,7 @@ export function SaveAsPdfButton({
       .trim()
       .replace(/\s+/g, '-') || 'cardforge-cards';
     const pdfModeSlug = exportMode === 'physical'
-      ? (pdfDuplexLayout === 'same-page' ? 'print-same-sheet' : 'print-duplex-sheets')
+      ? (pdfDuplexLayout === 'same-page' ? 'print-same-sheet' : (pdfDuplexLayout === 'separate-pages-short-edge' ? 'print-duplex-short-edge' : 'print-duplex-long-edge'))
       : 'digital-sheet';
     const timestamp = new Date().toISOString().slice(0, 10);
     const watermarkSuffix = canExportClean ? '' : '-watermarked';
@@ -171,7 +172,7 @@ export function SaveAsPdfButton({
           resolveCardExportWatermark(canExportClean, brand),
         );
         try {
-          if (exportMode === 'physical' && pdfDuplexLayout === 'separate-pages') {
+          if (exportMode === 'physical' && pdfDuplexLayout !== 'same-page') {
             const frontPages = createPdfPlacementPages({
               items: chunkCards,
               forcedFace: 'front',
@@ -186,8 +187,8 @@ export function SaveAsPdfButton({
               if (pageIndex > 0) pdf.addPage();
               await processPage(pdf, frontPages[pageIndex], renderer);
 
-              const backPage = createPdfDuplexBackPage(frontPages[pageIndex]);
-              if (backPage.length > 0) {
+              const backPage = createPdfDuplexBackPage(frontPages[pageIndex], { widthMm: selectedPaperSize.widthMm, heightMm: selectedPaperSize.heightMm, flip: pdfDuplexLayout === 'separate-pages-short-edge' ? 'short-edge' : 'long-edge' });
+              if (chunkCards.some(hasCardBacking)) {
                 pdf.addPage();
                 await processPage(pdf, backPage, renderer);
               }
@@ -211,6 +212,12 @@ export function SaveAsPdfButton({
               if (pageIndex > 0) pdf.addPage();
               await processPage(pdf, facePages[pageIndex], renderer);
             }
+          }
+          if (exportMode === 'physical') {
+            const preflight = createPrintProductionPreflight(chunkCards, exportDpi, renderer.getSourceImageDetails());
+            pdf.setProperties({ subject: 'CardForge RGB production preparation; not certified PDF/X. Duplex: ' + pdfDuplexLayout });
+            const lowDetail = preflight.issues.filter((issue) => issue.code === 'resolution.source_below_300_ppi');
+            if (lowDetail.length) toast({ title: 'Review original artwork detail', description: `${lowDetail.length} placed image(s) are below 300 source PPI. A denser PDF does not restore missing original detail.`, duration: 7000 });
           }
         } finally {
           renderer.cleanup();

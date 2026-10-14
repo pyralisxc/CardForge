@@ -274,6 +274,85 @@ const ownerCommittedReceiptSchema = {
   },
 };
 
+const ownerSiteConfigurationProperties = {
+  announcementEnabled: { type: 'boolean' }, announcementMessage: { type: 'string', maxLength: 240 },
+  primaryCtaLabel: { type: 'string', minLength: 1, maxLength: 80 }, primaryCtaHref: { type: 'string', maxLength: 500 },
+  supportOfferVisible: { type: 'boolean' }, homepageTitle: { type: 'string', minLength: 1, maxLength: 80 },
+  homepageDescription: { type: 'string', minLength: 40, maxLength: 200 },
+  searchKeywords: { type: 'array', minItems: 1, maxItems: 24, items: { type: 'string', minLength: 1, maxLength: 80 } },
+  watermarkPreviewOpacity: { type: 'integer', minimum: 5, maximum: 80 },
+  watermarkShareOpacity: { type: 'integer', minimum: 5, maximum: 80 },
+  watermarkWidthPercent: { type: 'integer', minimum: 20, maximum: 90 },
+  primaryNavigation: { type: 'array', minItems: 4, maxItems: 4, items: {
+    type: 'object', additionalProperties: false, required: ['id', 'label', 'href', 'visible'],
+    properties: { id: { type: 'string', enum: ['about', 'plans', 'roadmap', 'account'] },
+      label: { type: 'string', minLength: 1, maxLength: 40 }, href: { type: 'string', maxLength: 500 }, visible: { type: 'boolean' } },
+  } },
+  homepageSections: { type: 'array', minItems: 5, maxItems: 5, items: {
+    type: 'object', additionalProperties: false, required: ['id', 'visible'],
+    properties: { id: { type: 'string', enum: ['showcase', 'workflow', 'access', 'founder', 'final_cta'] },
+      visible: { type: 'boolean' }, showcaseExamples: { type: 'array', maxItems: 6, items: { type: 'object' } } },
+  } },
+};
+const ownerSiteConfigurationSchema = {
+  type: 'object', additionalProperties: false,
+  required: ['updatedAt', ...Object.keys(ownerSiteConfigurationProperties)],
+  properties: { ...ownerSiteConfigurationProperties, updatedAt: nullableString },
+};
+
+export const ownerSiteConfigurationOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false, required: ['environment', 'settings'],
+  properties: { environment: { type: 'string' }, settings: ownerSiteConfigurationSchema },
+});
+export const ownerSiteConfigurationPublishInputSchema = fromJsonSchema<{
+  patch: Record<string, unknown>; expectedUpdatedAt: string;
+}>({
+  type: 'object', additionalProperties: false, required: ['patch', 'expectedUpdatedAt'],
+  properties: {
+    patch: { type: 'object', additionalProperties: false, minProperties: 1,
+      description: 'Only changed presentation fields. Arrays replace their complete collection; preserve entries and exact Template revision pins from the read.',
+      properties: ownerSiteConfigurationProperties },
+    expectedUpdatedAt: { type: 'string', minLength: 1, description: 'Exact revision from get_owner_site_configuration. Read and review again after conflicts.' },
+  },
+});
+export const ownerSiteConfigurationPublicationOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false, required: ['environment', 'livePublication', 'settings', 'receipt'],
+  properties: { environment: { type: 'string' }, livePublication: { type: 'boolean' },
+    settings: ownerSiteConfigurationSchema, receipt: ownerCommittedReceiptSchema },
+});
+
+export const ownerPresentationReadInputSchema = fromJsonSchema<{ area: 'identity' | 'founder' | 'experience' }>({
+  type: 'object', additionalProperties: false, required: ['area'],
+  properties: { area: { type: 'string', enum: ['identity', 'founder', 'experience'] } },
+});
+export const ownerPresentationReadOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false, required: ['environment', 'area', 'value'],
+  properties: { environment: { type: 'string' }, area: { type: 'string' }, value: { type: 'object' } },
+});
+export const ownerPresentationPublishInputSchema = fromJsonSchema<{
+  area: 'identity' | 'founder' | 'experience'; values: Record<string, unknown>;
+  expectedIdentityVersion?: number; expectedUpdatedAt?: string | null;
+}>({
+  type: 'object', additionalProperties: false, required: ['area', 'values'],
+  properties: {
+    area: { type: 'string', enum: ['identity', 'founder', 'experience'] },
+    values: { type: 'object', minProperties: 1,
+      description: 'Complete editable values from get_owner_presentation_editor; omit identityVersion/updatedAt and supply them through the expected revision fields. Native feature validation applies.' },
+    expectedIdentityVersion: { type: 'integer', minimum: 1, maximum: 2147483647 },
+    expectedUpdatedAt: nullableString,
+  },
+  oneOf: [
+    { properties: { area: { const: 'identity' } }, required: ['expectedIdentityVersion'], not: { required: ['expectedUpdatedAt'] } },
+    { properties: { area: { const: 'founder' } }, required: ['expectedUpdatedAt'], not: { required: ['expectedIdentityVersion'] } },
+    { properties: { area: { const: 'experience' }, expectedUpdatedAt: { type: 'string', minLength: 1 } }, required: ['expectedUpdatedAt'], not: { required: ['expectedIdentityVersion'] } },
+  ],
+});
+export const ownerPresentationPublicationOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false, required: ['environment', 'livePublication', 'area', 'value', 'receipt'],
+  properties: { environment: { type: 'string' }, livePublication: { type: 'boolean' }, area: { type: 'string' },
+    value: { type: 'object' }, receipt: ownerCommittedReceiptSchema },
+});
+
 const ownerSiteFieldsSchema = {
   type: 'object', additionalProperties: false,
   required: ['updatedAt', 'primaryCtaLabel', 'primaryCtaHref', 'announcementEnabled', 'announcementMessage', 'navigation'],
