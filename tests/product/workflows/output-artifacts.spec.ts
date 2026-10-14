@@ -52,7 +52,7 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true, cardLimit: 2, exportSample: true, lowResolutionArtwork: true });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
-  await page.locator('button[data-artifact-id="scale-card-1"]').click();
+  await page.locator('button[data-artifact-id="scale-card-1"]').press('Enter');
   const save = async (download: Download) => {
     const path = testInfo.outputPath(download.suggestedFilename());
     await download.saveAs(path);
@@ -76,6 +76,8 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   const images = Object.values(zip.files).filter((file) => file.name.endsWith('.png'));
   expect(images).toHaveLength(4);
   for (const file of images) expect(pngSize(await file.async('nodebuffer'))).toEqual(pngSize(png));
+  await page.getByRole('combobox', { name: 'Primary use', exact: true }).click();
+  await page.getByRole('option', { name: 'Print physical cards', exact: true }).click();
   const productionDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: /^Download print production PNG ZIP/ }).click();
   const productionZip = await JSZip.loadAsync(await save(await productionDownload));

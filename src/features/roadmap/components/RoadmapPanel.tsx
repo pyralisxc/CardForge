@@ -165,12 +165,14 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
       const response = await fetch('/api/owner/operations', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: 'roadmapStatus', roadmapItem: { itemId, status } }),
+        body: JSON.stringify({ kind: 'roadmapStatus', roadmapItem: { itemId, status, expectedUpdatedAt: payload?.items.find((item) => item.id === itemId)?.updatedAt } }),
       });
       if (!response.ok) {
         throw new Error(await readApiErrorMessage(response, 'Unable to update roadmap status.'));
       }
-      await loadRoadmap();
+      const result = await response.json() as { publication?: { value: { id: string; status: RoadmapStatus; shippedAt: string | null; updatedAt: string }; receipt: { committed: boolean; message: string } } };
+      if (!result.publication?.receipt.committed) throw new Error('Roadmap outcome is unknown. Reload before another update.');
+      setPayload((current) => current ? { ...current, items: current.items.map((item) => item.id === itemId ? { ...item, ...result.publication!.value } : item) } : current);
       toast({ title: status === 'shipped' ? 'Roadmap item completed' : 'Roadmap status updated', description: 'The public Roadmap now reflects this owner decision.' });
     } catch (error) {
       toast({ title: 'Roadmap status not updated', description: error instanceof Error ? error.message : 'Unable to update roadmap status.', variant: 'destructive' });

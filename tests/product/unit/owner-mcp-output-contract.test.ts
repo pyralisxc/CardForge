@@ -7,8 +7,12 @@ import type { McpOwnerAccess } from '@/features/owner/server/mcpOwnerAccess';
 import { registerOwnerReadTools } from '@/features/owner/server/mcpOwnerTools';
 import { ownerSiteFieldPublishInputSchema } from '@/features/owner/server/mcpOwnerSchemas';
 
+vi.mock('server-only', () => ({}));
 const mocks = vi.hoisted(() => ({ publish: vi.fn(), publishField: vi.fn(), publishConfiguration: vi.fn(), publishPresentation: vi.fn(), readFields: vi.fn(), readiness: vi.fn(), site: vi.fn(), access: vi.fn() }));
-vi.mock('@/features/public-site/server', () => ({ getPublicSiteConfiguration: mocks.readFields, getFounderProfile: mocks.site }));
+vi.mock('@/features/legal/server', () => ({ getLegalDocuments: mocks.site }));
+vi.mock('@/features/roadmap/server', () => ({ getRoadmapSettings: mocks.site, getRoadmapAdminItems: mocks.site }));
+vi.mock('@/features/owner/server/ownerMediaCommands', () => ({ publishOwnerSiteMedia: mocks.publishPresentation, restoreOwnerSiteMedia: mocks.publishPresentation }));
+vi.mock('@/features/public-site/server', () => ({ getPublicSiteConfiguration: mocks.readFields, getFounderProfile: mocks.site, getSiteMedia: mocks.site, SiteMediaStoreError: class extends Error {} }));
 vi.mock('@/features/business-identity/server', () => ({ getBusinessIdentity: mocks.site }));
 vi.mock('@/features/experience-settings/server', () => ({ getExperienceSettings: mocks.site }));
 vi.mock('@/features/mcp-usage/server', () => ({
@@ -16,7 +20,7 @@ vi.mock('@/features/mcp-usage/server', () => ({
 }));
 vi.mock('@/features/owner/server/ownerActivityStore', () => ({ getOwnerActivity: vi.fn() }));
 vi.mock('@/features/owner/lib/ownerOperationsStore', () => ({ getOwnerSiteControlPayload: mocks.site }));
-vi.mock('@/features/owner/server/ownerSiteCommands', () => ({ publishOwnerSiteContentBlock: mocks.publish, publishOwnerSiteConfigurationField: mocks.publishField, publishOwnerSiteConfigurationPatch: mocks.publishConfiguration, publishOwnerBusinessIdentity: mocks.publishPresentation, publishOwnerFounderProfile: mocks.publishPresentation, publishOwnerExperienceSettings: mocks.publishPresentation }));
+vi.mock('@/features/owner/server/ownerSiteCommands', () => ({ publishOwnerSiteContentBlock: mocks.publish, publishOwnerSiteConfigurationField: mocks.publishField, publishOwnerSiteConfigurationPatch: mocks.publishConfiguration, publishOwnerBusinessIdentity: mocks.publishPresentation, publishOwnerFounderProfile: mocks.publishPresentation, publishOwnerExperienceSettings: mocks.publishPresentation, publishOwnerLegalDocument: mocks.publishPresentation, publishOwnerRoadmapSettings: mocks.publishPresentation, publishOwnerRoadmapStatus: mocks.publishPresentation }));
 vi.mock('@/features/owner/server/ownerIntegrationStatus', () => ({ getOwnerIntegrationStatus: mocks.readiness }));
 
 type RegisteredTool = {
@@ -62,6 +66,25 @@ async function invoke(name: string, input: Record<string, unknown> = {}) {
 }
 
 describe('Owner MCP registered output contracts', () => {
+  it.each(['roadmapSettings', 'roadmapStatus', 'legal'])('routes %s through the canonical governance command', async (area) => {
+    const receipt = { committed: true, refreshComplete: true, refreshFailures: [], activityRecorded: true, retryable: false, nextAction: 'none', message: 'Published.' };
+    mocks.publishPresentation.mockResolvedValue({ value: { updatedAt: 'actual-revision' }, receipt });
+    expect(await invoke('publish_owner_presentation', { area, values: { title: 'Fixture' }, expectedUpdatedAt: settings.updatedAt, expectedIdentityVersion: 2, expectedDocumentVersion: 3 })).toMatchObject({ area, value: { updatedAt: 'actual-revision' }, receipt });
+    expect(mocks.publishPresentation).toHaveBeenCalledTimes(1);
+  });
+  it.each(['publish_owner_site_media', 'restore_owner_site_media'])('preserves actual media and terminal receipts from %s', async (name) => {
+    const receipt = { committed: true, refreshComplete: false, refreshFailures: ['media-cache'], activityRecorded: false, retryable: false, nextAction: 'reload', message: 'Committed; reload.' };
+    mocks.publishPresentation.mockResolvedValue({ value: { slot: 'landing.hero', updatedAt: 'actual-revision' }, receipt });
+    expect(await invoke(name, { slot: 'landing.hero', alt: 'Fixture', presentation: {}, expectedUpdatedAt: settings.updatedAt })).toMatchObject({ environment: 'preview', livePublication: false, media: { updatedAt: 'actual-revision' }, receipt });
+  });
+  it.each(['get_owner_presentation_editor', 'publish_owner_presentation', 'get_owner_site_media', 'publish_owner_site_media', 'restore_owner_site_media'])('requires Owner authority before %s touches native state', async (name) => {
+    mocks.access.mockRejectedValue(new Error('Owner permission required'));
+    const result = await tools.get(name)!.handler({ area: 'legal', slot: 'landing.hero' });
+    expect(result).toMatchObject({ isError: true });
+    expect(mocks.publishPresentation).not.toHaveBeenCalled();
+    expect(mocks.site).not.toHaveBeenCalled();
+  });
+
   it('reads complete settings and publishes partial changes with a canonical receipt', async () => {
     const full = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt };
     mocks.readFields.mockResolvedValue(full);

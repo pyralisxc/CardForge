@@ -7,7 +7,7 @@ CardForge Owner is the operator-facing companion to CardForge Studio.
 
 The production MCP endpoint is `https://cardforges.com/mcp/owner`. It reuses CardForge's Clerk identity and then fails closed unless the server resolves the linked account as an Owner.
 
-The `0.3.0` surface remains read-heavy:
+The developer surface includes:
 - current Owner-controlled site snapshot;
 - provider/readiness projection;
 - recent Owner activity;
@@ -25,4 +25,6 @@ It does not expose repository editing or generic database operations. Additional
 
 Full Site settings parity uses `get_owner_site_configuration` and `publish_owner_site_configuration`. Publish only changed settings in `patch`, with the exact `expectedUpdatedAt`. Arrays replace their complete collection; preserve navigation/section entries and exact Template revision pins. Prices, credentials, code capabilities and account permissions are outside these presentation commands.
 
-`get_owner_presentation_editor` and `publish_owner_presentation` reuse the browser's Identity, Founder and Experience feature owners. Read complete values, omit the read-only `identityVersion`/`updatedAt` from edited values, and supply that exact revision separately. Founder permits a null revision only for first publication of a missing/default-backed profile; concurrent creation fails closed. Experience shares the actual Owner settings-row revision with Site settings. Browser and MCP receive the committed canonical value and a terminal receipt; refresh/history failure must not replay the write. Media, legal, roadmap and wider operational parity remain distinct capabilities to complete.
+`get_owner_presentation_editor` and `publish_owner_presentation` reuse the browser's Identity, Founder and Experience feature owners. Read complete values, omit the read-only `identityVersion`/`updatedAt` from edited values, and supply that exact revision separately. Founder permits a null revision only for first publication of a missing/default-backed profile; concurrent creation fails closed. Experience shares the actual Owner settings-row revision with Site settings. Browser and MCP receive the committed canonical value and a terminal receipt; refresh/history failure must not replay the write. Roadmap settings and official item status use the same guarded commands; read the exact shared settings/item revision first. Legal publication appends immutable history and requires both the identity version and the current document version (zero only when never published). Configured provider read failures cannot become empty/default Owner state.
+
+`get_owner_site_media`, `publish_owner_site_media` and `restore_owner_site_media` share browser validation, transcoding, storage, rate limits and atomic revision checks. Image replacement accepts original JPEG/PNG/WebP bytes as base64; provider transport limits can be lower than native image validation. Presentation-only changes omit image. Restore swaps versions once: never replay a committed receipt, and a stale revision cannot toggle again. Other pending browser drafts remain intact when one item is published. Wider operational capabilities remain separate work.

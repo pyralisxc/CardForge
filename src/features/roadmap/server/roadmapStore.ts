@@ -35,6 +35,7 @@ type RoadmapItemRow = {
   expense_verified_at: string | null;
   shipped_at: string | null;
   created_at: string;
+  updated_at?: string;
   sort_order: number;
 };
 
@@ -195,6 +196,7 @@ const mapRoadmapPayload = ({
         expenseVerifiedAt: hasAuditableExpense ? row.expense_verified_at ?? null : null,
         shippedAt: row.shipped_at,
         createdAt: row.created_at,
+        updatedAt: row.updated_at,
         upVotes: voteSummary.upVotes,
         downVotes: voteSummary.downVotes,
         userVote: voteSummary.userVote,
@@ -217,7 +219,7 @@ export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapP
 
   const { data: rows, error: rowsError } = await supabase
     .from('cardforge_roadmap_items')
-    .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,expense_provider,expense_plan,expense_source_url,expense_verified_at,shipped_at,created_at,sort_order')
+    .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,expense_provider,expense_plan,expense_source_url,expense_verified_at,shipped_at,created_at,updated_at,sort_order')
     .neq('status', 'archived_negative_signal')
     .order('visible_month', { ascending: true })
     .order('sort_order', { ascending: true })

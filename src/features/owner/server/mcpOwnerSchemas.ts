@@ -321,36 +321,64 @@ export const ownerSiteConfigurationPublicationOutputSchema = fromJsonSchema({
     settings: ownerSiteConfigurationSchema, receipt: ownerCommittedReceiptSchema },
 });
 
-export const ownerPresentationReadInputSchema = fromJsonSchema<{ area: 'identity' | 'founder' | 'experience' }>({
+export const ownerPresentationReadInputSchema = fromJsonSchema<{ area: 'identity' | 'founder' | 'experience' | 'roadmapSettings' | 'roadmapItems' | 'legal' }>({
   type: 'object', additionalProperties: false, required: ['area'],
-  properties: { area: { type: 'string', enum: ['identity', 'founder', 'experience'] } },
+  properties: { area: { type: 'string', enum: ['identity', 'founder', 'experience', 'roadmapSettings', 'roadmapItems', 'legal'] } },
 });
 export const ownerPresentationReadOutputSchema = fromJsonSchema({
   type: 'object', additionalProperties: false, required: ['environment', 'area', 'value'],
   properties: { environment: { type: 'string' }, area: { type: 'string' }, value: { type: 'object' } },
 });
 export const ownerPresentationPublishInputSchema = fromJsonSchema<{
-  area: 'identity' | 'founder' | 'experience'; values: Record<string, unknown>;
-  expectedIdentityVersion?: number; expectedUpdatedAt?: string | null;
+  area: 'identity' | 'founder' | 'experience' | 'roadmapSettings' | 'roadmapStatus' | 'legal'; values: Record<string, unknown>;
+  expectedIdentityVersion?: number; expectedUpdatedAt?: string | null; expectedDocumentVersion?: number;
 }>({
   type: 'object', additionalProperties: false, required: ['area', 'values'],
   properties: {
-    area: { type: 'string', enum: ['identity', 'founder', 'experience'] },
+    area: { type: 'string', enum: ['identity', 'founder', 'experience', 'roadmapSettings', 'roadmapStatus', 'legal'] },
     values: { type: 'object', minProperties: 1,
       description: 'Complete editable values from get_owner_presentation_editor; omit identityVersion/updatedAt and supply them through the expected revision fields. Native feature validation applies.' },
     expectedIdentityVersion: { type: 'integer', minimum: 1, maximum: 2147483647 },
     expectedUpdatedAt: nullableString,
+    expectedDocumentVersion: { type: 'integer', minimum: 0, maximum: 2147483647 },
   },
   oneOf: [
     { properties: { area: { const: 'identity' } }, required: ['expectedIdentityVersion'], not: { required: ['expectedUpdatedAt'] } },
     { properties: { area: { const: 'founder' } }, required: ['expectedUpdatedAt'], not: { required: ['expectedIdentityVersion'] } },
-    { properties: { area: { const: 'experience' }, expectedUpdatedAt: { type: 'string', minLength: 1 } }, required: ['expectedUpdatedAt'], not: { required: ['expectedIdentityVersion'] } },
+    { properties: { area: { enum: ['experience', 'roadmapSettings', 'roadmapStatus'] }, expectedUpdatedAt: { type: 'string', minLength: 1 } }, required: ['expectedUpdatedAt'], not: { required: ['expectedIdentityVersion'] } },
+    { properties: { area: { const: 'legal' } }, required: ['expectedIdentityVersion', 'expectedDocumentVersion'], not: { required: ['expectedUpdatedAt'] } },
   ],
 });
 export const ownerPresentationPublicationOutputSchema = fromJsonSchema({
   type: 'object', additionalProperties: false, required: ['environment', 'livePublication', 'area', 'value', 'receipt'],
   properties: { environment: { type: 'string' }, livePublication: { type: 'boolean' }, area: { type: 'string' },
     value: { type: 'object' }, receipt: ownerCommittedReceiptSchema },
+});
+
+export const ownerSiteMediaReadOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false, required: ['environment', 'media'],
+  properties: { environment: { type: 'string' }, media: { type: 'array', items: { type: 'object' } } },
+});
+export const ownerSiteMediaPublishInputSchema = fromJsonSchema<{
+  slot: string; alt: string; presentation: Record<string, unknown>; expectedUpdatedAt: string | null;
+  image?: { name: string; mimeType: string; base64: string };
+}>({
+  type: 'object', additionalProperties: false, required: ['slot', 'alt', 'presentation', 'expectedUpdatedAt'],
+  properties: { slot: { type: 'string', maxLength: 80 }, alt: { type: 'string', minLength: 1, maxLength: 300 },
+    expectedUpdatedAt: nullableString,
+    presentation: { type: 'object', description: 'Complete presentation values from get_owner_site_media; native slot-specific validation applies.' },
+    image: { type: 'object', additionalProperties: false, required: ['name', 'mimeType', 'base64'],
+      properties: { name: { type: 'string', maxLength: 120 }, mimeType: { type: 'string', enum: ['image/jpeg', 'image/png', 'image/webp'] },
+        base64: { type: 'string', minLength: 4, maxLength: 16777216, description: 'Original image bytes encoded as raw base64. Native 12 MB image validation applies; transport/provider request limits may be smaller. No remote URL or storage path is accepted.' } } },
+  },
+});
+export const ownerSiteMediaRestoreInputSchema = fromJsonSchema<{ slot: string; expectedUpdatedAt: string }>({
+  type: 'object', additionalProperties: false, required: ['slot', 'expectedUpdatedAt'],
+  properties: { slot: { type: 'string', maxLength: 80 }, expectedUpdatedAt: { type: 'string', minLength: 1 } },
+});
+export const ownerSiteMediaPublicationOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false, required: ['environment', 'livePublication', 'media', 'receipt'],
+  properties: { environment: { type: 'string' }, livePublication: { type: 'boolean' }, media: { type: 'object' }, receipt: ownerCommittedReceiptSchema },
 });
 
 const ownerSiteFieldsSchema = {

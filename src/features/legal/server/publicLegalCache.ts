@@ -41,10 +41,12 @@ const readers = Object.fromEntries(
 
 export const getCachedPublishedLegalDocument = (slug: LegalDocumentSlug) => readers[slug]();
 
-export const revalidateLegalDocumentCache = (slug: LegalDocumentSlug): void => {
+export const revalidateLegalDocumentCache = (slug: LegalDocumentSlug): boolean => {
   try {
     revalidateTag(legalDocumentTag(slug), { expire: 0 });
+    return true;
   } catch (error) {
     console.error(`Unable to invalidate ${slug} legal publication cache:`, error);
+    return false;
   }
 };

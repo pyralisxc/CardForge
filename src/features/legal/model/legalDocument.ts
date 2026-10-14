@@ -30,6 +30,7 @@ export interface LegalDocumentWrite {
   effectiveDate: string;
   body: string;
   expectedBusinessIdentityVersion: number;
+  expectedVersion: number;
 }
 
 const operatorDescription = formatBusinessIdentityDescription(DEFAULT_BUSINESS_IDENTITY);
@@ -185,6 +186,7 @@ export const normalizeLegalDocumentInput = (value: {
   body?: unknown;
   effectiveDate?: unknown;
   expectedBusinessIdentityVersion?: unknown;
+  expectedVersion?: unknown;
 }): LegalDocumentInputResult => {
   const slug = typeof value.slug === 'string' ? value.slug : '';
   if (!legalSlugs.has(slug as LegalDocumentSlug)) return { ok: false, message: 'Unknown legal document.' };
@@ -201,6 +203,10 @@ export const normalizeLegalDocumentInput = (value: {
     return { ok: false, message: 'The current business identity version is required.' };
   }
 
+  if (!Number.isSafeInteger(value.expectedVersion) || Number(value.expectedVersion) < 0) {
+    return { ok: false, message: 'The current legal document version is required.' };
+  }
+
   try {
     parseLegalBody(body);
   } catch (error) {
@@ -215,6 +221,7 @@ export const normalizeLegalDocumentInput = (value: {
       body,
       effectiveDate,
       expectedBusinessIdentityVersion: expectedBusinessIdentityVersion as number,
+      expectedVersion: value.expectedVersion as number,
     },
   };
 };

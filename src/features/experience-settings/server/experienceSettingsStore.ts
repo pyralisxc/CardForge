@@ -48,6 +48,10 @@ export const updateExperienceSettings = async (
   if (typeof input.updatedAt !== 'string' || !Number.isFinite(Date.parse(input.updatedAt))) {
     throw new ExperienceSettingsStoreError('Reload the current experience settings before publishing.', 409);
   }
+  const fields = Object.keys(DEFAULT_EXPERIENCE_SETTINGS);
+  if (Object.keys(input).some((key) => key !== 'updatedAt' && !fields.includes(key)) || fields.some((key) => !Object.hasOwn(input, key))) {
+    throw new ExperienceSettingsStoreError('Provide all current experience settings and only supported fields.', 400);
+  }
   let normalized: ExperienceSettings;
   try {
     normalized = normalizeExperienceSettingsInput(input);
