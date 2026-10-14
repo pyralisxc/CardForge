@@ -4,7 +4,7 @@ import { getMcpOwnerAccess } from './mcpOwnerAccess';
 import { registerOwnerReadTools } from './mcpOwnerTools';
 import { createOwnerMcpToolError } from './mcpOwnerToolError';
 
-export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.4.0';
+export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.5.0';
 
 export const cardForgeOwnerMcpHandler = createMcpHandler(
   (server) => {
@@ -22,7 +22,7 @@ export const cardForgeOwnerMcpHandler = createMcpHandler(
     instructions: [
       'Operate CardForge as its authenticated Owner rather than editing repository source.',
       'Treat runtime Owner state as canonical for live public presentation and Git as canonical for code capabilities.',
-      'Start by reading current site state, provider readiness, and accountable Owner activity before recommending operational changes.',
+      'Start by reading current site state, provider readiness, and accountable Owner activity before recommending operational changes. get_owner_workspace_health, get_owner_analytics and get_owner_mcp_usage use the same native browser readers; preserve configuration, missing metrics and provider warnings.',
       'Never imply that Preview state is live production state.',
       'Do not claim provider configuration or availability beyond the provider-readiness projection returned by CardForge.',
       'Owner tools use native feature commands. get_owner_site_configuration and publish_owner_site_configuration cover full public settings; get_owner_presentation_editor and publish_owner_presentation cover Identity, Founder, Experience, roadmap settings/status and immutable legal publication. get_owner_site_media, publish_owner_site_media and restore_owner_site_media share browser media commands. Read exact revisions before proposing a publication, omit revision fields from edited values, and never replay a committed receipt. publish_owner_site_copy changes one copy block; get_owner_site_fields and publish_owner_site_field support CTA labels, navigation labels and announcement text. Each publication requires the exact canonical revision previously read.',

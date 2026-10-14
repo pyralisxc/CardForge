@@ -451,3 +451,8 @@ export const ownerSiteCopyPublicationOutputSchema = fromJsonSchema({
     receipt: ownerCommittedReceiptSchema,
   },
 });
+
+export const ownerOperationalReadOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false, required: ['environment', 'area', 'value'],
+  properties: { environment: { type: 'string' }, area: { type: 'string', enum: ['overview', 'analytics', 'mcpUsage'] }, value: { type: 'object' } },
+});
