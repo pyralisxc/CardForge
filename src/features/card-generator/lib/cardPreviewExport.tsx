@@ -10,7 +10,7 @@ import { getExportProfile, type ExportMode, type ExportProfile } from '@/feature
 import type { CardFace } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
 import type { BrandPresentation } from '@/features/brand-presentation/client';
-import { measureSourceImageDetail, transformedImageDimensions, type SourceImageDetail } from './sourceImageDetail';
+import { measureSourceImageDetail, transformedImageDimensions, splitCssLayers, backgroundImageDimensions, type SourceImageDetail } from './sourceImageDetail';
 
 const RENDER_WAIT_TIMEOUT_MS = 1800;
 
@@ -37,11 +37,34 @@ const waitForImages = async (element: HTMLElement) => {
   }));
 };
 
+const readBackgroundImages = async (element: HTMLElement) => {
+  const entries = Array.from([element, ...element.querySelectorAll<HTMLElement>('*')]).flatMap((node) => {
+    const style = getComputedStyle(node);
+    return splitCssLayers(style.backgroundImage).flatMap((layer, index) => {
+      const url = /^url\(["']?(.*?)["']?\)$/.exec(layer)?.[1];
+      const vectorUrls: string[] = JSON.parse(node.dataset.vectorBackgroundUrls ?? '[]');
+      return url ? [{ node, style, url, index, vector: vectorUrls.includes(url) }] : [];
+    });
+  });
+  return Promise.all(entries.map(async (entry) => {
+    const image = new Image();
+    image.src = entry.url;
+    try { await image.decode(); } catch { throw new Error('A card background image could not be loaded. Restore the missing image before exporting.'); }
+    if (!image.naturalWidth || !image.naturalHeight) throw new Error('A card background image is empty. Restore it before exporting.');
+    return { ...entry, image };
+  }));
+};
+
 const waitForPreviewReady = async (element: HTMLElement) => {
   await waitForFrame();
   await waitForFrame();
   if ('fonts' in document) {
     await document.fonts.ready.catch(() => undefined);
+  }
+  const started = performance.now();
+  while (element.querySelector('[data-export-assets-pending]')) {
+    if (performance.now() - started > RENDER_WAIT_TIMEOUT_MS) throw new Error('A card background or frame asset is unavailable. Restore its browser artwork before exporting.');
+    await waitForFrame();
   }
   await waitForImages(element);
   await waitForFrame();
@@ -329,6 +352,7 @@ export function createCardFaceExportRenderer(
     }
 
     await waitForPreviewReady(element);
+    const backgrounds = await readBackgroundImages(element);
     if (exportProfile.mode === 'physical') {
       const geometry = getTemplateProductionGeometryMm(getCardFaceTemplate(card, face));
       const rootStyle = getComputedStyle(element);
@@ -351,6 +375,32 @@ export function createCardFaceExportRenderer(
           boxHeightMm: box.height / rootHeight * geometry.trimHeightMm,
           objectFit: style.objectFit });
         if (detail) sourceDetails.set(scope, detail);
+      });
+      backgrounds.forEach(({ node, style, url, index, image, vector }, backgroundIndex) => {
+        if (vector || /^data:image\/svg\+xml|\.svg(?:[?#]|$)/i.test(url)) return;
+        const sizes = splitCssLayers(style.backgroundSize);
+        const origins = splitCssLayers(style.backgroundOrigin);
+        const origin = origins[index % origins.length];
+        let width = parseFloat(style.width), height = parseFloat(style.height);
+        const borderX = parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+        const borderY = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+        const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+        const paddingY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+        if (style.boxSizing !== 'border-box') { width += paddingX + borderX; height += paddingY + borderY; }
+        if (origin !== 'border-box') { width -= borderX; height -= borderY; }
+        if (origin === 'content-box') { width -= paddingX; height -= paddingY; }
+        const placed = backgroundImageDimensions(image.naturalWidth, image.naturalHeight, width, height, sizes[index % sizes.length]);
+        let matrix = new DOMMatrix();
+        for (let current: HTMLElement | null = node; current && current !== element; current = current.parentElement) {
+          const transform = getComputedStyle(current).transform;
+          if (transform !== 'none') matrix = new DOMMatrix(transform).multiply(matrix);
+        }
+        const box = transformedImageDimensions(placed.width, placed.height, matrix);
+        const scope = `card:${card.uniqueId}:${face}:background:${backgroundIndex + 1}`;
+        const detail = measureSourceImageDetail({ scope, naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
+          boxWidthMm: box.width / rootWidth * geometry.trimWidthMm, boxHeightMm: box.height / rootHeight * geometry.trimHeightMm, objectFit: 'fill' });
+        if (!detail) throw new Error('A card background image has an unsupported physical size. Use pixels, percentages, cover or contain before exporting.');
+        sourceDetails.set(scope, detail);
       });
     }
     return { element, widthPx, heightPx };

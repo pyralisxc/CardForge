@@ -30,3 +30,36 @@ export const measureSourceImageDetail = ({ scope, naturalWidth, naturalHeight, b
   return { scope, naturalWidth, naturalHeight, placedWidthMm, placedHeightMm,
     effectivePpi: Math.min(naturalWidth / placedWidthMm, naturalHeight / placedHeightMm) * 25.4 };
 };
+
+/** CSS layer separators exclude commas inside gradients, functions and URLs. */
+export const splitCssLayers = (value: string): string[] => {
+  const layers: string[] = [];
+  let start = 0, depth = 0, quote = '';
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === '\\') { index += 1; continue; }
+    if (quote) { if (char === quote) quote = ''; continue; }
+    if (char === '"' || char === "'") quote = char;
+    else if (char === '(') depth += 1;
+    else if (char === ')') depth -= 1;
+    else if (char === ',' && depth === 0) { layers.push(value.slice(start, index).trim()); start = index + 1; }
+  }
+  layers.push(value.slice(start).trim());
+  return layers;
+};
+
+/** Resolves CSS background-size against its positioning box, before transforms. */
+export const backgroundImageDimensions = (naturalWidth: number, naturalHeight: number, boxWidth: number, boxHeight: number, size: string) => {
+  if (size === 'cover' || size === 'contain') {
+    const scale = size === 'cover' ? Math.max(boxWidth / naturalWidth, boxHeight / naturalHeight) : Math.min(boxWidth / naturalWidth, boxHeight / naturalHeight);
+    return { width: naturalWidth * scale, height: naturalHeight * scale };
+  }
+  const [x = 'auto', y = 'auto'] = size.trim().split(/\s+/);
+  const length = (value: string, box: number): number | null => value === 'auto' ? null
+    : value.endsWith('%') ? parseFloat(value) / 100 * box : value.endsWith('px') || value === '0' ? parseFloat(value) : NaN;
+  let width = length(x, boxWidth), height = length(y, boxHeight);
+  if (width === null && height === null) { width = naturalWidth; height = naturalHeight; }
+  else if (width === null) width = height! * naturalWidth / naturalHeight;
+  else if (height === null) height = width * naturalHeight / naturalWidth;
+  return { width: width!, height: height! };
+};

@@ -14,7 +14,7 @@ import {
   TCG_ASPECT_RATIO,
 } from '@/domain/rendering';
 import { isDividerElement, resolveCanvasElementsForRender } from '@/domain/templates';
-import { useProjectBinaryAssetResolution, useProjectBinaryAssetUrl, useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
+import { useProjectBinaryAssetResolution, useProjectBinaryAssetUrl, useProjectBinaryAssetValue, useProjectBinaryAssetValueResolution } from '@/features/project/client/useProjectBinaryAssetUrl';
 import { useMemo, type ReactNode } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/domain/templates';
@@ -67,7 +67,8 @@ function ProjectBinaryFrame({
   style,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
-  const backgroundImage = useProjectBinaryAssetValue(typeof style?.backgroundImage === 'string' ? style.backgroundImage : undefined);
+  const background = useProjectBinaryAssetValueResolution(typeof style?.backgroundImage === 'string' ? style.backgroundImage : undefined);
+  const backgroundImage = background?.value;
   const borderImageSource = useProjectBinaryAssetValue(typeof style?.borderImageSource === 'string' ? style.borderImageSource : undefined);
   const maskSource = typeof style?.maskImage === 'string'
     ? style.maskImage
@@ -75,7 +76,7 @@ function ProjectBinaryFrame({
       ? style.WebkitMaskImage
       : undefined;
   const resolvedMask = useProjectBinaryAssetValue(maskSource);
-  return <div {...props} style={{
+  return <div {...props} data-vector-background-urls={background?.vectorUrls.length ? JSON.stringify(background.vectorUrls) : undefined} data-export-assets-pending={Boolean((style?.backgroundImage && !backgroundImage) || (style?.borderImageSource && !borderImageSource) || (maskSource && !resolvedMask)) || undefined} style={{
     ...style,
     backgroundImage,
     borderImageSource,
@@ -119,9 +120,11 @@ export function CardPreview({
 
   const resolvedCardContentBgUrl = tb.cardBackgroundImageUrl ? replacePlaceholdersLocal(tb.cardBackgroundImageUrl, dataToRender, isEditorPreview) : undefined;
   const resolvedCardBorderImageSource = tb.cardBorderImageSource ? replacePlaceholdersLocal(tb.cardBorderImageSource, dataToRender, isEditorPreview) : undefined;
-  const resolvedCardContentBinaryUrl = useProjectBinaryAssetUrl(resolvedCardContentBgUrl);
+  const resolvedCardContent = useProjectBinaryAssetResolution(resolvedCardContentBgUrl);
+  const resolvedCardContentBinaryUrl = resolvedCardContent?.url;
   const resolvedCardBorderBinaryUrl = useProjectBinaryAssetUrl(resolvedCardBorderImageSource);
-  const resolvedTemplateAppearanceBackground = useProjectBinaryAssetValue(templateAppearanceStyle.backgroundImage);
+  const templateBackground = useProjectBinaryAssetValueResolution(templateAppearanceStyle.backgroundImage);
+  const resolvedTemplateAppearanceBackground = templateBackground?.value;
   const resolvedCardContentBackground = toRenderableBackground(resolvedCardContentBinaryUrl);
   const resolvedBorderVisual = toRenderableBackground(resolvedCardBorderBinaryUrl);
   const borderVisualIsGradient = Boolean(
@@ -507,6 +510,8 @@ export function CardPreview({
             transform: visualScale === 1 ? cardContainerStyle.transform : `scale(${visualScale})`,
             transformOrigin: 'top left',
           }}
+          data-vector-background-urls={JSON.stringify([...(templateBackground?.vectorUrls ?? []), ...(resolvedCardContent?.mimeType === 'image/svg+xml' ? [resolvedCardContent.url] : [])])}
+          data-export-assets-pending={Boolean((resolvedCardContentBgUrl && !resolvedCardContentBinaryUrl) || (resolvedCardBorderImageSource && !resolvedCardBorderBinaryUrl) || (templateAppearanceStyle.backgroundImage && !resolvedTemplateAppearanceBackground)) || undefined}
           data-ai-hint="tcg card custom"
           onClick={handleCardClick}
           onDoubleClick={handleCardDoubleClick}

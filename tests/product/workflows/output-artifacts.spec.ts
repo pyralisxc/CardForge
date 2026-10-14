@@ -84,7 +84,9 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   const preflightEntry = Object.values(productionZip.files).find((file) => file.name.endsWith('cardforge-print-preflight.json'))!;
   const preflight = JSON.parse(await preflightEntry.async('string'));
   expect(preflight.sourceImageDetail.measured).toBe(true);
-  expect(preflight.sourceImageDetail.images).toHaveLength(4);
+  expect(preflight.sourceImageDetail.images).toHaveLength(8);
+  expect(preflight.sourceImageDetail.coverage).toBe('rendered-image-elements-and-backgrounds');
+  expect(preflight.sourceImageDetail.images.filter((image: { scope: string }) => image.scope.includes(':background:'))).toHaveLength(4);
   expect(preflight.sourceImageDetail.images.every((image: { naturalWidth: number }) => image.naturalWidth === 64)).toBe(true);
   expect(preflight.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'resolution.source_below_300_ppi' })]));
   expect(preflight.pressReady).toBe(false);

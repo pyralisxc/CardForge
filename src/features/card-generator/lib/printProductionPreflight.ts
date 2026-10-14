@@ -35,7 +35,7 @@ export interface PrintProductionPreflightReport {
   faceCount: number;
   requestedDpi: number;
   effectivePixelsPerInch: number;
-  sourceImageDetail: { measured: boolean; coverage: 'rendered-image-elements'; images: SourceImageDetail[] };
+  sourceImageDetail: { measured: boolean; coverage: 'rendered-image-elements-and-backgrounds'; images: SourceImageDetail[] };
   productionPrepared: boolean;
   pressReady: boolean;
   colorManagement: {
@@ -235,7 +235,7 @@ export const createPrintProductionPreflight = (
     faceCount,
     requestedDpi: profile.dpi,
     effectivePixelsPerInch,
-    sourceImageDetail: { measured: sourceImageDetails !== undefined, coverage: 'rendered-image-elements', images: sourceImageDetails ?? [] },
+    sourceImageDetail: { measured: sourceImageDetails !== undefined, coverage: 'rendered-image-elements-and-backgrounds', images: sourceImageDetails ?? [] },
     productionPrepared,
     pressReady,
     colorManagement: {
