@@ -10,6 +10,7 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
     const query = {
       select: () => { provider.reads(); return query; }, order: () => query, eq: () => query,
       limit: () => query, maybeSingle: () => query,
+      update: (row: unknown) => { provider.writes(row); const writeQuery = { eq: () => writeQuery, is: () => writeQuery, select: () => writeQuery, maybeSingle: async () => ({ data: row, error: null }) }; return writeQuery; },
       then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: provider.data, error: provider.error }).then(resolve),
       upsert: async (row: unknown) => { provider.writes(row); return { error: null }; },
     };
@@ -131,7 +132,7 @@ describe('public content cache inputs', () => {
   it('does not misreport a committed image as uncommitted when subsequent reads fail', async () => {
     const image = DEFAULT_SITE_MEDIA[0];
     provider.writes.mockImplementation(() => { provider.error = { message: 'read outage after commit' }; });
-    await updateSiteMedia({ slot: image.slot, storagePath: null, alt: 'Fixture image', width: null, height: null, presentation: image.presentation });
+    await updateSiteMedia({ slot: image.slot, storagePath: null, alt: 'Fixture image', width: null, height: null, presentation: image.presentation, expectedUpdatedAt: null });
     expect(provider.writes).toHaveBeenCalledTimes(1);
     expect(provider.reads).toHaveBeenCalledTimes(1);
   });

@@ -52,7 +52,7 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true, cardLimit: 2, exportSample: true, lowResolutionArtwork: true });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
-  await page.locator('button[data-artifact-id="scale-card-1"]').click();
+  await page.locator('button[data-artifact-id="scale-card-1"]').press('Enter');
   const save = async (download: Download) => {
     const path = testInfo.outputPath(download.suggestedFilename());
     await download.saveAs(path);
