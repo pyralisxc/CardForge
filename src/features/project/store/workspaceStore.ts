@@ -163,10 +163,13 @@ export const createProjectWorkspaceDraft = (expectedState: ProjectState = usePro
   return {
     getState: draft.getState,
     setState: draft.setState,
-    commit: async (relatedWrites: readonly { key: string; value: string; expectedValue: string | null }[]) => {
+    commit: async (relatedWrites: readonly { key: string; value: string; expectedValue: string | null }[], signal?: AbortSignal) => {
+      signal?.throwIfAborted();
       const options = useProjectStore.persist.getOptions();
       const nextState = draft.getState();
       const controller = new AbortController();
+      const abort = () => controller.abort(signal?.reason);
+      signal?.addEventListener('abort', abort, { once: true });
       const unsubscribe = useProjectStore.subscribe(() => controller.abort());
       try { await commitBrowserWorkspaceImport({
         value: JSON.stringify({ state: options.partialize!(nextState), version: options.version }),
@@ -175,7 +178,7 @@ export const createProjectWorkspaceDraft = (expectedState: ProjectState = usePro
         beforeCommit: () => {
           if (useProjectStore.getState() !== expectedState) throw new Error('The workspace changed while the project was opening. Your edits were left unchanged; retry.');
         },
-      }); } finally { unsubscribe(); }
+      }); } finally { unsubscribe(); signal?.removeEventListener('abort', abort); }
       useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
       try {
         useProjectStore.setState(Object.fromEntries(Object.entries(nextState).filter(([, value]) => typeof value !== 'function')));

@@ -53,7 +53,7 @@ export function useStudioDocumentHandoff({
   onInstalled,
 }: StudioDocumentHandoffOptions) {
   const handledRevisionKeyRef = useRef<string | null>(null);
-  const inFlightRevisionKeyRef = useRef<string | null>(null);
+  const inFlightRevisionKeyRef = useRef<{ key: string; controller: AbortController } | null>(null);
 
   useEffect(() => {
     if (isAccountLoading || !isSignedIn || !isStudioReady) return;
@@ -64,12 +64,15 @@ export function useStudioDocumentHandoff({
     const requestedKey = handoffKey(documentId, requestedRevision);
     if (
       handledRevisionKeyRef.current === requestedKey
-      || inFlightRevisionKeyRef.current === requestedKey
+      || inFlightRevisionKeyRef.current?.key === requestedKey
     ) return;
 
-    inFlightRevisionKeyRef.current = requestedKey;
+    const controller = new AbortController();
+    const attempt = { key: requestedKey, controller };
+    inFlightRevisionKeyRef.current = attempt;
 
     let cancelled = false;
+    const initiatingState = useProjectStore.getState();
     void (async () => {
       let localAgentRevisionApplied = false;
       try {
@@ -77,6 +80,7 @@ export function useStudioDocumentHandoff({
         const response = await fetch(`/api/studio-documents/${encodeURIComponent(documentId)}${revisionQuery}`, {
           cache: 'no-store',
           credentials: 'same-origin',
+          signal: controller.signal,
         });
         if (!response.ok) {
           throw new Error(await readApiErrorMessage(response, 'Unable to open the Studio draft.'));
@@ -104,11 +108,12 @@ export function useStudioDocumentHandoff({
 
         const storedDocument = normalizeStudioDocumentPayload(payload.document?.document);
         if (!storedDocument) throw new Error('The account document is not a valid CardForge project.');
-        const document = await hydrateStudioDocumentAssets(storedDocument, payload.assets ?? []);
+        const document = await hydrateStudioDocumentAssets(storedDocument, payload.assets ?? [], controller.signal);
+        controller.signal.throwIfAborted();
         const patch = applyProjectDocumentToState(document);
 
         if (payload.document?.creationSource === 'gpt') {
-          const beforeState = useProjectStore.getState();
+          const beforeState = initiatingState;
           const existingTemplateIds = new Set(beforeState.userTemplates.map((template) => template.id).filter(Boolean));
           const existingCardIds = new Set(beforeState.storedCards.map((card) => card.uniqueId));
           const personalTemplates = patch.userTemplates.filter((template) => (
@@ -129,7 +134,7 @@ export function useStudioDocumentHandoff({
                 : template
             )),
           };
-          const adopted = await applyProjectDocumentToWorkspace(adoptionDocument, 'adopt', { expectedState: beforeState });
+          const adopted = await applyProjectDocumentToWorkspace(adoptionDocument, 'adopt', { expectedState: beforeState, signal: controller.signal });
           if (cancelled) return;
 
           const cardResult = {
@@ -205,7 +210,8 @@ export function useStudioDocumentHandoff({
         // complete document (workspace settings, fonts, assets, Templates, Sets,
         // cards, and styles) before the resulting live state is exposed.
         const opened = await applyProjectDocumentToWorkspace(document, 'replace', {
-          expectedState: useProjectStore.getState(),
+          expectedState: initiatingState,
+          signal: controller.signal,
         });
         if (cancelled) return;
         setStudioView('template');
@@ -232,7 +238,7 @@ export function useStudioDocumentHandoff({
           });
         }
       } finally {
-        if (inFlightRevisionKeyRef.current === requestedKey) {
+        if (inFlightRevisionKeyRef.current === attempt) {
           inFlightRevisionKeyRef.current = null;
         }
       }
@@ -240,6 +246,8 @@ export function useStudioDocumentHandoff({
 
     return () => {
       cancelled = true;
+      controller.abort();
+      if (inFlightRevisionKeyRef.current === attempt) inFlightRevisionKeyRef.current = null;
     };
   }, [
     isAccountLoading,
