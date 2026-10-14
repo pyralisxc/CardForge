@@ -15,11 +15,12 @@ vi.mock('@/features/owner/server/ownerMediaCommands', () => ({ publishOwnerSiteM
 vi.mock('@/features/public-site/server', () => ({ getPublicSiteConfiguration: mocks.readFields, getFounderProfile: mocks.site, getSiteMedia: mocks.site, SiteMediaStoreError: class extends Error {} }));
 vi.mock('@/features/business-identity/server', () => ({ getBusinessIdentity: mocks.site }));
 vi.mock('@/features/experience-settings/server', () => ({ getExperienceSettings: mocks.site }));
-vi.mock('@/features/mcp-usage/server', () => ({
+vi.mock('@/features/analytics/server', () => ({ getOwnerAnalyticsSnapshot: mocks.site }));
+vi.mock('@/features/mcp-usage/server', () => ({ getOwnerMcpUsageDashboard: mocks.site,
   observeMcpToolExecution: ({ execute }: { execute: () => Promise<unknown> }) => execute(),
 }));
 vi.mock('@/features/owner/server/ownerActivityStore', () => ({ getOwnerActivity: vi.fn() }));
-vi.mock('@/features/owner/lib/ownerOperationsStore', () => ({ getOwnerSiteControlPayload: mocks.site }));
+vi.mock('@/features/owner/lib/ownerOperationsStore', () => ({ getOwnerSiteControlPayload: mocks.site, getOwnerOperationsOverviewPayload: mocks.site }));
 vi.mock('@/features/owner/server/ownerSiteCommands', () => ({ publishOwnerSiteContentBlock: mocks.publish, publishOwnerSiteConfigurationField: mocks.publishField, publishOwnerSiteConfigurationPatch: mocks.publishConfiguration, publishOwnerBusinessIdentity: mocks.publishPresentation, publishOwnerFounderProfile: mocks.publishPresentation, publishOwnerExperienceSettings: mocks.publishPresentation, publishOwnerLegalDocument: mocks.publishPresentation, publishOwnerRoadmapSettings: mocks.publishPresentation, publishOwnerRoadmapStatus: mocks.publishPresentation }));
 vi.mock('@/features/owner/server/ownerIntegrationStatus', () => ({ getOwnerIntegrationStatus: mocks.readiness }));
 
@@ -66,6 +67,17 @@ async function invoke(name: string, input: Record<string, unknown> = {}) {
 }
 
 describe('Owner MCP registered output contracts', () => {
+  it.each([['get_owner_workspace_health', 'overview'], ['get_owner_analytics', 'analytics'], ['get_owner_mcp_usage', 'mcpUsage']])('reads %s through its native browser reader', async (name, area) => {
+    mocks.site.mockResolvedValue({ warnings: ['Unavailable metric'], observationOnly: true, databaseMetrics: null });
+    expect(await invoke(name)).toMatchObject({ environment: 'preview', area, value: { warnings: ['Unavailable metric'], databaseMetrics: null } });
+    expect(mocks.site).toHaveBeenCalledTimes(1);
+  });
+  it.each(['get_owner_workspace_health', 'get_owner_analytics', 'get_owner_mcp_usage'])('prevents a non-owner from reading %s', async (name) => {
+    mocks.access.mockRejectedValue(new Error('Owner permission required'));
+    expect(await tools.get(name)!.handler({})).toMatchObject({ isError: true });
+    expect(mocks.site).not.toHaveBeenCalled();
+  });
+
   it.each(['roadmapSettings', 'roadmapStatus', 'legal'])('routes %s through the canonical governance command', async (area) => {
     const receipt = { committed: true, refreshComplete: true, refreshFailures: [], activityRecorded: true, retryable: false, nextAction: 'none', message: 'Published.' };
     mocks.publishPresentation.mockResolvedValue({ value: { updatedAt: 'actual-revision' }, receipt });

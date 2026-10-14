@@ -78,6 +78,16 @@ describe('owner integration status', () => {
     expect(getOwnerIntegrationStatus().canonicalOwnerConfigured).toBe(true);
   });
 
+  it('reports configured Preview providers without hard-coded Production identities', () => {
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://preview.example.test');
+    vi.stubEnv('SUPABASE_URL', 'https://mjdugheniazuiqoefnnb.supabase.co');
+    const services = getOwnerIntegrationStatus().connectedServices;
+    expect(services.find((service) => service.id === 'vercel')?.statusLabel).toBe('Public URL configured');
+    expect(services.find((service) => service.id === 'supabase')).toMatchObject({ identifier: 'mjdugheniazuiqoefnnb', dashboardUrl: 'https://supabase.com/dashboard/project/mjdugheniazuiqoefnnb' });
+    expect(services.find((service) => service.id === 'clerk')?.identifier).not.toContain('production');
+  });
+
   it('keeps provider ownership and destructive-impact links visible to the owner', () => {
     const status = getOwnerIntegrationStatus();
     const googleAuthentication = status.connectedServices.find((service) => service.id === 'google-authentication');

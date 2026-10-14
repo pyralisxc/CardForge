@@ -45,7 +45,7 @@ describe('CardForge Owner plugin', () => {
       };
       expect(packagedManifest).toMatchObject({
         name: 'cardforge-owner',
-        version: '0.4.0',
+        version: '0.5.0',
         mcpServers: './.mcp.json',
         interface: {
           displayName: 'CardForge Owner',

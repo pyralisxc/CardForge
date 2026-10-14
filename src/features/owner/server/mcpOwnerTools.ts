@@ -1,10 +1,11 @@
 import { createMcpHandler } from 'mcp-handler';
 import { resolveOwnerAccess } from '@/domain/entitlements';
 
-import { observeMcpToolExecution } from '@/features/mcp-usage/server';
+import { getOwnerAnalyticsSnapshot } from '@/features/analytics/server';
+import { observeMcpToolExecution, getOwnerMcpUsageDashboard } from '@/features/mcp-usage/server';
 import { getOwnerActivity } from '@/features/owner/server/ownerActivityStore';
 import { getOwnerIntegrationStatus } from '@/features/owner/server/ownerIntegrationStatus';
-import { getOwnerSiteControlPayload } from '@/features/owner/lib/ownerOperationsStore';
+import { getOwnerSiteControlPayload, getOwnerOperationsOverviewPayload } from '@/features/owner/lib/ownerOperationsStore';
 import { publishOwnerSiteContentBlock, publishOwnerSiteConfigurationField, publishOwnerSiteConfigurationPatch, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerExperienceSettings, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus } from '@/features/owner/server/ownerSiteCommands';
 import { getPublicSiteConfiguration, getFounderProfile, getSiteMedia, SiteMediaStoreError, type PublicSiteConfiguration } from '@/features/public-site/server';
 import { publishOwnerSiteMedia, restoreOwnerSiteMedia } from './ownerMediaCommands';
@@ -14,6 +15,7 @@ import { getBusinessIdentity } from '@/features/business-identity/server';
 import { getExperienceSettings } from '@/features/experience-settings/server';
 import type { McpOwnerAccess } from './mcpOwnerAccess';
 import {
+  ownerOperationalReadOutputSchema,
   ownerActivityInputSchema,
   ownerActivityOutputSchema,
   ownerSiteCopyPublicationOutputSchema,
@@ -344,6 +346,22 @@ export const registerOwnerReadTools = ({
         structuredContent: { environment: deploymentEnvironment(), livePublication: deploymentEnvironment() === 'production', area, ...publication } };
     },
   }));
+
+  const operationalReads = [
+    { name: 'get_owner_workspace_health', area: 'overview', title: 'Read Owner workspace health',
+      description: 'Read the same configured-state, identity, official roadmap and database metrics as the Owner overview. A null databaseMetrics means unavailable or unconfigured; it never means zero usage.', read: getOwnerOperationsOverviewPayload },
+    { name: 'get_owner_analytics', area: 'analytics', title: 'Read Owner analytics',
+      description: 'Read the browser Owner analytics summary from native reporting providers, including configuration and warnings. Respect warnings and missing measurements; they are not proof of zero traffic.', read: getOwnerAnalyticsSnapshot },
+    { name: 'get_owner_mcp_usage', area: 'mcpUsage', title: 'Read Owner MCP usage and current beta targets',
+      description: 'Read the same aggregate usage and allowance targets as browser Owner controls. observationOnly means beta capacity observation, not enforced quotas or overage billing. This operation does not change limits or Stripe prices.', read: getOwnerMcpUsageDashboard },
+  ] as const;
+  for (const tool of operationalReads) server.registerTool(tool.name, {
+    title: tool.title, description: tool.description, outputSchema: ownerOperationalReadOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+  }, async () => runObserved({ toolName: tool.name, input: {}, execute: async () => ({
+    content: [{ type: 'text', text: `Loaded Owner ${tool.area} for ${deploymentEnvironment()}. Provider configuration and warnings remain authoritative.` }],
+    structuredContent: { environment: deploymentEnvironment(), area: tool.area, value: await tool.read() },
+  }) }));
 
   server.registerTool('get_owner_site_media', {
     title: 'Read Owner public images and presentation',

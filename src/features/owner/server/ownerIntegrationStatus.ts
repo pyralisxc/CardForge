@@ -26,9 +26,14 @@ const buildConnectedServices = ({
   emailProviderConfigured: boolean;
   supabaseConfigured: boolean;
 }): OwnerConnectedService[] => {
+  let supabaseProjectRef: string | null = null;
+  try {
+    const host = new URL(process.env.SUPABASE_URL ?? '').hostname;
+    if (/^[a-z0-9]+\.supabase\.co$/.test(host)) supabaseProjectRef = host.split('.')[0];
+  } catch { /* Unconfigured/custom URLs cannot identify a provider project. */ }
   const meta = getMetaConfiguration();
-  const creatorPassReady = billing.productAccessConfigured && billing.webhookConfigured;
-  const billingReady = creatorPassReady && billing.supportConfigured;
+  const productAccessReady = billing.productAccessConfigured && billing.webhookConfigured;
+  const billingReady = productAccessReady && billing.supportConfigured;
   const googleReportingIdentityReady = analytics.reportingConfigured && analyticsProjectIdentityVerified;
   const googleAnalyticsReady = analytics.measurementIdConfigured && googleReportingIdentityReady;
   const postHogReady = analytics.interactionCollectionConfigured && analytics.interactionReportingConfigured;
@@ -40,8 +45,8 @@ const buildConnectedServices = ({
       category: 'Hosting & domain',
       identifier: 'pyralis-projects/card-forge',
       status: configuredPublicAppUrl ? 'ready' : 'attention',
-      statusLabel: configuredPublicAppUrl ? 'Production URL configured' : 'Needs production URL',
-      purpose: 'Deploys main, serves cardforges.com, and owns production environment configuration.',
+      statusLabel: configuredPublicAppUrl ? 'Public URL configured' : 'Needs public URL',
+      purpose: 'Hosts Preview and Production deployments with their own runtime configuration.',
       ownership: 'Vercel owns deployments and runtime settings; GitHub main owns the deployed code.',
       removalImpact: 'The public site, APIs, and production environment stop serving.',
       dashboardUrl: 'https://vercel.com/pyralis-projects/card-forge',
@@ -50,13 +55,13 @@ const buildConnectedServices = ({
       id: 'clerk',
       name: 'Clerk',
       category: 'Authentication',
-      identifier: 'CardForge Studio / production',
+      identifier: 'CardForge configured authentication instance',
       status: authConfigured ? 'ready' : 'attention',
       statusLabel: authConfigured ? 'Authentication ready' : 'Needs configuration',
       purpose: 'Owns user identity, sessions, linked Google accounts, and trusted private access metadata.',
       ownership: 'Clerk owns identity records; CardForge interprets private role and entitlement metadata.',
       removalImpact: 'Sign-in and protected account, contributor, and owner access stop working.',
-      dashboardUrl: 'https://dashboard.clerk.com/apps/app_3E5x4ZR97Ova0xeYdbEuAwZN3NN/instances/ins_3GVR7AEctqBma6sg1j5K05r66lN',
+      dashboardUrl: 'https://dashboard.clerk.com/',
     },
     {
       id: 'google-authentication',
@@ -74,22 +79,22 @@ const buildConnectedServices = ({
       id: 'supabase',
       name: 'Supabase',
       category: 'Database & media',
-      identifier: 'mpmmhjjhdxjedbmuctiv',
+      identifier: supabaseProjectRef ?? 'Configured Supabase project',
       status: supabaseConfigured ? 'ready' : 'attention',
       statusLabel: supabaseConfigured ? 'Database ready' : 'Needs configuration',
       purpose: 'Owns shared CardForge records, approved media, asset pipeline state, and durable operational history.',
       ownership: 'Supabase owns shared data and storage; browser-local creator projects remain outside it.',
       removalImpact: 'Shared libraries, owner settings, pipeline history, billing records, and public media fail.',
-      dashboardUrl: 'https://supabase.com/dashboard/project/mpmmhjjhdxjedbmuctiv',
+      dashboardUrl: supabaseProjectRef ? `https://supabase.com/dashboard/project/${supabaseProjectRef}` : 'https://supabase.com/dashboard/projects',
     },
     {
       id: 'stripe',
       name: 'Stripe',
       category: 'Payments',
-      identifier: 'CardForge production account',
+      identifier: 'CardForge configured Stripe account',
       status: billingReady ? 'ready' : 'attention',
-      statusLabel: billingReady ? 'Billing ready' : (creatorPassReady ? 'Creator Pass only' : 'Needs configuration'),
-      purpose: 'Owns Creator Pass checkout, support payments, subscriptions, webhooks, and customer billing history.',
+      statusLabel: billingReady ? 'Billing ready' : (productAccessReady ? 'Product access ready; support incomplete' : 'Needs configuration'),
+      purpose: 'Owns Creator and Designer checkout, support payments, subscriptions, webhooks, and customer billing history.',
       ownership: 'Stripe is authoritative for money; CardForge projects access from verified provider events.',
       removalImpact: 'New checkout, billing portal access, and subscription reconciliation stop working.',
       dashboardUrl: 'https://dashboard.stripe.com/',
