@@ -76,6 +76,8 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   const images = Object.values(zip.files).filter((file) => file.name.endsWith('.png'));
   expect(images).toHaveLength(4);
   for (const file of images) expect(pngSize(await file.async('nodebuffer'))).toEqual(pngSize(png));
+  await page.getByRole('combobox', { name: 'Primary use', exact: true }).click();
+  await page.getByRole('option', { name: 'Print physical cards', exact: true }).click();
   const productionDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: /^Download print production PNG ZIP/ }).click();
   const productionZip = await JSZip.loadAsync(await save(await productionDownload));
