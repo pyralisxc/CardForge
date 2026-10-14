@@ -8,13 +8,13 @@ export interface EditorDraftState {
 }
 
 /** Local form lifecycle only; confirmed values and revisions remain feature-owned. */
-export function useEditorDraft<T>(initial: T, onStateChange?: (state: EditorDraftState) => void) {
+export function useEditorDraft<T>(initial: T, onStateChange?: (state: EditorDraftState) => void, externalDirty = false) {
   const previousInitial = useRef(initial);
   const latestInitial = useRef(initial);
   const [baseline, setBaseline] = useState(initial);
   const [draft, setDraft] = useState(initial);
   const [saving, setSaving] = useState(false);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(baseline);
+  const dirty = externalDirty || JSON.stringify(draft) !== JSON.stringify(baseline);
 
   useEffect(() => {
     latestInitial.current = initial;
@@ -27,10 +27,10 @@ export function useEditorDraft<T>(initial: T, onStateChange?: (state: EditorDraf
   useEffect(() => { onStateChange?.({ dirty, saving }); }, [dirty, saving, onStateChange]);
   useEffect(() => () => { onStateChange?.({ dirty: false, saving: false }); }, [onStateChange]);
 
-  const acceptPublished = (current: T) => {
+  const acceptPublished = (current: T, pendingDraft: T = current) => {
     previousInitial.current = latestInitial.current;
     setBaseline(current);
-    setDraft(current);
+    setDraft(pendingDraft);
   };
   return { baseline, draft, setDraft, saving, setSaving, dirty, acceptPublished };
 }

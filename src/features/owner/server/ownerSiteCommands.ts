@@ -14,6 +14,8 @@ import {
   type PublicSiteConfiguration,
   type SiteContentBlock,
 } from '@/features/public-site/server';
+import { publishLegalDocument, revalidateLegalDocumentCache } from '@/features/legal/server';
+import { updateRoadmapSettings, updateRoadmapAdminItemStatus } from '@/features/roadmap/server';
 import { recordOwnerActivity } from './ownerActivityStore';
 import { updateBusinessIdentity, revalidatePublicIdentityCache } from '@/features/business-identity/server';
 import { updateFounderProfile, revalidateFounderProfile } from '@/features/public-site/server';
@@ -36,14 +38,14 @@ export interface OwnerCommittedMutationReceipt {
 
 type RefreshStep = {
   label: string;
-  run: () => void;
+  run: () => void | boolean;
 };
 
 const runPostCommitRefresh = (steps: RefreshStep[]): string[] => {
   const failures: string[] = [];
   for (const step of steps) {
     try {
-      step.run();
+      if (step.run() === false) failures.push(step.label);
     } catch (error) {
       console.error(`Owner publication refresh failed (${step.label}):`, error);
       failures.push(step.label);
@@ -223,8 +225,23 @@ export const publishOwnerSiteConfigurationPatch = async ({
   const current = await getPublicSiteConfiguration();
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)
     || !Object.keys(patch).length
-    || Object.keys(patch).some((key) => key === 'updatedAt' || !(key in current))) {
+    || Object.keys(patch).some((key) => key === 'updatedAt' || !Object.hasOwn(current, key))) {
     throw new PublicSiteConfigurationStoreError('Choose supported public site settings to publish.', 400);
   }
   return publishOwnerSiteConfiguration({ actor, input: { ...current, ...patch, updatedAt: expectedUpdatedAt } });
 };
+
+export const publishOwnerLegalDocument = async ({ actor, input }: { actor: OwnerCommandActor; input: Parameters<typeof publishLegalDocument>[0] }) => {
+  const value = await publishLegalDocument(input);
+  return finalizeOwnerPublication({ actor, value, action: 'legal.publish', targetType: 'legal_document', targetId: value.slug,
+    summary: 'Published a new immutable version of a CardForge legal document.', subject: value.title,
+    refreshSteps: [{ label: 'legal-cache', run: () => revalidateLegalDocumentCache(value.slug) }] });
+};
+export const publishOwnerRoadmapSettings = async ({ actor, input }: { actor: OwnerCommandActor; input: Parameters<typeof updateRoadmapSettings>[0] }) => (
+  finalizeOwnerPublication({ actor, value: await updateRoadmapSettings(input), action: 'roadmap.settings.update', targetType: 'roadmap', targetId: 'settings',
+    summary: 'Updated roadmap rules and presentation.', subject: 'Roadmap settings', refreshSteps: [{ label: 'roadmap-page', run: () => revalidatePath('/roadmap') }] })
+);
+export const publishOwnerRoadmapStatus = async ({ actor, input }: { actor: OwnerCommandActor; input: Parameters<typeof updateRoadmapAdminItemStatus>[0] }) => (
+  finalizeOwnerPublication({ actor, value: await updateRoadmapAdminItemStatus(input), action: 'roadmap.item.status.update', targetType: 'roadmap_item', targetId: String(input.itemId),
+    summary: 'Updated an official roadmap item status.', subject: 'Roadmap status', refreshSteps: [{ label: 'roadmap-page', run: () => revalidatePath('/roadmap') }] })
+);

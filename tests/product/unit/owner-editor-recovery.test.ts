@@ -215,6 +215,13 @@ describe('Owner multi-panel draft lifecycle', () => {
     expect(DraftHarness('B').draft).toBe('C');
   });
 
+  it('preserves the initiating revision while external file intent is dirty', () => {
+    const DraftHarness = (initial: string, pendingFile: boolean) => { hooks.cursor = 0; return useEditorDraft(initial, undefined, pendingFile); };
+    DraftHarness('Original', false);
+    DraftHarness('New revision', true);
+    expect(DraftHarness('New revision', true)).toMatchObject({ baseline: 'Original', draft: 'Original', dirty: true });
+  });
+
   it('updates clean drafts from refreshed native settings', () => {
     const DraftHarness = (initial: string) => { hooks.cursor = 0; return useEditorDraft(initial); };
     DraftHarness('Original');

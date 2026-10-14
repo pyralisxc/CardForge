@@ -20,10 +20,12 @@ export const getCachedBusinessIdentity = async () => {
   }
 };
 
-export const revalidatePublicIdentityCache = (): void => {
+export const revalidatePublicIdentityCache = (): boolean => {
   try {
     revalidateTag(PUBLIC_IDENTITY_TAG, { expire: 0 });
+    return true;
   } catch (error) {
     console.error('Unable to invalidate public business identity cache:', error);
+    return false;
   }
 };

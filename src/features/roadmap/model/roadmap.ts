@@ -4,6 +4,7 @@ export const ROADMAP_NEGATIVE_SIGNAL_MIN_TOTAL_VOTES = 20;
 export const ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER = 10;
 
 export interface RoadmapSettings {
+  updatedAt?: string | null;
   maxActiveUserRoadmapItems: number;
   maxRoadmapSuggestionLength: number;
   roadmapNegativeSignalMinTotalVotes: number;
@@ -121,6 +122,7 @@ export interface RoadmapItem {
   expenseVerifiedAt: string | null;
   shippedAt: string | null;
   createdAt: string;
+  updatedAt?: string | null;
   upVotes: number;
   downVotes: number;
   userVote: RoadmapVoteValue | null;
@@ -141,6 +143,7 @@ export type RoadmapAdminItem = Pick<
   | 'expenseSourceUrl'
   | 'expenseVerifiedAt'
   | 'shippedAt'
+  | 'updatedAt'
 >;
 
 export interface RoadmapIncomeBreakdown {

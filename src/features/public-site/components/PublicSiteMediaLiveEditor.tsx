@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ImageUp, Monitor, RotateCcw, Smartphone } from 'lucide-react';
 
+import { useEditorDraft } from '@/components/ui/use-editor-draft';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
@@ -69,28 +70,25 @@ export function PublicSiteMediaLiveEditor({
 }) {
   const { toast } = useToast();
   const publicationPresentation = getOwnerPublicationPresentation(publicationEnvironment);
-  const [drafts, setDrafts] = useState(initialAssets);
   const [files, setFiles] = useState<Partial<Record<SiteMediaAsset['slot'], File>>>({});
+  const { baseline: mediaBaseline, draft: drafts, setDraft: setDrafts, setSaving: setSavingMedia, acceptPublished: acceptMedia } = useEditorDraft(initialAssets, undefined, Object.values(files).some(Boolean));
   const [busySlot, setBusySlot] = useState<SiteMediaAsset['slot'] | null>(null);
   const [inputVersion, setInputVersion] = useState(0);
-  const [brandSettings, setBrandSettings] = useState(initialSiteConfiguration);
-  const [savingBrandSettings, setSavingBrandSettings] = useState(false);
+  const { draft: brandSettings, setDraft: setBrandSettings, saving: savingBrandSettings, setSaving: setSavingBrandSettings, dirty: brandDirty, acceptPublished: acceptBrand } = useEditorDraft(initialSiteConfiguration);
   const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
   const visibleDrafts = focusSlot ? drafts.filter((asset) => asset.slot === focusSlot) : drafts;
   const isDirty = Boolean(
     Object.values(files).some(Boolean)
     || drafts.some((draft) => {
-      const saved = initialAssets.find((asset) => asset.slot === draft.slot);
+      const saved = mediaBaseline.find((asset) => asset.slot === draft.slot);
       return saved && (draft.alt !== saved.alt || JSON.stringify(draft.presentation) !== JSON.stringify(saved.presentation));
     })
-    || JSON.stringify(brandSettings) !== JSON.stringify(initialSiteConfiguration)
+    || brandDirty
+    || busySlot !== null || savingBrandSettings
   );
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
-  useEffect(() => {
-    setDrafts(initialAssets);
-    setBrandSettings(initialSiteConfiguration);
-  }, [initialAssets, initialSiteConfiguration]);
+  useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
 
   const saveBrandSettings = async () => {
     setSavingBrandSettings(true);
@@ -105,6 +103,7 @@ export function PublicSiteMediaLiveEditor({
         settings: PublicSiteConfiguration;
         receipt?: { refreshComplete: boolean; activityRecorded: boolean; message: string };
       };
+      acceptBrand(body.settings);
       onSiteConfigurationChange(body.settings);
       toast(body.receipt && !body.receipt.refreshComplete
         ? {
@@ -131,24 +130,33 @@ export function PublicSiteMediaLiveEditor({
   const publish = async (asset: SiteMediaAsset) => {
     const image = files[asset.slot];
     setBusySlot(asset.slot);
+    setSavingMedia(true);
+    let rejected = false;
     try {
       const body = new FormData();
       if (image) body.set('image', image);
       body.set('alt', asset.alt);
+      body.set('expectedUpdatedAt', asset.updatedAt ?? 'null');
       body.set('presentation', JSON.stringify(asset.presentation));
       const response = await fetch(`/api/owner/site-media/${asset.slot}`, {
         method: 'POST',
         body,
         signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to publish the public image.'));
-      const result = await response.json() as { operations: { siteMedia: SiteMediaAsset[] } };
-      onAssetsChange(result.operations.siteMedia);
+      if (!response.ok) {
+        rejected = true;
+        throw new Error(await readApiErrorMessage(response, 'Unable to publish the public image.'));
+      }
+      const result = await response.json() as { media: SiteMediaAsset; receipt: { committed: boolean; refreshComplete: boolean; message: string } };
+      if (!result.receipt?.committed || !result.media) throw new Error('Publication outcome is unknown. Reload to verify the current image.');
+      acceptMedia(mediaBaseline.map((item) => item.slot === asset.slot ? result.media : item), drafts.map((item) => item.slot === asset.slot ? result.media : item));
+      onAssetsChange(initialAssets.map((item) => item.slot === asset.slot ? result.media : item));
+      if (!result.receipt.refreshComplete) setRestoreNotice(result.receipt.message);
       setFiles((current) => ({ ...current, [asset.slot]: undefined }));
       setInputVersion((current) => current + 1);
       toast({ title: publicationPresentation.publishedTitle, description: publicationPresentation.publishedDescription(asset.label) });
     } catch (error) {
-      const uncertain = error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError');
+      const uncertain = !rejected;
       const message = uncertain
         ? 'The image publication result could not be confirmed. Reload the page and inspect the current image before attempting another publication.'
         : error instanceof Error ? error.message : 'Unable to publish the public image.';
@@ -156,16 +164,20 @@ export function PublicSiteMediaLiveEditor({
       toast({ title: uncertain ? 'Image result unconfirmed' : 'Site media not published', description: message, variant: 'destructive' });
     } finally {
       setBusySlot(null);
+      setSavingMedia(false);
     }
   };
 
   const restore = async (asset: SiteMediaAsset) => {
     if (restoreNotice) return;
     setBusySlot(asset.slot);
+    setSavingMedia(true);
     let rejected = false;
     try {
       const response = await fetch(`/api/owner/site-media/${asset.slot}/restore`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedUpdatedAt: asset.updatedAt }),
         signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       });
       if (!response.ok) {
@@ -174,18 +186,20 @@ export function PublicSiteMediaLiveEditor({
       }
       const result = await response.json() as {
         restore: { committed: true; refresh: 'complete' | 'unavailable'; message?: string };
-        operations?: { siteMedia: SiteMediaAsset[] };
+        media?: SiteMediaAsset;
+        receipt?: { committed: boolean };
       };
+      if (!result.media) throw new Error('The restored image response could not be read.');
+      acceptMedia(mediaBaseline.map((item) => item.slot === asset.slot ? result.media! : item), drafts.map((item) => item.slot === asset.slot ? result.media! : item));
+      onAssetsChange(initialAssets.map((item) => item.slot === asset.slot ? result.media! : item));
+      setFiles((current) => ({ ...current, [asset.slot]: undefined }));
+      setInputVersion((current) => current + 1);
       if (result.restore.refresh === 'unavailable') {
         const message = result.restore.message ?? 'The image was restored. Reload to verify it before another media action.';
         setRestoreNotice(message);
         toast({ title: 'Image restored; reload to verify', description: message });
         return;
       }
-      if (!result.operations) throw new Error('The restored image response could not be read.');
-      onAssetsChange(result.operations.siteMedia);
-      setFiles((current) => ({ ...current, [asset.slot]: undefined }));
-      setInputVersion((current) => current + 1);
       toast({ title: 'Previous image restored', description: `${asset.label} was restored in this ${publicationEnvironment === 'production' ? 'live production' : 'non-production'} environment. Its former version is retained.` });
     } catch (error) {
       const message = rejected
@@ -195,6 +209,7 @@ export function PublicSiteMediaLiveEditor({
       toast({ title: rejected ? 'Image not restored' : 'Restore result unavailable', description: message, variant: 'destructive' });
     } finally {
       setBusySlot(null);
+      setSavingMedia(false);
     }
   };
 
@@ -207,7 +222,7 @@ export function PublicSiteMediaLiveEditor({
           Select one owned image or brand asset. Publication and one-step restore use CardForge's existing protected media owner.
         </p>
       </div> : null}
-      <div className="mt-6 grid gap-6">
+      <fieldset disabled={busySlot !== null || savingBrandSettings || Boolean(restoreNotice)} className="mt-6 grid gap-6">
         {showWatermarkPresentation ? <article className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
           <h3 className="font-serif text-xl text-[var(--cf-accent-text)]">Watermark presentation</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[#a98a7a]">The artwork is replaced below. These controls determine how strongly it appears; entitlement code still decides when a watermark is required.</p>
@@ -241,7 +256,7 @@ export function PublicSiteMediaLiveEditor({
           })}
           </div>
         </details>)}
-      </div>
+      </fieldset>
     </section>
   );
 }

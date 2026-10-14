@@ -178,7 +178,7 @@ Use the service responsibly.
       title: ' Privacy ',
       body: ' Updated privacy copy ',
       effectiveDate: '2026-07-16',
-      expectedBusinessIdentityVersion: 3,
+      expectedBusinessIdentityVersion: 3, expectedVersion: 2,
     })).toEqual({
       ok: true,
       value: {
@@ -186,7 +186,7 @@ Use the service responsibly.
         title: 'Privacy',
         body: 'Updated privacy copy',
         effectiveDate: '2026-07-16',
-        expectedBusinessIdentityVersion: 3,
+        expectedBusinessIdentityVersion: 3, expectedVersion: 2,
       },
     });
     expect(normalizeLegalDocumentInput({
@@ -194,17 +194,17 @@ Use the service responsibly.
       title: ' Contributor Terms ',
       body: ' Contributor policy ',
       effectiveDate: '2026-07-17',
-      expectedBusinessIdentityVersion: 4,
+      expectedBusinessIdentityVersion: 4, expectedVersion: 2,
     }).ok).toBe(true);
     expect(normalizeLegalDocumentInput({ slug: 'unknown', title: 'Nope', body: 'Nope' }).ok).toBe(false);
     expect(normalizeLegalDocumentInput({
-      slug: 'terms', title: 'Terms', body: 'Terms body', effectiveDate: '2026-02-31', expectedBusinessIdentityVersion: 1,
+      slug: 'terms', title: 'Terms', body: 'Terms body', effectiveDate: '2026-02-31', expectedBusinessIdentityVersion: 1, expectedVersion: 2,
     }).ok).toBe(false);
     expect(normalizeLegalDocumentInput({
-      slug: 'terms', title: 'Terms', body: 'Terms body', effectiveDate: '2026-07-16', expectedBusinessIdentityVersion: 0,
+      slug: 'terms', title: 'Terms', body: 'Terms body', effectiveDate: '2026-07-16', expectedBusinessIdentityVersion: 0, expectedVersion: 2,
     }).ok).toBe(false);
     expect(normalizeLegalDocumentInput({
-      slug: 'terms', title: 'Terms', body: '[bad](javascript:alert(1))', effectiveDate: '2026-07-16', expectedBusinessIdentityVersion: 1,
+      slug: 'terms', title: 'Terms', body: '[bad](javascript:alert(1))', effectiveDate: '2026-07-16', expectedBusinessIdentityVersion: 1, expectedVersion: 2,
     }).ok).toBe(false);
   });
 });

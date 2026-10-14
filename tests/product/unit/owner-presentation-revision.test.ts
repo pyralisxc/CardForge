@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_FOUNDER_PROFILE } from '@/features/public-site/model/founderProfile';
+import { DEFAULT_ROADMAP_SETTINGS } from '@/features/roadmap/model/roadmap';
 import { DEFAULT_EXPERIENCE_SETTINGS } from '@/features/experience-settings/model/experienceSettings';
 
 const state = vi.hoisted(() => ({ result: { data: null as unknown, error: null as unknown },
@@ -16,12 +17,30 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
   },
 }));
 import { updateFounderProfile } from '@/features/public-site/server/founderProfileStore';
+import { updateRoadmapSettings } from '@/features/roadmap/server/roadmapSettingsStore';
+import { updateRoadmapAdminItemStatus } from '@/features/roadmap/server/roadmapAdminStore';
 import { getExperienceSettings, updateExperienceSettings } from '@/features/experience-settings/server/experienceSettingsStore';
 
 const revision = '2026-10-14T00:00:00Z';
 const { updatedAt: _updatedAt, ...founder } = DEFAULT_FOUNDER_PROFILE;
 beforeEach(() => { vi.clearAllMocks(); state.result = { data: null, error: null }; state.insertResult = { data: null, error: null }; });
 describe('Owner presentation concurrency', () => {
+  it('rejects incomplete roadmap replacement before writing defaults', async () => {
+    await expect(updateRoadmapSettings({ updatedAt: revision, maxActiveUserRoadmapItems: 30 })).rejects.toMatchObject({ status: 400 });
+    expect(state.update).not.toHaveBeenCalled();
+  });
+  it('guards roadmap settings and official status with the initiating revision', async () => {
+    state.result.data = [];
+    await expect(updateRoadmapSettings({ ...DEFAULT_ROADMAP_SETTINGS, updatedAt: revision })).rejects.toMatchObject({ status: 409 });
+    expect(state.eq).toHaveBeenCalledWith('updated_at', revision);
+    state.result.data = null;
+    await expect(updateRoadmapAdminItemStatus({ itemId: 'official-fixture', status: 'testing', expectedUpdatedAt: revision })).rejects.toMatchObject({ status: 409 });
+    expect(state.eq).toHaveBeenCalledWith('source', 'official');
+  });
+  it('returns the committed roadmap row rather than rereading all items', async () => {
+    state.result.data = { id: 'official-fixture', title: 'Fixture', status: 'testing', source: 'official', updated_at: '2026-10-14T00:00:03Z' };
+    expect(await updateRoadmapAdminItemStatus({ itemId: 'official-fixture', status: 'testing', expectedUpdatedAt: revision })).toMatchObject({ status: 'testing', updatedAt: '2026-10-14T00:00:03Z' });
+  });
   it('rejects a stale founder write without creating or overwriting a profile', async () => {
     await expect(updateFounderProfile(founder, revision)).rejects.toMatchObject({ status: 409 });
     expect(state.eq).toHaveBeenCalledWith('updated_at', revision);

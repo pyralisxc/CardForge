@@ -116,6 +116,22 @@ const validateStoragePath = (slot: SiteMediaSlot, storagePath: unknown): string 
   return storagePath;
 };
 
+const commitMediaVersion = async (supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>, row: Record<string, unknown>, expectedUpdatedAt: unknown): Promise<SiteMediaAsset> => {
+  if (expectedUpdatedAt !== null && (typeof expectedUpdatedAt !== 'string' || !Number.isFinite(Date.parse(expectedUpdatedAt)))) {
+    throw new SiteMediaStoreError('Reload the current image before publishing or restoring.', 409);
+  }
+  let query = supabase.from('cardforge_site_media').update(row).eq('slot', row.slot);
+  query = expectedUpdatedAt === null ? query.is('updated_at', null) : query.eq('updated_at', expectedUpdatedAt);
+  let { data, error } = await query.select('*').maybeSingle();
+  if (!error && !data && expectedUpdatedAt === null) {
+    const created = await supabase.from('cardforge_site_media').insert(row).select('*').maybeSingle();
+    data = created.data; error = created.error;
+  }
+  if (error?.code === '23505' || (!error && !data)) throw new SiteMediaStoreError('The image changed in another session. Reload and review its current version.', 409);
+  if (error) { console.error('Media version publication failed:', error); throw new SiteMediaStoreError('Unable to publish the public image.', 503); }
+  return mapRow(data as SiteMediaRow);
+};
+
 export const updateSiteMedia = async (input: {
   slot: unknown;
   storagePath: unknown;
@@ -123,7 +139,8 @@ export const updateSiteMedia = async (input: {
   width: unknown;
   height: unknown;
   presentation: unknown;
-}): Promise<void> => {
+  expectedUpdatedAt?: unknown;
+}): Promise<SiteMediaAsset> => {
   if (!isSiteMediaSlot(input.slot)) throw new SiteMediaStoreError('Unknown public image.', 400);
   const storagePath = validateStoragePath(input.slot, input.storagePath);
   const dimensions = validateDimensions(input.width, input.height);
@@ -137,8 +154,9 @@ export const updateSiteMedia = async (input: {
   if (!supabase) throw new SiteMediaStoreError('Public image storage is not configured yet.', 503);
   const current = (await getSiteMedia()).find((asset) => asset.slot === input.slot)
     ?? getDefaultSiteMedia(input.slot);
+  if (current.updatedAt !== input.expectedUpdatedAt) throw new SiteMediaStoreError('The image changed since it was loaded. Reload and review before publication.', 409);
   const updatedAt = new Date().toISOString();
-  const { error } = await supabase.from('cardforge_site_media').upsert({
+  return commitMediaVersion(supabase, {
     slot: input.slot,
     storage_path: storagePath,
     alt: input.alt.trim(),
@@ -152,21 +170,18 @@ export const updateSiteMedia = async (input: {
     previous_presentation: current.presentation,
     previous_updated_at: current.updatedAt,
     updated_at: updatedAt,
-  }, { onConflict: 'slot' });
-  if (error) {
-    console.error('Failed to update public site media:', error);
-    throw new SiteMediaStoreError('Unable to publish the public image.');
-  }
+  }, input.expectedUpdatedAt);
 };
 
-export const restorePreviousSiteMedia = async (slot: unknown): Promise<void> => {
+export const restorePreviousSiteMedia = async (slot: unknown, expectedUpdatedAt: unknown): Promise<SiteMediaAsset> => {
   if (!isSiteMediaSlot(slot)) throw new SiteMediaStoreError('Unknown public image.', 400);
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new SiteMediaStoreError('Public image storage is not configured yet.', 503);
   const current = (await getSiteMedia()).find((asset) => asset.slot === slot);
   if (!current?.previousVersion) throw new SiteMediaStoreError('There is no previous image version to restore.', 409);
+  if (current.updatedAt !== expectedUpdatedAt) throw new SiteMediaStoreError('The image changed since it was loaded. Reload and review before Restore.', 409);
   const previous = current.previousVersion;
-  const { error } = await supabase.from('cardforge_site_media').upsert({
+  return commitMediaVersion(supabase, {
     slot,
     storage_path: previous.storagePath,
     alt: previous.alt,
@@ -180,9 +195,5 @@ export const restorePreviousSiteMedia = async (slot: unknown): Promise<void> => 
     previous_presentation: current.presentation,
     previous_updated_at: current.updatedAt,
     updated_at: new Date().toISOString(),
-  }, { onConflict: 'slot' });
-  if (error) {
-    console.error('Failed to restore public site media:', error);
-    throw new SiteMediaStoreError('Unable to restore the previous public image.');
-  }
+  }, expectedUpdatedAt);
 };

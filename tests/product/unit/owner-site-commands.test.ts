@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
+vi.mock('@/features/legal/server', () => ({ publishLegalDocument: vi.fn(), revalidateLegalDocumentCache: vi.fn() }));
+vi.mock('@/features/roadmap/server', () => ({ updateRoadmapSettings: vi.fn(), updateRoadmapAdminItemStatus: vi.fn() }));
 vi.mock('@/features/business-identity/server', () => ({ updateBusinessIdentity: vi.fn(), revalidatePublicIdentityCache: vi.fn() }));
 vi.mock('@/features/experience-settings/server', () => ({ updateExperienceSettings: vi.fn(), revalidateExperienceSettingsCache: vi.fn() }));
 
