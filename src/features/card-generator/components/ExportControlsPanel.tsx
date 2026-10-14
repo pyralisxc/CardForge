@@ -393,12 +393,13 @@ export function ExportControlsPanel({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="separate-pages">Separate front/back sheets</SelectItem>
+                      <SelectItem value="separate-pages">Duplex sheets · flip long edge</SelectItem>
+                      <SelectItem value="separate-pages-short-edge">Duplex sheets · flip short edge</SelectItem>
                       <SelectItem value="same-page">Front + back on same sheet</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Separate sheets supports duplex printing. Same sheet places each back after its front for review, hand cutting, or manual assembly.
+                    Duplex sheets pair every front sheet with its back, placing backs for the selected paper-flip edge. Match that edge in your printer settings and print a two-sided alignment proof at actual size. Same sheet places each back after its front for review, hand cutting, or manual assembly.
                   </p>
                 </div>
               ) : null}

@@ -47,9 +47,9 @@ test('does not download a success artifact when authored artwork fails to load',
   expect(downloads).toBe(0);
 });
 
-test('downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', async ({ page }, testInfo) => {
+test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', async ({ page }, testInfo) => {
   test.setTimeout(180_000);
-  await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true, cardLimit: 2, exportSample: true });
+  await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true, cardLimit: 2, exportSample: true, lowResolutionArtwork: true });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
   await page.locator('button[data-artifact-id="scale-card-1"]').click();
@@ -76,6 +76,16 @@ test('downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', async ({ pag
   const images = Object.values(zip.files).filter((file) => file.name.endsWith('.png'));
   expect(images).toHaveLength(4);
   for (const file of images) expect(pngSize(await file.async('nodebuffer'))).toEqual(pngSize(png));
+  const productionDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: /^Download print production PNG ZIP/ }).click();
+  const productionZip = await JSZip.loadAsync(await save(await productionDownload));
+  const preflightEntry = Object.values(productionZip.files).find((file) => file.name.endsWith('cardforge-print-preflight.json'))!;
+  const preflight = JSON.parse(await preflightEntry.async('string'));
+  expect(preflight.sourceImageDetail.measured).toBe(true);
+  expect(preflight.sourceImageDetail.images).toHaveLength(4);
+  expect(preflight.sourceImageDetail.images.every((image: { naturalWidth: number }) => image.naturalWidth === 64)).toBe(true);
+  expect(preflight.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'resolution.source_below_300_ppi' })]));
+  expect(preflight.pressReady).toBe(false);
   await page.getByText('Print PDF', { exact: true }).click();
   const pdfDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();

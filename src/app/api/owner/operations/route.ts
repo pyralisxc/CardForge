@@ -7,16 +7,11 @@ import {
 } from '@/features/owner/server';
 import {
   BusinessIdentityStoreError,
-  revalidatePublicIdentityCache,
-  updateBusinessIdentity,
 } from '@/features/business-identity/server';
 import {
   FounderProfileStoreError,
   PublicSiteStoreError,
-  revalidateFounderProfile,
-  updateFounderProfile,
 } from '@/features/public-site/server';
-import { revalidatePath } from 'next/cache';
 import {
   LegalDocumentStoreError,
   publishLegalDocument,
@@ -30,7 +25,7 @@ import {
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
-import { publishOwnerSiteContentBlock } from '@/features/owner/server/ownerSiteCommands';
+import { publishOwnerSiteContentBlock, publishOwnerBusinessIdentity, publishOwnerFounderProfile } from '@/features/owner/server/ownerSiteCommands';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,6 +87,7 @@ export async function PUT(request: Request) {
       kind?: unknown;
       businessIdentity?: Record<string, unknown>;
       expectedIdentityVersion?: unknown;
+      expectedUpdatedAt?: unknown;
       siteMechanics?: Record<string, unknown>;
       siteContentBlock?: { slug?: unknown; body?: unknown; updatedAt?: unknown };
       founderProfile?: Record<string, unknown>;
@@ -116,10 +112,17 @@ export async function PUT(request: Request) {
       return createNoStoreJsonResponse({ operations: await getOwnerSiteOperationsPayload(), activityRecorded });
     };
 
+    const respondPublication = async (publication: { value: unknown; receipt: import('@/features/owner/server/ownerSiteCommands').OwnerCommittedMutationReceipt }) => {
+      try { return createNoStoreJsonResponse({ publication, operations: await getOwnerSiteOperationsPayload() }); }
+      catch (error) {
+        console.error('Owner publication committed; combined view unavailable:', error);
+        return createNoStoreJsonResponse({ publication, operations: null });
+      }
+    };
+    const actor = { userId: owner.access.userId ?? 'owner', email: owner.access.email };
     if (body.kind === 'businessIdentity') {
-      await updateBusinessIdentity(body.businessIdentity ?? {}, body.expectedIdentityVersion);
-      revalidatePublicIdentityCache();
-      return respond({ action: 'identity.update', targetType: 'business_identity', targetId: 'cardforge', summary: 'Updated public business identity and legal operator details.' });
+      return respondPublication(await publishOwnerBusinessIdentity({ actor, input: body.businessIdentity ?? {},
+        expectedIdentityVersion: body.expectedIdentityVersion as number }));
     }
 
     if (body.kind === 'siteMechanics') {
@@ -145,11 +148,8 @@ export async function PUT(request: Request) {
     }
 
     if (body.kind === 'founderProfile') {
-      await updateFounderProfile(body.founderProfile ?? {});
-      revalidateFounderProfile();
-      revalidatePath('/cameron');
-      revalidatePath('/', 'layout');
-      return respond({ action: 'founder.profile.update', targetType: 'founder_profile', targetId: 'cameron', summary: 'Updated the public founder profile, priorities, or social destinations.' });
+      return respondPublication(await publishOwnerFounderProfile({ actor, input: body.founderProfile ?? {},
+        expectedUpdatedAt: body.expectedUpdatedAt as string | null }));
     }
 
     if (body.kind === 'legal') {

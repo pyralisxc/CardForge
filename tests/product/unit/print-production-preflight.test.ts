@@ -45,6 +45,15 @@ const makeCard = (overrides: Partial<DisplayCard> = {}): DisplayCard => ({
 });
 
 describe('print production preflight', () => {
+  it('reports actual source detail separately from dense export pixels and warns about edge-extended bleed', () => {
+    const report = createPrintProductionPreflight([makeCard()], 300, [{ scope: 'card:1:front:image:1', naturalWidth: 64,
+      naturalHeight: 64, placedWidthMm: 88, placedHeightMm: 88, effectivePpi: 64 / 88 * 25.4 }]);
+    expect(report.effectivePixelsPerInch).toBe(900);
+    expect(report.sourceImageDetail.measured).toBe(true);
+    expect(report.issues).toContainEqual(expect.objectContaining({ code: 'resolution.source_below_300_ppi', severity: 'warning' }));
+    expect(report.issues).toContainEqual(expect.objectContaining({ code: 'bleed.edge_extension_review', severity: 'warning' }));
+    expect(report.issues.some((issue) => issue.code === 'resolution.source_detail_unmeasured')).toBe(false);
+  });
   it('separates CardForge production preparation from unresolved press-standard readiness', () => {
     const report = createPrintProductionPreflight([makeCard()], 300);
 

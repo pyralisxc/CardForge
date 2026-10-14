@@ -8,11 +8,16 @@ import {
   revalidateSiteContentCache,
   updatePublicSiteConfiguration,
   updatePublicSiteVisibleField,
+  getPublicSiteConfiguration,
+  PublicSiteConfigurationStoreError,
   type PublicSiteVisibleFieldInput,
   type PublicSiteConfiguration,
   type SiteContentBlock,
 } from '@/features/public-site/server';
 import { recordOwnerActivity } from './ownerActivityStore';
+import { updateBusinessIdentity, revalidatePublicIdentityCache } from '@/features/business-identity/server';
+import { updateFounderProfile, revalidateFounderProfile } from '@/features/public-site/server';
+import { updateExperienceSettings, revalidateExperienceSettingsCache } from '@/features/experience-settings/server';
 
 export interface OwnerCommandActor {
   userId: string;
@@ -69,6 +74,43 @@ const createReceipt = ({
       : `${subject} was published, but the live cache could not be fully refreshed. Reload the public site to verify the committed version before publishing again.`,
   };
 };
+
+export const finalizeOwnerPublication = async <T>({ actor, value, action, targetType, targetId, summary, subject, refreshSteps }: {
+  actor: OwnerCommandActor; value: T; action: string; targetType: string; targetId: string;
+  summary: string; subject: string; refreshSteps: RefreshStep[];
+}): Promise<{ value: T; receipt: OwnerCommittedMutationReceipt }> => {
+  const refreshFailures = runPostCommitRefresh(refreshSteps);
+  let activityRecorded = false;
+  try {
+    activityRecorded = await recordOwnerActivity({ actorUserId: actor.userId, actorEmail: actor.email,
+      action, targetType, targetId, summary, metadata: { refreshFailures, refreshComplete: refreshFailures.length === 0 } });
+  } catch (error) { console.error('Owner publication committed; activity unavailable:', error); }
+  return { value, receipt: createReceipt({ activityRecorded, refreshFailures, subject }) };
+};
+
+export const publishOwnerBusinessIdentity = async ({ actor, input, expectedIdentityVersion }: {
+  actor: OwnerCommandActor; input: Record<string, unknown>; expectedIdentityVersion: number;
+}) => finalizeOwnerPublication({ actor, value: await updateBusinessIdentity(input, expectedIdentityVersion),
+  action: 'identity.update', targetType: 'business_identity', targetId: 'cardforge',
+  summary: 'Updated public business identity and legal operator details.', subject: 'Business identity',
+  refreshSteps: [{ label: 'public-identity-cache', run: revalidatePublicIdentityCache }] });
+
+export const publishOwnerFounderProfile = async ({ actor, input, expectedUpdatedAt }: {
+  actor: OwnerCommandActor; input: Record<string, unknown>; expectedUpdatedAt: string | null;
+}) => finalizeOwnerPublication({ actor, value: await updateFounderProfile(input, expectedUpdatedAt),
+  action: 'founder.profile.update', targetType: 'founder_profile', targetId: 'cameron',
+  summary: 'Updated the public founder profile, priorities, or social destinations.', subject: 'Founder profile',
+  refreshSteps: [{ label: 'founder-cache', run: revalidateFounderProfile },
+    { label: 'founder-page', run: () => revalidatePath('/cameron') },
+    { label: 'public-layout', run: () => revalidatePath('/', 'layout') }] });
+
+export const publishOwnerExperienceSettings = async ({ actor, input }: {
+  actor: OwnerCommandActor; input: Record<string, unknown>;
+}) => finalizeOwnerPublication({ actor, value: await updateExperienceSettings(input),
+  action: 'experience.settings.update', targetType: 'experience_settings', targetId: 'cardforge',
+  summary: 'Updated CardForge experience and presentation controls.', subject: 'Experience settings',
+  refreshSteps: [{ label: 'experience-cache', run: revalidateExperienceSettingsCache },
+    { label: 'public-layout', run: () => revalidatePath('/', 'layout') }] });
 
 export const publishOwnerSiteContentBlock = async ({
   actor,
@@ -169,3 +211,20 @@ export const publishOwnerSiteConfigurationField = async ({
     field: input.field === 'navigationLabel' ? 'navigation.' + input.navigationId : input.field,
   })
 );
+
+/** Agent partial edits still commit through the browser's full-settings command. */
+export const publishOwnerSiteConfigurationPatch = async ({
+  actor, patch, expectedUpdatedAt,
+}: {
+  actor: OwnerCommandActor;
+  patch: Record<string, unknown>;
+  expectedUpdatedAt: string;
+}): Promise<{ settings: PublicSiteConfiguration; receipt: OwnerCommittedMutationReceipt }> => {
+  const current = await getPublicSiteConfiguration();
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)
+    || !Object.keys(patch).length
+    || Object.keys(patch).some((key) => key === 'updatedAt' || !(key in current))) {
+    throw new PublicSiteConfigurationStoreError('Choose supported public site settings to publish.', 400);
+  }
+  return publishOwnerSiteConfiguration({ actor, input: { ...current, ...patch, updatedAt: expectedUpdatedAt } });
+};

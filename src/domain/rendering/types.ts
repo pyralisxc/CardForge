@@ -14,7 +14,7 @@ export interface DisplayCard {
   updatedAt?: string;
 }
 
-export type PdfDuplexLayout = 'separate-pages' | 'same-page';
+export type PdfDuplexLayout = 'separate-pages' | 'separate-pages-short-edge' | 'same-page';
 export type ExportMode = 'physical' | 'virtual';
 
 export interface PaperSize {

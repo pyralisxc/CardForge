@@ -10,6 +10,7 @@ import { getExportProfile, type ExportMode, type ExportProfile } from '@/feature
 import type { CardFace } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
 import type { BrandPresentation } from '@/features/brand-presentation/client';
+import { measureSourceImageDetail, transformedImageDimensions, type SourceImageDetail } from './sourceImageDetail';
 
 const RENDER_WAIT_TIMEOUT_MS = 1800;
 
@@ -54,6 +55,7 @@ export interface MountedCardPreview {
 }
 
 export interface CardFaceExportRenderer {
+  getSourceImageDetails: () => SourceImageDetail[];
   renderToBlob: (card: DisplayCard, face?: CardFace) => Promise<Blob>;
   renderToCanvas: (card: DisplayCard, face?: CardFace) => Promise<HTMLCanvasElement>;
   renderProductionToBlob: (card: DisplayCard, face?: CardFace) => Promise<Blob>;
@@ -287,6 +289,7 @@ export function createCardFaceExportRenderer(
   highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
   watermark?: CardExportWatermark,
 ): CardFaceExportRenderer {
+  const sourceDetails = new Map<string, SourceImageDetail>();
   const container = document.createElement('div');
   container.style.cssText = [
     'position:fixed',
@@ -326,6 +329,30 @@ export function createCardFaceExportRenderer(
     }
 
     await waitForPreviewReady(element);
+    if (exportProfile.mode === 'physical') {
+      const geometry = getTemplateProductionGeometryMm(getCardFaceTemplate(card, face));
+      const rootStyle = getComputedStyle(element);
+      const rootWidth = parseFloat(rootStyle.width);
+      const rootHeight = parseFloat(rootStyle.height);
+      Array.from(element.querySelectorAll('img')).forEach((image, index) => {
+        // SVG has no finite raster resolution. Blob-backed formats remain
+        // conservatively measured unless their source declares vector content.
+        if (image.dataset.sourceMimeType === 'image/svg+xml' || /^data:image\/svg\+xml|\.svg(?:[?#]|$)/i.test(image.currentSrc || image.src)) return;
+        const style = getComputedStyle(image);
+        let matrix = new DOMMatrix();
+        for (let node: HTMLElement | null = image; node && node !== element; node = node.parentElement) {
+          const transform = getComputedStyle(node).transform;
+          if (transform !== 'none') matrix = new DOMMatrix(transform).multiply(matrix);
+        }
+        const box = transformedImageDimensions(parseFloat(style.width), parseFloat(style.height), matrix);
+        const scope = `card:${card.uniqueId}:${face}:image:${index + 1}`;
+        const detail = measureSourceImageDetail({ scope, naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
+          boxWidthMm: box.width / rootWidth * geometry.trimWidthMm,
+          boxHeightMm: box.height / rootHeight * geometry.trimHeightMm,
+          objectFit: style.objectFit });
+        if (detail) sourceDetails.set(scope, detail);
+      });
+    }
     return { element, widthPx, heightPx };
   };
 
@@ -346,6 +373,7 @@ export function createCardFaceExportRenderer(
   );
 
   return {
+    getSourceImageDetails: () => [...sourceDetails.values()],
     renderToBlob: async (card, face = 'front') => canvasToPngBlob(await renderToCanvas(card, face)),
     renderToCanvas,
     renderProductionToBlob: async (card, face = 'front') => canvasToPngBlob(await renderProductionToCanvas(card, face)),

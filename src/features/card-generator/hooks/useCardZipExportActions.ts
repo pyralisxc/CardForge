@@ -111,7 +111,7 @@ export function useCardZipExportActions({
 
   const handleExportPrintPngSet = useCallback(async () => {
     if (generatedDisplayCards.length === 0) return;
-    const preflight = createPrintProductionPreflight(generatedDisplayCards, exportDpi);
+    let preflight = createPrintProductionPreflight(generatedDisplayCards, exportDpi);
     if (!preflight.productionPrepared) {
       const firstBlocker = preflight.issues.find((issue) => issue.severity === 'blocker');
       toast({
@@ -142,6 +142,7 @@ export function useCardZipExportActions({
           folder.file(getPrintProductionFileName(exportItem), blob);
           setZipProgress({ done: i + 1, total: exportItems.length });
         }
+        preflight = createPrintProductionPreflight(generatedDisplayCards, exportDpi, renderer.getSourceImageDetails());
       } finally {
         renderer.cleanup();
       }

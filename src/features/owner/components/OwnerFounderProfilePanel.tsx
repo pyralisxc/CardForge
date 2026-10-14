@@ -6,7 +6,7 @@ import { useEditorDraft, type EditorDraftState } from '@/components/ui/use-edito
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import type { OwnerOperationsPayload, OwnerSiteControlPayload } from '@/features/owner/lib/ownerOperations';
-import { updateOwnerOperations } from '@/features/owner/model/ownerOperationsClient';
+import { publishOwnerPresentation } from '@/features/owner/model/ownerOperationsClient';
 import type { FounderProfile, FounderProfileInput } from '@/features/public-site/client';
 
 const toInput = ({ updatedAt: _updatedAt, ...profile }: FounderProfile): FounderProfileInput => profile;
@@ -33,13 +33,14 @@ export function OwnerFounderProfilePanel({
     if (isSaving || !dirty) return;
     setIsSaving(true);
     try {
-      const next = await updateOwnerOperations({
+      const next = await publishOwnerPresentation<FounderProfile>({
         kind: 'founderProfile',
         founderProfile: toInput(profile),
+        expectedUpdatedAt: profile.updatedAt,
       }, 'Unable to save the Cameron profile.');
-      acceptPublished(next.founderProfile);
-      onOperationsChange(next);
-      toast({ title: 'Cameron profile published', description: 'Founder copy and social links are live without a deploy.' });
+      acceptPublished(next.value);
+      if (next.operations) onOperationsChange(next.operations);
+      toast({ title: 'Cameron profile published', description: !next.receipt.refreshComplete || !next.operations ? 'Saved. Reload to verify the refreshed view; do not repeat this publication.' : 'Founder copy and social links published to this environment without a deploy.' });
     } catch (error) {
       toast({ title: 'Cameron profile not saved', description: error instanceof Error ? error.message : 'Unable to save the Cameron profile.', variant: 'destructive' });
     } finally {

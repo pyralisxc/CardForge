@@ -75,12 +75,12 @@ export function OwnerExperienceControlsPanel({
       if (!response.ok) {
         throw new Error(await readApiErrorMessage(response, 'Unable to save experience controls.'));
       }
-      const result = await response.json() as { settings: ExperienceSettings; activityRecorded?: boolean };
+      const result = await response.json() as { settings: ExperienceSettings; activityRecorded?: boolean; receipt?: { refreshComplete: boolean; message: string } };
       acceptPublished(result.settings);
       onSettingsChange(result.settings);
       toast({
         title: 'Experience controls saved',
-        description: result.activityRecorded === false
+        description: result.receipt?.refreshComplete === false ? result.receipt.message : result.activityRecorded === false
           ? 'The settings changed, but owner change history was unavailable.'
           : 'New visits and fresh Studio workspaces now use the updated experience settings.',
         variant: result.activityRecorded === false ? 'destructive' : 'default',

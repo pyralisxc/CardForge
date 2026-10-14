@@ -89,7 +89,7 @@ describe('PDF production layout', () => {
     })).toThrow(PdfProductionLayoutError);
   });
 
-  it('preserves exact front placement for duplex backs and rejects mismatched physical formats', () => {
+  it('aligns duplex backs around the selected sheet edge and rejects mismatched physical formats', () => {
     const matchingCard = makeCard({
       backingTemplate: {
         id: 'back-template',
@@ -109,9 +109,17 @@ describe('PDF production layout', () => {
       physical: true,
       includeCutLines: true,
     });
-    expect(createPdfDuplexBackPage(frontPage)).toEqual([
-      { ...frontPage[0], face: 'back' },
-    ]);
+    const longEdge = createPdfDuplexBackPage(frontPage, { widthMm: 210, heightMm: 297, flip: 'long-edge' })[0];
+    expect(longEdge.imageX).toBe(210 - frontPage[0].imageX - frontPage[0].imageWidth);
+    expect(longEdge.trimX).toBe(210 - frontPage[0].trimX - frontPage[0].trimWidth);
+    expect(longEdge.imageY).toBe(frontPage[0].imageY);
+    const shortEdge = createPdfDuplexBackPage(frontPage, { widthMm: 210, heightMm: 297, flip: 'short-edge' })[0];
+    expect(shortEdge.imageX).toBe(frontPage[0].imageX);
+    expect(shortEdge.trimY).toBe(297 - frontPage[0].trimY - frontPage[0].trimHeight);
+    const landscape = createPdfDuplexBackPage(frontPage, { widthMm: 297, heightMm: 210, flip: 'long-edge' })[0];
+    expect(landscape.imageX).toBe(frontPage[0].imageX);
+    expect(landscape.imageY).toBe(210 - frontPage[0].imageY - frontPage[0].imageHeight);
+    expect(longEdge.card).toBe(frontPage[0].card);
 
     const mismatchedCard = makeCard({
       backingTemplate: {
@@ -132,6 +140,6 @@ describe('PDF production layout', () => {
       physical: true,
       includeCutLines: false,
     });
-    expect(() => createPdfDuplexBackPage(mismatchedFront)).toThrow(/front\/back physical geometry/i);
+    expect(() => createPdfDuplexBackPage(mismatchedFront, { widthMm: 210, heightMm: 297, flip: 'long-edge' })).toThrow(/front\/back physical geometry/i);
   });
 });

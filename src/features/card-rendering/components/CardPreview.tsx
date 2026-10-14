@@ -14,7 +14,7 @@ import {
   TCG_ASPECT_RATIO,
 } from '@/domain/rendering';
 import { isDividerElement, resolveCanvasElementsForRender } from '@/domain/templates';
-import { useProjectBinaryAssetUrl, useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
+import { useProjectBinaryAssetResolution, useProjectBinaryAssetUrl, useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
 import { useMemo, type ReactNode } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/domain/templates';
@@ -59,8 +59,8 @@ function ProjectBinaryImage({
   alt,
   ...props
 }: Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt'> & { source: string; alt: string }) {
-  const resolvedSource = useProjectBinaryAssetUrl(source);
-  return <img {...props} src={resolvedSource} alt={alt} />;
+  const resolved = useProjectBinaryAssetResolution(source);
+  return <img {...props} src={resolved?.url} data-source-mime-type={resolved?.mimeType || undefined} alt={alt} />;
 }
 
 function ProjectBinaryFrame({
