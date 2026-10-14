@@ -1,3 +1,4 @@
+-- CARDFORGE_OWNER_STATE_WRITE: Defines an Owner-invoked revision-guarded publication function; migration execution does not insert or update authored legal state.
 -- Forward-only concurrency hardening; no authored legal text is changed.
 -- Retire the unguarded overload without deleting immutable history.
 revoke execute on function public.publish_cardforge_legal_document(text, text, text, date, integer) from public, anon, authenticated, service_role;
