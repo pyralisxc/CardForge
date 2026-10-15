@@ -15,6 +15,7 @@ export interface OwnerOperationsResponse {
     userId: string | null;
   };
   integrationStatus: {
+    publicationEnvironment?: 'production' | 'preview' | 'development';
     site: {
       publicAppUrl: string;
       configuredPublicAppUrl: string | null;
