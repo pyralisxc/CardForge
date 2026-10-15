@@ -7,6 +7,7 @@ import {
   getSiteMedia, getSiteMediaStoragePath, getSiteMediaContentType, isSiteMediaSlot,
   normalizeSiteMediaAlt, processSiteMediaImage, revalidateSiteMediaCache, SITE_MEDIA_BUCKET,
   SiteMediaStoreError, updateSiteMedia, validateSiteMediaFile, restorePreviousSiteMedia,
+  assertComposedSiteMediaReference, getDefaultSiteMedia, isComposedSiteMediaSlot,
 } from '@/features/public-site/server';
 import { finalizeOwnerPublication, type OwnerCommandActor } from './ownerSiteCommands';
 
@@ -38,10 +39,12 @@ export const publishOwnerSiteMedia = async ({ actor, slot, image, alt: altInput,
   actor: OwnerCommandActor; slot: string; image?: File | null; alt: unknown; presentation: unknown; expectedUpdatedAt: unknown;
 }) => {
   if (!isSiteMediaSlot(slot)) throw new SiteMediaStoreError('Public image not found.', 404);
+  await assertComposedSiteMediaReference(slot);
   await authorizeMediaAttempt(actor, 'site-media-upload');
   const alt = normalizeSiteMediaAlt(altInput);
   if (!alt) throw new SiteMediaStoreError('Add a short description of the image.', 400);
-  const current = (await getSiteMedia()).find((asset) => asset.slot === slot);
+  const current = (await getSiteMedia()).find((asset) => asset.slot === slot)
+    ?? (isComposedSiteMediaSlot(slot) ? getDefaultSiteMedia(slot) : undefined);
   if (!current) throw new SiteMediaStoreError('Public image not found.', 404);
   if (current.updatedAt !== expectedUpdatedAt) throw new SiteMediaStoreError('The image changed since it was loaded. Reload and review before publication.', 409);
   let uploadedPath: string | null = null;
@@ -82,6 +85,7 @@ export const restoreOwnerSiteMedia = async ({ actor, slot, expectedUpdatedAt }: 
   actor: OwnerCommandActor; slot: string; expectedUpdatedAt: unknown;
 }) => {
   if (!isSiteMediaSlot(slot)) throw new SiteMediaStoreError('Public image not found.', 404);
+  await assertComposedSiteMediaReference(slot);
   await authorizeMediaAttempt(actor, 'site-media-restore');
   const value = await restorePreviousSiteMedia(slot, expectedUpdatedAt);
   return finalizeOwnerPublication({ actor, value, action: 'site.media.restore', targetType: 'site_media', targetId: slot,

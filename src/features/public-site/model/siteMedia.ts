@@ -23,7 +23,7 @@ export const SITE_MEDIA_SLOTS = [
 export type ComposedSiteMediaSlot = `landing.composer.${string}`;
 export type SiteMediaSlot = typeof SITE_MEDIA_SLOTS[number] | ComposedSiteMediaSlot;
 export const isComposedSiteMediaSlot = (value: unknown): value is ComposedSiteMediaSlot => (
-  typeof value === 'string' && /^landing\\.composer\\.block-[a-z0-9-]{1,39}$/u.test(value)
+  typeof value === 'string' && /^landing\.composer\.block-[a-z0-9-]{1,39}$/u.test(value)
 );
 export type SiteMediaKind = 'brand' | 'favicon' | 'watermark' | 'social' | 'hero' | 'showcase' | 'showcase-art' | 'portrait';
 export type SiteMediaGroup = 'brand' | 'landing' | 'showcase' | 'founder';

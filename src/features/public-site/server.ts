@@ -39,6 +39,7 @@ export {
   SITE_MEDIA_SLOTS,
   getDefaultSiteMedia,
   getSiteMediaDisplaySrc,
+  isComposedSiteMediaSlot,
   getSiteMediaContentType,
   getSiteMediaStoragePath,
   isSiteMediaSlot,
@@ -51,6 +52,8 @@ export {
 } from './model/siteMedia';
 export {
   getSiteMedia,
+  completeSiteMediaForSections,
+  assertComposedSiteMediaReference,
   restorePreviousSiteMedia,
   SiteMediaStoreError,
   updateSiteMedia,

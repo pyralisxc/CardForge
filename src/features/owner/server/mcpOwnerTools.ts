@@ -7,7 +7,7 @@ import { getOwnerActivity } from '@/features/owner/server/ownerActivityStore';
 import { getOwnerIntegrationStatus } from '@/features/owner/server/ownerIntegrationStatus';
 import { getOwnerSiteControlPayload, getOwnerOperationsOverviewPayload } from '@/features/owner/lib/ownerOperationsStore';
 import { publishOwnerSiteContentBlock, publishOwnerSiteConfigurationField, publishOwnerSiteConfigurationPatch, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerExperienceSettings, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus } from '@/features/owner/server/ownerSiteCommands';
-import { getPublicSiteConfiguration, getFounderProfile, getSiteMedia, SiteMediaStoreError, type PublicSiteConfiguration } from '@/features/public-site/server';
+import { getPublicSiteConfiguration, getFounderProfile, getSiteMedia, completeSiteMediaForSections, SiteMediaStoreError, type PublicSiteConfiguration } from '@/features/public-site/server';
 import {
   DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
   HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
@@ -535,7 +535,8 @@ export const registerOwnerReadTools = ({
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async () => runObserved({ toolName: 'get_owner_site_media', input: {}, execute: async () => ({
     content: [{ type: 'text', text: 'Loaded current public images and their revisions.' }],
-    structuredContent: { environment: deploymentEnvironment(), media: await getSiteMedia() },
+    structuredContent: { environment: deploymentEnvironment(),
+      media: completeSiteMediaForSections(await getSiteMedia(), (await getPublicSiteConfiguration()).homepageSections) },
   }) }));
   server.registerTool('publish_owner_site_media', {
     title: 'Publish an Owner public image or its presentation',

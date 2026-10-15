@@ -12,7 +12,13 @@ const mocks = vi.hoisted(() => ({ publish: vi.fn(), publishField: vi.fn(), publi
 vi.mock('@/features/legal/server', () => ({ getLegalDocuments: mocks.site }));
 vi.mock('@/features/roadmap/server', () => ({ getRoadmapSettings: mocks.site, getRoadmapAdminItems: mocks.site }));
 vi.mock('@/features/owner/server/ownerMediaCommands', () => ({ publishOwnerSiteMedia: mocks.publishPresentation, restoreOwnerSiteMedia: mocks.publishPresentation }));
-vi.mock('@/features/public-site/server', () => ({ getPublicSiteConfiguration: mocks.readFields, getFounderProfile: mocks.site, getSiteMedia: mocks.site, SiteMediaStoreError: class extends Error {} }));
+vi.mock('@/features/public-site/server', async () => ({
+  ...(await import('@/features/public-site/model/homepageComposition')),
+  ...(await import('@/features/public-site/model/homepageShowcaseStages')),
+  getPublicSiteConfiguration: mocks.readFields, getFounderProfile: mocks.site, getSiteMedia: mocks.site,
+  completeSiteMediaForSections: (assets: unknown[]) => assets,
+  SiteMediaStoreError: class extends Error {},
+}));
 vi.mock('@/features/business-identity/server', () => ({ getBusinessIdentity: mocks.site }));
 vi.mock('@/features/experience-settings/server', () => ({ getExperienceSettings: mocks.site }));
 vi.mock('@/features/analytics/server', () => ({ getOwnerAnalyticsSnapshot: mocks.site }));

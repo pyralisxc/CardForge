@@ -11,6 +11,7 @@ import {
   getFounderProfile,
   getPublicSiteConfiguration,
   getSiteMedia,
+  completeSiteMediaForSections,
   getSiteContentBlocks,
 } from '@/features/public-site/server';
 import {
@@ -40,7 +41,7 @@ export const getOwnerSiteControlPayload = async (): Promise<OwnerSiteControlPayl
     siteConfiguration,
     siteMechanics,
     siteContentBlocks,
-    siteMedia,
+    siteMedia: completeSiteMediaForSections(siteMedia, siteConfiguration.homepageSections),
     founderProfile,
     legalDocuments,
     roadmapItems,
