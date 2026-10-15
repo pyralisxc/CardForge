@@ -269,6 +269,31 @@ export function ExportControlsPanel({
             ) : null}
           </section>
 
+          <section aria-labelledby="screen-pdf-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
+            <div>
+              <h3 id="screen-pdf-heading" className="font-semibold">Digital PDF · easy sharing</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                One card face per trimmed page, front followed by back, for viewing in ordinary PDF readers on phones, tablets and computers.
+                No print bleed, cut marks or paper layout settings. This is a visual RGB copy, not an editable project or selectable, screen-reader-tagged text.
+              </p>
+            </div>
+            <SaveAsPdfButton
+              pdfProfile="screen"
+              generatedDisplayCards={generatedDisplayCards}
+              selectedPaperSize={selectedPaperSize}
+              pdfMarginMm={pdfMarginMm}
+              pdfCardSpacingMm={pdfCardSpacingMm}
+              pdfIncludeCutLines={pdfIncludeCutLines}
+              pdfDuplexLayout={pdfDuplexLayout}
+              exportMode="virtual"
+              exportDpi={150}
+              richTextHighlightColor={richTextHighlightColor}
+              canExportClean={canExportClean}
+              disabled={exportsDisabled}
+              templateName={firstCard?.template?.name}
+            />
+          </section>
+
           {exportMode === 'physical' && productionGeometry ? (
             <section aria-labelledby="print-production-png-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
               <div>

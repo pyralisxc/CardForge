@@ -23,6 +23,7 @@ import {
 import {
   createPdfDuplexBackPage,
   createPdfPlacementPages,
+  createScreenPdfPages,
   getPdfCropMarkSegments,
   type PdfCardPlacement,
 } from '@/features/card-generator/lib/pdfProductionLayout';
@@ -42,6 +43,7 @@ interface SaveAsPdfButtonProps {
   pdfIncludeCutLines: boolean;
   pdfDuplexLayout: PdfDuplexLayout;
   exportMode: ExportMode;
+  pdfProfile?: 'sheet' | 'screen';
   exportDpi: number;
   richTextHighlightColor: string;
   canExportClean: boolean;
@@ -57,6 +59,7 @@ export function SaveAsPdfButton({
   pdfIncludeCutLines,
   pdfDuplexLayout,
   exportMode,
+  pdfProfile = 'sheet',
   exportDpi,
   richTextHighlightColor,
   canExportClean,
@@ -91,16 +94,20 @@ export function SaveAsPdfButton({
 
     setIsLoadingPdf(true);
 
-    const exportProfile = getExportProfile(exportMode, exportDpi);
-    const rasterQuality = getRasterExportQualityOption(exportDpi);
+    const isScreenPdf = pdfProfile === 'screen';
+    const activeMode: ExportMode = isScreenPdf ? 'virtual' : exportMode;
+    // Digital copies have their own screen recipe, independent of print settings.
+    const activeDpi = isScreenPdf ? 150 : exportDpi;
+    const exportProfile = getExportProfile(activeMode, activeDpi);
+    const rasterQuality = getRasterExportQualityOption(activeDpi);
     const firstCardDimensions = generatedDisplayCards[0]
-      ? getRasterExportDimensionsPx(generatedDisplayCards[0], exportMode, exportDpi)
+      ? getRasterExportDimensionsPx(generatedDisplayCards[0], activeMode, activeDpi)
       : null;
     const criticalIssues = new Set<string>();
     const warningIssues = new Set<string>();
 
     generatedDisplayCards.forEach((card) => {
-      const validation = validateCardExportQuality(card, exportMode, exportDpi);
+      const validation = validateCardExportQuality(card, activeMode, activeDpi);
       validation.critical.forEach((issue) => criticalIssues.add(issue));
       validation.warnings.forEach((issue) => warningIssues.add(issue));
     });
@@ -128,9 +135,11 @@ export function SaveAsPdfButton({
       .replace(/[^a-zA-Z0-9_\- ]/g, '')
       .trim()
       .replace(/\s+/g, '-') || 'cardforge-cards';
-    const pdfModeSlug = exportMode === 'physical'
-      ? (pdfDuplexLayout === 'same-page' ? 'print-same-sheet' : (pdfDuplexLayout === 'separate-pages-short-edge' ? 'print-duplex-short-edge' : 'print-duplex-long-edge'))
-      : 'digital-sheet';
+    const pdfModeSlug = isScreenPdf
+      ? 'digital-cards'
+      : exportMode === 'physical'
+        ? (pdfDuplexLayout === 'same-page' ? 'print-same-sheet' : (pdfDuplexLayout === 'separate-pages-short-edge' ? 'print-duplex-short-edge' : 'print-duplex-long-edge'))
+        : 'digital-sheet';
     const timestamp = new Date().toISOString().slice(0, 10);
     const watermarkSuffix = canExportClean ? '' : '-watermarked';
 
@@ -156,11 +165,14 @@ export function SaveAsPdfButton({
           });
         }
 
+        const screenPages = isScreenPdf ? createScreenPdfPages(chunkCards) : [];
+        const pageWidthMm = screenPages[0]?.widthMm ?? selectedPaperSize.widthMm;
+        const pageHeightMm = screenPages[0]?.heightMm ?? selectedPaperSize.heightMm;
         const pdf = new jsPDF({
           compress: true,
-          orientation: selectedPaperSize.widthMm < selectedPaperSize.heightMm ? 'p' : 'l',
+          orientation: pageWidthMm <= pageHeightMm ? 'p' : 'l',
           unit: 'mm',
-          format: [selectedPaperSize.widthMm, selectedPaperSize.heightMm],
+          format: [pageWidthMm, pageHeightMm],
         });
 
         const effectivePrintableWidthMm = selectedPaperSize.widthMm - 2 * pdfMarginMm;
@@ -172,7 +184,30 @@ export function SaveAsPdfButton({
           resolveCardExportWatermark(canExportClean, brand),
         );
         try {
-          if (exportMode === 'physical' && pdfDuplexLayout !== 'same-page') {
+          if (isScreenPdf) {
+            // The page itself is the trimmed card face. Never inherit sheet margins,
+            // duplex imposition, bleed, crop marks, or press-only quality checks.
+            for (const [pageIndex, screenPage] of screenPages.entries()) {
+              if (pageIndex > 0) {
+                pdf.addPage(
+                  [screenPage.widthMm, screenPage.heightMm],
+                  screenPage.widthMm <= screenPage.heightMm ? 'p' : 'l',
+                );
+              }
+              const canvas = await renderer.renderToCanvas(screenPage.card, screenPage.face);
+              pdf.addImage(
+                canvas.toDataURL('image/png'),
+                'PNG',
+                0,
+                0,
+                screenPage.widthMm,
+                screenPage.heightMm,
+              );
+            }
+            pdf.setProperties({
+              subject: 'CardForge RGB screen copy; one trimmed card face per page. Visual PDF, not an editable project or tagged accessible text.',
+            });
+          } else if (exportMode === 'physical' && pdfDuplexLayout !== 'same-page') {
             const frontPages = createPdfPlacementPages({
               items: chunkCards,
               forcedFace: 'front',
@@ -213,7 +248,7 @@ export function SaveAsPdfButton({
               await processPage(pdf, facePages[pageIndex], renderer);
             }
           }
-          if (exportMode === 'physical') {
+          if (!isScreenPdf && exportMode === 'physical') {
             const preflight = createPrintProductionPreflight(chunkCards, exportDpi, renderer.getSourceImageDetails());
             pdf.setProperties({ subject: 'CardForge RGB production preparation; not certified PDF/X. Duplex: ' + pdfDuplexLayout });
             const lowDetail = preflight.issues.filter((issue) => issue.code === 'resolution.source_below_300_ppi');
@@ -242,7 +277,7 @@ export function SaveAsPdfButton({
       } else {
         toast({
           title: 'PDF saved',
-          description: `${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}.pdf downloaded${canExportClean ? '' : ' with the CardForge watermark'}.${exportMode === 'physical' ? ' Physical faces include CardForge format bleed and trim crop marks when enabled; this remains RGB raster PDF output, not PDF/X or a printer-specific ICC contract.' : ''}`,
+          description: `${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}.pdf downloaded${canExportClean ? '' : ' with the CardForge watermark'}.${isScreenPdf ? ' Each card face is a separate trimmed page, without print bleed or crop marks. It is a visual copy, not an editable CardForge project.' : exportMode === 'physical' ? ' Physical faces include CardForge format bleed and trim crop marks when enabled; this remains RGB raster PDF output, not PDF/X or a printer-specific ICC contract.' : ''}`,
         });
       }
 
@@ -292,12 +327,12 @@ export function SaveAsPdfButton({
       {isLoadingPdf ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Saving PDF...
+          {pdfProfile === 'screen' ? 'Preparing digital PDF...' : 'Saving PDF...'}
         </>
       ) : (
         <>
           <FileDown className="mr-2 h-4 w-4" />
-          Save as PDF
+          {pdfProfile === 'screen' ? 'Download digital PDF' : 'Save as PDF'}
         </>
       )}
     </Button>

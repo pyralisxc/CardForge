@@ -90,6 +90,15 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   expect(preflight.sourceImageDetail.images.every((image: { naturalWidth: number }) => image.naturalWidth === 64)).toBe(true);
   expect(preflight.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'resolution.source_below_300_ppi' })]));
   expect(preflight.pressReady).toBe(false);
+  const digitalPdfDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download digital PDF', exact: true }).click();
+  const digitalPdf = await save(await digitalPdfDownload);
+  const digitalPdfText = digitalPdf.toString('latin1');
+  expect(digitalPdf.subarray(0, 5).toString()).toBe('%PDF-');
+  expect(digitalPdfText.match(/\/Type\s*\/Page\b/g)).toHaveLength(4);
+  expect(digitalPdfText).toContain('/Subtype /Image');
+  expect(digitalPdfText).toContain('/MediaBox');
+  expect(digitalPdf.length).toBeLessThan(5_000_000);
   await page.getByText('Print PDF', { exact: true }).click();
   const pdfDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();

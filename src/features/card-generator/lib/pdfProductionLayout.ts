@@ -26,6 +26,20 @@ export interface PdfCardPlacement {
   cellHeight: number;
 }
 
+// Screen copies preserve card order and trim geometry; they do not impose sheets or create bleed.
+export interface ScreenPdfPage {
+  card: DisplayCard;
+  face: CardFace;
+  widthMm: number;
+  heightMm: number;
+}
+
+export const createScreenPdfPages = (cards: DisplayCard[]): ScreenPdfPage[] => cards.flatMap((card) => {
+  const { widthMm, heightMm } = getCardPhysicalSizeMm(card);
+  const front: ScreenPdfPage = { card, face: 'front', widthMm, heightMm };
+  return hasCardBacking(card) ? [front, { ...front, face: 'back' }] : [front];
+});
+
 export interface PdfLineSegment {
   x1: number;
   y1: number;
