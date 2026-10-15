@@ -103,8 +103,10 @@ describe('Owner MCP registered output contracts', () => {
     const result = await invoke('get_owner_homepage_showcase');
     expect(result).toMatchObject({ environment: 'preview', settingsRevision: settings.updatedAt, legacyCopy: true,
       stages: [{ id: 'templates' }, { id: 'make' }, { id: 'review' }],
-      media: [expect.objectContaining({ slot: 'landing.showcase.layout', source: 'bundled-fallback' })],
     });
+    expect(result.media).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slot: 'landing.showcase.layout', source: 'bundled-fallback' }),
+    ]));
     expect(JSON.stringify(result)).not.toContain('storagePath');
   });
 
