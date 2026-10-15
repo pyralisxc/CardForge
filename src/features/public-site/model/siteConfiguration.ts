@@ -39,7 +39,8 @@ export interface HomepageSectionSetting {
   showcaseStages?: HomepageShowcaseStage[];
 }
 
-export type HomepageLayoutSection = HomepageSectionSetting | HomepageCustomSection;
+export type HomepageLayoutSection = (HomepageSectionSetting | HomepageCustomSection)
+  & Partial<Pick<HomepageSectionSetting, 'showcaseExamples' | 'showcaseStages'>>;
 
 export interface PublicSiteConfiguration {
   /** Canonical database publication revision; never directly editable. */

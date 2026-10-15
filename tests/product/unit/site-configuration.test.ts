@@ -9,6 +9,22 @@ import {
 } from '@/features/public-site/model/siteConfiguration';
 
 describe('public site configuration', () => {
+  it('requires a custom block image slot to belong to the exact stable image block', () => {
+    const section = {
+      id: 'custom-gallery', kind: 'custom', visible: true,
+      design: { layout: 'grid', tone: 'raised', spacing: 'balanced', align: 'start' },
+      blocks: [{ id: 'block-hero', kind: 'image', mediaSlot: 'landing.composer.block-hero' }],
+    };
+    const apply = (item: typeof section) => normalizePublicSiteConfigurationInput({
+      ...DEFAULT_PUBLIC_SITE_CONFIGURATION,
+      homepageSections: [...DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections, item],
+    });
+    expect(apply(section).homepageSections.at(-1)).toMatchObject(section);
+    expect(() => apply({ ...section, blocks: [{
+      id: 'block-hero', kind: 'image', mediaSlot: 'landing.composer.block-other',
+    }] })).toThrow(/Custom website sections/i);
+  });
+
   it('accepts reusable, ordered, responsive content sections without a new CMS', () => {
     const custom = {
       id: 'custom-desk-tour', kind: 'custom', visible: true,

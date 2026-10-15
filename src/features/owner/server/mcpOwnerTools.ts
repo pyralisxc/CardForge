@@ -402,7 +402,7 @@ export const registerOwnerReadTools = ({
     const publication = await publishOwnerSiteConfigurationPatch({
       actor: { userId: access.user.id, email: access.email }, patch: { homepageSections: sections }, expectedUpdatedAt,
     });
-    return { content: [{ type: 'text', text: publication.receipt.message + ' This is '
+    return { content: [{ type: 'text' as const, text: publication.receipt.message + ' This is '
       + (deploymentEnvironment() === 'production' ? 'live Production.' : 'non-production staging only.') }],
       structuredContent: {
         environment: deploymentEnvironment(), livePublication: deploymentEnvironment() === 'production',

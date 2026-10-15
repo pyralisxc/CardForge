@@ -8,6 +8,7 @@ import {
   getSiteMediaStoragePath,
   normalizeSiteMediaPresentation,
 } from '@/features/public-site/client';
+import { isSiteMediaSlot } from '@/features/public-site/server';
 import {
   MAX_SITE_MEDIA_BYTES,
   processSiteMediaImage,
@@ -15,6 +16,20 @@ import {
 } from '@/features/public-site/server';
 
 describe('owner-managed homepage media', () => {
+  it('allows block-scoped website images without accepting arbitrary media identifiers or storage traversal', () => {
+    const slot = 'landing.composer.block-campaign-banner';
+    expect(isSiteMediaSlot(slot)).toBe(true);
+    expect(getDefaultSiteMedia(slot)).toMatchObject({
+      slot, group: 'landing', storagePath: null, previousVersion: null,
+      presentation: { frame: 'natural', fit: 'contain' },
+    });
+    expect(getSiteMediaDisplaySrc(getDefaultSiteMedia(slot))).toBeNull();
+    expect(getSiteMediaStoragePath(slot, 'revision-1')).toBe('landing/composer.block-campaign-banner/revision-1.webp');
+    expect(isSiteMediaSlot('landing.composer.../../tokens')).toBe(false);
+    expect(isSiteMediaSlot('landing.composer.block-bad/../../secrets')).toBe(false);
+    expect(isSiteMediaSlot('landing.composer.bad')).toBe(false);
+  });
+
   it('keeps every owner-managed public image in one explicit media catalog', () => {
     expect(DEFAULT_SITE_MEDIA.map((asset) => asset.slot)).toEqual([
       'brand.mark',

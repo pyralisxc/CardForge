@@ -127,8 +127,10 @@ describe('Owner MCP registered output contracts', () => {
       actor: { userId: 'owner', email: 'owner@example.com' }, expectedUpdatedAt: settings.updatedAt,
       patch: { homepageSections: after.homepageSections },
     });
-    expect(after.homepageSections.find((section) => section.id === 'showcase')?.showcaseExamples)
-      .toEqual(DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections.find((section) => section.id === 'showcase')?.showcaseExamples);
+    const beforeShowcase = DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections.find((section) => section.id === 'showcase');
+    const afterShowcase = after.homepageSections.find((section) => section.id === 'showcase');
+    expect(afterShowcase && 'showcaseExamples' in afterShowcase ? afterShowcase.showcaseExamples : undefined)
+      .toEqual(beforeShowcase?.showcaseExamples);
   });
 
   it.each(['get_owner_homepage_showcase', 'publish_owner_homepage_showcase'])('denies non-Owners before reading or saving %s', async (name) => {
