@@ -28,7 +28,7 @@ describe('PDF production layout', () => {
     const frontOnly = makeCard({ uniqueId: 'single' });
     const paired = makeCard({
       uniqueId: 'paired',
-      backingTemplate: { id: 'back-template', name: 'Back', aspectRatio: '63:88', templateUsage: 'back-preset' },
+      backingTemplate: { id: 'back-template', name: 'Back', aspectRatio: '63:88', templateUsage: 'back-preset', freeformCanvas: { width: 630, height: 880, elements: [] } },
     });
 
     const pages = createScreenPdfPages([frontOnly, paired]);
