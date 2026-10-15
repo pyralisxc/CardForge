@@ -7,6 +7,7 @@ import {
   PdfProductionLayoutError,
   createPdfDuplexBackPage,
   createPdfPlacementPages,
+  createScreenPdfPages,
   getPdfCropMarkSegments,
 } from '@/features/card-generator/lib/pdfProductionLayout';
 
@@ -23,6 +24,26 @@ const makeCard = (overrides: Partial<DisplayCard> = {}): DisplayCard => ({
 });
 
 describe('PDF production layout', () => {
+  it('makes ordered, trim-only digital pages without imposing paper or duplex backs', () => {
+    const frontOnly = makeCard({ uniqueId: 'single' });
+    const paired = makeCard({
+      uniqueId: 'paired',
+      backingTemplate: { id: 'back-template', name: 'Back', aspectRatio: '63:88', templateUsage: 'back-preset', freeformCanvas: { width: 630, height: 880, elements: [] } },
+    });
+
+    const pages = createScreenPdfPages([frontOnly, paired]);
+    expect(pages.map(({ card, face }) => `${card.uniqueId}:${face}`)).toEqual([
+      'single:front',
+      'paired:front',
+      'paired:back',
+    ]);
+    expect(pages.map(({ widthMm, heightMm }) => [widthMm, heightMm])).toEqual([
+      [63, 88], [63, 88], [63, 88],
+    ]);
+    expect(createScreenPdfPages([])).toEqual([]);
+  });
+
+
   it('packs the bleed-bearing production face while keeping trim at exact physical size', () => {
     const [page] = createPdfPlacementPages({
       items: [makeCard()],
