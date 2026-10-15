@@ -449,7 +449,7 @@ export function PublicSiteOwnerLiveControls({
         else element.setAttribute('aria-label', ariaLabel);
       }
     };
-  }, [abandonDraft, configSaving, contextualBlocks, contextualMedia, copySaving, editMode, finishInlineEdit, inlineSlug, openConfigLabel, openCopy, openMedia, openNavigationLabel, saveInlineEdit, siteConfiguration.primaryNavigation]);
+  }, [abandonDraft, configSaving, contextualBlocks, contextualMedia, copySaving, editMode, finishInlineEdit, inlineSlug, openConfigLabel, openCopy, openEditableSection, openMedia, openNavigationLabel, saveInlineEdit, siteConfiguration.primaryNavigation]);
 
   useEffect(() => () => finishInlineEdit(true), [finishInlineEdit]);
 
