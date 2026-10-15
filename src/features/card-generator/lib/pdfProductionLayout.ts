@@ -239,3 +239,19 @@ export const getPdfCropMarkSegments = (
     { x1: placement.trimX + placement.trimWidth, y1: bottomBleedEdge + PDF_CROP_MARK_GAP_MM, x2: placement.trimX + placement.trimWidth, y2: bottomBleedEdge + outer },
   ];
 };
+
+/** Screen pages use each authored face's aspect ratio, independent of printer paper. */
+export const createScreenPdfPages = (cards: DisplayCard[]) => cards.flatMap((card) => {
+  const faces: CardFace[] = hasCardBacking(card) ? ['front', 'back'] : ['front'];
+  return faces.map((face) => {
+    const geometry = getTemplateProductionGeometryMm(getCardFaceTemplate(card, face));
+    const width = geometry.trimWidthMm;
+    const height = geometry.trimHeightMm;
+    if (![width, height].every((value) => Number.isFinite(value) && value > 0)) {
+      throw new PdfProductionLayoutError('A digital PDF face needs positive authored dimensions.');
+    }
+    // A consistent long edge makes mixed portrait/landscape pages comfortable to read.
+    const scale = 216 / Math.max(width, height);
+    return { card, face, widthMm: width * scale, heightMm: height * scale };
+  });
+});

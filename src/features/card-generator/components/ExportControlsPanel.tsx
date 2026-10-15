@@ -15,7 +15,7 @@ import { getCardExportDimensionsPx, getCardProductionGeometryMm, hasCardBacking 
 import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
 import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
-import type { ZipExportKind } from '@/features/card-generator/hooks/useCardZipExportActions';
+import type { PdfXExportOptions, ZipExportKind } from '@/features/card-generator/hooks/useCardZipExportActions';
 import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 import {
   RASTER_EXPORT_QUALITY_OPTIONS,
@@ -52,6 +52,7 @@ interface ExportControlsPanelProps {
   zipProgress: { done: number; total: number } | null;
   onExportAllAsZip: () => void;
   onExportPrintPngSet: () => void;
+  onExportPrintPdfX: (options: PdfXExportOptions) => void;
   onExportTabletopSimulatorSpritesheets: (quality: TabletopSimulatorExportQuality) => void;
   onSelectPaperSize: (size: PaperSize) => void;
   onSetExportDpi: (dpi: number) => void;
@@ -81,7 +82,6 @@ export function ExportControlsPanel({
   exportEntitlementLabel,
   exportEntitlementMessage,
   exportGateMessage,
-  exportMode,
   generatedDisplayCards,
   isCheckoutStarting,
   isZipExporting,
@@ -95,6 +95,7 @@ export function ExportControlsPanel({
   zipProgress,
   onExportAllAsZip,
   onExportPrintPngSet,
+  onExportPrintPdfX,
   onExportTabletopSimulatorSpritesheets,
   onSelectPaperSize,
   onSetExportDpi,
@@ -102,6 +103,12 @@ export function ExportControlsPanel({
   onSetPdfOptions,
   onStartCheckout,
 }: ExportControlsPanelProps) {
+  const [destination, setDestination] = useState<'images' | 'digital-pdf' | 'tabletop' | 'home-print' | 'print-package'>('images');
+  const [printCondition, setPrintCondition] = useState('gracol');
+  const [customIcc, setCustomIcc] = useState<File | undefined>();
+  const [customCondition, setCustomCondition] = useState('');
+  const [isPdfExporting, setIsPdfExporting] = useState(false);
+  const exportMode: ExportMode = destination === 'home-print' || destination === 'print-package' ? 'physical' : 'virtual';
   const [tabletopQuality, setTabletopQuality] = useState<TabletopSimulatorExportQuality>('standard');
   const firstCard = generatedDisplayCards[0];
   const exportFaceCount = generatedDisplayCards.reduce(
@@ -154,9 +161,9 @@ export function ExportControlsPanel({
     ? Math.round((zipProgress.done / zipProgress.total) * 100)
     : 0;
   const isPngSetExporting = isZipExporting && zipExportKind === 'png-set';
-  const isPrintPngSetExporting = isZipExporting && zipExportKind === 'print-png-set';
+  const isPrintPngSetExporting = isZipExporting && (zipExportKind === 'print-png-set' || zipExportKind === 'print-pdfx-set');
   const isTabletopExporting = isZipExporting && zipExportKind === 'tabletop-simulator';
-  const exportsDisabled = isEntitlementPending || generatedDisplayCards.length === 0 || isZipExporting;
+  const exportsDisabled = isEntitlementPending || generatedDisplayCards.length === 0 || isZipExporting || isPdfExporting;
 
   return (
     <>
@@ -187,19 +194,22 @@ export function ExportControlsPanel({
           ) : (
             <>
           <div className="space-y-1">
-            <Label htmlFor="exportMode" className="text-sm font-medium">Primary use</Label>
-            <Select value={exportMode} onValueChange={(value) => onSetExportMode(value as ExportMode)}>
-              <SelectTrigger id="exportMode" className="h-9 text-xs">
-                <SelectValue />
-              </SelectTrigger>
+            <Label htmlFor="outputDestination" className="text-sm font-medium">What would you like to make?</Label>
+            <Select value={destination} disabled={isZipExporting || isPdfExporting} onValueChange={(value) => {
+              const next = value as typeof destination;
+              setDestination(next);
+              onSetExportMode(next === 'home-print' || next === 'print-package' ? 'physical' : 'virtual');
+            }}>
+              <SelectTrigger id="outputDestination" className="h-11 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="physical">Print physical cards</SelectItem>
-                <SelectItem value="virtual">Share or play digitally</SelectItem>
+                <SelectItem value="images">Images to share</SelectItem>
+                <SelectItem value="digital-pdf">Digital reading PDF</SelectItem>
+                <SelectItem value="tabletop">Play in Tabletop Simulator</SelectItem>
+                <SelectItem value="home-print">Print at home</SelectItem>
+                <SelectItem value="print-package">Files for a print shop</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              This changes filenames and quality warnings. Each destination below owns its own format and settings.
-            </p>
+            <p className="text-xs text-muted-foreground">One Set, different outputs. Your cards and designs stay unchanged.</p>
           </div>
 
           {!isEntitlementPending && !canExportClean && exportGateMessage ? (
@@ -218,16 +228,10 @@ export function ExportControlsPanel({
             </div>
           ) : null}
 
-          <section aria-labelledby="raster-export-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
-            <div>
-              <h3 id="raster-export-heading" className="font-semibold">Individual images and PNG set</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Raster images have fixed pixels. PNG is lossless and best for card masters; JPEG and WebP are smaller, lossy choices in each card&apos;s download menu.
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                The selected raster quality also controls the card images embedded in Print PDF below.
-              </p>
-            </div>
+          {destination !== 'tabletop' ? (
+            <details className="rounded-md border bg-muted/20 p-3">
+              <summary className="cursor-pointer text-sm font-medium">Advanced image quality · {rasterQuality.label}</summary>
+              <fieldset disabled={exportsDisabled} className="mt-3 space-y-3">
             <div className="space-y-1">
               <Label htmlFor="exportDpi" className="text-xs">Raster quality</Label>
               <Select value={String(exportDpi)} onValueChange={(value) => onSetExportDpi(parseInt(value, 10))}>
@@ -249,6 +253,17 @@ export function ExportControlsPanel({
                 </p>
               ) : null}
             </div>
+              </fieldset>
+            </details>
+          ) : null}
+
+          {destination === 'images' ? (
+          <section aria-labelledby="raster-export-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
+            <div>
+              <h3 id="raster-export-heading" className="font-semibold">Images to share</h3>
+              <p className="mt-1 text-xs text-muted-foreground">Lossless PNG copies, with each front and back named and ordered together. Individual cards also offer JPEG and WebP in their download menu.</p>
+              {rasterDimensions ? <p className="mt-1 text-xs text-muted-foreground">{rasterDimensions.widthPx} × {rasterDimensions.heightPx}px for the first template · {rasterQuality.label}.</p> : null}
+            </div>
             <Button
               variant="outline"
               onClick={onExportAllAsZip}
@@ -268,11 +283,21 @@ export function ExportControlsPanel({
               </p>
             ) : null}
           </section>
+          ) : null}
 
-          {exportMode === 'physical' && productionGeometry ? (
+          {destination === 'digital-pdf' ? (
+            <section aria-labelledby="digital-pdf-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
+              <h3 id="digital-pdf-heading" className="font-semibold">Digital reading PDF</h3>
+              <p className="text-xs text-muted-foreground">One face per page for reading on a phone, tablet or desktop. Each back follows its front. Pages keep the authored proportions, with no bleed or cutting marks.</p>
+              <p className="text-xs text-muted-foreground">RGB image pages · {rasterQuality.label}. Text is part of the artwork; this is a viewing copy, not an editable project or searchable document.</p>
+              <SaveAsPdfButton generatedDisplayCards={generatedDisplayCards} selectedPaperSize={selectedPaperSize} pdfMarginMm={pdfMarginMm} pdfCardSpacingMm={pdfCardSpacingMm} pdfIncludeCutLines={false} pdfDuplexLayout={pdfDuplexLayout} exportMode="virtual" exportDpi={exportDpi} richTextHighlightColor={richTextHighlightColor} canExportClean={canExportClean} disabled={exportsDisabled} outputProfile="screen" onBusyChange={setIsPdfExporting} templateName={firstCard?.template?.name} />
+            </section>
+          ) : null}
+
+          {destination === 'print-package' && productionGeometry ? (
             <section aria-labelledby="print-production-png-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
               <div>
-                <h3 id="print-production-png-heading" className="font-semibold">Print production PNGs</h3>
+                <h3 id="print-production-png-heading" className="font-semibold">Files for a print shop</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Keeps the authored trim design unchanged and adds the format&apos;s bleed outside it. The ZIP includes exact production geometry metadata for each face.
                 </p>
@@ -295,7 +320,7 @@ export function ExportControlsPanel({
                 </p>
                 {!printPreflight.pressReady ? (
                   <p className="text-muted-foreground">
-                    CardForge does not yet attach a printer-specific ICC output intent or PDF/X press standard. Production-prepared files can still be reviewed with a print partner, but they are not certified press-ready output.
+                    These RGB files have no PDF/X standard or verified printing-condition ICC output intent. Production-prepared files can still be reviewed with a print partner, but they are not certified press-ready output.
                   </p>
                 ) : null}
                 {printPreflight.issues.filter((issue) => issue.severity === 'blocker').slice(0, 2).map((issue) => (
@@ -320,12 +345,41 @@ export function ExportControlsPanel({
                     ? 'Checking account access…'
                     : `Download print production PNG ZIP (${exportFaceCount} ${exportFaceCount === 1 ? 'face' : 'faces'})`}
               </Button>
+              <details className="border-t pt-3">
+                <summary className="cursor-pointer text-sm font-medium">Advanced professional PDF · PDF/X-4 candidate</summary>
+                <fieldset disabled={exportsDisabled} className="mt-3 space-y-3">
+                  <p className="text-xs text-muted-foreground">One bleed-bearing PDF per face, with trim boxes and an embedded printing-condition ICC profile. Generator structural checks run before download. Independent PDF/X validation and your print shop&apos;s acceptance are still needed.</p>
+                  <Label htmlFor="printCondition" className="text-xs">Printing condition</Label>
+                  <Select value={printCondition} onValueChange={setPrintCondition} disabled={exportsDisabled}>
+                    <SelectTrigger id="printCondition" className="h-11 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gracol">GRACoL 2013 CRPC6 · coated reference</SelectItem>
+                      <SelectItem value="custom">Use another printing ICC profile</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {printCondition === 'custom' ? <>
+                    <Label htmlFor="customPrintIcc" className="text-xs">CMYK printing ICC file · up to 8 MB</Label>
+                    <Input id="customPrintIcc" type="file" accept=".icc,.icm" onChange={(event) => setCustomIcc(event.target.files?.[0])} />
+                    <Label htmlFor="customPrintCondition" className="text-xs">Printing condition name</Label>
+                    <Input id="customPrintCondition" value={customCondition} maxLength={200} placeholder="For example, PSO Coated v3 / FOGRA51" onChange={(event) => setCustomCondition(event.target.value)} />
+                  </> : null}
+                  <p className="text-xs text-muted-foreground">This describes a printing process and paper, not every printer. RGB artwork stays color-managed RGB; selecting an ICC output intent does not convert pixels to CMYK.</p>
+                  <Button variant="outline" className="w-full" disabled={exportsDisabled || !printPreflight.productionPrepared || (printCondition === 'custom' && (!customIcc || !customCondition.trim()))} onClick={() => onExportPrintPdfX(printCondition === 'custom' ? { iccFile: customIcc, condition: customCondition } : {})}>
+                    {zipExportKind === 'print-pdfx-set' ? `Preparing PDF/X candidates… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}` : 'Download PDF/X-4 candidate ZIP'}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">Prepared → structural checks → independent standards validation → destination acceptance. This download completes the first two steps.</p>
+                </fieldset>
+              </details>
             </section>
           ) : null}
 
-          <details className="rounded-md border bg-muted/20 p-3">
-            <summary className="cursor-pointer font-semibold">Print PDF</summary>
+          {destination === 'home-print' ? (
+          <section aria-labelledby="home-print-heading" className="rounded-md border bg-muted/20 p-3">
+            <h3 id="home-print-heading" className="font-semibold">Print at home</h3>
             <div className="mt-4 space-y-3">
+              <p className="text-xs text-muted-foreground">Download a sheet PDF, then use your usual printer dialog. Print at actual size (100%) and match the duplex flip edge. Try one sheet before printing the full Set.</p>
+              <details><summary className="cursor-pointer text-sm font-medium">Advanced paper and layout</summary>
+              <fieldset disabled={exportsDisabled} className="mt-3 space-y-3">
               <p className="text-xs text-muted-foreground">
                 PDF arranges the selected raster quality on paper. Page geometry and cut lines remain sharp, but the cards are RGB raster images—not vector, CMYK, PDF/X, or printer-specific prepress output.
               </p>
@@ -403,6 +457,8 @@ export function ExportControlsPanel({
                   </p>
                 </div>
               ) : null}
+              </fieldset></details>
+              <p className="text-xs text-muted-foreground">{selectedPaperSize.name} · {pdfDuplexLayout === 'same-page' ? 'front and back on the same sheet' : pdfDuplexLayout === 'separate-pages-short-edge' ? 'duplex, flip short edge' : 'duplex, flip long edge'} · {pdfIncludeCutLines ? 'cut lines included' : 'no cut lines'}.</p>
               <SaveAsPdfButton
                 generatedDisplayCards={generatedDisplayCards}
                 selectedPaperSize={selectedPaperSize}
@@ -414,20 +470,24 @@ export function ExportControlsPanel({
                 exportDpi={exportDpi}
                 richTextHighlightColor={richTextHighlightColor}
                 canExportClean={canExportClean}
-                disabled={isEntitlementPending || generatedDisplayCards.length === 0}
+                disabled={exportsDisabled}
+                onBusyChange={setIsPdfExporting}
                 templateName={firstCard?.template?.name}
               />
             </div>
-          </details>
+          </section>
+          ) : null}
 
+          {destination === 'tabletop' ? (
           <section aria-labelledby="tabletop-export-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
             <div>
               <h3 id="tabletop-export-heading" className="font-semibold">Tabletop Simulator</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Fixed 4K PNG spritesheets plus a JSON manifest. Raster quality above does not affect this export.
+                PNG deck sheets up to 4K plus a JSON manifest. Deck detail controls this output independently.
               </p>
             </div>
-            <div className="space-y-1">
+            <details><summary className="cursor-pointer text-sm font-medium">Advanced deck detail</summary>
+            <fieldset disabled={exportsDisabled} className="mt-3 space-y-1">
               <Label htmlFor="tabletopQuality" className="text-xs">TTS sheet detail</Label>
               <Select
                 value={tabletopQuality}
@@ -447,7 +507,8 @@ export function ExportControlsPanel({
                   {tabletopSummary.sheets.length} deck {tabletopSummary.sheets.length === 1 ? 'sheet' : 'sheets'} and {tabletopSummary.textureCount} PNG {tabletopSummary.textureCount === 1 ? 'texture' : 'textures'} with backs; approximately {tabletopSummary.cellSize.cardWidthPx} × {tabletopSummary.cellSize.cardHeightPx}px per card for the first template.
                 </p>
               ) : null}
-            </div>
+            </fieldset>
+            </details>
             <Button
               variant="outline"
               onClick={() => onExportTabletopSimulatorSpritesheets(tabletopQuality)}
@@ -462,6 +523,7 @@ export function ExportControlsPanel({
                   : `Export ${tabletopSummary.preset.label.toLowerCase()} TTS ZIP`}
             </Button>
           </section>
+          ) : null}
             </>
           )}
 
@@ -479,14 +541,14 @@ export function ExportControlsPanel({
               <p className="text-sm font-semibold">
                 {zipExportKind === 'tabletop-simulator'
                   ? 'Tabletop Simulator export running'
-                  : zipExportKind === 'print-png-set'
-                    ? 'Print production PNG export running'
+                  : (zipExportKind === 'print-png-set' || zipExportKind === 'print-pdfx-set')
+                    ? 'Print production package running'
                     : 'PNG set export running'}
               </p>
               <p className="text-xs text-muted-foreground">
                 {zipExportKind === 'tabletop-simulator'
                   ? `Rendering ${zipProgress.done} of ${zipProgress.total} 4K spritesheet faces.`
-                  : zipExportKind === 'print-png-set'
+                  : (zipExportKind === 'print-png-set' || zipExportKind === 'print-pdfx-set')
                     ? `Rendering ${zipProgress.done} of ${zipProgress.total} bleed-bearing production faces.`
                     : `Rendering ${zipProgress.done} of ${zipProgress.total} individual card faces. Estimated PNG ZIP size about ${formatBytes(estimatedPngZipBytes)}.`}
               </p>

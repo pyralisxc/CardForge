@@ -5,6 +5,7 @@ import { createPrintProductionPreflight } from '@/features/card-generator/lib/pr
 
 import {
   createCardZipExportItems,
+  createDigitalImageManifest,
   createPrintProductionManifest,
   createTabletopSimulatorSheets,
   createTabletopSimulatorManifest,
@@ -33,6 +34,15 @@ const makeCard = (overrides: Partial<DisplayCard> = {}): DisplayCard => ({
 });
 
 describe('zip export helpers', () => {
+  it('describes exact viewing-copy file identity, face order and pixel dimensions', () => {
+    const card = makeCard({ backingTemplate: { id: 'back', name: 'Back', aspectRatio: '35:20', freeformCanvas: { width: 1050, height: 600, elements: [] } } });
+    const items = createCardZipExportItems([card]);
+    const manifest = createDigitalImageManifest(items, getTabletopSimulatorExportProfile('standard'));
+    expect(manifest.faces.map((face) => face.face)).toEqual(['front', 'back']);
+    expect(manifest.faces[1].widthPx / manifest.faces[1].heightPx).toBeCloseTo(35 / 20, 2);
+    expect(manifest.faces.map((face) => face.file)).toEqual(items.map(getZipExportFileName));
+    expect(manifest.editable).toBe(false);
+  });
   it('creates one export item for a front-only output', () => {
     const [item] = createCardZipExportItems([makeCard()]);
 

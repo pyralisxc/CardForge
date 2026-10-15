@@ -40,8 +40,8 @@ export interface PrintProductionPreflightReport {
   pressReady: boolean;
   colorManagement: {
     sourceColorSpace: 'rgb';
-    outputIntent: null;
-    pressStandard: null;
+    outputIntent: { condition: string; sha256: string } | null;
+    pressStandard: 'PDF/X-4' | null;
   };
   issueSummary: {
     blockers: number;
@@ -116,6 +116,7 @@ export const createPrintProductionPreflight = (
   cards: DisplayCard[],
   requestedDpi: number,
   sourceImageDetails?: SourceImageDetail[],
+  pdfxOutputIntent?: { condition: string; sha256: string },
 ): PrintProductionPreflightReport => {
   const profile = getExportProfile('physical', requestedDpi);
   const effectivePixelsPerInch = profile.dpi * profile.canvasPixelRatio;
@@ -216,10 +217,12 @@ export const createPrintProductionPreflight = (
   });
 
   issues.push({
-    code: 'standards.output_intent_missing',
+    code: pdfxOutputIntent ? 'standards.independent_validation_missing' : 'standards.output_intent_missing',
     severity: 'standards-gap',
     scope: 'package',
-    message: 'CardForge production PNG and PDF output is currently RGB raster without a printer-specific ICC output intent or PDF/X press standard.',
+    message: pdfxOutputIntent
+      ? 'PDF/X-4 candidate files have passed generator structural checks. Independent PDF/X preflight and destination acceptance are still required.'
+      : 'CardForge production PNG and sheet PDF output is RGB raster without a printing-condition ICC output intent or PDF/X press standard.',
   });
 
   const uniqueIssues = deduplicateIssues(issues);
@@ -240,8 +243,8 @@ export const createPrintProductionPreflight = (
     pressReady,
     colorManagement: {
       sourceColorSpace: 'rgb',
-      outputIntent: null,
-      pressStandard: null,
+      outputIntent: pdfxOutputIntent ?? null,
+      pressStandard: pdfxOutputIntent ? 'PDF/X-4' : null,
     },
     issueSummary: {
       blockers,

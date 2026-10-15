@@ -157,8 +157,11 @@ export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, d
     warnings.push('Physical print exports should contain at least 300 pixels per inch at the intended card size.');
   }
 
-  if (mode === 'virtual' && effectivePixelsPerInch < 96) {
-    warnings.push('Virtual exports below 96 pixels per inch at the intended card size may look soft on common displays.');
+  if (mode === 'virtual') {
+    const pixels = getRasterExportDimensionsPx(card, mode, dpiOverride);
+    if (Math.min(pixels.widthPx, pixels.heightPx) < 600) {
+      warnings.push(`This digital face is ${pixels.widthPx} × ${pixels.heightPx}px. Choose higher detail for close reading or larger displays.`);
+    }
   }
 
   if (mode === 'physical') {

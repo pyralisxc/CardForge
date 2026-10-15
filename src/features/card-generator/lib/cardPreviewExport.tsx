@@ -258,7 +258,7 @@ export async function mountCardPreviewForExport(
   className = 'export-render-card',
   highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
 ): Promise<MountedCardPreview> {
-  const { widthPx, heightPx } = getCardExportDimensionsPx(card, exportProfile.dpi);
+  const { widthPx, heightPx } = getCardExportDimensionsPx(card, exportProfile.dpi, face);
   const container = document.createElement('div');
   container.style.cssText = [
     'position:fixed',
@@ -326,7 +326,7 @@ export function createCardFaceExportRenderer(
   const root = createRoot(container);
 
   const renderPreview = async (card: DisplayCard, face: CardFace = 'front') => {
-    const { widthPx, heightPx } = getCardExportDimensionsPx(card, exportProfile.dpi);
+    const { widthPx, heightPx } = getCardExportDimensionsPx(card, exportProfile.dpi, face);
     container.style.width = `${widthPx}px`;
     container.style.height = `${heightPx}px`;
     root.render(createElement(CardPreview, {

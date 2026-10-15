@@ -1,6 +1,8 @@
 import { TCG_ASPECT_RATIO } from './constants';
 import { resolveTemplateCardFormat, type TemplateCardFormatSource } from '@/domain/card-formats';
 import type { DisplayCard } from './types';
+import type { CardFace } from '@/domain/cards';
+import { getCardFaceTemplate } from './cardFaces';
 
 export interface CardPhysicalSizeMm {
   widthMm: number;
@@ -166,9 +168,10 @@ export const getCardPhysicalSizeMm = (
 
 export const getCardExportDimensionsPx = (
   card: DisplayCard,
-  dpi: number
+  dpi: number,
+  face: CardFace = 'front',
 ): CardExportDimensionsPx => {
-  const { widthMm, heightMm } = getCardPhysicalSizeMm(card);
+  const { widthMm, heightMm } = getCardPhysicalSizeMm({ ...card, template: getCardFaceTemplate(card, face) });
   const widthPx = Math.max(1, Math.round((widthMm / 25.4) * dpi));
   const heightPx = Math.max(1, Math.round((heightMm / 25.4) * dpi));
   return { widthPx, heightPx };

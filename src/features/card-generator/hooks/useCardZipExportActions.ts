@@ -11,6 +11,7 @@ import {
 import type { useToast } from '@/components/ui/use-toast';
 import {
   createCardZipExportItems,
+  createDigitalImageManifest,
   createPrintProductionManifest,
   createTabletopSimulatorManifest,
   createTabletopSimulatorSheets,
@@ -23,7 +24,7 @@ import {
   getZipExportFileName,
   type TabletopSimulatorExportQuality,
 } from '@/features/card-generator/lib/zipExport';
-import { hasCardBacking } from '@/domain/rendering';
+import { getCardFaceTemplate, getTemplateProductionGeometryMm, hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 import { useBrandPresentation } from '@/features/brand-presentation/client';
@@ -31,7 +32,8 @@ import { resolveCardExportWatermark } from '@/features/card-generator/lib/cardPr
 import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
-export type ZipExportKind = 'png-set' | 'print-png-set' | 'tabletop-simulator';
+export type ZipExportKind = 'png-set' | 'print-png-set' | 'print-pdfx-set' | 'tabletop-simulator';
+export interface PdfXExportOptions { iccFile?: File; condition?: string; }
 
 interface UseCardZipExportActionsInput {
   canExportClean: boolean;
@@ -45,7 +47,6 @@ interface UseCardZipExportActionsInput {
 export function useCardZipExportActions({
   canExportClean,
   exportDpi,
-  exportMode,
   generatedDisplayCards,
   richTextHighlightColor,
   toast,
@@ -59,14 +60,14 @@ export function useCardZipExportActions({
   const handleExportAllAsZip = useCallback(async () => {
     if (generatedDisplayCards.length === 0) return;
     const exportItems = createCardZipExportItems(generatedDisplayCards);
-    const exportCopy = createZipExportCopy(exportMode, exportItems.length);
+    const exportCopy = createZipExportCopy('virtual', exportItems.length);
     setZipExportKind('png-set');
     setIsZipExporting(true);
     setZipProgress({ done: 0, total: exportItems.length });
     trackExportStarted('png_set', generatedDisplayCards.length);
 
     try {
-      const exportProfile = getExportProfile(exportMode, exportDpi);
+      const exportProfile = getExportProfile('virtual', exportDpi);
       const JSZip = (await import('jszip')).default;
       const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
       const zip = new JSZip();
@@ -84,6 +85,7 @@ export function useCardZipExportActions({
         renderer.cleanup();
       }
 
+      folder.file('cardforge-digital-images-manifest.json', JSON.stringify(createDigitalImageManifest(exportItems, exportProfile), null, 2));
       const content = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
@@ -107,9 +109,9 @@ export function useCardZipExportActions({
       setZipProgress(null);
       setZipExportKind(null);
     }
-  }, [canExportClean, exportDpi, exportMode, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
+  }, [canExportClean, exportDpi, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
 
-  const handleExportPrintPngSet = useCallback(async () => {
+  const handleExportPrintPackage = useCallback(async (pdfxOptions?: PdfXExportOptions) => {
     if (generatedDisplayCards.length === 0) return;
     let preflight = createPrintProductionPreflight(generatedDisplayCards, exportDpi);
     if (!preflight.productionPrepared) {
@@ -122,7 +124,7 @@ export function useCardZipExportActions({
       return;
     }
     const exportItems = createCardZipExportItems(generatedDisplayCards);
-    setZipExportKind('print-png-set');
+    setZipExportKind(pdfxOptions ? 'print-pdfx-set' : 'print-png-set');
     setIsZipExporting(true);
     setZipProgress({ done: 0, total: exportItems.length });
     trackExportStarted('print_png_set', generatedDisplayCards.length);
@@ -132,24 +134,56 @@ export function useCardZipExportActions({
       const JSZip = (await import('jszip')).default;
       const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
       const zip = new JSZip();
-      const folder = zip.folder('print-production-png-faces')!;
+      const folder = zip.folder(pdfxOptions ? 'print-production-pdfx-candidates' : 'print-production-png-faces')!;
+      const pdfx = pdfxOptions ? await import('@/features/card-generator/lib/pdfxProduction') : null;
+      let colorIntent: { condition: string; sha256: string } | undefined;
+      let iccBytes: Uint8Array<ArrayBuffer> | undefined;
+      if (pdfx) {
+        if (pdfxOptions?.iccFile && pdfxOptions.iccFile.size > pdfx.MAX_PRINT_ICC_BYTES) throw new Error('Choose a printing ICC profile up to 8 MB.');
+        if (pdfxOptions?.iccFile) iccBytes = new Uint8Array(await pdfxOptions.iccFile.arrayBuffer());
+        else {
+          const response = await fetch(pdfx.GRACOL_PROFILE.path);
+          if (!response.ok) throw new Error('The reference ICC profile is unavailable. Retry when the profile can be loaded.');
+          iccBytes = new Uint8Array(await response.arrayBuffer());
+        }
+        pdfx.validatePrintIcc(iccBytes);
+        const sha256 = await pdfx.sha256Hex(iccBytes);
+        if (!pdfxOptions?.iccFile && sha256 !== pdfx.GRACOL_PROFILE.sha256) throw new Error('The reference ICC profile failed its integrity check.');
+        const condition = pdfxOptions?.iccFile ? pdfxOptions.condition?.trim() : pdfx.GRACOL_PROFILE.condition;
+        if (!condition) throw new Error('Name the printing condition for the supplied ICC profile.');
+        colorIntent = { condition, sha256 };
+      }
+      const creationDate = new Date();
+      const pdfFaces: Array<{ file: string; cardIndex: number; uniqueId: string; face: string; sha256: string; structuralValidation: { valid: boolean; warnings: readonly string[] } }> = [];
       const renderer = createCardFaceExportRenderer(exportProfile, richTextHighlightColor, exportWatermark);
 
       try {
         for (let i = 0; i < exportItems.length; i++) {
           const exportItem = exportItems[i];
           const blob = await renderer.renderProductionToBlob(exportItem.card, exportItem.face);
-          folder.file(getPrintProductionFileName(exportItem), blob);
+          if (pdfx && iccBytes && colorIntent) {
+            const geometry = getTemplateProductionGeometryMm(getCardFaceTemplate(exportItem.card, exportItem.face));
+            const result = await pdfx.buildPdfXFace(new Uint8Array(await blob.arrayBuffer()), geometry, iccBytes, colorIntent.condition, creationDate);
+            const file = getPrintProductionFileName(exportItem).replace(/\.png$/u, '.pdf');
+            folder.file(file, result.bytes);
+            pdfFaces.push({ file, cardIndex: exportItem.cardIndex, uniqueId: exportItem.card.uniqueId, face: exportItem.face, sha256: await pdfx.sha256Hex(new Uint8Array(result.bytes)), structuralValidation: { valid: true, warnings: result.validation.warnings } });
+          } else folder.file(getPrintProductionFileName(exportItem), blob);
           setZipProgress({ done: i + 1, total: exportItems.length });
         }
-        preflight = createPrintProductionPreflight(generatedDisplayCards, exportDpi, renderer.getSourceImageDetails());
+        preflight = createPrintProductionPreflight(generatedDisplayCards, exportDpi, renderer.getSourceImageDetails(), colorIntent);
       } finally {
         renderer.cleanup();
       }
 
       folder.file(
         'cardforge-print-production-manifest.json',
-        JSON.stringify(createPrintProductionManifest(exportItems, preflight), null, 2),
+        JSON.stringify(pdfx ? {
+          ...createPrintProductionManifest(exportItems, preflight), format: 'cardforge-pdfx-candidates-v1',
+          outputIntent: colorIntent, createdAt: creationDate.toISOString(),
+          structuralValidator: 'pdfnative@1.8.0', standardsValidated: false, destinationChecked: false,
+          notes: ['One PDF/X-4 candidate per face preserves mixed physical sizes.', 'Canonical sRGB raster artwork is described by calibrated DefaultRGB; no CMYK conversion was performed.', 'Generator structural validation is not independent PDF/X preflight or printer acceptance.', 'Bleed is edge-extended; inspect every edge before production.'],
+          faces: pdfFaces.map((face, index) => ({ ...createPrintProductionManifest([exportItems[index]], preflight).faces[0], ...face })),
+        } : createPrintProductionManifest(exportItems, preflight), null, 2),
       );
       folder.file(
         'cardforge-print-preflight.json',
@@ -158,7 +192,7 @@ export function useCardZipExportActions({
       folder.file(
         'README.txt',
         [
-          'CardForge print production PNG faces',
+          pdfx ? 'CardForge PDF/X-4 candidate faces' : 'CardForge print production PNG faces',
           '',
           'Each face keeps the authored trim composition and adds the CardForge format bleed outside the trim edge.',
           'The bleed is edge-extended from the trim render so the authored card is not scaled or shifted.',
@@ -167,7 +201,7 @@ export function useCardZipExportActions({
           `Production prepared: ${preflight.productionPrepared ? 'yes' : 'no'}.`,
           `Press ready: ${preflight.pressReady ? 'yes' : 'no'}.`,
           'Inspect full-bleed artwork before professional production.',
-          'These files are RGB raster PNGs. They are not yet a PDF/X or printer-specific ICC/color-output contract.',
+          pdfx ? 'Each PDF/X-4 candidate embeds the identified CMYK printing-condition ICC profile and calibrated RGB raster artwork. No CMYK conversion was performed. Generator structural checks passed; independent standards validation and printer acceptance have not been performed.' : 'These files are RGB raster PNGs, not a PDF/X color-output contract.',
           ...(canExportClean ? [] : ['This Free export includes the CardForge watermark.']),
         ].join('\n'),
       );
@@ -176,7 +210,7 @@ export function useCardZipExportActions({
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
-      const fileName = `cardforge-print-production-png-faces${canExportClean ? '' : '-watermarked'}.zip`;
+      const fileName = `cardforge-print-production-${pdfx ? 'pdfx-candidates' : 'png-faces'}${canExportClean ? '' : '-watermarked'}.zip`;
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
@@ -185,7 +219,7 @@ export function useCardZipExportActions({
       trackExportCompleted('print_png_set', generatedDisplayCards.length);
       toast({
         title: 'Print production package exported',
-        description: `${exportItems.length} bleed-bearing face${exportItems.length === 1 ? '' : 's'} saved with geometry and preflight reports. Production prepared: yes. Press ready: ${preflight.pressReady ? 'yes' : 'not yet'}${canExportClean ? '' : ' · CardForge watermark included'}.`,
+        description: `${exportItems.length} ${pdfx ? 'PDF/X-4 candidate' : 'bleed-bearing'} face${exportItems.length === 1 ? '' : 's'} saved with geometry and preflight reports. Production prepared: yes. Press ready: ${preflight.pressReady ? 'yes' : 'not yet'}${canExportClean ? '' : ' · CardForge watermark included'}.`,
       });
     } catch (err) {
       trackExportFailed('print_png_set', 'render_or_archive', generatedDisplayCards.length);
@@ -337,7 +371,8 @@ export function useCardZipExportActions({
 
   return {
     handleExportAllAsZip,
-    handleExportPrintPngSet,
+    handleExportPrintPngSet: () => handleExportPrintPackage(),
+    handleExportPrintPdfX: (options: PdfXExportOptions) => handleExportPrintPackage(options),
     handleExportTabletopSimulatorSpritesheets,
     isZipExporting,
     zipExportKind,

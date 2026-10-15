@@ -8,7 +8,7 @@ import {
 } from '@/features/card-generator/lib/printValidation';
 
 import type { TCGCardTemplate } from '@/domain/templates';
-import { getCardProductionGeometryMm, getCardProductionGeometryPx } from '@/domain/rendering';
+import { getCardExportDimensionsPx, getCardProductionGeometryMm, getCardProductionGeometryPx } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 
 const baseTemplate: TCGCardTemplate = {
@@ -54,6 +54,17 @@ const makeCard = (data: Record<string, string>): DisplayCard => ({
 });
 
 describe('print validation', () => {
+  it('uses the backing face dimensions instead of stretching it to the front', () => {
+    const card = makeCard({});
+    card.backingTemplate = { id: 'landscape', name: 'Back', aspectRatio: '35:20', freeformCanvas: { width: 1050, height: 600, elements: [] } };
+    const dimensions = getCardExportDimensionsPx(card, 300, 'back');
+    expect(dimensions.widthPx / dimensions.heightPx).toBeCloseTo(35 / 20, 2);
+  });
+  it('explains digital quality in pixels without imposing a print-density threshold', () => {
+    const warnings = validateCardExportQuality(makeCard({}), 'virtual', 72).warnings;
+    expect(warnings.join(' ')).toMatch(/digital face is .*px/);
+    expect(warnings.join(' ')).not.toMatch(/pixels per inch/);
+  });
   it('provides profile defaults for physical and virtual exports', () => {
     expect(getExportProfile('physical')).toMatchObject({ dpi: 300, renderWidthPx: 744, canvasPixelRatio: 3, colorSpace: 'rgb', recommendedFormat: 'png' });
     expect(getExportProfile('virtual')).toMatchObject({ dpi: 150, renderWidthPx: 372, canvasPixelRatio: 2, colorSpace: 'rgb', recommendedFormat: 'png' });

@@ -6,6 +6,7 @@ import {
   PDF_CROP_MARK_LENGTH_MM,
   PdfProductionLayoutError,
   createPdfDuplexBackPage,
+  createScreenPdfPages,
   createPdfPlacementPages,
   getPdfCropMarkSegments,
 } from '@/features/card-generator/lib/pdfProductionLayout';
@@ -23,6 +24,16 @@ const makeCard = (overrides: Partial<DisplayCard> = {}): DisplayCard => ({
 });
 
 describe('PDF production layout', () => {
+  it('makes one screen page per authored face, preserving mixed shapes and front/back order', () => {
+    const first = makeCard({ backingTemplate: { id: 'landscape', name: 'Landscape back', aspectRatio: '35:20', freeformCanvas: { width: 1050, height: 600, elements: [] } } });
+    const second = makeCard({ uniqueId: 'card-2' });
+    const pages = createScreenPdfPages([first, second]);
+    expect(pages.map(({ card, face }) => [card.uniqueId, face])).toEqual([['card-1', 'front'], ['card-1', 'back'], ['card-2', 'front']]);
+    expect(pages[0].widthMm / pages[0].heightMm).toBeCloseTo(63 / 88);
+    expect(pages[1].widthMm / pages[1].heightMm).toBeCloseTo(35 / 20);
+    expect(Math.max(pages[1].widthMm, pages[1].heightMm)).toBe(216);
+    expect(first.template.aspectRatio).toBe('63:88');
+  });
   it('packs the bleed-bearing production face while keeping trim at exact physical size', () => {
     const [page] = createPdfPlacementPages({
       items: [makeCard()],

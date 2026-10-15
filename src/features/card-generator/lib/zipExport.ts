@@ -4,7 +4,7 @@ import {
   type ExportMode,
   type ExportProfile,
 } from '@/features/card-generator/lib/printValidation';
-import { getCardFaceTemplate, getTemplateProductionGeometryMm, hasCardBacking } from '@/domain/rendering';
+import { getCardExportDimensionsPx, getCardFaceTemplate, getTemplateProductionGeometryMm, hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 
 export interface CardZipExportItem {
@@ -312,3 +312,20 @@ export const createTabletopSimulatorManifest = (
     }),
   };
 };
+/** A viewing-copy manifest preserves face identity/order without creating authored state. */
+export const createDigitalImageManifest = (items: CardZipExportItem[], profile: ExportProfile) => ({
+  format: 'cardforge-digital-images-v1',
+  colorSpace: 'rgb',
+  artwork: 'raster',
+  editable: false,
+  order: 'card-order-front-then-back',
+  faces: items.map((item) => {
+    const size = getCardExportDimensionsPx(item.card, profile.dpi, item.face);
+    return {
+      file: getZipExportFileName(item), cardIndex: item.cardIndex,
+      uniqueId: item.card.uniqueId, face: item.face,
+      widthPx: size.widthPx * profile.canvasPixelRatio,
+      heightPx: size.heightPx * profile.canvasPixelRatio,
+    };
+  }),
+});
