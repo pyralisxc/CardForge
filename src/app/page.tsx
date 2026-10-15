@@ -63,9 +63,11 @@ export default async function LandingPage() {
   const layoutMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.layout');
   const generatorSingleMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.generator-single');
   const generatorBulkMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.generator-bulk');
-  const showcaseExamples = siteConfiguration.homepageSections.find((section) => section.id === 'showcase')?.showcaseExamples;
+  const showcaseSection = siteConfiguration.homepageSections.find((section) => section.id === 'showcase');
+  const showcaseExamples = showcaseSection?.showcaseExamples;
+  const showcaseStages = showcaseSection?.showcaseStages;
   const homepageSections = {
-    showcase: <InteractiveStudioShowcase layoutMedia={layoutMedia} generatorSingleMedia={generatorSingleMedia} generatorBulkMedia={generatorBulkMedia} examples={showcaseExamples} />,
+    showcase: <InteractiveStudioShowcase layoutMedia={layoutMedia} generatorSingleMedia={generatorSingleMedia} generatorBulkMedia={generatorBulkMedia} mediaAssets={siteMedia} stages={showcaseStages} examples={showcaseExamples} />,
     workflow: <WorkflowProof />,
     access: <AccessComparison plans={plans} />,
     founder: <FounderStrip founderName={businessIdentity.legalOperatorName} />,

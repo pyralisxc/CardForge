@@ -9,6 +9,57 @@ import {
 } from '@/features/public-site/model/siteConfiguration';
 
 describe('public site configuration', () => {
+  it('keeps legacy published homepage walkthroughs intact until new stages are explicitly saved', () => {
+    const legacy = hydratePublicSiteConfiguration({ homepage_sections: [
+      { id: 'showcase', visible: true },
+      { id: 'workflow', visible: true },
+    ] });
+    expect(legacy.homepageSections.find((section) => section.id === 'showcase')?.showcaseStages).toBeUndefined();
+  });
+
+  it('supports ordered Owner walkthrough screenshots and rendered demonstrations with no external media URLs', () => {
+    const stages = [
+      { id: 'desk', label: 'Your Desk', kind: 'screenshots', description: 'Organize Sets on one working surface.',
+        views: [{ label: 'Desk overview', mediaSlot: 'landing.showcase.generator-single' }] },
+      { id: 'set', label: 'Edit a Set', kind: 'screenshots',
+        views: [{ label: 'Card editing', mediaSlot: 'landing.showcase.generator-bulk' }] },
+      { id: 'templates', label: 'Make Templates', kind: 'screenshots',
+        views: [{ label: 'Template editor', mediaSlot: 'landing.showcase.layout' }] },
+      { id: 'result', label: 'Explore results', kind: 'rendered-set' },
+    ] as const;
+    const config = normalizePublicSiteConfigurationInput({
+      ...DEFAULT_PUBLIC_SITE_CONFIGURATION,
+      homepageSections: DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections.map((section) => (
+        section.id === 'showcase' ? { ...section, showcaseStages: stages } : section
+      )),
+    });
+    expect(config.homepageSections.find((section) => section.id === 'showcase')?.showcaseStages)
+      .toMatchObject(stages);
+    const hydrated = hydratePublicSiteConfiguration({ homepage_sections: config.homepageSections });
+    expect(hydrated.homepageSections.find((section) => section.id === 'showcase')?.showcaseStages)
+      .toMatchObject(stages);
+  });
+
+  it('rejects duplicate stages, unsupported media targets, and misleading rendered-set image configuration', () => {
+    const publish = (stages: unknown) => normalizePublicSiteConfigurationInput({
+      ...DEFAULT_PUBLIC_SITE_CONFIGURATION,
+      homepageSections: DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections.map((section) => (
+        section.id === 'showcase' ? { ...section, showcaseStages: stages } : section
+      )),
+    });
+    expect(() => publish([{ id: 'a', label: 'A', kind: 'rendered-set' }, { id: 'a', label: 'Another', kind: 'rendered-set' }]))
+      .toThrow(/walkthrough/i);
+    expect(() => publish([{ id: 'unsafe', label: 'Unsafe image', kind: 'screenshots',
+      views: [{ label: 'Secret', mediaSlot: 'brand.social' }] }])).toThrow(/approved image slots/i);
+    expect(() => publish([{ id: 'extra', label: 'Not a screenshot', kind: 'rendered-set',
+      views: [{ label: 'Unknown', mediaSlot: 'landing.showcase.layout' }] }])).toThrow(/walkthrough/i);
+    expect(() => publish([])).toThrow(/walkthrough/i);
+    expect(() => publish([{ id: 'bad', label: '<script>', kind: 'screenshots', views: [
+      { label: 'External', mediaSlot: 'https://example.com/a.png' },
+    ] }])).toThrow(/approved image slots/i);
+  });
+
+
   it('keeps navigation routes code-owned while preserving owner order and labels', () => {
     const configuration = hydratePublicSiteConfiguration({
       primary_navigation: [

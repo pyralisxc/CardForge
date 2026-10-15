@@ -8,6 +8,13 @@ export {
 } from './model/siteContent';
 export { PUBLIC_NAVIGATION } from './model/publicNavigation';
 export {
+  DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
+  HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
+  MAX_HOMEPAGE_SHOWCASE_STAGES,
+  type HomepageShowcaseStage,
+  type HomepageShowcaseView,
+} from './model/homepageShowcaseStages';
+export {
   DEFAULT_PUBLIC_SITE_CONFIGURATION,
   HOMEPAGE_SECTION_IDS,
   PRIMARY_NAVIGATION_IDS,

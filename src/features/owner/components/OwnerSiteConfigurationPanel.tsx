@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import type {
   HomepageSectionSetting,
   HomepageShowcaseExample,
+  HomepageShowcaseStage,
   PrimaryNavigationItem,
   PublicSiteConfiguration,
 } from '@/features/public-site/client';
@@ -16,6 +17,7 @@ import { getOwnerPublicationPresentation, type OwnerPublicationEnvironment } fro
 import { loadOwnerSiteControls } from '@/features/owner/model/ownerOperationsClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { OwnerHomepageShowcasePanel } from './OwnerHomepageShowcasePanel';
+import { OwnerHomepageStagesPanel } from './OwnerHomepageStagesPanel';
 
 const inputClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 const sectionLabels: Record<HomepageSectionSetting['id'], string> = {
@@ -139,7 +141,17 @@ export function OwnerSiteConfigurationPanel({
     }));
   };
 
-  const showcaseExamples = draft.homepageSections.find((section) => section.id === 'showcase')?.showcaseExamples ?? [];
+  const updateShowcaseStages = (stages: HomepageShowcaseStage[]) => {
+    setDraft((current) => ({
+      ...current,
+      homepageSections: current.homepageSections.map((section) => (
+        section.id === 'showcase' ? { ...section, showcaseStages: stages } : section
+      )),
+    }));
+  };
+  const showcaseSection = draft.homepageSections.find((section) => section.id === 'showcase');
+  const showcaseExamples = showcaseSection?.showcaseExamples ?? [];
+  const showcaseStages = showcaseSection?.showcaseStages;
 
   return (
     <section className="space-y-5">
@@ -218,6 +230,7 @@ export function OwnerSiteConfigurationPanel({
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
+        <OwnerHomepageStagesPanel stages={showcaseStages} onChange={updateShowcaseStages} />
         <OwnerHomepageShowcasePanel examples={showcaseExamples} onChange={updateShowcaseExamples} />
       </div>
 

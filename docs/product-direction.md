@@ -41,6 +41,10 @@ The agent installation model has **two CardForge product plugins and four clearl
 
 For the public property, **code defines capability, the Owner publishes presentation, and providers supply the facts they own**. Vercel Preview proves changes to what the site can do; ordinary production copy/media/navigation/SEO/presentation changes publish through the live Owner surface. Do not add a staging-to-production content-promotion CMS merely to reproduce that solo-owner workflow.
 
+Owner-directed website editing should feel like operating the page: inspect the canonical state, change a supported block or stage, save through the shared revision-safe command, and visually verify the result. Technical revisions prevent overwrites; they are not a separate founder-facing feature-planning or approval workflow for routine reversible presentation edits.
+
+The homepage showcase uses a bounded, ordered vocabulary of screenshot views and real rendered demonstration Sets, with each screenshot referring only to an Owner-managed public media slot. Browser Owner and Owner MCP edit the same approved stage sequence while preserving existing pinned Template examples. Legacy stage copy stays active until the Owner explicitly publishes a new sequence; adding a stage must not silently relabel an unrelated screenshot. Authenticated screenshots are acquired only from a purpose-built demonstration session with private account information excluded, not by borrowing arbitrary user sessions or credentials. Arbitrary executable blocks, routes, full Sites/CMS creation and auto-publishing private screenshots are not part of this step.
+
 The public site remains CardForge's entrance and explanation surface, not another private workspace.
 
 ## Product Language

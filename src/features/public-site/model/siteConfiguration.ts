@@ -1,4 +1,9 @@
 import {
+  normalizeHomepageShowcaseStages,
+  validateHomepageShowcaseStagesInput,
+  type HomepageShowcaseStage,
+} from './homepageShowcaseStages';
+import {
   createDefaultHomepageShowcaseExamples,
   type HomepageShowcaseExample,
 } from './examples';
@@ -24,6 +29,8 @@ export interface HomepageSectionSetting {
   id: HomepageSectionId;
   visible: boolean;
   showcaseExamples?: HomepageShowcaseExample[];
+  /** Optional until the Owner publishes a walkthrough; omission preserves legacy stage copy and behavior. */
+  showcaseStages?: HomepageShowcaseStage[];
 }
 
 export interface PublicSiteConfiguration {
@@ -268,7 +275,12 @@ const normalizeHomepageSections = (value: unknown): HomepageSectionSetting[] => 
     return [{
       id,
       visible: row.visible !== false,
-      ...(id === 'showcase' ? { showcaseExamples: normalizeHomepageShowcaseExamples(row.showcaseExamples) } : {}),
+      ...(id === 'showcase' ? {
+        showcaseExamples: normalizeHomepageShowcaseExamples(row.showcaseExamples),
+        ...(normalizeHomepageShowcaseStages(row.showcaseStages)
+          ? { showcaseStages: normalizeHomepageShowcaseStages(row.showcaseStages) }
+          : {}),
+      } : {}),
     }];
   });
   return [
@@ -313,6 +325,9 @@ export const normalizePublicSiteConfigurationInput = (
     const showcase = input.homepageSections.find((row) => isRecord(row) && row.id === 'showcase');
     if (isRecord(showcase) && Object.hasOwn(showcase, 'showcaseExamples')) {
       validateHomepageShowcaseExamplesInput(showcase.showcaseExamples);
+    }
+    if (isRecord(showcase) && Object.hasOwn(showcase, 'showcaseStages')) {
+      validateHomepageShowcaseStagesInput(showcase.showcaseStages);
     }
   }
 

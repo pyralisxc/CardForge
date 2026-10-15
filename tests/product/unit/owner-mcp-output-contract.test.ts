@@ -97,6 +97,45 @@ describe('Owner MCP registered output contracts', () => {
     expect(mocks.site).not.toHaveBeenCalled();
   });
 
+  it('reads Owner walkthrough stages and summarizes managed image sources without disclosing storage paths', async () => {
+    mocks.readFields.mockResolvedValue({ ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt });
+    mocks.site.mockResolvedValue([{ slot: 'landing.showcase.layout', label: 'Template', alt: 'Studio', defaultSrc: '/fallback.png', storagePath: null }]);
+    const result = await invoke('get_owner_homepage_showcase');
+    expect(result).toMatchObject({ environment: 'preview', settingsRevision: settings.updatedAt, legacyCopy: true,
+      stages: [{ id: 'templates' }, { id: 'make' }, { id: 'review' }],
+      media: [expect.objectContaining({ slot: 'landing.showcase.layout', source: 'bundled-fallback' })],
+    });
+    expect(JSON.stringify(result)).not.toContain('storagePath');
+  });
+
+  it('saves just the walkthrough through the native revision-safe site configuration command', async () => {
+    const before = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt };
+    mocks.readFields.mockResolvedValue(before);
+    const receipt = { committed: true, refreshComplete: true, refreshFailures: [], activityRecorded: true,
+      retryable: false, nextAction: 'none', message: 'Published.' };
+    const stages = [{ id: 'desk', label: 'Your Desk', kind: 'screenshots',
+      views: [{ label: 'Desk view', mediaSlot: 'landing.showcase.layout' }] }];
+    const after = { ...before, homepageSections: before.homepageSections.map((section) => (
+      section.id === 'showcase' ? { ...section, showcaseStages: stages } : section
+    )) };
+    mocks.publishConfiguration.mockResolvedValue({ settings: after, receipt });
+    const result = await invoke('publish_owner_homepage_showcase', { stages, expectedUpdatedAt: settings.updatedAt });
+    expect(result).toMatchObject({ environment: 'preview', livePublication: false, stages, updatedAt: settings.updatedAt, receipt });
+    expect(mocks.publishConfiguration).toHaveBeenCalledExactlyOnceWith({
+      actor: { userId: 'owner', email: 'owner@example.com' }, expectedUpdatedAt: settings.updatedAt,
+      patch: { homepageSections: after.homepageSections },
+    });
+    expect(after.homepageSections.find((section) => section.id === 'showcase')?.showcaseExamples)
+      .toEqual(DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections.find((section) => section.id === 'showcase')?.showcaseExamples);
+  });
+
+  it.each(['get_owner_homepage_showcase', 'publish_owner_homepage_showcase'])('denies non-Owners before reading or saving %s', async (name) => {
+    mocks.access.mockRejectedValue(new Error('Owner permission required'));
+    expect(await tools.get(name)!.handler({ stages: [], expectedUpdatedAt: settings.updatedAt })).toMatchObject({ isError: true });
+    expect(mocks.readFields).not.toHaveBeenCalled();
+    expect(mocks.publishConfiguration).not.toHaveBeenCalled();
+  });
+
   it('reads complete settings and publishes partial changes with a canonical receipt', async () => {
     const full = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt };
     mocks.readFields.mockResolvedValue(full);

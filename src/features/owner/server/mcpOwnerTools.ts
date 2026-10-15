@@ -8,6 +8,11 @@ import { getOwnerIntegrationStatus } from '@/features/owner/server/ownerIntegrat
 import { getOwnerSiteControlPayload, getOwnerOperationsOverviewPayload } from '@/features/owner/lib/ownerOperationsStore';
 import { publishOwnerSiteContentBlock, publishOwnerSiteConfigurationField, publishOwnerSiteConfigurationPatch, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerExperienceSettings, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus } from '@/features/owner/server/ownerSiteCommands';
 import { getPublicSiteConfiguration, getFounderProfile, getSiteMedia, SiteMediaStoreError, type PublicSiteConfiguration } from '@/features/public-site/server';
+import {
+  DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
+  HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
+  validateHomepageShowcaseStagesInput,
+} from '@/features/public-site/model/homepageShowcaseStages';
 import { publishOwnerSiteMedia, restoreOwnerSiteMedia } from './ownerMediaCommands';
 import { getLegalDocuments } from '@/features/legal/server';
 import { getRoadmapSettings, getRoadmapAdminItems } from '@/features/roadmap/server';
@@ -26,6 +31,9 @@ import {
   ownerSiteFieldPublishInputSchema,
   ownerSiteFieldPublicationOutputSchema,
   ownerSiteConfigurationOutputSchema,
+  ownerHomepageShowcaseReadOutputSchema,
+  ownerHomepageShowcasePublishInputSchema,
+  ownerHomepageShowcasePublicationOutputSchema,
   ownerSiteConfigurationPublishInputSchema,
   ownerSiteConfigurationPublicationOutputSchema,
   ownerPresentationReadInputSchema,
@@ -309,6 +317,57 @@ export const registerOwnerReadTools = ({
       return { content: [{ type: 'text', text: publication.receipt.refreshComplete
         ? 'Public site settings published to ' + (isProduction ? 'live Production.' : 'this non-production environment only.') : publication.receipt.message }],
         structuredContent: { environment: deploymentEnvironment(), livePublication: isProduction, ...publication } };
+    },
+  }));
+
+  server.registerTool('get_owner_homepage_showcase', {
+    title: 'Read the Owner homepage walkthrough and managed screenshot availability',
+    description: 'Read the exact Owner settings revision and ordered walkthrough stages. legacyCopy means the existing stage labels still come from published site-copy blocks. Use the focused publish tool to avoid resending unrelated demonstration Sets.',
+    outputSchema: ownerHomepageShowcaseReadOutputSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async () => runObserved({ toolName: 'get_owner_homepage_showcase', input: {}, execute: async () => {
+    const settings = await getPublicSiteConfiguration();
+    const ownedStages = settings.homepageSections.find((section) => section.id === 'showcase')?.showcaseStages;
+    const media = await getSiteMedia();
+    return { content: [{ type: 'text', text: 'Read Owner homepage walkthrough and screenshot slot availability.' }],
+      structuredContent: {
+        environment: deploymentEnvironment(), settingsRevision: settings.updatedAt ?? null,
+        legacyCopy: !ownedStages,
+        stages: ownedStages ?? DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
+        media: HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS.map((slot) => {
+          const asset = media.find((candidate) => candidate.slot === slot);
+          return { slot, label: asset?.label ?? slot, alt: asset?.alt ?? '',
+            source: asset?.storagePath ? 'owner-upload' : asset?.defaultSrc ? 'bundled-fallback' : 'unavailable' };
+        }),
+      } };
+  } }));
+
+  server.registerTool('publish_owner_homepage_showcase', {
+    title: 'Save only the Owner homepage walkthrough stages',
+    description: 'Reorder, rename, describe or select existing screenshot/finished-Set stages. Preserves demonstration data, section order and all other site settings. Uses the same canonical revision-safe browser command. Preview changes staging only. Never replay a committed receipt.',
+    inputSchema: ownerHomepageShowcasePublishInputSchema,
+    outputSchema: ownerHomepageShowcasePublicationOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  }, async ({ stages, expectedUpdatedAt }) => runObserved({
+    toolName: 'publish_owner_homepage_showcase', input: { stages, expectedUpdatedAt },
+    execute: async (access) => {
+      const validatedStages = validateHomepageShowcaseStagesInput(stages);
+      const current = await getPublicSiteConfiguration();
+      const homepageSections = current.homepageSections.map((section) => (
+        section.id === 'showcase' ? { ...section, showcaseStages: validatedStages } : section
+      ));
+      const publication = await publishOwnerSiteConfigurationPatch({
+        actor: { userId: access.user.id, email: access.email },
+        patch: { homepageSections }, expectedUpdatedAt,
+      });
+      const saved = publication.settings.homepageSections.find((section) => section.id === 'showcase')?.showcaseStages;
+      const isProduction = deploymentEnvironment() === 'production';
+      return { content: [{ type: 'text', text: publication.receipt.message + (isProduction ? ' Live Production.' : ' Staging only.') }],
+        structuredContent: {
+          environment: deploymentEnvironment(), livePublication: isProduction,
+          updatedAt: publication.settings.updatedAt ?? null,
+          stages: saved ?? validatedStages, receipt: publication.receipt,
+        } };
     },
   }));
 
