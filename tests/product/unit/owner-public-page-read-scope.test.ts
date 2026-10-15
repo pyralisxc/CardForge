@@ -28,6 +28,7 @@ vi.mock('@/features/public-site/server', () => ({
   getPublicSiteConfiguration: async () => { state.configuration(); return { primaryCtaLabel: 'Open your Desk' }; },
   getSiteContentBlocks: async () => { state.content(); return [{ slug: 'landing.hero.headline', body: 'Build a Set' }]; },
   getSiteMedia: async () => { state.media(); return [{ slot: 'landing.hero' }]; },
+  completeSiteMediaForSections: (media: unknown[]) => media,
   resolveOwnerPublicationEnvironment: () => 'preview',
 }));
 vi.mock('@/features/roadmap/server', () => ({

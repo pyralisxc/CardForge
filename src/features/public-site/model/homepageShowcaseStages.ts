@@ -8,6 +8,10 @@ export const HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS = [
   'landing.showcase.layout',
   'landing.showcase.generator-single',
   'landing.showcase.generator-bulk',
+  'landing.showcase.desk',
+  'landing.showcase.set',
+  'landing.showcase.template',
+  'landing.showcase.output',
 ] as const satisfies readonly SiteMediaSlot[];
 
 export type HomepageShowcaseScreenshotSlot = typeof HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS[number];

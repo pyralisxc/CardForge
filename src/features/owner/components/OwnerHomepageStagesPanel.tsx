@@ -14,6 +14,10 @@ const mediaLabel: Record<(typeof HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS)[number], st
   'landing.showcase.layout': 'Template Studio screenshot',
   'landing.showcase.generator-single': 'Single-card Studio screenshot',
   'landing.showcase.generator-bulk': 'Card list Studio screenshot',
+  'landing.showcase.desk': 'Your Desk · current screenshot',
+  'landing.showcase.set': 'Edit a Set · current screenshot',
+  'landing.showcase.template': 'Design a Template · current screenshot',
+  'landing.showcase.output': 'Finished Output · current screenshot',
 };
 const move = <T,>(items: T[], index: number, direction: -1 | 1): T[] => {
   const target = index + direction;

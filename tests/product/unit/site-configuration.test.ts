@@ -25,6 +25,23 @@ describe('public site configuration', () => {
     }] })).toThrow(/Custom website sections/i);
   });
 
+  it('supports four modern CardForge Desk-to-Output screenshots without repurposing legacy artwork', () => {
+    const stages = [
+      { id: 'desk', label: 'Your Desk', kind: 'screenshots', views: [{ label: 'Desk overview', mediaSlot: 'landing.showcase.desk' }] },
+      { id: 'set', label: 'Edit a Set', kind: 'screenshots', views: [{ label: 'Set editor', mediaSlot: 'landing.showcase.set' }] },
+      { id: 'template', label: 'Design Templates', kind: 'screenshots', views: [{ label: 'Template editor', mediaSlot: 'landing.showcase.template' }] },
+      { id: 'output', label: 'Export', kind: 'screenshots', views: [{ label: 'Output panel', mediaSlot: 'landing.showcase.output' }] },
+    ];
+    const configuration = normalizePublicSiteConfigurationInput({
+      ...DEFAULT_PUBLIC_SITE_CONFIGURATION,
+      homepageSections: DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections.map((section) => (
+        section.id === 'showcase' ? { ...section, showcaseStages: stages } : section
+      )),
+    });
+    expect(configuration.homepageSections.find((section) => section.id === 'showcase')?.showcaseStages)
+      .toMatchObject(stages);
+  });
+
   it('accepts reusable, ordered, responsive content sections without a new CMS', () => {
     const custom = {
       id: 'custom-desk-tour', kind: 'custom', visible: true,
