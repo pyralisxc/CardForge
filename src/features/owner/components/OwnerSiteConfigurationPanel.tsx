@@ -8,16 +8,18 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import type {
   HomepageSectionSetting,
+  HomepageLayoutSection,
   HomepageShowcaseExample,
   HomepageShowcaseStage,
   PrimaryNavigationItem,
   PublicSiteConfiguration,
 } from '@/features/public-site/client';
-import { getOwnerPublicationPresentation, type OwnerPublicationEnvironment } from '@/features/public-site/client';
+import { getOwnerPublicationPresentation, isHomepageCustomSection, type OwnerPublicationEnvironment } from '@/features/public-site/client';
 import { loadOwnerSiteControls } from '@/features/owner/model/ownerOperationsClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { OwnerHomepageShowcasePanel } from './OwnerHomepageShowcasePanel';
 import { OwnerHomepageStagesPanel } from './OwnerHomepageStagesPanel';
+import { OwnerHomepageComposerPanel } from './OwnerHomepageComposerPanel';
 
 const inputClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 const sectionLabels: Record<HomepageSectionSetting['id'], string> = {
@@ -27,6 +29,12 @@ const sectionLabels: Record<HomepageSectionSetting['id'], string> = {
   founder: 'Founder introduction',
   final_cta: 'Final Studio action',
 };
+
+const getHomepageSectionLabel = (section: HomepageLayoutSection): string => (
+  isHomepageCustomSection(section)
+    ? section.blocks.find((block) => block.kind === 'heading')?.text || 'Editable section'
+    : sectionLabels[section.id]
+);
 
 const move = <T,>(items: T[], index: number, direction: -1 | 1): T[] => {
   const target = index + direction;
@@ -149,7 +157,10 @@ export function OwnerSiteConfigurationPanel({
       )),
     }));
   };
-  const showcaseSection = draft.homepageSections.find((section) => section.id === 'showcase');
+  const updateHomepageComposition = (sections: HomepageLayoutSection[]) => {
+    setDraft((current) => ({ ...current, homepageSections: sections }));
+  };
+  const showcaseSection = draft.homepageSections.find((section) => section.id === 'showcase') as HomepageSectionSetting | undefined;
   const showcaseExamples = showcaseSection?.showcaseExamples ?? [];
   const showcaseStages = showcaseSection?.showcaseStages;
 
@@ -208,10 +219,10 @@ export function OwnerSiteConfigurationPanel({
           <div className="mt-4 space-y-2">
             {draft.homepageSections.map((section, index) => (
               <div key={section.id} className="flex min-h-11 items-center gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
-                <input aria-label={`Show ${sectionLabels[section.id]}`} type="checkbox" checked={section.visible} onChange={(event) => setDraft((current) => ({ ...current, homepageSections: current.homepageSections.map((item, itemIndex) => itemIndex === index ? { ...item, visible: event.target.checked } : item) }))} />
-                <span className="min-w-0 flex-1 text-sm text-[var(--cf-accent-text)]">{sectionLabels[section.id]}</span>
-                <Button type="button" size="icon" variant="outline" aria-label={`Move ${sectionLabels[section.id]} up`} disabled={index === 0} onClick={() => setDraft((current) => ({ ...current, homepageSections: move(current.homepageSections, index, -1) }))}><ArrowUp className="h-4 w-4" /></Button>
-                <Button type="button" size="icon" variant="outline" aria-label={`Move ${sectionLabels[section.id]} down`} disabled={index === draft.homepageSections.length - 1} onClick={() => setDraft((current) => ({ ...current, homepageSections: move(current.homepageSections, index, 1) }))}><ArrowDown className="h-4 w-4" /></Button>
+                <input aria-label={`Show ${getHomepageSectionLabel(section)}`} type="checkbox" checked={section.visible} onChange={(event) => setDraft((current) => ({ ...current, homepageSections: current.homepageSections.map((item, itemIndex) => itemIndex === index ? { ...item, visible: event.target.checked } : item) }))} />
+                <span className="min-w-0 flex-1 text-sm text-[var(--cf-accent-text)]">{getHomepageSectionLabel(section)}</span>
+                <Button type="button" size="icon" variant="outline" aria-label={`Move ${getHomepageSectionLabel(section)} up`} disabled={index === 0} onClick={() => setDraft((current) => ({ ...current, homepageSections: move(current.homepageSections, index, -1) }))}><ArrowUp className="h-4 w-4" /></Button>
+                <Button type="button" size="icon" variant="outline" aria-label={`Move ${getHomepageSectionLabel(section)} down`} disabled={index === draft.homepageSections.length - 1} onClick={() => setDraft((current) => ({ ...current, homepageSections: move(current.homepageSections, index, 1) }))}><ArrowDown className="h-4 w-4" /></Button>
               </div>
             ))}
           </div>
@@ -230,6 +241,7 @@ export function OwnerSiteConfigurationPanel({
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
+        <OwnerHomepageComposerPanel sections={draft.homepageSections} onChange={updateHomepageComposition} />
         <OwnerHomepageStagesPanel stages={showcaseStages} onChange={updateShowcaseStages} />
         <OwnerHomepageShowcasePanel examples={showcaseExamples} onChange={updateShowcaseExamples} />
       </div>

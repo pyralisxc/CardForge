@@ -138,6 +138,84 @@ describe('Owner MCP registered output contracts', () => {
     expect(mocks.publishConfiguration).not.toHaveBeenCalled();
   });
 
+  it('describes reusable homepage sections without changing existing site content', async () => {
+    const before = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt };
+    mocks.readFields.mockResolvedValue(before);
+    const design = await invoke('get_owner_homepage_design');
+    expect(design).toMatchObject({ environment: 'preview', settingsRevision: settings.updatedAt,
+      sections: expect.arrayContaining([expect.objectContaining({ id: 'showcase' }), expect.objectContaining({ id: 'final_cta' })]),
+      imageSlots: expect.arrayContaining(['landing.showcase.layout', 'landing.hero']),
+    });
+  });
+
+  it('inserts a new bounded content section while preserving the real homepage and exact revision', async () => {
+    const before = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt };
+    mocks.readFields.mockResolvedValue(before);
+    const section = { id: 'custom-desk', kind: 'custom', visible: true,
+      design: { layout: 'split', tone: 'raised', spacing: 'balanced', align: 'center' },
+      blocks: [
+        { id: 'heading', kind: 'heading', text: 'Welcome to your Desk' },
+        { id: 'action', kind: 'button', text: 'Open your Desk', href: '/account' },
+      ] };
+    const resultSections = [...before.homepageSections.slice(0, -1), section, before.homepageSections.at(-1)!];
+    const receipt = { committed: true, refreshComplete: true, refreshFailures: [], activityRecorded: true,
+      retryable: false, nextAction: 'none', message: 'Published.' };
+    mocks.publishConfiguration.mockResolvedValue({ settings: { ...before, homepageSections: resultSections }, receipt });
+    const result = await invoke('publish_owner_homepage_section', {
+      operation: 'insert', sectionId: section.id, section, expectedUpdatedAt: settings.updatedAt,
+    });
+    expect(result).toMatchObject({ livePublication: false, environment: 'preview', sections: resultSections, receipt });
+    expect(mocks.publishConfiguration).toHaveBeenCalledExactlyOnceWith({
+      actor: { userId: 'owner', email: 'owner@example.com' }, expectedUpdatedAt: settings.updatedAt,
+      patch: { homepageSections: resultSections },
+    });
+  });
+
+  it('rejects arbitrary executable custom elements rather than attempting publication', async () => {
+    mocks.readFields.mockResolvedValue({ ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt });
+    const result = await tools.get('publish_owner_homepage_section')!.handler({
+      operation: 'insert', sectionId: 'custom-unsafe', expectedUpdatedAt: settings.updatedAt,
+      section: { id: 'custom-unsafe', kind: 'custom', visible: true,
+        design: { layout: 'stack', tone: 'raised', spacing: 'balanced', align: 'start' },
+        blocks: [{ id: 'bad', kind: 'html', text: '<script>alert(1)</script>' }] },
+    });
+    expect(result).toMatchObject({ isError: true });
+    expect(mocks.publishConfiguration).not.toHaveBeenCalled();
+  });
+
+  it('replaces one existing block without overwriting sibling blocks or other sections', async () => {
+    const contentSection = { id: 'custom-desk', kind: 'custom', visible: true,
+      design: { layout: 'stack', tone: 'charcoal', spacing: 'balanced', align: 'start' },
+      blocks: [{ id: 'heading', kind: 'heading', text: 'Old' },
+        { id: 'button', kind: 'button', text: 'Open Desk', href: '/account' }] };
+    const before = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt,
+      homepageSections: [...DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections, contentSection] };
+    mocks.readFields.mockResolvedValue(before);
+    const receipt = { committed: true, refreshComplete: true, refreshFailures: [], activityRecorded: true,
+      retryable: false, nextAction: 'none', message: 'Saved.' };
+    const expectedSections = [...before.homepageSections.slice(0, -1),
+      { ...contentSection, blocks: [{ id: 'heading', kind: 'heading', text: 'Your Desk' }, contentSection.blocks[1]] }];
+    mocks.publishConfiguration.mockResolvedValue({ settings: { ...before, homepageSections: expectedSections }, receipt });
+    await invoke('publish_owner_homepage_block', {
+      sectionId: 'custom-desk', blockId: 'heading',
+      block: { id: 'heading', kind: 'heading', text: 'Your Desk' },
+      expectedUpdatedAt: settings.updatedAt,
+    });
+    expect(mocks.publishConfiguration).toHaveBeenCalledExactlyOnceWith({
+      actor: { userId: 'owner', email: 'owner@example.com' }, expectedUpdatedAt: settings.updatedAt,
+      patch: { homepageSections: expectedSections },
+    });
+  });
+
+  it.each(['get_owner_homepage_design', 'publish_owner_homepage_section', 'publish_owner_homepage_block'])(
+    'denies non-owners before touching native state with %s', async (name) => {
+      mocks.access.mockRejectedValue(new Error('Owner permission required'));
+      expect(await tools.get(name)!.handler({ sectionId: 'custom-desk', expectedUpdatedAt: settings.updatedAt })).toMatchObject({ isError: true });
+      expect(mocks.readFields).not.toHaveBeenCalled();
+      expect(mocks.publishConfiguration).not.toHaveBeenCalled();
+    },
+  );
+
   it('reads complete settings and publishes partial changes with a canonical receipt', async () => {
     const full = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt };
     mocks.readFields.mockResolvedValue(full);

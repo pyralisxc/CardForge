@@ -20,7 +20,11 @@ export const SITE_MEDIA_SLOTS = [
   'founder.portrait',
 ] as const;
 
-export type SiteMediaSlot = typeof SITE_MEDIA_SLOTS[number];
+export type ComposedSiteMediaSlot = `landing.composer.${string}`;
+export type SiteMediaSlot = typeof SITE_MEDIA_SLOTS[number] | ComposedSiteMediaSlot;
+export const isComposedSiteMediaSlot = (value: unknown): value is ComposedSiteMediaSlot => (
+  typeof value === 'string' && /^landing\\.composer\\.block-[a-z0-9-]{1,39}$/u.test(value)
+);
 export type SiteMediaKind = 'brand' | 'favicon' | 'watermark' | 'social' | 'hero' | 'showcase' | 'showcase-art' | 'portrait';
 export type SiteMediaGroup = 'brand' | 'landing' | 'showcase' | 'founder';
 export type SiteMediaFrame = 'natural' | 'wide' | 'portrait';
@@ -300,11 +304,27 @@ const fits = new Set<SiteMediaFit>(['contain', 'cover']);
 const sizes = new Set<SiteMediaSize>(['compact', 'standard', 'large']);
 
 export const isSiteMediaSlot = (value: unknown): value is SiteMediaSlot => (
-  typeof value === 'string' && SITE_MEDIA_SLOTS.includes(value as SiteMediaSlot)
+  typeof value === 'string'
+  && (SITE_MEDIA_SLOTS.some((slot) => slot === value) || isComposedSiteMediaSlot(value))
 );
 
 export const getDefaultSiteMedia = (slot: SiteMediaSlot): SiteMediaAsset => {
-  const asset = defaultsBySlot.get(slot);
+  const asset = defaultsBySlot.get(slot) ?? (isComposedSiteMediaSlot(slot) ? {
+    slot,
+    group: 'landing' as const,
+    kind: 'showcase' as const,
+    label: 'Website content image',
+    guidance: 'Owner-managed image for a reusable website section. Capture authentic CardForge UI with a sanitized demo workspace, or upload approved artwork.',
+    defaultSrc: null,
+    defaultAlt: 'Website content illustration',
+    width: null,
+    height: null,
+    presentation: {
+      ...centeredPresentation,
+      frame: 'natural' as const, fit: 'contain' as const,
+      desktopSize: 'large' as const, mobileSize: 'large' as const,
+    },
+  } : undefined);
   if (!asset) throw new Error(`Unknown site media slot: ${slot}`);
   return {
     ...asset,

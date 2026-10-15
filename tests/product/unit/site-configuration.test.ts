@@ -9,6 +9,45 @@ import {
 } from '@/features/public-site/model/siteConfiguration';
 
 describe('public site configuration', () => {
+  it('accepts reusable, ordered, responsive content sections without a new CMS', () => {
+    const custom = {
+      id: 'custom-desk-tour', kind: 'custom', visible: true,
+      design: { layout: 'grid', tone: 'raised', spacing: 'spacious', align: 'center' },
+      blocks: [
+        { id: 'headline', kind: 'heading', text: 'Start from your Desk' },
+        { id: 'feature-desk', kind: 'feature', title: 'Organize', body: 'All your Sets in one place.' },
+        { id: 'screenshot', kind: 'image', mediaSlot: 'landing.showcase.layout' },
+        { id: 'cta', kind: 'button', text: 'Open your Desk', href: '/account' },
+      ],
+    };
+    const normalized = normalizePublicSiteConfigurationInput({
+      ...DEFAULT_PUBLIC_SITE_CONFIGURATION,
+      homepageSections: [DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections[0], custom,
+        ...DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections.slice(1)],
+    });
+    expect(normalized.homepageSections[1]).toMatchObject(custom);
+    expect(hydratePublicSiteConfiguration({ homepage_sections: normalized.homepageSections }).homepageSections[1])
+      .toMatchObject(custom);
+  });
+
+  it('rejects executable content, outside-site links, and invalid section blocks', () => {
+    const base = { id: 'custom-hero', kind: 'custom', visible: true,
+      design: { layout: 'stack', tone: 'charcoal', spacing: 'balanced', align: 'start' } };
+    const check = (blocks: unknown[]) => normalizePublicSiteConfigurationInput({
+      ...DEFAULT_PUBLIC_SITE_CONFIGURATION,
+      homepageSections: [...DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections, { ...base, blocks }],
+    });
+    expect(() => check([{ id: 'button', kind: 'button', text: 'External', href: 'https://example.com' }]))
+      .toThrow(/Custom website sections/i);
+    expect(() => check([{ id: 'broken', kind: 'image', mediaSlot: 'https://external.example/a.png' }]))
+      .toThrow(/Custom website sections/i);
+    expect(() => check([{ id: 'script', kind: 'html', text: '<script>alert(1)</script>' }]))
+      .toThrow(/Custom website sections/i);
+    expect(() => check([{ id: 'one', kind: 'heading', text: 'One' }, { id: 'one', kind: 'text', text: 'Duplicate' }]))
+      .toThrow(/Custom website sections/i);
+  });
+
+
   it('keeps legacy published homepage walkthroughs intact until new stages are explicitly saved', () => {
     const legacy = hydratePublicSiteConfiguration({ homepage_sections: [
       { id: 'showcase', visible: true },

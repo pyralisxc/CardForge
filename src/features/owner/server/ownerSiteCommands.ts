@@ -177,8 +177,8 @@ const finalizeOwnerSiteConfiguration = async ({
       visibleNavigation: settings.primaryNavigation.filter((item) => item.visible).map((item) => item.id),
       visibleHomepageSections: settings.homepageSections.filter((item) => item.visible).map((item) => item.id),
       visibleShowcaseExamples: settings.homepageSections
-        .find((item) => item.id === 'showcase')
-        ?.showcaseExamples?.filter((example) => example.visible).map((example) => example.slug) ?? [],
+        .flatMap((item) => 'showcaseExamples' in item ? (item.showcaseExamples ?? []) : [])
+        .filter((example) => example.visible).map((example) => example.slug),
       refreshComplete: refreshFailures.length === 0,
       refreshFailures,
     },

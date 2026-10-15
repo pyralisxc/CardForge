@@ -97,3 +97,20 @@ export {
 } from './server/structuredData';
 export { resolveOwnerPublicationEnvironment } from './model/ownerPublicationEnvironment';
 export type { OwnerPublicationEnvironment } from './model/ownerPublicationEnvironment';
+
+export {
+  DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
+  HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
+  validateHomepageShowcaseStagesInput,
+  type HomepageShowcaseStage,
+} from './model/homepageShowcaseStages';
+export {
+  HOMEPAGE_COMPOSER_MEDIA_SLOTS,
+  isHomepageCustomSection,
+  parseHomepageCustomSection,
+  validateHomepageCustomSections,
+  type HomepageCustomSection,
+  type HomepageContentBlock,
+  type HomepageSectionDesign,
+} from './model/homepageComposition';
+export { type HomepageLayoutSection } from './model/siteConfiguration';

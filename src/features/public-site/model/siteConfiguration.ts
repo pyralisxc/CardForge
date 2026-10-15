@@ -1,4 +1,10 @@
 import {
+  isHomepageCustomSection,
+  parseHomepageCustomSection,
+  validateHomepageCustomSections,
+  type HomepageCustomSection,
+} from './homepageComposition';
+import {
   normalizeHomepageShowcaseStages,
   validateHomepageShowcaseStagesInput,
   type HomepageShowcaseStage,
@@ -33,6 +39,8 @@ export interface HomepageSectionSetting {
   showcaseStages?: HomepageShowcaseStage[];
 }
 
+export type HomepageLayoutSection = HomepageSectionSetting | HomepageCustomSection;
+
 export interface PublicSiteConfiguration {
   /** Canonical database publication revision; never directly editable. */
   updatedAt?: string | null;
@@ -48,7 +56,7 @@ export interface PublicSiteConfiguration {
   watermarkShareOpacity: number;
   watermarkWidthPercent: number;
   primaryNavigation: PrimaryNavigationItem[];
-  homepageSections: HomepageSectionSetting[];
+  homepageSections: HomepageLayoutSection[];
 }
 
 const NAVIGATION_ROUTES: Record<PrimaryNavigationId, string> = {
@@ -264,25 +272,31 @@ const normalizeNavigation = (value: unknown): PrimaryNavigationItem[] => {
   ];
 };
 
-const normalizeHomepageSections = (value: unknown): HomepageSectionSetting[] => {
+const normalizeHomepageSections = (value: unknown): HomepageLayoutSection[] => {
   const rows = Array.isArray(value) ? value : [];
-  const used = new Set<HomepageSectionId>();
-  const normalized = rows.flatMap((row) => {
-    if (!isRecord(row) || !HOMEPAGE_SECTION_IDS.includes(row.id as HomepageSectionId)) return [];
-    const id = row.id as HomepageSectionId;
-    if (used.has(id)) return [];
-    used.add(id);
-    return [{
-      id,
-      visible: row.visible !== false,
-      ...(id === 'showcase' ? {
-        showcaseExamples: normalizeHomepageShowcaseExamples(row.showcaseExamples),
-        ...(normalizeHomepageShowcaseStages(row.showcaseStages)
-          ? { showcaseStages: normalizeHomepageShowcaseStages(row.showcaseStages) }
-          : {}),
-      } : {}),
-    }];
-  });
+  const used = new Set<string>();
+  const normalized: HomepageLayoutSection[] = [];
+  for (const row of rows) {
+    if (!isRecord(row) || typeof row.id !== 'string' || used.has(row.id)) continue;
+    if (HOMEPAGE_SECTION_IDS.includes(row.id as HomepageSectionId)) {
+      const id = row.id as HomepageSectionId;
+      used.add(id);
+      normalized.push({
+        id, visible: row.visible !== false,
+        ...(id === 'showcase' ? {
+          showcaseExamples: normalizeHomepageShowcaseExamples(row.showcaseExamples),
+          ...(normalizeHomepageShowcaseStages(row.showcaseStages)
+            ? { showcaseStages: normalizeHomepageShowcaseStages(row.showcaseStages) } : {}),
+        } : {}),
+      });
+    } else if (isHomepageCustomSection({ id: row.id })) {
+      const custom = parseHomepageCustomSection(row);
+      if (custom && normalized.filter((section) => isHomepageCustomSection(section)).length < 12) {
+        used.add(custom.id);
+        normalized.push(custom);
+      }
+    }
+  }
   return [
     ...normalized,
     ...HOMEPAGE_SECTION_IDS.filter((id) => !used.has(id)).map(defaultHomepageSection),
@@ -322,6 +336,13 @@ export const normalizePublicSiteConfigurationInput = (
   input: Record<string, unknown>,
 ): PublicSiteConfiguration => {
   if (Array.isArray(input.homepageSections)) {
+    if (input.homepageSections.length > HOMEPAGE_SECTION_IDS.length + 12) {
+      throw new Error('Homepage has too many editable sections.');
+    }
+    const customCandidates = input.homepageSections.filter((row) => (
+      isRecord(row) && typeof row.id === 'string' && row.id.startsWith('custom-')
+    ));
+    validateHomepageCustomSections(customCandidates);
     const showcase = input.homepageSections.find((row) => isRecord(row) && row.id === 'showcase');
     if (isRecord(showcase) && Object.hasOwn(showcase, 'showcaseExamples')) {
       validateHomepageShowcaseExamplesInput(showcase.showcaseExamples);

@@ -11,8 +11,12 @@ import { getPublicSiteConfiguration, getFounderProfile, getSiteMedia, SiteMediaS
 import {
   DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
   HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
+  HOMEPAGE_COMPOSER_MEDIA_SLOTS,
   validateHomepageShowcaseStagesInput,
-} from '@/features/public-site/model/homepageShowcaseStages';
+  parseHomepageCustomSection,
+  isHomepageCustomSection,
+  type HomepageLayoutSection,
+} from '@/features/public-site/server';
 import { publishOwnerSiteMedia, restoreOwnerSiteMedia } from './ownerMediaCommands';
 import { getLegalDocuments } from '@/features/legal/server';
 import { getRoadmapSettings, getRoadmapAdminItems } from '@/features/roadmap/server';
@@ -34,6 +38,10 @@ import {
   ownerHomepageShowcaseReadOutputSchema,
   ownerHomepageShowcasePublishInputSchema,
   ownerHomepageShowcasePublicationOutputSchema,
+  ownerHomepageDesignReadOutputSchema,
+  ownerHomepageSectionPublishInputSchema,
+  ownerHomepageBlockPublishInputSchema,
+  ownerHomepageDesignPublicationOutputSchema,
   ownerSiteConfigurationPublishInputSchema,
   ownerSiteConfigurationPublicationOutputSchema,
   ownerPresentationReadInputSchema,
@@ -327,7 +335,8 @@ export const registerOwnerReadTools = ({
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async () => runObserved({ toolName: 'get_owner_homepage_showcase', input: {}, execute: async () => {
     const settings = await getPublicSiteConfiguration();
-    const ownedStages = settings.homepageSections.find((section) => section.id === 'showcase')?.showcaseStages;
+    const showcase = settings.homepageSections.find((section) => section.id === 'showcase');
+    const ownedStages = showcase && 'showcaseStages' in showcase ? showcase.showcaseStages : undefined;
     const media = await getSiteMedia();
     return { content: [{ type: 'text', text: 'Read Owner homepage walkthrough and screenshot slot availability.' }],
       structuredContent: {
@@ -360,7 +369,8 @@ export const registerOwnerReadTools = ({
         actor: { userId: access.user.id, email: access.email },
         patch: { homepageSections }, expectedUpdatedAt,
       });
-      const saved = publication.settings.homepageSections.find((section) => section.id === 'showcase')?.showcaseStages;
+      const savedSection = publication.settings.homepageSections.find((section) => section.id === 'showcase');
+      const saved = savedSection && 'showcaseStages' in savedSection ? savedSection.showcaseStages : undefined;
       const isProduction = deploymentEnvironment() === 'production';
       return { content: [{ type: 'text', text: publication.receipt.message + (isProduction ? ' Live Production.' : ' Staging only.') }],
         structuredContent: {
@@ -368,6 +378,102 @@ export const registerOwnerReadTools = ({
           updatedAt: publication.settings.updatedAt ?? null,
           stages: saved ?? validatedStages, receipt: publication.receipt,
         } };
+    },
+  }));
+
+  server.registerTool('get_owner_homepage_design', {
+    title: 'Read the page-first, editable homepage design and its canonical revision',
+    description: 'Read current ordered homepage sections, reusable blocks, layout tokens and allowed media slots. All values are the same as browser Owner editing. No private artwork or storage paths. This is not an independent CMS.',
+    outputSchema: ownerHomepageDesignReadOutputSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async () => runObserved({ toolName: 'get_owner_homepage_design', input: {}, execute: async () => {
+    const settings = await getPublicSiteConfiguration();
+    return {
+      content: [{ type: 'text', text: 'Loaded the current Owner-editable homepage structure.' }],
+      structuredContent: {
+        environment: deploymentEnvironment(), settingsRevision: settings.updatedAt ?? null,
+        sections: settings.homepageSections,
+        imageSlots: HOMEPAGE_COMPOSER_MEDIA_SLOTS,
+      },
+    };
+  } }));
+
+  const publishDesign = async (access: McpOwnerAccess, sections: HomepageLayoutSection[], expectedUpdatedAt: string) => {
+    const publication = await publishOwnerSiteConfigurationPatch({
+      actor: { userId: access.user.id, email: access.email }, patch: { homepageSections: sections }, expectedUpdatedAt,
+    });
+    return { content: [{ type: 'text', text: publication.receipt.message + ' This is '
+      + (deploymentEnvironment() === 'production' ? 'live Production.' : 'non-production staging only.') }],
+      structuredContent: {
+        environment: deploymentEnvironment(), livePublication: deploymentEnvironment() === 'production',
+        updatedAt: publication.settings.updatedAt ?? null,
+        sections: publication.settings.homepageSections, receipt: publication.receipt,
+      } };
+  };
+
+  server.registerTool('publish_owner_homepage_section', {
+    title: 'Add, replace, remove or move one editable homepage section',
+    description: 'Publish a focused Owner section edit. Use insert for a new validated custom section, replace to edit its responsive layout or blocks, remove to delete only a custom section, or move to reorder any existing section. Current homepage data, pinned demonstration Sets, unaffected sections and all other site settings are preserved. Exact revision required; on conflict read again. Preview changes staging only.',
+    inputSchema: ownerHomepageSectionPublishInputSchema,
+    outputSchema: ownerHomepageDesignPublicationOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  }, async ({ operation, sectionId, section, direction, expectedUpdatedAt }) => runObserved({
+    toolName: 'publish_owner_homepage_section', input: { operation, sectionId, section, direction, expectedUpdatedAt },
+    execute: async (access) => {
+      const current = await getPublicSiteConfiguration();
+      const before = current.homepageSections;
+      const index = before.findIndex((candidate) => candidate.id === sectionId);
+      const next = [...before];
+      if (operation === 'insert') {
+        const valid = parseHomepageCustomSection(section);
+        if (!valid || valid.id !== sectionId || index !== -1) throw new Error('Choose a new unique, fully validated custom section.');
+        const finalIndex = next.findIndex((candidate) => candidate.id === 'final_cta');
+        next.splice(finalIndex < 0 ? next.length : finalIndex, 0, valid);
+      } else if (operation === 'replace') {
+        const valid = parseHomepageCustomSection(section);
+        if (index < 0 || !isHomepageCustomSection(next[index]!) || !valid || valid.id !== sectionId) {
+          throw new Error('Only an existing custom section can be replaced by a validated design.');
+        }
+        next[index] = valid;
+      } else if (operation === 'remove') {
+        if (index < 0 || !isHomepageCustomSection(next[index]!)) {
+          throw new Error('Only a custom homepage section may be removed.');
+        }
+        next.splice(index, 1);
+      } else if (operation === 'move') {
+        const target = index + (direction === 'up' ? -1 : direction === 'down' ? 1 : Number.NaN);
+        if (index < 0 || !Number.isInteger(target) || target < 0 || target >= next.length) {
+          throw new Error('Choose an existing section and a valid movement direction.');
+        }
+        [next[index], next[target]] = [next[target]!, next[index]!];
+      }
+      return publishDesign(access, next, expectedUpdatedAt);
+    },
+  }));
+
+  server.registerTool('publish_owner_homepage_block', {
+    title: 'Edit one selected homepage design block directly',
+    description: 'Replace one existing heading, paragraph, feature, image reference or button within one custom homepage section. Validates the entire section and preserves every sibling block and other Owner settings. Carries the exact settings revision from get_owner_homepage_design. No arbitrary HTML, JavaScript, remote images or external URLs.',
+    inputSchema: ownerHomepageBlockPublishInputSchema,
+    outputSchema: ownerHomepageDesignPublicationOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  }, async ({ sectionId, blockId, block, expectedUpdatedAt }) => runObserved({
+    toolName: 'publish_owner_homepage_block', input: { sectionId, blockId, block, expectedUpdatedAt },
+    execute: async (access) => {
+      const current = await getPublicSiteConfiguration();
+      const sections = [...current.homepageSections];
+      const index = sections.findIndex((section) => section.id === sectionId);
+      const selected = sections[index];
+      if (index < 0 || !selected || !isHomepageCustomSection(selected)) throw new Error('Choose an editable homepage section.');
+      const blockIndex = selected.blocks.findIndex((candidate) => candidate.id === blockId);
+      if (blockIndex < 0 || block.id !== blockId) throw new Error('Choose one existing block without changing its identity.');
+      const edited = parseHomepageCustomSection({
+        ...selected,
+        blocks: selected.blocks.map((candidate) => candidate.id === blockId ? block : candidate),
+      });
+      if (!edited) throw new Error('Unsupported website block. Use validated content, managed media and internal links.');
+      sections[index] = edited;
+      return publishDesign(access, sections, expectedUpdatedAt);
     },
   }));
 

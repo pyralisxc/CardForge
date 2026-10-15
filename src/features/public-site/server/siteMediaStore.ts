@@ -8,6 +8,9 @@ import {
   type SiteMediaSlot,
   type SiteMediaVersion,
 } from '@/features/public-site/model/siteMedia';
+import { getPublicSiteConfiguration } from './siteConfigurationStore';
+import { isHomepageCustomSection } from '../model/homepageComposition';
+import { isComposedSiteMediaSlot } from '../model/siteMedia';
 import {
   getSupabaseServerClient,
   getSupabaseServerConfigStatus,
@@ -69,10 +72,29 @@ const mapRow = (row: SiteMediaRow): SiteMediaAsset => {
 const mergeRowsWithDefaults = <Row extends { slot: SiteMediaSlot }>(
   rows: Row[],
   mapper: (row: Row) => SiteMediaAsset,
-): SiteMediaAsset[] => DEFAULT_SITE_MEDIA.map((asset) => {
-  const row = rows.find((candidate) => candidate.slot === asset.slot);
-  return row ? mapper(row) : getDefaultSiteMedia(asset.slot);
-});
+  referencedComposedSlots: SiteMediaSlot[],
+): SiteMediaAsset[] => {
+  const allowedSlots = [
+    ...DEFAULT_SITE_MEDIA.map((asset) => asset.slot),
+    ...referencedComposedSlots,
+  ];
+  return allowedSlots.map((slot) => {
+    const row = rows.find((candidate) => candidate.slot === slot);
+    return row ? mapper(row) : getDefaultSiteMedia(slot);
+  });
+};
+
+const referencedHomepageMedia = async (): Promise<SiteMediaSlot[]> => {
+  const config = await getPublicSiteConfiguration();
+  const slots = config.homepageSections.flatMap((section) => (
+    isHomepageCustomSection(section)
+      ? section.blocks.flatMap((block) => (
+        block.kind === 'image' && isComposedSiteMediaSlot(block.mediaSlot) ? [block.mediaSlot] : []
+      ))
+      : []
+  ));
+  return [...new Set(slots)];
+};
 
 export const getSiteMedia = async (): Promise<SiteMediaAsset[]> => {
   const supabase = getSupabaseServerClient();
@@ -85,7 +107,10 @@ export const getSiteMedia = async (): Promise<SiteMediaAsset[]> => {
     .select('slot,storage_path,alt,width,height,presentation,previous_storage_path,previous_alt,previous_width,previous_height,previous_presentation,previous_updated_at,updated_at')
     .order('slot', { ascending: true });
 
-  if (!error) return mergeRowsWithDefaults((data ?? []) as SiteMediaRow[], mapRow);
+  if (!error) {
+    const slots = await referencedHomepageMedia();
+    return mergeRowsWithDefaults((data ?? []) as SiteMediaRow[], mapRow, slots);
+  }
   console.error('Failed to load public site media:', error);
   throw new SiteMediaStoreError('Public site images are temporarily unavailable.', 503);
 };

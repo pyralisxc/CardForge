@@ -23,7 +23,7 @@ export const OwnerPageEditorStateContext = createContext<(state: { dirty: boolea
 type ContentSlug = SiteContentBlock['slug'];
 type MediaSlot = SiteMediaAsset['slot'];
 type ConfigLabelField = 'primaryCtaLabel' | 'announcementMessage';
-type DrawerView = { kind: 'settings' } | { kind: 'copy'; slug: ContentSlug } | { kind: 'media'; slot: MediaSlot }
+type DrawerView = { kind: 'settings'; focusSectionId?: string; focusBlockId?: string } | { kind: 'copy'; slug: ContentSlug } | { kind: 'media'; slot: MediaSlot }
   | { kind: 'config-label'; field: ConfigLabelField } | { kind: 'navigation-label'; id: PrimaryNavigationId };
 
 const pageContext = (currentPath: string): {
@@ -169,6 +169,28 @@ export function PublicSiteOwnerLiveControls({
     setDrawer({ kind: 'settings' });
   }, [abandonDraft, inspectOtherTargets]);
 
+  const openEditableSection = useCallback((sectionId: string, blockId?: string) => {
+    if (!abandonDraft()) return;
+    inspectOtherTargets();
+    setDrawer({ kind: 'settings', focusSectionId: sectionId, focusBlockId: blockId });
+  }, [abandonDraft, inspectOtherTargets]);
+
+  useEffect(() => {
+    if (drawer?.kind !== 'settings' || !drawer.focusSectionId) return;
+    const id = drawer.focusSectionId;
+    const block = drawer.focusBlockId;
+    const timer = window.setTimeout(() => {
+      const section = Array.from(document.querySelectorAll<HTMLElement>('[data-owner-edit-section]'))
+        .find((node) => node.dataset.ownerEditSection === id);
+      const element = block && section
+        ? Array.from(section.querySelectorAll<HTMLElement>('[data-owner-edit-block]'))
+          .find((node) => node.dataset.ownerEditBlock === block)
+        : section;
+      element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [drawer]);
+
   const openMedia = useCallback((slot: MediaSlot) => {
     if (!abandonDraft()) return;
     setDrawer({ kind: 'media', slot });
@@ -303,7 +325,7 @@ export function PublicSiteOwnerLiveControls({
       finishInlineEdit(true);
       return;
     }
-    const selectable = Array.from(document.querySelectorAll<HTMLElement>('[data-site-content-slug], [data-site-media-slot], [data-site-configuration-field], [data-site-navigation-id]'))
+    const selectable = Array.from(document.querySelectorAll<HTMLElement>('[data-site-content-slug], [data-site-media-slot], [data-site-configuration-field], [data-site-navigation-id], [data-owner-block-id]'))
       .filter((element) => element.getClientRects().length > 0);
     const tabindexEntries = selectable.map((element) => ({
       element,
@@ -317,11 +339,12 @@ export function PublicSiteOwnerLiveControls({
       const slot = element.dataset.siteMediaSlot;
       const field = element.dataset.siteConfigurationField;
       const navId = element.dataset.siteNavigationId;
+      const editableBlock = element.dataset.ownerBlockId;
       const label = slug ? contextualBlocks.find((block) => block.slug === slug)?.label
         : slot ? contextualMedia.find((item) => item.slot === slot)?.label
           : field === 'primaryCtaLabel' ? 'Primary action label'
             : field === 'announcementMessage' ? 'Announcement'
-              : navId ? 'Navigation ' + navId : undefined;
+              : navId ? 'Navigation ' + navId : editableBlock ? 'Website content block' : undefined;
       if (label && !element.hasAttribute('aria-label')) element.setAttribute('aria-label', `Edit ${label}`);
     }
 
@@ -366,6 +389,25 @@ export function PublicSiteOwnerLiveControls({
         setInlineSlug(block.slug);
         return;
       }
+      const composedImage = target.closest<HTMLElement>('[data-owner-block-id][data-site-media-slot]');
+      const composedSlot = composedImage?.dataset.siteMediaSlot;
+      if (composedSlot && contextualMedia.some((item) => item.slot === composedSlot)) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!copySaving && !configSaving) openMedia(composedSlot as MediaSlot);
+        return;
+      }
+      const editableBlock = target.closest<HTMLElement>('[data-owner-block-id]');
+      if (editableBlock) {
+        const sectionId = editableBlock.dataset.ownerSectionId;
+        const blockId = editableBlock.dataset.ownerBlockId;
+        if (sectionId && blockId) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!copySaving && !configSaving) openEditableSection(sectionId, blockId);
+          return;
+        }
+      }
       const image = target.closest<HTMLElement>('[data-site-media-slot]');
       const slot = image?.dataset.siteMediaSlot;
       if (!image || !slot || !contextualMedia.some((item) => item.slot === slot)) return;
@@ -387,7 +429,7 @@ export function PublicSiteOwnerLiveControls({
         return;
       }
       if ((event.key === 'Enter' || event.key === ' ')
-        && target.matches('[data-site-content-slug], [data-site-media-slot], [data-site-configuration-field], [data-site-navigation-id]')
+        && target.matches('[data-site-content-slug], [data-site-media-slot], [data-site-configuration-field], [data-site-navigation-id], [data-owner-block-id]')
         && !target.isContentEditable) {
         event.preventDefault();
         target.click();
@@ -504,7 +546,7 @@ export function PublicSiteOwnerLiveControls({
       </Button> : null}
     </div>
     {editMode && !inlineSlug && !drawer ? <div className="fixed bottom-20 right-5 z-40 max-w-[calc(100vw-2.5rem)] border border-[var(--public-brass)] bg-[var(--cf-surface)] px-3 py-2 text-xs text-[var(--cf-text-muted)] shadow-xl" role="status">
-      Select highlighted copy or images. Other settings are available from the toolbar.
+      Select copy, images, or a composed content block to edit it. Add new sections in Site settings.
     </div> : null}
     {inlineSlug ? <div className="fixed bottom-20 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] flex-wrap items-center gap-2 border border-[var(--public-brass)] bg-[var(--cf-surface)] p-3 shadow-2xl" role="toolbar" aria-label="Inline site copy editor">
       <span className="mr-2 text-sm text-[var(--cf-text-muted)]">Edit the field and publish, or cancel.</span>
@@ -594,7 +636,7 @@ export function PublicSiteOwnerLiveControls({
               <div className="mt-3">{roadmapRulesEditor}</div>
             </details> : null}
             <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
-              Site presentation is Owner-controlled. Page structure, routes and permissions are code-defined; actual subscription prices and connected service facts remain provider-owned.
+              Site presentation and supported content sections are Owner-controlled. Routes, component capabilities and permissions remain code-defined; subscription prices and service facts remain provider-owned.
             </p>
           </> : null}
         </div>
