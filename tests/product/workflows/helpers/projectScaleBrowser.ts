@@ -137,6 +137,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
   needsWorkFixture?: boolean;
   emptyDesk?: boolean;
   publicTemplate?: boolean;
+  unreadableFolderIndex?: boolean;
 } = {}) => {
   const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
   if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
@@ -175,7 +176,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
       studioDefaults: { defaultTemplateId: template.id },
     } }));
   }
-  await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue, lowResolutionArtwork }) => {
+  await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue, lowResolutionArtwork, unreadableFolderIndex }) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(databaseName, 1);
       request.onupgradeneeded = () => {
@@ -208,6 +209,8 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
       const store = transaction.objectStore(objectStoreName);
       scopes.forEach((scope) => {
         store.put(record, `project-workspace:${scope}:workspace`);
+        // Exercise a real non-blocking source failure without a provider session.
+        if (unreadableFolderIndex) store.put({ unreadableFixture: true }, `project-assets:${scope}:local-work-folder-binding-index`);
         if (lowResolutionArtwork) store.put(new Blob(['<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="none"/></svg>'], { type: 'image/svg+xml' }), `project-content-asset:${scope}:${'f'.repeat(64)}`);
       });
       stateValue.storedCards.forEach((card, index) => {
@@ -230,6 +233,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     scopes: LOCAL_WORKSPACE_SCOPES,
     stateValue: state,
     lowResolutionArtwork: options.lowResolutionArtwork ?? false,
+    unreadableFolderIndex: options.unreadableFolderIndex ?? false,
   });
 };
 
