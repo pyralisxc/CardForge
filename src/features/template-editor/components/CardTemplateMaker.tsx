@@ -19,6 +19,7 @@ import {
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/shared/classNames';
 import { useEditorPreferences } from '@/features/editor-preferences/client';
+import { initializeCardDataFromTemplate } from '@/features/card-generator/client';
 import { useToast } from '@/components/ui/use-toast';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
@@ -295,7 +296,7 @@ export function CardTemplateMaker({
     savePresentation,
   });
   const saveAction = editorActions.find((action) => action.id === 'save');
-  const livePreviewData = useMemo(() => currentTemplate.templatePreviewData ?? {}, [currentTemplate.templatePreviewData]);
+  const livePreviewData = useMemo(() => initializeCardDataFromTemplate(currentTemplate, currentTemplate.templatePreviewData ?? {})[1], [currentTemplate]);
   const renderEditableElement = useCallback((element: FreeformCardElement) => {
     const worldElement = resolveCanvasElementWorldGeometry(element, canvas.elements);
     return <TemplateEditableElement

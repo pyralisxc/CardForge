@@ -269,7 +269,15 @@ export const extendCardTrimCanvasToProductionBleed = (
   const context = productionCanvas.getContext('2d');
   if (!context) throw new Error('Canvas rendering is unavailable for print bleed preparation.');
 
-  drawEdgeExtendedBleed(context, backgroundCanvas, placement);
+  const imageSmoothingEnabled = context.imageSmoothingEnabled;
+  try {
+    // Sampling a stretched one-pixel strip with smoothing can pull neighboring
+    // interior pixels into bleed. Replicate only the declared edge pixel.
+    context.imageSmoothingEnabled = false;
+    drawEdgeExtendedBleed(context, backgroundCanvas, placement);
+  } finally {
+    context.imageSmoothingEnabled = imageSmoothingEnabled;
+  }
   const trimContext = trimCanvas.getContext('2d'), backgroundContext = backgroundCanvas.getContext('2d'), maskContext = maskCanvas.getContext('2d');
   if (!trimContext || !backgroundContext || !maskContext) throw new Error('Canvas rendering is unavailable for print corner preparation.');
   const trim = trimContext.getImageData(0, 0, trimCanvas.width, trimCanvas.height);

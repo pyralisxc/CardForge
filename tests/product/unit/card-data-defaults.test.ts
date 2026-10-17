@@ -20,6 +20,23 @@ const requiredField: TemplateFieldDefinition = {
 };
 
 describe('card data defaults', () => {
+  it('resolves saved preview defaults before inline fallbacks while preserving explicit empty and companion values', () => {
+    const template: TCGCardTemplate = {
+      id: 'review-copy', name: 'Review copy', aspectRatio: '63:88',
+      fieldContracts: [
+        { key: 'Ability', type: 'text', defaultValue: 'Complete saved ability' },
+        { key: 'Title', type: 'text', defaultValue: 'Default title' },
+      ],
+      freeformCanvas: { width: 630, height: 880, elements: [
+        { id: 'rules', name: 'Rules', type: 'text', content: '{{Ability:"Inline fallback"}}', x: 0, y: 0, width: 100, height: 100, zIndex: 0 },
+      ] },
+      templatePreviewData: { Title: '', '__cardforgeFieldStyle.Ability.fontWeight': 'font-bold' },
+    };
+    const [, data] = initializeCardDataFromTemplate(template, template.templatePreviewData);
+    expect(data).toMatchObject({ Ability: 'Complete saved ability', Title: '', '__cardforgeFieldStyle.Ability.fontWeight': 'font-bold' });
+    expect(template.freeformCanvas?.elements[0].content).toBe('{{Ability:"Inline fallback"}}');
+  });
+
   it('does not insert an image override when editing a card that uses its template artwork', () => {
     const template: TCGCardTemplate = {
       id: 'art', name: 'Artwork', aspectRatio: '63:88',

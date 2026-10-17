@@ -51,7 +51,9 @@ describe('rectangular production background and clamped bleed', () => {
   });
 
   it('extends only nearest background edge pixels, never reflected finished-card bands', () => {
-    const context = { save: vi.fn(), restore: vi.fn(), translate: vi.fn(), scale: vi.fn(), drawImage: vi.fn(), putImageData: vi.fn() };
+    const sampledSmoothing: boolean[] = [];
+    const context = { imageSmoothingEnabled: true, save: vi.fn(), restore: vi.fn(), translate: vi.fn(), scale: vi.fn(), drawImage: vi.fn(), putImageData: vi.fn() };
+    context.drawImage.mockImplementation(() => { sampledSmoothing.push(context.imageSmoothingEnabled); });
     const production = { width: 0, height: 0, getContext: () => context };
     vi.stubGlobal('document', { createElement: () => production });
     const trim = canvas(), background = canvas();
@@ -61,6 +63,8 @@ describe('rectangular production background and clamped bleed', () => {
     expect(context.drawImage).toHaveBeenCalledWith(background, 0, 0, 1, 880, 0, 30, 30, 880);
     expect(context.drawImage).toHaveBeenCalledWith(background, 0, 0, 630, 1, 30, 0, 630, 30);
     expect(context.drawImage).toHaveBeenCalledTimes(8);
+    expect(sampledSmoothing).toEqual(Array(8).fill(false));
+    expect(context.imageSmoothingEnabled).toBe(true);
     expect(context.putImageData).toHaveBeenCalledWith(expect.objectContaining({ data: new Uint8ClampedArray([244, 226, 187, 255]) }), 30, 30);
   });
 
