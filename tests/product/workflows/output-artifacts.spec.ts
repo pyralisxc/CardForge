@@ -112,7 +112,7 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   await page.route('**/color-profiles/FOGRA39L_coated.icc', (route) => route.fulfill({ status: 200, contentType: 'application/octet-stream', body: 'changed-profile' }));
   await page.getByRole('button', { name: 'Download color-managed press candidate ZIP', exact: true }).click();
   await expect(page.getByText('Press candidate export failed', { exact: true })).toBeVisible();
-  await expect(page.getByText(/color profile.*changed/)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Notifications (F8)', exact: true }).getByText(/color profile.*changed/)).toBeVisible();
   expect(pressDownloads).toBe(0);
   await page.unroute('**/color-profiles/FOGRA39L_coated.icc');
   for (const close of await page.getByRole('button', { name: 'Close notification', exact: true }).all()) {
