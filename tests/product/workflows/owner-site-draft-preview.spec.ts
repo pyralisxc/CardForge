@@ -16,6 +16,24 @@ test('@golden keeps responsive draft theme, nested menu and keyboard focus insid
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
+  const presentation = await page.evaluate(() => ({
+    styles: Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map((node) => node.outerHTML).join('\n'),
+    htmlClass: document.documentElement.className,
+    bodyClass: document.body.className,
+  }));
+  // A modal mounted into an independently bundled root must not race Next's
+  // hydration (Radix legitimately changes aria-hidden outside its own root).
+  // This route exists only in the test browser, with the application's styles.
+  await page.route('**/__owner-preview-proof', (route) => route.fulfill({
+    contentType: 'text/html',
+    body: `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1">${presentation.styles}</head><body></body></html>`,
+  }));
+  await page.goto('/__owner-preview-proof');
+  await page.evaluate(({ htmlClass, bodyClass }) => {
+    document.documentElement.className = htmlClass;
+    document.body.className = bodyClass;
+  }, presentation);
   for (const file of fixture.outputFiles.filter((item) => item.path.endsWith('.css'))) await page.addStyleTag({ content: file.text });
   await page.addScriptTag({ content: fixture.outputFiles.find((item) => item.path.endsWith('.js'))!.text });
   const outer = page.getByRole('dialog', { name: 'Isolated Owner preview proof', exact: true });
