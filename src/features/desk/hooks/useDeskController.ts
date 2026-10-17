@@ -38,6 +38,7 @@ import {
   type DeskAccountStatus,
 } from '../model/desk';
 import { createDeskAccountStatuses } from '../model/accountStatuses';
+import { isDeskSourceSnapshotReady, resolveDeskMissingFocus } from '../model/deskArrival';
 import { getDeskSetPresentationFootprint } from '../model/deskSetFootprint';
 import { useCreatorNavigation } from './useCreatorNavigation';
 import { useArtifactCommands } from './useArtifactCommands';
@@ -193,6 +194,7 @@ export function useDeskController({
     visibleWorkKinds.has(item.kind)
   )), [discoveredWork.items, projection.items, projection.privateOrganization]);
   const itemById = useMemo(() => new Map(workItems.map((item) => [item.id, item])), [workItems]);
+  const focusedItem = focusedWorkId ? itemById.get(focusedWorkId) ?? null : null;
   const remoteWorkspaceItem = remoteWorkspaceId ? itemById.get(remoteWorkspaceId) ?? null : null;
   const {
     beginDrag: beginDeskDrag,
@@ -226,12 +228,11 @@ export function useDeskController({
     tagFilters: deskViewPreferences.preferences.tags,
     tagMatch: deskViewPreferences.preferences.tagMatch,
     viewIds: activeDeskViews,
-    focused: Boolean(focusedWorkId),
+    focused: Boolean(focusedItem),
     snapToGrid,
     selectedIds: selectedDeskIds,
     onSelectionChange: (ids, anchorId) => setInteractionSession((current) => selectCreatorDeskSets(current, ids, anchorId)),
   });
-  const focusedItem = focusedWorkId ? itemById.get(focusedWorkId) ?? null : null;
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
   const driveWorkingSession = useGoogleDriveWorkingSession({
@@ -297,8 +298,14 @@ export function useDeskController({
   const focusedArtifactIdForArrival = interactionSession.focusPath.artifactId;
   const focusedDestinationReady = Boolean(focusedItem)
     && (!focusedArtifactIdForArrival || focusedCards.some((card) => card.uniqueId === focusedArtifactIdForArrival));
-  const initialSourceSnapshotReady = !projection.isLoading
-    && discoveredWork.sourceStatuses.every((source) => source.phase !== 'loading');
+  const initialSourceSnapshotReady = isDeskSourceSnapshotReady(deskProjection.isLoading, deskProjection.sourceStatuses);
+  const missingFocus = resolveDeskMissingFocus({
+    requestedWorkId: focusedWorkId,
+    workAvailable: Boolean(focusedItem),
+    sourceSnapshotReady: initialSourceSnapshotReady,
+    sources: deskProjection.sourceStatuses,
+    sourceFailed: deskProjection.failures.length > 0,
+  });
   const arrivalAcquisitionReady = initialSourceSnapshotReady
     && (projection.privateOrganizationReady || projection.privateOrganizationUnavailable)
     && (deskViewPreferences.ready || deskViewPreferences.unavailable)
@@ -308,8 +315,26 @@ export function useDeskController({
   const deskArrival = useDeskArrival({
     scopeKey: persistenceScope,
     acquisitionReady: arrivalAcquisitionReady,
-    compositionReady: focusedWorkId ? focusedDestinationReady : deskSceneReady,
+    compositionReady: focusedItem ? focusedDestinationReady : deskSceneReady,
   });
+
+  const recoverMissingWork = useCallback((reason: 'missing' | 'unavailable') => {
+    // Return through the normal navigation owner, including dirty-tool protection.
+    // Source failures remain on the Desk; they are never treated as an empty read.
+    initialToolHandledRef.current = true;
+    requestDeskReturn();
+    toast({
+      title: reason === 'unavailable' ? 'Requested work could not be opened' : 'Work not found in this workspace',
+      description: reason === 'unavailable'
+        ? 'A work source needs attention. Your current Desk is shown below; restore or retry the source to open the work. Existing work is unchanged.'
+        : 'This link does not match work available in the current browser workspace. Your current Desk is unchanged.',
+      variant: 'destructive',
+    });
+  }, [requestDeskReturn, toast]);
+  useEffect(() => {
+    if (!navigationReady || !returnContextResolved || !missingFocus) return;
+    recoverMissingWork(missingFocus);
+  }, [missingFocus, navigationReady, recoverMissingWork, returnContextResolved]);
 
   const openContextTool = useCallback((setId: string, tool: Parameters<typeof navigateToTool>[1], context?: { designTemplateId?: string; generationCard?: DisplayCard }) => {
     const setCards = storedCards.filter((card) => card.setId === setId || (!card.setId && cardSets[0]?.id === setId));
@@ -376,7 +401,7 @@ export function useDeskController({
   useEffect(() => {
     if (!navigationReady || initialToolHandledRef.current || !initialTool) return;
     if (initialReturnContextKey && !returnContextRestoredRef.current) return;
-    const targetSetId = focusedLocalSetId ?? activeCardSetId;
+    const targetSetId = focusedWorkId ? focusedLocalSetId : activeCardSetId;
     if (!targetSetId) return;
     initialToolHandledRef.current = true;
     // Reload restores the complete tool snapshot before replaying URL intent.
@@ -386,10 +411,11 @@ export function useDeskController({
       && interactionSession.toolStack.at(-1)?.toolId === initialTool) return;
     setActiveCardSetId(targetSetId);
     openContextTool(targetSetId, initialTool);
-  }, [activeCardSetId, focusedLocalSetId, initialReturnContextKey, initialTool, interactionSession.focusPath.setId, interactionSession.toolStack, navigationReady, openContextTool, setActiveCardSetId]);
+  }, [activeCardSetId, focusedLocalSetId, focusedWorkId, initialReturnContextKey, initialTool, interactionSession.focusPath.setId, interactionSession.toolStack, navigationReady, openContextTool, setActiveCardSetId]);
 
   useEffect(() => {
     if (!initialReturnContextKey || returnContextRestoredRef.current) return;
+    if (!navigationReady) return;
     if (!deskViewPreferences.ready && !deskViewPreferences.unavailable) return;
     const context = readSurfaceReturnContext(initialReturnContextKey);
     if (!context || context.kind !== 'desk') {
@@ -397,7 +423,20 @@ export function useDeskController({
       setReturnContextResolved(true);
       return;
     }
-    if (context.focusedWorkId && !itemById.has(context.focusedWorkId)) return;
+    if (context.focusedWorkId && !itemById.has(context.focusedWorkId)) {
+      const missingReturnFocus = resolveDeskMissingFocus({
+        requestedWorkId: context.focusedWorkId,
+        workAvailable: false,
+        sourceSnapshotReady: initialSourceSnapshotReady,
+        sources: deskProjection.sourceStatuses,
+        sourceFailed: deskProjection.failures.length > 0,
+      });
+      if (!missingReturnFocus) return;
+      returnContextRestoredRef.current = true;
+      setReturnContextResolved(true);
+      recoverMissingWork(missingReturnFocus);
+      return;
+    }
     returnContextRestoredRef.current = true;
     setReturnContextResolved(true);
     setQuery(context.query);
@@ -419,7 +458,7 @@ export function useDeskController({
       ), { query: context.cardQuery, filterIds: context.tagFilter === 'all' ? [] : [context.tagFilter] }),
     });
     requestAnimationFrame(() => surfaceRef.current?.scrollTo({ top: context.scrollTop }));
-  }, [deskViewPreferences, initialReturnContextKey, itemById, restoreFocusedContext]);
+  }, [deskProjection.failures.length, deskProjection.sourceStatuses, deskViewPreferences, initialReturnContextKey, initialSourceSnapshotReady, itemById, navigationReady, recoverMissingWork, restoreFocusedContext]);
 
   const statuses = createDeskAccountStatuses({ accessStatus, isSignedIn, projection, securityStatus });
 

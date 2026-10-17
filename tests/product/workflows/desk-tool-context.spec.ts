@@ -347,6 +347,24 @@ for (const mobile of [false, true]) {
   });
 }
 
+for (const unavailableSource of [false, true]) {
+  test(`@golden recovers an absent deep-linked Set without opening another Set's tool${unavailableSource ? ' while retaining source failure' : ''}`, async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100, { unreadableFolderIndex: unavailableSource });
+    await page.goto('/account?focus=set%3Amissing-set&tool=generate', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+    await expect(page.locator('[data-set-object]')).toHaveCount(1);
+    await expect(page.locator('#deck-front-template')).toHaveCount(0);
+    await expect(page).toHaveURL(/\/account$/u);
+    await expect(page.getByText(unavailableSource ? 'Requested work could not be opened' : 'Work not found in this workspace', { exact: true })).toBeVisible();
+    if (unavailableSource) {
+      await page.locator('summary').filter({ hasText: /^One work source needs attention$/u }).click();
+      await expect(page.getByText('The saved folder index is unreadable. Existing folder links were left unchanged.', { exact: true })).toBeVisible();
+    }
+    await openScaleSet(page, 100);
+    await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 100', exact: true })).toBeVisible();
+  });
+}
+
 test('@golden waits for catalog Templates before opening a deep-linked Generate tool', async ({ page }) => {
   test.setTimeout(120_000);
   await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true, catalogToolTemplates: true });
