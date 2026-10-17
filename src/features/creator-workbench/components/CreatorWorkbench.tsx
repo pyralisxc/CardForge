@@ -188,6 +188,8 @@ export function CreatorWorkbench({
     handleSaveAppearanceStyle,
     handleSaveTemplate: saveTemplateToLibrary,
     handleSubmitTemplateRevision,
+    handlePrepareTemplateReview,
+    handleSubmitTemplateReview,
     handleContinueNewTemplateInPipeline,
     pendingTemplateSaveImpact,
     setPendingTemplateSaveVariantName,
@@ -397,6 +399,8 @@ export function CreatorWorkbench({
             isActive={studioView === 'template'}
             onSaveTemplate={handleSaveTemplate}
             onSubmitTemplateRevision={handleSubmitTemplateRevision}
+            onPrepareTemplateReview={handlePrepareTemplateReview}
+            onSubmitTemplateReview={handleSubmitTemplateReview}
             onContinueNewTemplateInPipeline={handleContinueNewTemplateInPipeline}
             templates={templatesFromStore}
             defaultTemplates={standardDefaultTemplates}

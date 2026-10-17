@@ -1,4 +1,5 @@
 "use client";
+import { SourceReviewEvidence } from './SourceReviewEvidence';
 
 import { useState } from 'react';
 import { Archive, CheckCircle2, ChevronLeft, ChevronRight, Eye, Pencil, Search, Settings2, Trash2 } from 'lucide-react';
@@ -36,6 +37,7 @@ export interface OwnerAssetOverrideInput {
 export interface OwnerEditorialReviewInput {
   editorialReviewStatus: PipelineEditorialReviewStatus;
   editorialReviewNote: string;
+  expectedEvidenceVersion?: number | null;
 }
 
 interface OwnerAssetLibraryPanelProps {
@@ -93,6 +95,7 @@ export function OwnerAssetLibraryPanel({
   const [ownerNote, setOwnerNote] = useState('');
   const [editorialReviewStatus, setEditorialReviewStatus] = useState<PipelineEditorialReviewStatus>('pending');
   const [editorialReviewNote, setEditorialReviewNote] = useState('');
+  const [editorialEvidenceVersion, setEditorialEvidenceVersion] = useState<number | null>(null);
   const [qualityCriteriaReviewed, setQualityCriteriaReviewed] = useState(false);
   const templatePreviews = usePipelineTemplatePreviews(program.submissions);
   const totalPages = Math.max(1, Math.ceil(program.submissionPage.total / program.submissionPage.pageSize));
@@ -114,6 +117,7 @@ export function OwnerAssetLibraryPanel({
     setTierOverride(submission.ownerAccessTierOverride ?? 'automatic');
     setOwnerNote(submission.ownerNote ?? '');
     setEditorialReviewStatus(submission.editorialReviewStatus ?? 'pending');
+    setEditorialEvidenceVersion(submission.sourceReviewEvidenceVersion ?? null);
     setEditorialReviewNote(parseContentQualityReviewNote(submission.editorialReviewNote).reason);
     setQualityCriteriaReviewed(false);
   };
@@ -148,6 +152,7 @@ export function OwnerAssetLibraryPanel({
     const saved = await onUpdateEditorialReview(submissionId, {
       editorialReviewStatus,
       editorialReviewNote,
+      expectedEvidenceVersion: editorialEvidenceVersion,
     });
     if (saved) setManagingId(null);
   };
@@ -295,6 +300,11 @@ export function OwnerAssetLibraryPanel({
                     </p>
                   </div>
                   <ContentQualityGuidance role={submission.semanticRole} />
+                  {submission.isCorrectionRevision ? <SourceReviewEvidence key={submission.id} submissionId={submission.id} onRecorded={onRevisionCreated} onVersionChange={(version) => {
+                    if (editorialEvidenceVersion !== version) {
+                      setEditorialEvidenceVersion(version); setEditorialReviewStatus('pending'); setQualityCriteriaReviewed(false);
+                    }
+                  }} /> : null}
                   <label className="flex items-start gap-2 text-xs leading-5 text-[var(--cf-text-muted)]">
                     <input type="checkbox" className="mt-1" checked={qualityCriteriaReviewed} onChange={(event) => setQualityCriteriaReviewed(event.target.checked)} />
                     I reviewed this exact revision against {CONTENT_QUALITY_STANDARD_VERSION}, including real-size visual proof, sources/rights and AI-use evidence.
@@ -333,7 +343,7 @@ export function OwnerAssetLibraryPanel({
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={updatingSubmissionId === submission.id}
+                    disabled={updatingSubmissionId === submission.id || editorialReviewStatus === 'approved' && submission.isCorrectionRevision && editorialEvidenceVersion === null}
                     className="w-fit rounded-none"
                     onClick={() => void saveEditorialReview(submission.id)}
                   >

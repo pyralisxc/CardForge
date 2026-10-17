@@ -19,3 +19,5 @@ export * from './server/pipelineRequestAccess';
 export { classifyPublishedPipelineAsset, readPublishedPipelineClassification } from './server/classifyPublishedAsset';
 
 export { readMediaPresentationRevision, createMediaPresentationRevision } from './server/mediaPresentationRevision';
+export { readTemplateReviewBase, readTemplateReviewReceipt, createTemplateReviewRevision } from './server/templateReviewRevision';
+export { readSourceReviewEvidence, recordSourceReviewEvidence } from './server/sourceReviewEvidence';

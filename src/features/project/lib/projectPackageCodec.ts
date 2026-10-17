@@ -7,6 +7,7 @@ import {
 } from '@zip.js/zip.js';
 
 import { createCardArtifact, getCardFromArtifact } from '@/domain/artifacts';
+import { getAuthoredTemplatePayload } from '@/domain/templates';
 
 import {
   CARDFORGE_PROJECT_MANIFEST_FILE,
@@ -222,6 +223,7 @@ const toPortableProjectDocument = (document: ProjectDocumentV1): PortableProject
   const { storedCards, ...project } = document;
   return {
     ...project,
+    userTemplates: project.userTemplates.map(getAuthoredTemplatePayload),
     version: 2,
     artifacts: storedCards.map(createCardArtifact),
   };

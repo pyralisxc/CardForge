@@ -1,3 +1,4 @@
+import { getSourceReviewVersion } from './sourceReviewEvidence';
 import { parsePipelineMediaPresentation, type PipelineMediaPresentation } from './pipelineMediaPresentation';
 import {
   DEFAULT_PIPELINE_PROGRAM_SETTINGS,
@@ -89,6 +90,8 @@ export interface PipelineSubmission {
   variantLabel: string | null;
   compatibilityTags: PipelineCompatibilityTag[];
   sourceNotes: string;
+  isCorrectionRevision?: boolean;
+  sourceReviewEvidenceVersion?: number | null;
   editorialReviewStatus?: PipelineEditorialReviewStatus;
   editorialReviewNote?: string;
   editorialReviewedBy?: string | null;
@@ -222,6 +225,8 @@ export interface PipelineSubmissionRow {
   variant_label?: string | null;
   compatibility_tags?: unknown;
   source_notes?: string | null;
+  source_review_evidence?: unknown;
+  template_review_context?: unknown;
   editorial_review_status?: unknown;
   editorial_review_note?: string | null;
   editorial_reviewed_by?: string | null;
@@ -538,6 +543,8 @@ export const mapPipelineSubmissionRow = (
   variantLabel: normalizeVariantLabel(row.variant_label),
   compatibilityTags: normalizeCompatibilityTags(row.compatibility_tags),
   sourceNotes: row.source_notes ?? '',
+  isCorrectionRevision: row.media_presentation != null || row.template_review_context != null,
+  sourceReviewEvidenceVersion: getSourceReviewVersion(row.source_review_evidence),
   editorialReviewStatus: isPipelineEditorialReviewStatus(row.editorial_review_status)
     ? row.editorial_review_status
     : 'pending',
