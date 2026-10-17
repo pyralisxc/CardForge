@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PublicSiteConfiguration } from '@/features/public-site/model/siteConfiguration';
+import type { PublicSitePage } from '@/features/public-site/model/sitePages';
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/features/legal/server', () => ({ publishLegalDocument: vi.fn(), revalidateLegalDocumentCache: vi.fn() }));
@@ -46,7 +48,7 @@ const state = vi.hoisted(() => ({
       { id: 'founder', visible: true },
       { id: 'final_cta', visible: true },
     ],
-  },
+  } as PublicSiteConfiguration,
   updateContent: vi.fn(),
   updateConfiguration: vi.fn(),
   revalidateContent: vi.fn(),
@@ -100,6 +102,7 @@ import {
   publishOwnerSiteConfigurationField,
   publishOwnerSiteConfigurationPatch,
   publishOwnerSiteContentBlock,
+  publishOwnerSitePage,
 } from '@/features/owner/server/ownerSiteCommands';
 
 beforeEach(() => {
@@ -107,6 +110,7 @@ beforeEach(() => {
   state.failTag = false;
   state.failPath = false;
   state.activityRecorded = true;
+  state.configuration.pages = [];
 });
 
 describe('Owner site commands', () => {
@@ -118,7 +122,7 @@ describe('Owner site commands', () => {
   });
   it.each([{ updatedAt: 'fake' }, { stripePrice: 1 }, {}])('rejects non-presentation patch %j without writing', async (patch) => {
     await expect(publishOwnerSiteConfigurationPatch({ actor: { userId: 'owner', email: null }, patch,
-      expectedUpdatedAt: state.configuration.updatedAt })).rejects.toThrow();
+      expectedUpdatedAt: state.configuration.updatedAt! })).rejects.toThrow();
     expect(state.updateConfiguration).not.toHaveBeenCalled();
   });
   it('returns a committed live-copy receipt without rereading provider state', async () => {
@@ -188,7 +192,7 @@ describe('Owner site commands', () => {
 
     const result = await publishOwnerSiteConfiguration({
       actor: { userId: 'owner-1', email: 'owner@example.com' },
-      input: state.configuration,
+      input: { ...state.configuration },
     });
 
     expect(result.settings).toEqual(state.configuration);
@@ -201,10 +205,11 @@ describe('Owner site commands', () => {
     });
     expect(state.updateConfiguration).toHaveBeenCalledOnce();
     expect(state.revalidateConfiguration).toHaveBeenCalledOnce();
-    expect(state.revalidatePath).toHaveBeenCalledTimes(4);
+    expect(state.revalidatePath).toHaveBeenCalledWith('/[slug]', 'page');
+    expect(state.revalidatePath).toHaveBeenCalledWith('/sitemap.xml');
   });
   it('publishes a visible Owner label through the original settings authority and receipt', async () => {
-    const input = { field: 'navigationLabel' as const, navigationId: 'plans', value: 'Membership', expectedUpdatedAt: state.configuration.updatedAt };
+    const input = { field: 'navigationLabel' as const, navigationId: 'plans', value: 'Membership', expectedUpdatedAt: state.configuration.updatedAt! };
     const result = await publishOwnerSiteConfigurationField({
       actor: { userId: 'owner-1', email: 'owner@example.com' },
       input,
@@ -218,4 +223,26 @@ describe('Owner site commands', () => {
     }));
   });
 
+});
+
+describe('focused first-party page publication', () => {
+  const page: PublicSitePage = { id: 'page-guide', slug: 'guide', title: 'Guide',
+    description: 'A complete guide to creating and exporting your first card Set.', keywords: ['guide'], published: false,
+    sections: [{ id: 'custom-guide', kind: 'custom', visible: true, design: { layout: 'stack', tone: 'raised', spacing: 'balanced', align: 'start' },
+      blocks: [{ id: 'block-guide', kind: 'heading', text: 'Welcome' }] }],
+  };
+  it('preserves the homepage, unrelated settings and other pages when saving one page', async () => {
+    const sibling = { ...page, id: 'page-sibling' as const, slug: 'sibling', title: 'Sibling' };
+    state.configuration.pages = [sibling];
+    await publishOwnerSitePage({ actor: { userId: 'owner', email: null }, pageId: page.id, page, expectedUpdatedAt: 'initiating-revision' });
+    expect(state.updateConfiguration).toHaveBeenCalledExactlyOnceWith({ ...state.configuration, pages: [sibling, page], updatedAt: 'initiating-revision' });
+  });
+  it('removes only the selected page and its native navigation projection', async () => {
+    state.configuration.pages = [page];
+    state.configuration.primaryNavigation.push({ id: page.id, href: '/guide', label: 'Guide', visible: true });
+    const untouched = state.configuration.primaryNavigation.filter((item) => item.id !== page.id);
+    await publishOwnerSitePage({ actor: { userId: 'owner', email: null }, pageId: page.id, page: null, expectedUpdatedAt: 'initiating-revision' });
+    expect(state.updateConfiguration).toHaveBeenCalledExactlyOnceWith({ ...state.configuration, pages: [], primaryNavigation: untouched, updatedAt: 'initiating-revision' });
+    state.configuration.primaryNavigation = untouched;
+  });
 });

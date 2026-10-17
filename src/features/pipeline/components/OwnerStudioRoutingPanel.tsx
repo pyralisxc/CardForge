@@ -1,5 +1,7 @@
 "use client";
 
+import Link from 'next/link';
+
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, ExternalLink, EyeOff, Map, RefreshCcw, Save, Sparkles } from 'lucide-react';
 
@@ -315,7 +317,7 @@ function StudioRoutingCard({
         <div className="flex flex-wrap gap-2">
           {item.assetType === 'template' ? (
             <Button asChild type="button" variant="outline" size="sm" className="rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]">
-              <a href="/account?section=library&scope=published">Open in Library <ExternalLink className="ml-1 h-3.5 w-3.5" /></a>
+              <Link href="/account?section=library&scope=published">Open in Library <ExternalLink className="ml-1 h-3.5 w-3.5" /></Link>
             </Button>
           ) : null}
           <Button type="button" size="sm" disabled={isSaving || !Number.isInteger(draft.sortOrder) || draft.sortOrder < 0 || draft.sortOrder > 100000} onClick={() => onSave(draft)} className="rounded-none bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]">

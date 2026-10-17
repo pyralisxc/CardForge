@@ -1,6 +1,7 @@
 import type { BusinessIdentity } from '@/features/business-identity/client';
 import type { LegalDocument } from '@/features/legal/client';
 import type { ExperienceSettings } from '@/features/experience-settings/client';
+import type { McpAllowance } from '@/features/mcp-usage/client/plans';
 import type { FounderProfile, PublicSiteConfiguration, SiteContentBlock, SiteMediaAsset } from '@/features/public-site/client';
 import type {
   RoadmapAdminItem,
@@ -38,6 +39,7 @@ export interface OwnerOperationsOverviewPayload {
 }
 
 export interface OwnerSiteControlPayload {
+  publicPlans?: McpAllowance[];
   businessIdentity: BusinessIdentity;
   experienceSettings: ExperienceSettings;
   siteConfiguration: PublicSiteConfiguration;

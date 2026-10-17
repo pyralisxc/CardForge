@@ -24,8 +24,9 @@ vi.mock('@/features/owner/client', () => ({
 vi.mock('@/features/public-site/client', () => ({
   PublicSiteOwnerLiveControls: () => null,
 }));
-vi.mock('@/features/public-site/server', () => ({
-  getPublicSiteConfiguration: async () => { state.configuration(); return { primaryCtaLabel: 'Open your Desk' }; },
+vi.mock('@/features/public-site/server', async () => ({
+  ...(await import('@/features/public-site/model/sitePages')),
+  getPublicSiteConfiguration: async () => { state.configuration(); return { primaryCtaLabel: 'Open your Desk', homepageSections: [] }; },
   getSiteContentBlocks: async () => { state.content(); return [{ slug: 'landing.hero.headline', body: 'Build a Set' }]; },
   getSiteMedia: async () => { state.media(); return [{ slot: 'landing.hero' }]; },
   completeSiteMediaForSections: (media: unknown[]) => media,
@@ -61,7 +62,7 @@ describe('public-page Owner editing read boundary', () => {
     expect(node).not.toBeNull();
     expect(node?.props.initialBlocks).toEqual([{ slug: 'landing.hero.headline', body: 'Build a Set' }]);
     expect(node?.props.initialMedia).toEqual([{ slot: 'landing.hero' }]);
-    expect(node?.props.initialSiteConfiguration).toEqual({ primaryCtaLabel: 'Open your Desk' });
+    expect(node?.props.initialSiteConfiguration).toEqual({ primaryCtaLabel: 'Open your Desk', homepageSections: [] });
     expect(node?.props.publicationEnvironment).toBe('preview');
     expect(state.content).toHaveBeenCalledOnce();
     expect(state.media).toHaveBeenCalledOnce();

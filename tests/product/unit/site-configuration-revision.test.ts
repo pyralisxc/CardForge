@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_PUBLIC_SITE_CONFIGURATION } from '@/features/public-site/model/siteConfiguration';
+import { DEFAULT_PUBLIC_SITE_CONFIGURATION, hydratePublicSiteConfiguration, MAX_SITE_CONFIGURATION_BYTES } from '@/features/public-site/model/siteConfiguration';
 import {
   getPublicSiteConfiguration,
   updatePublicSiteConfiguration,
@@ -181,5 +181,48 @@ describe('exact-revision canonical Owner site configuration', () => {
       field: 'primaryCtaLabel', value: 'Create', expectedUpdatedAt: rev1,
     })).rejects.toMatchObject({ status: 409 });
     expect(db.updates).toBe(0);
+  });
+});
+
+
+describe('aggregate canonical publication safety', () => {
+  const section = (name: string) => ({ id: `custom-${name}`, kind: 'custom', visible: true,
+    design: { layout: 'stack', tone: 'raised', spacing: 'balanced', align: 'start' },
+    blocks: Array.from({ length: 12 }, (_, index) => ({ id: `block-${name}-${index}`, kind: 'text', text: 'x'.repeat(1500) })),
+  });
+  const page = (name: string, count: number) => ({ id: `page-${name}`, slug: name, title: 'A page',
+    description: 'A complete guide to creating and exporting a first card Set.', keywords: ['guide'], published: false,
+    sections: Array.from({ length: count }, (_, index) => section(`${name}-${index}`)),
+  });
+  it('rejects explicit null rather than deleting stored pages', async () => {
+    db.row.site_pages = [page('preserve', 1)];
+    const before = structuredClone(db.row);
+    await expect(updatePublicSiteConfiguration({ ...DEFAULT_PUBLIC_SITE_CONFIGURATION, pages: null, updatedAt: rev1 })).rejects.toMatchObject({ status: 400 });
+    expect(db.row).toEqual(before); expect(db.updates).toBe(0);
+  });
+  it('checks the actual merged persisted candidate for a legacy form that omits pages', async () => {
+    db.row.site_pages = [page('preserve', 12)];
+    const before = structuredClone(db.row);
+    const legacy = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: rev1, pages: undefined,
+      homepageSections: [...DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections, ...Array.from({ length: 12 }, (_, index) => section(`legacy-${index}`))],
+    };
+    delete legacy.pages;
+    await expect(updatePublicSiteConfiguration(legacy)).rejects.toMatchObject({ status: 400, message: expect.stringContaining('editable-content budget') });
+    expect(db.row).toEqual(before); expect(db.updates).toBe(0);
+  });
+  it('applies the same post-merge budget to focused inline edits without losing authored content', async () => {
+    const pages = [page('large', 12), page('tail', 1)];
+    db.row.site_pages = pages;
+    const size = () => new TextEncoder().encode(JSON.stringify({ ...hydratePublicSiteConfiguration(db.row), updatedAt: null })).length;
+    const blocks = pages[1]!.sections[0]!.blocks;
+    while (size() > MAX_SITE_CONFIGURATION_BYTES - 20) {
+      const last = blocks.at(-1)!;
+      const remove = Math.min(last.text.length - 1, size() - (MAX_SITE_CONFIGURATION_BYTES - 20));
+      if (remove) last.text = last.text.slice(0, -remove);
+      else blocks.pop();
+    }
+    const before = structuredClone(db.row);
+    await expect(updatePublicSiteVisibleField({ field: 'primaryCtaLabel', value: 'x'.repeat(80), expectedUpdatedAt: rev1 })).rejects.toMatchObject({ status: 400, message: expect.stringContaining('editable-content budget') });
+    expect(db.row).toEqual(before); expect(db.updates).toBe(0);
   });
 });

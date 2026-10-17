@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
+import { getCachedPublicSiteConfiguration } from '@/features/public-site/server';
 
 const publicRoutes = [
   '/',
@@ -19,10 +20,11 @@ const publicRoutes = [
   '/contributor-terms',
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = getPublicAppUrl();
+  const settings = await getCachedPublicSiteConfiguration();
 
-  return publicRoutes.map((route) => ({
+  return [...publicRoutes, ...(settings.pages ?? []).filter((page) => page.published).map((page) => '/' + page.slug)].map((route) => ({
     url: `${siteUrl}${route}`,
   }));
 }

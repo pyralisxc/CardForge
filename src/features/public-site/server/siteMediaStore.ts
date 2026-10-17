@@ -103,9 +103,9 @@ export const completeSiteMediaForSections = (
 export const assertComposedSiteMediaReference = async (slot: SiteMediaSlot): Promise<void> => {
   if (!isComposedSiteMediaSlot(slot)) return;
   const settings = await getPublicSiteConfiguration();
-  const allowed = settings.homepageSections.some((section) => (
+  const allowed = [...settings.homepageSections, ...(settings.pages ?? []).flatMap((page) => page.sections)].some((section) => (
     isHomepageCustomSection(section) && section.blocks.some((block) => (
-      block.kind === 'image' && block.mediaSlot === slot && slot === `landing.composer.${block.id}`
+      block.kind === 'image' && block.mediaSlot === slot
     ))
   ));
   if (!allowed) throw new SiteMediaStoreError('This image is not part of the published site design.', 404);

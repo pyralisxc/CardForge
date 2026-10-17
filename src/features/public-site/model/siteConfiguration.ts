@@ -13,15 +13,26 @@ import {
   createDefaultHomepageShowcaseExamples,
   type HomepageShowcaseExample,
 } from './examples';
+import { hydratePublicSitePages, isPublicSitePageId, validatePublicSitePages, type PublicSitePage } from './sitePages';
 
 export const PRIMARY_NAVIGATION_IDS = ['about', 'plans', 'roadmap', 'account'] as const;
-export const HOMEPAGE_SECTION_IDS = ['showcase', 'workflow', 'access', 'founder', 'final_cta'] as const;
+export const HOMEPAGE_SECTION_IDS = ['hero', 'showcase', 'workflow', 'access', 'founder', 'final_cta'] as const;
 
 export const MAX_HOMEPAGE_SHOWCASE_EXAMPLES = 6;
 export const MAX_HOMEPAGE_SHOWCASE_ROWS = 12;
 export const MAX_HOMEPAGE_SHOWCASE_FIELDS = 24;
+// Keep canonical readback/revision growth below the native 256 KiB Owner request limit.
+export const MAX_SITE_CONFIGURATION_BYTES = 240 * 1024;
+export const assertSiteConfigurationBudget = (value: Record<string, unknown>): void => {
+  // A database-generated revision is metadata, not authored content. Reserving
+  // it here keeps the same content editable after a canonical readback.
+  if (new TextEncoder().encode(JSON.stringify({ ...value, updatedAt: null })).length > MAX_SITE_CONFIGURATION_BYTES) {
+    throw new Error('Website settings exceed the 240 KiB editable-content budget. Shorten content or remove unused sections before saving.');
+  }
+};
 
-export type PrimaryNavigationId = typeof PRIMARY_NAVIGATION_IDS[number];
+type BuiltinNavigationId = typeof PRIMARY_NAVIGATION_IDS[number];
+export type PrimaryNavigationId = BuiltinNavigationId | PublicSitePage['id'];
 export type HomepageSectionId = typeof HOMEPAGE_SECTION_IDS[number];
 
 export interface PrimaryNavigationItem {
@@ -58,16 +69,17 @@ export interface PublicSiteConfiguration {
   watermarkWidthPercent: number;
   primaryNavigation: PrimaryNavigationItem[];
   homepageSections: HomepageLayoutSection[];
+  pages?: PublicSitePage[];
 }
 
-const NAVIGATION_ROUTES: Record<PrimaryNavigationId, string> = {
+const NAVIGATION_ROUTES: Record<BuiltinNavigationId, string> = {
   about: '/about',
   plans: '/plans',
   roadmap: '/roadmap',
   account: '/account',
 };
 
-const DEFAULT_NAVIGATION_LABELS: Record<PrimaryNavigationId, string> = {
+const DEFAULT_NAVIGATION_LABELS: Record<BuiltinNavigationId, string> = {
   about: 'How it works',
   plans: 'Plans',
   roadmap: 'Roadmap',
@@ -109,6 +121,7 @@ export const DEFAULT_PUBLIC_SITE_CONFIGURATION: PublicSiteConfiguration = {
     visible: true,
   })),
   homepageSections: HOMEPAGE_SECTION_IDS.map(defaultHomepageSection),
+  pages: [],
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
@@ -247,18 +260,20 @@ const validateHomepageShowcaseExamplesInput = (value: unknown): void => {
 
 const isSafeInternalPath = (value: string): boolean => /^\/(?!\/)[A-Za-z0-9/_-]*$/.test(value);
 
-const normalizeNavigation = (value: unknown): PrimaryNavigationItem[] => {
+const normalizeNavigation = (value: unknown, pages: PublicSitePage[] = []): PrimaryNavigationItem[] => {
   const rows = Array.isArray(value) ? value : [];
   const used = new Set<PrimaryNavigationId>();
   const normalized = rows.flatMap((row) => {
-    if (!isRecord(row) || !PRIMARY_NAVIGATION_IDS.includes(row.id as PrimaryNavigationId)) return [];
+    if (!isRecord(row)) return [];
+    const page = pages.find((item) => item.id === row.id);
+    if (!PRIMARY_NAVIGATION_IDS.includes(row.id as BuiltinNavigationId) && !page) return [];
     const id = row.id as PrimaryNavigationId;
     if (used.has(id)) return [];
     used.add(id);
     return [{
       id,
-      href: NAVIGATION_ROUTES[id],
-      label: normalizeText(row.label, DEFAULT_NAVIGATION_LABELS[id], 40),
+      href: page ? '/' + page.slug : NAVIGATION_ROUTES[id as BuiltinNavigationId],
+      label: normalizeText(row.label, page?.title ?? DEFAULT_NAVIGATION_LABELS[id as BuiltinNavigationId], 40),
       visible: row.visible !== false,
     }];
   });
@@ -299,8 +314,9 @@ const normalizeHomepageSections = (value: unknown): HomepageLayoutSection[] => {
     }
   }
   return [
+    ...(!used.has('hero') ? [defaultHomepageSection('hero')] : []),
     ...normalized,
-    ...HOMEPAGE_SECTION_IDS.filter((id) => !used.has(id)).map(defaultHomepageSection),
+    ...HOMEPAGE_SECTION_IDS.filter((id) => id !== 'hero' && !used.has(id)).map(defaultHomepageSection),
   ];
 };
 
@@ -308,8 +324,9 @@ export const completePublicSiteConfiguration = (
   configuration: PublicSiteConfiguration,
 ): PublicSiteConfiguration => ({
   ...configuration,
-  primaryNavigation: normalizeNavigation(configuration.primaryNavigation),
+  primaryNavigation: normalizeNavigation(configuration.primaryNavigation, configuration.pages),
   homepageSections: normalizeHomepageSections(configuration.homepageSections),
+  pages: hydratePublicSitePages(configuration.pages),
 });
 
 export const hydratePublicSiteConfiguration = (
@@ -329,13 +346,29 @@ export const hydratePublicSiteConfiguration = (
   watermarkPreviewOpacity: normalizeInteger(row?.watermark_preview_opacity, DEFAULT_PUBLIC_SITE_CONFIGURATION.watermarkPreviewOpacity, 5, 80),
   watermarkShareOpacity: normalizeInteger(row?.watermark_share_opacity, DEFAULT_PUBLIC_SITE_CONFIGURATION.watermarkShareOpacity, 5, 80),
   watermarkWidthPercent: normalizeInteger(row?.watermark_width_percent, DEFAULT_PUBLIC_SITE_CONFIGURATION.watermarkWidthPercent, 20, 90),
-  primaryNavigation: normalizeNavigation(row?.primary_navigation),
+  primaryNavigation: normalizeNavigation(row?.primary_navigation, hydratePublicSitePages(row?.site_pages)),
   homepageSections: normalizeHomepageSections(row?.homepage_sections),
+  pages: hydratePublicSitePages(row?.site_pages),
 });
 
 export const normalizePublicSiteConfigurationInput = (
   input: Record<string, unknown>,
 ): PublicSiteConfiguration => {
+  // Match the native Owner HTTP boundary for MCP callers as well.
+  assertSiteConfigurationBudget(input);
+  const pages = validatePublicSitePages(input.pages === undefined ? [] : input.pages);
+  if (Array.isArray(input.primaryNavigation)) {
+    const ids = new Set<string>();
+    for (const item of input.primaryNavigation) {
+      if (!isRecord(item) || typeof item.id !== 'string' || ids.has(item.id)
+        || (!PRIMARY_NAVIGATION_IDS.includes(item.id as BuiltinNavigationId) && !isPublicSitePageId(item.id))
+        || (isPublicSitePageId(item.id) && !pages.some((page) => page.id === item.id))
+        || typeof item.label !== 'string' || !item.label.trim() || item.label.trim().length > 40) {
+        throw new Error('Navigation needs unique supported destinations and labels of 1–40 characters. Remove links to deleted pages.');
+      }
+      ids.add(item.id);
+    }
+  }
   if (Array.isArray(input.homepageSections)) {
     if (input.homepageSections.length > HOMEPAGE_SECTION_IDS.length + 12) {
       throw new Error('Homepage has too many editable sections.');
@@ -367,6 +400,7 @@ export const normalizePublicSiteConfigurationInput = (
     watermark_width_percent: input.watermarkWidthPercent,
     primary_navigation: input.primaryNavigation,
     homepage_sections: input.homepageSections,
+    site_pages: pages,
   });
 
   if (typeof input.announcementMessage !== 'string' || input.announcementMessage.trim().length > 240) {
@@ -400,6 +434,7 @@ export const normalizePublicSiteConfigurationInput = (
   if (typeof input.watermarkWidthPercent !== 'number' || !Number.isInteger(input.watermarkWidthPercent) || input.watermarkWidthPercent < 20 || input.watermarkWidthPercent > 90) {
     throw new Error('Watermark width must be between 20 and 90 percent.');
   }
+  assertSiteConfigurationBudget({ ...configuration });
   return configuration;
 };
 
@@ -414,7 +449,16 @@ export const getPublicHeaderPresentation = (
   primaryCtaHref: configuration.primaryCtaHref,
   visibleNavigation: configuration.primaryNavigation.filter((item) => (
     item.visible && item.href !== configuration.primaryCtaHref
+      && (!isPublicSitePageId(item.id) || configuration.pages?.some((page) => page.id === item.id && page.published))
   )),
+});
+
+/** Public client props must never contain an unpublished page's authored content. */
+export const projectPublicSiteConfiguration = (configuration: PublicSiteConfiguration): PublicSiteConfiguration => ({
+  ...configuration,
+  pages: (configuration.pages ?? []).filter((page) => page.published),
+  primaryNavigation: configuration.primaryNavigation.filter((item) => !isPublicSitePageId(item.id)
+    || configuration.pages?.some((page) => page.id === item.id && page.published)),
 });
 
 export const isHomepageSectionVisible = (

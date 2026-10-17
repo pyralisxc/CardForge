@@ -2,13 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 
 import sitemap from '@/app/sitemap';
 
+vi.mock('@/features/public-site/server', () => ({ getCachedPublicSiteConfiguration: async () => ({ pages: [] }) }));
+
 vi.mock('@/infrastructure/http/publicUrl', () => ({
   getPublicAppUrl: () => 'https://cardforges.com',
 }));
 
 describe('sitemap', () => {
-  it('lists only crawlable public site URLs on the production host', () => {
-    const urls = sitemap().map((entry) => entry.url);
+  it('lists only crawlable public site URLs on the production host', async () => {
+    const urls = (await sitemap()).map((entry) => entry.url);
 
     expect(urls).toEqual([
       'https://cardforges.com/',
@@ -28,8 +30,8 @@ describe('sitemap', () => {
     ]);
   });
 
-  it('does not invent freshness or ranking hints', () => {
-    expect(sitemap().every((entry) => (
+  it('does not invent freshness or ranking hints', async () => {
+    expect((await sitemap()).every((entry) => (
       entry.lastModified === undefined
       && entry.changeFrequency === undefined
       && entry.priority === undefined

@@ -118,3 +118,4 @@ export {
   type HomepageSectionDesign,
 } from './model/homepageComposition';
 export { type HomepageLayoutSection } from './model/siteConfiguration';
+export { getSiteCompositionSections, isPublicSitePageSlug, validatePublicSitePages, type PublicSitePage } from './model/sitePages';

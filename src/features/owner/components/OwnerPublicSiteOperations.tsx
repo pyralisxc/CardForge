@@ -24,8 +24,9 @@ const subtabListClassName = 'flex h-auto flex-wrap justify-start rounded-none bo
  * The one protected site-controls read is intentionally fresh on opening the
  * drawer. It replaces the unrelated Owner overview + site fetch chain.
  */
-export function OwnerPublicSiteOperations({ publicationEnvironment }: {
+export function OwnerPublicSiteOperations({ publicationEnvironment, currentPath = '/' }: {
   publicationEnvironment: OwnerPublicationEnvironment;
+  currentPath?: string;
 }) {
   const router = useRouter();
   const onEditorStateChange = useContext(OwnerPageEditorStateContext);
@@ -91,7 +92,9 @@ export function OwnerPublicSiteOperations({ publicationEnvironment }: {
         <TabsTrigger value="experience" className={subtabClassName}>Experience &amp; Access</TabsTrigger>
       </TabsList>
       <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" onIdentityEditorStateChange={reportIdentity} operationsPayload={{ businessIdentity: siteOperations.businessIdentity, roadmapItems: siteOperations.roadmapItems, databaseMetrics: null }} onOperationsChange={updateOperations} /><OwnerFounderProfilePanel onEditorStateChange={reportFounder} operationsPayload={siteOperations} onOperationsChange={updateOperations} /></TabsContent>
-      <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel publicationEnvironment={publicationEnvironment} onEditorStateChange={reportPages} settings={siteOperations.siteConfiguration} onSettingsChange={(siteConfiguration) => {
+      <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel publicationEnvironment={publicationEnvironment} currentPath={currentPath}
+        preview={siteOperations.publicPlans ? { media: siteOperations.siteMedia, businessIdentity: siteOperations.businessIdentity, plans: siteOperations.publicPlans } : undefined}
+        onEditorStateChange={reportPages} settings={siteOperations.siteConfiguration} onSettingsChange={(siteConfiguration) => {
         setSiteOperations((current) => current ? { ...current, siteConfiguration } : current);
         router.refresh();
       }} /></TabsContent>

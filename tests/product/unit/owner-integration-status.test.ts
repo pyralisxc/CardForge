@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('server-only', () => ({}));
+
 import { getOwnerIntegrationStatus } from '@/features/owner/server';
 
 describe('owner integration status', () => {

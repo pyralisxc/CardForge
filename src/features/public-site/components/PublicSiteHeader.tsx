@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Menu } from 'lucide-react';
@@ -30,6 +30,7 @@ export interface PublicSiteHeaderProps {
   businessIdentity: Pick<BusinessIdentity, 'brandName'>;
   currentPath?: string;
   siteConfiguration?: PublicSiteConfiguration;
+  portalContainer?: HTMLElement | null;
 }
 
 const linkClassName = (active: boolean) => [
@@ -42,11 +43,13 @@ export function PublicSiteHeader({
   businessIdentity,
   currentPath,
   siteConfiguration = DEFAULT_PUBLIC_SITE_CONFIGURATION,
+  portalContainer,
 }: PublicSiteHeaderProps) {
   const founderProfile = useFounderProfile();
   const brand = useBrandPresentation();
   const siteContent = useSiteContent();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const {
     visibleNavigation,
     primaryCtaHref,
@@ -78,7 +81,7 @@ export function PublicSiteHeader({
         </Link>
 
         <nav aria-label="Primary navigation" className="ml-auto hidden items-center gap-5 xl:flex">
-          {visibleNavigation.map((item) => (
+          {visibleNavigation.slice(0, 4).map((item) => (
             <Link
               key={item.href}
               data-site-navigation-id={item.id}
@@ -112,19 +115,41 @@ export function PublicSiteHeader({
           </div>
         ) : null}
 
-        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        {/* Radix's modal focus scope owns the main document. In an iframe canvas,
+            its supported non-modal mode plus document-local focus callbacks keep
+            the enclosing Owner sheet untouched. The live site stays modal. */}
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} modal={!portalContainer}>
           <SheetTrigger asChild>
             <button
+              ref={menuTriggerRef}
               type="button"
               aria-label="Open menu"
               aria-expanded={mobileMenuOpen}
               aria-controls="public-mobile-navigation"
-              className="ml-auto inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--public-radius)] border border-[var(--public-border)] text-[var(--public-ivory)] transition-colors hover:border-[var(--public-brass)] hover:text-[var(--public-brass)] xl:hidden"
+              className={'ml-auto inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--public-radius)] border border-[var(--public-border)] text-[var(--public-ivory)] transition-colors hover:border-[var(--public-brass)] hover:text-[var(--public-brass)]' + (visibleNavigation.length > 4 ? '' : ' xl:hidden')}
             >
               <Menu className="h-6 w-6" aria-hidden="true" />
             </button>
           </SheetTrigger>
           <SheetContent
+            portalContainer={portalContainer}
+            onOpenAutoFocus={portalContainer ? (event) => {
+              event.preventDefault();
+              portalContainer.querySelector<HTMLElement>('#public-mobile-navigation a[href]')?.focus();
+            } : undefined}
+            onCloseAutoFocus={portalContainer ? (event) => {
+              event.preventDefault(); menuTriggerRef.current?.focus();
+            } : undefined}
+            onKeyDown={portalContainer ? (event) => {
+              event.stopPropagation();
+              if (event.key !== 'Tab') return;
+              const targets = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex="0"]'))
+                .filter((node) => node.getClientRects().length > 0);
+              const first = targets[0]; const last = targets.at(-1);
+              const active = event.currentTarget.ownerDocument.activeElement;
+              if (event.shiftKey && active === first) { event.preventDefault(); last?.focus(); }
+              else if (!event.shiftKey && active === last) { event.preventDefault(); first?.focus(); }
+            } : undefined}
             side="right"
             id="public-mobile-navigation"
             overlayClassName="cardforge-public-tokens"

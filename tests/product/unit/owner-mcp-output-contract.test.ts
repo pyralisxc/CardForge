@@ -16,6 +16,7 @@ vi.mock('@/features/roadmap/server', () => ({ getRoadmapSettings: mocks.site, ge
 vi.mock('@/features/owner/server/ownerMediaCommands', () => ({ publishOwnerSiteMedia: mocks.publishPresentation, restoreOwnerSiteMedia: mocks.publishPresentation }));
 vi.mock('@/features/public-site/server', async () => ({
   ...(await import('@/features/public-site/model/homepageComposition')),
+  ...(await import('@/features/public-site/model/sitePages')),
   ...(await import('@/features/public-site/model/homepageShowcaseStages')),
   createSiteContentMap: (await import('@/features/public-site/model/siteContent')).createSiteContentMap,
   getSiteContentBlocks: mocks.readCopy,
@@ -34,7 +35,7 @@ vi.mock('@/features/mcp-usage/server', () => ({ getOwnerMcpUsageDashboard: mocks
 }));
 vi.mock('@/features/owner/server/ownerActivityStore', () => ({ getOwnerActivity: vi.fn() }));
 vi.mock('@/features/owner/lib/ownerOperationsStore', () => ({ getOwnerSiteControlPayload: mocks.site, getOwnerOperationsOverviewPayload: mocks.site }));
-vi.mock('@/features/owner/server/ownerSiteCommands', () => ({ publishOwnerSiteContentBlock: mocks.publish, publishOwnerSiteConfigurationField: mocks.publishField, publishOwnerSiteConfigurationPatch: mocks.publishConfiguration, publishOwnerBusinessIdentity: mocks.publishPresentation, publishOwnerFounderProfile: mocks.publishPresentation, publishOwnerExperienceSettings: mocks.publishPresentation, publishOwnerLegalDocument: mocks.publishPresentation, publishOwnerRoadmapSettings: mocks.publishPresentation, publishOwnerRoadmapStatus: mocks.publishPresentation }));
+vi.mock('@/features/owner/server/ownerSiteCommands', () => ({ publishOwnerSiteContentBlock: mocks.publish, publishOwnerSiteConfigurationField: mocks.publishField, publishOwnerSiteConfigurationPatch: mocks.publishConfiguration, publishOwnerSitePage: mocks.publishPresentation, publishOwnerBusinessIdentity: mocks.publishPresentation, publishOwnerFounderProfile: mocks.publishPresentation, publishOwnerExperienceSettings: mocks.publishPresentation, publishOwnerLegalDocument: mocks.publishPresentation, publishOwnerRoadmapSettings: mocks.publishPresentation, publishOwnerRoadmapStatus: mocks.publishPresentation }));
 vi.mock('@/features/owner/server/ownerIntegrationStatus', () => ({ getOwnerIntegrationStatus: mocks.readiness }));
 
 type RegisteredTool = {
@@ -148,7 +149,7 @@ describe('Owner MCP registered output contracts', () => {
     ['publish_owner_homepage_showcase', { stages: [] }],
     ['publish_owner_homepage_section', { operation: 'insert', sectionId: 'custom-invalid', section: {} }],
     ['publish_owner_homepage_section', { operation: 'remove', sectionId: 'showcase' }],
-    ['publish_owner_homepage_section', { operation: 'move', sectionId: 'showcase', direction: 'up' }],
+    ['publish_owner_homepage_section', { operation: 'move', sectionId: 'hero', direction: 'up' }],
   ])('preserves invalid-input boundary meaning in focused command %s', async (name, input) => {
     mocks.readFields.mockResolvedValue({ ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt });
     const result = await tools.get(name as string)!.handler({ ...input, expectedUpdatedAt: settings.updatedAt });
@@ -277,6 +278,16 @@ describe('Owner MCP registered output contracts', () => {
     expect(await invoke('publish_owner_site_configuration', input)).toMatchObject({ livePublication: false, receipt });
     expect(mocks.publishConfiguration).toHaveBeenCalledExactlyOnceWith({ actor: { userId: 'owner', email: 'owner@example.com' }, ...input });
   });
+  it('routes one page through the canonical command and preserves its complete truthful receipt schema', async () => {
+    const full = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt };
+    const receipt = { committed: true, refreshComplete: false, refreshFailures: ['public-pages'], activityRecorded: true,
+      retryable: false, nextAction: 'reload', message: 'Saved for Owner editing, not public; reload.' };
+    mocks.publishPresentation.mockResolvedValue({ settings: full, receipt });
+    const input = { pageId: 'page-guide', operation: 'remove', expectedUpdatedAt: settings.updatedAt };
+    expect(await invoke('publish_owner_site_page', input)).toMatchObject({ settings: full, receipt, livePublication: false });
+    expect(mocks.publishPresentation).toHaveBeenCalledExactlyOnceWith({ actor: { userId: 'owner', email: 'owner@example.com' },
+      pageId: 'page-guide', page: null, expectedUpdatedAt: settings.updatedAt });
+  });
   it.each(['identity', 'founder', 'experience'])('uses the native %s publication and terminal receipt', async (area) => {
     const receipt = { committed: true, refreshComplete: true, refreshFailures: [], activityRecorded: true,
       retryable: false, nextAction: 'none', message: 'Published.' };
@@ -285,7 +296,7 @@ describe('Owner MCP registered output contracts', () => {
     expect(await invoke('publish_owner_presentation', input)).toMatchObject({ area, receipt, livePublication: false });
     expect(mocks.publishPresentation).toHaveBeenCalledTimes(1);
   });
-  it.each(['get_owner_site_configuration', 'publish_owner_site_configuration', 'get_owner_presentation_editor', 'publish_owner_presentation'])('fails closed for %s', async (name) => {
+  it.each(['get_owner_site_configuration', 'publish_owner_site_configuration', 'publish_owner_site_page', 'get_owner_presentation_editor', 'publish_owner_presentation'])('fails closed for %s', async (name) => {
     mocks.access.mockRejectedValue(new Error('Owner access required'));
     expect(await tools.get(name)!.handler({ area: 'identity', values: {} })).toMatchObject({ isError: true });
     expect(mocks.publishConfiguration).not.toHaveBeenCalled();

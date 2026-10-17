@@ -6,7 +6,7 @@ import { observeMcpToolExecution, getOwnerMcpUsageDashboard } from '@/features/m
 import { getOwnerActivity } from '@/features/owner/server/ownerActivityStore';
 import { getOwnerIntegrationStatus } from '@/features/owner/server/ownerIntegrationStatus';
 import { getOwnerSiteControlPayload, getOwnerOperationsOverviewPayload } from '@/features/owner/lib/ownerOperationsStore';
-import { publishOwnerSiteContentBlock, publishOwnerSiteConfigurationField, publishOwnerSiteConfigurationPatch, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerExperienceSettings, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus } from '@/features/owner/server/ownerSiteCommands';
+import { publishOwnerSiteContentBlock, publishOwnerSiteConfigurationField, publishOwnerSiteConfigurationPatch, publishOwnerSitePage, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerExperienceSettings, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus } from '@/features/owner/server/ownerSiteCommands';
 import { getPublicSiteConfiguration, getFounderProfile, getSiteMedia, getSiteContentBlocks, createSiteContentMap, completeSiteMediaForSections, PublicSiteConfigurationStoreError, SiteMediaStoreError, type PublicSiteConfiguration } from '@/features/public-site/server';
 import {
   createLegacyHomepageShowcaseStages,
@@ -16,6 +16,7 @@ import {
   parseHomepageCustomSection,
   isHomepageCustomSection,
   type HomepageLayoutSection,
+  getSiteCompositionSections,
 } from '@/features/public-site/server';
 import { publishOwnerSiteMedia, restoreOwnerSiteMedia } from './ownerMediaCommands';
 import { getLegalDocuments } from '@/features/legal/server';
@@ -44,6 +45,7 @@ import {
   ownerHomepageDesignPublicationOutputSchema,
   ownerSiteConfigurationPublishInputSchema,
   ownerSiteConfigurationPublicationOutputSchema,
+  ownerSitePagePublishInputSchema,
   ownerPresentationReadInputSchema,
   ownerPresentationReadOutputSchema,
   ownerPresentationPublishInputSchema,
@@ -328,6 +330,23 @@ export const registerOwnerReadTools = ({
     },
   }));
 
+  server.registerTool('publish_owner_site_page', {
+    title: 'Save or remove one first-party website page',
+    description: 'Read get_owner_site_configuration first. Save one page with stable pageId, safe unreserved path, SEO and trusted sections, or remove that page and its navigation entry. Preserves all other pages, homepage and provider-owned facts. Unpublished pages remain Owner-only; public media requires its own explicit publication. Uses the same canonical revision and receipt as browser Site settings. Never replay a committed result.',
+    inputSchema: ownerSitePagePublishInputSchema,
+    outputSchema: ownerSiteConfigurationPublicationOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  }, async ({ pageId, page, operation, expectedUpdatedAt }) => runObserved({
+    toolName: 'publish_owner_site_page', input: { pageId, page, operation, expectedUpdatedAt },
+    execute: async (access) => {
+      if (operation === 'save' && !page) throw new PublicSiteConfigurationStoreError('Supply the complete selected page to save it.', 400);
+      const publication = await publishOwnerSitePage({ actor: { userId: access.user.id, email: access.email },
+        pageId, page: operation === 'remove' ? null : page!, expectedUpdatedAt });
+      return { content: [{ type: 'text', text: publication.receipt.message + (deploymentEnvironment() === 'production' ? ' Live Production.' : ' Non-production staging only.') }],
+        structuredContent: { environment: deploymentEnvironment(), livePublication: deploymentEnvironment() === 'production', ...publication } };
+    },
+  }));
+
   server.registerTool('get_owner_homepage_showcase', {
     title: 'Read the Owner homepage walkthrough and managed screenshot availability',
     description: 'Read the exact Owner settings revision and ordered walkthrough stages. legacyCopy means the existing stage labels still come from published site-copy blocks. Use the focused publish tool to avoid resending unrelated demonstration Sets.',
@@ -547,7 +566,7 @@ export const registerOwnerReadTools = ({
   }, async () => runObserved({ toolName: 'get_owner_site_media', input: {}, execute: async () => ({
     content: [{ type: 'text', text: 'Loaded current public images and their revisions.' }],
     structuredContent: { environment: deploymentEnvironment(),
-      media: completeSiteMediaForSections(await getSiteMedia(), (await getPublicSiteConfiguration()).homepageSections) },
+      media: completeSiteMediaForSections(await getSiteMedia(), getSiteCompositionSections(await getPublicSiteConfiguration())) },
   }) }));
   server.registerTool('publish_owner_site_media', {
     title: 'Publish an Owner public image or its presentation',

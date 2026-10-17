@@ -6,6 +6,7 @@ import {
   getSiteContentBlocks,
   getSiteMedia,
   completeSiteMediaForSections,
+  getSiteCompositionSections,
   resolveOwnerPublicationEnvironment,
 } from '@/features/public-site/server';
 import { getRoadmapSettings } from '@/features/roadmap/server';
@@ -32,9 +33,9 @@ export async function OwnerPublicSiteControlsSlot({ currentPath }: { currentPath
     currentPath={currentPath}
     publicationEnvironment={publicationEnvironment}
     initialBlocks={siteContentBlocks}
-    initialMedia={completeSiteMediaForSections(siteMedia, siteConfiguration.homepageSections)}
+    initialMedia={completeSiteMediaForSections(siteMedia, getSiteCompositionSections(siteConfiguration))}
     initialSiteConfiguration={siteConfiguration}
-    siteOperationsEditor={<OwnerPublicSiteOperations publicationEnvironment={publicationEnvironment} />}
+    siteOperationsEditor={<OwnerPublicSiteOperations publicationEnvironment={publicationEnvironment} currentPath={currentPath} />}
     roadmapRulesEditor={roadmapSettings ? <OwnerRoadmapRulesLiveEditor initialSettings={roadmapSettings} /> : undefined}
   />;
 }

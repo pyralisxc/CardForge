@@ -1,4 +1,6 @@
 import { getBusinessIdentity } from '@/features/business-identity/server';
+import { applyProductAccessPricePresentation, getMcpAllowances } from '@/features/mcp-usage/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server/productAccessPricePresentation';
 import { getLegalDocuments } from '@/features/legal/server';
 import { getExperienceSettings } from '@/features/experience-settings/server';
 import type {
@@ -12,6 +14,7 @@ import {
   getPublicSiteConfiguration,
   getSiteMedia,
   completeSiteMediaForSections,
+  getSiteCompositionSections,
   getSiteContentBlocks,
 } from '@/features/public-site/server';
 import {
@@ -45,6 +48,8 @@ export const getOwnerSiteControlPayload = async (): Promise<OwnerSiteControlPayl
     founderProfile,
     legalDocuments,
     roadmapItems,
+    plans,
+    prices,
   ] = await Promise.all([
     getBusinessIdentity(),
     getExperienceSettings(),
@@ -55,14 +60,17 @@ export const getOwnerSiteControlPayload = async (): Promise<OwnerSiteControlPayl
     getFounderProfile(),
     getLegalDocuments(),
     getRoadmapAdminItems(),
+    getMcpAllowances(),
+    getCurrentProductAccessPricePresentation(),
   ]);
   return {
     businessIdentity,
+    publicPlans: applyProductAccessPricePresentation(plans, prices),
     experienceSettings,
     siteConfiguration,
     siteMechanics,
     siteContentBlocks,
-    siteMedia: completeSiteMediaForSections(siteMedia, siteConfiguration.homepageSections),
+    siteMedia: completeSiteMediaForSections(siteMedia, getSiteCompositionSections(siteConfiguration)),
     founderProfile,
     legalDocuments,
     roadmapItems,

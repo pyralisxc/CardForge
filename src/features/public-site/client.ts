@@ -7,6 +7,7 @@ export {
   type SiteContentMap,
 } from './model/siteContent';
 export { PUBLIC_NAVIGATION } from './model/publicNavigation';
+export { isPublicSitePageSlug, type PublicSitePage } from './model/sitePages';
 export {
   DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
   createLegacyHomepageShowcaseStages,

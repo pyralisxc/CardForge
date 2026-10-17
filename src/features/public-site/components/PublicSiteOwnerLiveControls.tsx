@@ -325,7 +325,7 @@ export function PublicSiteOwnerLiveControls({
       finishInlineEdit(true);
       return;
     }
-    const selectable = Array.from(document.querySelectorAll<HTMLElement>('[data-site-content-slug], [data-site-media-slot], [data-site-configuration-field], [data-site-navigation-id], [data-owner-block-id]'))
+    const selectable = Array.from(document.querySelectorAll<HTMLElement>('[data-site-content-slug], [data-site-media-slot], [data-site-configuration-field], [data-site-navigation-id], [data-owner-block-id], [data-owner-section-id], [data-owner-page-id]'))
       .filter((element) => element.getClientRects().length > 0);
     const tabindexEntries = selectable.map((element) => ({
       element,
@@ -344,13 +344,19 @@ export function PublicSiteOwnerLiveControls({
         : slot ? contextualMedia.find((item) => item.slot === slot)?.label
           : field === 'primaryCtaLabel' ? 'Primary action label'
             : field === 'announcementMessage' ? 'Announcement'
-              : navId ? 'Navigation ' + navId : editableBlock ? 'Website content block' : undefined;
+              : navId ? 'Navigation ' + navId : editableBlock ? 'Website content block' : element.dataset.ownerSectionId ? 'Website section' : element.dataset.ownerPageId ? 'Page title and SEO' : undefined;
       if (label && !element.hasAttribute('aria-label')) element.setAttribute('aria-label', `Edit ${label}`);
     }
 
     const selectField = (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof Element) || target.closest('[data-owner-site-editor-panel], [data-owner-live-controls]')) return;
+      const pageHeader = target.closest<HTMLElement>('[data-owner-page-id]');
+      if (pageHeader) {
+        event.preventDefault(); event.stopPropagation();
+        if (!copySaving && !configSaving) openSettings();
+        return;
+      }
       const configTarget = target.closest<HTMLElement>('[data-site-configuration-field]');
       if (configTarget) {
         const fieldName = configTarget.dataset.siteConfigurationField;
@@ -410,7 +416,14 @@ export function PublicSiteOwnerLiveControls({
       }
       const image = target.closest<HTMLElement>('[data-site-media-slot]');
       const slot = image?.dataset.siteMediaSlot;
-      if (!image || !slot || !contextualMedia.some((item) => item.slot === slot)) return;
+      if (!image || !slot || !contextualMedia.some((item) => item.slot === slot)) {
+        const section = target.closest<HTMLElement>('[data-owner-section-id]');
+        if (section?.dataset.ownerSectionId) {
+          event.preventDefault(); event.stopPropagation();
+          if (!copySaving && !configSaving) openEditableSection(section.dataset.ownerSectionId);
+        }
+        return;
+      }
       // Do not treat unrelated text or links inside a hero section as an image click.
       if (image.tagName === 'SECTION' && image !== target) return;
       event.preventDefault();
@@ -429,7 +442,7 @@ export function PublicSiteOwnerLiveControls({
         return;
       }
       if ((event.key === 'Enter' || event.key === ' ')
-        && target.matches('[data-site-content-slug], [data-site-media-slot], [data-site-configuration-field], [data-site-navigation-id], [data-owner-block-id]')
+        && target.matches('[data-site-content-slug], [data-site-media-slot], [data-site-configuration-field], [data-site-navigation-id], [data-owner-block-id], [data-owner-section-id], [data-owner-page-id]')
         && !target.isContentEditable) {
         event.preventDefault();
         target.click();
@@ -449,7 +462,7 @@ export function PublicSiteOwnerLiveControls({
         else element.setAttribute('aria-label', ariaLabel);
       }
     };
-  }, [abandonDraft, configSaving, contextualBlocks, contextualMedia, copySaving, editMode, finishInlineEdit, inlineSlug, openConfigLabel, openCopy, openEditableSection, openMedia, openNavigationLabel, saveInlineEdit, siteConfiguration.primaryNavigation]);
+  }, [abandonDraft, configSaving, contextualBlocks, contextualMedia, copySaving, editMode, finishInlineEdit, inlineSlug, openConfigLabel, openCopy, openEditableSection, openMedia, openNavigationLabel, openSettings, saveInlineEdit, siteConfiguration.primaryNavigation]);
 
   useEffect(() => () => finishInlineEdit(true), [finishInlineEdit]);
 

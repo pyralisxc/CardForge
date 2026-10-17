@@ -2,6 +2,7 @@ import {
   DEFAULT_PUBLIC_SITE_CONFIGURATION,
   hydratePublicSiteConfiguration,
   normalizePublicSiteConfigurationInput,
+  assertSiteConfigurationBudget,
   type PublicSiteConfiguration,
 } from '@/features/public-site/model/siteConfiguration';
 import {
@@ -29,6 +30,7 @@ const SITE_CONFIGURATION_COLUMNS = [
   'watermark_width_percent',
   'primary_navigation',
   'homepage_sections',
+  'site_pages',
   'updated_at',
 ].join(',');
 
@@ -71,6 +73,21 @@ const publishConfigurationPatch = async (
   const revision = validateRevision(expectedUpdatedAt);
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new PublicSiteConfigurationStoreError('Public site settings database is not configured yet.', 503);
+  // Validate the actual post-merge record for every writer, including older
+  // full forms that omit pages and focused label edits. The final UPDATE still
+  // compares the same exact revision, so this read cannot weaken concurrency.
+  const current = await supabase.from('cardforge_owner_settings').select(SITE_CONFIGURATION_COLUMNS)
+    .eq('id', 'cardforge').limit(1);
+  if (current.error) throw new PublicSiteConfigurationStoreError('Unable to validate current site settings. Nothing was published.', 503);
+  const row = current.data?.[0] as unknown as Record<string, unknown> | undefined;
+  if (!row || row.updated_at !== revision) {
+    throw new PublicSiteConfigurationStoreError('Site settings changed in another session. Reload and review before publishing.', 409);
+  }
+  try {
+    assertSiteConfigurationBudget({ ...hydratePublicSiteConfiguration({ ...row, ...values }) });
+  } catch (error) {
+    throw new PublicSiteConfigurationStoreError(error instanceof Error ? error.message : 'Invalid website settings.', 400);
+  }
   // Conditional UPDATE rather than UPSERT: no stale form can overwrite a newer
   // revision or reseed default values. The returned row proves exact commit.
   const { data, error } = await supabase.from('cardforge_owner_settings')
@@ -115,6 +132,7 @@ export const updatePublicSiteConfiguration = async (
     watermark_width_percent: normalized.watermarkWidthPercent,
     primary_navigation: normalized.primaryNavigation,
     homepage_sections: normalized.homepageSections,
+    ...(Object.hasOwn(input, 'pages') ? { site_pages: normalized.pages ?? [] } : {}),
   }, input.updatedAt);
 };
 
@@ -142,17 +160,16 @@ export const updatePublicSiteVisibleField = async (
       announcement_message: validateOwnerLabel(input.value, 240, 'Announcement text', true),
     }, revision);
   }
-  if (input.field !== 'navigationLabel' || typeof input.navigationId !== 'string'
-    || !['about', 'plans', 'roadmap', 'account'].includes(input.navigationId)) {
+  if (input.field !== 'navigationLabel' || typeof input.navigationId !== 'string') {
     throw new PublicSiteConfigurationStoreError('Choose a supported navigation label.', 400);
   }
   const label = validateOwnerLabel(input.value, 40, 'Navigation text');
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new PublicSiteConfigurationStoreError('Public site settings database is not configured yet.', 503);
   const { data: rows, error } = await supabase.from('cardforge_owner_settings')
-    .select('updated_at,primary_navigation').eq('id', 'cardforge').limit(1);
+    .select('updated_at,primary_navigation,site_pages').eq('id', 'cardforge').limit(1);
   if (error) throw new PublicSiteConfigurationStoreError('Unable to read the current navigation.', 503);
-  const row = rows?.[0] as { updated_at?: string; primary_navigation?: unknown } | undefined;
+  const row = rows?.[0] as { updated_at?: string; primary_navigation?: unknown; site_pages?: unknown } | undefined;
   if (!row || row.updated_at !== revision) {
     throw new PublicSiteConfigurationStoreError(
       'Navigation changed in another session. Reload and review the current labels before publishing.',
@@ -161,6 +178,9 @@ export const updatePublicSiteVisibleField = async (
   }
   if (!Array.isArray(row.primary_navigation)) {
     throw new PublicSiteConfigurationStoreError('The navigation needs repair before it can be edited in place.', 409);
+  }
+  if (!hydratePublicSiteConfiguration(row).primaryNavigation.some((item) => item.id === input.navigationId)) {
+    throw new PublicSiteConfigurationStoreError('Choose a supported navigation label.', 400);
   }
   let found = false;
   const nextNavigation = row.primary_navigation.map((item: unknown) => {
