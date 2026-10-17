@@ -1,3 +1,4 @@
+import { parsePipelineMediaPresentation, type PipelineMediaPresentation } from './pipelineMediaPresentation';
 import {
   DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   isContributorAssetAccessTier,
@@ -115,6 +116,7 @@ export interface PipelineSubmission {
   positiveVotes: number;
   negativeVotes: number;
   currentUserVote: PipelineVoteValue | null;
+  mediaPresentation?: PipelineMediaPresentation | null;
   sourcePayload: unknown | null;
   targetRegistryAssetId: string | null;
   baseRevisionNumber: number | null;
@@ -246,6 +248,7 @@ export interface PipelineSubmissionRow {
   decision_reason: string | null;
   positive_votes: number | null;
   negative_votes: number | null;
+  media_presentation?: unknown;
   source_payload: unknown | null;
   target_registry_asset_id: string | null;
   base_revision_number: number | null;
@@ -570,6 +573,7 @@ export const mapPipelineSubmissionRow = (
   positiveVotes: row.positive_votes ?? 0,
   negativeVotes: row.negative_votes ?? 0,
   currentUserVote: currentUserVotes[row.id] ?? null,
+  mediaPresentation: parsePipelineMediaPresentation(row.media_presentation),
   sourcePayload: resolvePipelineSourcePayload(row.source_payload, registrySourcePayload),
   targetRegistryAssetId: row.target_registry_asset_id,
   baseRevisionNumber: row.base_revision_number,

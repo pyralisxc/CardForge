@@ -397,6 +397,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     detailVisual={currentItem ? <LibraryDetailVisual key={currentItem.id} item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} /> : undefined}
     detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
+      isOwner={experience.owner}
+      onRevisionCreated={() => shared.refresh()}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
       canReview={experience.contributor.canReview}
       votingId={votingId}

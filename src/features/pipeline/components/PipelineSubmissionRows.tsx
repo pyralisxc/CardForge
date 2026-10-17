@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Archive, Check, Eye, Save, Sparkles, X } from 'lucide-react';
 
+import { MediaPresentationPreview } from './MediaPresentationRevision';
 import { Button } from '@/components/ui/button';
 import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
 import { ContentQualityGuidance } from '@/features/pipeline/components/ContentQualityGuidance';
@@ -400,6 +401,12 @@ function AssetPreview({
         />
       </div>
     );
+  }
+
+  if (submission.mediaPresentation) {
+    return submission.sourceUrl
+      ? <MediaPresentationPreview sourceUrl={submission.sourceUrl} presentation={submission.mediaPresentation} />
+      : <p>Exact source preview requires Owner or original contributor access.</p>;
   }
 
   if (submission.assetType === 'fonts') {

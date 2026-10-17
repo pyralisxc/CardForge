@@ -27,6 +27,14 @@ const mockedGetSupabaseServerClient = vi.mocked(getSupabaseServerClient);
 const mockedGetContributorProfileReferenceByEmail = vi.mocked(getUniqueActiveContributorProfileReferenceByEmail);
 
 describe('contributor asset registry commands', () => {
+  it.each(['pipeline_media_editorial_review_required', 'pipeline_media_conflict'])('keeps %s as an actionable publication conflict', async (message) => {
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc: vi.fn().mockResolvedValue({ error: { message, code: 'P0001' } }) } as never);
+    await expect(setPipelineOwnerOverride({ submissionId: 'media', ownerStatusOverride: 'published', ownerNote: 'Decision', ownerContributorId: 'owner' })).rejects.toMatchObject({ status: 409 });
+  });
+  it('reports native media promotion row contention as retryable unavailability', async () => {
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc: vi.fn().mockResolvedValue({ error: { message: 'could not obtain lock on row', code: '55P03' } }) } as never);
+    await expect(setPipelineOwnerOverride({ submissionId: 'media', ownerStatusOverride: 'published', ownerNote: 'Decision', ownerContributorId: 'owner' })).rejects.toMatchObject({ status: 503 });
+  });
   it('reports publication lock contention as retryable unavailability', async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: 'pipeline_publication_unavailable', code: '55P03' } });
     vi.mocked(getSupabaseServerClient).mockReturnValue({ rpc } as never);

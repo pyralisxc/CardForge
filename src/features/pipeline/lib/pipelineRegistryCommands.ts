@@ -125,14 +125,24 @@ const requireSupabase = () => {
   return supabase;
 };
 
-const throwIfPublicationBusy = (errorMessage?: string): void => {
-  if (errorMessage?.includes('pipeline_publication_unavailable')) {
+const throwIfPublicationBusy = (errorMessage?: string, errorCode?: string): void => {
+  if (errorCode === '55P03' || errorMessage?.includes('pipeline_media_unavailable') || errorMessage?.includes('pipeline_publication_unavailable')) {
     throw new PipelineRegistryCommandError('The shared library is being updated. Try this action again.', 503, 'pipeline_publication_unavailable');
+  }
+};
+
+const throwIfMediaRevisionFailure = (errorMessage?: string): void => {
+  if (errorMessage?.includes('pipeline_media_editorial_review_required')) {
+    throw new PipelineRegistryCommandError('Review and approve this exact media revision separately before publishing it. Publish cannot approve it as a side effect.', 409);
+  }
+  if (errorMessage?.includes('pipeline_media_conflict') || errorMessage?.includes('pipeline_media_not_permitted')) {
+    throw new PipelineRegistryCommandError('The published parent, source, classification or presentation changed. Reload and review a new exact candidate before publishing.', 409);
   }
 };
 
 const throwRegistryCommandError = (message: string, errorMessage?: string): never => {
   throwIfPublicationBusy(errorMessage);
+  throwIfMediaRevisionFailure(errorMessage);
   const status = errorMessage?.includes('pipeline_asset_not_found') ? 404 : 500;
   throw new PipelineRegistryCommandError(
     status === 404 ? 'The shared library asset was not found.' : message,
@@ -184,8 +194,9 @@ const throwTemplateRevisionError = (errorMessage?: string): never => {
   throw new PipelineRegistryCommandError('Unable to submit the template revision.', 500);
 };
 
-const throwEditorialReviewError = (errorMessage?: string): never => {
-  throwIfPublicationBusy(errorMessage);
+const throwEditorialReviewError = (errorMessage?: string, errorCode?: string): never => {
+  throwIfPublicationBusy(errorMessage, errorCode);
+  throwIfMediaRevisionFailure(errorMessage);
   if (errorMessage?.includes('contributor_asset_not_found')) {
     throw new PipelineRegistryCommandError('Pipeline revision was not found.', 404);
   }
@@ -450,7 +461,7 @@ export const castPipelineVote = async ({
       throwTemplateRevisionError(error.message);
     }
     if (error.message?.includes('editorial_review_reason_required')) {
-      throwEditorialReviewError(error.message);
+      throwEditorialReviewError(error.message, error.code);
     }
     const statusCode = error.message?.includes('contributor_asset_not_found') ? 404 : 500;
     throw new PipelineRegistryCommandError(
@@ -498,7 +509,8 @@ export const setPipelineOwnerOverride = async ({
     p_owner_contributor_id: ownerContributorId,
   });
   if (error) {
-    throwIfPublicationBusy(error.message);
+    throwIfPublicationBusy(error.message, error.code);
+    throwIfMediaRevisionFailure(error.message);
     if (error.message?.includes('contributor_asset_lineage_purge_pending')) {
       throw new PipelineRegistryCommandError(
         'This Pipeline object is being permanently deleted and can no longer be changed.',
@@ -531,7 +543,7 @@ export const setPipelineEditorialReview = async ({
     p_review_note: reviewNote,
     p_reviewer_contributor_id: reviewerContributorId,
   });
-  if (error) throwEditorialReviewError(error.message);
+  if (error) throwEditorialReviewError(error.message, error.code);
 };
 
 export const purgePipelineSubmission = async ({

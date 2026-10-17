@@ -10,6 +10,7 @@ import type { ActionDescriptor, EnvironmentDetailRecord, EnvironmentStatusTone }
 import { getStudioAssetDestinationDefinition } from '@/domain/templates';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import { formatContentTaxonomyTag, getSemanticRoleLabel, getPipelineDecisionReasonLabel, getPipelineStatusLabel, isContributorPipelineVoteable } from '@/features/pipeline/client';
+import { MediaPresentationRevision, MediaPresentationPreview } from '@/features/pipeline/client/media-revisions';
 import type { PipelineSubmission } from '@/features/pipeline/client';
 import type { selectAllTemplates } from '@/features/project/client/workspace';
 import { LocalLibraryResourcePreview } from '@/features/project/client/library-resources';
@@ -76,6 +77,9 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
   }
   if (template) return <AuthoredObjectPreview template={template} label={item.name} size="standard" />;
   if (style) return <span className={styles.stylePreview} style={appearanceToStyle(style.appearance)} aria-label={`${item.name} style preview`} />;
+  if (item.scope === 'pipeline' && item.pipeline.submission.mediaPresentation) return item.pipeline.submission.sourceUrl
+    ? <MediaPresentationPreview sourceUrl={item.pipeline.submission.sourceUrl} presentation={item.pipeline.submission.mediaPresentation} />
+    : <span>Exact source preview requires Owner or original contributor access.</span>;
   if (previewUrl && !previewFailed) return <img src={previewUrl} alt="" className={styles.objectImage} onError={() => setPreviewFailed(true)} />;
   if (item.fontFamily || (item.scope === 'pipeline' && item.pipeline.submission.assetType === 'fonts')) return <span className={styles.fontSample} style={{ fontFamily: item.fontFamily ?? undefined }}>Aa</span>;
   return <span className={styles.objectFallback}><SourceIcon item={item} /></span>;
@@ -201,15 +205,20 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
   };
 };
 
-export function PipelineDetailContent({ item, onVoteRevision, canReview, votingId, isSelfVoteBlocked }: {
+export function PipelineDetailContent({ item, onVoteRevision, canReview, votingId, isSelfVoteBlocked, isOwner = false, onRevisionCreated }: {
   item: Extract<LibraryViewItem, { scope: 'pipeline' }>;
   onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
   canReview: boolean;
   votingId: string | null;
   isSelfVoteBlocked: (contributorId: string) => boolean;
+  isOwner?: boolean;
+  onRevisionCreated?: () => Promise<void> | void;
 }) {
   const submission = item.pipeline.submission;
+  const published = item.pipeline.currentPublishedSubmission;
+  const assetId = published?.registryAssetId ?? published?.targetRegistryAssetId;
   return <section className={styles.pipelineDetail} aria-label="Pipeline review details">
+    {isOwner && assetId && published?.assetType === 'textures' && onRevisionCreated ? <MediaPresentationRevision key={assetId} assetId={assetId} onCreated={onRevisionCreated} /> : null}
     <div><h3>Classification &amp; rights</h3><p>{submission.sourceNotes || 'No source or rights notes were supplied.'}</p><p>{[...submission.specialtyTags, ...submission.useCaseTags].join(' · ') || 'No classification tags supplied.'}</p></div>
     {submission.tierDecisionReason || submission.decisionReason ? <div><h3>Placement</h3><p>{getPipelineDecisionReasonLabel(submission.tierDecisionReason ?? submission.decisionReason)}</p></div> : null}
     <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((revision) => {
@@ -225,6 +234,9 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
               : getPipelineStatusLabel(revision.status);
       return <li key={revision.id}>
         <div className={styles.revisionOpen}><span>{getPipelineRevisionLabel(revision)}</span><span>{revisionRole}</span></div>
+        {revision.mediaPresentation ? <details><summary>Inspect exact presentation revision</summary>{revision.sourceUrl
+          ? <MediaPresentationPreview sourceUrl={revision.sourceUrl} presentation={revision.mediaPresentation} />
+          : <p>Exact source preview requires Owner or original contributor access.</p>}</details> : null}
         {canReview && isContributorPipelineVoteable(revision) ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`}>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>

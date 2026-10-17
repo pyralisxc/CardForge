@@ -254,6 +254,7 @@ export function OwnerContributorProgramPanel({
         </TabsList>
         <TabsContent value="library" className="mt-0">
           <OwnerAssetLibraryPanel
+            onRevisionCreated={loadProgram}
             program={program}
             query={libraryQuery}
             assetTypeFilter={libraryAssetType}
