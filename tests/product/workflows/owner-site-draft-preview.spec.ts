@@ -44,7 +44,8 @@ test('@golden keeps responsive draft theme, nested menu and keyboard focus insid
     document.documentElement.dataset.cfCorners = 'square';
     document.documentElement.dataset.cfContrast = 'high';
   });
-  await outer.getByLabel('Viewport', { exact: true }).selectOption('phone');
+  const viewport = outer.getByRole('combobox', { name: 'Viewport', exact: true });
+  await viewport.selectOption('phone');
   const frame = outer.frameLocator('iframe');
   await expect(frame.getByRole('heading', { name: 'Curated website preview', exact: true })).toBeVisible();
   await expect(frame.locator('html')).toHaveAttribute('data-cf-palette', 'slate');
@@ -68,8 +69,8 @@ test('@golden keeps responsive draft theme, nested menu and keyboard focus insid
   const canvas = page.frames().find((item) => item.parentFrame());
   const geometry = await canvas!.evaluate(() => ({ width: window.innerWidth, scroll: document.documentElement.scrollWidth, scripts: document.querySelectorAll('script').length }));
   expect(geometry).toEqual({ width: 390, scroll: 390, scripts: 0 });
-  await outer.getByLabel('Viewport', { exact: true }).selectOption('tablet');
+  await viewport.selectOption('tablet');
   await expect(outer.locator('iframe')).toHaveCSS('width', '768px');
-  await outer.getByLabel('Viewport', { exact: true }).selectOption('desktop');
+  await viewport.selectOption('desktop');
   await expect(outer.locator('iframe')).toHaveCSS('width', '1440px');
 });
