@@ -145,10 +145,11 @@ export function FocusedSetArtifactSurface({
       title: getCardTitle(card, cardIndexById.get(card.uniqueId) ?? index),
       subtitle: card.template.name,
       groupLabel: label,
+      showGroupLabel: organization.arrangement === 'manual' && organization.groupBy !== 'none',
       position: organization.positions[card.uniqueId],
       physicalSizeMm: getCardPhysicalSizeMm(card),
     })),
-  })), [cardIndexById, groups, organization.positions, setId]);
+  })), [cardIndexById, groups, organization.arrangement, organization.groupBy, organization.positions, setId]);
 
   const layout = useMemo(() => buildFocusedArtifactLayout({
     arrangement: organization.arrangement,

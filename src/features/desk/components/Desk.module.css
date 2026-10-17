@@ -1579,15 +1579,16 @@
 }
 
 .cameraControls {
-  position: absolute;
+  position: relative;
   z-index: 8;
-  right: 0.55rem;
-  bottom: 0.55rem;
+  right: auto;
+  bottom: auto;
   display: flex;
   min-height: 2.5rem;
   max-width: calc(100% - 1.1rem);
   flex-wrap: nowrap;
   align-items: center;
+  align-self: flex-end;
   gap: 0.35rem;
   margin: 0;
   padding: 0.22rem;
