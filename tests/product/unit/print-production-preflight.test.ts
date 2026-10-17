@@ -45,6 +45,19 @@ const makeCard = (overrides: Partial<DisplayCard> = {}): DisplayCard => ({
 });
 
 describe('print production preflight', () => {
+  it('does not mistake an embedded reference output intent for independent press acceptance', () => {
+    const report = createPrintProductionPreflight([makeCard()], 300, [], 'pdfx4-fogra39-reference-v1');
+    expect(report.productionPrepared).toBe(true);
+    expect(report.pressReady).toBe(false);
+    expect(report.colorManagement).toMatchObject({
+      pressStandard: 'PDF/X-4', independentValidation: 'pending', professionalAcceptance: 'pending',
+      outputIntent: { id: 'pdfx4-fogra39-reference-v1' },
+    });
+    expect(report.issues.map((issue) => issue.code)).toContain('standards.independent_validation_pending');
+    expect(report.issues.map((issue) => issue.code)).toContain('standards.professional_acceptance_pending');
+    expect(report.issues.map((issue) => issue.code)).not.toContain('standards.output_intent_missing');
+  });
+
   it('reports actual source detail separately from dense export pixels and warns about edge-extended bleed', () => {
     const report = createPrintProductionPreflight([makeCard()], 300, [{ scope: 'card:1:front:image:1', naturalWidth: 64,
       naturalHeight: 64, placedWidthMm: 88, placedHeightMm: 88, effectivePpi: 64 / 88 * 25.4 }]);

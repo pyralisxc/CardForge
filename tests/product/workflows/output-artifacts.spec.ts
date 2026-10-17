@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Download } from '@playwright/test';
 import JSZip from 'jszip';
+import { createHash } from 'node:crypto';
+import { PDFDocument } from 'pdf-lib';
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
 test('@golden gives an empty Set one creation next step before output controls', async ({ page }, testInfo) => {
@@ -21,6 +23,7 @@ test('@golden gives an empty Set one creation next step before output controls',
 });
 
 test('does not download a success artifact when authored artwork fails to load', async ({ page }) => {
+  test.setTimeout(60_000);
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 1 });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await openScaleSet(page, 100);
@@ -41,6 +44,11 @@ test('does not download a success artifact when authored artwork fails to load',
   }
   await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
   await page.getByRole('button', { name: 'Output', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Primary use', exact: true }).click();
+  await page.getByRole('option', { name: 'Print physical cards', exact: true }).click();
+  await page.getByRole('button', { name: 'Download color-managed press candidate ZIP', exact: true }).click();
+  await expect(page.getByText('Press candidate export failed', { exact: true })).toBeVisible();
+  expect(downloads).toBe(0);
   await page.getByText('Print PDF', { exact: true }).click();
   await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();
   await expect(page.getByText('PDF export failed', { exact: true })).toBeVisible();
@@ -99,6 +107,42 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   expect(preflight.sourceImageDetail.images.every((image: { naturalWidth: number }) => image.naturalWidth === 64)).toBe(true);
   expect(preflight.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'resolution.source_below_300_ppi' })]));
   expect(preflight.pressReady).toBe(false);
+  let pressDownloads = 0;
+  page.on('download', () => { pressDownloads += 1; });
+  await page.route('**/color-profiles/FOGRA39L_coated.icc', (route) => route.fulfill({ status: 200, contentType: 'application/octet-stream', body: 'changed-profile' }));
+  await page.getByRole('button', { name: 'Download color-managed press candidate ZIP', exact: true }).click();
+  await expect(page.getByText('Press candidate export failed', { exact: true })).toBeVisible();
+  await expect(page.getByText(/color profile.*changed/)).toBeVisible();
+  expect(pressDownloads).toBe(0);
+  await page.unroute('**/color-profiles/FOGRA39L_coated.icc');
+  for (const close of await page.getByRole('button', { name: 'Close notification', exact: true }).all()) {
+    if (await close.isVisible()) await close.click();
+  }
+  const pressDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download color-managed press candidate ZIP', exact: true }).click();
+  const pressBytes = await save(await pressDownload);
+  expect(pressDownloads).toBe(1);
+  const pressZip = await JSZip.loadAsync(pressBytes);
+  const candidateBytes = await pressZip.file('candidate.pdf')!.async('nodebuffer');
+  const candidateReport = JSON.parse(await pressZip.file('candidate-report.json')!.async('string'));
+  const candidatePreflight = JSON.parse(await pressZip.file('cardforge-print-preflight.json')!.async('string'));
+  expect(candidateReport).toMatchObject({ pressReady: false, standardsValidation: 'pending', professionalAcceptance: 'pending', declaredStandard: 'PDF/X-4', paperComposite: 'opaque-white', watermarkApplied: true });
+  expect(candidateReport.pdfSha256).toBe(createHash('sha256').update(candidateBytes).digest('hex'));
+  expect(candidateReport.pages.map((entry: { face: string }) => entry.face)).toEqual(['front', 'back', 'front', 'back']);
+  expect(candidatePreflight).toMatchObject({ productionPrepared: true, pressReady: false, sourceImageDetail: { measured: true }, colorManagement: { pressStandard: 'PDF/X-4', independentValidation: 'pending', professionalAcceptance: 'pending' } });
+  expect(candidatePreflight.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'standards.independent_validation_pending' }), expect.objectContaining({ code: 'resolution.source_below_300_ppi' })]));
+  expect(candidateBytes.subarray(0, 8).toString()).toBe('%PDF-1.6');
+  const candidatePdf = await PDFDocument.load(candidateBytes, { updateMetadata: false });
+  expect(candidatePdf.getPageCount()).toBe(4);
+  for (const candidatePage of candidatePdf.getPages()) {
+    expect(candidatePage.getTrimBox().width * 25.4 / 72).toBeCloseTo(63, 6);
+    expect(candidatePage.getTrimBox().height * 25.4 / 72).toBeCloseTo(88, 6);
+    expect(candidatePage.getBleedBox().width * 25.4 / 72).toBeCloseTo(69, 6);
+  }
+  for (const [entry, key] of [['profiles/sRGB.icc', 'source'], ['profiles/FOGRA39L_coated.icc', 'output'], ['profiles/NOTICE.txt', 'notice']]) {
+    expect(createHash('sha256').update(await pressZip.file(entry)!.async('nodebuffer')).digest('hex')).toBe(candidateReport.profileHashes[key]);
+  }
+  await testInfo.attach('color-managed-press-candidate.zip', { body: pressBytes, contentType: 'application/zip' });
   const digitalPdfDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download digital PDF', exact: true }).click();
   const digitalPdf = await save(await digitalPdfDownload);
