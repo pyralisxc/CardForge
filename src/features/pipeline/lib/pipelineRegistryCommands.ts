@@ -30,6 +30,7 @@ export interface SetPipelineEditorialReviewInput {
   reviewStatus: PipelineEditorialReviewStatus;
   reviewNote: string;
   reviewerContributorId: string;
+  expectedEvidenceVersion?: number | null;
 }
 
 export interface UpsertPipelineRegistryAssetInput {
@@ -210,8 +211,11 @@ const throwEditorialReviewError = (errorMessage?: string, errorCode?: string): n
   if (errorMessage?.includes('editorial_review_live_requires_quarantine')) {
     throw new PipelineRegistryCommandError('Live content must be quarantined or retired when it needs correction; “needs revision” is for unpublished candidates.', 409);
   }
+  if (errorMessage?.includes('editorial_review_evidence_conflict')) {
+    throw new PipelineRegistryCommandError('Source evidence changed or was not read. Inspect the current evidence before approving this exact revision.', 409);
+  }
   if (errorMessage?.includes('editorial_review_source_notes_required')) {
-    throw new PipelineRegistryCommandError('Add source, provenance, and rights notes before approving this revision.', 400);
+    throw new PipelineRegistryCommandError('Supply provenance and publication-rights evidence before approval. Correction candidates use Record source evidence; inherited creator notes remain unchanged.', 400);
   }
   if (errorMessage?.includes('editorial_review_preview_required')) {
     throw new PipelineRegistryCommandError('Add current preview evidence before approving this revision.', 400);
@@ -536,6 +540,7 @@ export const setPipelineEditorialReview = async ({
   reviewStatus,
   reviewNote,
   reviewerContributorId,
+  expectedEvidenceVersion,
 }: SetPipelineEditorialReviewInput): Promise<void> => {
   const supabase = requireSupabase();
   const { error } = await supabase.rpc('cardforge_set_contributor_asset_editorial_review', {
@@ -543,6 +548,7 @@ export const setPipelineEditorialReview = async ({
     p_review_status: reviewStatus,
     p_review_note: reviewNote,
     p_reviewer_contributor_id: reviewerContributorId,
+    p_expected_evidence_version: expectedEvidenceVersion ?? null,
   });
   if (error) throwEditorialReviewError(error.message, error.code);
 };

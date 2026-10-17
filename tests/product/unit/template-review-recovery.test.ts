@@ -20,7 +20,7 @@ function actions() {
   let result!: ReturnType<typeof useTemplateLibraryActions>;
   function Probe() {
     result = useTemplateLibraryActions({
-      addOrUpdateTemplate: (template) => { workspace.userTemplates = [template]; return template.id!; },
+      addOrUpdateTemplate: (template) => { workspace.userTemplates = [...workspace.userTemplates.filter((existing) => existing.id !== template.id), template]; return template.id!; },
       addOrUpdateAppearanceStyle: vi.fn(() => 'style'), commitTemplateChange: vi.fn(() => 'template'),
       clearPersonalTemplateOverride: vi.fn(), cloneTemplate: vi.fn(() => null), deleteAppearanceStyle: vi.fn(), deleteTemplate: vi.fn(),
       setGeneratorSelectedTemplateId: vi.fn(), setTemplateEditorSelectedTemplateId: vi.fn(),
@@ -36,6 +36,21 @@ beforeEach(() => { workspace.userTemplates = []; workspace.defaultTemplates = []
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Template review asynchronous browser recovery', () => {
+  it('prepares an isolated review working copy without replacing a saved override or changing its provider base', async () => {
+    const published = { ...draft(), name: 'Published source', templateSource: 'default' as const, templatePipelineContext: undefined };
+    const existing = { ...published, templateSource: 'user' as const, name: 'My existing local work' };
+    workspace.defaultTemplates = [published];
+    workspace.userTemplates = [existing];
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ expectedBase, template: published }))));
+    const result = await actions().handlePrepareTemplateReview(existing, () => true);
+    expect(result.id).not.toBe(expectedBase.assetId);
+    expect(result.id).toMatch(/^template-review-/u);
+    expect(result.name).toBe('Published source');
+    expect(result.templatePipelineContext?.expectedBase).toEqual(expectedBase);
+    expect(workspace.userTemplates).toEqual([existing, result]);
+    expect(workspace.defaultTemplates).toEqual([published]);
+  });
+
   it.each(['fingerprint', 'receipt'] as const)('preserves newer saved work during an awaited %s instead of persisting stale content', async (phase) => {
     const template = draft();
     if (phase === 'receipt') template.templatePipelineContext!.attempt = { key: 'previous_key_12345678', requestFingerprint: 'f'.repeat(64) };

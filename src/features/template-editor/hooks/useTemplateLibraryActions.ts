@@ -304,7 +304,7 @@ export function useTemplateLibraryActions({
   const handlePrepareTemplateReview = useCallback(async (template: TCGCardTemplate, isStillCurrent: () => boolean): Promise<TCGCardTemplate> => {
     if (!projectCapabilities.canPublishSharedLibrary || !template.id) throw new Error('Owner access and a published Template are required.');
     const current = selectAllTemplates(useProjectStore.getState()).find((item) => item.id === template.id);
-    if (!current || current.templateSource !== 'default') throw new Error('An existing browser draft is preserved. Keep or fork it before preparing a fresh review from the published source.');
+    if (!current) throw new Error('The selected Template is unavailable. Your browser work is unchanged.');
     const baseline = JSON.stringify(current);
     const response = await fetch(`/api/owner/pipeline/template-revisions?assetId=${encodeURIComponent(template.id)}`);
     await requireOkResponse(response, 'The published review base is unavailable. Your work is unchanged.');
@@ -314,9 +314,12 @@ export function useTemplateLibraryActions({
     const latest = selectAllTemplates(useProjectStore.getState()).find((item) => item.id === template.id);
     if (!isStillCurrent() || JSON.stringify(latest) !== baseline) throw new Error('Your editor or browser draft changed while the published source loaded. Those changes are preserved; review them before preparing again.');
     const draft = createSharedLineageDraft(result.template, result.template, nanoid);
+    // Review work must not shadow existing drafts or cards using the published ID.
+    // The exact provider identity remains solely in the saved review context.
+    draft.id = `template-review-${nanoid()}`;
     draft.templatePipelineContext = { schemaVersion: 1, expectedBase };
     addOrUpdateTemplate(draft, 'user');
-    toast({ title: 'Review draft prepared', description: 'The exact published source is saved as your browser draft. Editing and Save do not change the live revision.' });
+    toast({ title: 'Review draft prepared', description: 'The exact published source is saved as a separate browser working copy. Existing drafts, cards, and the live revision are unchanged.' });
     return draft;
   }, [addOrUpdateTemplate, projectCapabilities.canPublishSharedLibrary, toast]);
 
@@ -329,7 +332,7 @@ export function useTemplateLibraryActions({
     const requestFingerprint = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(templateReviewRequestText(current)))))
       .map((value) => value.toString(16).padStart(2, '0')).join('');
     if (context.attempt && context.attempt.requestFingerprint !== requestFingerprint) {
-      const response = await fetch(`/api/owner/pipeline/template-revisions?assetId=${encodeURIComponent(current.id)}&submissionKey=${encodeURIComponent(context.attempt.key)}`);
+      const response = await fetch(`/api/owner/pipeline/template-revisions?assetId=${encodeURIComponent(context.expectedBase.assetId)}&submissionKey=${encodeURIComponent(context.attempt.key)}`);
       await requireOkResponse(response, 'The previous attempt is still uncertain. Retry its exact saved snapshot before changing the submission.');
       const previous = await response.json() as { receipt?: unknown };
       if (!Object.hasOwn(previous, 'receipt')) throw new Error('The previous attempt receipt could not be verified. Your saved attempt is preserved.');

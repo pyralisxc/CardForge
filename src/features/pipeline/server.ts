@@ -20,3 +20,4 @@ export { classifyPublishedPipelineAsset, readPublishedPipelineClassification } f
 
 export { readMediaPresentationRevision, createMediaPresentationRevision } from './server/mediaPresentationRevision';
 export { readTemplateReviewBase, readTemplateReviewReceipt, createTemplateReviewRevision } from './server/templateReviewRevision';
+export { readSourceReviewEvidence, recordSourceReviewEvidence } from './server/sourceReviewEvidence';

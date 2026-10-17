@@ -625,16 +625,19 @@ export const updatePipelineEditorialReview = async ({
   submissionId,
   reviewStatus,
   reviewNote,
+  expectedEvidenceVersion,
   currentUserId,
   currentContributorIds = [currentUserId],
 }: {
   submissionId: string;
   reviewStatus: unknown;
   reviewNote: unknown;
+  expectedEvidenceVersion?: unknown;
   currentUserId: string;
   currentContributorIds?: string[];
 }): Promise<PipelineProgramView> => {
   if (!currentUserId) throw new PipelineStoreError('Owner identity is required to review an asset.', 403);
+  if (expectedEvidenceVersion != null && (!Number.isInteger(expectedEvidenceVersion) || Number(expectedEvidenceVersion) < 0 || Number(expectedEvidenceVersion) > 2_147_483_647)) throw new PipelineStoreError('Read the exact source evidence version before reviewing.', 400);
   const normalizedStatus: PipelineEditorialReviewStatus | null = (
     reviewStatus === 'pending'
     || reviewStatus === 'approved'
@@ -656,6 +659,7 @@ export const updatePipelineEditorialReview = async ({
     reviewStatus: normalizedStatus,
     reviewNote: decision.value,
     reviewerContributorId: currentUserId,
+    expectedEvidenceVersion: typeof expectedEvidenceVersion === 'number' ? expectedEvidenceVersion : null,
   }));
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };

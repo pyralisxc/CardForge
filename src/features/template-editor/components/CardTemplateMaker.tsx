@@ -252,13 +252,13 @@ export function CardTemplateMaker({
   }, [canPublishSharedLibrary, canSubmitExistingRevision, commands, currentTemplate, isDirty, isReviewDraft, isSubmittingSharedRevision, onSubmitTemplateRevision, toast]);
 
   const handlePrepareReview = useCallback(async () => {
-    if (!onPrepareTemplateReview || isPreparingReview || isDirty || !isSharedTemplate) return;
+    if (!onPrepareTemplateReview || isPreparingReview || isDirty || !(isSharedTemplate || isSharedLineageDraft) || isReviewDraft) return;
     setIsPreparingReview(true);
     const baseline = JSON.stringify(currentTemplate);
     try { beginDraft(await onPrepareTemplateReview(currentTemplate, () => !latestEditorRef.current.isDirty && JSON.stringify(latestEditorRef.current.template) === baseline)); }
     catch (error) { toast({ title: 'Review draft not prepared', description: error instanceof Error ? error.message : 'Your existing work is unchanged.', variant: 'destructive' }); }
     finally { setIsPreparingReview(false); }
-  }, [beginDraft, currentTemplate, isDirty, isPreparingReview, isSharedTemplate, onPrepareTemplateReview, toast]);
+  }, [beginDraft, currentTemplate, isDirty, isPreparingReview, isReviewDraft, isSharedLineageDraft, isSharedTemplate, onPrepareTemplateReview, toast]);
   const handleSubmitReview = useCallback(async () => {
     if (!onSubmitTemplateReview || !isReviewDraft || isSubmittingSharedRevision) return;
     if (isDirty && !await commands.saveTemplate()) return;
@@ -337,7 +337,7 @@ export function CardTemplateMaker({
                   <Button type="button" size="sm" disabled={isSavingTemplate || isSubmittingSharedRevision || isPreparingReview} onClick={() => void handleSubmitSharedRevision()}>
                     {isSubmittingSharedRevision ? canPublishSharedLibrary ? 'Publishing…' : 'Submitting…' : canPublishSharedLibrary ? `Publish revision ${nextTemplateRevision}` : `Submit revision ${nextTemplateRevision}`}
                   </Button>
-                  {canPublishSharedLibrary && isSharedTemplate && onPrepareTemplateReview ? (
+                  {canPublishSharedLibrary && (isSharedTemplate || isSharedLineageDraft) && onPrepareTemplateReview ? (
                     <Button type="button" size="sm" variant="outline" disabled={isDirty || isSavingTemplate || isSubmittingSharedRevision || isPreparingReview} onClick={() => void handlePrepareReview()} title={isDirty ? 'Preserve these edits first. Prepare a review from an unchanged published Template.' : 'Start an unpublished correction from the exact published source.'}>
                       {isPreparingReview ? 'Preparing…' : 'Prepare review draft'}
                     </Button>

@@ -17,8 +17,11 @@ export const templateReviewReceiptSchema = z.object({
 });
 export type TemplateReviewReceipt = z.infer<typeof templateReviewReceiptSchema>;
 
-/** Working-copy leases and retry bookkeeping are not authored Template content. */
-export const templateReviewPayload = getAuthoredTemplatePayload;
+/** Browser working-copy identity and retry bookkeeping do not change the provider asset. */
+export const templateReviewPayload = (template: TCGCardTemplate): ReturnType<typeof getAuthoredTemplatePayload> => ({
+  ...getAuthoredTemplatePayload(template),
+  id: template.templatePipelineContext?.expectedBase.assetId ?? template.id,
+});
 
 const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
   : value && typeof value === 'object'

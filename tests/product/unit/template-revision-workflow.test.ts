@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createPersonalTemplateFork, reconstructMinimalTemplate, type TCGCardTemplate } from '@/domain/templates';
-import { templateReviewRequestText } from '@/features/pipeline/lib/templateReview';
+import { templateReviewPayload, templateReviewRequestText } from '@/features/pipeline/lib/templateReview';
 import { buildCardForgeProjectSnapshot } from '@/features/project/lib/projectPackageCodec';
 import { createProjectDocumentFromState } from '@/features/project/model/projectDocument';
 import { prepareTemplateForLibrarySave } from '@/features/template-editor/hooks/useTemplateLibraryActions';
@@ -106,5 +106,15 @@ describe('Template review working-copy context', () => {
     }) });
     expect(snapshot.manifest.project.userTemplates[0]).not.toHaveProperty('templatePipelineContext');
     expect(template.templatePipelineContext).toEqual(context);
+  });
+  it('retains an isolated browser ID through Save but submits and fingerprints the exact provider asset', () => {
+    const template = { ...sharedTemplate, id: 'template-review-working-copy', templateSource: 'user' as const,
+      templateRegistryStatus: 'draft' as const, templateLineageId: 'shared-template', templateOriginLineageId: 'shared-template', templatePipelineContext: context };
+    const saved = prepareTemplateForLibrarySave({ ...template, name: 'Correction' }, true, () => 'next', template);
+    expect(saved.id).toBe('template-review-working-copy');
+    expect(saved.templatePipelineContext).toEqual(context);
+    expect(templateReviewPayload(saved).id).toBe('shared-template');
+    expect(templateReviewRequestText(saved)).toBe(templateReviewRequestText({ ...saved, id: 'another-browser-working-copy' }));
+    expect(createPersonalTemplateFork(saved).templatePipelineContext).toBeUndefined();
   });
 });
