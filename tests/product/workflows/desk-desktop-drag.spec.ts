@@ -33,15 +33,6 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(setButton).toHaveAttribute('title', /Drag to move/);
     await expect.poll(() => setButton.evaluate((node) => getComputedStyle(node).cursor)).toBe('grab');
 
-    const before = await setObject.evaluate((node) => {
-      const style = (node as HTMLElement).style;
-      return {
-        x: Number.parseFloat(style.getPropertyValue('--desk-x')),
-        y: Number.parseFloat(style.getPropertyValue('--desk-y')),
-      };
-    });
-    const zoom = Number(await viewport.getAttribute('data-zoom'));
-    expect(zoom).toBeGreaterThan(0);
     const box = await setButton.boundingBox();
     expect(box).not.toBeNull();
     const start = { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
@@ -66,11 +57,13 @@ test.describe('Desk desktop spatial interaction', () => {
         y: Number.parseFloat(style.getPropertyValue('--desk-y')),
       };
     });
-    // Authored positions are millimeters; the fitted camera varies with the
-    // measured preview footprint. Verify the actual pointer travel in screen
-    // pixels instead of imposing a viewport-dependent world-distance floor.
-    expect(Math.abs((after.x - before.x) * zoom - 72)).toBeLessThan(2);
-    expect(Math.abs((after.y - before.y) * zoom - 48)).toBeLessThan(2);
+    // Selection can change the viewport frame; authored millimeters times zoom
+    // alone do not represent screen travel. The grabbed point must follow the
+    // pointer in the real rendered scene, then its authored position persists.
+    const afterBox = await setButton.boundingBox();
+    expect(afterBox).not.toBeNull();
+    expect(Math.abs(afterBox!.x + afterBox!.width / 2 - start.x - 72)).toBeLessThan(2);
+    expect(Math.abs(afterBox!.y + afterBox!.height / 2 - start.y - 48)).toBeLessThan(2);
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
     await expect.poll(() => page.locator('[data-desk-set-object-id="set:scale-set-100"]').evaluate((node) => {
