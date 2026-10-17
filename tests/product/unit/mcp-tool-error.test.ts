@@ -5,8 +5,21 @@ vi.mock('server-only', () => ({}));
 import { createMcpToolError } from '@/features/studio-documents/server/mcpToolError';
 import { PersonalLibraryStoreError } from '@/features/personal-library/server';
 import { ProjectStorageProviderError } from '@/features/project/server';
+import { StudioDocumentStoreError } from '@/features/studio-documents/server/StudioDocumentStoreError';
 
 describe('MCP boundary failures', () => {
+  it('preserves stale Studio revision conflicts instead of reporting invalid input', () => {
+    const result = createMcpToolError(new StudioDocumentStoreError(
+      'The Studio document changed from expected revision 4 to 5. Reload once, keep the same stable ids, and retry the whole atomic patch.',
+      409,
+    ));
+    expect(result).toMatchObject({
+      isError: true,
+      _meta: { 'cardforge/boundaryFailure': { status: 409, kind: 'conflict' } },
+    });
+    expect(result.content[0]).toMatchObject({ type: 'text', text: expect.stringContaining('expected revision 4 to 5') });
+  });
+
   it('preserves connected-provider failure meaning for the agent', () => {
     const result = createMcpToolError(new ProjectStorageProviderError(
       'Reconnect Google Drive before retrying.',

@@ -8,6 +8,33 @@ const formatRepairIds = ['default-name-card-theme', 'default-event-badge-theme']
 const reusableKinds = new Set(['texture', 'divider', 'icon', 'image', 'elementPreset', 'font']);
 const digest = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
+/** Keep the native command's whole compare-and-set baseline; absence is not a default. */
+function classificationSnapshot(item) {
+  const stringList = (value) => Array.isArray(value) && value.every((entry) => typeof entry === 'string');
+  const nullableString = (value) => value === null || typeof value === 'string';
+  if (typeof item.contributor_submission_id !== 'string' || !item.contributor_submission_id
+    || typeof item.lineage_id !== 'string' || !item.lineage_id
+    || !Number.isInteger(item.registry_revision) || item.registry_revision < 0
+    || !stringList(item.submission_specialty_tags) || !stringList(item.submission_use_case_tags)
+    || typeof item.submission_semantic_role !== 'string' || !item.submission_semantic_role
+    || !nullableString(item.submission_visual_family)
+    || typeof item.submission_variant_kind !== 'string' || !item.submission_variant_kind
+    || !nullableString(item.submission_variant_label)
+    || !stringList(item.submission_compatibility_tags)) return null;
+  return {
+    expectedSubmissionId: item.contributor_submission_id,
+    expectedLineageId: item.lineage_id,
+    expectedRevision: item.registry_revision,
+    expectedSpecialtyTags: item.submission_specialty_tags,
+    expectedUseCaseTags: item.submission_use_case_tags,
+    expectedSemanticRole: item.submission_semantic_role,
+    expectedVisualFamily: item.submission_visual_family,
+    expectedVariantKind: item.submission_variant_kind,
+    expectedVariantLabel: item.submission_variant_label,
+    expectedCompatibilityTags: item.submission_compatibility_tags,
+  };
+}
+
 /** Read-only preparation. Never imports a provider client or runs the publishing sync. */
 export function prepareCatalogModernization({ inventory, formatInputs, classifications, templates }) {
   const entries = inventory.map((item) => {
@@ -20,29 +47,34 @@ export function prepareCatalogModernization({ inventory, formatInputs, classific
     const classification = explicit ?? (repositoryOwned && reusableKinds.has(item.asset_type)
       ? { specialtyTags: ['general'], useCaseTags: [] }
       : null);
+    const snapshot = classification && !classification.reviewReason ? classificationSnapshot(item) : null;
+    const reviewReason = classification && !classification.reviewReason && !snapshot
+      ? 'Read the complete current classification snapshot through the native Owner command before preparing a request; do not infer missing guard values.'
+      : classification?.reviewReason;
     return {
       ...identity,
-      action: classification && !classification.reviewReason ? 'classify-discovery-metadata' : 'classification-review',
+      action: classification && !reviewReason ? 'classify-discovery-metadata' : 'classification-review',
       current: { specialtyTags: item.specialty_tags, useCaseTags: item.use_case_tags },
       proposed: classification ? { specialtyTags: classification.specialtyTags, useCaseTags: classification.useCaseTags } : null,
       evidence: explicit ? `${bootstrapRoot}/classification.json#${item.asset_id}` : item.source_path,
-      reason: classification?.reviewReason ?? (classification ? 'Reusable repository-owned resource: General does not invent a specific application.' : 'No repository classification supports changing this item.'),
-      ...(classification && !classification.reviewReason ? {
+      reason: reviewReason ?? (classification ? 'Reusable repository-owned resource: General does not invent a specific application.' : 'No repository classification supports changing this item.'),
+      ...(classification && snapshot && !reviewReason ? {
         request: {
           method: 'POST', path: '/api/owner/pipeline/classification',
           body: {
             assetId: item.asset_id,
-            expectedSubmissionId: item.contributor_submission_id,
-            expectedLineageId: item.lineage_id,
-            expectedRevision: Number(item.registry_revision ?? 0),
-            expectedSpecialtyTags: item.submission_specialty_tags,
-            expectedUseCaseTags: item.submission_use_case_tags,
+            ...snapshot,
             specialtyTags: classification.specialtyTags,
             useCaseTags: classification.useCaseTags,
+            semanticRole: snapshot.expectedSemanticRole,
+            visualFamily: snapshot.expectedVisualFamily,
+            variantKind: snapshot.expectedVariantKind,
+            variantLabel: snapshot.expectedVariantLabel,
+            compatibilityTags: snapshot.expectedCompatibilityTags,
           },
         },
       } : {}),
-      execution: 'Requires deployment of the owner classification command and its migration. Only discovery taxonomy changes; authored payload, revisions, votes and lineage remain unchanged. Re-read this exact identity before execution.',
+      execution: 'Use the native Owner classification command. Only proposed discovery tags change; semantic role, family, variant, compatibility, authored payload, revisions, votes and lineage remain unchanged. Re-read the complete current classification before execution; abort on drift.',
     };
   });
   const formatRevisions = formatRepairIds.flatMap((assetId) => {
