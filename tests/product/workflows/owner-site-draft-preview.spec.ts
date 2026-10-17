@@ -12,7 +12,7 @@ const fixture = buildSync({
   define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
 });
 
-test('@golden keeps responsive draft theme, nested menu and keyboard focus inside its iframe', async ({ page }, testInfo) => {
+test('@golden keeps responsive draft theme, nested menu and keyboard focus inside its iframe', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
@@ -38,6 +38,11 @@ test('@golden keeps responsive draft theme, nested menu and keyboard focus insid
   await page.addScriptTag({ content: fixture.outputFiles.find((item) => item.path.endsWith('.js'))!.text });
   const outer = page.getByRole('dialog', { name: 'Isolated Owner preview proof', exact: true });
   await expect(outer).toBeVisible();
+  // Iframe child actionability does not wait for its ancestor Sheet's entrance.
+  // Use the finite native animation lifecycle, not a timing delay or force-click.
+  await outer.evaluate(async (panel) => {
+    await Promise.all(panel.getAnimations().map((animation) => animation.finished));
+  });
   await page.evaluate(() => {
     document.documentElement.dataset.cfPalette = 'slate';
     document.documentElement.dataset.cfAccent = 'arcane';
@@ -53,24 +58,6 @@ test('@golden keeps responsive draft theme, nested menu and keyboard focus insid
   await expect(frame.locator('html')).toHaveAttribute('data-cf-corners', 'square');
   await expect(frame.locator('html')).toHaveAttribute('data-cf-contrast', 'high');
   const trigger = frame.getByRole('button', { name: 'Open menu', exact: true });
-  console.info('Owner preview viewport probe', JSON.stringify({
-    sheet: await outer.boundingBox(),
-    iframe: await outer.locator('iframe').boundingBox(),
-    trigger: await trigger.boundingBox(),
-    scrollSurface: await outer.getByLabel('Scroll draft canvas horizontally').evaluate((node) => ({
-      width: node.clientWidth, height: node.clientHeight,
-      scrollWidth: node.scrollWidth, scrollHeight: node.scrollHeight,
-      scrollLeft: node.scrollLeft, scrollTop: node.scrollTop,
-    })),
-    canvas: await trigger.evaluate((node) => ({
-      width: window.innerWidth, height: window.innerHeight,
-      scrollX: window.scrollX, scrollY: window.scrollY,
-      scrollWidth: document.documentElement.scrollWidth,
-      scrollHeight: document.documentElement.scrollHeight,
-      button: node.getBoundingClientRect().toJSON(),
-    })),
-  }));
-  await testInfo.attach('Owner phone preview before menu', { body: await page.screenshot(), contentType: 'image/png' });
   await trigger.click();
   const menu = frame.getByRole('dialog', { name: 'Navigation', exact: true });
   await expect(menu).toBeVisible();
