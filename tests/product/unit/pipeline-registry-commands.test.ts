@@ -282,6 +282,7 @@ describe('contributor asset registry commands', () => {
       p_review_status: 'approved',
       p_review_note: 'Original first-party artwork and rights reviewed at intended size.',
       p_reviewer_contributor_id: 'owner-1',
+      p_expected_evidence_version: null,
     });
   });
 
@@ -300,7 +301,7 @@ describe('contributor asset registry commands', () => {
       reviewerContributorId: 'owner-1',
     })).rejects.toMatchObject({
       status: 400,
-      message: 'Add source, provenance, and rights notes before approving this revision.',
+      message: 'Supply provenance and publication-rights evidence before approval. Correction candidates use Record source evidence; inherited creator notes remain unchanged.',
     });
   });
 
