@@ -597,7 +597,7 @@
   overflow: visible;
 }
 
-.workTile[data-featured="true"] .workVisual {
+.workTile[data-featured="true"]:not([data-positioned="true"]) .workVisual {
   min-height: 14rem;
 }
 

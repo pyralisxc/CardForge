@@ -21,6 +21,13 @@ test.describe('Desk desktop spatial interaction', () => {
 
     await expect(setButton).toBeVisible();
     await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+    // Featured work must keep the same physical proxy footprint. The retired
+    // featured-card minimum must not override a positioned Set's visual size.
+    await expect.poll(() => setButton.evaluate((button) => {
+      const visual = button.firstElementChild!;
+      return Math.abs(Number.parseFloat(getComputedStyle(visual).minHeight)
+        - Number.parseFloat(getComputedStyle(button).getPropertyValue('--desk-visual-height')));
+    })).toBeLessThan(0.1);
     const previewCards = setObject.locator('[data-preview-artifact-id]');
     await expect(previewCards).toHaveCount(5);
     const previewCenters = await previewCards.evaluateAll((nodes) => nodes.map((node) => {
