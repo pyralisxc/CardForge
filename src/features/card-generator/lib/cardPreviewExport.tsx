@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { toCanvas } from 'html-to-image';
 
 import { CardPreview, DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR } from '@/features/card-rendering/client';
-import { getCardExportDimensionsPx, getCardFaceTemplate, getTemplateProductionGeometryMm } from '@/domain/rendering';
+import { getCardExportDimensionsPx, getCardFaceCanvas, getCardFaceTemplate, getCardPhysicalSizeMm, getCardPreviewLayout, getTemplateProductionGeometryMm } from '@/domain/rendering';
 import { getExportProfile, type ExportMode, type ExportProfile } from '@/features/card-generator/lib/printValidation';
 import type { CardFace } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
@@ -189,56 +189,79 @@ const canvasToPngBlob = (canvas: HTMLCanvasElement): Promise<Blob> => new Promis
 
 const drawEdgeExtendedBleed = (
   context: CanvasRenderingContext2D,
-  trimCanvas: HTMLCanvasElement,
+  backgroundCanvas: HTMLCanvasElement,
   placement: CardProductionCanvasPlacement,
 ) => {
   const { trimWidthPx: width, trimHeightPx: height, bleedXPx, bleedYPx } = placement;
-  const sourceBandX = Math.min(bleedXPx, width);
-  const sourceBandY = Math.min(bleedYPx, height);
-
   if (bleedXPx > 0) {
-    context.save();
-    context.translate(bleedXPx, bleedYPx);
-    context.scale(-1, 1);
-    context.drawImage(trimCanvas, 0, 0, sourceBandX, height, 0, 0, bleedXPx, height);
-    context.restore();
-
-    context.save();
-    context.translate(bleedXPx + width, bleedYPx);
-    context.scale(-1, 1);
-    context.drawImage(trimCanvas, width - sourceBandX, 0, sourceBandX, height, -bleedXPx, 0, bleedXPx, height);
-    context.restore();
+    context.drawImage(backgroundCanvas, 0, 0, 1, height, 0, bleedYPx, bleedXPx, height);
+    context.drawImage(backgroundCanvas, width - 1, 0, 1, height, bleedXPx + width, bleedYPx, bleedXPx, height);
   }
 
   if (bleedYPx > 0) {
-    context.save();
-    context.translate(bleedXPx, bleedYPx);
-    context.scale(1, -1);
-    context.drawImage(trimCanvas, 0, 0, width, sourceBandY, 0, 0, width, bleedYPx);
-    context.restore();
-
-    context.save();
-    context.translate(bleedXPx, bleedYPx + height);
-    context.scale(1, -1);
-    context.drawImage(trimCanvas, 0, height - sourceBandY, width, sourceBandY, 0, -bleedYPx, width, bleedYPx);
-    context.restore();
+    context.drawImage(backgroundCanvas, 0, 0, width, 1, bleedXPx, 0, width, bleedYPx);
+    context.drawImage(backgroundCanvas, 0, height - 1, width, 1, bleedXPx, bleedYPx + height, width, bleedYPx);
   }
 
   if (bleedXPx > 0 && bleedYPx > 0) {
-    context.drawImage(trimCanvas, 0, 0, 1, 1, 0, 0, bleedXPx, bleedYPx);
-    context.drawImage(trimCanvas, width - 1, 0, 1, 1, bleedXPx + width, 0, bleedXPx, bleedYPx);
-    context.drawImage(trimCanvas, 0, height - 1, 1, 1, 0, bleedYPx + height, bleedXPx, bleedYPx);
-    context.drawImage(trimCanvas, width - 1, height - 1, 1, 1, bleedXPx + width, bleedYPx + height, bleedXPx, bleedYPx);
+    context.drawImage(backgroundCanvas, 0, 0, 1, 1, 0, 0, bleedXPx, bleedYPx);
+    context.drawImage(backgroundCanvas, width - 1, 0, 1, 1, bleedXPx + width, 0, bleedXPx, bleedYPx);
+    context.drawImage(backgroundCanvas, 0, height - 1, 1, 1, 0, bleedYPx + height, bleedXPx, bleedYPx);
+    context.drawImage(backgroundCanvas, width - 1, height - 1, 1, 1, bleedXPx + width, bleedYPx + height, bleedXPx, bleedYPx);
   }
+};
+
+export const clampProductionBackgroundRasterRounding = (
+  card: DisplayCard,
+  face: CardFace,
+  backgroundCanvas: HTMLCanvasElement,
+  widthPx: number,
+  heightPx: number,
+): void => {
+  const template = getCardFaceTemplate(card, face);
+  const { visualHeightPx } = getCardPreviewLayout({
+    targetWidthPx: widthPx, aspectRatio: template.aspectRatio,
+    canvas: getCardFaceCanvas(card, face), isPrintMode: true,
+  });
+  const physical = getCardPhysicalSizeMm({ ...card, template });
+  // Physical width/height round independently, while the authored canvas scales
+  // uniformly from width. Extend only that subpixel raster padding, not a
+  // mismatched canvas or genuinely transparent source background.
+  const padding = heightPx - visualHeightPx;
+  const roundingLimit = .5 * (1 + physical.heightMm / physical.widthMm) + Number.EPSILON;
+  if (padding <= 0 || padding > roundingLimit) return;
+  const context = backgroundCanvas.getContext('2d');
+  if (!context) throw new Error('Canvas rendering is unavailable for the print background.');
+  const lastFullRow = Math.max(0, Math.floor(visualHeightPx * backgroundCanvas.height / heightPx) - 1);
+  const edge = context.getImageData(0, lastFullRow, backgroundCanvas.width, 1);
+  // Copy alpha too. Source-over painting could make a genuinely translucent
+  // source edge appear opaque and evade the subsequent sufficiency check.
+  for (let y = lastFullRow + 1; y < backgroundCanvas.height; y++) context.putImageData(edge, 0, y);
 };
 
 export const extendCardTrimCanvasToProductionBleed = (
   card: DisplayCard,
   face: CardFace,
   trimCanvas: HTMLCanvasElement,
+  backgroundCanvas: HTMLCanvasElement,
+  maskCanvas: HTMLCanvasElement,
 ): HTMLCanvasElement => {
   const placement = getCardProductionCanvasPlacement(card, face, trimCanvas.width, trimCanvas.height);
-  if (placement.bleedXPx === 0 && placement.bleedYPx === 0) return trimCanvas;
+  if ([backgroundCanvas, maskCanvas].some((canvas) => canvas.width !== trimCanvas.width || canvas.height !== trimCanvas.height)) {
+    throw new Error('The production background dimensions do not match the authored trim render.');
+  }
+  if (placement.bleedXPx > 0 || placement.bleedYPx > 0) {
+    const backgroundContext = backgroundCanvas.getContext('2d');
+    if (!backgroundContext) throw new Error('Canvas rendering is unavailable for the print background.');
+    const { width, height } = backgroundCanvas;
+    const edges = [[0, 0, width, 1], [0, height - 1, width, 1], [0, 0, 1, height], [width - 1, 0, 1, height]];
+    for (const [x, y, w, h] of edges) {
+      const pixels = backgroundContext.getImageData(x, y, w, h).data;
+      for (let alpha = 3; alpha < pixels.length; alpha += 4) {
+        if (pixels[alpha] !== 255) throw new Error('Print bleed needs an opaque authored background at every edge. Add a solid background or complete background artwork; no missing artwork was invented.');
+      }
+    }
+  }
 
   const productionCanvas = document.createElement('canvas');
   productionCanvas.width = placement.productionWidthPx;
@@ -246,8 +269,27 @@ export const extendCardTrimCanvasToProductionBleed = (
   const context = productionCanvas.getContext('2d');
   if (!context) throw new Error('Canvas rendering is unavailable for print bleed preparation.');
 
-  drawEdgeExtendedBleed(context, trimCanvas, placement);
-  context.drawImage(trimCanvas, placement.trimOffsetXPx, placement.trimOffsetYPx);
+  drawEdgeExtendedBleed(context, backgroundCanvas, placement);
+  const trimContext = trimCanvas.getContext('2d'), backgroundContext = backgroundCanvas.getContext('2d'), maskContext = maskCanvas.getContext('2d');
+  if (!trimContext || !backgroundContext || !maskContext) throw new Error('Canvas rendering is unavailable for print corner preparation.');
+  const trim = trimContext.getImageData(0, 0, trimCanvas.width, trimCanvas.height);
+  const background = backgroundContext.getImageData(0, 0, trimCanvas.width, trimCanvas.height).data;
+  const mask = maskContext.getImageData(0, 0, trimCanvas.width, trimCanvas.height).data;
+  for (let i = 0; i < trim.data.length; i += 4) {
+    const alpha = trim.data[i + 3];
+    if (alpha === 255 || mask[i + 3] === 255) continue;
+    // Add only the complementary outer-mask coverage, not a second copy of
+    // intrinsically translucent interior content. Cap at uncovered alpha so
+    // already-painted borders/shadows outside the mask remain intact too.
+    const addedAlpha = Math.min(background[i + 3] * (255 - mask[i + 3]) / 255, 255 - alpha);
+    if (!addedAlpha) continue;
+    const totalAlpha = alpha + addedAlpha;
+    for (let channel = 0; channel < 3; channel++) {
+      trim.data[i + channel] = Math.round((trim.data[i + channel] * alpha + background[i + channel] * addedAlpha) / totalAlpha);
+    }
+    trim.data[i + 3] = Math.round(totalAlpha);
+  }
+  context.putImageData(trim, placement.trimOffsetXPx, placement.trimOffsetYPx);
   return productionCanvas;
 };
 
@@ -325,7 +367,7 @@ export function createCardFaceExportRenderer(
 
   const root = createRoot(container);
 
-  const renderPreview = async (card: DisplayCard, face: CardFace = 'front') => {
+  const renderPreview = async (card: DisplayCard, face: CardFace = 'front', productionLayer?: 'background' | 'mask') => {
     const { widthPx, heightPx } = getCardExportDimensionsPx(card, exportProfile.dpi);
     container.style.width = `${widthPx}px`;
     container.style.height = `${heightPx}px`;
@@ -336,6 +378,7 @@ export function createCardFaceExportRenderer(
       targetWidthPx: widthPx,
       className: 'export-render-card',
       highlightColor,
+      productionLayer,
     }));
 
     await waitForFrame();
@@ -418,9 +461,21 @@ export function createCardFaceExportRenderer(
     return applyCardExportWatermark(canvas, watermark);
   };
 
-  const renderProductionToCanvas = async (card: DisplayCard, face: CardFace = 'front') => (
-    extendCardTrimCanvasToProductionBleed(card, face, await renderToCanvas(card, face))
-  );
+  const renderProductionToCanvas = async (card: DisplayCard, face: CardFace = 'front') => {
+    const trimCanvas = await renderToCanvas(card, face);
+    const { element, widthPx, heightPx } = await renderPreview(card, face, 'background');
+    const backgroundCanvas = await toCanvas(element, {
+      pixelRatio: exportProfile.canvasPixelRatio, width: widthPx, height: heightPx,
+      skipFonts: false, fetchRequestInit: { mode: 'cors' },
+    });
+    clampProductionBackgroundRasterRounding(card, face, backgroundCanvas, widthPx, heightPx);
+    const { element: maskElement } = await renderPreview(card, face, 'mask');
+    const maskCanvas = await toCanvas(maskElement, {
+      pixelRatio: exportProfile.canvasPixelRatio, width: widthPx, height: heightPx,
+      skipFonts: false, fetchRequestInit: { mode: 'cors' },
+    });
+    return extendCardTrimCanvasToProductionBleed(card, face, trimCanvas, backgroundCanvas, maskCanvas);
+  };
 
   return {
     getSourceImageDetails: () => [...sourceDetails.values()],

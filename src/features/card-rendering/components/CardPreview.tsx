@@ -33,6 +33,8 @@ interface CardPreviewProps {
   isPrintMode?: boolean;
   showSizeInfo?: boolean;
   isEditorPreview?: boolean;
+  /** Export-only projections of the authored background or outer clipping coverage. */
+  productionLayer?: 'background' | 'mask';
   interactionOverlay?: ReactNode;
   highlightColor?: string;
   onSelect?: (card: DisplayCard) => void;
@@ -92,12 +94,14 @@ export function CardPreview({
   isPrintMode = false,
   showSizeInfo = false,
   isEditorPreview = false,
+  productionLayer,
   interactionOverlay,
   highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
   onSelect,
   onEdit,
   targetWidthPx,
 }: CardPreviewProps) {
+  const isProductionBackground = productionLayer === 'background';
   const templateToRender = getCardFaceTemplate(card, face);
   const dataToRender = getCardFaceData(card, face);
   const canvasToRender = getCardFaceCanvas(card, face);
@@ -186,6 +190,20 @@ export function CardPreview({
     cardContainerStyle.borderStyle = 'none';
   }
 
+  if (productionLayer) {
+    // Keep background placement/border-box geometry. Only the rectangular
+    // background drops the digital mask; neither projection paints a border.
+    if (isProductionBackground) cardContainerStyle.borderRadius = 0;
+    else {
+      // White represents coverage only, never authored/output paper color.
+      cardContainerStyle.backgroundColor = '#fff';
+      cardContainerStyle.backgroundImage = 'none';
+    }
+    cardContainerStyle.boxShadow = 'none';
+    cardContainerStyle.borderColor = 'transparent';
+    cardContainerStyle.borderImageSource = 'none';
+  }
+
   const borderOverlayStyle: React.CSSProperties | null = borderOverlayBackground ? {
     position: 'absolute',
     inset: 0,
@@ -252,7 +270,7 @@ export function CardPreview({
   }, [dataToRender]);
 
   const freeformElements = useMemo(() => {
-    if (!canvasToRender) return null;
+    if (productionLayer || !canvasToRender) return null;
     const canvas = canvasToRender;
     const scaleX = renderWidthPx / Math.max(1, canvas.width);
     const scaleY = cardPixelHeight / Math.max(1, canvas.height);
@@ -461,7 +479,7 @@ export function CardPreview({
           </ProjectBinaryFrame>
         );
       });
-  }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, highlightColor, renderWidthPx, isEditorPreview, templateToRender]);
+  }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, highlightColor, renderWidthPx, isEditorPreview, productionLayer, templateToRender]);
 
   const isInteractive = !isEditorPreview && (onSelect || onEdit);
 
@@ -521,8 +539,8 @@ export function CardPreview({
           aria-label={isInteractive ? 'Select generated output. Double-click to edit.' : undefined}
         >
           {freeformElements}
-          {borderOverlayStyle ? <div aria-hidden="true" data-card-border-overlay style={borderOverlayStyle} /> : null}
-          {interactionOverlay}
+          {!productionLayer && borderOverlayStyle ? <div aria-hidden="true" data-card-border-overlay style={borderOverlayStyle} /> : null}
+          {!productionLayer && interactionOverlay}
         </div>
       </div>
       {showSizeInfo && !isPrintMode && (

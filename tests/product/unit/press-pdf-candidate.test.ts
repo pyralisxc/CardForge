@@ -18,6 +18,37 @@ const raw = (value: unknown): PDFRawStream => {
   if (!(value instanceof PDFRawStream)) throw new Error('Expected an actual PDF stream.');
   return value;
 };
+// pdf-lib inflates FlateDecode but does not apply its PNG DecodeParms.
+// Independently reverse all five standard PNG filters for the pixel invariant.
+const imageRgb = (image: PDFRawStream): Uint8Array => {
+  const rows = decodePDFRawStream(image).decode();
+  const width = Number(image.dict.get(PDFName.of('Width'))?.toString());
+  const height = Number(image.dict.get(PDFName.of('Height'))?.toString());
+  const stride = width * 3;
+  const pixels = new Uint8Array(stride * height);
+  expect(rows.length).toBe(pixels.length + height);
+  for (let y = 0; y < height; y++) {
+    const filter = rows[y * (stride + 1)];
+    expect(filter).toBeLessThanOrEqual(4);
+    for (let x = 0; x < stride; x++) {
+      const index = y * stride + x;
+      const a = x >= 3 ? pixels[index - 3] : 0;
+      const b = y ? pixels[index - stride] : 0;
+      const c = y && x >= 3 ? pixels[index - stride - 3] : 0;
+      let predictor = 0;
+      if (filter === 1) predictor = a;
+      if (filter === 2) predictor = b;
+      if (filter === 3) predictor = Math.floor((a + b) / 2);
+      if (filter === 4) {
+        const p = a + b - c;
+        const pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+        predictor = pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      }
+      pixels[index] = rows[y * (stride + 1) + x + 1] + predictor;
+    }
+  }
+  return pixels;
+};
 const settings = { title: 'Fictional sample & <proof>', createdAt: '2026-10-17T12:00:00.000Z' };
 afterEach(() => vi.unstubAllGlobals());
 
@@ -72,7 +103,7 @@ describe('explicit color-managed press candidate', () => {
       const color = image.dict.lookup(PDFName.of('ColorSpace'), PDFArray);
       expect(color.lookup(0)?.toString()).toBe('/ICCBased');
       expect(decodePDFRawStream(raw(color.lookup(1))).decode()).toEqual(profiles.source);
-      expect(await sha256(decodePDFRawStream(image).decode())).toBe(await sha256(front.rgb));
+      expect(await sha256(imageRgb(image))).toBe(await sha256(front.rgb));
     }
     const metadata = raw(pdf.context.lookup(pdf.catalog.get(PDFName.of('Metadata'))));
     const xmp = new TextDecoder().decode(metadata.contents);
@@ -90,6 +121,26 @@ describe('explicit color-managed press candidate', () => {
     const invalid = face(); invalid.geometry.bleedMm = -1;
     await expect(createPressPdfCandidate([invalid], profiles, settings)).rejects.toThrow(/geometry/i);
     await expect(createPressPdfCandidate([face()], { ...profiles, output: profiles.source }, settings)).rejects.toThrow(/profile.*changed/i);
+  });
+
+  it('uses lossless adaptive PNG row prediction without changing decoded RGB', async () => {
+    const input = face();
+    for (let y = 0; y < input.heightPx; y++) for (let x = 0; x < input.widthPx; x++) {
+      const offset = (y * input.widthPx + x) * 3;
+      input.rgb[offset] = (x * 3 + y) & 255;
+      input.rgb[offset + 1] = (x + y * 2) & 255;
+      input.rgb[offset + 2] = (x * 2 + y * 3) & 255;
+    }
+    const output = await createPressPdfCandidate([input], profiles, settings);
+    const pdf = await PDFDocument.load(output.pdf, { updateMetadata: false });
+    const image = raw(pdf.getPages()[0].node.lookup(PDFName.of('Resources'), PDFDict)
+      .lookup(PDFName.of('XObject'), PDFDict).lookup(PDFName.of('Im0')));
+    const parameters = image.dict.lookup(PDFName.of('DecodeParms'), PDFDict);
+    expect(parameters.get(PDFName.of('Predictor'))?.toString()).toBe('15');
+    expect(parameters.get(PDFName.of('Columns'))?.toString()).toBe(String(input.widthPx));
+    expect(await sha256(imageRgb(image))).toBe(await sha256(input.rgb));
+    const direct = pdf.context.flateStream(input.rgb);
+    expect(image.contents.length).toBeLessThan(direct.contents.length * .8);
   });
 
   it('never returns a partial success when a later canonical face render fails', async () => {
