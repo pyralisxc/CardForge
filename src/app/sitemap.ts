@@ -3,6 +3,10 @@ import type { MetadataRoute } from 'next';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 import { getCachedPublicSiteConfiguration } from '@/features/public-site/server';
 
+// Page publication is runtime Owner state, not a deployment-time metadata snapshot.
+// Keep the existing shared settings cache, but never cache the complete sitemap route.
+export const dynamic = 'force-dynamic';
+
 const publicRoutes = [
   '/',
   '/about',
