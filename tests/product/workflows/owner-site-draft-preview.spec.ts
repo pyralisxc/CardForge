@@ -12,7 +12,7 @@ const fixture = buildSync({
   define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
 });
 
-test('@golden keeps responsive draft theme, nested menu and keyboard focus inside its iframe', async ({ page }) => {
+test('@golden keeps responsive draft theme, nested menu and keyboard focus inside its iframe', async ({ page }, testInfo) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
@@ -53,6 +53,24 @@ test('@golden keeps responsive draft theme, nested menu and keyboard focus insid
   await expect(frame.locator('html')).toHaveAttribute('data-cf-corners', 'square');
   await expect(frame.locator('html')).toHaveAttribute('data-cf-contrast', 'high');
   const trigger = frame.getByRole('button', { name: 'Open menu', exact: true });
+  console.info('Owner preview viewport probe', JSON.stringify({
+    sheet: await outer.boundingBox(),
+    iframe: await outer.locator('iframe').boundingBox(),
+    trigger: await trigger.boundingBox(),
+    scrollSurface: await outer.getByLabel('Scroll draft canvas horizontally').evaluate((node) => ({
+      width: node.clientWidth, height: node.clientHeight,
+      scrollWidth: node.scrollWidth, scrollHeight: node.scrollHeight,
+      scrollLeft: node.scrollLeft, scrollTop: node.scrollTop,
+    })),
+    canvas: await trigger.evaluate((node) => ({
+      width: window.innerWidth, height: window.innerHeight,
+      scrollX: window.scrollX, scrollY: window.scrollY,
+      scrollWidth: document.documentElement.scrollWidth,
+      scrollHeight: document.documentElement.scrollHeight,
+      button: node.getBoundingClientRect().toJSON(),
+    })),
+  }));
+  await testInfo.attach('Owner phone preview before menu', { body: await page.screenshot(), contentType: 'image/png' });
   await trigger.click();
   const menu = frame.getByRole('dialog', { name: 'Navigation', exact: true });
   await expect(menu).toBeVisible();
