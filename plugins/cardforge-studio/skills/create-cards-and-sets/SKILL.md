@@ -40,7 +40,7 @@ When the user asks the agent to work on a durable connected project:
 2. Call `checkout_project` for the intended project and retain its exact provider and CardForge project revisions. This creates a temporary private working document while leaving the provider project unchanged.
 3. For reading only, stop after the checkout state is understood. For edits, continue against that exact working-document revision.
 4. Read the working state/contract once, retain its stable ids, and use the efficient revision workflow below.
-5. Use selective canonical rendering while iterating and `preview_card_set` once at final/important review. The full contact sheet is composed only from canonical CardForge-rendered cards; it is not a separate Template interpretation.
+5. Use selective canonical rendering while iterating and `preview_card_set` once at final/important review. The full contact sheet is composed only from canonical CardForge-rendered cards; it is not a separate Template interpretation. Native images share one response budget. Check displayImages for byte-identical versus reduced displays; renderArtifact/renderArtifacts still describes the unchanged canonical artifacts, and the separate Studio URL targets the exact revision.
 6. If the user wants the durable provider project updated, call `commit_project` with the exact working-document, provider, and project revisions. CardForge refuses stale commits rather than overwriting newer provider work.
 7. Provider deletion remains a provider-owned human action unless a published tool explicitly supports that exact commitment boundary.
 

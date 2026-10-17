@@ -168,7 +168,7 @@ describe('CardForge MCP and plugin product hygiene', () => {
 
   it('keeps the plugin version aligned with the live MCP server contract', () => {
     expect(plugin.version).toBe(CARDFORGE_MCP_CONTRACT_VERSION);
-    expect(plugin.version).toBe('1.0.1');
+    expect(plugin.version).toBe('1.0.2');
   });
 
   it('presents CardForge as a card-making product rather than a contributor Template utility', () => {

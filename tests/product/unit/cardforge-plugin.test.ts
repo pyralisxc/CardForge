@@ -81,7 +81,7 @@ describe('CardForge Studio plugin', () => {
 
     expect(manifest).toMatchObject({
       name: 'cardforge-studio',
-      version: '1.0.1',
+      version: '1.0.2',
       author: { name: 'Cameron Locke' },
       mcpServers: './.mcp.json',
       skills: './skills/',
@@ -141,7 +141,7 @@ describe('CardForge Studio plugin', () => {
     expect(submission).toContain('https://cardforges.com/terms');
     expect(submission).toContain('There is no review-only authentication bypass.');
     expect(submission).toContain('Requested availability: public, wherever ChatGPT plugins');
-    expect(submission).toContain('Hardening release notes for 1.0.1');
+    expect(submission).toContain('Hardening release notes for 1.0.2');
     expect(submission).toContain('Requested availability: public,');
     expect(submission).not.toContain('Requested availability: public beta');
     expect(submission).not.toContain('authenticated beta');

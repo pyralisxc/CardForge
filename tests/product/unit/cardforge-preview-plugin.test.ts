@@ -111,7 +111,7 @@ describe('private Preview plugin derivation', () => {
         writeFileSync(file, JSON.stringify(manifest));
       }
       expect(() => run(root, 'out')).toThrow();
-      expect(() => readFileSync(join(root, 'out/cardforge-studio-preview-1.0.1.zip'))).toThrow();
+      expect(() => readFileSync(join(root, 'out/cardforge-studio-preview-1.0.2.zip'))).toThrow();
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 });

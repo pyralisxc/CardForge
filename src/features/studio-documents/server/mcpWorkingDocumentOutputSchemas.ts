@@ -1,5 +1,7 @@
 import { fromJsonSchema, type JsonSchemaType } from '@modelcontextprotocol/server';
 
+import { displayImagesJsonSchema } from './mcpRenderArtifactSchemas';
+
 const stringList: JsonSchemaType = { type: 'array', items: { type: 'string' } };
 const objectList: JsonSchemaType = { type: 'array', items: { type: 'object', additionalProperties: true } };
 const objectValue: JsonSchemaType = { type: 'object', additionalProperties: true };
@@ -56,13 +58,14 @@ export const workingDocumentOperationStatusOutputSchema = fromJsonSchema<Record<
 export const selectiveCardPreviewOutputSchema = fromJsonSchema<Record<string, unknown>>({
   type: 'object',
   additionalProperties: false,
-  required: ['documentId', 'revision', 'setId', 'cardIds', 'renderArtifacts', 'renderHealth', 'openInStudioUrl'],
+  required: ['documentId', 'revision', 'setId', 'cardIds', 'renderArtifacts', 'displayImages', 'renderHealth', 'openInStudioUrl'],
   properties: {
     documentId: { type: 'string' },
     revision: { type: 'integer', minimum: 1 },
     setId: { type: 'string' },
     cardIds: stringList,
     renderArtifacts: objectList,
+    displayImages: displayImagesJsonSchema,
     renderHealth: {
       type: 'object',
       additionalProperties: false,
