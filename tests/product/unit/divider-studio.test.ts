@@ -46,8 +46,82 @@ describe('Divider Studio source selection', () => {
     });
 
     expect(style.backgroundImage).toBeUndefined();
+    expect(style.backgroundSize).toBeUndefined();
+    expect(style.backgroundRepeat).toBeUndefined();
+    expect(style.backgroundPosition).toBeUndefined();
     expect(style.backgroundColor).toBe('#d5ad54');
     expect(style.maskImage).toBe('url(https://cdn.example.test/divider.svg?revision=2)');
+    expect(style.maskSize).toBe('100% 100%');
+  });
+});
+
+describe('appearance background fit', () => {
+  const source = 'https://cdn.example.test/finite-surface.svg';
+
+  it.each([
+    ['contain', 'contain', 'no-repeat', 'center'],
+    ['stretch', '100% 100%', 'no-repeat', undefined],
+    ['repeat', '96px 96px', 'repeat', undefined],
+  ] as const)('honors %s for both material URL textures and top-level assets', (tileMode, size, repeat, position) => {
+    const appearances: FreeformAppearance[] = [
+      { material: { texture: { kind: 'uploaded', assetSource: source, tileMode, textureScale: 96 } } },
+      { material: { texture: { kind: 'uploaded', imageSource: source, tileMode, textureScale: 96 } } },
+      { assetSource: source, tileMode, textureScale: 96 },
+    ];
+    for (const appearance of appearances) {
+      const style = appearanceToStyle(appearance);
+      expect(style.backgroundImage).toBe(`url(${source})`);
+      expect(style.backgroundSize).toBe(size);
+      expect(style.backgroundRepeat).toBe(repeat);
+      expect(style.backgroundPosition).toBe(position);
+    }
+  });
+
+  it('preserves legacy fit when no tile mode is authored', () => {
+    expect(appearanceToStyle({ material: { texture: { kind: 'uploaded', assetSource: source } } })).toMatchObject({
+      backgroundSize: '160px 160px', backgroundRepeat: 'repeat',
+    });
+    expect(appearanceToStyle({ material: { texture: { kind: 'uploaded', imageSource: source, textureScale: 72 } } })).toMatchObject({
+      backgroundSize: '72px 72px', backgroundRepeat: 'repeat',
+    });
+    expect(appearanceToStyle({ assetSource: source })).toMatchObject({
+      backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat',
+    });
+  });
+
+  it('keeps each asset, texture, gradient and raw CSS layer aligned with its own fit', () => {
+    const style = appearanceToStyle({
+      assetSource: 'https://cdn.example.test/frame.svg', tileMode: 'contain',
+      material: {
+        texture: { kind: 'uploaded', assetSource: source, tileMode: 'repeat', textureScale: 72 },
+        gradient: { type: 'linear', stops: [{ id: 'start', color: '#000000', position: 0 }, { id: 'end', color: '#ffffff', position: 100 }] },
+      },
+      rawCss: { backgroundImage: 'linear-gradient(90deg, red, blue), url("https://cdn.example.test/raw,(2).png"), url("data:image/svg+xml,%3Csvg%3E%3C/svg%3E")' },
+    });
+    expect(style.backgroundImage).toBe(`url(https://cdn.example.test/frame.svg), url(${source}), linear-gradient(135deg, #000000 0%, #ffffff 100%), linear-gradient(90deg, red, blue), url("https://cdn.example.test/raw,(2).png"), url("data:image/svg+xml,%3Csvg%3E%3C/svg%3E")`);
+    expect(style.backgroundSize).toBe('contain, 72px 72px, auto, auto, auto, auto');
+    expect(style.backgroundRepeat).toBe('no-repeat, repeat, repeat, repeat, repeat, repeat');
+    expect(style.backgroundPosition).toBe('center, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%');
+  });
+
+  it('accounts for multi-gradient procedural textures without fitting the following raw layer', () => {
+    const style = appearanceToStyle({
+      material: { texture: { kind: 'parchment', textureScale: 48 } },
+      rawCss: { backgroundImage: 'linear-gradient(red, blue)' },
+    });
+    expect(style.backgroundSize).toBe('48px 48px, 48px 48px, auto');
+  });
+
+  it('does not include a tinted asset in the background layer fit list', () => {
+    const style = appearanceToStyle({
+      assetSource: 'https://cdn.example.test/frame.svg', assetRenderMode: 'tint', tileMode: 'stretch',
+      material: { texture: { kind: 'uploaded', assetSource: source, tileMode: 'contain' } },
+      rawCss: { backgroundImage: 'linear-gradient(red, blue)' },
+    });
+    expect(style.backgroundImage).toBe(`url(${source}), linear-gradient(red, blue)`);
+    expect(style.backgroundSize).toBe('contain, auto');
+    expect(style.backgroundRepeat).toBe('no-repeat, repeat');
+    expect(style.backgroundPosition).toBe('center, 0% 0%');
     expect(style.maskSize).toBe('100% 100%');
   });
 });
