@@ -50,6 +50,42 @@ const pt = (mm: number): number => mm * 72 / 25.4;
 const finitePositive = (n: number): boolean => Number.isFinite(n) && n > 0;
 const same = (a: number, b: number): boolean => Math.abs(a - b) <= 0.000001;
 
+/** Lossless PNG predictors, carried by PDF FlateDecode/Predictor 15. */
+function predictRgbRows(rgb: Uint8Array, width: number, height: number): Uint8Array {
+  const stride = width * 3;
+  const predicted = new Uint8Array(rgb.length + height);
+  const candidates = Array.from({ length: 5 }, () => new Uint8Array(stride));
+  const predictors = [0, 0, 0, 0, 0];
+  for (let y = 0; y < height; y++) {
+    const offset = y * stride;
+    const scores = [0, 0, 0, 0, 0];
+    for (let x = 0; x < stride; x++) {
+      const value = rgb[offset + x];
+      const left = x >= 3 ? rgb[offset + x - 3] : 0;
+      const up = y ? rgb[offset + x - stride] : 0;
+      const upperLeft = y && x >= 3 ? rgb[offset + x - stride - 3] : 0;
+      const p = left + up - upperLeft;
+      const a = Math.abs(p - left), b = Math.abs(p - up), c = Math.abs(p - upperLeft);
+      const paeth = a <= b && a <= c ? left : b <= c ? up : upperLeft;
+      predictors[1] = left;
+      predictors[2] = up;
+      predictors[3] = (left + up) >>> 1;
+      predictors[4] = paeth;
+      for (let filter = 0; filter < 5; filter++) {
+        const residual = (value - predictors[filter]) & 255;
+        candidates[filter][x] = residual;
+        scores[filter] += Math.min(residual, 256 - residual);
+      }
+    }
+    let filter = 0;
+    for (let candidate = 1; candidate < 5; candidate++) if (scores[candidate] < scores[filter]) filter = candidate;
+    const target = y * (stride + 1);
+    predicted[target] = filter;
+    predicted.set(candidates[filter], target + 1);
+  }
+  return predicted;
+}
+
 function validateFace(face: PressRasterFace): void {
   const g = face.geometry;
   if (![g.trimWidthMm, g.trimHeightMm, g.productionWidthMm, g.productionHeightMm].every(finitePositive)
@@ -106,9 +142,10 @@ export async function createPressPdfCandidate(
     const page = pdf.addPage([width, height]);
     page.setBleedBox(0, 0, width, height); page.setCropBox(0, 0, width, height);
     page.setTrimBox(pt(g.bleedMm), pt(g.bleedMm), pt(g.trimWidthMm), pt(g.trimHeightMm));
-    const image = context.register(context.flateStream(face.rgb, {
+    const image = context.register(context.flateStream(predictRgbRows(face.rgb, face.widthPx, face.heightPx), {
       Type: 'XObject', Subtype: 'Image', Width: face.widthPx, Height: face.heightPx,
       BitsPerComponent: 8, ColorSpace: ['ICCBased', sourceProfile], Intent: 'RelativeColorimetric',
+      DecodeParms: { Predictor: 15, Colors: 3, BitsPerComponent: 8, Columns: face.widthPx },
     }));
     page.node.set(PDFName.of('Resources'), context.obj({ XObject: { Im0: image } }));
     page.node.set(PDFName.of('Contents'), context.register(context.flateStream(`q\n${width} 0 0 ${height} 0 0 cm\n/Im0 Do\nQ\n`)));

@@ -332,7 +332,7 @@ export function ExportControlsPanel({
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                Bleed is edge-extended from the canonical trim render. Inspect artwork at every edge before professional production. The ZIP includes a deterministic preflight JSON report alongside the geometry manifest.
+                Bleed repeats the authored background edge pixels, not mirrored card borders or text. The trim design stays in place; digital rounded corners are not a physical cut specification. Inspect every edge and keep important content inside the safe area. The ZIP includes preflight and geometry reports.
               </p>
               <Button
                 variant="outline"

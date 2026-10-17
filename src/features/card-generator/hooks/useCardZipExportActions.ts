@@ -240,7 +240,7 @@ export function useCardZipExportActions({
           'CardForge print production PNG faces',
           '',
           'Each face keeps the authored trim composition and adds the CardForge format bleed outside the trim edge.',
-          'The bleed is edge-extended from the trim render so the authored card is not scaled or shifted.',
+          'Bleed repeats the resolved authored background edge pixels without reflecting finished-card bands, scaling or shifting the trim design. Digital corner masking does not define a physical cut radius.',
           'Use cardforge-print-production-manifest.json for exact trim, bleed, safe-margin, and production dimensions.',
           'Use cardforge-print-preflight.json for deterministic production-prepared and press-ready status.',
           `Production prepared: ${preflight.productionPrepared ? 'yes' : 'no'}.`,

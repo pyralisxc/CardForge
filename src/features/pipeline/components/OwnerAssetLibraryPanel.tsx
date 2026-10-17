@@ -211,7 +211,7 @@ export function OwnerAssetLibraryPanel({
           <div>
             <p className="font-serif text-lg text-[var(--cf-accent-text)]">Owner review queue</p>
             <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">
-              {program.submissionStatusCounts.submitted} submitted Template contribution{program.submissionStatusCounts.submitted === 1 ? '' : 's'} waiting for a publication decision.
+              {program.submissionStatusCounts.submitted} submitted contribution{program.submissionStatusCounts.submitted === 1 ? '' : 's'} waiting for a publication decision.
             </p>
           </div>
           <Button
@@ -219,7 +219,7 @@ export function OwnerAssetLibraryPanel({
             className="rounded-none bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]"
             onClick={() => onStatusFilterChange('submitted')}
           >
-            Show pending Templates
+            Show pending contributions
           </Button>
         </div>
       ) : null}

@@ -226,7 +226,7 @@ export const createPrintProductionManifest = (
   pressReady: preflight.pressReady,
   notes: [
     'Each PNG preserves the authored trim composition and adds CardForge format bleed outside the trim edge.',
-    'The current bleed pixels are edge-extended from the canonical trim render; inspect full-bleed artwork before professional production.',
+    'Bleed repeats the resolved authored background edge pixels, not mirrored finished-card bands; inspect full-bleed artwork and physical cut safety before professional production.',
     'Safe margin and bleed values are physical production guidance. These PNGs are RGB raster files and are not a PDF/X or printer-specific color contract.',
   ],
   faces: items.map((item) => {
