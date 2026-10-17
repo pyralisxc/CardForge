@@ -59,10 +59,14 @@ export async function GET(
   const versioned = new URL(request.url).searchParams.has('v');
   const etag = mediaRevisionEtag(media);
   const cacheControl = cacheControlFor(slot, versioned);
+  // Anonymous public image bytes must stay usable in creator canvas exports
+  // across app/deployment origins, including fallback redirects and 304s.
+  const publicImageHeaders = { 'Access-Control-Allow-Origin': '*' };
   if (!versioned && crawlerFacingStableAlias(slot) && request.headers.get('if-none-match') === etag) {
     return new Response(null, {
       status: 304,
       headers: {
+        ...publicImageHeaders,
         'Cache-Control': cacheControl,
         ETag: etag,
       },
@@ -73,6 +77,7 @@ export async function GET(
     return new Response(null, {
       status: 307,
       headers: {
+        ...publicImageHeaders,
         Location: media.defaultSrc,
         'Cache-Control': cacheControl,
         ETag: etag,
@@ -90,6 +95,7 @@ export async function GET(
   return new Response(data, {
     headers: {
       'Cache-Control': cacheControl,
+      ...publicImageHeaders,
       'Content-Type': getSiteMediaContentType(slot),
       ETag: etag,
     },

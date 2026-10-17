@@ -33,13 +33,6 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(setButton).toHaveAttribute('title', /Drag to move/);
     await expect.poll(() => setButton.evaluate((node) => getComputedStyle(node).cursor)).toBe('grab');
 
-    const before = await setObject.evaluate((node) => {
-      const style = (node as HTMLElement).style;
-      return {
-        x: Number.parseFloat(style.getPropertyValue('--desk-x')),
-        y: Number.parseFloat(style.getPropertyValue('--desk-y')),
-      };
-    });
     const box = await setButton.boundingBox();
     expect(box).not.toBeNull();
     const start = { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
@@ -64,8 +57,13 @@ test.describe('Desk desktop spatial interaction', () => {
         y: Number.parseFloat(style.getPropertyValue('--desk-y')),
       };
     });
-    expect(after.x - before.x).toBeGreaterThan(30);
-    expect(after.y - before.y).toBeGreaterThan(20);
+    // Selection can change the viewport frame; authored millimeters times zoom
+    // alone do not represent screen travel. The grabbed point must follow the
+    // pointer in the real rendered scene, then its authored position persists.
+    const afterBox = await setButton.boundingBox();
+    expect(afterBox).not.toBeNull();
+    expect(Math.abs(afterBox!.x + afterBox!.width / 2 - start.x - 72)).toBeLessThan(2);
+    expect(Math.abs(afterBox!.y + afterBox!.height / 2 - start.y - 48)).toBeLessThan(2);
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
     await expect.poll(() => page.locator('[data-desk-set-object-id="set:scale-set-100"]').evaluate((node) => {
@@ -106,6 +104,24 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeHidden();
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
     await expect(setButton).toBeInViewport({ ratio: 0.99 });
+
+    for (const width of [1024, 1180, 1440]) {
+      await page.setViewportSize({ width, height: 720 });
+      await expect.poll(() => toolbar.evaluate((node) => {
+        const controls = Array.from(node.querySelectorAll<HTMLElement>('button, input, summary'))
+          .map((element) => ({
+            name: element.getAttribute('aria-label') || element.textContent || element.tagName,
+            rect: element.getBoundingClientRect(),
+          }))
+          .filter(({ rect }) => rect.width > 0 && rect.height > 0);
+        return controls.flatMap((left, index) => controls.slice(index + 1).flatMap((right) => {
+          const overlapWidth = Math.min(left.rect.right, right.rect.right) - Math.max(left.rect.left, right.rect.left);
+          const overlapHeight = Math.min(left.rect.bottom, right.rect.bottom) - Math.max(left.rect.top, right.rect.top);
+          return overlapWidth > 1 && overlapHeight > 1 ? [`${left.name} overlaps ${right.name}`] : [];
+        }));
+      })).toEqual([]);
+    }
+    await page.setViewportSize({ width: 1024, height: 720 });
 
     const storage = page.getByRole('button', { name: /Storage/ }).first();
     await expect(storage).toBeVisible();
