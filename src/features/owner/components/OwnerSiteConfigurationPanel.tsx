@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, type SetStateAction } from 'react';
 import { ArrowDown, ArrowUp, Megaphone, Save, Search, Settings2 } from 'lucide-react';
 
 import { useEditorDraft } from '@/components/ui/use-editor-draft';
@@ -20,9 +20,15 @@ import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { OwnerHomepageShowcasePanel } from './OwnerHomepageShowcasePanel';
 import { OwnerHomepageStagesPanel } from './OwnerHomepageStagesPanel';
 import { OwnerHomepageComposerPanel } from './OwnerHomepageComposerPanel';
+import { OwnerSitePagesPanel } from './OwnerSitePagesPanel';
+import { OwnerSiteDraftPreview } from './OwnerSiteDraftPreview';
+import type { BusinessIdentity } from '@/features/business-identity/client';
+import type { McpAllowance } from '@/features/mcp-usage/client/plans';
+import type { SiteMediaAsset } from '@/features/public-site/client';
 
 const inputClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 const sectionLabels: Record<HomepageSectionSetting['id'], string> = {
+  hero: 'Homepage introduction',
   showcase: 'Product showcase',
   workflow: 'How the workflow works',
   access: 'Plan choices',
@@ -49,14 +55,28 @@ export function OwnerSiteConfigurationPanel({
   onSettingsChange,
   publicationEnvironment,
   onEditorStateChange,
+  currentPath = '/',
+  preview,
 }: {
   settings: PublicSiteConfiguration;
   onSettingsChange: (settings: PublicSiteConfiguration) => void;
   publicationEnvironment: OwnerPublicationEnvironment;
   onEditorStateChange?: (state: { dirty: boolean; saving: boolean }) => void;
+  currentPath?: string;
+  preview?: { media: SiteMediaAsset[]; businessIdentity: BusinessIdentity; plans: McpAllowance[] };
 }) {
   const { toast } = useToast();
-  const { draft, setDraft, saving, setSaving, dirty, acceptPublished } = useEditorDraft(settings, onEditorStateChange);
+  const { baseline, draft, setDraft: replaceDraft, saving, setSaving, dirty, acceptPublished: accept } = useEditorDraft(settings, onEditorStateChange);
+  const [past, setPast] = useState<PublicSiteConfiguration[]>([]);
+  const [future, setFuture] = useState<PublicSiteConfiguration[]>([]);
+  const setDraft = (value: SetStateAction<PublicSiteConfiguration>) => {
+    setPast((items) => [...items.slice(-39), draft]); setFuture([]);
+    replaceDraft(typeof value === 'function' ? value(draft) : value);
+  };
+  const acceptPublished = (value: PublicSiteConfiguration) => { accept(value); setPast([]); setFuture([]); };
+  const [selectedPageId, setSelectedPageId] = useState<string>(() => settings.pages?.find((page) => '/' + page.slug === currentPath)?.id ?? '');
+  const [showPreview, setShowPreview] = useState(false);
+  const selectedPage = draft.pages?.find((page) => page.id === selectedPageId);
   const [needsReadback, setNeedsReadback] = useState(false);
   const publication = getOwnerPublicationPresentation(publicationEnvironment);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -158,7 +178,8 @@ export function OwnerSiteConfigurationPanel({
     }));
   };
   const updateHomepageComposition = (sections: HomepageLayoutSection[]) => {
-    setDraft((current) => ({ ...current, homepageSections: sections }));
+    setDraft((current) => selectedPage ? { ...current, pages: current.pages?.map((page) => page.id === selectedPage.id
+      ? { ...page, sections: sections.filter(isHomepageCustomSection) } : page) } : { ...current, homepageSections: sections });
   };
   const showcaseSection = draft.homepageSections.find((section) => section.id === 'showcase') as HomepageSectionSetting | undefined;
   const showcaseExamples = showcaseSection?.showcaseExamples ?? [];
@@ -170,9 +191,24 @@ export function OwnerSiteConfigurationPanel({
         <p className="text-xs text-[var(--cf-text-subtle)]" role="status">{dirty ? 'Unpublished site settings' : 'No unpublished site settings'}</p>
         {saveError ? <p role="alert" className="max-w-2xl border border-destructive/45 bg-destructive/10 px-3 py-2 text-sm leading-6 text-destructive">{saveError}</p> : null}
         <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={saving || needsReadback || !dirty} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? publication.publishingActionLabel : publication.publishActionLabel}</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" disabled={saving || !past.length} onClick={() => {
+            const previous = past.at(-1); if (!previous) return;
+            setPast(past.slice(0, -1)); setFuture([draft, ...future]); replaceDraft(previous);
+          }}>Undo</Button>
+          <Button type="button" variant="outline" disabled={saving || !future.length} onClick={() => {
+            const next = future[0]; if (!next) return;
+            setFuture(future.slice(1)); setPast([...past, draft]); replaceDraft(next);
+          }}>Redo</Button>
+          <Button type="button" variant="outline" disabled={saving || !dirty} onClick={() => { replaceDraft(baseline); setPast([]); setFuture([]); }}>Cancel unpublished changes</Button>
+          {preview ? <Button type="button" variant="outline" onClick={() => setShowPreview(!showPreview)}>{showPreview ? 'Hide draft preview' : 'Preview draft'}</Button> : null}
+        </div>
         {needsReadback ? <Button type="button" variant="outline" disabled={saving} onClick={() => void reloadCurrentSettings()}>Reload current settings</Button> : null}
       </div>
       <fieldset disabled={saving} className="space-y-5">
+      <OwnerSitePagesPanel pages={draft.pages ?? []} navigation={draft.primaryNavigation} selectedId={selectedPage?.id ?? ''} onSelect={setSelectedPageId}
+        onChange={(pages, primaryNavigation) => setDraft((current) => ({ ...current, pages, primaryNavigation }))} />
+      {showPreview && preview ? <OwnerSiteDraftPreview settings={draft} page={selectedPage} {...preview} /> : null}
       <div className="grid gap-5 xl:grid-cols-2">
         <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
           <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><Megaphone className="h-5 w-5" aria-hidden="true" /><h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Announcement</h2></div>
@@ -218,7 +254,7 @@ export function OwnerSiteConfigurationPanel({
           <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">Control the order and visibility of the homepage’s approved sections. This cannot introduce unreviewed components or routes.</p>
           <div className="mt-4 space-y-2">
             {draft.homepageSections.map((section, index) => (
-              <div key={section.id} className="flex min-h-11 items-center gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
+              <div key={section.id} data-owner-edit-section={section.id} className="flex min-h-11 items-center gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                 <input aria-label={`Show ${getHomepageSectionLabel(section)}`} type="checkbox" checked={section.visible} onChange={(event) => setDraft((current) => ({ ...current, homepageSections: current.homepageSections.map((item, itemIndex) => itemIndex === index ? { ...item, visible: event.target.checked } : item) }))} />
                 <span className="min-w-0 flex-1 text-sm text-[var(--cf-accent-text)]">{getHomepageSectionLabel(section)}</span>
                 <Button type="button" size="icon" variant="outline" aria-label={`Move ${getHomepageSectionLabel(section)} up`} disabled={index === 0} onClick={() => setDraft((current) => ({ ...current, homepageSections: move(current.homepageSections, index, -1) }))}><ArrowUp className="h-4 w-4" /></Button>
@@ -241,7 +277,7 @@ export function OwnerSiteConfigurationPanel({
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <OwnerHomepageComposerPanel sections={draft.homepageSections} onChange={updateHomepageComposition} />
+        <OwnerHomepageComposerPanel sections={selectedPage?.sections ?? draft.homepageSections} onChange={updateHomepageComposition} />
         <OwnerHomepageStagesPanel stages={showcaseStages} onChange={updateShowcaseStages} />
         <OwnerHomepageShowcasePanel examples={showcaseExamples} onChange={updateShowcaseExamples} />
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DEFAULT_HOMEPAGE_SECTION_DESIGN,
@@ -42,20 +42,23 @@ export function OwnerHomepageComposerPanel({ sections, onChange }: {
   onChange: (value: HomepageLayoutSection[]) => void;
 }) {
   const custom = sections.filter(isHomepageCustomSection);
+  const duplicateBlock = (block: HomepageContentBlock): HomepageContentBlock => ({ ...block, id: newId('block') });
   const setSection = (id: string, next: HomepageCustomSection) => {
     onChange(sections.map((section) => section.id === id ? next : section));
   };
   const addSection = () => {
     if (custom.length >= MAX_HOMEPAGE_CUSTOM_SECTIONS) return;
     const id = newId('custom');
-    onChange([...sections.slice(0, -1), {
+    const finalIndex = sections.findIndex((section) => section.id === 'final_cta');
+    const insertion = finalIndex < 0 ? sections.length : finalIndex;
+    onChange([...sections.slice(0, insertion), {
       id, kind: 'custom', visible: true,
       design: { ...DEFAULT_HOMEPAGE_SECTION_DESIGN },
       blocks: [
         { id: newId('heading'), kind: 'heading', text: 'A new CardForge story' },
         { id: newId('paragraph'), kind: 'text', text: 'Edit the section directly in Owner and publish it to Preview.' },
       ],
-    }, ...sections.slice(-1)]);
+    }, ...sections.slice(insertion)]);
   };
   const updateBlock = (section: HomepageCustomSection, blockId: string, patch: Partial<HomepageContentBlock>) => {
     setSection(section.id, {
@@ -91,6 +94,11 @@ export function OwnerHomepageComposerPanel({ sections, onChange }: {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-semibold text-[var(--cf-accent-text)]">{sectionTitle(section)}</h3>
               <div className="flex gap-1">
+                <Button type="button" variant="outline" size="icon" aria-label={`Duplicate ${section.id}`}
+                  disabled={custom.length >= MAX_HOMEPAGE_CUSTOM_SECTIONS} onClick={() => {
+                    const copy = { ...section, id: newId('custom'), blocks: section.blocks.map(duplicateBlock) };
+                    onChange([...sections.slice(0, sectionIndex + 1), copy, ...sections.slice(sectionIndex + 1)]);
+                  }}><Copy className="h-4 w-4" /></Button>
                 <Button type="button" variant="outline" size="icon" aria-label={`Move ${section.id} up`}
                   disabled={sectionIndex === 0} onClick={() => onChange(move(sections, sectionIndex, -1))}>
                   <ArrowUp className="h-4 w-4" />
@@ -108,7 +116,7 @@ export function OwnerHomepageComposerPanel({ sections, onChange }: {
             <label className="inline-flex min-h-11 items-center gap-2 text-sm text-[var(--cf-text-muted)]">
               <input type="checkbox" checked={section.visible}
                 onChange={(event) => setSection(section.id, { ...section, visible: event.target.checked })} />
-              Visible on homepage
+              Visible on this page
             </label>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {([
@@ -132,6 +140,8 @@ export function OwnerHomepageComposerPanel({ sections, onChange }: {
                 <div key={block.id} data-owner-edit-block={block.id} className="border border-[var(--cf-border)] p-3">
                   <div className="flex items-center gap-2 text-sm">
                     <strong className="flex-1 text-[var(--cf-accent-text)]">{block.kind} · {index + 1}</strong>
+                    <Button variant="outline" size="icon" type="button" aria-label={`Duplicate block ${block.id}`} disabled={section.blocks.length >= MAX_HOMEPAGE_SECTION_BLOCKS}
+                      onClick={() => setSection(section.id, { ...section, blocks: [...section.blocks.slice(0, index + 1), duplicateBlock(block), ...section.blocks.slice(index + 1)] })}><Copy className="h-4 w-4" /></Button>
                     <Button variant="outline" size="icon" type="button" aria-label={`Move block ${block.id} up`} disabled={index === 0}
                       onClick={() => setSection(section.id, { ...section, blocks: move(section.blocks, index, -1) })}><ArrowUp className="h-4 w-4" /></Button>
                     <Button variant="outline" size="icon" type="button" aria-label={`Move block ${block.id} down`} disabled={index === section.blocks.length - 1}
@@ -164,9 +174,11 @@ export function OwnerHomepageComposerPanel({ sections, onChange }: {
                     <label className="mt-2 grid gap-1 text-xs text-[var(--cf-text-muted)]">Managed public image
                       <select className={inputClass} value={block.mediaSlot} onChange={(event) => updateBlock(section, block.id, { mediaSlot: event.target.value as typeof block.mediaSlot })}>
                         <option value={`landing.composer.${block.id}`}>Image owned by this block (upload after saving)</option>
+                        {block.mediaSlot?.startsWith('landing.composer.') && block.mediaSlot !== `landing.composer.${block.id}`
+                          ? <option value={block.mediaSlot}>Reused public image · {block.mediaSlot}</option> : null}
                         {HOMEPAGE_COMPOSER_MEDIA_SLOTS.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
                       </select>
-                      <span>Upload or replace this image in Owner → Public images; never use an unreviewed private account screenshot.</span>
+                      <span>Duplicated images reuse public media. Choose “Image owned by this block” for an independent upload. Never use an unreviewed private account screenshot.</span>
                     </label>
                   ) : null}
                 </div>

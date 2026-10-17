@@ -12,6 +12,7 @@ export interface PublicSiteShellProps {
   currentPath?: string;
   mainClassName?: string;
   siteConfiguration: PublicSiteConfiguration;
+  portalContainer?: HTMLElement | null;
 }
 
 export function PublicSiteShell({
@@ -21,6 +22,7 @@ export function PublicSiteShell({
   currentPath,
   mainClassName,
   siteConfiguration,
+  portalContainer,
 }: PublicSiteShellProps) {
   return (
     <div className="cardforge-public min-h-screen">
@@ -33,6 +35,7 @@ export function PublicSiteShell({
         </div>
       ) : null}
       <PublicSiteHeader
+        portalContainer={portalContainer}
         accountSlot={accountSlot}
         businessIdentity={businessIdentity}
         currentPath={currentPath}

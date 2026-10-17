@@ -90,7 +90,7 @@ export const parseHomepageCustomSection = (value: unknown): HomepageCustomSectio
     if (kind === 'text' && (!validShortText(raw.text, 1500) || Object.keys(raw).some((key) => !['id', 'kind', 'text'].includes(key)))) return null;
     if (kind === 'image' && (typeof raw.mediaSlot !== 'string'
       || !(HOMEPAGE_COMPOSER_MEDIA_SLOTS.includes(raw.mediaSlot as typeof HOMEPAGE_COMPOSER_MEDIA_SLOTS[number])
-        || (isComposedSiteMediaSlot(raw.mediaSlot) && raw.mediaSlot === `landing.composer.${raw.id}`))
+        || isComposedSiteMediaSlot(raw.mediaSlot))
       || Object.keys(raw).some((key) => !['id', 'kind', 'mediaSlot'].includes(key)))) return null;
     if (kind === 'button' && (!validShortText(raw.text, 80) || !validInternalRoute(raw.href)
       || Object.keys(raw).some((key) => !['id', 'kind', 'text', 'href'].includes(key)))) return null;

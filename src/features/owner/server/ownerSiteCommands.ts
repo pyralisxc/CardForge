@@ -10,6 +10,7 @@ import {
   updatePublicSiteVisibleField,
   getPublicSiteConfiguration,
   PublicSiteConfigurationStoreError,
+  type PublicSitePage,
   type PublicSiteVisibleFieldInput,
   type PublicSiteConfiguration,
   type SiteContentBlock,
@@ -163,6 +164,8 @@ const finalizeOwnerSiteConfiguration = async ({
     { label: 'account', run: () => revalidatePath('/account') },
     { label: 'founder-page', run: () => revalidatePath('/cameron') },
     { label: 'public-layout', run: () => revalidatePath('/', 'layout') },
+    { label: 'public-pages', run: () => revalidatePath('/[slug]', 'page') },
+    { label: 'sitemap', run: () => revalidatePath('/sitemap.xml') },
   ]);
   const activityRecorded = await recordOwnerActivity({
     actorUserId: actor.userId,
@@ -229,6 +232,32 @@ export const publishOwnerSiteConfigurationPatch = async ({
     throw new PublicSiteConfigurationStoreError('Choose supported public site settings to publish.', 400);
   }
   return publishOwnerSiteConfiguration({ actor, input: { ...current, ...patch, updatedAt: expectedUpdatedAt } });
+};
+
+/** A page is presentation in the existing settings row, not a new publication store. */
+export const publishOwnerSitePage = async ({ actor, pageId, page, expectedUpdatedAt }: {
+  actor: OwnerCommandActor;
+  pageId: string;
+  page: PublicSitePage | null;
+  expectedUpdatedAt: string;
+}) => {
+  const current = await getPublicSiteConfiguration();
+  const pages = [...(current.pages ?? [])];
+  const index = pages.findIndex((item) => item.id === pageId);
+  if (page && page.id !== pageId) throw new PublicSiteConfigurationStoreError('Keep the selected page identity.', 400);
+  if (!page && index < 0) throw new PublicSiteConfigurationStoreError('This page no longer exists.', 404);
+  if (page && index < 0) pages.push(page);
+  else if (page) pages[index] = page;
+  else pages.splice(index, 1);
+  const publication = await publishOwnerSiteConfigurationPatch({ actor, expectedUpdatedAt, patch: { pages,
+    // Explicit page removal also removes its navigation projection. It never changes another page.
+    primaryNavigation: page ? current.primaryNavigation : current.primaryNavigation.filter((item) => item.id !== pageId),
+  } });
+  const status = !page ? 'Website page removed from public routing and navigation.'
+    : page.published ? `Website page /${page.slug} published.` : 'Website page saved for Owner editing; it is not public.';
+  return { ...publication, receipt: { ...publication.receipt,
+    message: status + (publication.receipt.refreshComplete ? '' : ' Public cache refresh is incomplete. Reload and verify the committed state before saving again.'),
+  } };
 };
 
 export const publishOwnerLegalDocument = async ({ actor, input }: { actor: OwnerCommandActor; input: Parameters<typeof publishLegalDocument>[0] }) => {

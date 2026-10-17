@@ -167,7 +167,7 @@ Use Profile > Owner operations for cross-product work through three protected gr
 - Overview > Integrations: provider inventory/readiness without secrets.
 - Growth & People: current Clerk accounts plus retained contributor profile/scopes/history.
 - Library → Campaigns: strategy, approval, destination connection, scheduling, distribution, and results for campaign packages.
-- Public homepage: constrained navigation/SEO/experience settings, canonical public copy, and relevant media publish contextually for a server-confirmed Owner.
+- Public pages: constrained composition/navigation/SEO/experience settings, canonical copy and managed media publish contextually for a server-confirmed Owner. New first-party pages stay out of public routing and client props until explicitly made public; product/provider/legal routes remain native. A page path change removes its old address, so review the destination before publication.
 - Roadmap: rules and exact item status changes publish from owner-only controls on `/roadmap`; Profile's read-only summary links there instead of rehosting the Roadmap workspace.
 - Library → Pipeline: complete shared registry, exact revisions, Contributor withdrawal/retirement, Owner publication/purge authority, Content Health, Forge Review, and Design destination map.
 - Governance: append-only owner history and legal/versioned operations.

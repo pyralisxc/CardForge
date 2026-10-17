@@ -1,5 +1,5 @@
 import { fromJsonSchema } from '@modelcontextprotocol/server';
-import { HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS, type HomepageShowcaseStage } from '@/features/public-site/server';
+import { HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS, type HomepageShowcaseStage, type PublicSitePage } from '@/features/public-site/server';
 
 export interface OwnerActivityInput {
   limit?: number;
@@ -418,6 +418,31 @@ export const ownerHomepageDesignPublicationOutputSchema = fromJsonSchema({
   },
 });
 
+const ownerSitePageSchema = {
+  type: 'object', additionalProperties: false,
+  required: ['id', 'slug', 'title', 'description', 'keywords', 'published', 'sections'],
+  properties: {
+    id: { type: 'string', pattern: '^page-[a-z0-9][a-z0-9-]{0,33}$' },
+    slug: { type: 'string', minLength: 1, maxLength: 64 },
+    title: { type: 'string', minLength: 1, maxLength: 80 },
+    description: { type: 'string', minLength: 40, maxLength: 200 },
+    keywords: { type: 'array', minItems: 1, maxItems: 24, items: { type: 'string', minLength: 1, maxLength: 80 } },
+    published: { type: 'boolean' },
+    sections: { type: 'array', minItems: 1, maxItems: 12, items: ownerHomepageCompositionSectionSchema },
+  },
+} as const;
+
+export const ownerSitePagePublishInputSchema = fromJsonSchema<{
+  pageId: string; page?: PublicSitePage; operation: 'save' | 'remove'; expectedUpdatedAt: string;
+}>({ type: 'object', additionalProperties: false, required: ['pageId', 'operation', 'expectedUpdatedAt'],
+  properties: {
+    pageId: { type: 'string', minLength: 1, maxLength: 40 }, page: ownerSitePageSchema,
+    operation: { type: 'string', enum: ['save', 'remove'] }, expectedUpdatedAt: { type: 'string', minLength: 1 },
+  },
+  allOf: [{ if: { properties: { operation: { const: 'save' } } },
+    then: { required: ['page'] }, else: { not: { required: ['page'] } } }],
+});
+
 const ownerSiteConfigurationProperties = {
   announcementEnabled: { type: 'boolean' }, announcementMessage: { type: 'string', maxLength: 240 },
   primaryCtaLabel: { type: 'string', minLength: 1, maxLength: 80 }, primaryCtaHref: { type: 'string', maxLength: 500 },
@@ -427,12 +452,13 @@ const ownerSiteConfigurationProperties = {
   watermarkPreviewOpacity: { type: 'integer', minimum: 5, maximum: 80 },
   watermarkShareOpacity: { type: 'integer', minimum: 5, maximum: 80 },
   watermarkWidthPercent: { type: 'integer', minimum: 20, maximum: 90 },
-  primaryNavigation: { type: 'array', minItems: 4, maxItems: 4, items: {
+  primaryNavigation: { type: 'array', minItems: 4, maxItems: 36, items: {
     type: 'object', additionalProperties: false, required: ['id', 'label', 'href', 'visible'],
-    properties: { id: { type: 'string', enum: ['about', 'plans', 'roadmap', 'account'] },
+    properties: { id: { type: 'string', maxLength: 40 },
       label: { type: 'string', minLength: 1, maxLength: 40 }, href: { type: 'string', maxLength: 500 }, visible: { type: 'boolean' } },
   } },
-  homepageSections: { type: 'array', minItems: 5, maxItems: 17, items: ownerHomepageSectionSchema },
+  homepageSections: { type: 'array', minItems: 6, maxItems: 18, items: ownerHomepageSectionSchema },
+  pages: { type: 'array', maxItems: 32, items: ownerSitePageSchema },
 };
 const ownerSiteConfigurationSchema = {
   type: 'object', additionalProperties: false,
@@ -542,7 +568,7 @@ export const ownerSiteFieldsOutputSchema = fromJsonSchema({
 export interface OwnerSiteFieldPublishInput {
   field: 'primaryCtaLabel' | 'navigationLabel' | 'announcementMessage';
   value: string;
-  navigationId?: 'about' | 'plans' | 'roadmap' | 'account';
+  navigationId?: string;
   expectedUpdatedAt: string;
 }
 
@@ -551,7 +577,7 @@ export const ownerSiteFieldPublishInputSchema = fromJsonSchema<OwnerSiteFieldPub
   properties: {
     field: { type: 'string', enum: ['primaryCtaLabel', 'navigationLabel', 'announcementMessage'] },
     value: { type: 'string', maxLength: 240 },
-    navigationId: { type: 'string', enum: ['about', 'plans', 'roadmap', 'account'] },
+    navigationId: { type: 'string', pattern: '^(?:about|plans|roadmap|account|page-[a-z0-9][a-z0-9-]{0,33})$' },
     expectedUpdatedAt: { type: 'string', minLength: 1, description: 'Exact settings.updatedAt returned by get_owner_site_fields. Reload after a conflict; never replace it with a guessed timestamp.' },
   },
   allOf: [

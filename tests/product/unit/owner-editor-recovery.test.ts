@@ -282,3 +282,27 @@ describe('Owner multi-panel draft lifecycle', () => {
     await pending;
   });
 });
+
+describe('site settings draft history', () => {
+  it('undoes, redoes and cancels local changes without publishing or changing the initiating revision', async () => {
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+    const props = { settings: configuration, publicationEnvironment: 'preview' as const, onSettingsChange: vi.fn() };
+    const title = (tree: ReactNode) => nodes(tree).find((node) => node.type === 'input' && node.props.value === 'Build Complete Card Sets')!;
+    let tree = render(OwnerSiteConfigurationPanel, props);
+    input(title(tree), 'My unpublished title');
+    tree = render(OwnerSiteConfigurationPanel, props);
+    expect(textOf(tree)).toContain('Unpublished site settings');
+    await click(button(tree, 'Undo'));
+    tree = render(OwnerSiteConfigurationPanel, props);
+    expect(title(tree)).toBeDefined();
+    await click(button(tree, 'Redo'));
+    tree = render(OwnerSiteConfigurationPanel, props);
+    expect(nodes(tree).some((node) => node.type === 'input' && node.props.value === 'My unpublished title')).toBe(true);
+    await click(button(tree, 'Cancel unpublished changes'));
+    tree = render(OwnerSiteConfigurationPanel, props);
+    expect(title(tree)).toBeDefined();
+    expect(button(tree, 'Publish to Preview').props.disabled).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(props.settings.updatedAt).toBe(configuration.updatedAt);
+  });
+});

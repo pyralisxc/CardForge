@@ -29,7 +29,7 @@
     "verify:affected": "npm run verify:focused",
     "verify:focused": "node scripts/report-affected-verification.mjs --run",
     "verify:full": "npm run lint && npm run typecheck && npm run test:product && npm run test:infrastructure && npm run test:inventory:check && npm run architecture:check && npm run migrations:check && npm run build",
-    "smoke:golden": "playwright test tests/product/workflows/desk-desktop-drag.spec.ts tests/product/workflows/desk-tool-context.spec.ts tests/product/workflows/mobile-library-locations.spec.ts tests/product/workflows/spatial-gestures.spec.ts tests/product/workflows/output-artifacts.spec.ts tests/product/workflows/owner-showcase-capture.spec.ts --grep @golden --workers=1",
+    "smoke:golden": "playwright test tests/product/workflows/desk-desktop-drag.spec.ts tests/product/workflows/desk-tool-context.spec.ts tests/product/workflows/mobile-library-locations.spec.ts tests/product/workflows/spatial-gestures.spec.ts tests/product/workflows/output-artifacts.spec.ts tests/product/workflows/owner-showcase-capture.spec.ts tests/product/workflows/owner-site-draft-preview.spec.ts --grep @golden --workers=1",
     "smoke:hosted": "playwright test --config playwright.hosted.config.ts --workers=1",
     "smoke:ui": "playwright test --workers=1",
     "smoke:scale": "playwright test artifact-scale-performance.spec.ts --workers=1",
@@ -114,7 +114,8 @@
     "postcss": "^8.5.28",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "esbuild": "0.28.2"
   },
   "overrides": {
     "fast-uri": "3.1.6",

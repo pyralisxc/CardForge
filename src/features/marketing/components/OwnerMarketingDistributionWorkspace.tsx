@@ -120,6 +120,8 @@ export function OwnerMarketingDistributionWorkspace({
             </p>
             {!marketing.meta.configured ? <p className="mt-2 text-xs text-[var(--cf-warning)]">Server setup still needs: {marketing.meta.missing.join(", ")}</p> : null}
           </div>
+          {/* Provider OAuth must start as a full browser navigation, not a client router request. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           {marketing.meta.configured ? <Button asChild><a href="/api/owner/marketing/meta/connect">{marketing.connections.length ? "Reconnect Meta" : "Connect Meta"}</a></Button> : null}
         </div>
       </section>

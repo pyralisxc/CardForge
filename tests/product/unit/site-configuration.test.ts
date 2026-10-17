@@ -9,7 +9,7 @@ import {
 } from '@/features/public-site/model/siteConfiguration';
 
 describe('public site configuration', () => {
-  it('requires a custom block image slot to belong to the exact stable image block', () => {
+  it('allows duplicated blocks to deliberately reuse canonical public media', () => {
     const section = {
       id: 'custom-gallery', kind: 'custom', visible: true,
       design: { layout: 'grid', tone: 'raised', spacing: 'balanced', align: 'start' },
@@ -20,9 +20,9 @@ describe('public site configuration', () => {
       homepageSections: [...DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections, item],
     });
     expect(apply(section).homepageSections.at(-1)).toMatchObject(section);
-    expect(() => apply({ ...section, blocks: [{
-      id: 'block-hero', kind: 'image', mediaSlot: 'landing.composer.block-other',
-    }] })).toThrow(/Custom website sections/i);
+    expect(apply({ ...section, blocks: [{
+      id: 'block-copy', kind: 'image', mediaSlot: 'landing.composer.block-hero',
+    }] }).homepageSections.at(-1)).toMatchObject({ blocks: [{ id: 'block-copy', mediaSlot: 'landing.composer.block-hero' }] });
   });
 
   it('supports four modern CardForge Desk-to-Output screenshots without repurposing legacy artwork', () => {
@@ -221,6 +221,7 @@ describe('public site configuration', () => {
     });
 
     expect(configuration.homepageSections.map(({ id, visible }) => ({ id, visible }))).toEqual([
+      { id: 'hero', visible: true },
       { id: 'workflow', visible: false },
       { id: 'showcase', visible: true },
       { id: 'access', visible: true },
@@ -254,7 +255,7 @@ describe('public site configuration', () => {
       ],
     });
 
-    expect(configuration.homepageSections[0]).toMatchObject({
+    expect(configuration.homepageSections.find((section) => section.id === 'showcase')).toMatchObject({
       id: 'showcase',
       showcaseExamples: [{
         slug: 'owner-demo',
