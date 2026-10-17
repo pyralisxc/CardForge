@@ -640,10 +640,12 @@
 }
 
 .sourceStatusNotice {
-  position: absolute;
+  /* Source recovery belongs above the camera, not over focused Set controls. */
+  position: relative;
   z-index: 11;
-  top: 4.4rem;
-  right: 0.65rem;
+  flex: 0 0 auto;
+  align-self: flex-end;
+  margin: 0.35rem 0.65rem;
   max-width: min(24rem, calc(100% - 1.3rem));
   border: 1px solid color-mix(in srgb, var(--cf-warning) 36%, var(--cf-border));
   border-radius: 0.7rem;
@@ -1964,9 +1966,8 @@
   }
 
   .sourceStatusNotice {
-    top: 4rem;
-    right: 0.5rem;
-    left: 0.5rem;
+    align-self: stretch;
+    margin-inline: 0.5rem;
     max-width: none;
   }
 

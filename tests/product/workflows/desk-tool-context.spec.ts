@@ -16,11 +16,11 @@ for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
     test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });
 
-    test('@golden creates, designs, generates, edits and reopens a fresh Set without seeded cards', async ({ page }) => {
+    test('@golden creates, designs, generates, edits and reopens a fresh Set without seeded cards', async ({ page }, testInfo) => {
       test.setTimeout(180_000);
       page.setDefaultTimeout(15_000);
       if (!mobile) await page.setViewportSize({ width: 1180, height: 757 });
-      await seedGuestScaleWorkspace(page, 100, { emptyDesk: true, exportSample: true, publicTemplate: true });
+      await seedGuestScaleWorkspace(page, 100, { emptyDesk: true, exportSample: true, publicTemplate: true, unreadableFolderIndex: !mobile });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
       await expect(page.locator('[data-set-object]')).toHaveCount(0);
@@ -80,6 +80,38 @@ for (const mobile of [false, true]) {
       await page.getByRole('button', { name: 'Clear all', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 4', exact: true })).toBeVisible();
 
+      if (!mobile) {
+        const sourceSummary = page.locator('summary').filter({ hasText: /^One work source needs attention$/ });
+        const organize = page.getByRole('button', { name: 'Organize · 4 cards', exact: true });
+        for (const width of [770, 390]) {
+          await page.setViewportSize({ width, height: 757 });
+          await expect(sourceSummary).toBeInViewport({ ratio: 1 });
+          for (const expanded of [false, true]) {
+            if (expanded) {
+              await sourceSummary.click();
+              await expect(page.getByText('The saved folder index is unreadable. Existing folder links were left unchanged.', { exact: true })).toBeVisible();
+            }
+            // Both source states reserve layout space, rather than covering the
+            // focused Set's controls while the document itself still fits.
+            const noticeBottom = await sourceSummary.evaluate((summary) => summary.closest('details')!.getBoundingClientRect().bottom);
+            const control = await organize.boundingBox();
+            expect(control!.y).toBeGreaterThanOrEqual(noticeBottom);
+            await expect.poll(() => organize.evaluate((button) => {
+              const rect = button.getBoundingClientRect();
+              const target = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+              return target === button || button.contains(target);
+            })).toBe(true);
+            await testInfo.attach(`source-recovery-${width}-${expanded ? 'expanded' : 'collapsed'}`, {
+              body: await page.screenshot(), contentType: 'image/png',
+            });
+          }
+          await organize.click();
+          await expect(page.getByRole('combobox', { name: 'Arrange cards', exact: true })).toBeVisible();
+          await page.keyboard.press('Escape');
+          await sourceSummary.click();
+        }
+        await page.setViewportSize({ width: 1180, height: 757 });
+      }
       await page.getByRole('button', { name: 'Organize · 4 cards', exact: true }).click();
       await page.getByRole('combobox', { name: 'Arrange cards', exact: true }).click();
       await page.getByRole('option', { name: 'Arrange as grid', exact: true }).click();
