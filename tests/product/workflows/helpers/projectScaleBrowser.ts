@@ -161,7 +161,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
       template.freeformCanvas!.elements.push({
         id: `${template.id}-title`, name: 'Card title', type: 'text',
         x: 25, y: 550, width: 580, height: 100, zIndex: 2,
-        content: '{{cardName}}', fontSizePx: 40, textColor: '#234567',
+        content: '{{cardName}}', fontSizePx: 40, fontFamily: 'font-cinzel', textColor: '#234567',
       });
     }
     state.storedCards = state.storedCards.map((card) => ({ ...card, backingData: { ...card.data, cardName: `Back · ${card.data.cardName}` } }));

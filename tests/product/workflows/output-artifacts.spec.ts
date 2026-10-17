@@ -53,6 +53,12 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
   await page.locator('button[data-artifact-id="scale-card-1"]').press('Enter');
+  const authoredTitle = page.locator('[data-freeform-element-id="scale-template-title"]').filter({ visible: true }).first();
+  await expect(authoredTitle.locator('p')).toHaveCSS('font-family', /CardForge Cinzel/);
+  await expect.poll(() => page.evaluate(() => Array.from(document.fonts).some(
+    (font) => font.family.replaceAll('"', '') === 'CardForge Cinzel' && font.status === 'loaded',
+  ))).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('authored-cinzel-native-card.png') });
   const save = async (download: Download) => {
     const path = testInfo.outputPath(download.suggestedFilename());
     await download.saveAs(path);
