@@ -136,6 +136,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
   mixedTemplates?: boolean;
   needsWorkFixture?: boolean;
   emptyDesk?: boolean;
+  publicTemplate?: boolean;
 } = {}) => {
   const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
   if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
@@ -164,6 +165,15 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
       });
     }
     state.storedCards = state.storedCards.map((card) => ({ ...card, backingData: { ...card.data, cardName: `Back · ${card.data.cardName}` } }));
+  }
+  if (options.publicTemplate) {
+    const template = { ...state.userTemplates[0]!, templateSource: 'default' };
+    state.userTemplates = [];
+    await page.route('**/api/catalog/studio-bootstrap', (route) => route.fulfill({ json: {
+      templates: { defaults: [template], userTemplates: [] },
+      styles: { styles: [] },
+      studioDefaults: { defaultTemplateId: template.id },
+    } }));
   }
   await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue, lowResolutionArtwork }) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {

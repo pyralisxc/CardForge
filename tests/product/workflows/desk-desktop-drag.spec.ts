@@ -40,6 +40,8 @@ test.describe('Desk desktop spatial interaction', () => {
         y: Number.parseFloat(style.getPropertyValue('--desk-y')),
       };
     });
+    const zoom = Number(await viewport.getAttribute('data-zoom'));
+    expect(zoom).toBeGreaterThan(0);
     const box = await setButton.boundingBox();
     expect(box).not.toBeNull();
     const start = { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
@@ -64,8 +66,11 @@ test.describe('Desk desktop spatial interaction', () => {
         y: Number.parseFloat(style.getPropertyValue('--desk-y')),
       };
     });
-    expect(after.x - before.x).toBeGreaterThan(30);
-    expect(after.y - before.y).toBeGreaterThan(20);
+    // Authored positions are millimeters; the fitted camera varies with the
+    // measured preview footprint. Verify the actual pointer travel in screen
+    // pixels instead of imposing a viewport-dependent world-distance floor.
+    expect(Math.abs((after.x - before.x) * zoom - 72)).toBeLessThan(2);
+    expect(Math.abs((after.y - before.y) * zoom - 48)).toBeLessThan(2);
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
     await expect.poll(() => page.locator('[data-desk-set-object-id="set:scale-set-100"]').evaluate((node) => {

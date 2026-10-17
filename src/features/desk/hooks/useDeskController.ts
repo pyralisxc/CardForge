@@ -124,6 +124,7 @@ export function useDeskController({
   const [renameDraft, setRenameDraft] = useState('');
   const [preparingWorkId, setPreparingWorkId] = useState<string | null>(null);
   const {
+    navigationReady,
     closeContextTool,
     confirmDirtyClose,
     dirtyCloseRequested,
@@ -373,14 +374,19 @@ export function useDeskController({
   }, [focusedItemId]);
 
   useEffect(() => {
-    if (initialToolHandledRef.current || !initialTool) return;
+    if (!navigationReady || initialToolHandledRef.current || !initialTool) return;
     if (initialReturnContextKey && !returnContextRestoredRef.current) return;
     const targetSetId = focusedLocalSetId ?? activeCardSetId;
     if (!targetSetId) return;
     initialToolHandledRef.current = true;
+    // Reload restores the complete tool snapshot before replaying URL intent.
+    // Do not push a duplicate history entry for the already-restored tool:
+    // otherwise the first Done goes back to the same tool instead of the Set.
+    if (interactionSession.focusPath.setId === targetSetId
+      && interactionSession.toolStack.at(-1)?.toolId === initialTool) return;
     setActiveCardSetId(targetSetId);
     openContextTool(targetSetId, initialTool);
-  }, [activeCardSetId, focusedLocalSetId, initialReturnContextKey, initialTool, openContextTool, setActiveCardSetId]);
+  }, [activeCardSetId, focusedLocalSetId, initialReturnContextKey, initialTool, interactionSession.focusPath.setId, interactionSession.toolStack, navigationReady, openContextTool, setActiveCardSetId]);
 
   useEffect(() => {
     if (!initialReturnContextKey || returnContextRestoredRef.current) return;

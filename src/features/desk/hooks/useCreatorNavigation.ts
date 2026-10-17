@@ -32,6 +32,7 @@ interface CreatorNavigationOptions {
 }
 
 export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId }: CreatorNavigationOptions) {
+  const [navigationReady, setNavigationReady] = useState(false);
   const [focusedWorkId, setFocusedWorkId] = useState<string | null>(initialFocusedWorkId ?? null);
   const [inspectorWorkId, setInspectorWorkId] = useState<string | null>(null);
   const [interactionSession, setInteractionSession] = useState<CreatorInteractionSession>(() => (
@@ -105,6 +106,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     ) {
       applySnapshot(restored);
       replaceSnapshot(restored);
+      setNavigationReady(true);
       return;
     }
     if (initial.focusedWorkId) {
@@ -122,9 +124,11 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
         });
       }
       pushSnapshot(initial);
+      setNavigationReady(true);
       return;
     }
     replaceSnapshot(initial);
+    setNavigationReady(true);
   }, [applySnapshot, pushSnapshot, replaceSnapshot]);
 
   useEffect(() => {
@@ -337,6 +341,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
   }, [applySnapshot, replaceSnapshot]);
 
   return {
+    navigationReady,
     closeContextTool,
     confirmDirtyClose,
     dirtyCloseRequested,
