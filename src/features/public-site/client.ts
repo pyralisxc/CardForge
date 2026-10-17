@@ -8,11 +8,31 @@ export {
 } from './model/siteContent';
 export { PUBLIC_NAVIGATION } from './model/publicNavigation';
 export {
+  DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
+  createLegacyHomepageShowcaseStages,
+  HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
+  MAX_HOMEPAGE_SHOWCASE_STAGES,
+  MAX_HOMEPAGE_STAGE_VIEWS,
+  type HomepageShowcaseStage,
+  type HomepageShowcaseView,
+} from './model/homepageShowcaseStages';
+export {
+  DEFAULT_HOMEPAGE_SECTION_DESIGN,
+  HOMEPAGE_COMPOSER_MEDIA_SLOTS,
+  MAX_HOMEPAGE_CUSTOM_SECTIONS,
+  MAX_HOMEPAGE_SECTION_BLOCKS,
+  isHomepageCustomSection,
+  type HomepageCustomSection,
+  type HomepageContentBlock,
+  type HomepageSectionDesign,
+} from './model/homepageComposition';
+export {
   DEFAULT_PUBLIC_SITE_CONFIGURATION,
   HOMEPAGE_SECTION_IDS,
   PRIMARY_NAVIGATION_IDS,
   type HomepageSectionId,
   type HomepageSectionSetting,
+  type HomepageLayoutSection,
   type PrimaryNavigationItem,
   type PublicSiteConfiguration,
 } from './model/siteConfiguration';

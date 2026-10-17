@@ -2,17 +2,30 @@ import type { StandardSchemaV1 } from '@modelcontextprotocol/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_PUBLIC_SITE_CONFIGURATION } from '@/features/public-site/model/siteConfiguration';
+import { createSiteContentMap, DEFAULT_SITE_CONTENT_BLOCKS } from '@/features/public-site/model/siteContent';
+import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
 import { getBillingConfigStatus } from '@/features/billing/lib/billing';
 import type { McpOwnerAccess } from '@/features/owner/server/mcpOwnerAccess';
 import { registerOwnerReadTools } from '@/features/owner/server/mcpOwnerTools';
 import { ownerSiteFieldPublishInputSchema } from '@/features/owner/server/mcpOwnerSchemas';
 
 vi.mock('server-only', () => ({}));
-const mocks = vi.hoisted(() => ({ publish: vi.fn(), publishField: vi.fn(), publishConfiguration: vi.fn(), publishPresentation: vi.fn(), readFields: vi.fn(), readiness: vi.fn(), site: vi.fn(), access: vi.fn() }));
+const mocks = vi.hoisted(() => ({ publish: vi.fn(), publishField: vi.fn(), publishConfiguration: vi.fn(), publishPresentation: vi.fn(), readFields: vi.fn(), readCopy: vi.fn(), readiness: vi.fn(), site: vi.fn(), access: vi.fn() }));
 vi.mock('@/features/legal/server', () => ({ getLegalDocuments: mocks.site }));
 vi.mock('@/features/roadmap/server', () => ({ getRoadmapSettings: mocks.site, getRoadmapAdminItems: mocks.site }));
 vi.mock('@/features/owner/server/ownerMediaCommands', () => ({ publishOwnerSiteMedia: mocks.publishPresentation, restoreOwnerSiteMedia: mocks.publishPresentation }));
-vi.mock('@/features/public-site/server', () => ({ getPublicSiteConfiguration: mocks.readFields, getFounderProfile: mocks.site, getSiteMedia: mocks.site, SiteMediaStoreError: class extends Error {} }));
+vi.mock('@/features/public-site/server', async () => ({
+  ...(await import('@/features/public-site/model/homepageComposition')),
+  ...(await import('@/features/public-site/model/homepageShowcaseStages')),
+  createSiteContentMap: (await import('@/features/public-site/model/siteContent')).createSiteContentMap,
+  getSiteContentBlocks: mocks.readCopy,
+  getPublicSiteConfiguration: mocks.readFields, getFounderProfile: mocks.site, getSiteMedia: mocks.site,
+  completeSiteMediaForSections: (assets: unknown[]) => assets,
+  SiteMediaStoreError: class extends Error {},
+  PublicSiteConfigurationStoreError: class extends Error {
+    constructor(message: string, public readonly status = 500) { super(message); }
+  },
+}));
 vi.mock('@/features/business-identity/server', () => ({ getBusinessIdentity: mocks.site }));
 vi.mock('@/features/experience-settings/server', () => ({ getExperienceSettings: mocks.site }));
 vi.mock('@/features/analytics/server', () => ({ getOwnerAnalyticsSnapshot: mocks.site }));
@@ -26,7 +39,7 @@ vi.mock('@/features/owner/server/ownerIntegrationStatus', () => ({ getOwnerInteg
 
 type RegisteredTool = {
   schema: StandardSchemaV1;
-  handler: (input: Record<string, unknown>) => Promise<{ structuredContent?: Record<string, unknown>; content?: Array<{ type: string; text?: string }> }>;
+  handler: (input: Record<string, unknown>) => Promise<{ structuredContent?: Record<string, unknown>; content?: Array<{ type: string; text?: string }>; _meta?: Record<string, unknown> }>;
 };
 const tools = new Map<string, RegisteredTool>();
 const block = {
@@ -46,6 +59,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv('VERCEL_ENV', 'preview');
   mocks.access.mockResolvedValue({ user: { id: 'owner', emailAddresses: ['owner@example.com'], privateMetadata: {} }, email: 'owner@example.com', isOwner: true });
+  mocks.readCopy.mockResolvedValue(DEFAULT_SITE_CONTENT_BLOCKS);
   tools.clear();
   registerOwnerReadTools({
     server: {
@@ -54,7 +68,8 @@ beforeEach(() => {
       },
     } as unknown as Parameters<typeof registerOwnerReadTools>[0]['server'],
     getAccess: async () => await mocks.access() as McpOwnerAccess,
-    toolError: (error) => ({ isError: true, content: [{ type: 'text', text: String(error) }] }),
+    toolError: (error) => ({ isError: true, content: [{ type: 'text', text: String(error) }],
+      _meta: { 'cardforge/boundaryFailure': describeAgentBoundaryFailure(error) } }),
   });
 });
 
@@ -96,6 +111,160 @@ describe('Owner MCP registered output contracts', () => {
     expect(mocks.publishPresentation).not.toHaveBeenCalled();
     expect(mocks.site).not.toHaveBeenCalled();
   });
+
+  it('reads Owner walkthrough stages and summarizes managed image sources without disclosing storage paths', async () => {
+    mocks.readFields.mockResolvedValue({ ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt });
+    mocks.site.mockResolvedValue([{ slot: 'landing.showcase.layout', label: 'Template', alt: 'Studio', defaultSrc: '/fallback.png', storagePath: null }]);
+    const result = await invoke('get_owner_homepage_showcase');
+    expect(result).toMatchObject({ environment: 'preview', settingsRevision: settings.updatedAt, legacyCopy: true,
+      stages: [{ id: 'templates' }, { id: 'make' }, { id: 'review' }],
+    });
+    expect(result.media).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slot: 'landing.showcase.layout', source: 'bundled-fallback' }),
+    ]));
+    expect(JSON.stringify(result)).not.toContain('storagePath');
+  });
+
+  it('reads the exact published legacy stage and per-view copy rather than static defaults', async () => {
+    mocks.readFields.mockResolvedValue({ ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt });
+    mocks.site.mockResolvedValue([]);
+    const content = { ...createSiteContentMap(DEFAULT_SITE_CONTENT_BLOCKS),
+      'landing.showcase.stage.templates': 'Authored Templates',
+      'landing.showcase.stage.make': 'Authored generation',
+      'landing.showcase.stage.review': 'Authored review',
+      'landing.showcase.generator.single': 'S'.repeat(80),
+      'landing.showcase.generator.bulk': 'B'.repeat(80),
+    };
+    mocks.readCopy.mockResolvedValue(DEFAULT_SITE_CONTENT_BLOCKS.map((block) => ({ ...block, body: content[block.slug] })));
+    const result = await invoke('get_owner_homepage_showcase');
+    expect(result.stages).toMatchObject([
+      { label: 'Authored Templates' },
+      { label: 'Authored generation', views: [{ label: 'S'.repeat(80) }, { label: 'B'.repeat(80) }] },
+      { label: 'Authored review' },
+    ]);
+  });
+
+  it.each([
+    ['publish_owner_homepage_showcase', { stages: [] }],
+    ['publish_owner_homepage_section', { operation: 'insert', sectionId: 'custom-invalid', section: {} }],
+    ['publish_owner_homepage_section', { operation: 'remove', sectionId: 'showcase' }],
+    ['publish_owner_homepage_section', { operation: 'move', sectionId: 'showcase', direction: 'up' }],
+  ])('preserves invalid-input boundary meaning in focused command %s', async (name, input) => {
+    mocks.readFields.mockResolvedValue({ ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt });
+    const result = await tools.get(name as string)!.handler({ ...input, expectedUpdatedAt: settings.updatedAt });
+    expect(result).toMatchObject({ isError: true,
+      _meta: { 'cardforge/boundaryFailure': { status: 400, kind: 'invalid', retryable: false } },
+    });
+    expect(mocks.publishConfiguration).not.toHaveBeenCalled();
+  });
+
+  it('saves just the walkthrough through the native revision-safe site configuration command', async () => {
+    const before = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt };
+    mocks.readFields.mockResolvedValue(before);
+    const receipt = { committed: true, refreshComplete: true, refreshFailures: [], activityRecorded: true,
+      retryable: false, nextAction: 'none', message: 'Published.' };
+    const stages = [{ id: 'desk', label: 'Your Desk', kind: 'screenshots',
+      views: [{ label: 'Desk view', mediaSlot: 'landing.showcase.layout' }] }];
+    const after = { ...before, homepageSections: before.homepageSections.map((section) => (
+      section.id === 'showcase' ? { ...section, showcaseStages: stages } : section
+    )) };
+    mocks.publishConfiguration.mockResolvedValue({ settings: after, receipt });
+    const result = await invoke('publish_owner_homepage_showcase', { stages, expectedUpdatedAt: settings.updatedAt });
+    expect(result).toMatchObject({ environment: 'preview', livePublication: false, stages, updatedAt: settings.updatedAt, receipt });
+    expect(mocks.publishConfiguration).toHaveBeenCalledExactlyOnceWith({
+      actor: { userId: 'owner', email: 'owner@example.com' }, expectedUpdatedAt: settings.updatedAt,
+      patch: { homepageSections: after.homepageSections },
+    });
+    const beforeShowcase = DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections.find((section) => section.id === 'showcase');
+    const afterShowcase = after.homepageSections.find((section) => section.id === 'showcase');
+    expect(afterShowcase && 'showcaseExamples' in afterShowcase ? afterShowcase.showcaseExamples : undefined)
+      .toEqual(beforeShowcase?.showcaseExamples);
+  });
+
+  it.each(['get_owner_homepage_showcase', 'publish_owner_homepage_showcase'])('denies non-Owners before reading or saving %s', async (name) => {
+    mocks.access.mockRejectedValue(new Error('Owner permission required'));
+    expect(await tools.get(name)!.handler({ stages: [], expectedUpdatedAt: settings.updatedAt })).toMatchObject({ isError: true });
+    expect(mocks.readFields).not.toHaveBeenCalled();
+    expect(mocks.publishConfiguration).not.toHaveBeenCalled();
+  });
+
+  it('describes reusable homepage sections without changing existing site content', async () => {
+    const before = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt };
+    mocks.readFields.mockResolvedValue(before);
+    const design = await invoke('get_owner_homepage_design');
+    expect(design).toMatchObject({ environment: 'preview', settingsRevision: settings.updatedAt,
+      sections: expect.arrayContaining([expect.objectContaining({ id: 'showcase' }), expect.objectContaining({ id: 'final_cta' })]),
+      imageSlots: expect.arrayContaining(['landing.showcase.layout', 'landing.hero']),
+    });
+  });
+
+  it('inserts a new bounded content section while preserving the real homepage and exact revision', async () => {
+    const before = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt };
+    mocks.readFields.mockResolvedValue(before);
+    const section = { id: 'custom-desk', kind: 'custom', visible: true,
+      design: { layout: 'split', tone: 'raised', spacing: 'balanced', align: 'center' },
+      blocks: [
+        { id: 'heading', kind: 'heading', text: 'Welcome to your Desk' },
+        { id: 'action', kind: 'button', text: 'Open your Desk', href: '/account' },
+      ] };
+    const resultSections = [...before.homepageSections.slice(0, -1), section, before.homepageSections.at(-1)!];
+    const receipt = { committed: true, refreshComplete: true, refreshFailures: [], activityRecorded: true,
+      retryable: false, nextAction: 'none', message: 'Published.' };
+    mocks.publishConfiguration.mockResolvedValue({ settings: { ...before, homepageSections: resultSections }, receipt });
+    const result = await invoke('publish_owner_homepage_section', {
+      operation: 'insert', sectionId: section.id, section, expectedUpdatedAt: settings.updatedAt,
+    });
+    expect(result).toMatchObject({ livePublication: false, environment: 'preview', sections: resultSections, receipt });
+    expect(mocks.publishConfiguration).toHaveBeenCalledExactlyOnceWith({
+      actor: { userId: 'owner', email: 'owner@example.com' }, expectedUpdatedAt: settings.updatedAt,
+      patch: { homepageSections: resultSections },
+    });
+  });
+
+  it('rejects arbitrary executable custom elements rather than attempting publication', async () => {
+    mocks.readFields.mockResolvedValue({ ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt });
+    const result = await tools.get('publish_owner_homepage_section')!.handler({
+      operation: 'insert', sectionId: 'custom-unsafe', expectedUpdatedAt: settings.updatedAt,
+      section: { id: 'custom-unsafe', kind: 'custom', visible: true,
+        design: { layout: 'stack', tone: 'raised', spacing: 'balanced', align: 'start' },
+        blocks: [{ id: 'bad', kind: 'html', text: '<script>alert(1)</script>' }] },
+    });
+    expect(result).toMatchObject({ isError: true });
+    expect(mocks.publishConfiguration).not.toHaveBeenCalled();
+  });
+
+  it('replaces one existing block without overwriting sibling blocks or other sections', async () => {
+    const contentSection = { id: 'custom-desk', kind: 'custom', visible: true,
+      design: { layout: 'stack', tone: 'charcoal', spacing: 'balanced', align: 'start' },
+      blocks: [{ id: 'heading', kind: 'heading', text: 'Old' },
+        { id: 'button', kind: 'button', text: 'Open Desk', href: '/account' }] };
+    const before = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt,
+      homepageSections: [...DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections, contentSection] };
+    mocks.readFields.mockResolvedValue(before);
+    const receipt = { committed: true, refreshComplete: true, refreshFailures: [], activityRecorded: true,
+      retryable: false, nextAction: 'none', message: 'Saved.' };
+    const expectedSections = [...before.homepageSections.slice(0, -1),
+      { ...contentSection, blocks: [{ id: 'heading', kind: 'heading', text: 'Your Desk' }, contentSection.blocks[1]] }];
+    mocks.publishConfiguration.mockResolvedValue({ settings: { ...before, homepageSections: expectedSections }, receipt });
+    await invoke('publish_owner_homepage_block', {
+      sectionId: 'custom-desk', blockId: 'heading',
+      block: { id: 'heading', kind: 'heading', text: 'Your Desk' },
+      expectedUpdatedAt: settings.updatedAt,
+    });
+    expect(mocks.publishConfiguration).toHaveBeenCalledExactlyOnceWith({
+      actor: { userId: 'owner', email: 'owner@example.com' }, expectedUpdatedAt: settings.updatedAt,
+      patch: { homepageSections: expectedSections },
+    });
+  });
+
+  it.each(['get_owner_homepage_design', 'publish_owner_homepage_section', 'publish_owner_homepage_block'])(
+    'denies non-owners before touching native state with %s', async (name) => {
+      mocks.access.mockRejectedValue(new Error('Owner permission required'));
+      expect(await tools.get(name)!.handler({ sectionId: 'custom-desk', expectedUpdatedAt: settings.updatedAt })).toMatchObject({ isError: true });
+      expect(mocks.readFields).not.toHaveBeenCalled();
+      expect(mocks.publishConfiguration).not.toHaveBeenCalled();
+    },
+  );
 
   it('reads complete settings and publishes partial changes with a canonical receipt', async () => {
     const full = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt };

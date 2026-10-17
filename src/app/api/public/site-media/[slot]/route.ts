@@ -2,6 +2,9 @@ import { createHash } from 'node:crypto';
 
 import {
   getCachedSiteMedia,
+  getCachedPublicSiteConfiguration,
+  isComposedSiteMediaSlot,
+  isHomepageCustomSection,
   getDefaultSiteMedia,
   getSiteMediaContentType,
   isSiteMediaSlot,
@@ -41,6 +44,15 @@ export async function GET(
 ) {
   const { slot } = await params;
   if (!isSiteMediaSlot(slot)) return new Response(null, { status: 404 });
+  if (isComposedSiteMediaSlot(slot)) {
+    const settings = await getCachedPublicSiteConfiguration();
+    const included = settings.homepageSections.some((section) => (
+      isHomepageCustomSection(section) && section.blocks.some((block) => (
+        block.kind === 'image' && block.mediaSlot === slot && slot === `landing.composer.${block.id}`
+      ))
+    ));
+    if (!included) return new Response(null, { status: 404 });
+  }
 
   const media = (await getCachedSiteMedia()).find((asset) => asset.slot === slot)
     ?? getDefaultSiteMedia(slot);

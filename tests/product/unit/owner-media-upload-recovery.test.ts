@@ -7,7 +7,10 @@ vi.mock('@/infrastructure/security/abuseProtection', () => ({ consumeRateLimit: 
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ storage: { from: () => ({ upload: state.upload, remove: state.remove }) } }) }));
 vi.mock('@/features/public-site/server', () => ({
   SiteMediaStoreError: class extends Error { constructor(message: string, public status = 503) { super(message); } },
-  isSiteMediaSlot: () => true, normalizeSiteMediaAlt: (alt: string) => alt,
+  isSiteMediaSlot: () => true, isComposedSiteMediaSlot: () => false,
+  assertComposedSiteMediaReference: async () => undefined,
+  getDefaultSiteMedia: () => ({ slot: 'landing.hero', updatedAt: null, previousVersion: null }),
+  normalizeSiteMediaAlt: (alt: string) => alt,
   getSiteMedia: async () => [{ slot: 'landing.hero', updatedAt: 'revision', previousVersion: null }],
   validateSiteMediaFile: () => ({ ok: true }), processSiteMediaImage: async () => ({ buffer: Buffer.from('fixture'), width: 20, height: 20 }),
   getSiteMediaStoragePath: () => 'landing/hero/uncommitted.webp', getSiteMediaContentType: () => 'image/webp', SITE_MEDIA_BUCKET: 'media',

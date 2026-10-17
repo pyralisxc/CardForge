@@ -8,6 +8,9 @@ import {
   type SiteMediaSlot,
   type SiteMediaVersion,
 } from '@/features/public-site/model/siteMedia';
+import { getPublicSiteConfiguration } from './siteConfigurationStore';
+import { isHomepageCustomSection } from '../model/homepageComposition';
+import { isComposedSiteMediaSlot } from '../model/siteMedia';
 import {
   getSupabaseServerClient,
   getSupabaseServerConfigStatus,
@@ -69,10 +72,44 @@ const mapRow = (row: SiteMediaRow): SiteMediaAsset => {
 const mergeRowsWithDefaults = <Row extends { slot: SiteMediaSlot }>(
   rows: Row[],
   mapper: (row: Row) => SiteMediaAsset,
-): SiteMediaAsset[] => DEFAULT_SITE_MEDIA.map((asset) => {
-  const row = rows.find((candidate) => candidate.slot === asset.slot);
-  return row ? mapper(row) : getDefaultSiteMedia(asset.slot);
-});
+): SiteMediaAsset[] => {
+  const slotIds = [
+    ...DEFAULT_SITE_MEDIA.map((asset) => asset.slot),
+    ...rows.filter((row) => isComposedSiteMediaSlot(row.slot)).map((row) => row.slot),
+  ];
+  return [...new Set(slotIds)].map((slot) => {
+    const row = rows.find((candidate) => candidate.slot === slot);
+    return row ? mapper(row) : getDefaultSiteMedia(slot);
+  });
+};
+
+/** Use already-read Owner configuration to expose never-uploaded section images. No extra provider reads. */
+export const completeSiteMediaForSections = (
+  assets: SiteMediaAsset[],
+  sections: readonly { id: string }[],
+): SiteMediaAsset[] => {
+  const known = new Set(assets.map((asset) => asset.slot));
+  const missing = sections.flatMap((section) => {
+    if (!isHomepageCustomSection(section)) return [];
+    return section.blocks.flatMap((block) => (
+      block.kind === 'image' && isComposedSiteMediaSlot(block.mediaSlot) && !known.has(block.mediaSlot)
+        ? [getDefaultSiteMedia(block.mediaSlot)] : []
+    ));
+  });
+  return [...assets, ...missing];
+};
+
+/** Dynamic image access is limited to existing published Owner composition blocks. */
+export const assertComposedSiteMediaReference = async (slot: SiteMediaSlot): Promise<void> => {
+  if (!isComposedSiteMediaSlot(slot)) return;
+  const settings = await getPublicSiteConfiguration();
+  const allowed = settings.homepageSections.some((section) => (
+    isHomepageCustomSection(section) && section.blocks.some((block) => (
+      block.kind === 'image' && block.mediaSlot === slot && slot === `landing.composer.${block.id}`
+    ))
+  ));
+  if (!allowed) throw new SiteMediaStoreError('This image is not part of the published site design.', 404);
+};
 
 export const getSiteMedia = async (): Promise<SiteMediaAsset[]> => {
   const supabase = getSupabaseServerClient();
@@ -142,6 +179,7 @@ export const updateSiteMedia = async (input: {
   expectedUpdatedAt?: unknown;
 }): Promise<SiteMediaAsset> => {
   if (!isSiteMediaSlot(input.slot)) throw new SiteMediaStoreError('Unknown public image.', 400);
+  await assertComposedSiteMediaReference(input.slot);
   const storagePath = validateStoragePath(input.slot, input.storagePath);
   const dimensions = validateDimensions(input.width, input.height);
   if (typeof input.alt !== 'string' || !input.alt.trim() || input.alt.trim().length > 300) {
@@ -175,6 +213,7 @@ export const updateSiteMedia = async (input: {
 
 export const restorePreviousSiteMedia = async (slot: unknown, expectedUpdatedAt: unknown): Promise<SiteMediaAsset> => {
   if (!isSiteMediaSlot(slot)) throw new SiteMediaStoreError('Unknown public image.', 400);
+  await assertComposedSiteMediaReference(slot);
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new SiteMediaStoreError('Public image storage is not configured yet.', 503);
   const current = (await getSiteMedia()).find((asset) => asset.slot === slot);

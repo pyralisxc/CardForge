@@ -7,7 +7,16 @@ import { getOwnerActivity } from '@/features/owner/server/ownerActivityStore';
 import { getOwnerIntegrationStatus } from '@/features/owner/server/ownerIntegrationStatus';
 import { getOwnerSiteControlPayload, getOwnerOperationsOverviewPayload } from '@/features/owner/lib/ownerOperationsStore';
 import { publishOwnerSiteContentBlock, publishOwnerSiteConfigurationField, publishOwnerSiteConfigurationPatch, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerExperienceSettings, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus } from '@/features/owner/server/ownerSiteCommands';
-import { getPublicSiteConfiguration, getFounderProfile, getSiteMedia, SiteMediaStoreError, type PublicSiteConfiguration } from '@/features/public-site/server';
+import { getPublicSiteConfiguration, getFounderProfile, getSiteMedia, getSiteContentBlocks, createSiteContentMap, completeSiteMediaForSections, PublicSiteConfigurationStoreError, SiteMediaStoreError, type PublicSiteConfiguration } from '@/features/public-site/server';
+import {
+  createLegacyHomepageShowcaseStages,
+  HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
+  HOMEPAGE_COMPOSER_MEDIA_SLOTS,
+  validateHomepageShowcaseStagesInput,
+  parseHomepageCustomSection,
+  isHomepageCustomSection,
+  type HomepageLayoutSection,
+} from '@/features/public-site/server';
 import { publishOwnerSiteMedia, restoreOwnerSiteMedia } from './ownerMediaCommands';
 import { getLegalDocuments } from '@/features/legal/server';
 import { getRoadmapSettings, getRoadmapAdminItems } from '@/features/roadmap/server';
@@ -26,6 +35,13 @@ import {
   ownerSiteFieldPublishInputSchema,
   ownerSiteFieldPublicationOutputSchema,
   ownerSiteConfigurationOutputSchema,
+  ownerHomepageShowcaseReadOutputSchema,
+  ownerHomepageShowcasePublishInputSchema,
+  ownerHomepageShowcasePublicationOutputSchema,
+  ownerHomepageDesignReadOutputSchema,
+  ownerHomepageSectionPublishInputSchema,
+  ownerHomepageBlockPublishInputSchema,
+  ownerHomepageDesignPublicationOutputSchema,
   ownerSiteConfigurationPublishInputSchema,
   ownerSiteConfigurationPublicationOutputSchema,
   ownerPresentationReadInputSchema,
@@ -312,6 +328,166 @@ export const registerOwnerReadTools = ({
     },
   }));
 
+  server.registerTool('get_owner_homepage_showcase', {
+    title: 'Read the Owner homepage walkthrough and managed screenshot availability',
+    description: 'Read the exact Owner settings revision and ordered walkthrough stages. legacyCopy means the existing stage labels still come from published site-copy blocks. Use the focused publish tool to avoid resending unrelated demonstration Sets.',
+    outputSchema: ownerHomepageShowcaseReadOutputSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async () => runObserved({ toolName: 'get_owner_homepage_showcase', input: {}, execute: async () => {
+    const settings = await getPublicSiteConfiguration();
+    const showcase = settings.homepageSections.find((section) => section.id === 'showcase');
+    const ownedStages = showcase && 'showcaseStages' in showcase ? showcase.showcaseStages : undefined;
+    const media = await getSiteMedia();
+    return { content: [{ type: 'text', text: 'Read Owner homepage walkthrough and screenshot slot availability.' }],
+      structuredContent: {
+        environment: deploymentEnvironment(), settingsRevision: settings.updatedAt ?? null,
+        legacyCopy: !ownedStages,
+        stages: ownedStages ?? createLegacyHomepageShowcaseStages(createSiteContentMap(await getSiteContentBlocks())),
+        media: HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS.map((slot) => {
+          const asset = media.find((candidate) => candidate.slot === slot);
+          return { slot, label: asset?.label ?? slot, alt: asset?.alt ?? '',
+            source: asset?.storagePath ? 'owner-upload' : asset?.defaultSrc ? 'bundled-fallback' : 'unavailable' };
+        }),
+      } };
+  } }));
+
+  server.registerTool('publish_owner_homepage_showcase', {
+    title: 'Save only the Owner homepage walkthrough stages',
+    description: 'Reorder, rename, describe or select existing screenshot/finished-Set stages. Preserves demonstration data, section order and all other site settings. Uses the same canonical revision-safe browser command. Preview changes staging only. Never replay a committed receipt.',
+    inputSchema: ownerHomepageShowcasePublishInputSchema,
+    outputSchema: ownerHomepageShowcasePublicationOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  }, async ({ stages, expectedUpdatedAt }) => runObserved({
+    toolName: 'publish_owner_homepage_showcase', input: { stages, expectedUpdatedAt },
+    execute: async (access) => {
+      let validatedStages;
+      try {
+        validatedStages = validateHomepageShowcaseStagesInput(stages);
+      } catch (error) {
+        throw new PublicSiteConfigurationStoreError(error instanceof Error ? error.message : 'Homepage walkthrough stages are invalid.', 400);
+      }
+      const current = await getPublicSiteConfiguration();
+      const homepageSections = current.homepageSections.map((section) => (
+        section.id === 'showcase' ? { ...section, showcaseStages: validatedStages } : section
+      ));
+      const publication = await publishOwnerSiteConfigurationPatch({
+        actor: { userId: access.user.id, email: access.email },
+        patch: { homepageSections }, expectedUpdatedAt,
+      });
+      const savedSection = publication.settings.homepageSections.find((section) => section.id === 'showcase');
+      const saved = savedSection && 'showcaseStages' in savedSection ? savedSection.showcaseStages : undefined;
+      const isProduction = deploymentEnvironment() === 'production';
+      return { content: [{ type: 'text', text: publication.receipt.message + (isProduction ? ' Live Production.' : ' Staging only.') }],
+        structuredContent: {
+          environment: deploymentEnvironment(), livePublication: isProduction,
+          updatedAt: publication.settings.updatedAt ?? null,
+          stages: saved ?? validatedStages, receipt: publication.receipt,
+        } };
+    },
+  }));
+
+  server.registerTool('get_owner_homepage_design', {
+    title: 'Read the page-first, editable homepage design and its canonical revision',
+    description: 'Read current ordered homepage sections, reusable blocks, layout tokens and allowed media slots. All values are the same as browser Owner editing. No private artwork or storage paths. This is not an independent CMS.',
+    outputSchema: ownerHomepageDesignReadOutputSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async () => runObserved({ toolName: 'get_owner_homepage_design', input: {}, execute: async () => {
+    const settings = await getPublicSiteConfiguration();
+    return {
+      content: [{ type: 'text', text: 'Loaded the current Owner-editable homepage structure.' }],
+      structuredContent: {
+        environment: deploymentEnvironment(), settingsRevision: settings.updatedAt ?? null,
+        sections: settings.homepageSections,
+        imageSlots: HOMEPAGE_COMPOSER_MEDIA_SLOTS,
+      },
+    };
+  } }));
+
+  const publishDesign = async (access: McpOwnerAccess, sections: HomepageLayoutSection[], expectedUpdatedAt: string) => {
+    const publication = await publishOwnerSiteConfigurationPatch({
+      actor: { userId: access.user.id, email: access.email }, patch: { homepageSections: sections }, expectedUpdatedAt,
+    });
+    return { content: [{ type: 'text' as const, text: publication.receipt.message + ' This is '
+      + (deploymentEnvironment() === 'production' ? 'live Production.' : 'non-production staging only.') }],
+      structuredContent: {
+        environment: deploymentEnvironment(), livePublication: deploymentEnvironment() === 'production',
+        updatedAt: publication.settings.updatedAt ?? null,
+        sections: publication.settings.homepageSections, receipt: publication.receipt,
+      } };
+  };
+
+  server.registerTool('publish_owner_homepage_section', {
+    title: 'Add, replace, remove or move one editable homepage section',
+    description: 'Publish a focused Owner section edit. Use insert for a new validated custom section, replace to edit its responsive layout or blocks, remove to delete only a custom section, or move to reorder any existing section. Current homepage data, pinned demonstration Sets, unaffected sections and all other site settings are preserved. Exact revision required; on conflict read again. Preview changes staging only.',
+    inputSchema: ownerHomepageSectionPublishInputSchema,
+    outputSchema: ownerHomepageDesignPublicationOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  }, async ({ operation, sectionId, section, direction, expectedUpdatedAt }) => runObserved({
+    toolName: 'publish_owner_homepage_section', input: { operation, sectionId, section, direction, expectedUpdatedAt },
+    execute: async (access) => {
+      const current = await getPublicSiteConfiguration();
+      const before = current.homepageSections;
+      const index = before.findIndex((candidate) => candidate.id === sectionId);
+      const next = [...before];
+      if (operation === 'insert') {
+        const valid = parseHomepageCustomSection(section);
+        if (!valid || valid.id !== sectionId) throw new PublicSiteConfigurationStoreError('Choose a fully validated custom section with the requested identity.', 400);
+        if (index !== -1) throw new PublicSiteConfigurationStoreError('This homepage section already exists. Reload the current design before inserting it.', 409);
+        const finalIndex = next.findIndex((candidate) => candidate.id === 'final_cta');
+        next.splice(finalIndex < 0 ? next.length : finalIndex, 0, valid);
+      } else if (operation === 'replace') {
+        const valid = parseHomepageCustomSection(section);
+        if (index < 0) throw new PublicSiteConfigurationStoreError('The selected homepage section no longer exists.', 404);
+        if (!isHomepageCustomSection(next[index]!) || !valid || valid.id !== sectionId) {
+          throw new PublicSiteConfigurationStoreError('Only an existing custom section can be replaced by a validated design.', 400);
+        }
+        next[index] = valid;
+      } else if (operation === 'remove') {
+        if (index < 0) throw new PublicSiteConfigurationStoreError('The selected homepage section no longer exists.', 404);
+        if (!isHomepageCustomSection(next[index]!)) {
+          throw new PublicSiteConfigurationStoreError('Only a custom homepage section may be removed.', 400);
+        }
+        next.splice(index, 1);
+      } else if (operation === 'move') {
+        const target = index + (direction === 'up' ? -1 : direction === 'down' ? 1 : Number.NaN);
+        if (index < 0) throw new PublicSiteConfigurationStoreError('The selected homepage section no longer exists.', 404);
+        if (!Number.isInteger(target) || target < 0 || target >= next.length) {
+          throw new PublicSiteConfigurationStoreError('Choose a valid movement direction within the homepage.', 400);
+        }
+        [next[index], next[target]] = [next[target]!, next[index]!];
+      }
+      return publishDesign(access, next, expectedUpdatedAt);
+    },
+  }));
+
+  server.registerTool('publish_owner_homepage_block', {
+    title: 'Edit one selected homepage design block directly',
+    description: 'Replace one existing heading, paragraph, feature, image reference or button within one custom homepage section. Validates the entire section and preserves every sibling block and other Owner settings. Carries the exact settings revision from get_owner_homepage_design. No arbitrary HTML, JavaScript, remote images or external URLs.',
+    inputSchema: ownerHomepageBlockPublishInputSchema,
+    outputSchema: ownerHomepageDesignPublicationOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  }, async ({ sectionId, blockId, block, expectedUpdatedAt }) => runObserved({
+    toolName: 'publish_owner_homepage_block', input: { sectionId, blockId, block, expectedUpdatedAt },
+    execute: async (access) => {
+      const current = await getPublicSiteConfiguration();
+      const sections = [...current.homepageSections];
+      const index = sections.findIndex((section) => section.id === sectionId);
+      const selected = sections[index];
+      if (index < 0 || !selected) throw new PublicSiteConfigurationStoreError('The selected homepage section no longer exists.', 404);
+      if (!isHomepageCustomSection(selected)) throw new PublicSiteConfigurationStoreError('Choose an editable custom homepage section.', 400);
+      const blockIndex = selected.blocks.findIndex((candidate) => candidate.id === blockId);
+      if (blockIndex < 0) throw new PublicSiteConfigurationStoreError('The selected homepage block no longer exists.', 404);
+      if (block.id !== blockId) throw new PublicSiteConfigurationStoreError('Choose one existing block without changing its identity.', 400);
+      const edited = parseHomepageCustomSection({
+        ...selected,
+        blocks: selected.blocks.map((candidate) => candidate.id === blockId ? block : candidate),
+      });
+      if (!edited) throw new PublicSiteConfigurationStoreError('Unsupported website block. Use validated content, managed media and internal links.', 400);
+      sections[index] = edited;
+      return publishDesign(access, sections, expectedUpdatedAt);
+    },
+  }));
+
   server.registerTool('get_owner_presentation_editor', {
     title: 'Read Owner presentation, roadmap or legal editor',
     description: 'Read complete canonical editor values and their current revision. Identity uses identityVersion. Founder, Experience and roadmap use updatedAt. Legal publication requires both current identityVersion and the selected document version; zero represents a never-published default. Roadmap collections return items; legal collections return documents. Omit revision properties from editable values when publishing. These are the same feature owners as the website; unavailable state is an error, not an empty/default editor.',
@@ -370,7 +546,8 @@ export const registerOwnerReadTools = ({
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async () => runObserved({ toolName: 'get_owner_site_media', input: {}, execute: async () => ({
     content: [{ type: 'text', text: 'Loaded current public images and their revisions.' }],
-    structuredContent: { environment: deploymentEnvironment(), media: await getSiteMedia() },
+    structuredContent: { environment: deploymentEnvironment(),
+      media: completeSiteMediaForSections(await getSiteMedia(), (await getPublicSiteConfiguration()).homepageSections) },
   }) }));
   server.registerTool('publish_owner_site_media', {
     title: 'Publish an Owner public image or its presentation',

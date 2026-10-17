@@ -9,6 +9,10 @@ export const SITE_MEDIA_SLOTS = [
   'landing.showcase.layout',
   'landing.showcase.generator-single',
   'landing.showcase.generator-bulk',
+  'landing.showcase.desk',
+  'landing.showcase.set',
+  'landing.showcase.template',
+  'landing.showcase.output',
   'landing.showcase.art.playing.ace',
   'landing.showcase.art.playing.king',
   'landing.showcase.art.playing.queen',
@@ -20,7 +24,11 @@ export const SITE_MEDIA_SLOTS = [
   'founder.portrait',
 ] as const;
 
-export type SiteMediaSlot = typeof SITE_MEDIA_SLOTS[number];
+export type ComposedSiteMediaSlot = `landing.composer.${string}`;
+export type SiteMediaSlot = typeof SITE_MEDIA_SLOTS[number] | ComposedSiteMediaSlot;
+export const isComposedSiteMediaSlot = (value: unknown): value is ComposedSiteMediaSlot => (
+  typeof value === 'string' && /^landing\.composer\.block-[a-z0-9-]{1,39}$/u.test(value)
+);
 export type SiteMediaKind = 'brand' | 'favicon' | 'watermark' | 'social' | 'hero' | 'showcase' | 'showcase-art' | 'portrait';
 export type SiteMediaGroup = 'brand' | 'landing' | 'showcase' | 'founder';
 export type SiteMediaFrame = 'natural' | 'wide' | 'portrait';
@@ -248,6 +256,26 @@ export const DEFAULT_SITE_MEDIA: SiteMediaDefaults[] = [
       mobileSize: 'large',
     },
   },
+  ...([
+    { slot: 'landing.showcase.desk', label: 'Current Desk screenshot', alt: 'CardForge Desk showing an organized selection of card Sets.' },
+    { slot: 'landing.showcase.set', label: 'Current Set editing screenshot', alt: 'CardForge Set workspace displaying a collection of cards ready for editing.' },
+    { slot: 'landing.showcase.template', label: 'Current Template editor screenshot', alt: 'CardForge Template editor displaying an editable card design.' },
+    { slot: 'landing.showcase.output', label: 'Current Output screenshot', alt: 'CardForge Output workspace showing export destinations for a finished Set.' },
+  ] as const).map((item): SiteMediaDefaults => ({
+    slot: item.slot,
+    group: 'landing',
+    kind: 'showcase',
+    label: item.label,
+    guidance: 'Upload an authentic, curated screenshot captured from a sanitized CardForge demonstration workspace. No private account data.',
+    defaultSrc: null,
+    defaultAlt: item.alt,
+    width: null,
+    height: null,
+    presentation: {
+      ...centeredPresentation, frame: 'natural', fit: 'contain',
+      desktopSize: 'large', mobileSize: 'large',
+    },
+  })),
   ...showcaseArtwork.map((artwork): SiteMediaDefaults => ({
     ...artwork,
     group: 'showcase',
@@ -300,11 +328,27 @@ const fits = new Set<SiteMediaFit>(['contain', 'cover']);
 const sizes = new Set<SiteMediaSize>(['compact', 'standard', 'large']);
 
 export const isSiteMediaSlot = (value: unknown): value is SiteMediaSlot => (
-  typeof value === 'string' && SITE_MEDIA_SLOTS.includes(value as SiteMediaSlot)
+  typeof value === 'string'
+  && (SITE_MEDIA_SLOTS.some((slot) => slot === value) || isComposedSiteMediaSlot(value))
 );
 
 export const getDefaultSiteMedia = (slot: SiteMediaSlot): SiteMediaAsset => {
-  const asset = defaultsBySlot.get(slot);
+  const asset = defaultsBySlot.get(slot) ?? (isComposedSiteMediaSlot(slot) ? {
+    slot,
+    group: 'landing' as const,
+    kind: 'showcase' as const,
+    label: 'Website content image',
+    guidance: 'Owner-managed image for a reusable website section. Capture authentic CardForge UI with a sanitized demo workspace, or upload approved artwork.',
+    defaultSrc: null,
+    defaultAlt: 'Website content illustration',
+    width: null,
+    height: null,
+    presentation: {
+      ...centeredPresentation,
+      frame: 'natural' as const, fit: 'contain' as const,
+      desktopSize: 'large' as const, mobileSize: 'large' as const,
+    },
+  } : undefined);
   if (!asset) throw new Error(`Unknown site media slot: ${slot}`);
   return {
     ...asset,

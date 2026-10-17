@@ -22,6 +22,7 @@ vi.mock('@/features/owner/server/ownerActivityStore', () => ({
 }));
 vi.mock('@/features/public-site/server', () => ({
   isSiteMediaSlot: (slot: string) => slot === 'landing.hero',
+  assertComposedSiteMediaReference: async () => undefined,
   SiteMediaStoreError: class extends Error { constructor(message: string, public status = 503) { super(message); } },
   restorePreviousSiteMedia: async () => {
     if (state.fail === 'commit') throw new Error('Database unavailable');

@@ -19,6 +19,9 @@ const state = vi.hoisted(() => ({
 
 vi.mock('@/features/public-site/server', () => ({
   getCachedSiteMedia: async () => [state.asset],
+  getCachedPublicSiteConfiguration: async () => ({ homepageSections: [] }),
+  isComposedSiteMediaSlot: () => false,
+  isHomepageCustomSection: () => false,
   getDefaultSiteMedia: (slot: string) => ({
     slot,
     storagePath: null,

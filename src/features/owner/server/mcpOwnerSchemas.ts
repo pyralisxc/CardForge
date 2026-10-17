@@ -1,4 +1,5 @@
 import { fromJsonSchema } from '@modelcontextprotocol/server';
+import { HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS, type HomepageShowcaseStage } from '@/features/public-site/server';
 
 export interface OwnerActivityInput {
   limit?: number;
@@ -274,6 +275,149 @@ const ownerCommittedReceiptSchema = {
   },
 };
 
+const ownerHomepageShowcaseStagesSchema = {
+  type: 'array', minItems: 1, maxItems: 6,
+  items: {
+    type: 'object', additionalProperties: false, required: ['id', 'label', 'kind'],
+    properties: {
+      id: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]{0,39}$' },
+      label: { type: 'string', minLength: 1, maxLength: 60 },
+      kind: { type: 'string', enum: ['screenshots', 'rendered-set'] },
+      description: { type: 'string', maxLength: 220 },
+      views: { type: 'array', minItems: 1, maxItems: 3, items: {
+        type: 'object', additionalProperties: false, required: ['label', 'mediaSlot'],
+        properties: {
+          label: { type: 'string', minLength: 1, maxLength: 80 },
+          mediaSlot: { type: 'string', enum: [...HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS] },
+        },
+      } },
+    },
+  },
+} as const;
+
+export const ownerHomepageShowcaseReadOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false,
+  required: ['environment', 'settingsRevision', 'legacyCopy', 'stages', 'media'],
+  properties: {
+    environment: { type: 'string' },
+    settingsRevision: nullableString,
+    legacyCopy: { type: 'boolean' },
+    stages: ownerHomepageShowcaseStagesSchema,
+    media: { type: 'array', items: { type: 'object', additionalProperties: false,
+      required: ['slot', 'label', 'alt', 'source'],
+      properties: {
+        slot: { type: 'string' }, label: { type: 'string' }, alt: { type: 'string' },
+        source: { type: 'string', enum: ['owner-upload', 'bundled-fallback', 'unavailable'] },
+      },
+    } },
+  },
+});
+
+export const ownerHomepageShowcasePublishInputSchema = fromJsonSchema<{
+  stages: HomepageShowcaseStage[]; expectedUpdatedAt: string;
+}>({
+  type: 'object', additionalProperties: false, required: ['stages', 'expectedUpdatedAt'],
+  properties: {
+    stages: ownerHomepageShowcaseStagesSchema,
+    expectedUpdatedAt: { type: 'string', minLength: 1, description: 'Exact Owner settings revision read before publication.' },
+  },
+});
+
+export const ownerHomepageShowcasePublicationOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false, required: ['environment', 'livePublication', 'updatedAt', 'stages', 'receipt'],
+  properties: {
+    environment: { type: 'string' }, livePublication: { type: 'boolean' },
+    updatedAt: nullableString, stages: ownerHomepageShowcaseStagesSchema, receipt: ownerCommittedReceiptSchema,
+  },
+});
+
+const ownerHomepageContentBlockSchema = {
+  type: 'object', additionalProperties: false, required: ['id', 'kind'],
+  properties: {
+    id: { type: 'string', minLength: 1, maxLength: 40 },
+    kind: { type: 'string', enum: ['heading', 'text', 'image', 'button', 'feature'] },
+    text: { type: 'string', maxLength: 1500 },
+    title: { type: 'string', maxLength: 100 },
+    body: { type: 'string', maxLength: 500 },
+    mediaSlot: { type: 'string', maxLength: 80 },
+    href: { type: 'string', maxLength: 500 },
+  },
+} as const;
+const ownerHomepageCompositionSectionSchema = {
+  type: 'object', additionalProperties: false, required: ['id', 'kind', 'visible', 'design', 'blocks'],
+  properties: {
+    id: { type: 'string', pattern: '^custom-[a-z0-9][a-z0-9-]{0,32}$' },
+    kind: { type: 'string', enum: ['custom'] },
+    visible: { type: 'boolean' },
+    design: { type: 'object', additionalProperties: false, required: ['layout', 'tone', 'spacing', 'align'],
+      properties: {
+        layout: { type: 'string', enum: ['stack', 'split', 'grid'] },
+        tone: { type: 'string', enum: ['charcoal', 'raised', 'warm'] },
+        spacing: { type: 'string', enum: ['compact', 'balanced', 'spacious'] },
+        align: { type: 'string', enum: ['start', 'center'] },
+      },
+    },
+    blocks: { type: 'array', minItems: 1, maxItems: 12, items: ownerHomepageContentBlockSchema },
+  },
+} as const;
+const ownerHomepageSectionSchema = {
+  type: 'object', additionalProperties: false, required: ['id', 'visible'],
+  properties: {
+    id: { type: 'string', maxLength: 40 },
+    kind: { type: 'string', enum: ['custom'] },
+    visible: { type: 'boolean' },
+    showcaseExamples: { type: 'array', maxItems: 6, items: { type: 'object' } },
+    showcaseStages: ownerHomepageShowcaseStagesSchema,
+    design: ownerHomepageCompositionSectionSchema.properties.design,
+    blocks: ownerHomepageCompositionSectionSchema.properties.blocks,
+  },
+} as const;
+export const ownerHomepageDesignReadOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false, required: ['environment', 'settingsRevision', 'sections', 'imageSlots'],
+  properties: {
+    environment: { type: 'string' },
+    settingsRevision: nullableString,
+    sections: { type: 'array', items: ownerHomepageSectionSchema },
+    imageSlots: { type: 'array', items: { type: 'string' } },
+  },
+});
+export const ownerHomepageSectionPublishInputSchema = fromJsonSchema<{
+  operation: 'insert' | 'replace' | 'remove' | 'move';
+  sectionId: string; section?: Record<string, unknown>;
+  direction?: 'up' | 'down'; expectedUpdatedAt: string;
+}>({
+  type: 'object', additionalProperties: false,
+  required: ['operation', 'sectionId', 'expectedUpdatedAt'],
+  properties: {
+    operation: { type: 'string', enum: ['insert', 'replace', 'remove', 'move'] },
+    sectionId: { type: 'string', minLength: 1, maxLength: 40 },
+    section: ownerHomepageCompositionSectionSchema,
+    direction: { type: 'string', enum: ['up', 'down'] },
+    expectedUpdatedAt: { type: 'string', minLength: 1 },
+  },
+});
+export const ownerHomepageBlockPublishInputSchema = fromJsonSchema<{
+  sectionId: string; blockId: string;
+  block: Record<string, unknown>; expectedUpdatedAt: string;
+}>({
+  type: 'object', additionalProperties: false,
+  required: ['sectionId', 'blockId', 'block', 'expectedUpdatedAt'],
+  properties: {
+    sectionId: { type: 'string', minLength: 1, maxLength: 40 },
+    blockId: { type: 'string', minLength: 1, maxLength: 40 },
+    block: ownerHomepageContentBlockSchema,
+    expectedUpdatedAt: { type: 'string', minLength: 1 },
+  },
+});
+export const ownerHomepageDesignPublicationOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: false, required: ['environment', 'livePublication', 'updatedAt', 'sections', 'receipt'],
+  properties: {
+    environment: { type: 'string' }, livePublication: { type: 'boolean' },
+    updatedAt: nullableString, sections: { type: 'array', items: ownerHomepageSectionSchema },
+    receipt: ownerCommittedReceiptSchema,
+  },
+});
+
 const ownerSiteConfigurationProperties = {
   announcementEnabled: { type: 'boolean' }, announcementMessage: { type: 'string', maxLength: 240 },
   primaryCtaLabel: { type: 'string', minLength: 1, maxLength: 80 }, primaryCtaHref: { type: 'string', maxLength: 500 },
@@ -288,11 +432,7 @@ const ownerSiteConfigurationProperties = {
     properties: { id: { type: 'string', enum: ['about', 'plans', 'roadmap', 'account'] },
       label: { type: 'string', minLength: 1, maxLength: 40 }, href: { type: 'string', maxLength: 500 }, visible: { type: 'boolean' } },
   } },
-  homepageSections: { type: 'array', minItems: 5, maxItems: 5, items: {
-    type: 'object', additionalProperties: false, required: ['id', 'visible'],
-    properties: { id: { type: 'string', enum: ['showcase', 'workflow', 'access', 'founder', 'final_cta'] },
-      visible: { type: 'boolean' }, showcaseExamples: { type: 'array', maxItems: 6, items: { type: 'object' } } },
-  } },
+  homepageSections: { type: 'array', minItems: 5, maxItems: 17, items: ownerHomepageSectionSchema },
 };
 const ownerSiteConfigurationSchema = {
   type: 'object', additionalProperties: false,

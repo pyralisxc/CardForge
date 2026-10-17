@@ -24,7 +24,10 @@ vi.mock('react', async (importOriginal) => {
 });
 vi.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('@/features/owner/components/OwnerHomepageShowcasePanel', () => ({ OwnerHomepageShowcasePanel: () => null }));
-vi.mock('@/features/public-site/client', async () => await import('@/features/public-site/model/ownerPublicationEnvironment')); 
+vi.mock('@/features/public-site/client', async () => ({
+  ...(await import('@/features/public-site/model/ownerPublicationEnvironment')),
+  isHomepageCustomSection: (value: { id: string }) => value.id.startsWith('custom-'),
+})); 
 
 import { PublicSiteFocusedTextEditor, savePublicSiteContentBlock, SiteContentPublicationError } from '@/features/public-site/components/PublicSiteCopyLiveEditor';
 import { OwnerSiteConfigurationPanel } from '@/features/owner/components/OwnerSiteConfigurationPanel';

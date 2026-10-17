@@ -9,6 +9,7 @@ import {
   AccessComparison,
   FounderStrip,
   InteractiveStudioShowcase,
+  HomepageComposedSection,
   OutcomeHero,
   WorkflowProof,
 } from '@/features/public-site/client/landing';
@@ -16,6 +17,7 @@ import { PublicSiteShell } from '@/features/public-site/client/shell';
 import {
   createCardForgeStructuredData,
   createSiteContentMap,
+  isHomepageCustomSection,
   getCachedSiteContentBlocks,
   getCachedSiteMedia,
   getCachedPublicSiteConfiguration,
@@ -63,9 +65,11 @@ export default async function LandingPage() {
   const layoutMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.layout');
   const generatorSingleMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.generator-single');
   const generatorBulkMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.generator-bulk');
-  const showcaseExamples = siteConfiguration.homepageSections.find((section) => section.id === 'showcase')?.showcaseExamples;
+  const showcaseSection = siteConfiguration.homepageSections.find((section) => section.id === 'showcase');
+  const showcaseExamples = showcaseSection && 'showcaseExamples' in showcaseSection ? showcaseSection.showcaseExamples : undefined;
+  const showcaseStages = showcaseSection && 'showcaseStages' in showcaseSection ? showcaseSection.showcaseStages : undefined;
   const homepageSections = {
-    showcase: <InteractiveStudioShowcase layoutMedia={layoutMedia} generatorSingleMedia={generatorSingleMedia} generatorBulkMedia={generatorBulkMedia} examples={showcaseExamples} />,
+    showcase: <InteractiveStudioShowcase layoutMedia={layoutMedia} generatorSingleMedia={generatorSingleMedia} generatorBulkMedia={generatorBulkMedia} mediaAssets={siteMedia} stages={showcaseStages} examples={showcaseExamples} />,
     workflow: <WorkflowProof />,
     access: <AccessComparison plans={plans} />,
     founder: <FounderStrip founderName={businessIdentity.legalOperatorName} />,
@@ -104,7 +108,11 @@ export default async function LandingPage() {
           support={siteContent['landing.hero.support']}
         />
         {siteConfiguration.homepageSections.filter((section) => section.visible).map((section) => (
-          <Fragment key={section.id}>{homepageSections[section.id]}</Fragment>
+          <Fragment key={section.id}>
+            {isHomepageCustomSection(section)
+              ? <HomepageComposedSection section={section} media={siteMedia} />
+              : homepageSections[section.id]}
+          </Fragment>
         ))}
         <Suspense fallback={null}>
           <OwnerPublicSiteControlsSlot currentPath="/" />
