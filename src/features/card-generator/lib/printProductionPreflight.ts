@@ -216,7 +216,7 @@ export const createPrintProductionPreflight = (
   }));
   if ([...geometries.values()].some((geometry) => geometry.bleedMm > 0)) issues.push({
     code: 'bleed.edge_extension_review', severity: 'warning', scope: 'package',
-    message: 'Bleed extends the rendered trim edges; inspect the full-bleed artwork before professional production. Edge extension does not prove authored artwork continuation.',
+    message: 'Bleed extends the resolved authored background at its nearest edge pixels, not finished-card ornaments or text. Inspect every edge: extension does not prove seamless artwork continuation or safe physical cutting.',
   });
 
   if (colorProfile) issues.push({
