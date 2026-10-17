@@ -4,6 +4,7 @@ import { getCardFormat, resolveTemplateCardFormat } from '@/domain/card-formats'
 import { normalizeAppearanceForElement, normalizeTemplateAppearance } from './appearanceNormalization';
 import { FREEFORM_HIERARCHY_VERSION, migrateLegacyAbsoluteHierarchy } from './hierarchyGeometry';
 import { TCG_ASPECT_RATIO } from './constants';
+import { normalizeTemplatePipelineContext } from './templateIdentity';
 import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from './types';
 
 const DEFAULT_FREEFORM_CANVAS_WIDTH = 630;
@@ -263,6 +264,7 @@ export const reconstructMinimalTemplateObject = (partial: Partial<TCGCardTemplat
     templateParentRevisionId: optionalIdentityText(loaded.templateParentRevisionId),
     templateOriginLineageId: optionalIdentityText(loaded.templateOriginLineageId),
     templateOriginRevisionId: optionalIdentityText(loaded.templateOriginRevisionId),
+    templatePipelineContext: normalizeTemplatePipelineContext(loaded.templatePipelineContext),
     templateUsage: loaded.templateUsage === 'back-preset' ? 'back-preset' : 'standard',
     templateCategory: loaded.templateCategory,
     templateDescription: loaded.templateDescription,

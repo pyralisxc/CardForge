@@ -13,6 +13,7 @@ import { getUniqueActiveContributorProfileReferenceByEmail } from '@/features/co
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 import { externalizePipelineTemplateAssets } from './pipelineTemplateAssets';
+import { templateReviewPayload } from './templateReview';
 
 export { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 
@@ -296,7 +297,7 @@ export const createTemplatePipelineDraft = async ({
   submissionKey,
 }: TemplatePipelineDraftInput): Promise<TemplatePipelineDraftResult> => {
   const supabase = requireSupabase();
-  const storedTemplate = await externalizePipelineTemplateAssets(template);
+  const storedTemplate = await externalizePipelineTemplateAssets(templateReviewPayload(template));
   const { data: submissionId, error } = await supabase.rpc('cardforge_create_template_pipeline_draft', {
     p_asset_id: storedTemplate.id,
     p_name: storedTemplate.name,
@@ -359,7 +360,7 @@ const writeTemplateRevision = async ({
   submissionKey,
 }: SubmitTemplateRevisionInput, publishDirectly: boolean): Promise<TemplateRevisionResult> => {
   const supabase = requireSupabase();
-  const storedTemplate = await externalizePipelineTemplateAssets(template);
+  const storedTemplate = await externalizePipelineTemplateAssets(templateReviewPayload(template));
   const { data: revisionId, error } = await supabase.rpc(
     publishDirectly ? 'cardforge_publish_owner_template_revision' : 'cardforge_submit_template_revision',
     {

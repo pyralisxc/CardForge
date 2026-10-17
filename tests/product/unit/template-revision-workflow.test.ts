@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { TCGCardTemplate } from '@/domain/templates';
+import { createPersonalTemplateFork, reconstructMinimalTemplate, type TCGCardTemplate } from '@/domain/templates';
+import { templateReviewRequestText } from '@/features/pipeline/lib/templateReview';
+import { buildCardForgeProjectSnapshot } from '@/features/project/lib/projectPackageCodec';
+import { createProjectDocumentFromState } from '@/features/project/model/projectDocument';
 import { prepareTemplateForLibrarySave } from '@/features/template-editor/hooks/useTemplateLibraryActions';
 import { createTemplateEditorActions } from '@/features/template-editor/lib/templateEditorActions';
 
@@ -76,5 +79,32 @@ describe('Template revision workflow', () => {
       description: 'Commit this design draft to browser work. Pipeline submission is separate.',
       disabled: true,
     });
+  });
+});
+
+
+describe('Template review working-copy context', () => {
+  const context = { schemaVersion: 1 as const, expectedBase: {
+    assetId: 'shared-template', parentSubmissionId: '63300e01-8d07-4f22-8221-a56de17221e5',
+    lineageId: '0ba353d7-5deb-4dbe-8c9a-159ddb509155', baseRevisionNumber: 4, revisionHighWater: 4,
+    parentContentVersion: 'a'.repeat(32), registryContentVersion: 'b'.repeat(32),
+  }, attempt: { key: 'review_key_1234567890', requestFingerprint: 'c'.repeat(64) } };
+  it('persists the exact published lease and unknown-attempt identity through local Save, not local parent revision IDs', () => {
+    const draft = prepareTemplateForLibrarySave({ ...sharedTemplate, templatePipelineContext: context }, true, () => 'one');
+    const next = prepareTemplateForLibrarySave({ ...draft, name: 'Correction' }, true, () => 'two', draft);
+    expect(reconstructMinimalTemplate(next).templatePipelineContext).toEqual(context);
+    expect(next.templateParentRevisionId).toBe('template-draft-one');
+    expect(next.templatePipelineContext!.expectedBase.parentSubmissionId).toBe(context.expectedBase.parentSubmissionId);
+    expect(createPersonalTemplateFork(next).templatePipelineContext).toBeUndefined();
+  });
+  it('keeps retries out of the authored fingerprint and portable package without discarding browser recovery', async () => {
+    const template = { ...sharedTemplate, templatePipelineContext: context };
+    expect(templateReviewRequestText(template)).toBe(templateReviewRequestText({ ...template,
+      templatePipelineContext: { ...context, attempt: undefined } }));
+    const snapshot = await buildCardForgeProjectSnapshot({ name: 'Review draft', document: createProjectDocumentFromState({
+      userTemplates: [template], storedCards: [], appearanceStyles: [],
+    }) });
+    expect(snapshot.manifest.project.userTemplates[0]).not.toHaveProperty('templatePipelineContext');
+    expect(template.templatePipelineContext).toEqual(context);
   });
 });

@@ -58,6 +58,9 @@ export async function POST(request: Request) {
     }
 
     const template = validation.data as TCGCardTemplate;
+    if (template.templatePipelineContext) {
+      return createApiErrorResponse(409, 'template_library_unavailable', 'This saved review draft has a separate exact-revision approval and publication workflow. Submit it for review; browser Save never publishes it.');
+    }
     const source = template.templateSource === 'default' ? 'default' : 'user';
     const fileName = toRepositoryAssetFileName(template.id || template.name, 'template');
     if (source !== 'default') {

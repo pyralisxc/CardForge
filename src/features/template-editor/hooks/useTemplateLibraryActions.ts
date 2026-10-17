@@ -16,6 +16,7 @@ import { useProjectStore, selectAllTemplates, type TemplateCommitChangeInput } f
 import { forgetAgentTemplateLink, syncAgentTemplateSave } from '@/features/studio-documents/client';
 import { requireOkResponse } from '@/infrastructure/http/clientResponses';
 import { buildTemplateSaveImpact, type TemplateSaveImpact } from '../lib/templateSaveImpact';
+import { templateReviewBaseSchema, templateReviewReceiptSchema, templateReviewPayload, templateReviewRequestText } from '@/features/pipeline/client';
 
 type ToastFn = (message: { title: string; description: string; variant?: 'default' | 'destructive' }) => unknown;
 
@@ -70,7 +71,7 @@ interface UseTemplateLibraryActionsInput {
   designScope?: TemplateDesignScope | null;
 }
 
-const mutateShippedLibrary = async (path: '/api/styles' | '/api/templates' | '/api/templates/submissions', method: 'POST' | 'DELETE', body: unknown, fallback: string, headers?: Record<string, string>) => {
+const mutateShippedLibrary = async (path: '/api/styles' | '/api/templates' | '/api/templates/submissions' | '/api/owner/pipeline/template-revisions', method: 'POST' | 'DELETE', body: unknown, fallback: string, headers?: Record<string, string>) => {
   const response = await fetch(path, { method, headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
   await requireOkResponse(response, fallback);
   return await response.json() as Record<string, unknown>;
@@ -90,6 +91,7 @@ const createSharedLineageDraft = (template: TCGCardTemplate, source: TCGCardTemp
   templateParentRevisionId: source.templateRevisionId,
   templateOriginLineageId: getTemplateLineageId(source) ?? source.id ?? undefined,
   templateOriginRevisionId: source.templateRevisionId,
+  templatePipelineContext: source.templatePipelineContext ?? template.templatePipelineContext,
 });
 
 export const prepareTemplateForLibrarySave = (
@@ -118,6 +120,7 @@ export const prepareTemplateForLibrarySave = (
       templateRevision: source.templateRevision,
       templateRevisionId: `template-draft-${createId()}`,
       templateParentRevisionId: source.templateRevisionId,
+      templatePipelineContext: source.templatePipelineContext ?? template.templatePipelineContext,
       templateOriginLineageId: source.templateOriginLineageId,
       templateOriginRevisionId: source.templateOriginRevisionId,
     });
@@ -298,6 +301,54 @@ export function useTemplateLibraryActions({
     });
   }, [addOrUpdateTemplate, clearPersonalTemplateOverride, projectCapabilities.canPublishSharedLibrary, projectCapabilities.canSubmitTemplateRevisions, toast]);
 
+  const handlePrepareTemplateReview = useCallback(async (template: TCGCardTemplate, isStillCurrent: () => boolean): Promise<TCGCardTemplate> => {
+    if (!projectCapabilities.canPublishSharedLibrary || !template.id) throw new Error('Owner access and a published Template are required.');
+    const current = selectAllTemplates(useProjectStore.getState()).find((item) => item.id === template.id);
+    if (!current || current.templateSource !== 'default') throw new Error('An existing browser draft is preserved. Keep or fork it before preparing a fresh review from the published source.');
+    const baseline = JSON.stringify(current);
+    const response = await fetch(`/api/owner/pipeline/template-revisions?assetId=${encodeURIComponent(template.id)}`);
+    await requireOkResponse(response, 'The published review base is unavailable. Your work is unchanged.');
+    const result = await response.json() as { expectedBase?: unknown; template?: TCGCardTemplate };
+    const expectedBase = templateReviewBaseSchema.parse(result.expectedBase);
+    if (!result.template || result.template.id !== template.id || expectedBase.assetId !== template.id) throw new Error('The published Template could not be verified.');
+    const latest = selectAllTemplates(useProjectStore.getState()).find((item) => item.id === template.id);
+    if (!isStillCurrent() || JSON.stringify(latest) !== baseline) throw new Error('Your editor or browser draft changed while the published source loaded. Those changes are preserved; review them before preparing again.');
+    const draft = createSharedLineageDraft(result.template, result.template, nanoid);
+    draft.templatePipelineContext = { schemaVersion: 1, expectedBase };
+    addOrUpdateTemplate(draft, 'user');
+    toast({ title: 'Review draft prepared', description: 'The exact published source is saved as your browser draft. Editing and Save do not change the live revision.' });
+    return draft;
+  }, [addOrUpdateTemplate, projectCapabilities.canPublishSharedLibrary, toast]);
+
+  const handleSubmitTemplateReview = useCallback(async (template: TCGCardTemplate): Promise<void> => {
+    if (!projectCapabilities.canPublishSharedLibrary) throw new Error('Owner access is required.');
+    const current = selectAllTemplates(useProjectStore.getState()).find((item) => item.id === template.id) ?? template;
+    const baseline = JSON.stringify(current);
+    const context = current.templatePipelineContext;
+    if (!current.id || !context) throw new Error('Prepare an exact published review base before editing. Existing browser work is preserved.');
+    const requestFingerprint = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(templateReviewRequestText(current)))))
+      .map((value) => value.toString(16).padStart(2, '0')).join('');
+    if (context.attempt && context.attempt.requestFingerprint !== requestFingerprint) {
+      const response = await fetch(`/api/owner/pipeline/template-revisions?assetId=${encodeURIComponent(current.id)}&submissionKey=${encodeURIComponent(context.attempt.key)}`);
+      await requireOkResponse(response, 'The previous attempt is still uncertain. Retry its exact saved snapshot before changing the submission.');
+      const previous = await response.json() as { receipt?: unknown };
+      if (!Object.hasOwn(previous, 'receipt')) throw new Error('The previous attempt receipt could not be verified. Your saved attempt is preserved.');
+      if (previous.receipt !== null) {
+        const receipt = templateReviewReceiptSchema.parse(previous.receipt);
+        throw new Error(`Revision ${receipt.revisionNumber} already has status ${receipt.status}. Your newer browser edits remain saved; resolve that exact review before another submission.`);
+      }
+    }
+    const submissionKey = context.attempt?.requestFingerprint === requestFingerprint ? context.attempt.key : nanoid(32);
+    const latest = selectAllTemplates(useProjectStore.getState()).find((item) => item.id === current.id);
+    if (JSON.stringify(latest) !== baseline) throw new Error('Your saved Template changed while this attempt was prepared. The newer work is preserved; submit that snapshot when ready.');
+    addOrUpdateTemplate({ ...current, templatePipelineContext: { ...context, attempt: { key: submissionKey, requestFingerprint } } }, 'user');
+    const result = await mutateShippedLibrary('/api/owner/pipeline/template-revisions', 'POST', {
+      template: templateReviewPayload(current), expectedBase: context.expectedBase, submissionKey,
+    }, 'The review outcome is unavailable. Retry the same saved snapshot.');
+    const receipt = templateReviewReceiptSchema.parse(result);
+    toast({ title: 'Template review receipt', description: `Revision ${receipt.revisionNumber} · ${receipt.status} · editorial ${receipt.editorialReviewStatus}. The live Template and your browser draft are unchanged.` });
+  }, [addOrUpdateTemplate, projectCapabilities.canPublishSharedLibrary, toast]);
+
   const handleContinueNewTemplateInPipeline = useCallback(async (template: TCGCardTemplate): Promise<string> => {
     if (!projectCapabilities.canSubmitTemplateRevisions || template.templateSource === 'default') throw new Error('Only a contributor or owner can continue a new personal Template in the Pipeline.');
     const fingerprint = JSON.stringify(template);
@@ -346,6 +397,8 @@ export function useTemplateLibraryActions({
     handleSaveAppearanceStyle,
     handleSaveTemplate,
     handleSubmitTemplateRevision,
+    handlePrepareTemplateReview,
+    handleSubmitTemplateReview,
     handleContinueNewTemplateInPipeline,
     pendingTemplateSaveImpact,
     setPendingTemplateSaveVariantName,
