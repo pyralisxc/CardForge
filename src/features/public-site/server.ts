@@ -103,6 +103,7 @@ export type { OwnerPublicationEnvironment } from './model/ownerPublicationEnviro
 
 export {
   DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
+  createLegacyHomepageShowcaseStages,
   HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
   validateHomepageShowcaseStagesInput,
   type HomepageShowcaseStage,

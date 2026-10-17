@@ -9,8 +9,10 @@ export {
 export { PUBLIC_NAVIGATION } from './model/publicNavigation';
 export {
   DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
+  createLegacyHomepageShowcaseStages,
   HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
   MAX_HOMEPAGE_SHOWCASE_STAGES,
+  MAX_HOMEPAGE_STAGE_VIEWS,
   type HomepageShowcaseStage,
   type HomepageShowcaseView,
 } from './model/homepageShowcaseStages';

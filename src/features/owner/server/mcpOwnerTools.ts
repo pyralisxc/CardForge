@@ -7,9 +7,9 @@ import { getOwnerActivity } from '@/features/owner/server/ownerActivityStore';
 import { getOwnerIntegrationStatus } from '@/features/owner/server/ownerIntegrationStatus';
 import { getOwnerSiteControlPayload, getOwnerOperationsOverviewPayload } from '@/features/owner/lib/ownerOperationsStore';
 import { publishOwnerSiteContentBlock, publishOwnerSiteConfigurationField, publishOwnerSiteConfigurationPatch, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerExperienceSettings, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus } from '@/features/owner/server/ownerSiteCommands';
-import { getPublicSiteConfiguration, getFounderProfile, getSiteMedia, completeSiteMediaForSections, SiteMediaStoreError, type PublicSiteConfiguration } from '@/features/public-site/server';
+import { getPublicSiteConfiguration, getFounderProfile, getSiteMedia, getSiteContentBlocks, createSiteContentMap, completeSiteMediaForSections, PublicSiteConfigurationStoreError, SiteMediaStoreError, type PublicSiteConfiguration } from '@/features/public-site/server';
 import {
-  DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
+  createLegacyHomepageShowcaseStages,
   HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
   HOMEPAGE_COMPOSER_MEDIA_SLOTS,
   validateHomepageShowcaseStagesInput,
@@ -342,7 +342,7 @@ export const registerOwnerReadTools = ({
       structuredContent: {
         environment: deploymentEnvironment(), settingsRevision: settings.updatedAt ?? null,
         legacyCopy: !ownedStages,
-        stages: ownedStages ?? DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
+        stages: ownedStages ?? createLegacyHomepageShowcaseStages(createSiteContentMap(await getSiteContentBlocks())),
         media: HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS.map((slot) => {
           const asset = media.find((candidate) => candidate.slot === slot);
           return { slot, label: asset?.label ?? slot, alt: asset?.alt ?? '',
@@ -360,7 +360,12 @@ export const registerOwnerReadTools = ({
   }, async ({ stages, expectedUpdatedAt }) => runObserved({
     toolName: 'publish_owner_homepage_showcase', input: { stages, expectedUpdatedAt },
     execute: async (access) => {
-      const validatedStages = validateHomepageShowcaseStagesInput(stages);
+      let validatedStages;
+      try {
+        validatedStages = validateHomepageShowcaseStagesInput(stages);
+      } catch (error) {
+        throw new PublicSiteConfigurationStoreError(error instanceof Error ? error.message : 'Homepage walkthrough stages are invalid.', 400);
+      }
       const current = await getPublicSiteConfiguration();
       const homepageSections = current.homepageSections.map((section) => (
         section.id === 'showcase' ? { ...section, showcaseStages: validatedStages } : section
@@ -426,24 +431,28 @@ export const registerOwnerReadTools = ({
       const next = [...before];
       if (operation === 'insert') {
         const valid = parseHomepageCustomSection(section);
-        if (!valid || valid.id !== sectionId || index !== -1) throw new Error('Choose a new unique, fully validated custom section.');
+        if (!valid || valid.id !== sectionId) throw new PublicSiteConfigurationStoreError('Choose a fully validated custom section with the requested identity.', 400);
+        if (index !== -1) throw new PublicSiteConfigurationStoreError('This homepage section already exists. Reload the current design before inserting it.', 409);
         const finalIndex = next.findIndex((candidate) => candidate.id === 'final_cta');
         next.splice(finalIndex < 0 ? next.length : finalIndex, 0, valid);
       } else if (operation === 'replace') {
         const valid = parseHomepageCustomSection(section);
-        if (index < 0 || !isHomepageCustomSection(next[index]!) || !valid || valid.id !== sectionId) {
-          throw new Error('Only an existing custom section can be replaced by a validated design.');
+        if (index < 0) throw new PublicSiteConfigurationStoreError('The selected homepage section no longer exists.', 404);
+        if (!isHomepageCustomSection(next[index]!) || !valid || valid.id !== sectionId) {
+          throw new PublicSiteConfigurationStoreError('Only an existing custom section can be replaced by a validated design.', 400);
         }
         next[index] = valid;
       } else if (operation === 'remove') {
-        if (index < 0 || !isHomepageCustomSection(next[index]!)) {
-          throw new Error('Only a custom homepage section may be removed.');
+        if (index < 0) throw new PublicSiteConfigurationStoreError('The selected homepage section no longer exists.', 404);
+        if (!isHomepageCustomSection(next[index]!)) {
+          throw new PublicSiteConfigurationStoreError('Only a custom homepage section may be removed.', 400);
         }
         next.splice(index, 1);
       } else if (operation === 'move') {
         const target = index + (direction === 'up' ? -1 : direction === 'down' ? 1 : Number.NaN);
-        if (index < 0 || !Number.isInteger(target) || target < 0 || target >= next.length) {
-          throw new Error('Choose an existing section and a valid movement direction.');
+        if (index < 0) throw new PublicSiteConfigurationStoreError('The selected homepage section no longer exists.', 404);
+        if (!Number.isInteger(target) || target < 0 || target >= next.length) {
+          throw new PublicSiteConfigurationStoreError('Choose a valid movement direction within the homepage.', 400);
         }
         [next[index], next[target]] = [next[target]!, next[index]!];
       }
@@ -464,14 +473,16 @@ export const registerOwnerReadTools = ({
       const sections = [...current.homepageSections];
       const index = sections.findIndex((section) => section.id === sectionId);
       const selected = sections[index];
-      if (index < 0 || !selected || !isHomepageCustomSection(selected)) throw new Error('Choose an editable homepage section.');
+      if (index < 0 || !selected) throw new PublicSiteConfigurationStoreError('The selected homepage section no longer exists.', 404);
+      if (!isHomepageCustomSection(selected)) throw new PublicSiteConfigurationStoreError('Choose an editable custom homepage section.', 400);
       const blockIndex = selected.blocks.findIndex((candidate) => candidate.id === blockId);
-      if (blockIndex < 0 || block.id !== blockId) throw new Error('Choose one existing block without changing its identity.');
+      if (blockIndex < 0) throw new PublicSiteConfigurationStoreError('The selected homepage block no longer exists.', 404);
+      if (block.id !== blockId) throw new PublicSiteConfigurationStoreError('Choose one existing block without changing its identity.', 400);
       const edited = parseHomepageCustomSection({
         ...selected,
         blocks: selected.blocks.map((candidate) => candidate.id === blockId ? block : candidate),
       });
-      if (!edited) throw new Error('Unsupported website block. Use validated content, managed media and internal links.');
+      if (!edited) throw new PublicSiteConfigurationStoreError('Unsupported website block. Use validated content, managed media and internal links.', 400);
       sections[index] = edited;
       return publishDesign(access, sections, expectedUpdatedAt);
     },

@@ -3,9 +3,11 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
+  createLegacyHomepageShowcaseStages,
   HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
   MAX_HOMEPAGE_SHOWCASE_STAGES,
+  MAX_HOMEPAGE_STAGE_VIEWS,
+  useSiteContent,
   type HomepageShowcaseStage,
 } from '@/features/public-site/client';
 
@@ -32,7 +34,8 @@ export function OwnerHomepageStagesPanel({ stages, onChange }: {
   onChange: (stages: HomepageShowcaseStage[]) => void;
 }) {
   // Merely opening Site settings does not publish an alternative to legacy copy.
-  const current = stages ?? DEFAULT_HOMEPAGE_SHOWCASE_STAGES;
+  const siteContent = useSiteContent();
+  const current = stages ?? createLegacyHomepageShowcaseStages(siteContent);
   const update = (index: number, patch: Partial<HomepageShowcaseStage>) => {
     onChange(current.map((step, position) => position === index ? { ...step, ...patch } : step));
   };
@@ -96,7 +99,7 @@ export function OwnerHomepageStagesPanel({ stages, onChange }: {
                 {(stage.views ?? []).map((view, viewIndex) => (
                   <div key={`${stage.id}-${viewIndex}`} className="grid gap-2 border border-[var(--cf-border)] p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                     <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">View label
-                      <input className={inputClass} maxLength={60} value={view.label} onChange={(event) => update(index, {
+                      <input className={inputClass} maxLength={80} value={view.label} onChange={(event) => update(index, {
                         views: stage.views!.map((item, i) => i === viewIndex ? { ...item, label: event.target.value } : item),
                       })} />
                     </label>
@@ -116,8 +119,9 @@ export function OwnerHomepageStagesPanel({ stages, onChange }: {
                   </div>
                 ))}
                 <Button type="button" variant="outline" size="sm"
-                  disabled={(stage.views?.length ?? 0) >= HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS.length}
+                  disabled={(stage.views?.length ?? 0) >= MAX_HOMEPAGE_STAGE_VIEWS}
                   onClick={() => {
+                    if ((stage.views?.length ?? 0) >= MAX_HOMEPAGE_STAGE_VIEWS) return;
                     const available = HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS.find((slot) => !stage.views?.some((view) => view.mediaSlot === slot));
                     if (available) update(index, { views: [...(stage.views ?? []), { label: mediaLabel[available], mediaSlot: available }] });
                   }}>Add another screenshot view</Button>

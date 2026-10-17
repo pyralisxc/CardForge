@@ -35,7 +35,7 @@ test('@golden @showcase-capture creates authentic Desk, Set, Template and Output
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await openScaleSet(page, 100);
   await page.getByRole('button', { name: /^Templates ·/ }).click();
-  await page.getByRole('button', { name: /^Design back template Scale Fixture Back/ }).click();
+  await page.getByRole('button', { name: /^Design back Template Scale Fixture Back/ }).click();
   const templateCanvas = page.getByRole('region', { name: 'Template canvas', exact: true });
   await expect(templateCanvas).toBeVisible();
   await shot('template');

@@ -9,7 +9,7 @@ import {
   type SiteMediaAsset,
 } from '@/features/public-site/model/siteMedia';
 import { getSiteMediaFrameAspectRatio, ResponsiveSiteMediaImage } from './ResponsiveSiteMediaImage';
-import type { HomepageShowcaseStage } from '../model/homepageShowcaseStages';
+import { createLegacyHomepageShowcaseStages, type HomepageShowcaseStage } from '../model/homepageShowcaseStages';
 import {
   createDefaultHomepageShowcaseExamples,
   type HomepageShowcaseExample,
@@ -89,17 +89,7 @@ export function InteractiveStudioShowcase({
   const brand = useBrandPresentation();
   // Absence of Owner stages is an intentional compatibility mode: existing
   // published copy controls still determine the original three-stage walkthrough.
-  const legacyStages: HomepageShowcaseStage[] = [
-    { id: 'templates', label: siteContent['landing.showcase.stage.templates'], kind: 'screenshots',
-      views: [{ label: 'Template Studio', mediaSlot: 'landing.showcase.layout' }] },
-    { id: 'make', label: siteContent['landing.showcase.stage.make'], kind: 'screenshots',
-      views: [
-        { label: siteContent['landing.showcase.generator.single'], mediaSlot: 'landing.showcase.generator-single' },
-        { label: siteContent['landing.showcase.generator.bulk'], mediaSlot: 'landing.showcase.generator-bulk' },
-      ] },
-    { id: 'review', label: siteContent['landing.showcase.stage.review'], kind: 'rendered-set' },
-  ];
-  const stages = configuredStages?.length ? configuredStages : legacyStages;
+  const stages = configuredStages?.length ? configuredStages : createLegacyHomepageShowcaseStages(siteContent);
   const [activeStage, setActiveStage] = useState(0);
   const [activeView, setActiveView] = useState(0);
   const [activeExample, setActiveExample] = useState(0);

@@ -113,6 +113,21 @@ describe('public content cache inputs', () => {
     });
   });
 
+  it('passes a proven missing revision as null for first publication', async () => {
+    const slug = 'landing.showcase.stage.templates';
+    provider.rpc.mockResolvedValue({
+      data: [{ slug, body: 'Design in context', updated_at: '2026-10-17T06:00:00.000Z' }],
+      error: null,
+    });
+
+    await expect(publishSiteContentBlockRevision({
+      slug, body: 'Design in context', expectedUpdatedAt: null,
+    })).resolves.toMatchObject({ slug, body: 'Design in context' });
+    expect(provider.rpc).toHaveBeenCalledWith('cardforge_publish_site_content_block', {
+      p_slug: slug, p_body: 'Design in context', p_expected_updated_at: null,
+    });
+  });
+
   it('turns a stale site-copy revision into a conflict instead of overwriting newer Owner state', async () => {
     provider.rpc.mockResolvedValue({
       data: null,

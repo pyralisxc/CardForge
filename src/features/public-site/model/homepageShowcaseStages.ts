@@ -1,4 +1,5 @@
 import type { SiteMediaSlot } from './siteMedia';
+import type { SiteContentMap } from './siteContent';
 
 /**
  * Owner-configurable storytelling, not arbitrary executable page composition.
@@ -44,6 +45,18 @@ export const DEFAULT_HOMEPAGE_SHOWCASE_STAGES: HomepageShowcaseStage[] = [
   { id: 'review', label: 'Review the set', kind: 'rendered-set' },
 ];
 
+/** Preserve the Owner's published copy when first adopting an explicit sequence. */
+export const createLegacyHomepageShowcaseStages = (content: SiteContentMap): HomepageShowcaseStage[] => [
+  { id: 'templates', label: content['landing.showcase.stage.templates'], kind: 'screenshots',
+    views: [{ label: 'Template Studio', mediaSlot: 'landing.showcase.layout' }] },
+  { id: 'make', label: content['landing.showcase.stage.make'], kind: 'screenshots',
+    views: [
+      { label: content['landing.showcase.generator.single'], mediaSlot: 'landing.showcase.generator-single' },
+      { label: content['landing.showcase.generator.bulk'], mediaSlot: 'landing.showcase.generator-bulk' },
+    ] },
+  { id: 'review', label: content['landing.showcase.stage.review'], kind: 'rendered-set' },
+];
+
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
 );
@@ -69,7 +82,7 @@ export const parseHomepageShowcaseStages = (value: unknown): HomepageShowcaseSta
       const views: HomepageShowcaseView[] = [];
       for (const view of candidate.views) {
         if (!isRecord(view) || Object.keys(view).some((key) => !['label', 'mediaSlot'].includes(key))
-          || typeof view.label !== 'string' || !view.label.trim() || view.label.trim().length > 60
+          || typeof view.label !== 'string' || !view.label.trim() || view.label.trim().length > 80
           || !HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS.includes(view.mediaSlot as HomepageShowcaseScreenshotSlot)
           || views.some((seen) => seen.mediaSlot === view.mediaSlot)) return null;
         views.push({ label: view.label.trim(), mediaSlot: view.mediaSlot as HomepageShowcaseScreenshotSlot });

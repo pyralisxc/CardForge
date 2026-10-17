@@ -2,22 +2,29 @@ import type { StandardSchemaV1 } from '@modelcontextprotocol/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_PUBLIC_SITE_CONFIGURATION } from '@/features/public-site/model/siteConfiguration';
+import { createSiteContentMap, DEFAULT_SITE_CONTENT_BLOCKS } from '@/features/public-site/model/siteContent';
+import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
 import { getBillingConfigStatus } from '@/features/billing/lib/billing';
 import type { McpOwnerAccess } from '@/features/owner/server/mcpOwnerAccess';
 import { registerOwnerReadTools } from '@/features/owner/server/mcpOwnerTools';
 import { ownerSiteFieldPublishInputSchema } from '@/features/owner/server/mcpOwnerSchemas';
 
 vi.mock('server-only', () => ({}));
-const mocks = vi.hoisted(() => ({ publish: vi.fn(), publishField: vi.fn(), publishConfiguration: vi.fn(), publishPresentation: vi.fn(), readFields: vi.fn(), readiness: vi.fn(), site: vi.fn(), access: vi.fn() }));
+const mocks = vi.hoisted(() => ({ publish: vi.fn(), publishField: vi.fn(), publishConfiguration: vi.fn(), publishPresentation: vi.fn(), readFields: vi.fn(), readCopy: vi.fn(), readiness: vi.fn(), site: vi.fn(), access: vi.fn() }));
 vi.mock('@/features/legal/server', () => ({ getLegalDocuments: mocks.site }));
 vi.mock('@/features/roadmap/server', () => ({ getRoadmapSettings: mocks.site, getRoadmapAdminItems: mocks.site }));
 vi.mock('@/features/owner/server/ownerMediaCommands', () => ({ publishOwnerSiteMedia: mocks.publishPresentation, restoreOwnerSiteMedia: mocks.publishPresentation }));
 vi.mock('@/features/public-site/server', async () => ({
   ...(await import('@/features/public-site/model/homepageComposition')),
   ...(await import('@/features/public-site/model/homepageShowcaseStages')),
+  createSiteContentMap: (await import('@/features/public-site/model/siteContent')).createSiteContentMap,
+  getSiteContentBlocks: mocks.readCopy,
   getPublicSiteConfiguration: mocks.readFields, getFounderProfile: mocks.site, getSiteMedia: mocks.site,
   completeSiteMediaForSections: (assets: unknown[]) => assets,
   SiteMediaStoreError: class extends Error {},
+  PublicSiteConfigurationStoreError: class extends Error {
+    constructor(message: string, public readonly status = 500) { super(message); }
+  },
 }));
 vi.mock('@/features/business-identity/server', () => ({ getBusinessIdentity: mocks.site }));
 vi.mock('@/features/experience-settings/server', () => ({ getExperienceSettings: mocks.site }));
@@ -32,7 +39,7 @@ vi.mock('@/features/owner/server/ownerIntegrationStatus', () => ({ getOwnerInteg
 
 type RegisteredTool = {
   schema: StandardSchemaV1;
-  handler: (input: Record<string, unknown>) => Promise<{ structuredContent?: Record<string, unknown>; content?: Array<{ type: string; text?: string }> }>;
+  handler: (input: Record<string, unknown>) => Promise<{ structuredContent?: Record<string, unknown>; content?: Array<{ type: string; text?: string }>; _meta?: Record<string, unknown> }>;
 };
 const tools = new Map<string, RegisteredTool>();
 const block = {
@@ -52,6 +59,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv('VERCEL_ENV', 'preview');
   mocks.access.mockResolvedValue({ user: { id: 'owner', emailAddresses: ['owner@example.com'], privateMetadata: {} }, email: 'owner@example.com', isOwner: true });
+  mocks.readCopy.mockResolvedValue(DEFAULT_SITE_CONTENT_BLOCKS);
   tools.clear();
   registerOwnerReadTools({
     server: {
@@ -60,7 +68,8 @@ beforeEach(() => {
       },
     } as unknown as Parameters<typeof registerOwnerReadTools>[0]['server'],
     getAccess: async () => await mocks.access() as McpOwnerAccess,
-    toolError: (error) => ({ isError: true, content: [{ type: 'text', text: String(error) }] }),
+    toolError: (error) => ({ isError: true, content: [{ type: 'text', text: String(error) }],
+      _meta: { 'cardforge/boundaryFailure': describeAgentBoundaryFailure(error) } }),
   });
 });
 
@@ -114,6 +123,39 @@ describe('Owner MCP registered output contracts', () => {
       expect.objectContaining({ slot: 'landing.showcase.layout', source: 'bundled-fallback' }),
     ]));
     expect(JSON.stringify(result)).not.toContain('storagePath');
+  });
+
+  it('reads the exact published legacy stage and per-view copy rather than static defaults', async () => {
+    mocks.readFields.mockResolvedValue({ ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt });
+    mocks.site.mockResolvedValue([]);
+    const content = { ...createSiteContentMap(DEFAULT_SITE_CONTENT_BLOCKS),
+      'landing.showcase.stage.templates': 'Authored Templates',
+      'landing.showcase.stage.make': 'Authored generation',
+      'landing.showcase.stage.review': 'Authored review',
+      'landing.showcase.generator.single': 'S'.repeat(80),
+      'landing.showcase.generator.bulk': 'B'.repeat(80),
+    };
+    mocks.readCopy.mockResolvedValue(DEFAULT_SITE_CONTENT_BLOCKS.map((block) => ({ ...block, body: content[block.slug] })));
+    const result = await invoke('get_owner_homepage_showcase');
+    expect(result.stages).toMatchObject([
+      { label: 'Authored Templates' },
+      { label: 'Authored generation', views: [{ label: 'S'.repeat(80) }, { label: 'B'.repeat(80) }] },
+      { label: 'Authored review' },
+    ]);
+  });
+
+  it.each([
+    ['publish_owner_homepage_showcase', { stages: [] }],
+    ['publish_owner_homepage_section', { operation: 'insert', sectionId: 'custom-invalid', section: {} }],
+    ['publish_owner_homepage_section', { operation: 'remove', sectionId: 'showcase' }],
+    ['publish_owner_homepage_section', { operation: 'move', sectionId: 'showcase', direction: 'up' }],
+  ])('preserves invalid-input boundary meaning in focused command %s', async (name, input) => {
+    mocks.readFields.mockResolvedValue({ ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: settings.updatedAt });
+    const result = await tools.get(name as string)!.handler({ ...input, expectedUpdatedAt: settings.updatedAt });
+    expect(result).toMatchObject({ isError: true,
+      _meta: { 'cardforge/boundaryFailure': { status: 400, kind: 'invalid', retryable: false } },
+    });
+    expect(mocks.publishConfiguration).not.toHaveBeenCalled();
   });
 
   it('saves just the walkthrough through the native revision-safe site configuration command', async () => {

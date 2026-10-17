@@ -287,7 +287,7 @@ const ownerHomepageShowcaseStagesSchema = {
       views: { type: 'array', minItems: 1, maxItems: 3, items: {
         type: 'object', additionalProperties: false, required: ['label', 'mediaSlot'],
         properties: {
-          label: { type: 'string', minLength: 1, maxLength: 60 },
+          label: { type: 'string', minLength: 1, maxLength: 80 },
           mediaSlot: { type: 'string', enum: [...HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS] },
         },
       } },
