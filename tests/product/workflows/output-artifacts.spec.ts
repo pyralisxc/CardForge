@@ -58,7 +58,9 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   await expect.poll(() => page.evaluate(() => Array.from(document.fonts).some(
     (font) => font.family.replaceAll('"', '') === 'CardForge Cinzel' && font.status === 'loaded',
   ))).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath('authored-cinzel-native-card.png') });
+  await testInfo.attach('authored-cinzel-native-card', {
+    body: await page.screenshot(), contentType: 'image/png',
+  });
   const save = async (download: Download) => {
     const path = testInfo.outputPath(download.suggestedFilename());
     await download.saveAs(path);
@@ -74,6 +76,7 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   await page.getByTestId('single-card-export-png-front').click();
   const png = await save(await pngDownload);
   expect(pngSize(png)).toEqual({ width: 2232, height: 3117 });
+  await testInfo.attach('authored-cinzel-export-front', { body: png, contentType: 'image/png' });
   await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
   await page.getByRole('button', { name: 'Output', exact: true }).click();
   const zipDownload = page.waitForEvent('download');
