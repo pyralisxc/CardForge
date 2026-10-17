@@ -56,6 +56,15 @@ test.describe('hosted release smoke', () => {
   });
 
   test('opens the public entry point and a guest Studio tool', async ({ page }) => {
+    // A visible <img> is not enough: export renderers fetch public artwork
+    // anonymously from other deployment/app origins before drawing to canvas.
+    const publicArtwork = await page.request.get('/api/public/site-media/landing.showcase.art.playing.ace', {
+      headers: { Origin: 'https://another-cardforge-preview.vercel.app' },
+      maxRedirects: 0,
+    });
+    expect([200, 307]).toContain(publicArtwork.status());
+    expect(publicArtwork.headers()['access-control-allow-origin']).toBe('*');
+    expect(publicArtwork.headers()['access-control-allow-credentials']).toBeUndefined();
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await dismissAnalyticsIfOffered(page);
     await page.getByRole('link', { name: 'Open your Desk', exact: true }).first().click();

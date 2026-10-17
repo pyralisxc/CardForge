@@ -372,13 +372,12 @@
     width: 13rem;
   }
 
-  .deskFilterRow {
-    flex-wrap: nowrap;
-  }
+  /* Keep filter wrapping enabled. Selected-work actions and saved views can
+     exceed the remaining laptop width; nowrap lets their hit targets overlap
+     the camera controls even when the document itself has no overflow. */
 
   /* The active view is already named by the view trigger. Suppress the
-     duplicate prose at laptop widths so the complete camera strip stays on
-     the same overlay row. */
+     duplicate prose at laptop widths to leave room for the controls. */
   .deskRestrictionLabel {
     display: none;
   }

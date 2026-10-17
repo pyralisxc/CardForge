@@ -18,6 +18,7 @@ for (const mobile of [false, true]) {
 
     test('@golden creates, designs, generates, edits and reopens a fresh Set without seeded cards', async ({ page }) => {
       test.setTimeout(180_000);
+      page.setDefaultTimeout(15_000);
       await seedGuestScaleWorkspace(page, 100, { emptyDesk: true, exportSample: true });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
@@ -31,8 +32,11 @@ for (const mobile of [false, true]) {
       await page.getByRole('button', { name: 'Design', exact: true }).click();
       const design = page.getByRole('region', { name: 'Design', exact: true });
       await expect(design.getByRole('region', { name: 'Template canvas', exact: true })).toBeVisible();
-      await design.getByRole('button', { name: mobile ? 'Save Template' : 'Save', exact: true }).click();
-      await expect(page.getByText('Template saved', { exact: true })).toBeVisible();
+      if (mobile) await design.getByRole('button', { name: 'Open editor menu', exact: true }).click();
+      await design.getByRole('button', { name: 'Card Setup', exact: true }).click();
+      await design.getByRole('textbox', { name: 'Template name', exact: true }).fill('Creator loop Template');
+      if (mobile) await design.getByRole('button', { name: 'Close library', exact: true }).click();
+      await design.getByRole('button', { name: mobile ? 'Save Template in this browser' : 'Save', exact: true }).click();
       const rail = page.locator('[data-desk-context-rail]');
       await rail.getByRole('button', { name: 'Done', exact: true }).click();
       await expect(design).toHaveCount(0);
@@ -44,7 +48,7 @@ for (const mobile of [false, true]) {
         } else await rail.getByRole('button', { name, exact: true }).click();
       };
       await openTool('Generate');
-      await expect(page.locator('#deck-front-template')).toContainText('Scale Fixture Template');
+      await expect(page.locator('#deck-front-template')).toContainText('Creator loop Template');
       await page.getByRole('button', { name: 'Continue to card data', exact: true }).click();
       const artwork = new URL('/brand/cardforge-studio/brand-mark.svg', page.url()).href;
       const data = page.getByLabel('Add your card list', { exact: true });
@@ -63,7 +67,7 @@ for (const mobile of [false, true]) {
       await page.getByRole('button', { name: 'Clear all', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 3', exact: true })).toBeVisible();
 
-      const first = page.getByRole('button', { name: 'First card. Scale Fixture Template', exact: true });
+      const first = page.getByRole('button', { name: 'First card. Creator loop Template', exact: true });
       await first.focus();
       await first.press('Enter');
       await rail.getByRole('button', { name: 'Edit', exact: true }).click();
@@ -83,7 +87,7 @@ for (const mobile of [false, true]) {
       await page.reload({ waitUntil: 'domcontentloaded' });
       await expect(output).toBeVisible();
       await rail.getByRole('button', { name: 'Done', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'First card revised. Scale Fixture Template', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'First card revised. Creator loop Template', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 3', exact: true })).toBeVisible();
 
       await openTool('Generate');
@@ -92,7 +96,7 @@ for (const mobile of [false, true]) {
       await rail.getByRole('button', { name: 'Review & close', exact: true }).click();
       await page.getByRole('alertdialog').getByRole('button', { name: 'Close Generate', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 3', exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Uncommitted card. Scale Fixture Template', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Uncommitted card. Creator loop Template', exact: true })).toHaveCount(0);
     });
 
     test('protects an edited card and opens Output without mounting another editor', async ({ page }) => {

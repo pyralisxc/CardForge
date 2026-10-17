@@ -76,6 +76,29 @@ describe('public site media cache identity', () => {
     });
   });
 
+  it('keeps anonymous public media readable for cross-origin canvas exports', async () => {
+    const stored = await get('brand.social', {
+      headers: { Origin: 'https://another-preview.vercel.app' },
+    });
+    expect(stored.status).toBe(200);
+    expect(stored.headers.get('access-control-allow-origin')).toBe('*');
+    expect(stored.headers.get('access-control-allow-credentials')).toBeNull();
+
+    const etag = stored.headers.get('etag')!;
+    const unchanged = await get('brand.social', { headers: { 'If-None-Match': etag } });
+    expect(unchanged.status).toBe(304);
+    expect(unchanged.headers.get('access-control-allow-origin')).toBe('*');
+
+    state.asset = { ...state.asset, storagePath: null };
+    const fallback = await get('brand.social');
+    expect(fallback.status).toBe(307);
+    expect(fallback.headers.get('access-control-allow-origin')).toBe('*');
+
+    const unknown = await get('private-document');
+    expect(unknown.status).toBe(404);
+    expect(unknown.headers.get('access-control-allow-origin')).toBeNull();
+  });
+
   it('requires crawler-facing stable social aliases to revalidate against a revision ETag', async () => {
     const first = await get('brand.social');
     const etag = first.headers.get('etag');

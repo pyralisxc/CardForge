@@ -107,6 +107,24 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
     await expect(setButton).toBeInViewport({ ratio: 0.99 });
 
+    for (const width of [1024, 1180, 1440]) {
+      await page.setViewportSize({ width, height: 720 });
+      await expect.poll(() => toolbar.evaluate((node) => {
+        const controls = Array.from(node.querySelectorAll<HTMLElement>('button, input, summary'))
+          .map((element) => ({
+            name: element.getAttribute('aria-label') || element.textContent || element.tagName,
+            rect: element.getBoundingClientRect(),
+          }))
+          .filter(({ rect }) => rect.width > 0 && rect.height > 0);
+        return controls.flatMap((left, index) => controls.slice(index + 1).flatMap((right) => {
+          const overlapWidth = Math.min(left.rect.right, right.rect.right) - Math.max(left.rect.left, right.rect.left);
+          const overlapHeight = Math.min(left.rect.bottom, right.rect.bottom) - Math.max(left.rect.top, right.rect.top);
+          return overlapWidth > 1 && overlapHeight > 1 ? [`${left.name} overlaps ${right.name}`] : [];
+        }));
+      })).toEqual([]);
+    }
+    await page.setViewportSize({ width: 1024, height: 720 });
+
     const storage = page.getByRole('button', { name: /Storage/ }).first();
     await expect(storage).toBeVisible();
     await storage.click();

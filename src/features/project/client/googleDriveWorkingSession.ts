@@ -48,7 +48,8 @@ export interface GoogleDriveBindingCheck {
 
 const initialState: GoogleDriveWorkingSessionState = {
   phase: 'checking',
-  message: 'Checking Drive document',
+  // Resolve the binding before claiming this local work is a Drive document.
+  message: 'Checking work location',
   receipt: null,
 };
 
