@@ -89,7 +89,10 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   await page.getByRole('button', { name: 'Output', exact: true }).click();
   const zipDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: /^Download PNG set/ }).click();
-  const zip = await JSZip.loadAsync(await save(await zipDownload));
+  const pngSetFile = await zipDownload;
+  // Guest browser storage is independent of the server's current export entitlement.
+  const watermarkApplied = pngSetFile.suggestedFilename().includes('-watermarked');
+  const zip = await JSZip.loadAsync(await save(pngSetFile));
   const images = Object.values(zip.files).filter((file) => file.name.endsWith('.png'));
   expect(images).toHaveLength(4);
   for (const file of images) expect(pngSize(await file.async('nodebuffer'))).toEqual(pngSize(png));
@@ -120,13 +123,15 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   }
   const pressDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download color-managed press candidate ZIP', exact: true }).click();
-  const pressBytes = await save(await pressDownload);
+  const pressFile = await pressDownload;
+  const pressBytes = await save(pressFile);
   expect(pressDownloads).toBe(1);
+  expect(pressFile.suggestedFilename().includes('-watermarked')).toBe(watermarkApplied);
   const pressZip = await JSZip.loadAsync(pressBytes);
   const candidateBytes = await pressZip.file('candidate.pdf')!.async('nodebuffer');
   const candidateReport = JSON.parse(await pressZip.file('candidate-report.json')!.async('string'));
   const candidatePreflight = JSON.parse(await pressZip.file('cardforge-print-preflight.json')!.async('string'));
-  expect(candidateReport).toMatchObject({ pressReady: false, standardsValidation: 'pending', professionalAcceptance: 'pending', declaredStandard: 'PDF/X-4', paperComposite: 'opaque-white', watermarkApplied: true });
+  expect(candidateReport).toMatchObject({ pressReady: false, standardsValidation: 'pending', professionalAcceptance: 'pending', declaredStandard: 'PDF/X-4', paperComposite: 'opaque-white', watermarkApplied });
   expect(candidateReport.pdfSha256).toBe(createHash('sha256').update(candidateBytes).digest('hex'));
   expect(candidateReport.pages.map((entry: { face: string }) => entry.face)).toEqual(['front', 'back', 'front', 'back']);
   expect(candidatePreflight).toMatchObject({ productionPrepared: true, pressReady: false, sourceImageDetail: { measured: true }, colorManagement: { pressStandard: 'PDF/X-4', independentValidation: 'pending', professionalAcceptance: 'pending' } });
