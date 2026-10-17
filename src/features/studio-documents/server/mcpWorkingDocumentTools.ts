@@ -18,7 +18,7 @@ import {
   workingDocumentPatchOutputSchema,
   workingDocumentValidationOutputSchema,
 } from './mcpWorkingDocumentOutputSchemas';
-import { renderArtifactImageContent, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
+import { createRenderArtifactPreviewResult, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
 import { getStudioDocumentRetentionHours } from './studioDocumentAccess';
 import { getStudioDocument } from './studioDocumentStore';
 import { ensureSelectedCardArtifacts } from './studioRenderArtifacts';
@@ -221,7 +221,7 @@ export const registerWorkingDocumentTools = ({
     'preview_cards',
     {
       title: 'Canonically render selected CardForge cards',
-      description: 'Render one or more explicit stable card ids with the same canonical CardForge browser renderer used by full Set validation. Use during iteration for changed/representative cards, then use preview_card_set once for final contact-sheet review.',
+      description: 'Render one or more explicit stable card ids with the same canonical CardForge browser renderer used by full Set validation. Native PNG displays share one response budget; displayImages distinguishes unchanged canonical bytes from reduced displays while renderArtifacts describes the full unchanged artifacts. Use during iteration for changed/representative cards, then use preview_card_set once for final contact-sheet review.',
       inputSchema: previewCardsInputSchema,
       outputSchema: selectiveCardPreviewOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
@@ -243,11 +243,9 @@ export const registerWorkingDocumentTools = ({
           cardIds,
           publicOrigin,
         });
-        return {
-          content: [
-            { type: 'text' as const, text: `Canonical rendering succeeded for ${rendered.cardIds.length} selected card${rendered.cardIds.length === 1 ? '' : 's'} at revision ${document.revision}. Artwork render health is rendered for these exact cards.` },
-            ...rendered.artifacts.map(renderArtifactImageContent),
-          ],
+        return createRenderArtifactPreviewResult({
+          artifacts: rendered.artifacts,
+          text: `Canonical rendering succeeded for ${rendered.cardIds.length} selected card${rendered.cardIds.length === 1 ? '' : 's'} at revision ${document.revision}. Artwork render health is rendered for these exact cards.`,
           structuredContent: {
             documentId: document.id,
             revision: document.revision,
@@ -257,7 +255,7 @@ export const registerWorkingDocumentTools = ({
             renderHealth: { status: 'rendered', renderedCardIds: rendered.cardIds },
             openInStudioUrl: studioUrl(document.id, document.revision),
           },
-        };
+        });
       },
     }),
   );

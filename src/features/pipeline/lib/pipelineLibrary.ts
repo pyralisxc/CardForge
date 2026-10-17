@@ -118,7 +118,8 @@ export const projectPipelineLibrary = (
     const submission = currentPublishedSubmission
       ?? revisions.toSorted(compareStrongestCandidate)[0];
     const editableSubmission = revisions.find((revision) => (
-      contributorIds.has(revision.contributorId)
+      !revision.mediaPresentation
+      && contributorIds.has(revision.contributorId)
       && (revision.status === 'draft'
         || revision.status === 'submitted'
         || revision.status === 'voting'

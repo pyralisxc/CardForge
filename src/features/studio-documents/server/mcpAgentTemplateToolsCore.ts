@@ -12,7 +12,7 @@ import {
   getTemplateWorkingDocument,
 } from './templateWorkingDocuments';
 import { ensureTemplatePreviewArtifact } from './studioRenderArtifacts';
-import { renderArtifactImageContent, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
+import { createRenderArtifactPreviewResult, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
 import {
   attachTemplateAssetInputSchema,
   previewTemplateDraftInputSchema,
@@ -242,7 +242,7 @@ export const registerAgentTemplateTools = ({
     'preview_template_draft',
     {
       title: 'Preview the current CardForge Template draft',
-      description: 'Export the exact current CardForge Template as a native PNG shown directly in chat for visual review. Canonical rendering is the source of truth for decode/render health. The result reports production completeness plus composition and normalized asset-binding diagnostics, with the exact revision-bound Studio URL kept separately.',
+      description: 'Show the current canonical CardForge Template as a response-budgeted native PNG for visual review. displayImages distinguishes byte-identical canonical bytes from reduced displays; renderArtifact always describes the unchanged full artifact. Canonical rendering is the source of truth for decode/render health. The result reports production completeness plus composition and normalized asset-binding diagnostics, with the exact revision-bound Studio URL kept separately.',
       inputSchema: previewTemplateDraftInputSchema,
       outputSchema: templatePreviewOutputSchema,
       annotations: {
@@ -279,15 +279,13 @@ export const registerAgentTemplateTools = ({
             renderHealth: 'rendered',
           },
         };
-        return {
-          content: [{
-            type: 'text' as const,
-            text: status.productionReady
-              ? `Rendered "${document.title}" revision ${document.revision} through the canonical CardForge renderer. Render health is rendered for this exact revision; all planned production assets are complete.`
-              : `Rendered "${document.title}" revision ${document.revision} through the canonical CardForge renderer. Render health is rendered for this exact revision, but ${status.remainingAssetRequirementIds.length} planned asset requirement${status.remainingAssetRequirementIds.length === 1 ? '' : 's'} remain.`,
-          }, renderArtifactImageContent(artifact)],
+        return createRenderArtifactPreviewResult({
+          artifacts: [artifact],
+          text: status.productionReady
+            ? `Rendered "${document.title}" revision ${document.revision} through the canonical CardForge renderer. Render health is rendered for this exact revision; all planned production assets are complete.`
+            : `Rendered "${document.title}" revision ${document.revision} through the canonical CardForge renderer. Render health is rendered for this exact revision, but ${status.remainingAssetRequirementIds.length} planned asset requirement${status.remainingAssetRequirementIds.length === 1 ? '' : 's'} remain.`,
           structuredContent,
-          };
+        });
         },
       });
     },

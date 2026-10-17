@@ -422,7 +422,7 @@ export const updatePipelineSubmissionDetails = async ({
 
   const { data: rows, error: loadError } = await supabase
     .from('cardforge_contributor_asset_submissions')
-    .select('contributor_id,status,source_url,asset_type,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags')
+    .select('contributor_id,status,source_url,asset_type,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags,media_presentation')
     .eq('id', submissionId)
     .limit(1);
 
@@ -432,6 +432,7 @@ export const updatePipelineSubmissionDetails = async ({
   }
 
   const row = rows?.[0] as {
+    media_presentation?: unknown;
     contributor_id?: string;
     status?: unknown;
     source_url?: string | null;
@@ -447,6 +448,9 @@ export const updatePipelineSubmissionDetails = async ({
   if (!row) throw new PipelineStoreError('Pipeline submission was not found.', 404);
   if (!allowOwnerEdit && row.contributor_id !== contributorId) {
     throw new PipelineStoreError('Only the uploader can edit this asset.', 403);
+  }
+  if (row.media_presentation != null) {
+    throw new PipelineStoreError('Presentation revisions preserve inherited content. Create a new exact revision instead of editing this candidate.', 409, { kind: 'conflict' });
   }
   if (row.status === 'published' || row.status === 'rejected') {
     throw new PipelineStoreError('Published or rejected assets cannot be edited from the Pipeline.', 400);
@@ -485,6 +489,9 @@ export const updatePipelineSubmissionDetails = async ({
 
   if (error) {
     console.error('Failed to edit Pipeline submission:', error);
+    if (error.message?.includes('pipeline_media_revision_immutable')) {
+      throw new PipelineStoreError('This exact presentation revision cannot be edited.', 409, { kind: 'conflict' });
+    }
     if (error.message?.includes('contributor_asset_lineage_purge_pending')) {
       throw new PipelineStoreError('This Pipeline object is being permanently deleted and can no longer be edited.', 409, {
         kind: 'conflict',

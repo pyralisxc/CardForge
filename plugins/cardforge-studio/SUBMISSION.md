@@ -23,7 +23,7 @@ Starter prompts:
 2. Turn this list into a complete CardForge card set.
 3. Add unique artwork and review my existing card set.
 
-Hardening release notes for 1.0.1: CardForge Studio is an authenticated integration for editable Templates and complete card Sets with revision-safe temporary working documents and connected-project commits. This release aligns every strict structured-output contract with its runtime payload, preserves Google Drive work identity, returns exact-revision Studio links, and confirms browser installation before reporting a revision as acknowledged. Template and Set review returns immutable revision-bound PNG artifacts from the canonical CardForge renderer as native MCP image content, without iframe preview widgets.
+Hardening release notes for 1.0.2: CardForge Studio is an authenticated integration for editable Templates and complete card Sets with revision-safe temporary working documents and connected-project commits. This release aligns every strict structured-output contract with its runtime payload, preserves Google Drive work identity, returns exact-revision Studio links, and confirms browser installation before reporting a revision as acknowledged. Template and Set review returns response-budgeted native PNG displays derived only from immutable revision-bound canonical artifacts, without iframe preview widgets. displayImages distinguishes byte-identical canonical images from reduced displays; full canonical artifact metadata and exact-revision Studio links remain separate and unchanged.
 
 ## Authentication and reviewer fixture
 
@@ -45,7 +45,7 @@ Every MCP call records aggregate usage telemetry, so every tool truthfully decla
 
 Connected-project commits are revision-conditional. `commit_project` requires the exact working-document, provider, and CardForge project revisions. Stale operations fail rather than overwriting newer provider work.
 
-Template and Set preview tools do not register iframe/widget output templates. They return native MCP `image/png` content produced by CardForge's canonical renderer, plus separate revision-bound Studio URLs. Static creative review therefore requires no frame-domain or widget CSP permissions.
+Template and Set preview tools do not register iframe/widget output templates. They return response-budgeted native MCP `image/png` displays derived only from CardForge's canonical renderer, plus separate revision-bound Studio URLs. The complete tool result is bounded across all selected images, text and structured metadata; displayImages reports canonical versus reduced bytes and actual display dimensions/size. Reduction preserves aspect ratio and alpha, without replacing cached canonical artifacts. Static creative review therefore requires no frame-domain or widget CSP permissions.
 
 ## Positive review cases
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Archive, CheckCircle2, ChevronLeft, ChevronRight, Eye, Pencil, Search, Settings2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { MediaPresentationRevision } from './MediaPresentationRevision';
 import { AssetRow } from './PipelineSubmissionRows';
 import { ContentQualityGuidance } from './ContentQualityGuidance';
 import { CONTENT_QUALITY_STANDARD_VERSION, parseContentQualityReviewNote } from '../lib/contentQualityStandard';
@@ -57,6 +58,7 @@ interface OwnerAssetLibraryPanelProps {
     submissionId: string,
     input: OwnerEditorialReviewInput,
   ) => Promise<boolean>;
+  onRevisionCreated?: () => Promise<void> | void;
   onDeletePermanently: (submissionId: string, confirmationName: string) => Promise<void>;
 }
 
@@ -82,6 +84,7 @@ export function OwnerAssetLibraryPanel({
   onUpdateOverride,
   onUpdateEditorialReview,
   onDeletePermanently,
+  onRevisionCreated,
 }: OwnerAssetLibraryPanelProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [managingId, setManagingId] = useState<string | null>(null);
@@ -283,6 +286,7 @@ export function OwnerAssetLibraryPanel({
             expanded={expandedId === submission.id}
             editForm={managingId === submission.id ? (
               <div className="mt-4 grid gap-3 border border-[#6f4f28] bg-[var(--cf-surface)] p-4">
+                {submission.status === 'published' && submission.assetType === 'textures' && submission.registryAssetId ? <MediaPresentationRevision assetId={submission.registryAssetId} onCreated={onRevisionCreated ?? (() => undefined)} /> : null}
                 <section className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Editorial readiness</p>
