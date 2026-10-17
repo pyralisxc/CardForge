@@ -15,7 +15,7 @@ const page: PublicSitePage = { id: 'page-proof', slug: 'proof', title: 'Curated 
 const target = document.createElement('div');
 target.dataset.ownerPreviewFixture = 'true';
 document.body.appendChild(target);
-createRoot(target).render(<Sheet defaultOpen><SheetContent className="w-full max-w-3xl overflow-auto" aria-describedby="owner-preview-proof-description">
+createRoot(target).render(<Sheet defaultOpen><SheetContent className="w-[min(100vw,42rem)] max-w-[42rem] overflow-auto sm:max-w-[42rem]" aria-describedby="owner-preview-proof-description">
   <SheetTitle>Isolated Owner preview proof</SheetTitle>
   <SheetDescription id="owner-preview-proof-description">Test presentation only; no Owner authority or publication API is connected.</SheetDescription>
   <OwnerSiteDraftPreview settings={{ ...DEFAULT_PUBLIC_SITE_CONFIGURATION, pages: [page] }} page={page} media={[]} businessIdentity={DEFAULT_BUSINESS_IDENTITY} plans={[]} />
