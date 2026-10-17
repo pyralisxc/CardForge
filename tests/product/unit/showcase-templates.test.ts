@@ -7,8 +7,9 @@ import { describe, expect, it } from 'vitest';
 
 import { CARDFORGE_EXAMPLES } from '@/features/public-site/client';
 import { CARD_FORMATS } from '@/domain/card-formats';
-import { TemplateThumbnail } from '@/features/card-rendering/client';
-import type { TCGCardTemplate } from '@/domain/templates';
+import { ArtifactThumbnail, CardPreview, TemplateThumbnail } from '@/features/card-rendering/client';
+import { reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain/templates';
+import type { DisplayCard } from '@/domain/rendering';
 import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
 
 interface ShippedTemplate {
@@ -131,5 +132,122 @@ describe('showcase templates', () => {
     expect(html).toContain('background-size:100% 100%');
     expect(html).toContain('width:112px');
     expect(html).not.toContain('CF</span>');
+  });
+});
+
+describe('authored back background projections', () => {
+  const source = 'https://cdn.example.test/original-back.webp';
+  const back = (overrides: Partial<TCGCardTemplate> = {}) => reconstructMinimalTemplateObject({
+    id: 'contained-back', name: 'Contained Back', aspectRatio: '57:89', frameStyle: 'freeform',
+    baseBackgroundColor: '#05030a', cardBorderWidth: '0px',
+    freeformCanvas: { width: 570, height: 890, gridSize: 10, elements: [] },
+    appearance: { assetSource: source, assetKind: 'frame', assetRenderMode: 'original', tileMode: 'contain', material: { baseColor: '#05030a', texture: { kind: 'none' } } },
+    ...overrides,
+  });
+  const cardFor = (template: TCGCardTemplate): DisplayCard => ({ uniqueId: 'back-card', template, backingTemplate: null, backingTemplateId: null, data: {} });
+  const backgrounds = (html: string) => [...html.matchAll(/style="([^"]*)"/gu)].map(match => match[1]).filter(style => style.includes('background-image:'));
+  const surfaces = (template: TCGCardTemplate) => {
+    const card = cardFor(template);
+    return [
+      renderToStaticMarkup(createElement(CardPreview, { card })),
+      renderToStaticMarkup(createElement(TemplateThumbnail, { template })),
+      renderToStaticMarkup(createElement(ArtifactThumbnail, { card, width: 57, height: 89, showImage: true })),
+    ];
+  };
+
+  it.each([undefined, ''])('preserves one unchanged contained source across native surfaces with legacy background %s', (legacy) => {
+    const template = { ...back(), cardBackgroundImageUrl: legacy };
+    const before = JSON.stringify(template);
+    for (const html of surfaces(template)) {
+      const imageStyles = backgrounds(html);
+      expect(imageStyles).toHaveLength(1);
+      expect(imageStyles[0]).toContain(`background-image:url(${source})`);
+      expect(imageStyles[0]).toContain('background-size:contain');
+      expect(imageStyles[0]).toContain('background-repeat:no-repeat');
+      expect(imageStyles[0]).toContain('background-position:center');
+      expect(html.split(source)).toHaveLength(2);
+    }
+    expect(JSON.stringify(template)).toBe(before);
+  });
+
+  it('preserves appearance layer order and matching fit lists in each native surface', () => {
+    const template = back({ appearance: {
+      assetSource: source, tileMode: 'contain',
+      material: {
+        texture: { kind: 'uploaded', assetSource: 'https://cdn.example.test/texture.webp', tileMode: 'repeat', textureScale: 72 },
+        gradient: { type: 'linear', stops: [{ id: 'start', color: '#000000', position: 0 }, { id: 'end', color: '#ffffff', position: 100 }] },
+      },
+      rawCss: { backgroundImage: 'radial-gradient(red, blue)' },
+    } });
+    for (const html of surfaces(template)) {
+      const imageStyles = backgrounds(html);
+      expect(imageStyles).toHaveLength(1);
+      expect(imageStyles[0]).toContain(`background-image:url(${source}), url(https://cdn.example.test/texture.webp), linear-gradient(135deg, #000000 0%, #ffffff 100%), radial-gradient(red, blue)`);
+      expect(imageStyles[0]).toContain('background-size:contain, 72px 72px, auto, auto');
+      expect(imageStyles[0]).toContain('background-repeat:no-repeat, repeat, repeat, repeat');
+      expect(imageStyles[0]).toContain('background-position:center, 0% 0%, 0% 0%, 0% 0%');
+    }
+  });
+
+  it('retains explicit legacy source precedence and the existing surface-specific legacy fit', () => {
+    const legacy = 'https://cdn.example.test/legacy-back.webp';
+    const template = back({ cardBackgroundImageUrl: legacy });
+    const [canonical, thumbnail, artifact] = surfaces(template).map(html => backgrounds(html)[0]);
+    expect(thumbnail).toContain(`background-image:url(${legacy});`);
+    expect(thumbnail).not.toContain(source);
+    expect(thumbnail).toContain('background-size:100% 100%');
+    for (const style of [canonical, artifact]) {
+      expect(style).toContain(`background-image:url(${legacy}), url(${source})`);
+      expect(style).toContain('background-size:cover');
+      expect(style).toContain('background-repeat:no-repeat');
+      expect(style).toContain('background-position:center');
+    }
+  });
+
+  it('does not duplicate a legacy image synthesized by appearance normalization in thumbnails', () => {
+    const template = back({ cardBackgroundImageUrl: source, appearance: undefined });
+    expect(template.appearance?.material?.texture?.imageSource).toBe(source);
+    const card = cardFor(template);
+    for (const html of [
+      renderToStaticMarkup(createElement(TemplateThumbnail, { template })),
+      renderToStaticMarkup(createElement(ArtifactThumbnail, { card, width: 57, height: 89, showImage: true })),
+    ]) expect(html.split(source)).toHaveLength(2);
+  });
+
+  it('treats whitespace-only legacy values as absent in thumbnails', () => {
+    const template = { ...back(), cardBackgroundImageUrl: ' \t ' };
+    const card = cardFor(template);
+    for (const html of [
+      renderToStaticMarkup(createElement(TemplateThumbnail, { template })),
+      renderToStaticMarkup(createElement(ArtifactThumbnail, { card, width: 57, height: 89, showImage: true })),
+    ]) {
+      expect(backgrounds(html)).toHaveLength(1);
+      expect(backgrounds(html)[0]).toContain(`background-image:url(${source})`);
+      expect(backgrounds(html)[0]).toContain('background-size:contain');
+    }
+  });
+
+  it('preserves legacy raw CSS thumbnail fit without resolving or duplicating deferred URL layers', () => {
+    const rawBackground = `linear-gradient(red, blue), url(${source})`;
+    const template = back({ appearance: { rawCss: { backgroundImage: rawBackground } } });
+    const card = cardFor(template);
+    const thumbnail = renderToStaticMarkup(createElement(TemplateThumbnail, { template }));
+    expect(backgrounds(thumbnail)[0]).toContain(`background-image:${rawBackground}`);
+    expect(backgrounds(thumbnail)[0]).toContain('background-size:100% 100%');
+    const artifact = renderToStaticMarkup(createElement(ArtifactThumbnail, { card, width: 57, height: 89, showImage: true }));
+    expect(artifact.split(source)).toHaveLength(2);
+    expect(backgrounds(artifact)).toHaveLength(1);
+    const deferred = renderToStaticMarkup(createElement(ArtifactThumbnail, { card, width: 57, height: 89, showImage: false }));
+    expect(deferred).not.toContain(source);
+  });
+
+  it('keeps image-element hero previews image-led and cover fitted', () => {
+    const template = back();
+    template.freeformCanvas!.elements = [{ id: 'hero', name: 'Hero', type: 'image', x: 0, y: 0, width: 500, height: 400, zIndex: 1, content: '{{Artwork}}', imageSource: '{{Artwork}}', imageObjectFit: 'contain' }];
+    const card = { ...cardFor(template), data: { Artwork: 'https://cdn.example.test/hero.webp' } };
+    const html = renderToStaticMarkup(createElement(ArtifactThumbnail, { card, width: 57, height: 89, showImage: true }));
+    expect(html).toContain('src="https://cdn.example.test/hero.webp"');
+    expect(html).toContain('object-fit:cover;object-position:center');
+    expect(backgrounds(html)[0]).toContain('background-size:contain');
   });
 });
