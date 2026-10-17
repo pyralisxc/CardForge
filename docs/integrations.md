@@ -31,6 +31,8 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 
 **CardForge owns:** the application schema, feature stores, lifecycle rules, and the decision to keep browser writes out of Supabase. There is no browser-direct Supabase client and no second shared catalog outside `cardforge_asset_registry`.
 
+The existing bounded GET recovery for PostgREST's exact future-issued-JWT response uses an explicit native `AbortSignal` on retry, preserving caller cancellation while opting out of [Next render-pass fetch memoization](https://nextjs.org/docs/app/api-reference/functions/fetch#memoization). `cache: 'no-store'` alone does not opt out of that memoization. Writes and other authentication failures are not retried, and an exhausted recovery still returns the provider failure rather than substituting empty shared state.
+
 Published classification follows Owner Content Health -> `/api/owner/pipeline/classification` -> `features/pipeline/server/classifyPublishedAsset.ts` -> the native `cardforge_classify_published_pipeline_asset` transaction and existing taxonomy trigger. Supabase owns atomicity, row locks, and function grants; CardForge owns owner authorization, controlled taxonomy, and exact publication/tag comparisons. Ordinary browser roles cannot execute the command directly. Authored Template corrections continue through the existing immutable revision publisher.
 
 Production uses the Supabase project `Card Forge` (`mpmmhjjhdxjedbmuctiv`). Preview uses the separately named staging project documented below. Destructive inventory or cleanup must identify the project by both name and ref; a clean staging result is never evidence that production is empty.
