@@ -7,6 +7,35 @@ import { CardTextContent } from '@/features/card-rendering/client';
 import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 
 describe('text tools', () => {
+  it.each(['{{CardTitle:"The Night Sentinel"}}', 'Lead {{CardTitle:"The Night Sentinel"}} tail'])(
+    'resolves authored element fonts without a generated utility class for %s', (content) => {
+      const element = {
+        id: 'card-title', type: 'text', content,
+        x: 0, y: 0, width: 340, height: 46, zIndex: 1,
+        fontFamily: 'font-cinzel', fontSizePx: 20,
+      } as FreeformCardElement;
+      const template = {
+        id: 'template', name: 'Template', aspectRatio: '63:88', frameStyle: 'freeform',
+        freeformCanvas: { width: 630, height: 880, elements: [element] },
+      } as TCGCardTemplate;
+      const html = renderToStaticMarkup(createElement(CardTextContent, {
+        template, element, data: {}, className: 'font-cinzel',
+      }));
+
+      expect(html).toContain('font-family:var(--font-cardforge-cinzel), Cinzel, serif');
+      expect(html).toContain('The Night Sentinel');
+
+      const overridden = renderToStaticMarkup(createElement(CardTextContent, {
+        template: {
+          ...template,
+          fieldContracts: [{ key: 'CardTitle', label: 'Title', type: 'text', elementId: element.id, fontFamily: 'font-serif' }],
+        },
+        element, data: {}, className: 'font-cinzel',
+      }));
+      expect(overridden).toContain('font-family:Georgia, &quot;Times New Roman&quot;, serif');
+    },
+  );
+
   it('renders multiline rich text with highlight spans', () => {
     const html = renderToStaticMarkup(createElement(RichTextContent, { text: 'Alpha\n==Beta==' }));
 

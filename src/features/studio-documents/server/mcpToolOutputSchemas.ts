@@ -3,6 +3,8 @@ import {
   type JsonSchemaType,
 } from '@modelcontextprotocol/server';
 
+import { displayImagesJsonSchema } from './mcpRenderArtifactSchemas';
+
 const objectValue: JsonSchemaType = {
   type: 'object',
   additionalProperties: true,
@@ -242,7 +244,7 @@ export const cardSetDeleteOutputSchema = objectOutput(
 export const cardSetPreviewOutputSchema = objectOutput(
   [
     'documentId', 'revision', 'set', 'cards', 'artwork', 'cardCount',
-    'renderArtifact', 'previewSampleCount', 'installation', 'openInStudioUrl',
+    'renderArtifact', 'displayImages', 'previewSampleCount', 'installation', 'openInStudioUrl',
     'retrySafety', 'capabilityVersion', 'workflowStage', 'nextActions',
   ],
   {
@@ -253,6 +255,7 @@ export const cardSetPreviewOutputSchema = objectOutput(
     artwork: objectValue,
     cardCount: { type: 'integer', minimum: 0 },
     renderArtifact: { anyOf: [objectValue, { type: 'null' }] },
+    displayImages: displayImagesJsonSchema,
     previewSampleCount: { type: 'integer', minimum: 0, maximum: 12 },
     installation: {
       type: 'object',
@@ -290,13 +293,14 @@ export const templateArtworkOutputSchema = objectOutput(
 
 export const templatePreviewOutputSchema = objectOutput(
   [
-    'title', 'revision', 'renderArtifact', 'openInStudioUrl', 'productionReady',
+    'title', 'revision', 'renderArtifact', 'displayImages', 'openInStudioUrl', 'productionReady',
     'assetSummary', 'remainingAssetRequirementIds', 'remainingAssetCount', 'composition',
   ],
   {
     title: { type: 'string' },
     revision: { type: 'integer' },
     renderArtifact: objectValue,
+    displayImages: displayImagesJsonSchema,
     openInStudioUrl: { type: 'string', format: 'uri' },
     productionReady: { type: 'boolean' },
     assetSummary: nullableObjectValue,

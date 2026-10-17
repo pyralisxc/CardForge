@@ -12,7 +12,7 @@ import {
 } from './cardSetWorkingDocuments';
 import { getTemplateImageFields, getWorkingCardSetSnapshot } from './cardSetWorkingSetPreview';
 import { ensureSetContactSheetArtifact } from './studioRenderArtifacts';
-import { renderArtifactImageContent, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
+import { createRenderArtifactPreviewResult, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
 import {
   cardGenerationContractInputSchema,
   deleteCardsInputSchema,
@@ -422,7 +422,7 @@ export const registerAgentCardTools = ({
     'preview_card_set',
     {
       title: 'Visually review a CardForge Set before applying or committing it',
-      description: 'Review the current agent Set structure, stable ids, artwork diagnostics, install state, and representative native CardForge renders. Multi-Template Sets are reviewed using each Artifact’s own front/back design relationship.',
+      description: 'Review the current agent Set structure, stable ids, artwork diagnostics, install state, and representative response-budgeted native CardForge displays. displayImages distinguishes unchanged canonical bytes from reduced displays; renderArtifact describes the unchanged full contact sheet. Multi-Template Sets are reviewed using each Artifact’s own front/back design relationship.',
       inputSchema: getCardSetInputSchema,
       outputSchema: cardSetPreviewOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
@@ -441,11 +441,9 @@ export const registerAgentCardTools = ({
           setId: set.id,
           publicOrigin,
         });
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `Reviewed "${set.name}" at revision ${document.revision}: ${cards.length} card${cards.length === 1 ? '' : 's'}, ${artwork.counts.unresolved} unresolved artwork value${artwork.counts.unresolved === 1 ? '' : 's'}, ${artwork.counts.templateFallbacks} template fallback${artwork.counts.templateFallbacks === 1 ? '' : 's'}, and ${artwork.counts.placeholders} placeholder${artwork.counts.placeholders === 1 ? '' : 's'}. ${rendered.artifact ? `The native image is a contact sheet composed only from ${rendered.previewSampleCount} canonical CardForge card renders.` : 'This Set has no cards to render yet.'} This exact revision is ${applied ? 'already applied to a CardForge Studio workspace' : 'not yet acknowledged as applied in Studio'}.`,
-          }, ...(rendered.artifact ? [renderArtifactImageContent(rendered.artifact)] : [])],
+        return createRenderArtifactPreviewResult({
+          artifacts: rendered.artifact ? [rendered.artifact] : [],
+          text: `Reviewed "${set.name}" at revision ${document.revision}: ${cards.length} card${cards.length === 1 ? '' : 's'}, ${artwork.counts.unresolved} unresolved artwork value${artwork.counts.unresolved === 1 ? '' : 's'}, ${artwork.counts.templateFallbacks} template fallback${artwork.counts.templateFallbacks === 1 ? '' : 's'}, and ${artwork.counts.placeholders} placeholder${artwork.counts.placeholders === 1 ? '' : 's'}. ${rendered.artifact ? `The native image is a contact sheet composed only from ${rendered.previewSampleCount} canonical CardForge card renders.` : 'This Set has no cards to render yet.'} This exact revision is ${applied ? 'already applied to a CardForge Studio workspace' : 'not yet acknowledged as applied in Studio'}.`,
           structuredContent: {
             documentId: document.id,
             revision: document.revision,
@@ -467,7 +465,7 @@ export const registerAgentCardTools = ({
               { action: 'open_in_studio', reason: 'Open openInStudioUrl to apply this exact revision to the normal local CardForge workspace.' },
             ]),
           },
-        };
+        });
       },
     }),
   );

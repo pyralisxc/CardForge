@@ -53,6 +53,14 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
   await page.locator('button[data-artifact-id="scale-card-1"]').press('Enter');
+  const authoredTitle = page.locator('[data-freeform-element-id="scale-template-title"]').filter({ visible: true }).first();
+  await expect(authoredTitle.locator('p')).toHaveCSS('font-family', /CardForge Cinzel/);
+  await expect.poll(() => page.evaluate(() => Array.from(document.fonts).some(
+    (font) => font.family.replaceAll('"', '') === 'CardForge Cinzel' && font.status === 'loaded',
+  ))).toBe(true);
+  await testInfo.attach('authored-cinzel-native-card', {
+    body: await page.screenshot(), contentType: 'image/png',
+  });
   const save = async (download: Download) => {
     const path = testInfo.outputPath(download.suggestedFilename());
     await download.saveAs(path);
@@ -68,6 +76,7 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   await page.getByTestId('single-card-export-png-front').click();
   const png = await save(await pngDownload);
   expect(pngSize(png)).toEqual({ width: 2232, height: 3117 });
+  await testInfo.attach('authored-cinzel-export-front', { body: png, contentType: 'image/png' });
   await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
   await page.getByRole('button', { name: 'Output', exact: true }).click();
   const zipDownload = page.waitForEvent('download');

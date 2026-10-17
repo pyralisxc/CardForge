@@ -247,6 +247,8 @@ export function CardTextContent({
     : textFontSizePx(element) * scale;
   const minFontSizePx = (contract?.minFontSizePx ?? element.textMinFontSizePx ?? 8) * scale;
   const contentStyle: React.CSSProperties = {
+    // Fonts are authored data, so their rendering cannot depend on utility-class scanning.
+    fontFamily: cardFontFamilyToCss(element.fontFamily),
     lineHeight: 'inherit',
     letterSpacing: 'inherit',
     textTransform: 'inherit',
