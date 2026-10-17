@@ -26,7 +26,9 @@ export const fetchSupabaseServerRead: typeof fetch = async (input, init) => {
     const error = await response.clone().json().catch(() => null) as { code?: string; message?: string } | null;
     if (error?.code !== 'PGRST303' || error.message !== 'JWT issued at future') break;
     await new Promise((resolve) => setTimeout(resolve, delayMs));
-    response = await fetch(input, { ...init, cache: 'no-store' });
+    // Next's render-pass memoization ignores cache:no-store; its native opt-out
+    // is an explicit signal. Request preserves the caller's cancellation rules.
+    response = await fetch(input, { ...init, cache: 'no-store', signal: new Request(input, init).signal });
   }
   return response;
 };
