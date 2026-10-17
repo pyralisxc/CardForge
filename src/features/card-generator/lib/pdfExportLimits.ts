@@ -1,0 +1,2 @@
+export const MAX_PDF_CARDS_PER_FILE = 500;
+export const MAX_TOTAL_PDF_EXPORT_CARDS = 10000;

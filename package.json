@@ -81,6 +81,7 @@
     "nanoid": "^5.0.7",
     "next": "16.3.8",
     "papaparse": "5.7.0",
+    "pdf-lib": "1.17.1",
     "posthog-js": "^1.430.3",
     "puppeteer-core": "^25.10.0",
     "qrcode.react": "4.2.0",

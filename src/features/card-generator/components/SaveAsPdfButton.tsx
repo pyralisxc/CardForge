@@ -31,9 +31,7 @@ import { createPrintProductionPreflight } from '@/features/card-generator/lib/pr
 import { hasCardBacking } from '@/domain/rendering';
 import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 import { useBrandPresentation } from '@/features/brand-presentation/client';
-
-const MAX_PDF_CARDS_PER_FILE = 500;
-const MAX_TOTAL_PDF_EXPORT_CARDS = 10000;
+import { MAX_PDF_CARDS_PER_FILE, MAX_TOTAL_PDF_EXPORT_CARDS } from '../lib/pdfExportLimits';
 
 interface SaveAsPdfButtonProps {
   generatedDisplayCards: DisplayCard[];

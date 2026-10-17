@@ -52,6 +52,7 @@ interface ExportControlsPanelProps {
   zipProgress: { done: number; total: number } | null;
   onExportAllAsZip: () => void;
   onExportPrintPngSet: () => void;
+  onExportPressCandidate: () => void;
   onExportTabletopSimulatorSpritesheets: (quality: TabletopSimulatorExportQuality) => void;
   onSelectPaperSize: (size: PaperSize) => void;
   onSetExportDpi: (dpi: number) => void;
@@ -95,6 +96,7 @@ export function ExportControlsPanel({
   zipProgress,
   onExportAllAsZip,
   onExportPrintPngSet,
+  onExportPressCandidate,
   onExportTabletopSimulatorSpritesheets,
   onSelectPaperSize,
   onSetExportDpi,
@@ -320,7 +322,7 @@ export function ExportControlsPanel({
                 </p>
                 {!printPreflight.pressReady ? (
                   <p className="text-muted-foreground">
-                    CardForge does not yet attach a printer-specific ICC output intent or PDF/X press standard. Production-prepared files can still be reviewed with a print partner, but they are not certified press-ready output.
+                    These PNGs and sheet PDFs have no ICC output intent. The separate color-managed press candidate below still requires independent prepress and professional-workflow acceptance.
                   </p>
                 ) : null}
                 {printPreflight.issues.filter((issue) => issue.severity === 'blocker').slice(0, 2).map((issue) => (
@@ -344,6 +346,24 @@ export function ExportControlsPanel({
                   : isEntitlementPending
                     ? 'Checking account access…'
                     : `Download print production PNG ZIP (${exportFaceCount} ${exportFaceCount === 1 ? 'face' : 'faces'})`}
+              </Button>
+            </section>
+          ) : null}
+
+          {exportMode === 'physical' && productionGeometry ? (
+            <section aria-labelledby="press-candidate-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
+              <h3 id="press-candidate-heading" className="font-semibold">Color-managed press candidate · validation pending</h3>
+              <p className="text-xs text-muted-foreground">
+                One bleed-bearing face per page, with exact trim/bleed boxes, white-paper compositing and tagged sRGB pixels.
+                The embedded FOGRA39L coated-offset reference is an older printing condition, not printer/stock calibration or preconverted CMYK.
+                This is not an imposed duplex sheet, a PDF/X conformance certificate, or press-ready acceptance.
+              </p>
+              <p className="text-xs text-muted-foreground">The ZIP includes PDFs, exact pixel/PDF/profile hashes, geometry, preflight and complete profile notices. Independent PDF/X validation and a representative professional print workflow are still required.</p>
+              <Button variant="outline" onClick={onExportPressCandidate} disabled={exportsDisabled || !printPreflight.productionPrepared} className="w-full gap-2">
+                <Download className="h-4 w-4" />
+                {isZipExporting && zipExportKind === 'press-candidate'
+                  ? `Preparing press candidate… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
+                  : 'Download color-managed press candidate ZIP'}
               </Button>
             </section>
           ) : null}

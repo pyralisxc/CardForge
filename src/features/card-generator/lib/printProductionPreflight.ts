@@ -5,6 +5,7 @@ import {
 } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 import type { SourceImageDetail } from './sourceImageDetail';
+import { PRESS_COLOR_REFERENCE } from './pressColorProfile';
 
 import {
   getExportProfile,
@@ -40,8 +41,10 @@ export interface PrintProductionPreflightReport {
   pressReady: boolean;
   colorManagement: {
     sourceColorSpace: 'rgb';
-    outputIntent: null;
-    pressStandard: null;
+    outputIntent: null | { id: typeof PRESS_COLOR_REFERENCE.id; label: string; sha256: string };
+    pressStandard: null | 'PDF/X-4';
+    independentValidation?: 'pending';
+    professionalAcceptance?: 'pending';
   };
   issueSummary: {
     blockers: number;
@@ -116,6 +119,7 @@ export const createPrintProductionPreflight = (
   cards: DisplayCard[],
   requestedDpi: number,
   sourceImageDetails?: SourceImageDetail[],
+  colorProfile?: typeof PRESS_COLOR_REFERENCE.id,
 ): PrintProductionPreflightReport => {
   const profile = getExportProfile('physical', requestedDpi);
   const effectivePixelsPerInch = profile.dpi * profile.canvasPixelRatio;
@@ -215,11 +219,18 @@ export const createPrintProductionPreflight = (
     message: 'Bleed extends the rendered trim edges; inspect the full-bleed artwork before professional production. Edge extension does not prove authored artwork continuation.',
   });
 
-  issues.push({
+  if (colorProfile) issues.push({
+    code: 'standards.independent_validation_pending', severity: 'standards-gap', scope: 'package',
+    message: 'The color-managed candidate declares PDF/X-4 but has not passed independent PDF/X prepress validation.',
+  }, {
+    code: 'standards.professional_acceptance_pending', severity: 'standards-gap', scope: 'package',
+    message: 'The FOGRA39L coated-offset reference is not printer or stock calibration; representative professional workflow acceptance is pending.',
+  });
+  else issues.push({
     code: 'standards.output_intent_missing',
     severity: 'standards-gap',
     scope: 'package',
-    message: 'CardForge production PNG and PDF output is currently RGB raster without a printer-specific ICC output intent or PDF/X press standard.',
+    message: 'Production PNG and sheet PDF output is RGB raster without an ICC output intent or PDF/X declaration; the separate color-managed candidate still requires independent prepress validation.',
   });
 
   const uniqueIssues = deduplicateIssues(issues);
@@ -240,8 +251,9 @@ export const createPrintProductionPreflight = (
     pressReady,
     colorManagement: {
       sourceColorSpace: 'rgb',
-      outputIntent: null,
-      pressStandard: null,
+      outputIntent: colorProfile ? { id: PRESS_COLOR_REFERENCE.id, label: PRESS_COLOR_REFERENCE.label, sha256: PRESS_COLOR_REFERENCE.output.sha256 } : null,
+      pressStandard: colorProfile ? 'PDF/X-4' : null,
+      ...(colorProfile ? { independentValidation: 'pending' as const, professionalAcceptance: 'pending' as const } : {}),
     },
     issueSummary: {
       blockers,
