@@ -16,6 +16,85 @@ for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
     test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });
 
+    test('@golden creates, designs, generates, edits and reopens a fresh Set without seeded cards', async ({ page }) => {
+      test.setTimeout(180_000);
+      await seedGuestScaleWorkspace(page, 100, { emptyDesk: true, exportSample: true });
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+      await expect(page.locator('[data-set-object]')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Create your first Set', exact: true }).click();
+      await page.getByRole('button', { name: 'Fresh Set', exact: true }).click();
+      await page.getByRole('textbox', { name: 'Set name', exact: true }).fill('Creator loop Set');
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(page.getByText('This Set is ready for its first card', { exact: true })).toBeVisible();
+
+      await page.getByRole('button', { name: 'Design', exact: true }).click();
+      const design = page.getByRole('region', { name: 'Design', exact: true });
+      await expect(design.getByRole('region', { name: 'Template canvas', exact: true })).toBeVisible();
+      await design.getByRole('button', { name: mobile ? 'Save Template' : 'Save', exact: true }).click();
+      await expect(page.getByText('Template saved', { exact: true })).toBeVisible();
+      const rail = page.locator('[data-desk-context-rail]');
+      await rail.getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(design).toHaveCount(0);
+
+      const openTool = async (name: 'Generate' | 'Output') => {
+        if (mobile) {
+          await rail.getByRole('button', { name: 'More Set actions', exact: true }).click();
+          await page.getByRole('menuitem', { name, exact: true }).click();
+        } else await rail.getByRole('button', { name, exact: true }).click();
+      };
+      await openTool('Generate');
+      await expect(page.locator('#deck-front-template')).toContainText('Scale Fixture Template');
+      await page.getByRole('button', { name: 'Continue to card data', exact: true }).click();
+      const artwork = new URL('/brand/cardforge-studio/brand-mark.svg', page.url()).href;
+      const data = page.getByLabel('Add your card list', { exact: true });
+      await data.fill(`cardName,artwork\nFirst card,${artwork}`);
+      await expect(page.getByText('CardForge is ready to make 1 card.', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Add Cards to Set', exact: true }).click();
+      await expect(page.getByText(/1 card added to Creator loop Set/)).toBeVisible();
+      await page.getByRole('button', { name: 'Add another batch', exact: true }).click();
+      await data.fill(`cardName,artwork\nSecond card,${artwork}\nThird card,${artwork}`);
+      await expect(page.getByText('CardForge is ready to make 2 cards.', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Add Cards to Set', exact: true }).click();
+      await expect(page.getByText(/2 cards added to Creator loop Set/)).toBeVisible();
+      await page.getByRole('button', { name: 'View cards on Desk', exact: true }).click();
+      await page.getByRole('button', { name: 'Clear Artifact selection', exact: true }).click();
+      await expect(page.getByRole('toolbar', { name: 'Selection actions', exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Clear all', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 3', exact: true })).toBeVisible();
+
+      const first = page.getByRole('button', { name: 'First card. Scale Fixture Template', exact: true });
+      await first.focus();
+      await first.press('Enter');
+      await rail.getByRole('button', { name: 'Edit', exact: true }).click();
+      const editor = page.locator('[data-artifact-edit-workspace]');
+      if (mobile) {
+        await editor.getByRole('button', { name: 'More focused Artifact actions', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'All fields', exact: true }).click();
+      } else await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+      await editor.getByRole('textbox', { name: /Card title|Card name/i }).first().fill('First card revised');
+      await editor.getByRole('button', { name: 'Save & Done', exact: true }).click();
+      await expect(editor).toHaveCount(0);
+      await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
+      await openTool('Output');
+      const output = page.getByRole('region', { name: 'Output Creator loop Set', exact: true });
+      await expect(output).toBeVisible();
+      await expect(output.getByRole('button', { name: /^Download PNG set/ })).toBeVisible();
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(output).toBeVisible();
+      await rail.getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'First card revised. Scale Fixture Template', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 3', exact: true })).toBeVisible();
+
+      await openTool('Generate');
+      await page.getByRole('button', { name: 'Continue to card data', exact: true }).click();
+      await data.fill(`cardName,artwork\nUncommitted card,${artwork}`);
+      await rail.getByRole('button', { name: 'Review & close', exact: true }).click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Close Generate', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 3', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Uncommitted card. Scale Fixture Template', exact: true })).toHaveCount(0);
+    });
+
     test('protects an edited card and opens Output without mounting another editor', async ({ page }) => {
       test.setTimeout(120_000);
       await seedGuestScaleWorkspace(page, 100);

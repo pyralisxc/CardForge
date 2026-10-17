@@ -78,7 +78,7 @@ const workspaceStateFor = (
     appearanceStyles: fixture.appearanceStyles,
     storedCards,
     cardSets,
-    activeCardSet: cardSets[0] ?? null,
+    activeCardSet: cardSets.length ? cardSets[0]! : null,
     studioView: 'template',
     generatorSelectedTemplateId: initialTemplateId,
     generatorSelectedBackingTemplateId: null,
@@ -135,6 +135,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
   lowResolutionArtwork?: boolean;
   mixedTemplates?: boolean;
   needsWorkFixture?: boolean;
+  emptyDesk?: boolean;
 } = {}) => {
   const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
   if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
@@ -149,6 +150,11 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     options.needsWorkFixture,
   );
   if (options.cardLimit !== undefined) state.storedCards = state.storedCards.slice(0, options.cardLimit);
+  if (options.emptyDesk) {
+    state.storedCards = [];
+    state.cardSets = [];
+    state.activeCardSet = null;
+  }
   if (options.exportSample) {
     for (const template of state.userTemplates) {
       template.freeformCanvas!.elements.push({
