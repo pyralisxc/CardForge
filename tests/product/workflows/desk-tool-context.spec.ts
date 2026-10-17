@@ -19,6 +19,7 @@ for (const mobile of [false, true]) {
     test('@golden creates, designs, generates, edits and reopens a fresh Set without seeded cards', async ({ page }) => {
       test.setTimeout(180_000);
       page.setDefaultTimeout(15_000);
+      if (!mobile) await page.setViewportSize({ width: 1180, height: 757 });
       await seedGuestScaleWorkspace(page, 100, { emptyDesk: true, exportSample: true, publicTemplate: true });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
@@ -69,15 +70,37 @@ for (const mobile of [false, true]) {
       await page.getByRole('button', { name: 'Add Cards to Set', exact: true }).click();
       await expect(page.getByText(/1 card added to Creator loop Set/)).toBeVisible();
       await page.getByRole('button', { name: 'Add another batch', exact: true }).click();
-      await data.fill(`cardName,artwork\nSecond card,${artwork}\nThird card,${artwork}`);
-      await expect(page.getByText('CardForge is ready to make 2 cards.', { exact: true })).toBeVisible();
+      await data.fill(`cardName,artwork\nSecond card,${artwork}\nThird card,${artwork}\nFourth card,${artwork}`);
+      await expect(page.getByText('CardForge is ready to make 3 cards.', { exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Add Cards to Set', exact: true }).click();
-      await expect(page.getByText(/2 cards added to Creator loop Set/)).toBeVisible();
+      await expect(page.getByText(/3 cards added to Creator loop Set/)).toBeVisible();
       await page.getByRole('button', { name: 'View cards on Desk', exact: true }).click();
       await page.getByRole('button', { name: 'Clear Artifact selection', exact: true }).click();
       await expect(page.getByRole('toolbar', { name: 'Selection actions', exact: true })).toHaveCount(0);
       await page.getByRole('button', { name: 'Clear all', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 3', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 4', exact: true })).toBeVisible();
+
+      await page.getByRole('button', { name: 'Organize · 4 cards', exact: true }).click();
+      await page.getByRole('combobox', { name: 'Arrange cards', exact: true }).click();
+      await page.getByRole('option', { name: 'Arrange as grid', exact: true }).click();
+      await page.getByRole('button', { name: 'Organize · 4 cards', exact: true }).click();
+      await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
+      // The complete interactive tile, including title/subtitle, belongs inside
+      // Fit Work. Camera controls must not cover any of that authored work.
+      await expect.poll(() => page.locator('[data-desk-artifact-stage]').evaluate((stage) => {
+        const bounds = stage.getBoundingClientRect();
+        const controls = stage.parentElement!.querySelector('[data-set-view-controls]')!.getBoundingClientRect();
+        return Array.from(stage.querySelectorAll<HTMLButtonElement>('button[data-artifact-id]')).flatMap((button) => {
+          const rect = button.getBoundingClientRect();
+          const tile = button.parentElement!.getBoundingClientRect();
+          const inside = rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1
+            && rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1;
+          const modeled = rect.right <= tile.right + 1 && rect.bottom <= tile.bottom + 1;
+          const obscured = Math.min(rect.right, controls.right) > Math.max(rect.left, controls.left)
+            && Math.min(rect.bottom, controls.bottom) > Math.max(rect.top, controls.top);
+          return inside && modeled && !obscured ? [] : [button.getAttribute('aria-label')];
+        });
+      })).toEqual([]);
 
       const first = page.getByRole('button', { name: 'First card. Creator loop Template Variant', exact: true });
       await first.focus();
@@ -102,14 +125,14 @@ for (const mobile of [false, true]) {
       await expect(output).toHaveCount(0);
       await expect(page).not.toHaveURL(/[?&]tool=output/);
       await expect(page.getByRole('button', { name: 'First card revised. Creator loop Template Variant', exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 3', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 4', exact: true })).toBeVisible();
 
       await openTool('Generate');
       await page.getByRole('button', { name: 'Continue to card data', exact: true }).click();
       await data.fill(`cardName,artwork\nUncommitted card,${artwork}`);
       await rail.getByRole('button', { name: 'Review & close', exact: true }).click();
       await page.getByRole('alertdialog').getByRole('button', { name: 'Close Generate', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 3', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 4', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Uncommitted card. Creator loop Template Variant', exact: true })).toHaveCount(0);
     });
 

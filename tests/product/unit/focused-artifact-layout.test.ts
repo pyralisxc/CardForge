@@ -79,8 +79,22 @@ describe('focused Artifact spatial layout', () => {
 
     expect(letter.contentWidth / poker.contentWidth).toBeCloseTo(215.9 / 63, 8);
     expect(letter.contentHeight / poker.contentHeight).toBeCloseTo(279.4 / 88, 8);
-    expect(letter.width).toBeGreaterThan(poker.width * 3);
-    expect(letter.height).toBeGreaterThan(poker.height * 2.5);
+    expect(letter.width - poker.width).toBeCloseTo(215.9 - 63, 8);
+    expect(letter.height - poker.height).toBeCloseTo(279.4 - 88, 8);
+  });
+
+  it.each([[4, 51], [13, 48], [65, 30]])('reserves complete caption chrome at %i Artifacts without resizing the physical face', (count, blockChrome) => {
+    const build = (showGroupLabel: boolean) => buildFocusedArtifactLayout({
+      arrangement: 'manual', minimumWidth: 960,
+      groups: [{ label: 'Group', artifacts: artifacts(count).map((artifact) => ({
+        ...artifact, physicalSizeMm: { widthMm: 63, heightMm: 88 }, showGroupLabel,
+      })) }],
+    }).entries[0]!;
+    const ungrouped = build(false);
+    const grouped = build(true);
+    expect(ungrouped).toMatchObject({ contentWidth: 63, contentHeight: 88, width: 81, height: 88 + blockChrome });
+    expect(grouped.contentHeight).toBe(ungrouped.contentHeight);
+    expect(grouped.height - ungrouped.height).toBe(14);
   });
 
   it('fits every Artifact inside the derived Set overview without changing authored positions', () => {
