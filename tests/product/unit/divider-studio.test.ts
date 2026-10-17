@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DividerStudioPanel } from '@/features/template-editor/components/DividerStudioPanel';
 import type { TemplateAssetLibraryPicker } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
 import { appearanceToStyle } from '@/features/card-rendering/model/appearance';
+import { VectorShapeElement } from '@/features/card-rendering/components/VectorShapeElement';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import type { FreeformAppearance, FreeformCardElement } from '@/domain/templates';
 
@@ -123,5 +124,29 @@ describe('appearance background fit', () => {
     expect(style.backgroundRepeat).toBe('no-repeat, repeat');
     expect(style.backgroundPosition).toBe('center, 0% 0%');
     expect(style.maskSize).toBe('100% 100%');
+  });
+});
+
+describe('vector shape background coordinates', () => {
+  it.each([
+    ['contain', 'contain', 'no-repeat'],
+    ['stretch', '100% 100%', 'no-repeat'],
+    ['repeat', '110px 110px', 'repeat'],
+  ] as const)('lays out %s backgrounds in the authored rectangular surface before shape projection', (tileMode, size, repeat) => {
+    const element: FreeformCardElement = {
+      id: `shape-${tileMode}`, name: 'Rectangular texture', type: 'shape', shapeKind: 'rectangle',
+      x: 0, y: 0, width: 500, height: 150, zIndex: 1, strokeWidth: 0,
+      appearance: {
+        material: { texture: { kind: 'uploaded', assetSource: 'https://cdn.example.test/finite-surface.svg', tileMode, textureScale: 110 } },
+        border: { kind: 'none', width: 0 },
+      },
+    };
+    const html = renderToStaticMarkup(createElement(VectorShapeElement, { element, style: appearanceToStyle(element.appearance) }));
+
+    expect(html).toContain('viewBox="0 0 100 100" preserveAspectRatio="none"');
+    expect(html).toContain('width="500" height="150" transform="scale(0.2 0.6666666666666666)"');
+    expect(html).toMatch(/<g clip-path="url\(#[^)]+\)"><foreignObject /);
+    expect(html).toContain(`background-size:${size}`);
+    expect(html).toContain(`background-repeat:${repeat}`);
   });
 });
