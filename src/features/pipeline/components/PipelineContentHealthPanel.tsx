@@ -29,7 +29,7 @@ export function PipelineContentHealthPanel({ health, canRepair, onOpenObject, ca
         <section className="border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Editorial readiness</p>
           <p className="mt-1 text-sm text-[var(--cf-text-muted)]">{health.editorial.approvedCount} approved · {health.editorial.pendingCount} pending · {health.editorial.reviseCount} revise · {health.editorial.quarantineCount} quarantine · {health.editorial.retireCount} retire.</p>
-          {health.editorial.missingEvidenceCount ? <p className="mt-1 text-xs text-[var(--cf-warning)]">{health.editorial.missingEvidenceCount} reviewed live revision{health.editorial.missingEvidenceCount === 1 ? '' : 's'} still lack preview, provenance/rights notes, or required classification evidence.</p> : null}
+          {health.editorial.missingEvidenceCount ? <p className="mt-1 text-xs text-[var(--cf-warning)]">{health.editorial.missingEvidenceCount} live revision{health.editorial.missingEvidenceCount === 1 ? '' : 's'} lack creator source notes, a preview, or required classification metadata. Separate recorded reviewer evidence is not evaluated by this metadata check.</p> : null}
         </section>
       </div>
       <p className="text-xs text-[var(--cf-text-subtle)]">Technical checks cover loaded catalog metadata and revisions, not remote file availability or rendered output. Editorial readiness is a separate exact-revision human decision. {health.review.coverage.complete ? null : 'Revision coverage is partial; the review download records its scope.'}</p>

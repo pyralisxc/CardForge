@@ -4,6 +4,7 @@ import {
 } from './contentTaxonomy';
 import type { CardForgeCatalogManifest } from './catalogManifest';
 import type { PipelineProgramView } from './pipelineProgram';
+import { getPipelineLibrarySubmissions } from './pipelineLibrary';
 import { getPipelineStudioDestinationOptions } from './pipelineAssetTaxonomy';
 import { buildPipelineContentReview, type PipelineContentReview } from './pipelineContentReview';
 
@@ -67,7 +68,7 @@ export const buildPipelineContentHealth = ({
     if (!validPackage) issues.push({ code: 'invalid-package', severity: 'error', objectId: set.id, objectName: set.name, message: 'Published Set does not have a valid HTTPS package source.', repair: 'Publish a verified portable Set package revision.' });
     if (!hasRequiredPipelineClassification('sets', set.specialtyTags, set.useCaseTags)) issues.push({ code: 'missing-taxonomy', severity: 'warning', objectId: set.id, objectName: set.name, message: 'Published Set classification is incomplete.', repair: 'Choose this published Set in Content Health and save its specialty and use-case tags.' });
   });
-  const activePublishedSubmissions = (program?.submissions ?? []).filter((submission) => (
+  const activePublishedSubmissions = getPipelineLibrarySubmissions(program).filter((submission) => (
     submission.status === 'published'
     && (!hasExactPublishedPointers || activePublishedSubmissionIds.has(submission.id))
   ));

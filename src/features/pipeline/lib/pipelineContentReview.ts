@@ -6,6 +6,7 @@ import {
   normalizeUseCaseTags,
 } from './contentTaxonomy';
 import type { PipelineProgramView } from './pipelineProgram';
+import { getPipelineLibrarySubmissions } from './pipelineLibrary';
 import { isRepositoryTemplate } from './registryContentValidation';
 
 /** Read-only proposals over loaded revisions; publication remains owned by Pipeline. */
@@ -14,10 +15,15 @@ export const buildPipelineContentReview = (program: PipelineProgramView | null) 
   coverage: {
     loadedSubmissions: program?.submissions.length ?? 0,
     totalSubmissions: program?.totalSubmissionCount ?? null,
-    complete: program !== null && program.submissions.length >= program.totalSubmissionCount,
+    loadedReviewSubmissions: program?.votingQueue.length ?? 0,
+    totalReviewSubmissions: program?.votingPage.total ?? null,
+    loadedUniqueSubmissions: getPipelineLibrarySubmissions(program).length,
+    complete: program !== null
+      && program.submissions.length >= program.totalSubmissionCount
+      && program.votingQueue.length >= program.votingPage.total,
   },
   publicationPolicy: 'Review classification and lineage; publish approved changes through native Pipeline revisions. Do not rewrite published payloads or installed copies.',
-  entries: (program?.submissions ?? []).filter((submission) => submission.status === 'published').map((submission) => {
+  entries: getPipelineLibrarySubmissions(program).filter((submission) => submission.status === 'published').map((submission) => {
     const template = isRepositoryTemplate(submission.sourcePayload) ? submission.sourcePayload : null;
     const format = template ? resolveTemplateCardFormat(template) : null;
     const formatInferred = Boolean(template && (!template.formatId || !template.trimWidthMm || !template.trimHeightMm));
