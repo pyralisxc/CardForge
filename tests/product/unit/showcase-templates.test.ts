@@ -204,6 +204,44 @@ describe('authored back background projections', () => {
     }
   });
 
+  it.each([
+    ['cover', 'cover'], ['contain', 'contain'], ['fill', '100% 100%'],
+  ] as const)('uses an explicit foundation %s fit in every native and production projection', (fit, cssSize) => {
+    const template = back({ cardBackgroundImageUrl: source, cardBackgroundImageFit: fit, appearance: undefined });
+    const before = JSON.stringify(template);
+    const card = cardFor(template);
+    const views = [...surfaces(template),
+      renderToStaticMarkup(createElement(CardPreview, { card, productionLayer: 'background' })),
+    ];
+    for (const html of views) {
+      const style = backgrounds(html)[0];
+      expect(style.split(';')).toContain(`background-image:url(${source})`);
+      expect(style.split(';')).toContain(`background-size:${cssSize}`);
+      expect(style).toContain('background-repeat:no-repeat');
+      expect(style).toContain('background-position:center');
+      expect(html.split(source)).toHaveLength(2);
+    }
+    expect(JSON.stringify(template)).toBe(before);
+    expect(reconstructMinimalTemplateObject(template).cardBackgroundImageFit).toBe(fit);
+  });
+
+  it('changes only foundation sizing, retaining independent appearance layers and fits', () => {
+    const texture = 'https://cdn.example.test/texture.webp';
+    const template = back({ cardBackgroundImageUrl: source, cardBackgroundImageFit: 'fill', appearance: {
+      blendMode: 'multiply',
+      material: { texture: { kind: 'uploaded', imageSource: texture, tileMode: 'repeat', textureScale: 72 },
+        gradient: { type: 'linear', stops: [{ id: 'a', color: '#000000', position: 0 }, { id: 'b', color: '#ffffff', position: 100 }] } },
+    } });
+    for (const html of surfaces(template)) {
+      const style = backgrounds(html)[0];
+      expect(style).toContain(`background-image:url(${source}), url(${texture}), linear-gradient`);
+      expect(style).toContain('background-size:100% 100%, 72px 72px, auto');
+      expect(style).toContain('background-repeat:no-repeat, repeat, repeat');
+      expect(style).toContain('background-position:center, 0% 0%, 0% 0%');
+      expect(style).toContain('background-blend-mode:multiply');
+    }
+  });
+
   it('does not duplicate a legacy image synthesized by appearance normalization in thumbnails', () => {
     const template = back({ cardBackgroundImageUrl: source, appearance: undefined });
     expect(template.appearance?.material?.texture?.imageSource).toBe(source);

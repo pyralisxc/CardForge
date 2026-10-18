@@ -71,6 +71,7 @@ export const makeNewFreeformTemplate = (
       ? brandedBackTemplate?.baseTextColor || '#f7d783'
       : '#21180d',
     cardBackgroundImageUrl: isBrandedBack ? brandedBackTemplate?.cardBackgroundImageUrl : undefined,
+    cardBackgroundImageFit: isBrandedBack ? brandedBackTemplate?.cardBackgroundImageFit : undefined,
     cardBorderColor: isBrandedBack
       ? brandedBackTemplate?.cardBorderColor || '#c89f42'
       : '#c89f42',

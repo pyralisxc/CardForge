@@ -271,6 +271,8 @@ export const reconstructMinimalTemplateObject = (partial: Partial<TCGCardTemplat
     templateOrder: typeof loaded.templateOrder === 'number' ? loaded.templateOrder : undefined,
     templatePreviewData: loaded.templatePreviewData,
     frameStyle: loaded.frameStyle || 'standard',
+    cardBackgroundImageFit: ['cover', 'contain', 'fill'].includes(loaded.cardBackgroundImageFit ?? '')
+      ? loaded.cardBackgroundImageFit : undefined,
     cardBorderWidth: loaded.cardBorderWidth && loaded.cardBorderWidth.trim() !== '' ? loaded.cardBorderWidth : '4px',
     cardBorderStyle: loaded.cardBorderStyle && loaded.cardBorderStyle !== '_default_' ? loaded.cardBorderStyle : 'solid',
     cardBorderRadius: loaded.cardBorderRadius && loaded.cardBorderRadius.trim() !== '' ? loaded.cardBorderRadius : '0.5rem',
