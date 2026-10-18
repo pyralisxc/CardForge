@@ -1,4 +1,4 @@
-import { getSourceReviewVersion } from './sourceReviewEvidence';
+import { getPublicAiDisclosure, getSourceReviewVersion } from './sourceReviewEvidence';
 import { parsePipelineMediaPresentation, type PipelineMediaPresentation } from './pipelineMediaPresentation';
 import {
   DEFAULT_PIPELINE_PROGRAM_SETTINGS,
@@ -92,6 +92,7 @@ export interface PipelineSubmission {
   sourceNotes: string;
   isCorrectionRevision?: boolean;
   sourceReviewEvidenceVersion?: number | null;
+  publicAiDisclosure?: string | null;
   editorialReviewStatus?: PipelineEditorialReviewStatus;
   editorialReviewNote?: string;
   editorialReviewedBy?: string | null;
@@ -545,6 +546,7 @@ export const mapPipelineSubmissionRow = (
   sourceNotes: row.source_notes ?? '',
   isCorrectionRevision: row.media_presentation != null || row.template_review_context != null,
   sourceReviewEvidenceVersion: getSourceReviewVersion(row.source_review_evidence),
+  publicAiDisclosure: row.published_at ? getPublicAiDisclosure(row.source_review_evidence) : null,
   editorialReviewStatus: isPipelineEditorialReviewStatus(row.editorial_review_status)
     ? row.editorial_review_status
     : 'pending',

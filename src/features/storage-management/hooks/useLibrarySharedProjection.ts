@@ -29,6 +29,7 @@ import { shouldLoadLibraryPipelineProgram, type LibraryScope } from '../model/li
 
 export interface PublishedLibraryObject {
   id: string;
+  publicAiDisclosure?: string | null;
   name: string;
   kind: CardAssetOption['kind'] | 'font' | 'set';
   kindLabel: string;
@@ -135,6 +136,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     revision: null,
     lineageId: pipelineByAssetId.get(asset.id)?.lineageId ?? null,
     description: pipelineByAssetId.get(asset.id)?.description ?? '',
+    publicAiDisclosure: pipelineByAssetId.get(asset.id)?.publicAiDisclosure ?? null,
     specialtyTags: pipelineByAssetId.get(asset.id)?.specialtyTags ?? [],
     useCaseTags: pipelineByAssetId.get(asset.id)?.useCaseTags ?? [],
     semanticRole: pipelineByAssetId.get(asset.id)?.semanticRole ?? null,
@@ -163,6 +165,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     revision: null,
     lineageId: pipelineByAssetId.get(font.value)?.lineageId ?? null,
     description: pipelineByAssetId.get(font.value)?.description ?? '',
+    publicAiDisclosure: pipelineByAssetId.get(font.value)?.publicAiDisclosure ?? null,
     specialtyTags: pipelineByAssetId.get(font.value)?.specialtyTags ?? [],
     useCaseTags: pipelineByAssetId.get(font.value)?.useCaseTags ?? [],
     semanticRole: pipelineByAssetId.get(font.value)?.semanticRole ?? null,
@@ -188,6 +191,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     revision: set.revision,
     lineageId: pipelineByAssetId.get(set.id)?.lineageId ?? null,
     description: set.description,
+    publicAiDisclosure: pipelineByAssetId.get(set.id)?.publicAiDisclosure ?? null,
     specialtyTags: set.specialtyTags,
     useCaseTags: set.useCaseTags,
     semanticRole: set.semanticRole ?? pipelineByAssetId.get(set.id)?.semanticRole ?? null,

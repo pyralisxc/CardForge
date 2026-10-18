@@ -144,6 +144,7 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
     actionSources: [{ id: `${item.id}:catalog`, label: 'CardForge catalog', source: 'provider-native', currentRevisionAvailable: true }],
     meta: [
       ['Collection', item.published.accessLabel], ['Authorship', item.sourceLabel],
+      ...(item.published.publicAiDisclosure ? [['AI-use disclosure', item.published.publicAiDisclosure] as const] : []),
       ...(item.published.specialtyTags.length ? [['Specialties', item.published.specialtyTags.map(formatContentTaxonomyTag).join(' · ')] as const] : []),
       ...(item.published.useCaseTags.length ? [['Use cases', item.published.useCaseTags.map(formatContentTaxonomyTag).join(' · ')] as const] : []),
       ...(item.published.semanticRole ? [['Semantic role', getSemanticRoleLabel(item.published.semanticRole) ?? formatContentTaxonomyTag(item.published.semanticRole)] as const] : []),
@@ -219,7 +220,7 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
   const assetId = published?.registryAssetId ?? published?.targetRegistryAssetId;
   return <section className={styles.pipelineDetail} aria-label="Pipeline review details">
     {isOwner && assetId && published?.assetType === 'textures' && onRevisionCreated ? <MediaPresentationRevision key={assetId} assetId={assetId} onCreated={onRevisionCreated} /> : null}
-    <div><h3>Classification &amp; rights</h3><p>{submission.sourceNotes || 'No source or rights notes were supplied.'}</p><p>{[...submission.specialtyTags, ...submission.useCaseTags].join(' · ') || 'No classification tags supplied.'}</p></div>
+    <div><h3>Classification &amp; rights</h3><p>{submission.sourceNotes || 'No source or rights notes were supplied.'}</p>{submission.publicAiDisclosure ? <p>AI-use disclosure: {submission.publicAiDisclosure}</p> : null}<p>{[...submission.specialtyTags, ...submission.useCaseTags].join(' · ') || 'No classification tags supplied.'}</p></div>
     {submission.tierDecisionReason || submission.decisionReason ? <div><h3>Placement</h3><p>{getPipelineDecisionReasonLabel(submission.tierDecisionReason ?? submission.decisionReason)}</p></div> : null}
     <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((revision) => {
       const selfVoteBlocked = isSelfVoteBlocked(revision.contributorId);
