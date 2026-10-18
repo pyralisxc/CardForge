@@ -150,5 +150,7 @@ describe('native pending media presentation revisions', () => {
     expect(html).toContain('candidate.svg'); expect(html).not.toContain('original.svg');
     expect(html.match(/background-size:contain/g)).toHaveLength(4);
     expect(html).toContain('width:160px'); expect(html).toContain('width:240px');
+    expect(html.match(/background-color:#f5f0e8/g)).toHaveLength(2);
+    expect(html.match(/background-color:#15111d/g)).toHaveLength(2);
   });
 });
