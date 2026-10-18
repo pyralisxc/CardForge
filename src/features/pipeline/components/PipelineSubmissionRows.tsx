@@ -307,7 +307,7 @@ export function AssetRow({
       </div>
       {expanded ? (
         <div className="mt-3 grid gap-3 border-t border-[var(--cf-border-subtle)] pt-3 lg:grid-cols-[minmax(14rem,22rem)_1fr]">
-          <div className="grid min-h-48 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)] bg-[linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%),linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%)] bg-[length:18px_18px] bg-[position:0_0,9px_9px]">
+          <div className="grid min-h-48 min-w-0 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)] bg-[linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%),linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%)] bg-[length:18px_18px] bg-[position:0_0,9px_9px]">
             <AssetPreview submission={submission} templatePreviews={templatePreviews} expanded />
           </div>
           <div className="text-sm leading-6 text-[var(--cf-text-muted)]">
@@ -386,7 +386,7 @@ function AssetPreview({
     if (!expanded) return <TemplateThumbnail template={primaryTemplate} />;
     if (proposedTemplate && template) {
       return (
-        <div className="grid w-full gap-4 p-4 sm:grid-cols-2">
+        <div className="flex min-w-0 w-full flex-wrap gap-4 overflow-x-auto p-4">
           <TemplateComparisonPreview label="Current live" template={template} id={`live-${submission.id}`} />
           <TemplateComparisonPreview label={`Proposed revision ${submission.revisionNumber ?? ''}`.trim()} template={proposedTemplate} id={`proposed-${submission.id}`} />
         </div>
@@ -549,7 +549,7 @@ function TemplateComparisonPreview({
   id: string;
 }) {
   return (
-    <div className="grid content-start justify-items-center gap-2">
+    <div className="mx-auto grid shrink-0 content-start justify-items-center gap-2">
       <p className="text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">{label}</p>
       <CardPreview
         card={{ template, data: template.templatePreviewData ?? {}, uniqueId: `pipeline-preview-${id}` }}
