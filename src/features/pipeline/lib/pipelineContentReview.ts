@@ -13,14 +13,13 @@ import { isRepositoryTemplate } from './registryContentValidation';
 export const buildPipelineContentReview = (program: PipelineProgramView | null) => ({
   mode: 'dry-run' as const,
   coverage: {
-    loadedSubmissions: program?.submissions.length ?? 0,
+    loadedSubmissions: getPipelineLibrarySubmissions(program).length,
+    loadedOwnSubmissions: program?.submissions.length ?? 0,
     totalSubmissions: program?.totalSubmissionCount ?? null,
     loadedReviewSubmissions: program?.votingQueue.length ?? 0,
     totalReviewSubmissions: program?.votingPage.total ?? null,
-    loadedUniqueSubmissions: getPipelineLibrarySubmissions(program).length,
-    complete: program !== null
-      && program.submissions.length >= program.totalSubmissionCount
-      && program.votingQueue.length >= program.votingPage.total,
+    // The aggregate total is global; own/review queues can overlap or be paged.
+    complete: program !== null && getPipelineLibrarySubmissions(program).length >= program.totalSubmissionCount,
   },
   publicationPolicy: 'Review classification and lineage; publish approved changes through native Pipeline revisions. Do not rewrite published payloads or installed copies.',
   entries: getPipelineLibrarySubmissions(program).filter((submission) => submission.status === 'published').map((submission) => {
