@@ -50,7 +50,7 @@ export function ImageInspectorPanel({
               id="element-image-source"
               className="h-8 rounded-[4px] border-[#2d3340] bg-[#0d1117] text-xs text-[#d8d1c4]"
               value={element.imageSource || element.content || ''}
-              onChange={(event) => onUpdateElement({ imageSource: event.target.value, content: event.target.value }, false)}
+              onChange={(event) => onUpdateElement({ imageSource: event.target.value, content: event.target.value })}
             />
             <Button type="button" variant="outline" size="icon" onClick={() => imageInputRef.current?.click()} aria-label="Upload picture source">
               <ImageIcon className="h-4 w-4" />
@@ -93,12 +93,12 @@ export function ImageInspectorPanel({
         </Select>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <ImageNumberField id="element-position-x" label="Position X" value={element.imageObjectPositionX || ''} placeholder="center / 50%" onChange={(value) => onUpdateElement({ imageObjectPositionX: value }, false)} />
-        <ImageNumberField id="element-position-y" label="Position Y" value={element.imageObjectPositionY || ''} placeholder="center / 50%" onChange={(value) => onUpdateElement({ imageObjectPositionY: value }, false)} />
-        <ImageNumberField id="element-image-scale" label="Picture scale" type="number" step="0.05" value={element.imageScale === undefined ? '' : String(element.imageScale)} placeholder="1" onChange={(value) => onUpdateElement({ imageScale: value ? Number(value) : undefined }, false)} />
-        <ImageNumberField id="element-image-rotation" label="Picture rotation" type="number" value={element.imageRotation === undefined ? '' : String(element.imageRotation)} placeholder="0" onChange={(value) => onUpdateElement({ imageRotation: value ? Number(value) : undefined }, false)} />
-        <ImageNumberField id="element-image-offset-x" label="Picture offset X" type="number" value={element.imageOffsetX === undefined ? '' : String(element.imageOffsetX)} placeholder="0" onChange={(value) => onUpdateElement({ imageOffsetX: value ? Number(value) : undefined }, false)} />
-        <ImageNumberField id="element-image-offset-y" label="Picture offset Y" type="number" value={element.imageOffsetY === undefined ? '' : String(element.imageOffsetY)} placeholder="0" onChange={(value) => onUpdateElement({ imageOffsetY: value ? Number(value) : undefined }, false)} />
+        <ImageNumberField id="element-position-x" label="Position X" value={element.imageObjectPositionX || ''} placeholder="center / 50%" onChange={(value) => onUpdateElement({ imageObjectPositionX: value })} />
+        <ImageNumberField id="element-position-y" label="Position Y" value={element.imageObjectPositionY || ''} placeholder="center / 50%" onChange={(value) => onUpdateElement({ imageObjectPositionY: value })} />
+        <ImageNumberField id="element-image-scale" label="Picture scale" type="number" step="0.05" value={element.imageScale === undefined ? '' : String(element.imageScale)} placeholder="1" onChange={(value) => onUpdateElement({ imageScale: value ? Number(value) : undefined })} />
+        <ImageNumberField id="element-image-rotation" label="Picture rotation" type="number" value={element.imageRotation === undefined ? '' : String(element.imageRotation)} placeholder="0" onChange={(value) => onUpdateElement({ imageRotation: value ? Number(value) : undefined })} />
+        <ImageNumberField id="element-image-offset-x" label="Picture offset X" type="number" value={element.imageOffsetX === undefined ? '' : String(element.imageOffsetX)} placeholder="0" onChange={(value) => onUpdateElement({ imageOffsetX: value ? Number(value) : undefined })} />
+        <ImageNumberField id="element-image-offset-y" label="Picture offset Y" type="number" value={element.imageOffsetY === undefined ? '' : String(element.imageOffsetY)} placeholder="0" onChange={(value) => onUpdateElement({ imageOffsetY: value ? Number(value) : undefined })} />
       </div>
     </>
   );
