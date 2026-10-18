@@ -55,10 +55,10 @@ describe('MCP structured output contracts', () => {
 
   it('accepts the capabilities payload returned by get_cardforge_capabilities', async () => {
     const result = await validate(studioOutputSchemas.accountCapabilitiesOutputSchema, {
-      account: { tier: 'free' },
+      account: { tier: 'free', userId: 'account_123' },
       studio: { canCreate: true },
       contribution: { scopes: [] },
-      guidance: { normalCustomerTools: [] },
+      guidance: { normalCustomerTools: [], serverIdentity: { environment: 'preview', publicOrigin: 'https://preview.example', databaseHost: 'stage-ref.supabase.co', sourceRevision: 'a'.repeat(40) } },
     });
 
     expect(result.issues).toBeUndefined();
