@@ -1,6 +1,7 @@
 "use client";
 
 import { createElement } from 'react';
+import { SVG_STRETCH_VIEW_FRAGMENT } from '@/domain/templates/vectorAssets';
 import { createRoot, type Root } from 'react-dom/client';
 import { toCanvas } from 'html-to-image';
 
@@ -37,6 +38,39 @@ const waitForImages = async (element: HTMLElement) => {
   }));
 };
 
+// html-to-image embeds fetched bytes but discards URL fragments. Inline only our
+// explicit SVG Stretch projection first, preserving its view through that native
+// embedding path. This touches only the mounted export derivative, never source.
+const preserveSvgStretchView = async (url: string): Promise<string> => {
+  if (!url.endsWith(SVG_STRETCH_VIEW_FRAGMENT) || url.startsWith('data:')) return url;
+  const response = await fetch(url.slice(0, -SVG_STRETCH_VIEW_FRAGMENT.length), { mode: 'cors' });
+  if (!response.ok) throw new Error('A card SVG background could not be loaded. Restore it before exporting.');
+  const blob = await response.blob();
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('A card SVG background could not be embedded.'));
+    reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('A card SVG background is unavailable.'));
+    reader.readAsDataURL(blob);
+  });
+  return `${dataUrl}${SVG_STRETCH_VIEW_FRAGMENT}`;
+};
+
+const preserveSvgStretchStyles = async (element: HTMLElement) => {
+  const embedded = new Map<string, Promise<string>>();
+  for (const node of [element, ...element.querySelectorAll<HTMLElement>('*')]) {
+    for (const property of ['background-image', 'mask-image', '-webkit-mask-image']) {
+      const value = getComputedStyle(node).getPropertyValue(property);
+      for (const layer of splitCssLayers(value)) {
+        const url = /^url\(["']?(.*?)["']?\)$/.exec(layer)?.[1];
+        if (!url?.endsWith(SVG_STRETCH_VIEW_FRAGMENT) || url.startsWith('data:')) continue;
+        if (!embedded.has(url)) embedded.set(url, preserveSvgStretchView(url));
+        const exportUrl = await embedded.get(url)!;
+        node.style.setProperty(property, getComputedStyle(node).getPropertyValue(property).replaceAll(url, exportUrl));
+      }
+    }
+  }
+};
+
 const readBackgroundImages = async (element: HTMLElement) => {
   const entries = Array.from([element, ...element.querySelectorAll<HTMLElement>('*')]).flatMap((node) => {
     const style = getComputedStyle(node);
@@ -55,7 +89,7 @@ const readBackgroundImages = async (element: HTMLElement) => {
   }));
 };
 
-const waitForPreviewReady = async (element: HTMLElement) => {
+const preparePreviewForExport = async (element: HTMLElement) => {
   await waitForFrame();
   await waitForFrame();
   if ('fonts' in document) {
@@ -67,6 +101,7 @@ const waitForPreviewReady = async (element: HTMLElement) => {
     await waitForFrame();
   }
   await waitForImages(element);
+  await preserveSvgStretchStyles(element);
   await waitForFrame();
 };
 
@@ -344,7 +379,7 @@ export async function mountCardPreviewForExport(
     throw new Error('Card preview did not render for export.');
   }
 
-  await waitForPreviewReady(element);
+  await preparePreviewForExport(element);
 
   return {
     container,
@@ -402,7 +437,7 @@ export function createCardFaceExportRenderer(
       throw new Error('Card preview did not render for export.');
     }
 
-    await waitForPreviewReady(element);
+    await preparePreviewForExport(element);
     const backgrounds = await readBackgroundImages(element);
     if (exportProfile.mode === 'physical') {
       const geometry = getTemplateProductionGeometryMm(getCardFaceTemplate(card, face));
