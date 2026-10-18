@@ -4,7 +4,8 @@ import { buildPipelineContentHealth } from '@/features/pipeline/lib/pipelineCont
 import { buildPipelineContentReview } from '@/features/pipeline/lib/pipelineContentReview';
 import { getDefaultSemanticRole } from '@/features/pipeline/lib/contentTaxonomy';
 import { resolveTemplateCardFormat } from '@/domain/card-formats';
-import type { PipelineProgramView, PipelineSubmission } from '@/features/pipeline/lib/pipelineProgram';
+import { buildPipelineProgramView, type PipelineProgramView, type PipelineSubmission } from '@/features/pipeline/lib/pipelineProgram';
+import { DEFAULT_PIPELINE_PROGRAM_SETTINGS } from '@/features/pipeline/lib/pipelineItems';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PipelineContentHealthPanel } from '@/features/pipeline/components/PipelineContentHealthPanel';
@@ -13,9 +14,13 @@ import type { CardForgeCatalogManifest } from '@/features/pipeline/lib/catalogMa
 const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgramView => {
   const assetType = overrides.assetType ?? 'sets';
   const requestedStudioDestination = overrides.requestedStudioDestination ?? null;
-  return {
+  return buildPipelineProgramView({
+    configured: true,
+    settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
+    currentUserId: 'contributor-1',
     submissions: [{
       id: 'revision-id', lineageId: 'lineage-id', registryAssetId: 'registry-id',
+      contributorId: 'contributor-1', submittedAt: '2026-09-01T00:00:00Z',
       name: 'Published object', status: 'published', assetType,
       requestedStudioDestination, specialtyTags: ['games'], useCaseTags: ['playing-cards'],
       semanticRole: getDefaultSemanticRole(assetType, requestedStudioDestination),
@@ -28,11 +33,10 @@ const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgr
       editorialReviewStatus: 'pending', editorialReviewNote: '', editorialReviewedBy: null, editorialReviewedAt: null,
       revisionNumber: 1, baseRevisionNumber: null, updatedAt: '2026-09-01T00:00:00Z',
       ...overrides,
-    }],
-    totalSubmissionCount: 1,
+    } as PipelineSubmission],
     votingQueue: [],
     votingPage: { total: 0, page: 1, pageSize: 50 },
-  } as PipelineProgramView;
+  });
 };
 
 describe('Pipeline content health', () => {
@@ -199,7 +203,7 @@ describe('Pipeline content health', () => {
     const program = programWith({ id: 'own-live' });
     const sharedLive = {
       ...program.submissions[0]!,
-      id: 'shared-live', lineageId: 'shared-lineage', registryAssetId: 'shared-registry',
+      id: 'shared-live', lineageId: 'shared-lineage', registryAssetId: 'shared-registry', contributorId: 'other-contributor',
       revisionNumber: 2, editorialReviewStatus: 'approved' as const,
     };
     program.submissions.push({
