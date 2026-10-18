@@ -30,6 +30,8 @@ const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgr
       ...overrides,
     }],
     totalSubmissionCount: 1,
+    votingQueue: [],
+    votingPage: { total: 0, page: 1, pageSize: 50 },
   } as PipelineProgramView;
 };
 
@@ -191,6 +193,43 @@ describe('Pipeline content health', () => {
     expect(entry.submissionId).toBe('revision-id');
     expect(entry.lineageId).toBe('lineage-id');
     expect(JSON.stringify(program)).toBe(before);
+  });
+
+  it('includes shared review revisions once, retaining exact live pins and honest review coverage', () => {
+    const program = programWith({ id: 'own-live' });
+    const sharedLive = {
+      ...program.submissions[0]!,
+      id: 'shared-live', lineageId: 'shared-lineage', registryAssetId: 'shared-registry',
+      revisionNumber: 2, editorialReviewStatus: 'approved' as const,
+    };
+    program.submissions.push({
+      ...sharedLive, id: 'shared-history', revisionNumber: 1,
+      sourceUrl: 'https://example.supabase.co/storage/v1/object/public/cardforge-developer-assets/retired.webp',
+    });
+    program.totalSubmissionCount = 2;
+    program.votingQueue = [program.submissions[0]!, sharedLive];
+    program.votingPage = { total: 2, page: 1, pageSize: 50 };
+    const catalog = {
+      pipeline: { items: [{
+        id: 'shared-registry', submissionId: 'shared-live', lineageId: 'shared-lineage',
+        name: 'Shared live', assetType: 'set', previewUrl: 'https://example.com/preview.webp',
+      }] },
+      sets: { items: [] },
+    } as unknown as CardForgeCatalogManifest;
+    const before = JSON.stringify(program);
+    const health = buildPipelineContentHealth({ catalog, program });
+    expect(health.editorial).toMatchObject({ checkedCount: 1, approvedCount: 1, pendingCount: 0 });
+    expect(health.issues.some((issue) => issue.code === 'retired-source')).toBe(false);
+    const review = buildPipelineContentReview(program);
+    expect(review.entries.map((entry) => entry.submissionId)).toEqual(['own-live', 'shared-history', 'shared-live']);
+    expect(review.coverage).toMatchObject({
+      loadedSubmissions: 2, totalSubmissions: 2,
+      loadedReviewSubmissions: 2, totalReviewSubmissions: 2,
+      loadedUniqueSubmissions: 3, complete: true,
+    });
+    expect(JSON.stringify(program)).toBe(before);
+    program.votingPage.total = 3;
+    expect(buildPipelineContentReview(program).coverage.complete).toBe(false);
   });
 
   it('does not guess classifications or claim full coverage of paged revisions', () => {
