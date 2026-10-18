@@ -3,6 +3,7 @@ import { expect, test, type Download } from '@playwright/test';
 import JSZip from 'jszip';
 import { createHash } from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
+import sharp from 'sharp';
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
 test('@golden gives an empty Set one creation next step before output controls', async ({ page }, testInfo) => {
@@ -195,3 +196,47 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   expect(project.project.cardSets).toHaveLength(1);
   expect(project.project.artifacts).toHaveLength(2);
 });
+
+
+for (const variant of ['texture', 'tint', 'foundation'] as const) {
+test(`@golden keeps complete SVG ${variant} Stretch composition in the native card and actual PNG export`, async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  const source = '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="720" viewBox="0 0 720 720"><rect width="360" height="360" fill="#0055ff"/><rect x="360" width="360" height="360" fill="#00aa55"/><rect y="360" width="360" height="360" fill="#aa3300"/><rect x="360" y="360" width="360" height="360" fill="#ffcc00"/></svg>';
+  await page.route('**/svg-stretch-regression.svg', (route) => route.fulfill({ body: source, contentType: 'image/svg+xml' }));
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 1, templatePatch: {
+    cardBackgroundImageUrl: variant === 'foundation' ? '/svg-stretch-regression.svg' : '',
+    ...(variant === 'foundation' ? { cardBackgroundImageFit: 'fill' as const } : {}),
+    appearance: { material: { baseColor: '#ff00ff', ...(variant === 'texture' ? { texture: { kind: 'uploaded', imageSource: '/svg-stretch-regression.svg', tileMode: 'stretch', intensity: 100 } } : {}) } },
+    freeformCanvas: { width: 630, height: 880, elements: variant === 'tint' ? [{
+      id: 'stretch-tint', name: 'Tinted SVG', type: 'text', content: '', padding: 'p-0', borderWidth: '_none_', backgroundColor: '#2546c7', fillColor: '#2546c7', x: 0, y: 0, width: 630, height: 880, zIndex: 1,
+      appearance: { assetSource: '/svg-stretch-regression.svg', assetRenderMode: 'tint', assetTintColor: '#2546c7', tileMode: 'stretch', material: { fillColor: '#2546c7' } },
+    }] : [] },
+  } });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.locator('button[data-artifact-id="scale-card-1"]').press('Enter');
+  const card = page.locator('[data-focused-artifact-frame] .tcg-card-preview');
+  await expect(card).toBeVisible();
+  await expect(variant === 'tint' ? card.locator('[data-freeform-element-id="stretch-tint"]') : card).toHaveCSS(variant === 'tint' ? 'mask-image' : 'background-image', /svgView/);
+  const verifyCorners = async (png: Buffer) => {
+    const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    for (const [x, y, expected] of [[0.1, 0.1, [0, 85, 255]], [0.9, 0.1, [0, 170, 85]], [0.1, 0.9, [170, 51, 0]], [0.9, 0.9, [255, 204, 0]]] as const) {
+      const offset = (Math.floor(info.height * y) * info.width + Math.floor(info.width * x)) * info.channels;
+      expect([...data.subarray(offset, offset + 3)]).toEqual(variant === 'tint' ? [37, 70, 199] : expected);
+    }
+  };
+  const native = await card.screenshot();
+  await verifyCorners(native);
+  await testInfo.attach('svg-stretch-native-card', { body: native, contentType: 'image/png' });
+  await page.getByTestId('single-card-export-trigger').click();
+  const download = page.waitForEvent('download');
+  await page.getByTestId('single-card-export-png-front').click();
+  const artifact = await download;
+  const file = testInfo.outputPath(artifact.suggestedFilename());
+  await artifact.saveAs(file);
+  expect(await artifact.failure()).toBeNull();
+  const exported = await readFile(file);
+  await verifyCorners(exported);
+  await testInfo.attach('svg-stretch-actual-export', { body: exported, contentType: 'image/png' });
+});
+}

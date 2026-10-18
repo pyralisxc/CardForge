@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import type { TCGCardTemplate } from '@/domain/templates';
 
 import { createProjectScaleFixture } from '../../../fixtures/projectScale';
 
@@ -137,6 +138,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
   needsWorkFixture?: boolean;
   emptyDesk?: boolean;
   publicTemplate?: boolean;
+  templatePatch?: Partial<TCGCardTemplate>;
   unreadableFolderIndex?: boolean;
 } = {}) => {
   const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
@@ -167,6 +169,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     }
     state.storedCards = state.storedCards.map((card) => ({ ...card, backingData: { ...card.data, cardName: `Back · ${card.data.cardName}` } }));
   }
+  if (options.templatePatch) state.userTemplates = state.userTemplates.map((template) => ({ ...template, ...options.templatePatch }));
   if (options.publicTemplate) {
     const template = { ...state.userTemplates[0]!, templateSource: 'default' };
     state.userTemplates = [];

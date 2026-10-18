@@ -32,7 +32,7 @@ describe('Divider Studio source selection', () => {
     expect(props).toMatchObject({ kind: 'divider', assets: [asset], personalRoles: ['divider'], providerRole: 'divider', target: { kind: 'template-element', ids: ['selected-divider'] } });
     props.onApply(asset);
     expect(appearance).toMatchObject({ dividerAsset: asset.url, assetKind: 'divider', assetRenderMode: 'original', shapeRole: 'divider', textureOpacity: 85, tileMode: 'stretch', material: { baseColor: 'transparent', textColor: '#123456' }, border: { kind: 'none', width: 0 } });
-    expect(appearanceToStyle(appearance).backgroundImage).toBe(`url(${asset.url})`);
+    expect(appearanceToStyle(appearance).backgroundImage).toBe(`url("${asset.url}#svgView(preserveAspectRatio(none))")`);
     expect(element).toEqual(before);
     expect(updateElement).not.toHaveBeenCalled();
   });
@@ -51,7 +51,7 @@ describe('Divider Studio source selection', () => {
     expect(style.backgroundRepeat).toBeUndefined();
     expect(style.backgroundPosition).toBeUndefined();
     expect(style.backgroundColor).toBe('#d5ad54');
-    expect(style.maskImage).toBe('url(https://cdn.example.test/divider.svg?revision=2)');
+    expect(style.maskImage).toBe('url("https://cdn.example.test/divider.svg?revision=2#svgView(preserveAspectRatio(none))")');
     expect(style.maskSize).toBe('100% 100%');
   });
 });
@@ -71,7 +71,9 @@ describe('appearance background fit', () => {
     ];
     for (const appearance of appearances) {
       const style = appearanceToStyle(appearance);
-      expect(style.backgroundImage).toBe(`url(${source})`);
+      expect(style.backgroundImage).toBe(tileMode === 'stretch'
+        ? `url("${source}#svgView(preserveAspectRatio(none))")`
+        : `url(${source})`);
       expect(style.backgroundSize).toBe(size);
       expect(style.backgroundRepeat).toBe(repeat);
       expect(style.backgroundPosition).toBe(position);

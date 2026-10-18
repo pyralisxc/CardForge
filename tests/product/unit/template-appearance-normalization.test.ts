@@ -4,9 +4,28 @@ import {
   normalizeAppearanceForElement,
   reconstructFreeformCanvas,
 } from '@/domain/templates';
-import { gradientToCss, textureToCss } from '@/features/card-rendering/model/appearance';
+import { appearanceToStyle, authoredCardFoundationStyle, gradientToCss, textureToCss } from '@/features/card-rendering/model/appearance';
 
 describe('freeform appearance normalization', () => {
+  it('honors explicit SVG Stretch without changing source bytes or legacy/contain/repeat fits', () => {
+    const source = 'https://example.test/surface.svg';
+    const texture = { kind: 'uploaded' as const, imageSource: source };
+    const projected = 'url("https://example.test/surface.svg#svgView(preserveAspectRatio(none))")';
+    expect(appearanceToStyle({ material: { texture: { ...texture, tileMode: 'stretch' } } }).backgroundImage).toBe(projected);
+    expect(appearanceToStyle({ assetSource: source, tileMode: 'stretch' }).backgroundImage).toBe(projected);
+    for (const tileMode of [undefined, 'contain', 'repeat'] as const) {
+      expect(appearanceToStyle({ assetSource: source, tileMode }).backgroundImage).toBe(`url(${source})`);
+    }
+    expect(appearanceToStyle({ assetSource: `${source}#authored-view`, tileMode: 'stretch' }).backgroundImage).toBe(`url(${source}#authored-view)`);
+    expect(appearanceToStyle({ assetSource: 'surface.png', tileMode: 'stretch' }).backgroundImage).toBe('url(surface.png)');
+    expect(appearanceToStyle({ assetSource: source, assetRenderMode: 'tint', tileMode: 'stretch' }).maskImage).toBe(projected);
+    expect(texture.imageSource).toBe(source);
+    expect(authoredCardFoundationStyle({ cardBackgroundImageFit: 'fill' }, `url(${source})`, {})?.backgroundImage).toBe(projected);
+    const normalizedDuplicate = appearanceToStyle({ material: { texture: { ...texture, tileMode: 'stretch' } } });
+    expect(authoredCardFoundationStyle({ cardBackgroundImageFit: 'fill' }, `url(${source})`, normalizedDuplicate)?.backgroundImage).toBe(projected);
+    expect(authoredCardFoundationStyle({ cardBackgroundImageFit: 'contain' }, `url(${source})`, normalizedDuplicate)?.backgroundImage).toBe(`url(${source})`);
+    expect(authoredCardFoundationStyle({ cardBackgroundImageFit: 'contain' }, `url(${source})`, {})?.backgroundImage).toBe(`url(${source})`);
+  });
   it('preserves the legacy badge hard edge exactly without synthesizing a parchment layer', () => {
     const source = { type: 'shape' as const, backgroundImageUrl: 'linear-gradient(180deg,#0f172a 0 24%,#f8fafc 24% 100%)', fillColor: '#f8fafc', borderRadius: 'rounded-md' };
     const appearance = normalizeAppearanceForElement(source);

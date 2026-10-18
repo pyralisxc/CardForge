@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { AppearanceBorder, AppearanceEffects, AppearanceGradient, AppearanceTexture, FreeformAppearance, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
-import { isSvgAssetSource } from '@/domain/templates/vectorAssets';
+import { isSvgAssetSource, svgSourceForStretch } from '@/domain/templates/vectorAssets';
 
 export const gradientToCss = (gradient?: AppearanceGradient): string | undefined => {
   if (!gradient || gradient.type === 'none' || gradient.stops.length === 0) return undefined;
@@ -35,6 +35,16 @@ export const textureToCss = (texture?: AppearanceTexture): string | undefined =>
   return `radial-gradient(circle, rgba(255,255,255,${0.12 * intensity}) 0 1px, transparent 1px ${scale}px)`;
 };
 
+/** Preserve authored fragments and non-URL/multi-layer CSS without reinterpretation. */
+const stretchSvgBackground = (image?: string): string | undefined => {
+  if (!image) return image;
+  const match = /^url\((?:"([^"]*)"|'([^']*)'|([^)]*))\)$/u.exec(image);
+  const source = match?.[1] ?? match?.[2] ?? match?.[3]?.trim();
+  if (!source) return image;
+  const projected = svgSourceForStretch(source);
+  return projected === source ? image : `url(${JSON.stringify(projected)})`;
+};
+
 const backgroundLayerCount = (image: string): number => {
   let count = 1, depth = 0, quote = '';
   for (let index = 0; index < image.length; index += 1) {
@@ -58,12 +68,13 @@ export const authoredCardFoundationStyle = (
   if (!template.cardBackgroundImageFit || !foundationImage) return undefined;
   // Legacy normalization may project this same source as a texture as well.
   // Paint it once; otherwise transparency exposes a differently fitted duplicate.
-  const materialImage = appearance.backgroundImage === foundationImage ? undefined : appearance.backgroundImage;
+  const fittedFoundationImage = template.cardBackgroundImageFit === 'fill' ? stretchSvgBackground(foundationImage) : foundationImage;
+  const materialImage = appearance.backgroundImage === foundationImage || appearance.backgroundImage === stretchSvgBackground(foundationImage) ? undefined : appearance.backgroundImage;
   const materialProperty = (property: 'backgroundSize' | 'backgroundRepeat' | 'backgroundPosition', fallback: string) => (
     appearance[property] || Array.from({ length: backgroundLayerCount(String(materialImage)) }, () => fallback).join(', ')
   );
   return {
-    backgroundImage: [foundationImage, materialImage].filter(Boolean).join(', '),
+    backgroundImage: [fittedFoundationImage, materialImage].filter(Boolean).join(', '),
     backgroundSize: [template.cardBackgroundImageFit === 'fill' ? '100% 100%' : template.cardBackgroundImageFit,
       ...(materialImage ? [materialProperty('backgroundSize', 'auto')] : [])].join(', '),
     backgroundRepeat: ['no-repeat', ...(materialImage ? [materialProperty('backgroundRepeat', 'repeat')] : [])].join(', '),
@@ -76,15 +87,17 @@ export const appearanceToStyle = (appearance?: FreeformAppearance): CSSPropertie
   const material = appearance.material;
   const border = appearance.border;
   const effects = appearance.effects;
-  const texture = textureToCss(material?.texture);
+  const rawTexture = textureToCss(material?.texture);
   const gradient = gradientToCss(material?.gradient);
   const assetSource = appearance.dividerAsset || appearance.assetSource;
-  const asset = assetSource ? `url(${assetSource})` : undefined;
+  const rawAsset = assetSource ? `url(${assetSource})` : undefined;
   const tintVector = appearance.assetRenderMode === 'tint' && isSvgAssetSource(assetSource);
   const textureScale = material?.texture?.textureScale ?? appearance.textureScale;
   const blendMode = material?.texture?.blendMode ?? appearance.blendMode;
   const assetTileMode = appearance.tileMode ?? material?.texture?.tileMode;
   const textureTileMode = material?.texture?.tileMode ?? appearance.tileMode;
+  const asset = assetTileMode === 'stretch' ? stretchSvgBackground(rawAsset) : rawAsset;
+  const texture = textureTileMode === 'stretch' ? stretchSvgBackground(rawTexture) : rawTexture;
   const repeatedSize = `${textureScale || 160}px ${textureScale || 160}px`;
   const assetBackgroundSize = assetTileMode === 'contain' ? 'contain' : assetTileMode === 'repeat' ? repeatedSize : '100% 100%';
   const textureIsUrl = texture?.startsWith('url(');
