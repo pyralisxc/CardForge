@@ -210,7 +210,7 @@ describe('Pipeline content health', () => {
       ...sharedLive, id: 'shared-history', revisionNumber: 1,
       sourceUrl: 'https://example.supabase.co/storage/v1/object/public/cardforge-developer-assets/retired.webp',
     });
-    program.totalSubmissionCount = 2;
+    program.totalSubmissionCount = 3;
     program.votingQueue = [program.submissions[0]!, sharedLive];
     program.votingPage = { total: 2, page: 1, pageSize: 50 };
     const catalog = {
@@ -227,12 +227,13 @@ describe('Pipeline content health', () => {
     const review = buildPipelineContentReview(program);
     expect(review.entries.map((entry) => entry.submissionId)).toEqual(['own-live', 'shared-history', 'shared-live']);
     expect(review.coverage).toMatchObject({
-      loadedSubmissions: 2, totalSubmissions: 2,
-      loadedReviewSubmissions: 2, totalReviewSubmissions: 2,
-      loadedUniqueSubmissions: 3, complete: true,
+      loadedSubmissions: 3, loadedOwnSubmissions: 2, totalSubmissions: 3,
+      loadedReviewSubmissions: 2, totalReviewSubmissions: 2, complete: true,
     });
     expect(JSON.stringify(program)).toBe(before);
     program.votingPage.total = 3;
+    expect(buildPipelineContentReview(program).coverage.complete).toBe(true);
+    program.totalSubmissionCount = 4;
     expect(buildPipelineContentReview(program).coverage.complete).toBe(false);
   });
 
