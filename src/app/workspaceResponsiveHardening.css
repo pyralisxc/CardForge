@@ -37,6 +37,15 @@
   overflow: hidden;
 }
 
+/* Expanded Owner operations are a separate review surface, not part of the
+   collection below. Let that surface shrink and scroll inside the bounded shell. */
+[data-library-surface] > [data-owner-pipeline-operations][open] {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
 /* LibraryCollection contains the legacy local search node. It is the one
    collection scroll owner even after that duplicate search is visually retired. */
 [data-library-surface] > section:has(#library-search) {
