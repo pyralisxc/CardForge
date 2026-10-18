@@ -1,3 +1,4 @@
+import { getPublicAiDisclosure } from './sourceReviewEvidence';
 import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import type { PostgrestError } from '@supabase/supabase-js';
@@ -21,6 +22,7 @@ export interface RegistryContentAssetRow {
   contributor_submission_id?: string | null;
   lineage_id?: string | null;
   description?: string;
+  public_ai_disclosure?: string | null;
   specialty_tags?: string[];
   use_case_tags?: string[];
   semantic_role?: string;
@@ -126,7 +128,7 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
   const [submissionResult, lineageResult] = await resolveWithTimeout(
     Promise.all([
       submissionIds.length
-        ? supabase.from('cardforge_contributor_asset_submissions').select('id,lineage_id,source_payload,description,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags').in('id', submissionIds)
+        ? supabase.from('cardforge_contributor_asset_submissions').select('id,lineage_id,source_payload,source_review_evidence,description,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags').in('id', submissionIds)
         : Promise.resolve({ data: [], error: null }),
       registryAssetIds.length
         ? supabase.from('cardforge_pipeline_asset_lineages').select('id,registry_asset_id').in('registry_asset_id', registryAssetIds)
@@ -160,6 +162,7 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
       id?: unknown;
       lineage_id?: unknown;
       source_payload?: unknown;
+      source_review_evidence?: unknown;
       description?: unknown;
       specialty_tags?: unknown;
       use_case_tags?: unknown;
@@ -172,6 +175,7 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
     return typeof row.id === 'string' ? [[row.id, {
       lineageId: typeof row.lineage_id === 'string' ? row.lineage_id : null,
       payload: row.source_payload,
+      publicAiDisclosure: getPublicAiDisclosure(row.source_review_evidence),
       description: typeof row.description === 'string' ? row.description.trim() : '',
       specialtyTags: normalizeSpecialtyTags(row.specialty_tags),
       useCaseTags: normalizeUseCaseTags(row.use_case_tags),
@@ -192,6 +196,7 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
   }));
   return rows.map((row) => ({
     ...row,
+    public_ai_disclosure: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.publicAiDisclosure ?? null : null,
     description: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.description ?? '' : '',
     specialty_tags: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.specialtyTags ?? [] : [],
     use_case_tags: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.useCaseTags ?? [] : [],

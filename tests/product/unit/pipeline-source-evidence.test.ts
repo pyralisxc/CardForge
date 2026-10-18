@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { getSourceReviewVersion, sourceReviewFactsSchema } from '@/features/pipeline/lib/sourceReviewEvidence';
+import { getPublicAiDisclosure, getSourceReviewVersion, sourceReviewFactsSchema } from '@/features/pipeline/lib/sourceReviewEvidence';
 import { readSourceReviewEvidence, recordSourceReviewEvidence } from '@/features/pipeline/server/sourceReviewEvidence';
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: vi.fn() }));
 const id = '63300e01-8d07-4f22-8221-a56de17221e5';
@@ -9,6 +9,15 @@ const snapshot = { submissionId: id, candidateVersion: 'a'.repeat(32), evidence:
 const rpc = vi.fn();
 beforeEach(() => { rpc.mockReset().mockResolvedValue({ data: snapshot, error: null }); vi.mocked(getSupabaseServerClient).mockReturnValue({ rpc } as never); });
 describe('correction reviewer source evidence', () => {
+  it('publishes only explicitly opted-in AI text, preserving private evidence and legacy records', () => {
+    const aiFacts = 'Founder confirms that this artwork was AI-generated using ChatGPT.';
+    expect(getPublicAiDisclosure({ ...snapshot.evidence, facts: { ...facts, aiFacts } })).toBeNull();
+    expect(getPublicAiDisclosure({ ...snapshot.evidence, facts: { ...facts, aiFacts, aiDisclosurePublic: false } })).toBeNull();
+    expect(getPublicAiDisclosure({ ...snapshot.evidence, facts: { ...facts, aiFacts, aiDisclosurePublic: true } })).toBe(aiFacts);
+    expect(getPublicAiDisclosure({ version: 2, facts: { aiFacts, aiDisclosurePublic: true } })).toBeNull();
+    expect(sourceReviewFactsSchema.safeParse({ ...facts, aiDisclosurePublic: true }).success).toBe(false);
+    expect(sourceReviewFactsSchema.safeParse({ ...facts, aiFacts, aiDisclosurePublic: 'true' }).success).toBe(false);
+  });
   it('records explicit unknown facts without inventing a license or overwriting original creator notes', async () => {
     expect(sourceReviewFactsSchema.parse(facts)).toEqual(facts);
     expect(await recordSourceReviewEvidence(id, { facts, expectedCandidateVersion: snapshot.candidateVersion, expectedEvidenceVersion: 1 }, 'acting-owner')).toEqual(snapshot);

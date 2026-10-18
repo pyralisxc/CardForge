@@ -27,6 +27,13 @@ const setupDatabase = () => {
           description: '  Use this icon for business contact details.  ',
           specialty_tags: ['business', 'unknown'], use_case_tags: ['business-card', 'event-badge', 'unknown'],
           contributor_email: 'private@example.test', source_notes: 'Private permission notes',
+          source_review_evidence: {
+            schemaVersion: 1, version: 3, recordedBy: 'private-reviewer', recordedAt: '2026-10-18T21:00:00Z',
+            facts: { technicalTrace: 'Private technical trace', creatorFacts: 'Private creator record', rightsFacts: 'Private rights observations',
+              aiFacts: 'Founder confirms AI-generated artwork using ChatGPT.',
+              ...(id === 'free-icon' ? { aiDisclosurePublic: true } : id === 'paid-icon' ? { aiDisclosurePublic: false } : {}),
+            },
+          },
         })) : [];
     const query = {
       select: (columns: string) => { selections.set(table, columns); return query; },
@@ -89,12 +96,15 @@ describe('published catalog discovery details', () => {
       expect(item).toMatchObject({ description: 'Use this icon for business contact details.', specialtyTags: ['business'], useCaseTags: ['business-card', 'event-badge'] });
       expect(item).not.toHaveProperty('source_notes');
       expect(item).not.toHaveProperty('contributor_email');
+      expect(item.publicAiDisclosure).toBe(item.id === 'free-icon' ? 'Founder confirms AI-generated artwork using ChatGPT.' : null);
+      expect(item).not.toHaveProperty('source_review_evidence');
     }
     expect(filters).toContainEqual(['cardforge_asset_registry', 'status', 'published']);
     expect(selections.get('cardforge_contributor_asset_submissions')?.split(',')).toEqual([
       'id',
       'lineage_id',
       'source_payload',
+      'source_review_evidence',
       'description',
       'specialty_tags',
       'use_case_tags',
@@ -107,5 +117,8 @@ describe('published catalog discovery details', () => {
     expect(database.from.mock.calls.filter(([table]) => table === 'cardforge_contributor_asset_submissions')).toHaveLength(1);
     expect(JSON.stringify(catalog.pipeline)).not.toContain('private@example.test');
     expect(JSON.stringify(catalog.pipeline)).not.toContain('Private permission notes');
+    for (const privateValue of ['private-reviewer', 'Private technical trace', 'Private creator record', 'Private rights observations']) {
+      expect(JSON.stringify(catalog.pipeline)).not.toContain(privateValue);
+    }
   });
 });

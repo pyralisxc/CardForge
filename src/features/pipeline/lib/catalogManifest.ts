@@ -40,6 +40,7 @@ export interface CardForgeCatalogManifest {
 
 export interface PublishedPipelineCatalogItem {
   id: string;
+  publicAiDisclosure?: string | null;
   submissionId?: string | null;
   lineageId: string | null;
   name: string;
@@ -208,6 +209,7 @@ export const getCardForgeCatalogManifest = async (
       items: rows.map((row) => ({
         id: row.asset_id,
         submissionId: row.contributor_submission_id ?? null,
+        publicAiDisclosure: row.public_ai_disclosure ?? null,
         lineageId: row.lineage_id ?? null,
         name: row.name,
         description: row.description ?? '',

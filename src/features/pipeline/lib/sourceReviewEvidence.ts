@@ -6,7 +6,11 @@ export const sourceReviewFactsSchema = z.object({
   creatorFacts: z.string().trim().min(1).max(1200).nullable(),
   rightsFacts: z.string().trim().min(1).max(1200).nullable(),
   aiFacts: z.string().trim().min(1).max(1200).nullable(),
-}).strict();
+  // Only this explicit opt-in permits the AI text in public catalog projections.
+  aiDisclosurePublic: z.boolean().optional(),
+}).strict().refine((facts) => !facts.aiDisclosurePublic || Boolean(facts.aiFacts), {
+  message: 'Public AI disclosure requires explicit AI-use text.', path: ['aiDisclosurePublic'],
+});
 export type SourceReviewFacts = z.infer<typeof sourceReviewFactsSchema>;
 export const sourceReviewEvidenceSchema = z.object({
   schemaVersion: z.literal(1), version: z.number().int().positive().max(2_147_483_647), facts: sourceReviewFactsSchema,
@@ -21,4 +25,10 @@ export const getSourceReviewVersion = (value: unknown): number | null => {
   if (value == null) return 0;
   const parsed = sourceReviewEvidenceSchema.safeParse(value);
   return parsed.success ? parsed.data.version : null;
+};
+
+/** Never expose private trace, rights, creator or reviewer details by inference. */
+export const getPublicAiDisclosure = (value: unknown): string | null => {
+  const parsed = sourceReviewEvidenceSchema.safeParse(value);
+  return parsed.success && parsed.data.facts.aiDisclosurePublic === true ? parsed.data.facts.aiFacts : null;
 };

@@ -53,12 +53,19 @@ export function SourceReviewEvidence({ submissionId, onVersionChange, onRecorded
   return <section className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3" aria-label="Correction source evidence">
     <p className="text-xs font-semibold uppercase tracking-[0.12em]">Reviewer source evidence</p>
     <p className="text-xs leading-5 text-[var(--cf-text-muted)]">Inherited creator/source notes remain unchanged. A parent revision, repository path or hash proves a technical trace, not authorship, licensing or AI usage. Leave unsupported facts blank. Recording observations never approves or publishes content; changed evidence requires a fresh exact-version review.</p>
-    {(Object.keys(labels) as Array<keyof SourceReviewFacts>).map((key) => <label key={key} className="grid gap-1 text-xs">
+    {(Object.keys(labels) as Array<keyof typeof labels>).map((key) => <label key={key} className="grid gap-1 text-xs">
       {labels[key]}{key !== 'technicalTrace' ? ' · blank means unknown' : ''}
       <textarea value={facts[key] ?? ''} maxLength={key === 'technicalTrace' ? 2400 : 1200} disabled={!snapshot?.canRecord || saving}
         className="min-h-20 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-2"
-        onChange={(event) => setFacts((current) => ({ ...current, [key]: key === 'technicalTrace' ? event.target.value : event.target.value.trim() ? event.target.value : null }))} />
+        onChange={(event) => setFacts((current) => ({ ...current, [key]: key === 'technicalTrace' ? event.target.value : event.target.value.trim() ? event.target.value : null,
+          ...(key === 'aiFacts' && !event.target.value.trim() ? { aiDisclosurePublic: false } : {}),
+        }))} />
     </label>)}
+    <label className="flex items-start gap-2 text-xs leading-5">
+      <input type="checkbox" checked={facts.aiDisclosurePublic === true} disabled={!snapshot?.canRecord || saving || !facts.aiFacts?.trim()}
+        onChange={(event) => setFacts((current) => ({ ...current, aiDisclosurePublic: event.target.checked }))} />
+      Publish the AI-use text above with this exact revision. Only that text becomes public after publication; other reviewer evidence stays private. This does not approve rights or publish the candidate.
+    </label>
     <p className="text-xs leading-5" role="status">{status}</p>
     {snapshot?.evidence ? <p className="text-xs text-[var(--cf-text-muted)]">Recorded {new Date(snapshot.evidence.recordedAt).toLocaleString()}. Unknown facts are not a rights attestation.</p> : null}
     <Button type="button" size="sm" variant="outline" className="w-fit" disabled={!snapshot?.canRecord || !facts.technicalTrace.trim() || saving} onClick={() => void save()}>{saving ? 'Recording…' : 'Record source evidence'}</Button>
