@@ -18,7 +18,7 @@ export function MediaPresentationPreview({ sourceUrl, presentation }: {
     <p className="w-full text-xs">Full-strength source fit specimen, not an approval or print proof.</p>
     {[160, 240].map((width) => <div key={width} className="grid gap-1 text-xs">
       <span>{width}px · {presentation.proposed.tileMode} · {presentation.proposed.seamless ? 'seamless claim' : 'not seamless'}</span>
-      {['#f5f0e8', '#15111d'].map((backgroundColor) => <div key={backgroundColor} style={{ width, height: width * 0.7, backgroundColor, ...appearanceToStyle(appearance) }} />)}
+      {['#f5f0e8', '#15111d'].map((backgroundColor) => <div key={backgroundColor} style={{ ...appearanceToStyle(appearance), width, height: width * 0.7, backgroundColor }} />)}
     </div>)}
   </div>;
 }
