@@ -57,6 +57,12 @@ test('does not download a success artifact when authored artwork fails to load',
 
 test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', async ({ page }, testInfo) => {
   test.setTimeout(180_000);
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showSaveFilePicker', {
+      configurable: true,
+      value: async () => { throw new DOMException('Native file picker is unavailable.', 'NotAllowedError'); },
+    });
+  });
   await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true, cardLimit: 2, exportSample: true, lowResolutionArtwork: true });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
@@ -176,4 +182,16 @@ test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', asyn
   const manifest = Object.values(tabletop.files).find((file) => file.name.endsWith('.json'));
   expect(manifest).toBeTruthy();
   expect(JSON.parse(await manifest!.async('string'))).toBeTruthy();
+
+  // A Download action must work without requesting file-system permissions.
+  // Keep native file-handle streaming for actual Save flows, not this copy.
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  const projectDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download project', exact: true }).click();
+  const projectZip = await JSZip.loadAsync(await save(await projectDownload));
+  const project = JSON.parse(await projectZip.file('cardforge-project.json')!.async('string'));
+  expect(project.projectRevision).toMatch(/^[a-f0-9]{64}$/u);
+  expect(project.project.cardSets).toHaveLength(1);
+  expect(project.project.artifacts).toHaveLength(2);
 });
