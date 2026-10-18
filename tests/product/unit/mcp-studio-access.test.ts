@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 vi.mock('@clerk/nextjs/server', () => ({ auth: vi.fn() }));
@@ -12,13 +12,26 @@ vi.mock('@/features/account/server', () => ({
 }));
 vi.mock('@/features/contributor-access/server', () => ({
   getContributorCapabilities: vi.fn(),
+  hasContributionScope: (scopes: string[], scope: string) => scopes.includes(scope),
+}));
+vi.mock('@/features/studio-documents/server/studioDocumentAccess', () => ({
+  getStudioDocumentRetentionHours: vi.fn(),
+}));
+vi.mock('@/features/studio-documents/server/studioDocumentStore', () => ({
+  getStudioDocument: vi.fn(),
+  listStudioDocuments: vi.fn(),
+}));
+vi.mock('@/features/mcp-usage/server', () => ({
+  observeMcpToolExecution: ({ execute }: { execute: () => Promise<unknown> }) => execute(),
 }));
 
 import { auth } from '@clerk/nextjs/server';
 
 import { getAccountToolAccessForUserId } from '@/features/account/server';
 import { getContributorCapabilities } from '@/features/contributor-access/server';
+import { registerAccountWorkflowTools } from '@/features/studio-documents/server/mcpAccountWorkflowTools';
 import { getMcpStudioAccess } from '@/features/studio-documents/server/mcpStudioAccess';
+import { getStudioDocument, listStudioDocuments } from '@/features/studio-documents/server/studioDocumentStore';
 
 const user = {
   id: 'account_123',
@@ -30,6 +43,9 @@ const user = {
 };
 
 describe('MCP Studio access', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(auth).mockResolvedValue({ userId: 'clerk_123' } as never);
@@ -84,5 +100,44 @@ describe('MCP Studio access', () => {
       scopes: ['library.publish'],
     });
     expect(getAccountToolAccessForUserId).toHaveBeenCalledWith('clerk_123');
+  });
+
+  it.each([
+    ['preview', 'https://private-user:private-value@stage-ref.supabase.co/private?secret=private-value', 'stage-ref.supabase.co'],
+    ['production', 'https://production-ref.supabase.co', 'production-ref.supabase.co'],
+    [undefined, 'invalid-url', null],
+  ])('reports the actual %s deployment and authenticated subject without credentials', async (environment, databaseUrl, databaseHost) => {
+    vi.stubEnv('VERCEL_ENV', environment);
+    vi.stubEnv('SUPABASE_URL', databaseUrl);
+    vi.stubEnv('VERCEL_GIT_COMMIT_SHA', 'a'.repeat(40));
+    vi.mocked(getAccountToolAccessForUserId).mockResolvedValue({
+      user,
+      entitlement: { accessMode: 'free', isSignedIn: true, canExportClean: false, capabilities: {} },
+      capabilities: ['studio.ai.create'],
+      isOwner: false,
+    } as never);
+    const handlers = new Map<string, () => Promise<unknown>>();
+    registerAccountWorkflowTools({
+      server: { registerTool: (name: string, _options: unknown, handler: () => Promise<unknown>) => { handlers.set(name, handler); } } as never,
+      publicOrigin: 'https://misleading-preview.example',
+      getAccess: getMcpStudioAccess,
+      toolError: (error) => ({ isError: true, content: [{ type: 'text', text: String(error) }] }),
+    });
+    const result = await handlers.get('get_cardforge_capabilities')!();
+    expect(result).toMatchObject({
+      structuredContent: {
+        account: { userId: user.id, isOwner: false, accessMode: 'free' },
+        guidance: { serverIdentity: {
+          environment: environment ?? 'unknown',
+          publicOrigin: 'https://misleading-preview.example',
+          databaseHost,
+          sourceRevision: 'a'.repeat(40),
+        } },
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain('private-value');
+    expect(JSON.stringify(result)).not.toContain(user.email);
+    expect(getStudioDocument).not.toHaveBeenCalled();
+    expect(listStudioDocuments).not.toHaveBeenCalled();
   });
 });
