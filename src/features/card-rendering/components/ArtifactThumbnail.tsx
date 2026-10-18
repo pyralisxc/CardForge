@@ -14,7 +14,7 @@ import {
 import { normalizeTemplateAppearance, type TCGCardTemplate } from '@/domain/templates';
 import { useProjectBinaryAssetUrl, useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
 
-import { appearanceToStyle } from '../model/appearance';
+import { appearanceToStyle, authoredCardFoundationStyle } from '../model/appearance';
 
 const appearanceCache = new WeakMap<TCGCardTemplate, ReturnType<typeof appearanceToStyle>>();
 
@@ -49,10 +49,11 @@ function ResolvedArtifactThumbnailImage({ card, face }: { card: DisplayCard; fac
     ? replacePlaceholdersLocal(template.cardBackgroundImageUrl, data, false)
     : undefined;
   const authoredBackgroundImage = asBackgroundImage(authoredBackground);
-  const backgroundImage = useProjectBinaryAssetValue([
+  const foundationStyle = authoredCardFoundationStyle(template, authoredBackgroundImage, appearance);
+  const backgroundImage = useProjectBinaryAssetValue(foundationStyle?.backgroundImage ?? ([
     authoredBackgroundImage,
     appearance.backgroundImage === authoredBackgroundImage ? undefined : appearance.backgroundImage,
-  ].filter(Boolean).join(', ') || undefined);
+  ].filter(Boolean).join(', ') || undefined));
   const image = [...(canvas?.elements ?? [])]
     .filter((element) => element.visible !== false && element.type === 'image')
     .sort((left, right) => {
@@ -73,9 +74,9 @@ function ResolvedArtifactThumbnailImage({ card, face }: { card: DisplayCard; fac
 
   return <span style={{
     position: 'absolute', inset: 0, backgroundImage,
-    backgroundPosition: authoredBackgroundImage ? 'center' : appearance.backgroundPosition || 'center',
-    backgroundRepeat: authoredBackgroundImage ? 'no-repeat' : appearance.backgroundRepeat || 'no-repeat',
-    backgroundSize: authoredBackgroundImage ? 'cover' : appearance.backgroundSize || 'cover',
+    backgroundPosition: foundationStyle?.backgroundPosition ?? (authoredBackgroundImage ? 'center' : appearance.backgroundPosition || 'center'),
+    backgroundRepeat: foundationStyle?.backgroundRepeat ?? (authoredBackgroundImage ? 'no-repeat' : appearance.backgroundRepeat || 'no-repeat'),
+    backgroundSize: foundationStyle?.backgroundSize ?? (authoredBackgroundImage ? 'cover' : appearance.backgroundSize || 'cover'),
     backgroundBlendMode: appearance.backgroundBlendMode,
   }}>
     {heroUrl ? <img src={heroUrl} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} /> : null}

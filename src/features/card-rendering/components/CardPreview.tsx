@@ -18,7 +18,7 @@ import { useProjectBinaryAssetResolution, useProjectBinaryAssetUrl, useProjectBi
 import { useMemo, type ReactNode } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/domain/templates';
-import { appearanceToStyle } from '../model/appearance';
+import { appearanceToStyle, authoredCardFoundationStyle } from '../model/appearance';
 import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '../model/elementStyles';
 import { buildTextElementStyle, DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR } from './RichTextContent';
 import { CardTextContent } from './CardTextContent';
@@ -171,6 +171,7 @@ export function CardPreview({
     backgroundRepeat: resolvedCardContentBackground ? 'no-repeat' : templateAppearanceStyle.backgroundRepeat || undefined,
     backgroundPosition: resolvedCardContentBackground ? 'center' : templateAppearanceStyle.backgroundPosition || undefined,
     backgroundBlendMode: templateAppearanceStyle.backgroundBlendMode || undefined,
+    ...authoredCardFoundationStyle(tb, resolvedCardContentBackground, { ...templateAppearanceStyle, backgroundImage: resolvedTemplateAppearanceBackground }),
     boxShadow: templateAppearanceStyle.boxShadow || undefined,
   };
 

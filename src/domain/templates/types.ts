@@ -286,6 +286,8 @@ export interface TCGCardTemplate {
   templatePreviewData?: CardData;
   frameStyle?: string;
   cardBackgroundImageUrl?: string;
+  /** Explicit foundation placement; absent preserves the legacy surface defaults. */
+  cardBackgroundImageFit?: 'cover' | 'contain' | 'fill';
   cardBorderImageSource?: string;
   baseBackgroundColor?: string;
   baseTextColor?: string;

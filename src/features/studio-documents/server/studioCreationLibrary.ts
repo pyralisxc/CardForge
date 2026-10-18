@@ -65,6 +65,7 @@ const templateFrameKitItem = (template: TCGCardTemplate): StudioCreationLibraryI
       trimHeightMm: template.trimHeightMm,
       frameStyle: template.frameStyle ?? 'custom',
       cardBackgroundImageUrl: template.cardBackgroundImageUrl,
+      cardBackgroundImageFit: template.cardBackgroundImageFit,
       cardBorderImageSource: template.cardBorderImageSource,
       baseBackgroundColor: template.baseBackgroundColor,
       baseTextColor: template.baseTextColor,

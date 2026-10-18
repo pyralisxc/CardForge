@@ -42,6 +42,19 @@ const nativeTextElement = (id: string, index = 0) => ({
 });
 
 describe('account Studio documents', () => {
+  it.each(['cover', 'contain', 'fill'] as const)('retains authored foundation %s fit through editable document normalization', (fit) => {
+    const input = gptTemplateDraftInputSchema.parse({
+      title: 'Foundation fit',
+      productionPlan: productionPlan({ width: 630, height: 880 }),
+      template: { name: 'Foundation fit', aspectRatio: '63:88', cardBackgroundImageFit: fit,
+        freeformCanvas: { width: 630, height: 880, elements: [] } },
+    });
+    const document = createProjectDocumentFromTemplateDraft(input, 'foundation-fit-template');
+    expect(document.userTemplates[0].cardBackgroundImageFit).toBe(fit);
+    expect(normalizeStudioDocumentPayload(document)?.userTemplates[0].cardBackgroundImageFit).toBe(fit);
+    expect(gptTemplateDraftInputSchema.safeParse({ ...input, template: { ...input.template, cardBackgroundImageFit: 'tile' } }).success).toBe(false);
+  });
+
   it('turns a planned contributor AI template into a private editable project document', () => {
     const input = gptTemplateDraftInputSchema.parse({
       title: 'Launch proof poster',

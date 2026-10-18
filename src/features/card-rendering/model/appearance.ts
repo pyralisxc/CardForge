@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { AppearanceBorder, AppearanceEffects, AppearanceGradient, AppearanceTexture, FreeformAppearance, FreeformCardElement } from '@/domain/templates';
+import type { AppearanceBorder, AppearanceEffects, AppearanceGradient, AppearanceTexture, FreeformAppearance, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import { isSvgAssetSource } from '@/domain/templates/vectorAssets';
 
 export const gradientToCss = (gradient?: AppearanceGradient): string | undefined => {
@@ -47,6 +47,28 @@ const backgroundLayerCount = (image: string): number => {
     else if (char === ',' && depth === 0) count += 1;
   }
   return count;
+};
+
+/** An explicit foundation fit owns only that image, not independent material layers. */
+export const authoredCardFoundationStyle = (
+  template: Pick<TCGCardTemplate, 'cardBackgroundImageFit'>,
+  foundationImage: string | undefined,
+  appearance: CSSProperties,
+): CSSProperties | undefined => {
+  if (!template.cardBackgroundImageFit || !foundationImage) return undefined;
+  // Legacy normalization may project this same source as a texture as well.
+  // Paint it once; otherwise transparency exposes a differently fitted duplicate.
+  const materialImage = appearance.backgroundImage === foundationImage ? undefined : appearance.backgroundImage;
+  const materialProperty = (property: 'backgroundSize' | 'backgroundRepeat' | 'backgroundPosition', fallback: string) => (
+    appearance[property] || Array.from({ length: backgroundLayerCount(String(materialImage)) }, () => fallback).join(', ')
+  );
+  return {
+    backgroundImage: [foundationImage, materialImage].filter(Boolean).join(', '),
+    backgroundSize: [template.cardBackgroundImageFit === 'fill' ? '100% 100%' : template.cardBackgroundImageFit,
+      ...(materialImage ? [materialProperty('backgroundSize', 'auto')] : [])].join(', '),
+    backgroundRepeat: ['no-repeat', ...(materialImage ? [materialProperty('backgroundRepeat', 'repeat')] : [])].join(', '),
+    backgroundPosition: ['center', ...(materialImage ? [materialProperty('backgroundPosition', '0% 0%')] : [])].join(', '),
+  };
 };
 
 export const appearanceToStyle = (appearance?: FreeformAppearance): CSSProperties => {

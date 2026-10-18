@@ -356,6 +356,18 @@ export function TemplateSettingsPanel({
           />
         </div>
       </div>
+      {currentTemplate.cardBackgroundImageUrl ? <div className="space-y-1.5">
+        <Label htmlFor="maker-foundation-fit">Foundation fit</Label>
+        <Select value={currentTemplate.cardBackgroundImageFit ?? 'cover'} onValueChange={value => onUpdateTemplate({ cardBackgroundImageFit: value as TCGCardTemplate['cardBackgroundImageFit'] })}>
+          <SelectTrigger id="maker-foundation-fit" className={controlClassName}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="cover">Cover · fill and crop</SelectItem>
+            <SelectItem value="contain">Contain · complete image</SelectItem>
+            <SelectItem value="fill">Fill · stretch complete image</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-[10px] leading-4 text-[#818999]">Changes this authored foundation everywhere, including export. Contain can leave the base color visible; Fill changes image proportions. No new bleed artwork is generated.</p>
+      </div> : null}
       <div>
         <Label htmlFor="maker-border-image">Custom border overlay / gradient</Label>
         <div className="flex gap-2">

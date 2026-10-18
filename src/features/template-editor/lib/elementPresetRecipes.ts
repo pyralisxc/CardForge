@@ -132,6 +132,7 @@ export const createFrameKitPresetRecipes = (templates: TCGCardTemplate[]): Eleme
       trimHeightMm: template.trimHeightMm,
       frameStyle: 'custom',
       cardBackgroundImageUrl: template.cardBackgroundImageUrl,
+      cardBackgroundImageFit: template.cardBackgroundImageFit,
       baseBackgroundColor: template.baseBackgroundColor,
       baseTextColor: template.baseTextColor,
       cardBorderColor: template.cardBorderColor,
