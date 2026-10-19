@@ -389,6 +389,16 @@ describe('contributor asset registry commands', () => {
     expect(rpc).toHaveBeenCalledTimes(1);
   });
 
+  it('reports a preparation identity conflict before touching Storage', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: 'contributor_asset_purge_identity_conflict' } });
+    const from = vi.fn();
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc, storage: { from } } as never);
+    await expect(purgePipelineSubmission({ submissionId: 'asset-1', confirmationName: 'Example' }))
+      .rejects.toMatchObject({ status: 409, message: expect.stringContaining('no files were removed by this attempt') });
+    expect(from).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
   it.each([false, null])('does not report success without a true finalization receipt (%s)', async (data) => {
     const rpc = vi.fn().mockResolvedValueOnce({ data: { storageObjects: [] }, error: null })
       .mockResolvedValueOnce({ data, error: null });

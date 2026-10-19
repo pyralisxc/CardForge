@@ -233,6 +233,12 @@ const throwPipelinePurgeError = (errorMessage?: string): never => {
   if (errorMessage?.includes('contributor_asset_purge_confirmation_mismatch')) {
     throw new PipelineRegistryCommandError('Type the exact asset name to confirm permanent deletion.', 400);
   }
+  if (errorMessage?.includes('contributor_asset_purge_identity_conflict')) {
+    throw new PipelineRegistryCommandError(
+      'The deletion identity changed. Refresh the Library before trying again; no files were removed by this attempt.',
+      409,
+    );
+  }
   if (errorMessage?.includes('contributor_asset_storage_reference_incomplete')) {
     throw new PipelineRegistryCommandError(
       'This asset has an incomplete storage reference. Repair it before permanent deletion.',
