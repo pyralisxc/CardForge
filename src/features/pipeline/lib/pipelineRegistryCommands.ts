@@ -589,10 +589,10 @@ export const purgePipelineSubmission = async ({
     }
   }
 
-  const { error: finalizeError } = await supabase.rpc('cardforge_finalize_contributor_asset_purge', {
+  const { data: finalized, error: finalizeError } = await supabase.rpc('cardforge_finalize_contributor_asset_purge', {
     p_submission_id: submissionId,
   });
-  if (finalizeError) {
+  if (finalizeError || finalized !== true) {
     throw new PipelineRegistryCommandError(
       'The file was removed, but the database cleanup still needs to finish. Retry permanent deletion for this asset.',
       503,
