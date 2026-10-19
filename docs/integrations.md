@@ -43,6 +43,10 @@ Presentation-only texture candidates follow Library object details → `/api/own
 
 Revision retention follows the same provider-native boundary: Supabase owns row locks, Vault authorization, and claim/finalize RPCs; `purge-pipeline-revisions` owns Storage deletion between those phases. CardForge never uses a database cascade as a substitute for deleting Storage bytes. The worker can expire inactive never-published reviews, reclaim an abandoned claim after its lease, and retry failures, but it cannot claim live, previously published, held, or registry-referenced revisions. Scheduling remains an explicit operations step after a controlled Staging proof.
 
+Completed public-artwork cleanup follows the existing Owner purge lifecycle. Prepare records exact URL hashes only for published free registry references backed by an existing object in a public Storage bucket. Finalize checks that managed objects are absent and records completion in the same transaction as row cleanup. `/api/catalog/completed-deletions` accepts bounded URL batches, restricts them to this project's public Storage origin, and returns only requested completed matches through a service-only RPC. Prepared tombstones and legacy records without public evidence cannot authorize cleanup; there is no historical backfill.
+
+When a project opens or a saved browser workspace loads, the project document owner removes confirmed deleted image/icon layers and supported texture/background references, forks a Template for card-specific differences, and commits through native IndexedDB recovery/CAS before notifying the creator. Shared data bindings and surviving children are preserved. Unavailable evidence, concurrent workspace/catalog edits, and failed saves do not authorize cleanup. External files are unchanged; this adds no provider autosave, expiry policy, or network-error inference. The forward migration and its isolated SQL fixture require separately authorized Staging validation before rollout.
+
 ## Stripe — checkout, subscriptions, and billing portal
 
 **Provider owns:** hosted Checkout, payment methods, subscription/customer state, the Billing Portal, and webhook delivery.
