@@ -233,6 +233,12 @@ const throwPipelinePurgeError = (errorMessage?: string): never => {
   if (errorMessage?.includes('contributor_asset_purge_confirmation_mismatch')) {
     throw new PipelineRegistryCommandError('Type the exact asset name to confirm permanent deletion.', 400);
   }
+  if (errorMessage?.includes('contributor_asset_purge_identity_conflict')) {
+    throw new PipelineRegistryCommandError(
+      'The deletion identity changed. Refresh the Library before trying again; no files were removed by this attempt.',
+      409,
+    );
+  }
   if (errorMessage?.includes('contributor_asset_storage_reference_incomplete')) {
     throw new PipelineRegistryCommandError(
       'This asset has an incomplete storage reference. Repair it before permanent deletion.',
@@ -589,10 +595,10 @@ export const purgePipelineSubmission = async ({
     }
   }
 
-  const { error: finalizeError } = await supabase.rpc('cardforge_finalize_contributor_asset_purge', {
+  const { data: finalized, error: finalizeError } = await supabase.rpc('cardforge_finalize_contributor_asset_purge', {
     p_submission_id: submissionId,
   });
-  if (finalizeError) {
+  if (finalizeError || finalized !== true) {
     throw new PipelineRegistryCommandError(
       'The file was removed, but the database cleanup still needs to finish. Retry permanent deletion for this asset.',
       503,

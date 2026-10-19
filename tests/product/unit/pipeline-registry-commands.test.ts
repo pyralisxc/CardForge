@@ -373,5 +373,54 @@ describe('contributor asset registry commands', () => {
     expect(rpc).toHaveBeenNthCalledWith(2, 'cardforge_finalize_contributor_asset_purge', {
       p_submission_id: 'asset-1',
     });
+    expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(remove.mock.invocationCallOrder[0]);
+    expect(remove.mock.invocationCallOrder[0]).toBeLessThan(rpc.mock.invocationCallOrder[1]);
+  });
+
+  it('deduplicates managed objects and never finalizes after a Storage failure', async () => {
+    const object = { storageBucket: 'cardforge-contributor-assets', storagePath: 'owner/example.svg' };
+    const rpc = vi.fn().mockResolvedValue({ data: { storageObjects: [object, object] }, error: null });
+    const remove = vi.fn().mockResolvedValue({ error: { message: 'Storage unavailable' } });
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc, storage: { from: vi.fn().mockReturnValue({ remove }) } } as never);
+
+    await expect(purgePipelineSubmission({ submissionId: 'asset-1', confirmationName: 'Example' }))
+      .rejects.toMatchObject({ status: 503, message: expect.stringContaining('recoverable pending state') });
+    expect(remove).toHaveBeenCalledExactlyOnceWith(['owner/example.svg']);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a preparation identity conflict before touching Storage', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: 'contributor_asset_purge_identity_conflict' } });
+    const from = vi.fn();
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc, storage: { from } } as never);
+    await expect(purgePipelineSubmission({ submissionId: 'asset-1', confirmationName: 'Example' }))
+      .rejects.toMatchObject({ status: 409, message: expect.stringContaining('no files were removed by this attempt') });
+    expect(from).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([false, null])('does not report success without a true finalization receipt (%s)', async (data) => {
+    const rpc = vi.fn().mockResolvedValueOnce({ data: { storageObjects: [] }, error: null })
+      .mockResolvedValueOnce({ data, error: null });
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc } as never);
+    await expect(purgePipelineSubmission({ submissionId: 'asset-1', confirmationName: 'Example' }))
+      .rejects.toMatchObject({ status: 503, message: expect.stringContaining('database cleanup still needs to finish') });
+  });
+
+  it('retries the prepared lineage after Storage was removed and database finalization failed', async () => {
+    const prepared = { data: { storageObjects: [{ storageBucket: 'assets', storagePath: 'owner/example.svg' }] }, error: null };
+    const rpc = vi.fn().mockResolvedValueOnce(prepared)
+      .mockResolvedValueOnce({ data: null, error: { message: 'publication history blocked cleanup' } })
+      .mockResolvedValueOnce(prepared).mockResolvedValueOnce({ data: true, error: null });
+    // Native Storage remove succeeds for an already-absent object as well.
+    const remove = vi.fn().mockResolvedValue({ data: [], error: null });
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc, storage: { from: vi.fn().mockReturnValue({ remove }) } } as never);
+    const input = { submissionId: 'asset-1', confirmationName: 'Example' };
+    await expect(purgePipelineSubmission(input)).rejects.toMatchObject({ status: 503 });
+    await expect(purgePipelineSubmission(input)).resolves.toBeUndefined();
+    expect(remove).toHaveBeenCalledTimes(2);
+    expect(rpc).toHaveBeenNthCalledWith(3, 'cardforge_prepare_contributor_asset_purge', {
+      p_submission_id: 'asset-1', p_expected_name: 'Example',
+    });
   });
 });
