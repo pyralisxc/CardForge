@@ -85,6 +85,14 @@ begin
     pg_catalog.convert_to('https://example.invalid/already-retained-history.svg', 'UTF8'), 'sha256'), 'hex');
   insert into public.cardforge_pipeline_asset_lineages(id, registry_asset_id)
   values (lineage, registry_key), (other_lineage, other_asset_id);
+  -- Registry and submission pointers form a cycle. Seed the registry without
+  -- its nullable submission pointer, then link it after the revisions exist.
+  -- Keep constraints and native publication triggers enabled throughout.
+  insert into public.cardforge_asset_registry
+    (asset_id,name,asset_type,url,preview_url,status,access_tier,library_source)
+  values (registry_key,asset_name,'icon',first_source,first_preview,'published','free','contributor'),
+    (other_asset_id,'Untouched control','icon','https://example.invalid/control.svg',
+     'https://example.invalid/control-preview.webp','published','free','contributor');
   insert into public.cardforge_contributor_asset_submissions
     (id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status,calculated_access_tier,
      registry_asset_id,target_registry_asset_id,revision_number,published_at,source_url,preview_url)
@@ -97,11 +105,10 @@ begin
      pg_catalog.now(),'https://example.invalid/control.svg','https://example.invalid/control-preview.webp');
 
   -- Exercise native publication receipts and native deletion cleanup triggers.
-  insert into public.cardforge_asset_registry
-    (asset_id,name,asset_type,url,preview_url,status,access_tier,library_source,contributor_submission_id)
-  values (registry_key,asset_name,'icon',first_source,first_preview,'published','free','contributor',first_id),
-    (other_asset_id,'Untouched control','icon','https://example.invalid/control.svg',
-     'https://example.invalid/control-preview.webp','published','free','contributor',other_id);
+  update public.cardforge_asset_registry set contributor_submission_id = first_id
+    where cardforge_asset_registry.asset_id = registry_key;
+  update public.cardforge_asset_registry set contributor_submission_id = other_id
+    where cardforge_asset_registry.asset_id = other_asset_id;
   update public.cardforge_asset_registry set contributor_submission_id = live_id,
     url = live_source, preview_url = registry_preview where cardforge_asset_registry.asset_id = registry_key;
   if (select count(*) from public.cardforge_pipeline_publication_events e where e.lineage_id = lineage) <> 2
@@ -338,6 +345,10 @@ begin
     registry_key := 'owner-purge-' || scenario || '-' || lineage::text;
     author_id := 'owner-purge-retry-' || lineage::text;
     insert into public.cardforge_pipeline_asset_lineages(id,registry_asset_id) values(lineage,registry_key);
+    insert into public.cardforge_asset_registry
+      (asset_id,name,asset_type,url,status,access_tier,library_source)
+    values(registry_key,'Published survivor','icon','https://example.invalid/retry-survivor.svg',
+      'published','free','contributor');
     insert into public.cardforge_contributor_asset_submissions
       (id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status,registry_asset_id,target_registry_asset_id,
        revision_number,published_at,trashed_at,purge_after,trash_reason,source_url)
@@ -346,10 +357,8 @@ begin
        null,pg_catalog.now()-interval '2 days',pg_catalog.now()-interval '1 day','declined','https://example.invalid/retry-anchor.svg'),
       (survivor_id,lineage,author_id,'icons','Published survivor','published','approved',registry_key,registry_key,2,
        pg_catalog.now(),null,null,null,'https://example.invalid/retry-survivor.svg');
-    insert into public.cardforge_asset_registry
-      (asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id)
-    values(registry_key,'Published survivor','icon','https://example.invalid/retry-survivor.svg',
-      'published','free','contributor',survivor_id);
+    update public.cardforge_asset_registry set contributor_submission_id = survivor_id
+      where cardforge_asset_registry.asset_id = registry_key;
     perform public.cardforge_prepare_contributor_asset_purge(anchor_id, 'Retry anchor');
     select pg_catalog.to_jsonb(t) into tombstone_snapshot from public.cardforge_pipeline_asset_tombstones t where t.asset_id=registry_key;
     if scenario='registry_absent' then
