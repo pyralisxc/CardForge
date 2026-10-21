@@ -371,10 +371,18 @@ begin
        pg_catalog.now(),null,null,null,'https://example.invalid/retry-survivor.svg');
     update public.cardforge_asset_registry set contributor_submission_id = survivor_id
       where cardforge_asset_registry.asset_id = registry_key;
+    if scenario='registry_absent' then
+      -- ON DELETE SET NULL updates submission registry_asset_id. Do that before
+      -- Prepare marks the lineage pending: the native pending-immutability guard
+      -- must reject FK-driven submission edits during a prepared purge.
+      delete from public.cardforge_asset_registry r where r.asset_id=registry_key;
+    end if;
     perform public.cardforge_prepare_contributor_asset_purge(anchor_id, 'Retry anchor');
     select pg_catalog.to_jsonb(t) into tombstone_snapshot from public.cardforge_pipeline_asset_tombstones t where t.asset_id=registry_key;
     if scenario='registry_absent' then
-      delete from public.cardforge_asset_registry r where r.asset_id=registry_key;
+      -- The registry was removed before preparation; verify the prepared
+      -- tombstone still carries the lineage identity through finalization.
+      null;
     else
       -- Ordinary retention can finish an eligible anchor during Owner Storage
       -- cleanup. The already-captured lineage identity must remain sufficient.
