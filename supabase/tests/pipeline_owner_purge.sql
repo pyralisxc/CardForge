@@ -392,7 +392,8 @@ begin
       or not exists(select 1 from public.cardforge_pipeline_asset_lineages l where l.id=lineage)
     then raise exception 'Fixture did not retain publication history before % retry', scenario; end if;
     if not public.cardforge_finalize_contributor_asset_purge(survivor_id)
-      or exists(select 1 from public.cardforge_contributor_asset_submissions s where s.lineage_id=lineage)
+    then raise exception '% retry finalizer returned false', scenario; end if;
+    if exists(select 1 from public.cardforge_contributor_asset_submissions s where s.lineage_id=lineage)
       or exists(select 1 from public.cardforge_pipeline_publication_events e where e.lineage_id=lineage)
       or exists(select 1 from public.cardforge_pipeline_asset_lineages l where l.id=lineage)
       or exists(select 1 from public.cardforge_asset_registry r where r.asset_id=registry_key)
