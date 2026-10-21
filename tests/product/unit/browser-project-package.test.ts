@@ -1,4 +1,6 @@
 import 'fake-indexeddb/auto';
+import { assertPortableSvg } from '@/features/project/lib/portableSvg';
+import { storeBrowserProjectAssetBytes } from '@/features/project/persistence/contentAddressedBrowserAssets';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -171,5 +173,133 @@ describe('browser project package materialization', () => {
     expect(state.storedCards[0]?.setId).toBe(result.setId);
     expect(snapshot.manifest.projectRevision).toMatch(/^[a-f0-9]{64}$/u);
     expect((await createCardForgeProjectPackageBlob(snapshot)).size).toBe(packageBlob.size);
+  });
+});
+
+const remoteArt = 'https://assets.example/storage/v1/object/public/art/card.png';
+const remoteFrame = 'https://assets.example/storage/v1/object/public/art/frame.png';
+const remoteProject = () => {
+  const value = project();
+  value.userTemplates[0].freeformCanvas!.elements = [{ id: 'art', name: 'Artwork', type: 'image', imageSource: '{{artwork}}', x: 0, y: 0, width: 630, height: 880, zIndex: 1 }];
+  value.userTemplates[0].cardBorderImageSource = remoteFrame;
+  value.storedCards[0].data = { artwork: remoteArt, rank: 'K', title: 'QA REV R2 SAVED 20261021', notes: remoteArt };
+  value.cardSets.push({ id: 'second-set', name: 'Other work' });
+  value.storedCards.push({ ...value.storedCards[0], uniqueId: 'second-card', setId: 'second-set', data: { artwork: remoteArt, title: 'Keep other work' } });
+  return value;
+};
+
+describe('remote artwork in portable browser packages', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it('embeds referenced artwork and frame bytes while keeping edits, identities, all Sets and URL-looking text', async () => {
+    setProjectPersistenceScope('guest');
+    const source = remoteProject();
+    const original = structuredClone(source);
+    const fetch = vi.fn(async (url: string) => new Response(url === remoteArt ? 'card-bytes' : 'frame-bytes', { headers: { 'Content-Type': 'image/png' } }));
+    vi.stubGlobal('fetch', fetch);
+    const snapshot = await buildBrowserCardForgeProjectSnapshot({ document: source, name: 'Whole workspace' });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledWith(remoteArt, expect.objectContaining({ mode: 'cors', credentials: 'same-origin', redirect: 'error' }));
+    expect(source).toEqual(original);
+    const reopened = await decodeCardForgeProjectPackage(await createCardForgeProjectPackageBlob(snapshot));
+    expect(reopened.manifest.assets).toHaveLength(2);
+    expect([...reopened.assets.values()].map((bytes) => new TextDecoder().decode(bytes as Uint8Array)).sort()).toEqual(['card-bytes', 'frame-bytes']);
+    const restored = await materializeBrowserProjectSnapshot(reopened);
+    expect(restored.cardSets.map((set) => set.id)).toEqual(source.cardSets.map((set) => set.id));
+    expect(restored.storedCards[0]).toMatchObject({ uniqueId: source.storedCards[0].uniqueId, templateId: source.storedCards[0].templateId, data: { rank: 'K', title: 'QA REV R2 SAVED 20261021', notes: remoteArt } });
+    expect(restored.storedCards[0].data.artwork).toMatch(/^cardforge-browser-asset:\/\//u);
+    expect(restored.userTemplates[0].cardBorderImageSource).toMatch(/^cardforge-browser-asset:\/\//u);
+    expect(restored.storedCards[1].data.artwork).toBe(restored.storedCards[0].data.artwork);
+  });
+
+  it.each(['not-found', 'cors', 'timeout', 'html', 'empty', 'oversized'] as const)('refuses a portable snapshot on %s without modifying authored work', async (failure) => {
+    setProjectPersistenceScope('guest');
+    const source = remoteProject();
+    const original = structuredClone(source);
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      if (failure === 'cors') throw new TypeError('Failed to fetch');
+      if (failure === 'timeout') throw new DOMException('Timed out', 'TimeoutError');
+      return new Response(failure === 'empty' ? '' : 'bytes', { status: failure === 'not-found' ? 404 : 200, headers: { 'Content-Type': failure === 'html' ? 'text/html' : 'image/png', ...(failure === 'oversized' ? { 'Content-Length': String(33 * 1024 * 1024) } : {}) } });
+    }));
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: source, name: 'Must fail' })).rejects.toThrow(/artwork|asset limit/iu);
+    expect(source).toEqual(original);
+  });
+
+  it.each(['http://example.com/image.png', 'https://user:password@example.com/image.png', 'file:///tmp/image.png', '{{host}}/image.png', 'https://example.com/sprite.svg#specific-view'])('does not fetch unsafe or unportable media %s', async (url) => {
+    setProjectPersistenceScope('guest');
+    const source = remoteProject();
+    source.storedCards[0].data.artwork = url;
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: source, name: 'Must fail' })).rejects.toThrow();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(['image-set("frame.png" 1x)', String.raw`u\72l(frame.png)`, "url(data:image/png;base64,AAAA), url('/frame.png')", "url('/frame.png')", "url('//cdn.example/frame.png')", "url('https://cdn.example/frame.png')"])('rejects unresolved CSS artwork %s', async (css) => {
+    setProjectPersistenceScope('guest');
+    const source = project();
+    source.userTemplates[0].appearance = { rawCss: { backgroundImage: css } };
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: source, name: 'CSS dependency' })).rejects.toThrow(/CSS/);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(['./frame.png', '../frame.png', 'art/frame.png', 'frame.png', 'frame.avif', 'frame', 'css:url(https://example.com/frame.png)'])('rejects unresolved typed artwork %s', async (url) => {
+    setProjectPersistenceScope('guest');
+    const source = project();
+    source.userTemplates[0].cardBorderImageSource = url;
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: source, name: 'Linked frame' })).rejects.toThrow();
+  });
+
+  it.each(['remote', 'data', 'local'] as const)('rejects nested SVG dependencies from %s artwork', async (kind) => {
+    setProjectPersistenceScope('guest');
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><image href="art/frame.png" /></svg>';
+    const source = project();
+    const inline = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    source.userTemplates[0].cardBorderImageSource = kind === 'local'
+      ? await storeBrowserProjectAssetBytes({ scope: 'guest', assetId: 'a'.repeat(64), mimeType: 'image/svg+xml', bytes: new TextEncoder().encode(svg) })
+      : kind === 'data' ? inline : 'https://example.com/frame.svg';
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(svg, { headers: { 'Content-Type': 'image/svg+xml' } })));
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: source, name: 'Nested SVG' })).rejects.toThrow(/SVG/);
+  });
+
+  it('enforces the actual streamed size even without Content-Length', async () => {
+    setProjectPersistenceScope('guest');
+    const cancel = vi.fn();
+    const chunk = new Uint8Array(1024 * 1024);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new ReadableStream({ pull(controller) { controller.enqueue(chunk); }, cancel }), { headers: { 'Content-Type': 'image/png' } })));
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: remoteProject(), name: 'Too large' })).rejects.toThrow('32 MB');
+    expect(cancel).toHaveBeenCalled();
+  });
+
+  it('rejects an account switch during capture', async () => {
+    setProjectPersistenceScope('guest');
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      setProjectPersistenceScope('account:different');
+      return new Response('image', { headers: { 'Content-Type': 'image/png' } });
+    }));
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: remoteProject(), name: 'Changed owner' })).rejects.toThrow('account changed');
+  });
+});
+
+
+describe('portable SVG dependency proof', () => {
+  it.each([
+    '<svg><style>@import "frame.css";</style></svg>',
+    '<svg><image href="data:image/svg+xml,encoded" /></svg>',
+    '<svg><image href="&#104;ttps://example.com/frame.png" /></svg>',
+    '<svg style="fill:url(other.svg#paint)" />',
+    '<svg><foreignObject /></svg>',
+    '<svg xmlns:s="http://www.w3.org/2000/svg"><s:script>fetch("remote")</s:script></svg>',
+  ])('rejects unsupported dependency construct %s', (svg) => {
+    expect(() => assertPortableSvg(new TextEncoder().encode(svg))).toThrow(/SVG/);
+  });
+  it('rejects UTF-16 bytes that would conceal links from UTF-8 inspection', () => {
+    const svg = '<svg><image href="frame.png" /></svg>';
+    const bytes = new Uint8Array(svg.length * 2);
+    [...svg].forEach((char, index) => { bytes[index * 2 + 1] = char.charCodeAt(0); });
+    expect(() => assertPortableSvg(bytes)).toThrow(/UTF-8/);
+  });
+  it('preserves self-contained geometry and internal paint/use references', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="paint"/><path id="shape" d="M0 0"/></defs><use href="#shape" fill="url(#paint)"/></svg>';
+    expect(() => assertPortableSvg(new TextEncoder().encode(svg))).not.toThrow();
   });
 });

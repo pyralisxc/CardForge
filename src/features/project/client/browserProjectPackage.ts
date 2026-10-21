@@ -15,6 +15,8 @@ import {
 } from '../persistence/contentAddressedBrowserAssets';
 import { getProjectPersistenceScope } from '../persistence/projectPersistenceScope';
 
+import { capturePortableRemoteArtwork } from './portableRemoteArtwork';
+
 export const materializeBrowserProjectSnapshot = async (
   snapshot: Awaited<ReturnType<typeof decodeCardForgeProjectPackage>>,
 ): Promise<DecodedProjectFile['document']> => {
@@ -60,9 +62,11 @@ export const buildBrowserCardForgeProjectSnapshot = async (
   if (scope === 'unscoped-disabled') {
     throw new Error('CardForge cannot package browser artwork before the workspace owner is known.');
   }
+  const captured = await capturePortableRemoteArtwork(options.document);
   const snapshot = await buildCardForgeProjectSnapshot({
     ...options,
-    resolveAssetReference: (reference) => readBrowserProjectAssetSource(reference, scope),
+    document: captured.document,
+    resolveAssetReference: async (reference) => captured.assets.get(reference) ?? readBrowserProjectAssetSource(reference, scope),
   });
   if (getProjectPersistenceScope() !== scope) throw new Error('The workspace account changed while the project package was being prepared.');
   return snapshot;

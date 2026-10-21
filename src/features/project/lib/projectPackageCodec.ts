@@ -1,3 +1,4 @@
+import { assertPortableSvg } from './portableSvg';
 import {
   BlobReader,
   TextWriter,
@@ -129,6 +130,7 @@ const externalizeProjectAssets = async (
       if (!(verificationBytes instanceof Uint8Array) || verificationBytes.byteLength !== declaredSize) {
         throw new ProjectPackageError('One portable project asset changed while its package manifest was being prepared.');
       }
+      if (resolved.mimeType === 'image/svg+xml') assertPortableSvg(verificationBytes);
       const id = await hashBytes(verificationBytes);
       if (!assets.has(id)) {
         if (assets.size >= MAX_PROJECT_PACKAGE_ASSETS) {
