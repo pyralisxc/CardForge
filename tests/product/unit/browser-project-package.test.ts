@@ -173,3 +173,88 @@ describe('browser project package materialization', () => {
     expect((await createCardForgeProjectPackageBlob(snapshot)).size).toBe(packageBlob.size);
   });
 });
+
+const remoteArt = 'https://assets.example/storage/v1/object/public/art/card.png';
+const remoteFrame = 'https://assets.example/storage/v1/object/public/art/frame.png';
+const remoteProject = () => {
+  const value = project();
+  value.userTemplates[0].freeformCanvas!.elements = [{ id: 'art', name: 'Artwork', type: 'image', imageSource: '{{artwork}}', x: 0, y: 0, width: 630, height: 880, zIndex: 1 }];
+  value.userTemplates[0].cardBorderImageSource = remoteFrame;
+  value.storedCards[0].data = { artwork: remoteArt, rank: 'K', title: 'QA REV R2 SAVED 20261021', notes: remoteArt };
+  value.cardSets.push({ id: 'second-set', name: 'Other work' });
+  value.storedCards.push({ ...value.storedCards[0], uniqueId: 'second-card', setId: 'second-set', data: { artwork: remoteArt, title: 'Keep other work' } });
+  return value;
+};
+
+describe('remote artwork in portable browser packages', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it('embeds referenced artwork and frame bytes while keeping edits, identities, all Sets and URL-looking text', async () => {
+    setProjectPersistenceScope('guest');
+    const source = remoteProject();
+    const original = structuredClone(source);
+    const fetch = vi.fn(async (url: string) => new Response(url === remoteArt ? 'card-bytes' : 'frame-bytes', { headers: { 'Content-Type': 'image/png' } }));
+    vi.stubGlobal('fetch', fetch);
+    const snapshot = await buildBrowserCardForgeProjectSnapshot({ document: source, name: 'Whole workspace' });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledWith(remoteArt, expect.objectContaining({ mode: 'cors', credentials: 'same-origin', redirect: 'error' }));
+    expect(source).toEqual(original);
+    const reopened = await decodeCardForgeProjectPackage(await createCardForgeProjectPackageBlob(snapshot));
+    expect(reopened.manifest.assets).toHaveLength(2);
+    expect([...reopened.assets.values()].map((bytes) => new TextDecoder().decode(bytes as Uint8Array)).sort()).toEqual(['card-bytes', 'frame-bytes']);
+    const restored = await materializeBrowserProjectSnapshot(reopened);
+    expect(restored.cardSets.map((set) => set.id)).toEqual(source.cardSets.map((set) => set.id));
+    expect(restored.storedCards[0]).toMatchObject({ uniqueId: source.storedCards[0].uniqueId, templateId: source.storedCards[0].templateId, data: { rank: 'K', title: 'QA REV R2 SAVED 20261021', notes: remoteArt } });
+    expect(restored.storedCards[0].data.artwork).toMatch(/^cardforge-browser-asset:\/\//u);
+    expect(restored.userTemplates[0].cardBorderImageSource).toMatch(/^cardforge-browser-asset:\/\//u);
+    expect(restored.storedCards[1].data.artwork).toBe(restored.storedCards[0].data.artwork);
+  });
+
+  it.each(['not-found', 'cors', 'timeout', 'html', 'empty', 'oversized'] as const)('refuses a portable snapshot on %s without modifying authored work', async (failure) => {
+    setProjectPersistenceScope('guest');
+    const source = remoteProject();
+    const original = structuredClone(source);
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      if (failure === 'cors') throw new TypeError('Failed to fetch');
+      if (failure === 'timeout') throw new DOMException('Timed out', 'TimeoutError');
+      return new Response(failure === 'empty' ? '' : 'bytes', { status: failure === 'not-found' ? 404 : 200, headers: { 'Content-Type': failure === 'html' ? 'text/html' : 'image/png', ...(failure === 'oversized' ? { 'Content-Length': String(33 * 1024 * 1024) } : {}) } });
+    }));
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: source, name: 'Must fail' })).rejects.toThrow(/artwork|asset limit/iu);
+    expect(source).toEqual(original);
+  });
+
+  it.each(['http://example.com/image.png', 'https://user:password@example.com/image.png', 'file:///tmp/image.png', '{{host}}/image.png', 'https://example.com/sprite.svg#specific-view'])('does not fetch unsafe or unportable media %s', async (url) => {
+    setProjectPersistenceScope('guest');
+    const source = remoteProject();
+    source.storedCards[0].data.artwork = url;
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: source, name: 'Must fail' })).rejects.toThrow();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(["url(data:image/png;base64,AAAA), url('/frame.png')", "url('/frame.png')", "url('//cdn.example/frame.png')", "url('https://cdn.example/frame.png')"])('rejects unresolved CSS artwork %s', async (css) => {
+    setProjectPersistenceScope('guest');
+    const source = project();
+    source.userTemplates[0].appearance = { rawCss: { backgroundImage: css } };
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: source, name: 'CSS dependency' })).rejects.toThrow('CSS artwork');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('enforces the actual streamed size even without Content-Length', async () => {
+    setProjectPersistenceScope('guest');
+    const cancel = vi.fn();
+    const chunk = new Uint8Array(1024 * 1024);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new ReadableStream({ pull(controller) { controller.enqueue(chunk); }, cancel }), { headers: { 'Content-Type': 'image/png' } })));
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: remoteProject(), name: 'Too large' })).rejects.toThrow('32 MB');
+    expect(cancel).toHaveBeenCalled();
+  });
+
+  it('rejects an account switch during capture', async () => {
+    setProjectPersistenceScope('guest');
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      setProjectPersistenceScope('account:different');
+      return new Response('image', { headers: { 'Content-Type': 'image/png' } });
+    }));
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: remoteProject(), name: 'Changed owner' })).rejects.toThrow('account changed');
+  });
+});

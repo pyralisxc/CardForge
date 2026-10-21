@@ -240,3 +240,63 @@ test(`@golden keeps complete SVG ${variant} Stretch composition in the native ca
   await testInfo.attach('svg-stretch-actual-export', { body: exported, contentType: 'image/png' });
 });
 }
+
+test('downloads a whole-workspace package with remote artwork and frame bytes or fails without a download', async ({ page }, testInfo) => {
+  const artUrl = 'https://portable-art.example/card.png';
+  const frameUrl = 'https://portable-art.example/frame.png';
+  const art = await sharp({ create: { width: 32, height: 32, channels: 4, background: '#4f7dc8' } }).png().toBuffer();
+  const frame = await sharp({ create: { width: 32, height: 32, channels: 4, background: '#aabbaa' } }).png().toBuffer();
+  await page.route('https://portable-art.example/**', (route) => route.fulfill({ body: route.request().url() === artUrl ? art : frame, contentType: 'image/png', headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' } }));
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, additionalSets: 1, exportSample: true, templatePatch: { cardBorderImageSource: frameUrl } });
+  await page.evaluate(async (url) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('cardforge-browser-storage', 1); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('key-value', 'readwrite');
+      const store = tx.objectStore('key-value');
+      for (const scope of ['guest', 'local']) {
+        const key = `project-workspace:${scope}:workspace`;
+        const request = store.get(key);
+        request.onsuccess = () => {
+          const record = JSON.parse(request.result);
+          const value = JSON.parse(record.value);
+          for (const card of value.state.storedCards) card.data.artwork = url;
+          value.state.storedCards[0].data.cardName = 'QA REV R2 SAVED 20261021';
+          value.state.storedCards[0].data.rank = 'K';
+          record.value = JSON.stringify(value);
+          store.put(JSON.stringify(record), key);
+        };
+      }
+      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }, artUrl);
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
+  await page.locator('button[data-artifact-id="scale-card-1"]').press('Enter');
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download project', exact: true }).click();
+  const download = await downloading;
+  const path = testInfo.outputPath('remote-artwork.cardforge');
+  await download.saveAs(path);
+  expect(await download.failure()).toBeNull();
+  const zip = await JSZip.loadAsync(await readFile(path));
+  const manifest = JSON.parse(await zip.file('cardforge-project.json')!.async('string'));
+  expect(manifest.assets.filter((asset: { mimeType: string }) => asset.mimeType === 'image/png')).toHaveLength(2);
+  expect(manifest.project.cardSets).toHaveLength(2);
+  expect(manifest.project.artifacts).toHaveLength(2);
+  expect(JSON.stringify(manifest.project)).toContain('QA REV R2 SAVED 20261021');
+  expect(JSON.stringify(manifest.project)).not.toContain('portable-art.example');
+  const bytes = await Promise.all(manifest.assets.map((asset: { path: string }) => zip.file(asset.path)!.async('nodebuffer')));
+  expect(bytes.some((value: Buffer) => value.equals(art))).toBe(true);
+  expect(bytes.some((value: Buffer) => value.equals(frame))).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('portable-download.png') });
+
+  await page.unroute('https://portable-art.example/**');
+  await page.route('https://portable-art.example/**', (route) => route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' } }));
+  let extraDownloads = 0;
+  page.on('download', () => { extraDownloads += 1; });
+  await page.getByRole('button', { name: 'Download project', exact: true }).click();
+  await expect(page.getByText('Project not exported', { exact: true })).toBeVisible();
+  expect(extraDownloads).toBe(0);
+});
