@@ -27,6 +27,8 @@ import { externalizeBrowserProjectAssetJson } from '../persistence/contentAddres
 import { selectAllTemplates } from '../store/selectors';
 import { createProjectWorkspaceDraft, useProjectStore, type ProjectState } from '../store/workspaceStore';
 
+import { prepareCompletedDeletionCleanup, notifyCompletedDeletionCleanup } from './completedDeletionCleanup';
+
 export type ProjectWorkspaceApplyMode = 'replace' | 'merge' | 'copy' | 'adopt';
 
 export interface ProjectWorkspaceApplySummary {
@@ -251,6 +253,31 @@ export const applyProjectDocumentToWorkspace = async (
 ): Promise<ProjectWorkspaceApplySummary> => {
   options.signal?.throwIfAborted();
   const draft = createProjectWorkspaceDraft(options.expectedState);
+  const cleanup = await prepareCompletedDeletionCleanup(document, options.signal);
+  return applyPreparedProjectDocument(draft, cleanup, mode, options);
+};
+
+/** Once per opening of a saved local workspace; concurrent edits cancel the commit. */
+export const cleanCurrentWorkspaceCompletedDeletions = async (signal?: AbortSignal) => {
+  const draft = createProjectWorkspaceDraft();
+  const storage = createBrowserKeyValueStorage(getScopedProjectStorageNamespace('project-assets', getProjectPersistenceScope()));
+  const catalogKeys = [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
+    CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_FONT_ASSETS_STORAGE_KEY];
+  // Snapshot CAS expectations before any asynchronous evidence lookup. Catalog
+  // edits need not change Zustand and must not be overwritten by older content.
+  const expectedCatalogValues = Object.fromEntries(await Promise.all(catalogKeys.map(async (key) => [key, await storage.getItem(key)] as const)));
+  const document = await captureCurrentProjectDocument();
+  const cleanup = await prepareCompletedDeletionCleanup(document, signal);
+  if (cleanup.changed) await applyPreparedProjectDocument(draft, cleanup, 'replace', { signal, expectedCatalogValues });
+};
+
+const applyPreparedProjectDocument = async (
+  draft: ReturnType<typeof createProjectWorkspaceDraft>,
+  cleanup: Awaited<ReturnType<typeof prepareCompletedDeletionCleanup>>,
+  mode: ProjectWorkspaceApplyMode,
+  options: { replaceSetIds?: readonly string[]; signal?: AbortSignal; expectedCatalogValues?: Record<string, string | null> },
+): Promise<ProjectWorkspaceApplySummary> => {
+  const document = cleanup.document;
   const independent = mode === 'copy'
     ? restoreCopiedSetTemplateReferences(
         document,
@@ -269,7 +296,8 @@ export const applyProjectDocumentToWorkspace = async (
   const storage = createBrowserKeyValueStorage(assetNamespace);
   const incomingCatalogs: Record<string, unknown[]> = { ...patch.customAssets, [CUSTOM_FONT_ASSETS_STORAGE_KEY]: patch.customFonts };
   const relatedWrites = await Promise.all(Object.entries(incomingCatalogs).map(async ([key, incoming]) => {
-    const expectedValue = await storage.getItem(key);
+    const expectedValue = options.expectedCatalogValues && Object.hasOwn(options.expectedCatalogValues, key)
+      ? options.expectedCatalogValues[key] : await storage.getItem(key);
     // Explicit whole-workspace recovery can replace an unreadable catalog; the
     // native transaction preserves its exact original bytes in the recovery map.
     const current: unknown = writeMode === 'replace' || expectedValue === null ? [] : JSON.parse(expectedValue);
@@ -342,6 +370,7 @@ export const applyProjectDocumentToWorkspace = async (
 
   options.signal?.throwIfAborted();
   await draft.commit(relatedWrites, options.signal);
+  if (cleanup.changed) notifyCompletedDeletionCleanup();
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(PROJECT_FONT_LIBRARY_CHANGE_EVENT));
   return {
     activeSetId: activeSet?.id ?? null,
