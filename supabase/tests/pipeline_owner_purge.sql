@@ -240,9 +240,17 @@ begin
     or exists(select 1 from public.cardforge_pipeline_asset_hearts h where h.lineage_id=lineage)
     or exists(select 1 from public.cardforge_contributor_asset_votes v where v.lineage_id=lineage)
   then raise exception 'Full Owner lineage cleanup left fixture history behind'; end if;
-  if (select pg_catalog.to_jsonb(t) from public.cardforge_pipeline_asset_tombstones t where t.asset_id=registry_key)
-    is distinct from tombstone_snapshot
-  then raise exception 'Finalization changed or removed retained deletion identity'; end if;
+  -- Finalization is expected to set completed_at; every other tombstone field
+  -- must remain byte-for-byte equivalent in JSON representation. The original
+  -- snapshot must be incomplete, and successful finalization must complete it.
+  if tombstone_snapshot->>'completed_at' is not null
+    or (select pg_catalog.to_jsonb(t) - 'completed_at'
+        from public.cardforge_pipeline_asset_tombstones t where t.asset_id=registry_key)
+      is distinct from (tombstone_snapshot - 'completed_at')
+    or not exists (select 1 from public.cardforge_pipeline_asset_tombstones t
+      where t.asset_id=registry_key and t.completed_at is not null
+        and t.completed_at >= t.identity_captured_at)
+  then raise exception 'Finalization changed retained deletion identity or failed to record completion'; end if;
   begin
     perform public.cardforge_finalize_contributor_asset_purge(live_id);
     raise exception 'Missing submission unexpectedly finalized again';
