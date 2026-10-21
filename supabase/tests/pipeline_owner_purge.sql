@@ -313,10 +313,14 @@ begin
   then raise exception 'Rejected pending-state purge changed its fixture'; end if;
 
   perform public.cardforge_prepare_contributor_asset_purge(draft_id, 'Unpublished draft');
+  -- Keep the mutating function call separate from the visibility assertions:
+  -- subqueries in the same SQL expression can retain the caller statement snapshot
+  -- and observe pre-finalization rows even after the volatile function mutates them.
   if not public.cardforge_finalize_contributor_asset_purge(draft_id)
-    or exists(select 1 from public.cardforge_pipeline_asset_lineages l where l.id=draft_lineage)
+  then raise exception 'Eventless unpublished finalizer returned false'; end if;
+  if exists(select 1 from public.cardforge_pipeline_asset_lineages l where l.id=draft_lineage)
     or exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=draft_id)
-  then raise exception 'Eventless unpublished lineage no longer purges'; end if;
+  then raise exception 'Eventless unpublished lineage or submission remains after finalization'; end if;
 
   -- An inconsistent receipt without a stable registry binding is not authority
   -- to erase history through the eventless-unpublished exception.
