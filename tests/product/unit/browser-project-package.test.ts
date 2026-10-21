@@ -1,4 +1,6 @@
 import 'fake-indexeddb/auto';
+import { assertPortableSvg } from '@/features/project/lib/portableSvg';
+import { storeBrowserProjectAssetBytes } from '@/features/project/persistence/contentAddressedBrowserAssets';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -231,13 +233,32 @@ describe('remote artwork in portable browser packages', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it.each(["url(data:image/png;base64,AAAA), url('/frame.png')", "url('/frame.png')", "url('//cdn.example/frame.png')", "url('https://cdn.example/frame.png')"])('rejects unresolved CSS artwork %s', async (css) => {
+  it.each(['image-set("frame.png" 1x)', String.raw`u\72l(frame.png)`, "url(data:image/png;base64,AAAA), url('/frame.png')", "url('/frame.png')", "url('//cdn.example/frame.png')", "url('https://cdn.example/frame.png')"])('rejects unresolved CSS artwork %s', async (css) => {
     setProjectPersistenceScope('guest');
     const source = project();
     source.userTemplates[0].appearance = { rawCss: { backgroundImage: css } };
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
-    await expect(buildBrowserCardForgeProjectSnapshot({ document: source, name: 'CSS dependency' })).rejects.toThrow('CSS artwork');
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: source, name: 'CSS dependency' })).rejects.toThrow(/CSS/);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(['./frame.png', '../frame.png', 'art/frame.png', 'frame.png', 'frame.avif', 'frame', 'css:url(https://example.com/frame.png)'])('rejects unresolved typed artwork %s', async (url) => {
+    setProjectPersistenceScope('guest');
+    const source = project();
+    source.userTemplates[0].cardBorderImageSource = url;
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: source, name: 'Linked frame' })).rejects.toThrow();
+  });
+
+  it.each(['remote', 'data', 'local'] as const)('rejects nested SVG dependencies from %s artwork', async (kind) => {
+    setProjectPersistenceScope('guest');
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><image href="art/frame.png" /></svg>';
+    const source = project();
+    const inline = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    source.userTemplates[0].cardBorderImageSource = kind === 'local'
+      ? await storeBrowserProjectAssetBytes({ scope: 'guest', assetId: 'a'.repeat(64), mimeType: 'image/svg+xml', bytes: new TextEncoder().encode(svg) })
+      : kind === 'data' ? inline : 'https://example.com/frame.svg';
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(svg, { headers: { 'Content-Type': 'image/svg+xml' } })));
+    await expect(buildBrowserCardForgeProjectSnapshot({ document: source, name: 'Nested SVG' })).rejects.toThrow(/SVG/);
   });
 
   it('enforces the actual streamed size even without Content-Length', async () => {
@@ -256,5 +277,29 @@ describe('remote artwork in portable browser packages', () => {
       return new Response('image', { headers: { 'Content-Type': 'image/png' } });
     }));
     await expect(buildBrowserCardForgeProjectSnapshot({ document: remoteProject(), name: 'Changed owner' })).rejects.toThrow('account changed');
+  });
+});
+
+
+describe('portable SVG dependency proof', () => {
+  it.each([
+    '<svg><style>@import "frame.css";</style></svg>',
+    '<svg><image href="data:image/svg+xml,encoded" /></svg>',
+    '<svg><image href="&#104;ttps://example.com/frame.png" /></svg>',
+    '<svg style="fill:url(other.svg#paint)" />',
+    '<svg><foreignObject /></svg>',
+    '<svg xmlns:s="http://www.w3.org/2000/svg"><s:script>fetch("remote")</s:script></svg>',
+  ])('rejects unsupported dependency construct %s', (svg) => {
+    expect(() => assertPortableSvg(new TextEncoder().encode(svg))).toThrow(/SVG/);
+  });
+  it('rejects UTF-16 bytes that would conceal links from UTF-8 inspection', () => {
+    const svg = '<svg><image href="frame.png" /></svg>';
+    const bytes = new Uint8Array(svg.length * 2);
+    [...svg].forEach((char, index) => { bytes[index * 2 + 1] = char.charCodeAt(0); });
+    expect(() => assertPortableSvg(bytes)).toThrow(/UTF-8/);
+  });
+  it('preserves self-contained geometry and internal paint/use references', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="paint"/><path id="shape" d="M0 0"/></defs><use href="#shape" fill="url(#paint)"/></svg>';
+    expect(() => assertPortableSvg(new TextEncoder().encode(svg))).not.toThrow();
   });
 });

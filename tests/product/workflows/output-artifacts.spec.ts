@@ -38,7 +38,7 @@ test('does not download a success artifact when authored artwork fails to load',
   page.on('download', () => { downloads += 1; });
   await page.getByTestId('single-card-export-trigger').click();
   await page.getByTestId('single-card-export-png-front').click();
-  await expect(page.getByText(/A card image could not be loaded/)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Notifications (F8)' }).getByText(/A card image could not be loaded/)).toBeVisible();
   expect(downloads).toBe(0);
   for (const close of await page.getByRole('button', { name: 'Close notification', exact: true }).all()) {
     if (await close.isVisible()) await close.click();

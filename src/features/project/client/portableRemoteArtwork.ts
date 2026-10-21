@@ -58,9 +58,9 @@ export async function capturePortableRemoteArtwork(source: ProjectDocumentV1) {
   const assets = new Map<string, ResolvedProjectPackageAssetReference>();
   const captured = new Map<string, string>();
   let totalBytes = 0;
-  const media = async (value: string | undefined): Promise<string | undefined> => {
-    if (!value || /^(?:data:|css:|cardforge-browser-asset:|cardforge-project-asset:)/u.test(value)) return value;
-    if (/url\s*\(/iu.test(value) && !/^url\(\s*(['"]?)(?:data:[^()]*|#[^()]*)\1\s*\)$/iu.test(value)) throw new ProjectPackageError('Linked CSS artwork cannot be packaged. Import it as an image first.');
+  const media = async (value: string | undefined, allowFieldName = false): Promise<string | undefined> => {
+    if (!value || /^(?:data:|cardforge-browser-asset:|cardforge-project-asset:)/u.test(value)) return value;
+    if (/url\s*\(/iu.test(value)) throw new ProjectPackageError('Linked CSS artwork cannot be packaged. Import it as an image first.');
     // Compound CSS/bindings cannot carry the codec's whole-value asset reference.
     // Fail explicitly rather than claim an offline package with remote dependencies.
     if (value.includes('{{') && !/^\{\{\s*[A-Za-z_][\w.-]*\s*\}\}$/u.test(value)) throw new ProjectPackageError('Compound artwork bindings cannot be packaged. Import the resolved image first.');
@@ -69,7 +69,12 @@ export async function capturePortableRemoteArtwork(source: ProjectDocumentV1) {
     }
     if (!/^(?:https?:|blob:|\/)/iu.test(value)) {
       if (/^[a-z][a-z\d+.-]*:/iu.test(value)) throw unavailable();
-      return value; // A field name or template binding, not a fetched resource.
+      if (value.includes('/') || /\.(?:png|jpe?g|gif|webp|svg)(?:[?#].*)?$/iu.test(value)) throw new ProjectPackageError('Relative artwork paths cannot be packaged. Import the image or use an absolute image URL first.');
+      if (/^\{\{\s*[A-Za-z_][\w.-]*\s*\}\}$/u.test(value)
+        || (allowFieldName && /^[A-Za-z_][\w.-]*$/u.test(value))
+        || value === 'none'
+        || (/^(?:linear|radial|conic|repeating-linear|repeating-radial|repeating-conic)-gradient\(/u.test(value) && /^[\w\s(),.%#+-]+$/u.test(value))) return value;
+      throw new ProjectPackageError('Artwork contains an unsupported relative path or CSS dependency. Import the image or use an absolute image URL first.');
     }
     const previous = captured.get(value);
     if (previous) return previous;
@@ -103,9 +108,9 @@ export async function capturePortableRemoteArtwork(source: ProjectDocumentV1) {
     }
   };
   const element = async (value: Partial<FreeformCardElement>) => {
-    value.imageSource = await media(value.imageSource);
+    value.imageSource = await media(value.imageSource, true);
     if (value.type === 'image') {
-      value.content = await media(value.content);
+      value.content = await media(value.content, true);
     }
     value.iconImageSource = await media(value.iconImageSource);
     value.backgroundImageUrl = await media(value.backgroundImageUrl);
