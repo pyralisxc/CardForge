@@ -7,7 +7,8 @@ import { Archive, Check, Download, Eye, Loader2, Save, Sparkles, X } from 'lucid
 import { MediaPresentationPreview } from './MediaPresentationRevision';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { renderCardToPngBlob } from '@/features/card-generator/client';
+import { createCardFaceExportRenderer } from '@/features/card-generator/lib/cardPreviewExport';
+import { getExportProfile } from '@/features/card-generator/lib/printValidation';
 import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
 import { ContentQualityGuidance } from '@/features/pipeline/components/ContentQualityGuidance';
 import {
@@ -583,12 +584,14 @@ function TemplateComparisonPreview({
     if (!specimen || isExporting) return;
     setIsExporting(true);
     try {
-      const blob = await renderCardToPngBlob(
-        specimen.card,
-        'physical',
-        PIPELINE_TEMPLATE_SPECIMEN_DPI,
-        specimen.face,
-      );
+      const profile = { ...getExportProfile('physical', PIPELINE_TEMPLATE_SPECIMEN_DPI), canvasPixelRatio: 1 };
+      const renderer = createCardFaceExportRenderer(profile);
+      let blob: Blob;
+      try {
+        blob = await renderer.renderToBlob(specimen.card, specimen.face);
+      } finally {
+        renderer.cleanup();
+      }
       if (blob.type !== 'image/png') throw new Error('The canonical renderer did not return a PNG specimen.');
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -598,7 +601,7 @@ function TemplateComparisonPreview({
       URL.revokeObjectURL(url);
       toast({
         title: source === 'candidate' ? 'Exact candidate specimen exported' : 'Current live specimen exported',
-        description: `${specimen.widthPx} × ${specimen.heightPx}px at ${PIPELINE_TEMPLATE_SPECIMEN_DPI} DPI. Submission ${specimen.submissionId}, revision ${specimen.revisionNumber ?? 'unknown'}, pinned base ${specimen.baseRevisionNumber ?? 'unknown'}.`,
+        description: `Source canvas ${specimen.widthPx} × ${specimen.heightPx}px (${PIPELINE_TEMPLATE_SPECIMEN_DPI} DPI). Submission ${specimen.submissionId}, revision ${specimen.revisionNumber ?? 'unknown'}, pinned base ${specimen.baseRevisionNumber ?? 'unknown'}.`,
       });
     } catch (error) {
       toast({
