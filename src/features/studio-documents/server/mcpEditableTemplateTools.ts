@@ -29,7 +29,6 @@ import {
 } from './mcpToolInputSchemas';
 import {
   editableTemplateListOutputSchema,
-  editableTemplateListStructuredContent,
   editableTemplateOutputSchema,
   editableTemplateSummaryOutputSchema,
   pipelineHandoffOutputSchema,
@@ -37,6 +36,7 @@ import {
   studioLibrarySearchOutputSchema,
 } from './mcpToolOutputSchemas';
 import {
+  editableTemplateListStructuredContent,
   editableTemplateSummaryForMcp,
   omitEmbeddedMediaForMcp,
 } from './mcpTemplateToolResults';

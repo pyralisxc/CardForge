@@ -56,3 +56,13 @@ export const editableTemplateSummaryForMcp = (
     openInStudioUrl,
   };
 };
+
+
+export const editableTemplateListStructuredContent = (page: {
+  documents: unknown[];
+  hasMore: boolean;
+  nextCursor?: number | null;
+}) => ({
+  documents: page.documents,
+  hasMore: page.hasMore,
+});

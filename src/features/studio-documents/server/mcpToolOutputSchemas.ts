@@ -99,13 +99,6 @@ export const editableTemplateListOutputSchema = objectOutput(['documents', 'hasM
   hasMore: { type: 'boolean' },
 });
 
-export const editableTemplateListStructuredContent = (page: {
-  documents: unknown[];
-  hasMore: boolean;
-}) => ({
-  documents: page.documents,
-  hasMore: page.hasMore,
-});
 
 export const editableTemplateOutputSchema = objectOutput(
   ['document', 'planningLocked', 'planningDecisionMode', 'editableImageFieldKeys', 'openInStudioUrl'],
