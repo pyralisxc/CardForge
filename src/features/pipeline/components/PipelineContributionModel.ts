@@ -247,7 +247,7 @@ export const buildPipelineTemplateSpecimen = (
   const template = source === 'candidate' ? getPipelineSubmissionTemplate(submission) : liveTemplate ?? null;
   if (!template || submission.assetType !== 'templates') return null;
 
-  const face: CardFace = template.templateUsage === 'back-preset' ? 'back' : 'front';
+  const face: CardFace = template.templateUsage === 'back-preset' || submission.semanticRole === 'template-back' ? 'back' : 'front';
   const card: DisplayCard = {
     template,
     data: template.templatePreviewData ?? {},

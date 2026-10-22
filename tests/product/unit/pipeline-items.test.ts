@@ -92,6 +92,7 @@ describe('exact Pipeline Template specimen export', () => {
     id: '12e591bc-c518-4b05-9314-ea0cadc57abb',
     lineageId: 'b270aef3-a92e-4d5c-94b7-0cfd7ab45774',
     assetType: 'templates',
+    semanticRole: 'template-back',
     name: 'Bridge Back',
     status: 'submitted',
     sourcePayload: candidate,
