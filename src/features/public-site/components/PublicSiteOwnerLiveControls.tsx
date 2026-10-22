@@ -11,6 +11,7 @@ import type { PrimaryNavigationId, PublicSiteConfiguration } from '../model/site
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import type { SiteContentBlock } from '../model/siteContent';
 import type { SiteMediaAsset } from '../model/siteMedia';
+import { getOwnerSitePageContext, isOwnerSiteMediaTarget } from '../model/sitePages';
 import {
   getOwnerPublicationPresentation,
   type OwnerPublicationEnvironment,
@@ -26,18 +27,6 @@ type ConfigLabelField = 'primaryCtaLabel' | 'announcementMessage';
 type DrawerView = { kind: 'settings'; focusSectionId?: string; focusBlockId?: string } | { kind: 'copy'; slug: ContentSlug } | { kind: 'media'; slot: MediaSlot }
   | { kind: 'config-label'; field: ConfigLabelField } | { kind: 'navigation-label'; id: PrimaryNavigationId };
 
-const pageContext = (currentPath: string): {
-  label: string;
-  contentGroups: SiteContentBlock['group'][];
-  mediaGroups: SiteMediaAsset['group'][];
-} => {
-  if (currentPath === '/plans') return { label: 'Plans', contentGroups: ['plans', 'shell'], mediaGroups: ['brand'] };
-  if (currentPath === '/about') return { label: 'About', contentGroups: ['about', 'shell'], mediaGroups: ['brand'] };
-  if (currentPath === '/cameron') return { label: 'Founder', contentGroups: ['founder', 'shell'], mediaGroups: ['brand', 'founder'] };
-  if (currentPath === '/contributors') return { label: 'Contributor Program', contentGroups: ['contributor', 'shell'], mediaGroups: ['brand'] };
-  if (currentPath === '/roadmap') return { label: 'Roadmap', contentGroups: ['roadmap', 'shell'], mediaGroups: ['brand'] };
-  return { label: 'Homepage', contentGroups: ['landing', 'shell', 'sharing'], mediaGroups: ['brand', 'landing', 'showcase'] };
-};
 
 /** A projection of canonical Owner objects, never a second CMS or field registry. */
 export const getSupplementalOwnerPageTargets = ({
@@ -109,9 +98,9 @@ export function PublicSiteOwnerLiveControls({
   const [blocks, setBlocks] = useState(initialBlocks);
   const [media, setMedia] = useState(initialMedia);
   const [siteConfiguration, setSiteConfiguration] = useState(initialSiteConfiguration);
-  const context = useMemo(() => pageContext(currentPath), [currentPath]);
+  const context = useMemo(() => getOwnerSitePageContext(currentPath, siteConfiguration.pages ?? []), [currentPath, siteConfiguration.pages]);
   const contextualBlocks = useMemo(() => blocks.filter((block) => context.contentGroups.includes(block.group)), [blocks, context.contentGroups]);
-  const contextualMedia = useMemo(() => media.filter((item) => context.mediaGroups.includes(item.group)), [media, context.mediaGroups]);
+  const contextualMedia = useMemo(() => media.filter((item) => isOwnerSiteMediaTarget(context, item)), [media, context]);
   const selectedCopy = drawer?.kind === 'copy'
     ? contextualBlocks.find((block) => block.slug === drawer.slug)
     : supplementalCopy ? contextualBlocks.find((block) => block.slug === supplementalCopy) : null;

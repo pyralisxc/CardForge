@@ -5,6 +5,7 @@ import { OwnerHomepageComposerPanel } from '@/features/owner/components/OwnerHom
 import { OwnerSitePagesPanel } from '@/features/owner/components/OwnerSitePagesPanel';
 import type { PublicSitePage } from '@/features/public-site/client';
 import { parseHomepageCustomSection, type HomepageCustomSection } from '@/features/public-site/model/homepageComposition';
+import { getOwnerSitePageContext, isOwnerSiteMediaTarget } from '@/features/public-site/model/sitePages';
 
 type Node = ReactElement<Record<string, unknown>>;
 const nodes = (root: ReactNode): Node[] => {
@@ -44,6 +45,54 @@ describe('canonical section operations', () => {
   });
 });
 
+
+describe('Owner live-edit route context', () => {
+  const page: PublicSitePage = {
+    id: 'page-guide',
+    slug: 'guide',
+    title: 'Guide',
+    description: 'A guide for CardForge visitors.',
+    keywords: ['guide'],
+    published: true,
+    sections: [{
+      id: 'custom-guide',
+      kind: 'custom',
+      visible: true,
+      design: { layout: 'stack', tone: 'raised', spacing: 'balanced', align: 'start' },
+      blocks: [
+        { id: 'block-guide-heading', kind: 'heading', text: 'Welcome' },
+        { id: 'block-guide-image', kind: 'image', mediaSlot: 'landing.composer.block-guide-image' },
+      ],
+    }],
+  };
+
+  it('scopes authored-page editing to the page and shared shell, not homepage copy or media', () => {
+    const context = getOwnerSitePageContext('/guide', [page]);
+    expect(context.label).toBe('Guide');
+    expect(context.authoredPage).toBe(page);
+    expect(context.contentGroups).toEqual(['shell']);
+    expect(context.mediaGroups).toEqual(['brand', 'landing', 'showcase']);
+    expect(context.mediaSlots).toEqual(['landing.composer.block-guide-image']);
+    expect(isOwnerSiteMediaTarget(context, { group: 'brand', slot: 'brand.mark' })).toBe(true);
+    expect(isOwnerSiteMediaTarget(context, { group: 'landing', slot: 'landing.composer.block-guide-image' })).toBe(true);
+    expect(isOwnerSiteMediaTarget(context, { group: 'landing', slot: 'landing.hero' })).toBe(false);
+  });
+
+  it('preserves code-owned route context and homepage fallback', () => {
+    expect(getOwnerSitePageContext('/about', [page])).toMatchObject({
+      label: 'About',
+      contentGroups: ['about', 'shell'],
+      mediaGroups: ['brand'],
+      authoredPage: null,
+    });
+    expect(getOwnerSitePageContext('/', [page])).toMatchObject({
+      label: 'Homepage',
+      contentGroups: ['landing', 'shell', 'sharing'],
+      mediaGroups: ['brand', 'landing', 'showcase'],
+      authoredPage: null,
+    });
+  });
+});
 
 describe('first-party page editor accessibility', () => {
   it('associates the path rules and published-address warning with the Page path input', () => {
