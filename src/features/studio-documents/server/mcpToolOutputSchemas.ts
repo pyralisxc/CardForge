@@ -99,6 +99,7 @@ export const editableTemplateListOutputSchema = objectOutput(['documents', 'hasM
   hasMore: { type: 'boolean' },
 });
 
+
 export const editableTemplateOutputSchema = objectOutput(
   ['document', 'planningLocked', 'planningDecisionMode', 'editableImageFieldKeys', 'openInStudioUrl'],
   {
