@@ -30,6 +30,7 @@ import {
   type PipelineType,
 } from '@/features/pipeline/lib/pipelineItems';
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
+import type { PipelineTemplateSpecimenRenderer } from './PipelineContributionModel';
 import { getPipelineTypeLabel } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -39,8 +40,10 @@ interface PipelineItemsResponse {
 
 export function OwnerContributorProgramPanel({
   initialStatusFilter = 'all',
+  renderTemplateSpecimen,
 }: {
   initialStatusFilter?: PipelineStatus | 'all';
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
 }) {
   const { toast } = useToast();
   const [program, setProgram] = useState<PipelineProgramView | null>(null);
@@ -256,6 +259,7 @@ export function OwnerContributorProgramPanel({
           <OwnerAssetLibraryPanel
             onRevisionCreated={loadProgram}
             program={program}
+            renderTemplateSpecimen={renderTemplateSpecimen}
             query={libraryQuery}
             assetTypeFilter={libraryAssetType}
             statusFilter={libraryStatus}

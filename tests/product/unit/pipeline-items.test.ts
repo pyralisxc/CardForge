@@ -18,6 +18,9 @@ import {
   getReviewProgressLabel,
   getReviewProgressPercent,
   getSubmissionNextStep,
+  buildPipelineTemplateSpecimen,
+  getPipelineSubmissionTemplate,
+  PIPELINE_TEMPLATE_SPECIMEN_DPI,
 } from '@/features/pipeline/components/PipelineContributionModel';
 import type { PipelineSubmission } from '@/features/pipeline/lib/pipelineProgram';
 import { getPipelineDecisionReasonLabel } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
@@ -71,6 +74,69 @@ const baseSubmission: PipelineSubmission = {
   updatedAt: '2026-05-01T00:00:00.000Z',
 };
 
+describe('exact Pipeline Template specimen export', () => {
+  const candidate = {
+    id: 'default-cardforge-studio-back-bridge',
+    name: 'Bridge Back',
+    aspectRatio: '57:89',
+    formatId: 'bridge' as const,
+    trimWidthMm: 57,
+    trimHeightMm: 89,
+    templateUsage: 'back-preset' as const,
+    templateRevision: 1,
+    templatePreviewData: {},
+    freeformCanvas: { width: 570, height: 890, elements: [] },
+  };
+  const revision: PipelineSubmission = {
+    ...baseSubmission,
+    id: '12e591bc-c518-4b05-9314-ea0cadc57abb',
+    lineageId: 'b270aef3-a92e-4d5c-94b7-0cfd7ab45774',
+    assetType: 'templates',
+    semanticRole: 'template-back',
+    name: 'Bridge Back',
+    status: 'submitted',
+    sourcePayload: candidate,
+    targetRegistryAssetId: 'default-cardforge-studio-back-bridge',
+    baseRevisionNumber: 1,
+    revisionNumber: 2,
+  };
+
+  it('exports the exact persisted candidate as a real-size back specimen with its base pins', () => {
+    const parsed = getPipelineSubmissionTemplate(revision);
+    const specimen = buildPipelineTemplateSpecimen(revision, 'candidate');
+
+    expect(parsed).toBe(candidate);
+    expect(specimen?.card.template).toBe(candidate);
+    expect(specimen?.face).toBe('back');
+    expect(specimen?.widthPx).toBe(570);
+    expect(specimen?.heightPx).toBe(890);
+    expect(specimen?.fileName).toContain('candidate-r2-base-r1-submission-12e591bc-c518-4b05-9314-ea0cadc57abb-back.png');
+    expect(specimen).toMatchObject({
+      submissionId: revision.id,
+      lineageId: revision.lineageId,
+      revisionNumber: 2,
+      baseRevisionNumber: 1,
+      targetRegistryAssetId: 'default-cardforge-studio-back-bridge',
+    });
+    expect(PIPELINE_TEMPLATE_SPECIMEN_DPI).toBe(254);
+  });
+
+  it('never falls back to the live catalog template when the exact candidate payload is missing', () => {
+    const withoutCandidate = { ...revision, sourcePayload: null };
+    expect(buildPipelineTemplateSpecimen(withoutCandidate, 'candidate', candidate)).toBeNull();
+  });
+
+  it('keeps a live-catalog specimen distinct from the submitted candidate', () => {
+    const live = { ...candidate, name: 'Bridge Back Live', templateRevision: 1 };
+    const candidateSpecimen = buildPipelineTemplateSpecimen(revision, 'candidate');
+    const liveSpecimen = buildPipelineTemplateSpecimen(revision, 'live', live);
+
+    expect(candidateSpecimen?.card.template).toBe(candidate);
+    expect(liveSpecimen?.card.template).toBe(live);
+    expect(candidateSpecimen?.fileName).toContain('-candidate-r2-base-r1-');
+    expect(liveSpecimen?.fileName).toContain('-live-r1-base-r1-');
+  });
+});
 describe('contributor asset program rules', () => {
   it('translates Pipeline decision codes into product language', () => {
     expect(getPipelineDecisionReasonLabel('owner_forced_paid')).toBe('The CardForge owner placed this work in Creator Pass.');

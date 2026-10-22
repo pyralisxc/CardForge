@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Archive, Check, Eye, Save, Sparkles, X } from 'lucide-react';
+import { Archive, Check, Download, Eye, Loader2, Save, Sparkles, X } from 'lucide-react';
 
 import { MediaPresentationPreview } from './MediaPresentationRevision';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
 import { ContentQualityGuidance } from '@/features/pipeline/components/ContentQualityGuidance';
 import {
@@ -20,7 +21,11 @@ import {
   getReviewProgressLabel,
   getReviewProgressPercent,
   getSubmissionNextStep,
+  buildPipelineTemplateSpecimen,
+  getPipelineSubmissionTemplate,
   getTemplatePreviewId,
+  PIPELINE_TEMPLATE_SPECIMEN_DPI,
+  type PipelineTemplateSpecimenRenderer,
   tierClasses,
   type PipelineSubmission,
 } from '@/features/pipeline/components/PipelineContributionModel';
@@ -233,6 +238,7 @@ export function AssetRow({
   submission,
   program,
   templatePreviews,
+  renderTemplateSpecimen,
   children,
   expanded = false,
   onToggleExpanded,
@@ -241,6 +247,7 @@ export function AssetRow({
   submission: PipelineSubmission;
   program: Pick<PipelineProgramView, 'settings'>;
   templatePreviews: Record<string, TCGCardTemplate>;
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
   children?: ReactNode;
   expanded?: boolean;
   onToggleExpanded?: () => void;
@@ -262,7 +269,7 @@ export function AssetRow({
     <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3">
       <div className="grid gap-3 sm:grid-cols-[4rem_1fr_auto] sm:items-center">
         <div className="grid h-16 w-16 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)] bg-[linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%),linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%)] bg-[length:16px_16px] bg-[position:0_0,8px_8px]">
-          <AssetPreview submission={submission} templatePreviews={templatePreviews} />
+          <AssetPreview submission={submission} templatePreviews={templatePreviews} renderTemplateSpecimen={renderTemplateSpecimen} />
         </div>
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -308,7 +315,7 @@ export function AssetRow({
       {expanded ? (
         <div className="mt-3 grid gap-3 border-t border-[var(--cf-border-subtle)] pt-3 lg:grid-cols-[minmax(14rem,22rem)_1fr]">
           <div className="grid min-h-48 min-w-0 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)] bg-[linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%),linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%)] bg-[length:18px_18px] bg-[position:0_0,9px_9px]">
-            <AssetPreview submission={submission} templatePreviews={templatePreviews} expanded />
+            <AssetPreview submission={submission} templatePreviews={templatePreviews} renderTemplateSpecimen={renderTemplateSpecimen} expanded />
           </div>
           <div className="text-sm leading-6 text-[var(--cf-text-muted)]">
             <p>{submission.description || 'No notes were provided for this asset.'}</p>
@@ -353,10 +360,12 @@ export function AssetRow({
 function AssetPreview({
   submission,
   templatePreviews,
+  renderTemplateSpecimen,
   expanded = false,
 }: {
   submission: PipelineSubmission;
   templatePreviews: Record<string, TCGCardTemplate>;
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
   expanded?: boolean;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
@@ -365,13 +374,7 @@ function AssetPreview({
   const pipelineRecipe = isRepositoryStyle(submission.sourcePayload)
     ? submission.sourcePayload
     : null;
-  const proposedTemplate = submission.sourcePayload
-    && typeof submission.sourcePayload === 'object'
-    && !Array.isArray(submission.sourcePayload)
-    && typeof (submission.sourcePayload as Partial<TCGCardTemplate>).name === 'string'
-    && typeof (submission.sourcePayload as Partial<TCGCardTemplate>).aspectRatio === 'string'
-      ? submission.sourcePayload as TCGCardTemplate
-      : null;
+  const proposedTemplate = getPipelineSubmissionTemplate(submission);
 
   useEffect(() => {
     setImageFailed(false);
@@ -386,9 +389,33 @@ function AssetPreview({
     if (!expanded) return <TemplateThumbnail template={primaryTemplate} />;
     if (proposedTemplate && template) {
       return (
-        <div className="flex min-w-0 w-full flex-wrap gap-4 overflow-x-auto p-4">
-          <TemplateComparisonPreview label="Current live" template={template} id={`live-${submission.id}`} />
-          <TemplateComparisonPreview label={`Proposed revision ${submission.revisionNumber ?? ''}`.trim()} template={proposedTemplate} id={`proposed-${submission.id}`} />
+        <div className="grid min-w-0 gap-3 overflow-x-auto p-4">
+          <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
+            Exact candidate submission <span className="font-mono">{submission.id}</span>
+            {' · '}lineage <span className="font-mono">{submission.lineageId ?? 'unknown'}</span>
+            {' · '}revision {submission.revisionNumber ?? 'unknown'}
+            {' · '}pinned base revision {submission.baseRevisionNumber ?? 'unknown'}
+            {submission.targetRegistryAssetId ? <> {' · '}registry asset <span className="font-mono">{submission.targetRegistryAssetId}</span></> : null}
+          </p>
+          <div className="flex min-w-0 w-full flex-wrap items-start gap-4">
+            <TemplateComparisonPreview label="Current live" submission={submission} source="live" template={template} id={`live-${submission.id}`} renderTemplateSpecimen={renderTemplateSpecimen} />
+            <TemplateComparisonPreview label={`Proposed revision ${submission.revisionNumber ?? ''}`.trim()} submission={submission} source="candidate" template={proposedTemplate} id={`proposed-${submission.id}`} renderTemplateSpecimen={renderTemplateSpecimen} />
+          </div>
+        </div>
+      );
+    }
+    const specimen = buildPipelineTemplateSpecimen(submission, proposedTemplate ? 'candidate' : 'live', proposedTemplate ? undefined : primaryTemplate);
+    if (specimen) {
+      return (
+        <div className="max-h-[30rem] w-full overflow-auto p-4">
+          <TemplateComparisonPreview
+            label={proposedTemplate ? `Proposed revision ${submission.revisionNumber ?? ''}`.trim() : 'Current live'}
+            submission={submission}
+            source={proposedTemplate ? 'candidate' : 'live'}
+            template={primaryTemplate}
+            id={`single-${submission.id}`}
+            renderTemplateSpecimen={renderTemplateSpecimen}
+          />
         </div>
       );
     }
@@ -541,21 +568,73 @@ const getPipelineRecipeKindLabel = (kind: AppearanceStylePreset['kind']): string
 
 function TemplateComparisonPreview({
   label,
+  submission,
+  source,
   template,
   id,
+  renderTemplateSpecimen,
 }: {
   label: string;
+  submission: PipelineSubmission;
+  source: 'candidate' | 'live';
   template: TCGCardTemplate;
   id: string;
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
 }) {
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
+  const specimen = buildPipelineTemplateSpecimen(submission, source, source === 'live' ? template : undefined);
+  const renderedTemplate = specimen?.card.template ?? template;
+
+  const exportSpecimen = async () => {
+    if (!specimen || isExporting) return;
+    setIsExporting(true);
+    try {
+      const blob = await renderTemplateSpecimen(specimen.card, specimen.face, PIPELINE_TEMPLATE_SPECIMEN_DPI);
+      if (blob.type !== 'image/png') throw new Error('The canonical renderer did not return a PNG specimen.');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = specimen.fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast({
+        title: source === 'candidate' ? 'Exact candidate specimen exported' : 'Current live specimen exported',
+        description: `Source canvas ${specimen.widthPx} × ${specimen.heightPx}px (${PIPELINE_TEMPLATE_SPECIMEN_DPI} DPI). Submission ${specimen.submissionId}, revision ${specimen.revisionNumber ?? 'unknown'}, pinned base ${specimen.baseRevisionNumber ?? 'unknown'}.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Template specimen export failed',
+        description: error instanceof Error ? error.message : 'CardForge could not render this exact Template specimen.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
-    <div className="mx-auto grid shrink-0 content-start justify-items-center gap-2">
+    <div className="mx-auto grid min-w-0 shrink-0 content-start justify-items-center gap-2">
       <p className="text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">{label}</p>
       <CardPreview
-        card={{ template, data: template.templatePreviewData ?? {}, uniqueId: `pipeline-preview-${id}` }}
+        card={specimen?.card ?? { template: renderedTemplate, data: renderedTemplate.templatePreviewData ?? {}, uniqueId: `pipeline-preview-${id}` }}
+        face={specimen?.face}
         targetWidthPx={240}
         isEditorPreview
       />
+      {specimen ? (
+        <>
+          <p className="max-w-[19rem] break-all text-center text-[10px] leading-4 text-[var(--cf-text-subtle)]">
+            {source === 'candidate' ? 'Exact submitted payload' : 'Current live catalog payload'}
+            {' · '}{specimen.widthPx} × {specimen.heightPx}px
+            {' · '}submission {specimen.submissionId}
+          </p>
+          <Button type="button" size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" disabled={isExporting} onClick={() => void exportSpecimen()}>
+            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            {isExporting ? 'Rendering specimen…' : source === 'candidate' ? 'Download exact candidate PNG' : 'Download current live PNG'}
+          </Button>
+        </>
+      ) : null}
     </div>
   );
 }

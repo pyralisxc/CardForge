@@ -10,7 +10,7 @@ import { AssetRow } from './PipelineSubmissionRows';
 import { ContentQualityGuidance } from './ContentQualityGuidance';
 import { CONTENT_QUALITY_STANDARD_VERSION, parseContentQualityReviewNote } from '../lib/contentQualityStandard';
 import { usePipelineTemplatePreviews } from './usePipelineTemplatePreviews';
-import { getTemplatePreviewId } from './PipelineContributionModel';
+import { getTemplatePreviewId, type PipelineTemplateSpecimenRenderer } from './PipelineContributionModel';
 import {
   estimatePipelineCatalogCapacityBytes,
   PIPELINE_ASSET_STORAGE_BUDGET_BYTES,
@@ -42,6 +42,7 @@ export interface OwnerEditorialReviewInput {
 
 interface OwnerAssetLibraryPanelProps {
   program: PipelineProgramView;
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
   query: string;
   assetTypeFilter: PipelineType | 'all';
   statusFilter: PipelineStatus | 'all';
@@ -74,6 +75,7 @@ const statusOptions: PipelineStatus[] = [
 
 export function OwnerAssetLibraryPanel({
   program,
+  renderTemplateSpecimen,
   query,
   assetTypeFilter,
   statusFilter,
@@ -287,6 +289,7 @@ export function OwnerAssetLibraryPanel({
             key={submission.id}
             submission={submission}
             program={program}
+            renderTemplateSpecimen={renderTemplateSpecimen}
             templatePreviews={templatePreviews}
             expanded={expandedId === submission.id}
             editForm={managingId === submission.id ? (
@@ -421,7 +424,7 @@ export function OwnerAssetLibraryPanel({
                     : `Approve & publish revision ${submission.revisionNumber}`}
               </Button>
             ) : null}
-            {editTemplateId && templatePreviews[editTemplateId] ? (
+            {editTemplateId && templatePreviews[editTemplateId] && !isPendingTemplateRevision ? (
               <Button asChild size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]">
                 <a href={`/account?${new URLSearchParams({ section: 'library', scope: 'pipeline', tool: 'design', artifact: editTemplateId, editTemplate: editTemplateId })}`}>
                   <Pencil className="mr-1 h-4 w-4" /> Edit Template
