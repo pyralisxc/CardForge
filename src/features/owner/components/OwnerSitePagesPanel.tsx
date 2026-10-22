@@ -13,7 +13,11 @@ export function OwnerSitePagesPanel({ pages, navigation, selectedId, onSelect, o
 }) {
   const selected = pages.find((page) => page.id === selectedId);
   const update = (patch: Partial<PublicSitePage>) => {
-    onChange(pages.map((page) => page.id === selectedId ? { ...page, ...patch } : page), navigation);
+    const nextPages = pages.map((page) => page.id === selectedId ? { ...page, ...patch } : page);
+    const nextNavigation = patch.slug === undefined ? navigation : navigation.map((item) => (
+      item.id === selectedId ? { ...item, href: `/${patch.slug}` } : item
+    ));
+    onChange(nextPages, nextNavigation);
   };
   return <article className="space-y-4 border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
     <div className="flex flex-wrap items-end gap-3">

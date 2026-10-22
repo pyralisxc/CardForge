@@ -95,6 +95,47 @@ describe('Owner live-edit route context', () => {
 });
 
 describe('first-party page editor accessibility', () => {
+  it('keeps an included navigation destination aligned with the edited page path', () => {
+    const page: PublicSitePage = {
+      id: 'page-guide',
+      slug: 'guide',
+      title: 'Guide',
+      description: 'A guide for CardForge visitors.',
+      keywords: ['guide'],
+      published: true,
+      sections: [{
+        id: 'custom-guide',
+        kind: 'custom',
+        visible: true,
+        design: { layout: 'stack', tone: 'raised', spacing: 'balanced', align: 'start' },
+        blocks: [{ id: 'block-guide', kind: 'heading', text: 'Welcome' }],
+      }],
+    };
+    const navigation = [
+      { id: page.id, label: 'Guide', href: '/guide', visible: true },
+      { id: 'about' as const, label: 'About', href: '/about', visible: true },
+    ];
+    const onChange = vi.fn();
+    const tree = OwnerSitePagesPanel({
+      pages: [page],
+      navigation,
+      selectedId: page.id,
+      onSelect: vi.fn(),
+      onChange,
+    });
+    const pathInput = nodes(tree).find((node) => node.props['aria-describedby'] === 'page-path-help-page-guide');
+    const changePath = pathInput?.props.onChange as (event: { target: { value: string } }) => void;
+
+    changePath({ target: { value: 'getting-started' } });
+
+    const [nextPages, nextNavigation] = onChange.mock.calls[0] as [PublicSitePage[], typeof navigation];
+    expect(nextPages[0]?.slug).toBe('getting-started');
+    expect(nextNavigation).toEqual([
+      { id: page.id, label: 'Guide', href: '/getting-started', visible: true },
+      { id: 'about', label: 'About', href: '/about', visible: true },
+    ]);
+  });
+
   it('associates the path rules and published-address warning with the Page path input', () => {
     const page: PublicSitePage = {
       id: 'page-guide',
