@@ -619,6 +619,7 @@ function TemplateComparisonPreview({
       <p className="text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">{label}</p>
       <CardPreview
         card={specimen?.card ?? { template: renderedTemplate, data: renderedTemplate.templatePreviewData ?? {}, uniqueId: `pipeline-preview-${id}` }}
+        face={specimen?.face}
         targetWidthPx={240}
         isEditorPreview
       />
