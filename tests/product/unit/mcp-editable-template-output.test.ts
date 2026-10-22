@@ -7,7 +7,7 @@ import {
 
 describe('editable Template list MCP public output', () => {
   it('validates populated pages with more results and excludes internal pagination fields', () => {
-    const page = editableTemplateListStructuredContent({
+    const storePage = {
       documents: [{
         id: 'doc-1',
         title: 'Bridge Back draft',
@@ -17,7 +17,9 @@ describe('editable Template list MCP public output', () => {
         updatedAt: '2026-10-22T00:01:00.000Z',
       }],
       hasMore: true,
-    });
+      nextCursor: 100,
+    };
+    const page = editableTemplateListStructuredContent(storePage);
 
     expect(editableTemplateListOutputSchema.parse(page)).toEqual({
       documents: [{
@@ -35,10 +37,12 @@ describe('editable Template list MCP public output', () => {
   });
 
   it('validates an empty final page with hasMore false', () => {
-    const page = editableTemplateListStructuredContent({ documents: [], hasMore: false });
+    const storePage = { documents: [], hasMore: false, nextCursor: null };
+    const page = editableTemplateListStructuredContent(storePage);
 
     expect(editableTemplateListOutputSchema.parse(page)).toEqual({ documents: [], hasMore: false });
     expect(Object.keys(page).sort()).toEqual(['documents', 'hasMore']);
+    expect(page).not.toHaveProperty('nextCursor');
   });
 
   it('rejects an internal nextCursor leaking into the strict public schema', () => {
