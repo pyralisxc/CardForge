@@ -1,4 +1,6 @@
 import { validateHomepageCustomSections, type HomepageCustomSection } from './homepageComposition';
+import type { SiteContentGroup } from './siteContent';
+import type { SiteMediaGroup, SiteMediaSlot } from './siteMedia';
 
 /** First-party presentation only. Existing product, account and provider routes remain code-owned. */
 export const RESERVED_SITE_PAGE_SLUGS = new Set([
@@ -18,6 +20,41 @@ export interface PublicSitePage {
   published: boolean;
   sections: HomepageCustomSection[];
 }
+
+export interface OwnerSitePageContext {
+  label: string;
+  contentGroups: SiteContentGroup[];
+  mediaGroups: SiteMediaGroup[];
+  authoredPage: PublicSitePage | null;
+  mediaSlots: SiteMediaSlot[];
+}
+
+/** Keep live-edit targets aligned with the actual route rather than treating authored pages as the homepage. */
+export const getOwnerSitePageContext = (
+  currentPath: string,
+  pages: readonly PublicSitePage[] = [],
+): OwnerSitePageContext => {
+  if (currentPath === '/plans') return { label: 'Plans', contentGroups: ['plans', 'shell'], mediaGroups: ['brand'], authoredPage: null, mediaSlots: [] };
+  if (currentPath === '/about') return { label: 'About', contentGroups: ['about', 'shell'], mediaGroups: ['brand'], authoredPage: null, mediaSlots: [] };
+  if (currentPath === '/cameron') return { label: 'Founder', contentGroups: ['founder', 'shell'], mediaGroups: ['brand', 'founder'], authoredPage: null, mediaSlots: [] };
+  if (currentPath === '/contributors') return { label: 'Contributor Program', contentGroups: ['contributor', 'shell'], mediaGroups: ['brand'], authoredPage: null, mediaSlots: [] };
+  if (currentPath === '/roadmap') return { label: 'Roadmap', contentGroups: ['roadmap', 'shell'], mediaGroups: ['brand'], authoredPage: null, mediaSlots: [] };
+
+  const authoredPage = pages.find((page) => `/${page.slug}` === currentPath) ?? null;
+  if (authoredPage) {
+    const mediaSlots = [...new Set(authoredPage.sections.flatMap((section) => (
+      section.blocks.filter((block) => block.kind === 'image').map((block) => block.mediaSlot)
+    )))];
+    return {
+      label: authoredPage.title,
+      contentGroups: ['shell'],
+      mediaGroups: ['brand', 'landing', 'showcase'],
+      authoredPage,
+      mediaSlots,
+    };
+  }
+  return { label: 'Homepage', contentGroups: ['landing', 'shell', 'sharing'], mediaGroups: ['brand', 'landing', 'showcase'], authoredPage: null, mediaSlots: [] };
+};
 
 export const isPublicSitePageId = (value: unknown): value is PublicSitePage['id'] => (
   typeof value === 'string' && /^page-[a-z0-9][a-z0-9-]{0,33}$/u.test(value)
