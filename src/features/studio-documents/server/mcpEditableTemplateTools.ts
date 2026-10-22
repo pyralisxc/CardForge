@@ -29,6 +29,7 @@ import {
 } from './mcpToolInputSchemas';
 import {
   editableTemplateListOutputSchema,
+  editableTemplateListStructuredContent,
   editableTemplateOutputSchema,
   editableTemplateSummaryOutputSchema,
   pipelineHandoffOutputSchema,
@@ -340,7 +341,7 @@ export const registerEditableTemplateTools = ({
               ? `Returned the first ${page.documents.length} private Studio documents. More documents exist beyond this result boundary.`
               : `Found ${page.documents.length} private Studio document${page.documents.length === 1 ? '' : 's'}.`,
           }],
-          structuredContent: { documents: page.documents, hasMore: page.hasMore },
+          structuredContent: editableTemplateListStructuredContent(page),
         };
       },
     }),
