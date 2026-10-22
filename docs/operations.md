@@ -63,10 +63,10 @@ For persistent schema changes, make a new forward-only migration on a feature PR
 For agents that need native Staging SQL, configure a **separate**, project-scoped Supabase MCP connection through the client's supported custom-server and user-controlled sign-in flow:
 
 ```text
-https://mcp.supabase.com/mcp?project_ref=mjdugheniazuiqoefnnb&skip_elicitations=execute_sql,apply_migration
+https://mcp.supabase.com/mcp?project_ref=mjdugheniazuiqoefnnb&skip_elicitations=execute_sql
 ```
 
-Supabase's [MCP configuration](https://supabase.com/docs/guides/ai-tools/mcp) supports `project_ref` and `skip_elicitations`: the latter skips Supabase's extra SQL form prompts only, **not** client tool approval, OAuth, database permissions, RLS, or operational safety. Keep the existing general/Production connection unchanged and never store tokens in Git. This URL is a recommended connection configuration, **not proof that a separate connection has been installed**. Before its first write, verify effective project identity with a read-only project/migration query; do not execute destructive SQL merely to test whether a confirmation appears. If the client still requires a user interaction, use the native prompt rather than a workaround.
+Supabase's [MCP configuration](https://supabase.com/docs/guides/ai-tools/mcp) supports `project_ref` and `skip_elicitations`. This URL intentionally skips only the extra form prompt for `execute_sql`; it omits `apply_migration` because persistent schema changes must use a new forward-only migration in a feature PR and the existing Preview integration, not an ad hoc MCP migration. Skipping the form does **not** skip client tool approval, OAuth, database permissions, RLS, or operational safety. Keep the existing general/Production connection unchanged and never store tokens in Git. This URL is a recommended connection configuration, **not proof that a separate connection has been installed**. Before its first write, verify effective project identity with a read-only project/migration query; do not execute destructive SQL merely to test whether a confirmation appears. If the client still requires a user interaction, use the native prompt rather than a workaround.
 
 The former reusable QA accounts are retired. Do not recreate them or treat an old browser session as the intended acceptance identity. Verify the signed-in account and environment before testing. The real owner has a separate account in Clerk's development instance; production sign-in does not establish a Preview session.
 
