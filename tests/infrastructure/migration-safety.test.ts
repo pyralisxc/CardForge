@@ -142,7 +142,7 @@ describe('migration safety guard', () => {
     );
     expect(migration.trimStart().startsWith('begin;')).toBe(true);
     expect(migration.trimEnd().endsWith('commit;')).toBe(true);
-    expect(migration).toMatch(/where id = 'cardforge-social-media'\\s+for update/iu);
+    expect(migration).toMatch(/where id = 'cardforge-social-media'\s+for update/iu);
     expect(migration).toContain('social_bucket.public is distinct from true');
     expect(migration).toContain('social_bucket.file_size_limit is distinct from 12582912');
     expect(migration).toContain("'image/webp' = any(social_bucket.allowed_mime_types)");
@@ -160,10 +160,10 @@ describe('migration safety guard', () => {
     expect(migration).toContain('cardforge_social_media_bucket_jpeg_contract_failed');
 
     const update = migration.match(
-      /update storage\\.buckets([\\s\\S]*?)where id = 'cardforge-social-media';/iu,
+      /update storage\.buckets([\s\S]*?)where id = 'cardforge-social-media';/iu,
     )?.[1];
     expect(update).toBeDefined();
-    expect(update).toMatch(/set allowed_mime_types\\s*=/iu);
-    expect(update).not.toMatch(/\\b(public|file_size_limit|name)\\s*=/iu);
+    expect(update).toMatch(/set allowed_mime_types\s*=/iu);
+    expect(update).not.toMatch(/\b(public|file_size_limit|name)\s*=/iu);
   });
 });
