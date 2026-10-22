@@ -6,8 +6,6 @@ export { GeneratorFieldGroups } from './components/GeneratorFieldGroups';
 export { buildArtifactFieldTargetMap, type ArtifactFieldTarget } from './lib/artifactFieldTargets';
 export { completeCardDataWithTemplateDefaults, getMissingRequiredFieldLabels, initializeCardDataFromTemplate } from './lib/cardDataDefaults';
 export { renderCardToPngBlob } from './lib/cardPreviewExport';
-export { createCardFaceExportRenderer } from './lib/cardPreviewExport';
-export { getExportProfile, type ExportProfile } from './lib/printValidation';
 export {
   PublicShareSettingsProvider,
   usePublicShareSettings,
