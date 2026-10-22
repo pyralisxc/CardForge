@@ -96,6 +96,12 @@ describe('CardForge MCP and plugin product hygiene', () => {
     ]);
   });
 
+  it('keeps editable Template listing output aligned with its strict public schema', () => {
+    const registration = toolRegistration(editableTemplateTools, 'list_editable_templates');
+    expect(registration).toContain('structuredContent: { documents: page.documents, hasMore: page.hasMore }');
+    expect(registration).not.toContain('structuredContent: page,');
+  });
+
   it('publishes an explicit output schema for every structured MCP tool', () => {
     const sources = [editableTemplateTools, accountTools, templateTools, cardTools, projectTools, workingDocumentTools, personalLibraryTools].join('\n');
     expect(sources.match(/outputSchema:/g)).toHaveLength(toolNames(sources).length);
