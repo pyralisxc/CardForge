@@ -2,6 +2,8 @@ import type { ReactElement, ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('@/features/public-site/client', async () => ({ ...(await import('@/features/public-site/model/homepageComposition')) }));
 import { OwnerHomepageComposerPanel } from '@/features/owner/components/OwnerHomepageComposerPanel';
+import { OwnerSitePagesPanel } from '@/features/owner/components/OwnerSitePagesPanel';
+import type { PublicSitePage } from '@/features/public-site/client';
 import { parseHomepageCustomSection, type HomepageCustomSection } from '@/features/public-site/model/homepageComposition';
 
 type Node = ReactElement<Record<string, unknown>>;
@@ -39,5 +41,41 @@ describe('canonical section operations', () => {
     expect(result.blocks[2]?.id).not.toBe('block-image');
     expect(result.blocks[2]?.mediaSlot).toBe('landing.composer.block-image');
     expect(parseHomepageCustomSection(result)).not.toBeNull();
+  });
+});
+
+
+describe('first-party page editor accessibility', () => {
+  it('associates the path rules and published-address warning with the Page path input', () => {
+    const page: PublicSitePage = {
+      id: 'page-guide',
+      slug: 'guide',
+      title: 'Guide',
+      description: 'A guide for CardForge visitors.',
+      keywords: ['guide'],
+      published: true,
+      sections: [{
+        id: 'custom-guide',
+        kind: 'custom',
+        visible: true,
+        design: { layout: 'stack', tone: 'raised', spacing: 'balanced', align: 'start' },
+        blocks: [{ id: 'block-guide', kind: 'heading', text: 'Welcome' }],
+      }],
+    };
+    const tree = OwnerSitePagesPanel({
+      pages: [page],
+      navigation: [],
+      selectedId: page.id,
+      onSelect: vi.fn(),
+      onChange: vi.fn(),
+    });
+    const rendered = nodes(tree);
+    const pathInput = rendered.find((node) => node.props['aria-describedby'] === 'page-path-help-page-guide');
+    const help = rendered.find((node) => node.props.id === 'page-path-help-page-guide');
+
+    expect(pathInput).toBeDefined();
+    expect(help).toBeDefined();
+    expect(help?.props.children).toContain('lowercase words separated by hyphens');
+    expect(help?.props.children).toContain('Changing a published path removes its old address.');
   });
 });
