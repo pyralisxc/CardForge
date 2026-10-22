@@ -11,7 +11,7 @@ import type { PrimaryNavigationId, PublicSiteConfiguration } from '../model/site
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import type { SiteContentBlock } from '../model/siteContent';
 import type { SiteMediaAsset } from '../model/siteMedia';
-import { getOwnerSitePageContext } from '../model/sitePages';
+import { getOwnerSitePageContext, isOwnerSiteMediaTarget } from '../model/sitePages';
 import {
   getOwnerPublicationPresentation,
   type OwnerPublicationEnvironment,
@@ -100,10 +100,7 @@ export function PublicSiteOwnerLiveControls({
   const [siteConfiguration, setSiteConfiguration] = useState(initialSiteConfiguration);
   const context = useMemo(() => getOwnerSitePageContext(currentPath, siteConfiguration.pages ?? []), [currentPath, siteConfiguration.pages]);
   const contextualBlocks = useMemo(() => blocks.filter((block) => context.contentGroups.includes(block.group)), [blocks, context.contentGroups]);
-  const contextualMedia = useMemo(() => media.filter((item) => (
-    context.mediaGroups.includes(item.group)
-    && (!context.authoredPage || item.group === 'brand' || context.mediaSlots.includes(item.slot))
-  )), [media, context]);
+  const contextualMedia = useMemo(() => media.filter((item) => isOwnerSiteMediaTarget(context, item)), [media, context]);
   const selectedCopy = drawer?.kind === 'copy'
     ? contextualBlocks.find((block) => block.slug === drawer.slug)
     : supplementalCopy ? contextualBlocks.find((block) => block.slug === supplementalCopy) : null;

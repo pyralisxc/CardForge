@@ -56,6 +56,13 @@ export const getOwnerSitePageContext = (
   return { label: 'Homepage', contentGroups: ['landing', 'shell', 'sharing'], mediaGroups: ['brand', 'landing', 'showcase'], authoredPage: null, mediaSlots: [] };
 };
 
+/** Keep the live media picker scoped to shared brand assets and image slots used by the selected authored page. */
+export const isOwnerSiteMediaTarget = (
+  context: Pick<OwnerSitePageContext, 'mediaGroups' | 'authoredPage' | 'mediaSlots'>,
+  asset: { group: SiteMediaGroup; slot: SiteMediaSlot },
+): boolean => context.mediaGroups.includes(asset.group)
+  && (!context.authoredPage || asset.group === 'brand' || context.mediaSlots.includes(asset.slot));
+
 export const isPublicSitePageId = (value: unknown): value is PublicSitePage['id'] => (
   typeof value === 'string' && /^page-[a-z0-9][a-z0-9-]{0,33}$/u.test(value)
 );

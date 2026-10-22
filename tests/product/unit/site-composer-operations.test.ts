@@ -5,7 +5,7 @@ import { OwnerHomepageComposerPanel } from '@/features/owner/components/OwnerHom
 import { OwnerSitePagesPanel } from '@/features/owner/components/OwnerSitePagesPanel';
 import type { PublicSitePage } from '@/features/public-site/client';
 import { parseHomepageCustomSection, type HomepageCustomSection } from '@/features/public-site/model/homepageComposition';
-import { getOwnerSitePageContext } from '@/features/public-site/model/sitePages';
+import { getOwnerSitePageContext, isOwnerSiteMediaTarget } from '@/features/public-site/model/sitePages';
 
 type Node = ReactElement<Record<string, unknown>>;
 const nodes = (root: ReactNode): Node[] => {
@@ -73,6 +73,9 @@ describe('Owner live-edit route context', () => {
     expect(context.contentGroups).toEqual(['shell']);
     expect(context.mediaGroups).toEqual(['brand', 'landing', 'showcase']);
     expect(context.mediaSlots).toEqual(['landing.composer.block-guide-image']);
+    expect(isOwnerSiteMediaTarget(context, { group: 'brand', slot: 'brand.mark' })).toBe(true);
+    expect(isOwnerSiteMediaTarget(context, { group: 'landing', slot: 'landing.composer.block-guide-image' })).toBe(true);
+    expect(isOwnerSiteMediaTarget(context, { group: 'landing', slot: 'landing.hero' })).toBe(false);
   });
 
   it('preserves code-owned route context and homepage fallback', () => {
