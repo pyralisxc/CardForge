@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { parsePacificDateTimeLocal } from "@/domain/marketing/schedule";
 import type { MarketingContentWorkspaceView } from "@/features/marketing-content/client";
 import {
   MARKETING_SERVICES,
@@ -92,7 +93,7 @@ export function OwnerMarketingDistributionWorkspace({
         action: "queue_delivery",
         contentId,
         destinationId,
-        scheduledFor: scheduledFor || null,
+        scheduledFor: scheduledFor ? parsePacificDateTimeLocal(scheduledFor) : null,
       });
       setContentId("");
       setDestinationId("");
@@ -157,11 +158,14 @@ export function OwnerMarketingDistributionWorkspace({
               placeholder="Choose destination"
             />
             <OwnerMarketingTextField
-              label="Publish or reminder time (optional)"
+              label="Publish or reminder time (Pacific Time)"
               type="datetime-local"
               value={scheduledFor}
               onChange={setScheduledFor}
             />
+            <p className="text-xs text-[var(--cf-text-muted)]">
+              Times use America/Los_Angeles, including daylight-saving changes.
+            </p>
           </div>
           <Button
             className="mt-4"
