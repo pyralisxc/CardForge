@@ -423,6 +423,8 @@ function AssetPreview({
         />
       </div>
     );
+  }
+
   if (submission.mediaPresentation) {
     return submission.sourceUrl
       ? <MediaPresentationPreview sourceUrl={submission.sourceUrl} presentation={submission.mediaPresentation} />
