@@ -43,7 +43,7 @@ export const getOwnerSitePageContext = (
   const authoredPage = pages.find((page) => `/${page.slug}` === currentPath) ?? null;
   if (authoredPage) {
     const mediaSlots = [...new Set(authoredPage.sections.flatMap((section) => (
-      section.blocks.filter((block) => block.kind === 'image').map((block) => block.mediaSlot)
+      section.blocks.flatMap((block) => block.kind === 'image' && block.mediaSlot ? [block.mediaSlot] : [])
     )))];
     return {
       label: authoredPage.title,
