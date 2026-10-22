@@ -54,6 +54,20 @@ Preview provider ownership:
 - Google Drive: `CardForge Connected Storage Preview` OAuth Web client, a branch-only token-encryption key, and the shared Picker key restricted to Google Picker API plus the stable Preview/production origins.
 - GitHub: public `pyralisxc/CardForge`; the active `Updates` ruleset protects `main` with PRs, resolved threads, strict `verify`, deletion protection, and force-push protection.
 
+### Staging SQL and infrastructure development
+
+Under the standing authority in `ORCHESTRATION.md`, an already-authorized development objective may use routine local/Preview/Staging SQL without a new founder confirmation for every statement. Check the **actual** connection target before writing: Staging is `mjdugheniazuiqoefnnb`, not the Production project. Bound affected tables/rows and preserve a recoverable path. Use transactions with final `ROLLBACK` and zero-residual verification for SQL fixtures; use scoped readback/compensation for recoverable Staging test-data changes. Unknown or expired write/confirmation results require native reconciliation before a retry, not a second execution by assumption.
+
+For persistent schema changes, make a new forward-only migration on a feature PR, let the existing `vercel-preview` Supabase integration apply it once, and verify the database state. Do not create an ad hoc permanent Staging schema change or a second migration runner. Protected library/catalog records, publication and lineage, immutable ledgers, Supabase Storage objects, account grants, and other privileged workflows retain their owning APIs and explicit irreversible/permission-expanding approval boundaries. This standing authorization does not cover Production, broad reset/truncate, cross-project mutations, new cost-bearing resources, or changes to credentials or billing.
+
+For agents that need native Staging SQL, configure a **separate**, project-scoped Supabase MCP connection through the client's supported custom-server and user-controlled sign-in flow:
+
+```text
+https://mcp.supabase.com/mcp?project_ref=mjdugheniazuiqoefnnb&skip_elicitations=execute_sql,apply_migration
+```
+
+Supabase's [MCP configuration](https://supabase.com/docs/guides/ai-tools/mcp) supports `project_ref` and `skip_elicitations`: the latter skips Supabase's extra SQL form prompts only, **not** client tool approval, OAuth, database permissions, RLS, or operational safety. Keep the existing general/Production connection unchanged and never store tokens in Git. This URL is a recommended connection configuration, **not proof that a separate connection has been installed**. Before its first write, verify effective project identity with a read-only project/migration query; do not execute destructive SQL merely to test whether a confirmation appears. If the client still requires a user interaction, use the native prompt rather than a workaround.
+
 The former reusable QA accounts are retired. Do not recreate them or treat an old browser session as the intended acceptance identity. Verify the signed-in account and environment before testing. The real owner has a separate account in Clerk's development instance; production sign-in does not establish a Preview session.
 
 Google's dedicated Preview OAuth client authorizes the stable Preview origin and its `/api/project-sources/google-drive/callback` redirect. The Google app is in Testing, so the selected Google account must also be an allowed test user. Google limits refresh tokens for this external Testing app's Drive grant to seven days; reconnect through the native flow when required ([OAuth app states](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview)). A disconnected Drive account does not imply that Preview OAuth is unsupported. CardForge Clerk sign-in and Drive consent are separate boundaries; Vercel dashboard authentication is provider administration, not a required tester sign-in. Changing the Google app's publishing status affects its clients and is a separate provider decision.
@@ -145,7 +159,7 @@ For a new migration:
 
 1. Compare the live production migration tail and inspect affected tables/functions/RLS/grants.
 2. Review failure safety, idempotency, and rollback. Multi-table transitions should be one database transaction/function or have explicit compensation.
-3. Apply exactly the reviewed migration once after approval.
+3. Apply the reviewed Staging migration once through the authorized Preview integration (no separate per-statement founder approval); any Production application remains subject to the exact release/owner gate and rollout ordering.
 4. Verify expected schema/object counts and privileged access; browser roles must not gain service-only access.
 5. Run Supabase security/performance advisors and address relevant warnings/errors.
 6. Record provider-applied version/evidence in the PR/release record. Never rewrite historical migration files merely to align provider timestamps.
