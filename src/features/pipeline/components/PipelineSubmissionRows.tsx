@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Archive, Check, Eye, Save, Sparkles, X } from 'lucide-react';
+import { Archive, Check, Download, Eye, Loader2, Save, Sparkles, X } from 'lucide-react';
 
 import { MediaPresentationPreview } from './MediaPresentationRevision';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
+import { renderCardToPngBlob } from '@/features/card-generator/client';
 import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
 import { ContentQualityGuidance } from '@/features/pipeline/components/ContentQualityGuidance';
 import {
@@ -20,7 +22,10 @@ import {
   getReviewProgressLabel,
   getReviewProgressPercent,
   getSubmissionNextStep,
+  buildPipelineTemplateSpecimen,
+  getPipelineSubmissionTemplate,
   getTemplatePreviewId,
+  PIPELINE_TEMPLATE_SPECIMEN_DPI,
   tierClasses,
   type PipelineSubmission,
 } from '@/features/pipeline/components/PipelineContributionModel';
@@ -365,13 +370,7 @@ function AssetPreview({
   const pipelineRecipe = isRepositoryStyle(submission.sourcePayload)
     ? submission.sourcePayload
     : null;
-  const proposedTemplate = submission.sourcePayload
-    && typeof submission.sourcePayload === 'object'
-    && !Array.isArray(submission.sourcePayload)
-    && typeof (submission.sourcePayload as Partial<TCGCardTemplate>).name === 'string'
-    && typeof (submission.sourcePayload as Partial<TCGCardTemplate>).aspectRatio === 'string'
-      ? submission.sourcePayload as TCGCardTemplate
-      : null;
+  const proposedTemplate = getPipelineSubmissionTemplate(submission);
 
   useEffect(() => {
     setImageFailed(false);
@@ -386,9 +385,32 @@ function AssetPreview({
     if (!expanded) return <TemplateThumbnail template={primaryTemplate} />;
     if (proposedTemplate && template) {
       return (
-        <div className="flex min-w-0 w-full flex-wrap gap-4 overflow-x-auto p-4">
-          <TemplateComparisonPreview label="Current live" template={template} id={`live-${submission.id}`} />
-          <TemplateComparisonPreview label={`Proposed revision ${submission.revisionNumber ?? ''}`.trim()} template={proposedTemplate} id={`proposed-${submission.id}`} />
+        <div className="grid min-w-0 gap-3 overflow-x-auto p-4">
+          <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
+            Exact candidate submission <span className="font-mono">{submission.id}</span>
+            {' · '}lineage <span className="font-mono">{submission.lineageId ?? 'unknown'}</span>
+            {' · '}revision {submission.revisionNumber ?? 'unknown'}
+            {' · '}pinned base revision {submission.baseRevisionNumber ?? 'unknown'}
+            {submission.targetRegistryAssetId ? <> {' · '}registry asset <span className="font-mono">{submission.targetRegistryAssetId}</span></> : null}
+          </p>
+          <div className="flex min-w-0 w-full flex-wrap items-start gap-4">
+            <TemplateComparisonPreview label="Current live" submission={submission} source="live" template={template} id={`live-${submission.id}`} />
+            <TemplateComparisonPreview label={`Proposed revision ${submission.revisionNumber ?? ''}`.trim()} submission={submission} source="candidate" template={proposedTemplate} id={`proposed-${submission.id}`} />
+          </div>
+        </div>
+      );
+    }
+    const specimen = buildPipelineTemplateSpecimen(submission, proposedTemplate ? 'candidate' : 'live', proposedTemplate ? undefined : primaryTemplate);
+    if (specimen) {
+      return (
+        <div className="max-h-[30rem] w-full overflow-auto p-4">
+          <TemplateComparisonPreview
+            label={proposedTemplate ? `Proposed revision ${submission.revisionNumber ?? ''}`.trim() : 'Current live'}
+            submission={submission}
+            source={proposedTemplate ? 'candidate' : 'live'}
+            template={primaryTemplate}
+            id={`single-${submission.id}`}
+          />
         </div>
       );
     }
@@ -401,8 +423,6 @@ function AssetPreview({
         />
       </div>
     );
-  }
-
   if (submission.mediaPresentation) {
     return submission.sourceUrl
       ? <MediaPresentationPreview sourceUrl={submission.sourceUrl} presentation={submission.mediaPresentation} />
@@ -541,21 +561,75 @@ const getPipelineRecipeKindLabel = (kind: AppearanceStylePreset['kind']): string
 
 function TemplateComparisonPreview({
   label,
+  submission,
+  source,
   template,
   id,
 }: {
   label: string;
+  submission: PipelineSubmission;
+  source: 'candidate' | 'live';
   template: TCGCardTemplate;
   id: string;
 }) {
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
+  const specimen = buildPipelineTemplateSpecimen(submission, source, source === 'live' ? template : undefined);
+  const renderedTemplate = specimen?.card.template ?? template;
+
+  const exportSpecimen = async () => {
+    if (!specimen || isExporting) return;
+    setIsExporting(true);
+    try {
+      const blob = await renderCardToPngBlob(
+        specimen.card,
+        'physical',
+        PIPELINE_TEMPLATE_SPECIMEN_DPI,
+        specimen.face,
+      );
+      if (blob.type !== 'image/png') throw new Error('The canonical renderer did not return a PNG specimen.');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = specimen.fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast({
+        title: source === 'candidate' ? 'Exact candidate specimen exported' : 'Current live specimen exported',
+        description: `${specimen.widthPx} × ${specimen.heightPx}px at ${PIPELINE_TEMPLATE_SPECIMEN_DPI} DPI. Submission ${specimen.submissionId}, revision ${specimen.revisionNumber ?? 'unknown'}, pinned base ${specimen.baseRevisionNumber ?? 'unknown'}.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Template specimen export failed',
+        description: error instanceof Error ? error.message : 'CardForge could not render this exact Template specimen.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
-    <div className="mx-auto grid shrink-0 content-start justify-items-center gap-2">
+    <div className="mx-auto grid min-w-0 shrink-0 content-start justify-items-center gap-2">
       <p className="text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">{label}</p>
       <CardPreview
-        card={{ template, data: template.templatePreviewData ?? {}, uniqueId: `pipeline-preview-${id}` }}
+        card={specimen?.card ?? { template: renderedTemplate, data: renderedTemplate.templatePreviewData ?? {}, uniqueId: `pipeline-preview-${id}` }}
         targetWidthPx={240}
         isEditorPreview
       />
+      {specimen ? (
+        <>
+          <p className="max-w-[19rem] break-all text-center text-[10px] leading-4 text-[var(--cf-text-subtle)]">
+            {source === 'candidate' ? 'Exact submitted payload' : 'Current live catalog payload'}
+            {' · '}{specimen.widthPx} × {specimen.heightPx}px
+            {' · '}submission {specimen.submissionId}
+          </p>
+          <Button type="button" size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" disabled={isExporting} onClick={() => void exportSpecimen()}>
+            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            {isExporting ? 'Rendering specimen…' : source === 'candidate' ? 'Download exact candidate PNG' : 'Download current live PNG'}
+          </Button>
+        </>
+      ) : null}
     </div>
   );
 }

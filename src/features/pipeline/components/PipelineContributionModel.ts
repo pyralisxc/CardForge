@@ -2,7 +2,9 @@ import { type PipelineAccessTier, type ContributorUploadAssetType } from '@/feat
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
 import type { CardAssetOption } from '@/features/pipeline/lib/cardAssets';
 import { getPipelineImagePreviewUrl } from '@/features/pipeline/lib/pipelineLibrary';
-import type { StudioAssetDestination } from '@/domain/templates';
+import type { CardFace } from '@/domain/cards';
+import { getCardExportDimensionsPx, type DisplayCard } from '@/domain/rendering';
+import type { StudioAssetDestination, TCGCardTemplate } from '@/domain/templates';
 
 export type PipelineSubmission = PipelineProgramView['submissions'][number];
 export type PersonalLibraryFilter = ContributorUploadAssetType | 'all';
@@ -211,6 +213,72 @@ export const slugifyFileName = (value: string, fallback: string) => {
   return slug || fallback;
 };
 
+export const PIPELINE_TEMPLATE_SPECIMEN_DPI = 254;
+export type PipelineTemplateSpecimenSource = 'candidate' | 'live';
+
+export interface PipelineTemplateSpecimen {
+  card: DisplayCard;
+  face: CardFace;
+  fileName: string;
+  widthPx: number;
+  heightPx: number;
+  submissionId: string;
+  lineageId: string | null;
+  revisionNumber: number | null;
+  baseRevisionNumber: number | null;
+  targetRegistryAssetId: string | null;
+}
+
+export const getPipelineSubmissionTemplate = (submission: PipelineSubmission): TCGCardTemplate | null => {
+  if (submission.assetType !== 'templates') return null;
+  const payload = submission.sourcePayload;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  const template = payload as Partial<TCGCardTemplate>;
+  return typeof template.name === 'string' && typeof template.aspectRatio === 'string'
+    ? template as TCGCardTemplate
+    : null;
+};
+
+export const buildPipelineTemplateSpecimen = (
+  submission: PipelineSubmission,
+  source: PipelineTemplateSpecimenSource,
+  liveTemplate?: TCGCardTemplate,
+): PipelineTemplateSpecimen | null => {
+  const template = source === 'candidate' ? getPipelineSubmissionTemplate(submission) : liveTemplate ?? null;
+  if (!template || submission.assetType !== 'templates') return null;
+
+  const face: CardFace = template.templateUsage === 'back-preset' ? 'back' : 'front';
+  const card: DisplayCard = {
+    template,
+    data: template.templatePreviewData ?? {},
+    uniqueId: `pipeline-review-${submission.id}-${source}`,
+  };
+  const revisionNumber = source === 'candidate'
+    ? submission.revisionNumber
+    : template.templateRevision ?? submission.baseRevisionNumber;
+  const dimensions = getCardExportDimensionsPx(card, PIPELINE_TEMPLATE_SPECIMEN_DPI);
+  const fileName = [
+    slugifyFileName(submission.name, 'cardforge-template'),
+    source,
+    `r${revisionNumber ?? 'unknown'}`,
+    `base-r${submission.baseRevisionNumber ?? 'unknown'}`,
+    `submission-${submission.id}`,
+    face,
+  ].join('-') + '.png';
+
+  return {
+    card,
+    face,
+    fileName,
+    widthPx: dimensions.widthPx,
+    heightPx: dimensions.heightPx,
+    submissionId: submission.id,
+    lineageId: submission.lineageId ?? null,
+    revisionNumber,
+    baseRevisionNumber: submission.baseRevisionNumber,
+    targetRegistryAssetId: submission.targetRegistryAssetId,
+  };
+};
 export const getExtensionForMimeType = (mimeType: string) => {
   if (mimeType === 'image/svg+xml') return 'svg';
   if (mimeType === 'image/png') return 'png';
