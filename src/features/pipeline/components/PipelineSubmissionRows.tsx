@@ -7,8 +7,7 @@ import { Archive, Check, Download, Eye, Loader2, Save, Sparkles, X } from 'lucid
 import { MediaPresentationPreview } from './MediaPresentationRevision';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { createCardFaceExportRenderer } from '@/features/card-generator/lib/cardPreviewExport';
-import { getExportProfile } from '@/features/card-generator/lib/printValidation';
+import { createCardFaceExportRenderer, getExportProfile } from '@/features/card-generator/client';
 import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
 import { ContentQualityGuidance } from '@/features/pipeline/components/ContentQualityGuidance';
 import {
