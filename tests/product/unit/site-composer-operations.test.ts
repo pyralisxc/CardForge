@@ -75,7 +75,10 @@ describe('first-party page editor accessibility', () => {
 
     expect(pathInput).toBeDefined();
     expect(help).toBeDefined();
-    expect(help?.props.children).toContain('lowercase words separated by hyphens');
-    expect(help?.props.children).toContain('Changing a published path removes its old address.');
+    const helpText = Array.isArray(help?.props.children)
+      ? help.props.children.map(String).join('')
+      : String(help?.props.children ?? '');
+    expect(helpText).toContain('lowercase words separated by hyphens');
+    expect(helpText).toContain('Changing a published path removes its old address.');
   });
 });
