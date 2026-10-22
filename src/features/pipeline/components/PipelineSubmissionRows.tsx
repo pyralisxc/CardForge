@@ -7,7 +7,6 @@ import { Archive, Check, Download, Eye, Loader2, Save, Sparkles, X } from 'lucid
 import { MediaPresentationPreview } from './MediaPresentationRevision';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { createCardFaceExportRenderer, getExportProfile } from '@/features/card-generator/client/export';
 import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
 import { ContentQualityGuidance } from '@/features/pipeline/components/ContentQualityGuidance';
 import {
@@ -26,6 +25,7 @@ import {
   getPipelineSubmissionTemplate,
   getTemplatePreviewId,
   PIPELINE_TEMPLATE_SPECIMEN_DPI,
+  type PipelineTemplateSpecimenRenderer,
   tierClasses,
   type PipelineSubmission,
 } from '@/features/pipeline/components/PipelineContributionModel';
@@ -238,6 +238,7 @@ export function AssetRow({
   submission,
   program,
   templatePreviews,
+  renderTemplateSpecimen,
   children,
   expanded = false,
   onToggleExpanded,
@@ -246,6 +247,7 @@ export function AssetRow({
   submission: PipelineSubmission;
   program: Pick<PipelineProgramView, 'settings'>;
   templatePreviews: Record<string, TCGCardTemplate>;
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
   children?: ReactNode;
   expanded?: boolean;
   onToggleExpanded?: () => void;
@@ -267,7 +269,7 @@ export function AssetRow({
     <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3">
       <div className="grid gap-3 sm:grid-cols-[4rem_1fr_auto] sm:items-center">
         <div className="grid h-16 w-16 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)] bg-[linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%),linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%)] bg-[length:16px_16px] bg-[position:0_0,8px_8px]">
-          <AssetPreview submission={submission} templatePreviews={templatePreviews} />
+          <AssetPreview submission={submission} templatePreviews={templatePreviews} renderTemplateSpecimen={renderTemplateSpecimen} />
         </div>
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -313,7 +315,7 @@ export function AssetRow({
       {expanded ? (
         <div className="mt-3 grid gap-3 border-t border-[var(--cf-border-subtle)] pt-3 lg:grid-cols-[minmax(14rem,22rem)_1fr]">
           <div className="grid min-h-48 min-w-0 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)] bg-[linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%),linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%)] bg-[length:18px_18px] bg-[position:0_0,9px_9px]">
-            <AssetPreview submission={submission} templatePreviews={templatePreviews} expanded />
+            <AssetPreview submission={submission} templatePreviews={templatePreviews} renderTemplateSpecimen={renderTemplateSpecimen} expanded />
           </div>
           <div className="text-sm leading-6 text-[var(--cf-text-muted)]">
             <p>{submission.description || 'No notes were provided for this asset.'}</p>
@@ -358,10 +360,12 @@ export function AssetRow({
 function AssetPreview({
   submission,
   templatePreviews,
+  renderTemplateSpecimen,
   expanded = false,
 }: {
   submission: PipelineSubmission;
   templatePreviews: Record<string, TCGCardTemplate>;
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
   expanded?: boolean;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
@@ -394,8 +398,8 @@ function AssetPreview({
             {submission.targetRegistryAssetId ? <> {' · '}registry asset <span className="font-mono">{submission.targetRegistryAssetId}</span></> : null}
           </p>
           <div className="flex min-w-0 w-full flex-wrap items-start gap-4">
-            <TemplateComparisonPreview label="Current live" submission={submission} source="live" template={template} id={`live-${submission.id}`} />
-            <TemplateComparisonPreview label={`Proposed revision ${submission.revisionNumber ?? ''}`.trim()} submission={submission} source="candidate" template={proposedTemplate} id={`proposed-${submission.id}`} />
+            <TemplateComparisonPreview label="Current live" submission={submission} source="live" template={template} id={`live-${submission.id}`} renderTemplateSpecimen={renderTemplateSpecimen} />
+            <TemplateComparisonPreview label={`Proposed revision ${submission.revisionNumber ?? ''}`.trim()} submission={submission} source="candidate" template={proposedTemplate} id={`proposed-${submission.id}`} renderTemplateSpecimen={renderTemplateSpecimen} />
           </div>
         </div>
       );
@@ -410,6 +414,7 @@ function AssetPreview({
             source={proposedTemplate ? 'candidate' : 'live'}
             template={primaryTemplate}
             id={`single-${submission.id}`}
+            renderTemplateSpecimen={renderTemplateSpecimen}
           />
         </div>
       );
@@ -567,12 +572,14 @@ function TemplateComparisonPreview({
   source,
   template,
   id,
+  renderTemplateSpecimen,
 }: {
   label: string;
   submission: PipelineSubmission;
   source: 'candidate' | 'live';
   template: TCGCardTemplate;
   id: string;
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
 }) {
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
@@ -583,14 +590,7 @@ function TemplateComparisonPreview({
     if (!specimen || isExporting) return;
     setIsExporting(true);
     try {
-      const profile = { ...getExportProfile('physical', PIPELINE_TEMPLATE_SPECIMEN_DPI), canvasPixelRatio: 1 };
-      const renderer = createCardFaceExportRenderer(profile);
-      let blob: Blob;
-      try {
-        blob = await renderer.renderToBlob(specimen.card, specimen.face);
-      } finally {
-        renderer.cleanup();
-      }
+      const blob = await renderTemplateSpecimen(specimen.card, specimen.face, PIPELINE_TEMPLATE_SPECIMEN_DPI);
       if (blob.type !== 'image/png') throw new Error('The canonical renderer did not return a PNG specimen.');
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');

@@ -229,6 +229,12 @@ export interface PipelineTemplateSpecimen {
   targetRegistryAssetId: string | null;
 }
 
+export type PipelineTemplateSpecimenRenderer = (
+  card: DisplayCard,
+  face: CardFace,
+  dpi: number,
+) => Promise<Blob>;
+
 export const getPipelineSubmissionTemplate = (submission: PipelineSubmission): TCGCardTemplate | null => {
   if (submission.assetType !== 'templates') return null;
   const payload = submission.sourcePayload;
