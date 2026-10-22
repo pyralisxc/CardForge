@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { formatPacificDateTimeLocal, parsePacificDateTimeLocal } from '@/domain/marketing/schedule';
 import { uploadCampaignMedia } from '@/features/marketing-content/client/api';
 import { getCampaignMediaExpectation, getCampaignPackageReadiness } from '@/features/marketing-content/client/campaignWorkflow';
 import { CampaignAssociationEditor } from '@/features/marketing-content/components/CampaignAssociationEditor';
@@ -78,13 +79,9 @@ export const createEmptyCampaignDraft = (
   associations: [],
 });
 
-export const toLocalDateTime = (value: string | null): string => {
-  if (!value) return '';
-  const date = new Date(value);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 16);
-};
+export const toLocalDateTime = (value: string | null): string => (
+  value ? formatPacificDateTimeLocal(value) : ''
+);
 
 export const toCampaignDraft = (campaign: SocialCampaign): CampaignDraft => ({
   idempotencyKey: crypto.randomUUID(),
@@ -118,7 +115,7 @@ export const toCampaignDraft = (campaign: SocialCampaign): CampaignDraft => ({
 export const getCampaignPayload = (draft: CampaignDraft) => ({
   ...draft,
   requestedPublishAt: draft.requestedPublishAt
-    ? new Date(draft.requestedPublishAt).toISOString()
+    ? parsePacificDateTimeLocal(draft.requestedPublishAt)
     : null,
   variants: draft.variants.map((variant) => ({
     service: variant.service,
@@ -446,7 +443,7 @@ export function CampaignComposer({
             />
           </CountedField>
           <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
-            Preferred publish time
+            Preferred publish time (Pacific Time)
             <input
               type="datetime-local"
               className={fieldClassName}

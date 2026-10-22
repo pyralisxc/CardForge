@@ -65,14 +65,14 @@ export function CampaignProviderPreview({
         </p>
 
         {attachment ? (
-          <div className="relative bg-[#111]">
+          <div className="relative aspect-[4/5] w-full bg-[#120d1c]">
             <Image
               src={attachment.media.previewUrl}
               alt={attachment.altText}
-              width={1080}
-              height={1350}
+              fill
+              sizes="(max-width: 768px) 100vw, 640px"
               unoptimized
-              className="aspect-[4/5] w-full object-cover"
+              className="object-contain"
             />
             {variant.attachments.length > 1 ? (
               <span className="absolute right-3 top-3 rounded-full bg-black/75 px-2 py-1 text-xs text-white">
