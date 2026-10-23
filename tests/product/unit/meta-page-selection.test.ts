@@ -44,11 +44,11 @@ describe('Meta Page-selection failure and identity boundary', () => {
     const database=makeDatabase(fixture,null);
     database.rpc.mockResolvedValue({data:null,error:{message:'database unavailable'}});
     vi.mocked(getSupabaseServerClient).mockReturnValue(database as never);
-    await expect(completePendingMetaPageSelection(id,owner,'page-a')).rejects.toThrow('could not be saved');
+    await expect(completePendingMetaPageSelection(id,owner,'page-a')).rejects.toThrow('outcome unknown');
     expect(database.rpc).toHaveBeenCalledOnce();
   });
   it('replays a terminal receipt without writing provider connections again',async()=>{
-    const database=makeDatabase({...fixture,terminal_receipt:{cancelled:false,connectionCount:2}},null);
+    const database=makeDatabase({...fixture,terminal_receipt:{cancelled:false,connectionCount:2,selectedPageId:'page-a'}},null);
     vi.mocked(getSupabaseServerClient).mockReturnValue(database as never);
     await expect(completePendingMetaPageSelection(id,owner,'page-a')).resolves.toEqual({cancelled:false,connectionCount:2});
     expect(database.rpc).not.toHaveBeenCalled();
