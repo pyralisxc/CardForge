@@ -281,7 +281,9 @@ export function OwnerAssetLibraryPanel({
         ) : program.submissions.map((submission) => {
           const isPendingTemplateRevision = submission.assetType === 'templates'
             && submission.revisionNumber != null
-            && (submission.status === 'submitted' || submission.status === 'publish_candidate');
+            && (submission.status === 'submitted' || submission.status === 'publish_candidate'
+              || (submission.status === 'voting' && submission.editorialReviewStatus === 'approved'
+                && submission.baseRevisionNumber != null && submission.baseRevisionNumber > 0));
           const isNewTemplateSubmission = isPendingTemplateRevision && submission.baseRevisionNumber === 0;
           const editTemplateId = getTemplatePreviewId(submission);
           return (
