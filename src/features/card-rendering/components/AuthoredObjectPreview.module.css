@@ -17,14 +17,17 @@
 
 .card:has([data-scene-inline-stack='true']) {
   transform-origin: 0 0;
-  rotate: var(--settled-stack-rotation, 0deg);
+  --inline-fan-angle: var(--settled-stack-rotation, 0deg);
 }
 
-.card[data-card-position='0'] { z-index: 5; }
-.card[data-card-position='1'] { z-index: 4; transform: translate(-24%, 7%); }
-.card[data-card-position='2'] { z-index: 3; transform: translate(24%, 8%); }
-.card[data-card-position='3'] { z-index: 2; transform: translate(-45%, 17%); }
-.card[data-card-position='4'] { z-index: 1; transform: translate(45%, 18%); }
+/* Composition matches the scene: translation followed by card rotation.
+ * Rotating the separate CSS rotate property first would rotate the fan
+ * offset and cause a different return handback for angled cards. */
+.card[data-card-position='0'] { z-index: 5; transform: rotate(var(--inline-fan-angle, 0deg)); }
+.card[data-card-position='1'] { z-index: 4; transform: translate(-24%, 7%) rotate(var(--inline-fan-angle, 0deg)); }
+.card[data-card-position='2'] { z-index: 3; transform: translate(24%, 8%) rotate(var(--inline-fan-angle, 0deg)); }
+.card[data-card-position='3'] { z-index: 2; transform: translate(-45%, 17%) rotate(var(--inline-fan-angle, 0deg)); }
+.card[data-card-position='4'] { z-index: 1; transform: translate(45%, 18%) rotate(var(--inline-fan-angle, 0deg)); }
 
 .emptyBadge {
   position: absolute;

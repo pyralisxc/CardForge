@@ -189,7 +189,13 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
         right = Math.min(right, clip.right); bottom = Math.min(bottom, clip.bottom);
       }
       const projection: Projection = {
-        ...slot, travelClip, x: rect.left, y: rect.top, width: rect.width,
+        ...slot, travelClip,
+        // An unsettled stack slot has translated-but-unrotated layout.
+        // Motion supplies rotation after translation, matching the settled
+        // inline wrapper's translate(...) rotate(...) composition.
+        ...(slot.depth === 'stack'
+          ? stackSceneGeometry(slot.node, 0)
+          : { x: rect.left, y: rect.top, width: rect.width }),
         opacity: slot.node.closest('[data-surface-authority="context"]') ? CONTEXT_ARTIFACT_OPACITY : 1,
         clip: `inset(${top}px ${Math.max(0, window.innerWidth - right)}px ${Math.max(0, window.innerHeight - bottom)}px ${left}px)`,
       };
