@@ -292,14 +292,21 @@ export function useDeskController({
   } = projectState;
   const generationTargetTemplateId = generationContextTool?.targetIds[1] ?? null;
   const generationTargetBackingId = generationContextTool?.targetIds[2] ?? null;
-  // Context targets initialize the existing Generate selection; they are not
-  // a permanent display override. The picker and the store validator must use
-  // the same front ID after a user chooses a different backing.
+  const initializedGenerateInstanceRef = useRef<string | null>(null);
+  // Restored tool history may arrive before the Template catalog. Initialize
+  // the store once per tool instance only when both targets can be validated;
+  // subsequent user selections must never be replayed from the history snapshot.
   useEffect(() => {
-    if (!generationTargetTemplateId) return;
+    const instanceId = generationContextTool?.instanceId;
+    if (!instanceId || !generationTargetTemplateId || !projection.templateCatalogReady
+      || initializedGenerateInstanceRef.current === instanceId) return;
+    if (!templates.some((template) => template.id === generationTargetTemplateId)) return;
+    if (generationTargetBackingId && !templates.some((template) => template.id === generationTargetBackingId)) return;
+    initializedGenerateInstanceRef.current = instanceId;
     setGeneratorSelectedTemplateId(generationTargetTemplateId);
     setGeneratorSelectedBackingTemplateId(generationTargetBackingId);
-  }, [generationTargetTemplateId, generationTargetBackingId, setGeneratorSelectedTemplateId, setGeneratorSelectedBackingTemplateId]);
+  }, [generationContextTool?.instanceId, generationTargetTemplateId, generationTargetBackingId,
+    projection.templateCatalogReady, templates, setGeneratorSelectedTemplateId, setGeneratorSelectedBackingTemplateId]);
   const generatorSelectedTemplateId = storedGeneratorSelectedTemplateId;
   const generatorSelectedBackingTemplateId = storedGeneratorSelectedBackingTemplateId;
   const focusedArtifactIdForArrival = interactionSession.focusPath.artifactId;
