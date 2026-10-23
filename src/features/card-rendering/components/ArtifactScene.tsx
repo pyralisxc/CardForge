@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, memo, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion, useIsPresent, usePresenceData, useReducedMotion } from 'motion/react';
+import { AnimatePresence, animate, cancelFrame, frame, motion, useMotionValue, usePresence, usePresenceData, useReducedMotion } from 'motion/react';
 import { RefreshCcw } from 'lucide-react';
 import { getCardFaceCanvas, getCardFaceTemplate, getCardPreviewLayout, hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
@@ -28,6 +28,8 @@ interface SceneSlot {
   interactionOverlay?: ReactNode;
 }
 interface Projection extends SceneSlot {
+  revision: number;
+  publishDirect?: (target: Projection) => void;
   x: number;
   y: number;
   width: number;
@@ -51,44 +53,107 @@ const SceneCardContent = memo(function SceneCardContent({ card, face, watermark,
 });
 
 function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, onSettled }: {
-  item: Projection;
-  origin: Projection;
-  immediate: boolean;
-  inlineSettled: boolean;
+  item: Projection; origin: Projection; immediate: boolean; inlineSettled: boolean;
   onFlip: (id: string, face: CardFace) => void;
   onSettled: (id: string, depth: Depth) => void;
 }) {
-  const [settledDepth, setSettledDepth] = useState<Depth | null>(null);
-  const present = useIsPresent();
+  const [present, safeToRemove] = usePresence();
   const activeSetId = usePresenceData();
   const culled = !present && activeSetId === item.setId;
+  const [settledDepth, setSettledDepth] = useState<Depth | null>(null);
   const travelling = !immediate && (!present || settledDepth !== item.depth);
   const template = getCardFaceTemplate(item.card, item.face);
   const screenScale = RENDER_WIDTH / item.width;
   const previewScale = getCardPreviewLayout({
-    targetWidthPx: RENDER_WIDTH,
-    aspectRatio: template.aspectRatio,
-    canvas: getCardFaceCanvas(item.card, item.face),
-    isPrintMode: false,
+    targetWidthPx: RENDER_WIDTH, aspectRatio: template.aspectRatio,
+    canvas: getCardFaceCanvas(item.card, item.face), isPrintMode: false,
   }).visualScale;
   const canOwnInlineFlip = item.width >= INLINE_FLIP_MIN_SCREEN_WIDTH;
-  return <motion.div style={{ position: 'absolute', inset: 0, clipPath: travelling ? item.travelClip : item.clip, zIndex: priority[item.depth] * 100 + item.order }}>
-    <motion.div
-      data-scene-artifact={item.card.uniqueId}
-      data-scene-depth={item.depth}
-      data-scene-face={item.face}
-      data-scene-template={template.id}
-      data-scene-moving={travelling}
-      initial={{ x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0 }}
-      animate={{ x: item.x, y: item.y, scale: item.width / RENDER_WIDTH, rotate: item.rotation, opacity: inlineSettled ? 0 : item.opacity }}
-      exit={culled || immediate ? { opacity: 0, transition: { duration: 0 } } : { x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0, transition: { opacity: { delay: 0.3, duration: 0.15 } } }}
-      onAnimationComplete={() => {
+  const x = useMotionValue(origin.x), y = useMotionValue(origin.y);
+  const scale = useMotionValue(origin.width / RENDER_WIDTH);
+  const rotate = useMotionValue(origin.rotation), opacity = useMotionValue(0);
+  const controls = useRef<Array<{ stop: () => void }>>([]);
+  const generation = useRef(0), appliedRevision = useRef(-1), disposed = useRef(false);
+  const settledCallback = useRef(onSettled);
+  settledCallback.current = onSettled;
+  const stop = useCallback(() => {
+    generation.current++;
+    controls.current.forEach((control) => control.stop());
+    controls.current = [];
+  }, []);
+  const jump = useCallback((target: Projection, alpha: number) => {
+    if (disposed.current) return;
+    stop();
+    x.jump(target.x); y.jump(target.y);
+    scale.jump(target.width / RENDER_WIDTH);
+    rotate.jump(target.rotation); opacity.jump(alpha);
+    appliedRevision.current = target.revision;
+  }, [stop, x, y, scale, rotate, opacity]);
+  const publishDirect = useCallback((target: Projection) => {
+    if (disposed.current || !present || travelling || inlineSettled || target.depth !== item.depth) return;
+    jump(target, target.opacity);
+  }, [present, travelling, inlineSettled, item.depth, jump]);
+  useLayoutEffect(() => {
+    disposed.current = false;
+    return () => { disposed.current = true; stop(); };
+  }, [stop]);
+  useLayoutEffect(() => {
+    item.publishDirect = publishDirect;
+    return () => { if (item.publishDirect === publishDirect) item.publishDirect = undefined; };
+  }, [item, publishDirect]);
+  useLayoutEffect(() => {
+    if (disposed.current) return;
+    if (!present) {
+      stop();
+      const token = generation.current;
+      if (culled || immediate) { opacity.jump(0); safeToRemove?.(); return; }
+      const motions = [
+        animate(x, origin.x, { type: 'spring', stiffness: 260, damping: 32, mass: 0.9 }),
+        animate(y, origin.y, { type: 'spring', stiffness: 260, damping: 32, mass: 0.9 }),
+        animate(scale, origin.width / RENDER_WIDTH, { type: 'spring', stiffness: 260, damping: 32, mass: 0.9 }),
+        animate(rotate, origin.rotation, { type: 'spring', stiffness: 260, damping: 32, mass: 0.9 }),
+        animate(opacity, 0, { duration: 0.15, delay: 0.3 }),
+      ];
+      controls.current = motions;
+      void Promise.all(motions.map((motion) => Promise.resolve(motion))).then(() => {
+        if (!disposed.current && generation.current === token) safeToRemove?.();
+      }).catch(() => undefined);
+      return;
+    }
+    if (!travelling && appliedRevision.current === item.revision) return;
+    const alpha = inlineSettled ? 0 : item.opacity;
+    if (immediate || inlineSettled) {
+      jump(item, alpha);
+      if (settledDepth !== item.depth) {
         setSettledDepth(item.depth);
-        onSettled(item.card.uniqueId, item.depth);
-      }}
-      transition={inlineSettled ? { duration: 0 } : immediate ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 32, mass: 0.9, opacity: { duration: 0.18 } }}
-      style={{ position: 'absolute', left: 0, top: 0, width: RENDER_WIDTH, visibility: inlineSettled ? 'hidden' : 'visible', transformOrigin: '0 0', filter: 'drop-shadow(0 12px 18px rgb(0 0 0 / 24%))', '--artifact-hit-scale': screenScale / Math.max(previewScale, 0.001) } as React.CSSProperties}
-    >
+        settledCallback.current(item.card.uniqueId, item.depth);
+      }
+      return;
+    }
+    stop();
+    const token = generation.current;
+    const motions = [
+      animate(x, item.x, { type: 'spring', stiffness: 260, damping: 32, mass: 0.9 }),
+      animate(y, item.y, { type: 'spring', stiffness: 260, damping: 32, mass: 0.9 }),
+      animate(scale, item.width / RENDER_WIDTH, { type: 'spring', stiffness: 260, damping: 32, mass: 0.9 }),
+      animate(rotate, item.rotation, { type: 'spring', stiffness: 260, damping: 32, mass: 0.9 }),
+      animate(opacity, alpha, { duration: 0.18 }),
+    ];
+    controls.current = motions;
+    appliedRevision.current = item.revision;
+    void Promise.all(motions.map((motion) => Promise.resolve(motion))).then(() => {
+      if (disposed.current || generation.current !== token) return;
+      setSettledDepth(item.depth);
+      settledCallback.current(item.card.uniqueId, item.depth);
+    }).catch(() => undefined);
+  }, [present, culled, immediate, travelling, inlineSettled, settledDepth, item, origin, safeToRemove, stop, jump, x, y, scale, rotate, opacity]);
+  return <motion.div style={{ position: 'absolute', inset: 0, clipPath: travelling ? item.travelClip : item.clip, zIndex: priority[item.depth] * 100 + item.order }}>
+    <motion.div data-scene-artifact={item.card.uniqueId} data-scene-depth={item.depth}
+      data-scene-face={item.face} data-scene-template={template.id} data-scene-moving={travelling}
+      style={{ x, y, scale, rotate, opacity, position: 'absolute', left: 0, top: 0,
+        width: RENDER_WIDTH, visibility: inlineSettled ? 'hidden' : 'visible',
+        transformOrigin: '0 0', filter: 'drop-shadow(0 12px 18px rgb(0 0 0 / 24%))',
+        '--artifact-hit-scale': screenScale / Math.max(previewScale, 0.001) } as React.CSSProperties}>
       {item.interactionOverlay && !inlineSettled
         ? <SceneCardContent card={item.card} face={item.face} watermark={item.watermark} interactionOverlay={item.interactionOverlay} />
         : <div aria-hidden="true" inert><SceneCardContent card={item.card} face={item.face} watermark={item.watermark} /></div>}
@@ -99,6 +164,7 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
         aria-label={`Show ${item.face === 'front' ? 'back' : 'front'} of ${item.flipLabel}`}
         style={{ position: 'absolute', bottom: 12, right: 12, width: 40, height: 40, display: 'grid', placeItems: 'center', pointerEvents: 'auto', transform: `scale(${RENDER_WIDTH / item.width})`, transformOrigin: 'bottom right', borderRadius: 8, background: 'var(--cf-surface)', color: 'var(--cf-text)', border: '1px solid var(--cf-border-strong)' }}
       ><RefreshCcw size={18} aria-hidden="true" /></button> : null}
+
     </motion.div>
   </motion.div>;
 }
@@ -112,7 +178,8 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
   const slots = useRef(new Map<string, SceneSlot>());
   const origins = useRef(new Map<string, Projection>());
   const inlineOrigins = useRef(new Map<string, Projection>());
-  const frame = useRef<number | null>(null);
+  const measureQueued = useRef(false);
+  const revisionRef = useRef(0);
   const observer = useRef<ResizeObserver | null>(null);
   const [projections, setProjections] = useState<Projection[]>([]);
   // Only the currently focused Set may keep its last projected frames while
@@ -131,7 +198,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
   const settledFrame = useRef<number | null>(null);
 
   const measure = useCallback(() => {
-    frame.current = null;
+    measureQueued.current = false;
     const selected = new Map<string, Projection>();
     const bounds = new Map<Element, DOMRect>();
     const rectOf = (node: Element) => {
@@ -156,7 +223,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
         right = Math.min(right, clip.right); bottom = Math.min(bottom, clip.bottom);
       }
       const projection: Projection = {
-        ...slot, travelClip, x: rect.left, y: rect.top, width: rect.width,
+        ...slot, revision: ++revisionRef.current, travelClip, x: rect.left, y: rect.top, width: rect.width,
         opacity: slot.node.closest('[data-surface-authority="context"]') ? CONTEXT_ARTIFACT_OPACITY : 1,
         clip: `inset(${top}px ${Math.max(0, window.innerWidth - right)}px ${Math.max(0, window.innerHeight - bottom)}px ${left}px)`,
       };
@@ -168,6 +235,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
           if (inlineRect.width && inlineRect.height) {
             inlineOrigins.current.set(slot.card.uniqueId, {
               ...slot,
+              revision: ++revisionRef.current,
               node: inlineNode,
               depth: 'board',
               x: inlineRect.left,
@@ -207,12 +275,23 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       }
     }
     const next = [...selected.values()];
+    const direct = performance.now() < directUntil.current || dragging.current;
+    if (direct) {
+      const previous = new Map(projectedRef.current.map((projection) => [projection.card.uniqueId, projection]));
+      for (const target of next) {
+        const prior = previous.get(target.card.uniqueId);
+        if (prior?.depth === target.depth && prior.publishDirect && target.node.isConnected) {
+          prior.publishDirect(target);
+          target.publishDirect = prior.publishDirect;
+        }
+      }
+    }
     projectedRef.current = next;
     setDirectMotion(performance.now() < directUntil.current || dragging.current);
     setProjections(next);
   }, []);
   const refresh = useCallback(() => {
-    if (frame.current === null) frame.current = requestAnimationFrame(measure);
+    if (!measureQueued.current) { measureQueued.current = true; frame.read(measure); }
   }, [measure]);
   const register = useCallback((id: string, slot: SceneSlot) => {
     slots.current.set(id, slot);
@@ -246,9 +325,10 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       window.removeEventListener('pointerdown', onPointerDown, true);
       window.removeEventListener('pointerup', onPointerUp, true);
       window.removeEventListener('pointercancel', onPointerUp, true);
-      if (frame.current !== null) cancelAnimationFrame(frame.current);
+      cancelFrame(measure);
+      measureQueued.current = false;
       if (settledFrame.current !== null) cancelAnimationFrame(settledFrame.current);
-      frame.current = null;
+      measureQueued.current = false;
       settledFrame.current = null;
     };
   }, [refresh]);
