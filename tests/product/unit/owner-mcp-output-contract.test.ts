@@ -10,11 +10,11 @@ import { registerOwnerReadTools } from '@/features/owner/server/mcpOwnerTools';
 import { ownerSiteFieldPublishInputSchema } from '@/features/owner/server/mcpOwnerSchemas';
 
 vi.mock('server-only', () => ({}));
-const mocks = vi.hoisted(() => ({ publish: vi.fn(), publishField: vi.fn(), publishConfiguration: vi.fn(), publishPresentation: vi.fn(), readFields: vi.fn(), readCopy: vi.fn(), readiness: vi.fn(), site: vi.fn(), access: vi.fn(), liveEdition: vi.fn(), savedOperation: vi.fn(), saveRevision: vi.fn(), activateRevision: vi.fn() }));
+const mocks = vi.hoisted(() => ({ publish: vi.fn(), publishField: vi.fn(), publishConfiguration: vi.fn(), publishPresentation: vi.fn(), readFields: vi.fn(), readCopy: vi.fn(), readiness: vi.fn(), site: vi.fn(), access: vi.fn(), liveEdition: vi.fn(), savedOperation: vi.fn(), saveRevision: vi.fn(), activateRevision: vi.fn(), revisionIdentity: vi.fn() }));
 vi.mock('@/features/public-site/server/websiteEditionStore', () => ({
   readLiveWebsiteRevision: mocks.liveEdition,
   readSavedWebsiteOperation: mocks.savedOperation,
-  readWebsiteRevisionIdentity: vi.fn().mockResolvedValue({ editionId: 'edition-1', ordinal: 2 }),
+  readWebsiteRevisionIdentity: mocks.revisionIdentity,
   saveWebsiteRevision: mocks.saveRevision,
   activateWebsiteRevision: mocks.activateRevision,
   listWebsiteEditions: vi.fn().mockResolvedValue([]),
@@ -71,6 +71,7 @@ beforeEach(() => {
   mocks.access.mockResolvedValue({ user: { id: 'owner', emailAddresses: ['owner@example.com'], privateMetadata: {} }, email: 'owner@example.com', isOwner: true });
   mocks.readCopy.mockResolvedValue(DEFAULT_SITE_CONTENT_BLOCKS);
   mocks.liveEdition.mockResolvedValue({revisionId:null,generation:0});
+  mocks.revisionIdentity.mockResolvedValue({editionId:'edition-1',ordinal:2});
   tools.clear();
   registerOwnerReadTools({
     server: {
