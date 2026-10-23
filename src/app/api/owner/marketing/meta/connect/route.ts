@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHmac } from 'node:crypto';
 import { NextResponse } from 'next/server';
 
 import { getCurrentOwnerAccess } from '@/features/owner/server';
@@ -15,6 +15,8 @@ export async function GET() {
   try {
     const state = randomBytes(32).toString('base64url');
     const response = NextResponse.redirect(buildMetaAuthorizationUrl(state));
+    const ownerBinding = createHmac('sha256', state).update(owner.userId).digest('base64url');
+    response.cookies.set('cardforge_meta_oauth_owner', ownerBinding, { httpOnly:true, secure:process.env.NODE_ENV==='production', sameSite:'lax', path:'/api/owner/marketing/meta', maxAge:600 });
     response.cookies.set('cardforge_meta_oauth_state', state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
