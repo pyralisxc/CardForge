@@ -113,7 +113,7 @@ export const registerOwnerReadTools = ({
       if (legacyWebsiteWrites.has(toolName)) {
         const live = await readLiveWebsiteRevision();
         if (live.revisionId) {
-          throw new Error('Website Editions is authoritative. This legacy publisher cannot mutate the adopted site. Read owner_website_editions, then use owner_website_save_revision for a draft; only owner_website_activate_revision publishes explicitly.');
+          throw new SiteMediaStoreError('Website Editions is authoritative. This legacy publisher cannot mutate the adopted site. Read owner_website_editions, then use owner_website_save_revision for a draft; only owner_website_activate_revision publishes explicitly.', 409);
         }
       }
       return await observeMcpToolExecution({
