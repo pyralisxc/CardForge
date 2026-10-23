@@ -1,6 +1,6 @@
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { saveWebsiteRevision, activateWebsiteRevision, listWebsiteRevisions, readSavedWebsiteOperation, readLiveWebsiteRevision, WebsiteEditionStoreError } from '@/features/public-site/server/websiteEditionStore';
-import { WebsitePresentationValidationError } from '@/features/public-site/model/websitePresentation';
+import { WebsitePresentationValidationError } from '@/features/public-site/server';
 import { resolveOwnerWebsiteRevision } from '@/features/public-site/server/websitePresentationResolver';
 import { parseJsonBodyWithLimit } from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
