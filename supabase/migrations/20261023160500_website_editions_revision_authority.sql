@@ -227,16 +227,16 @@ begin
      where (p_copy_epochs->>b.slug)::timestamptz is distinct from b.updated_at
    )
    or exists (
-     select 1 from jsonb_object_keys(p_copy_epochs) slug
-     where not exists(select 1 from public.cardforge_site_content_blocks b where b.slug=slug)
+     select 1 from jsonb_object_keys(p_copy_epochs) as expected(copy_slug)
+      where not exists(select 1 from public.cardforge_site_content_blocks b where b.slug=expected.copy_slug)
    )
    or exists (
      select 1 from public.cardforge_site_media m
      where (p_media_epochs->>m.slot)::timestamptz is distinct from m.updated_at
    )
    or exists (
-     select 1 from jsonb_object_keys(p_media_epochs) slot
-     where not exists(select 1 from public.cardforge_site_media m where m.slot=slot)
+     select 1 from jsonb_object_keys(p_media_epochs) as expected(media_slot)
+      where not exists(select 1 from public.cardforge_site_media m where m.slot=expected.media_slot)
    ) then
    raise exception 'website_bootstrap_conflict';
  end if;
