@@ -678,3 +678,8 @@ export const ownerEditionStageMediaInputSchema = fromJsonSchema<{
    properties:{name:{type:'string'},mimeType:{type:'string',enum:['image/png','image/webp']},base64:{type:'string'}}},
  },
 });
+
+export const ownerEditionOperationInputSchema = fromJsonSchema<{operationId:string}>({
+  type:'object',additionalProperties:false,required:['operationId'],
+  properties:{operationId:editionUuid},
+});

@@ -1,7 +1,7 @@
 import { createMcpHandler } from 'mcp-handler';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { WEBSITE_DRAFT_MEDIA_BUCKET } from '@/features/public-site/server/websiteEditionStore';
-import { readLiveWebsiteRevision, listWebsiteEditions, listWebsiteRevisions, readWebsiteRevision, readWebsiteRevisionIdentity, createWebsiteEdition, saveWebsiteRevision, activateWebsiteRevision } from '@/features/public-site/server/websiteEditionStore';
+import { readLiveWebsiteRevision, listWebsiteEditions, listWebsiteRevisions, readWebsiteRevision, readWebsiteRevisionIdentity, createWebsiteEdition, saveWebsiteRevision, readSavedWebsiteOperation, activateWebsiteRevision } from '@/features/public-site/server/websiteEditionStore';
 import { resolveOwnerAccess } from '@/domain/entitlements';
 
 import { getOwnerAnalyticsSnapshot } from '@/features/analytics/server';
@@ -28,7 +28,7 @@ import { getBusinessIdentity } from '@/features/business-identity/server';
 import { getExperienceSettings } from '@/features/experience-settings/server';
 import type { McpOwnerAccess } from './mcpOwnerAccess';
 import {
-  ownerEditionListInputSchema, ownerEditionCreateInputSchema, ownerEditionSaveInputSchema, ownerEditionPreviewInputSchema, ownerEditionActivateInputSchema, ownerEditionStageMediaInputSchema, ownerEditionResultOutputSchema,
+  ownerEditionOperationInputSchema, ownerEditionListInputSchema, ownerEditionCreateInputSchema, ownerEditionSaveInputSchema, ownerEditionPreviewInputSchema, ownerEditionActivateInputSchema, ownerEditionStageMediaInputSchema, ownerEditionResultOutputSchema,
   ownerOperationalReadOutputSchema,
   ownerActivityInputSchema,
   ownerActivityOutputSchema,
@@ -83,6 +83,10 @@ const projectOwnerSiteFields = (settings: PublicSiteConfiguration) => ({
   navigation: settings.primaryNavigation.map(({ id, label, href, visible }) => ({ id, label, href, visible })),
 });
 
+const legacyWebsiteReads = new Set([
+  'get_owner_site_snapshot', 'get_owner_site_fields', 'get_owner_site_configuration',
+  'get_owner_homepage_showcase', 'get_owner_homepage_design', 'get_owner_site_media',
+]);
 const legacyWebsiteWrites = new Set([
   'publish_owner_site_copy', 'publish_owner_site_field', 'publish_owner_site_configuration',
   'publish_owner_site_page', 'publish_owner_homepage_showcase',
@@ -112,10 +116,12 @@ export const registerOwnerReadTools = ({
       const access = await getAccess();
       // The flat store is no longer writable once a live edition is adopted.
       // Gate before legacy handlers perform image uploads or any other side effect.
-      if (legacyWebsiteWrites.has(toolName)) {
+      if (legacyWebsiteWrites.has(toolName) || legacyWebsiteReads.has(toolName)) {
         const live = await readLiveWebsiteRevision();
         if (live.revisionId) {
-          throw new SiteMediaStoreError('Website Editions is authoritative. This legacy publisher cannot mutate the adopted site. Read owner_website_editions, then use owner_website_save_revision for a draft; only owner_website_activate_revision publishes explicitly.', 409);
+          throw new SiteMediaStoreError(legacyWebsiteReads.has(toolName)
+            ? 'Website Editions is authoritative. This legacy flat-site read cannot report current published content after adoption. Use owner_website_editions for live revision/generation and owner_website_revision for its exact manifest.'
+            : 'Website Editions is authoritative. This legacy publisher cannot mutate the adopted site. Read owner_website_editions, then use owner_website_save_revision for a draft; only owner_website_activate_revision publishes explicitly.', 409);
         }
       }
       return await observeMcpToolExecution({
@@ -656,6 +662,24 @@ export const registerOwnerReadTools = ({
       const [manifest,identity]=await Promise.all([readWebsiteRevision(revisionId),readWebsiteRevisionIdentity(revisionId)]);
       return {content:[{type:'text' as const,text:'Read immutable edition revision; not activated.'}],
         structuredContent:{environment:deploymentEnvironment(),action:'preview-read',revisionId,identity,manifest} };
+    },
+  }));
+  server.registerTool('owner_website_save_operation_status', {
+    title: 'Read exact saved website operation outcome',
+    description: 'Read the existing immutable Save operation ID ledger through the authoritative revision store. A null revisionId means no retained committed result was observed; it does not authorize blind replay of an uncertain write.',
+    inputSchema: ownerEditionOperationInputSchema, outputSchema: ownerEditionResultOutputSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ operationId }) => runObserved({ toolName: 'owner_website_save_operation_status', input: { operationId },
+    execute: async () => {
+      const revisionId = await readSavedWebsiteOperation(operationId);
+      const identity = revisionId ? await readWebsiteRevisionIdentity(revisionId) : null;
+      return {
+        content: [{ type: 'text' as const, text: revisionId
+          ? 'Saved operation found; exact immutable revision returned.'
+          : 'No saved operation found. An uncertain write must be reconciled before any retry.' }],
+        structuredContent: { environment: deploymentEnvironment(), action: 'save-operation-readback',
+          operationId, revisionId, identity },
+      };
     },
   }));
   server.registerTool('owner_website_save_revision', {
