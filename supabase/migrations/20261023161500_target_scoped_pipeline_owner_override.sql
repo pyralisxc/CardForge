@@ -81,8 +81,8 @@ begin
       decision_reason = case when s.owner_status_override is not null then 'owner_status_override'
         when exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'current_publication_protected'
         else coalesce(nullif(nullif(s.decision_reason,'owner_status_override'),'current_publication_protected'),'needs_more_votes') end,
-      tier_decision_reason = case when s.owner_access_tier_override is not null then 'owner_forced_' || s.owner_access_tier_override
-        when s.owner_status_override in ('archived','rejected') then 'hidden_status'
+      tier_decision_reason = case when s.owner_status_override in ('archived','rejected') then 'hidden_status'
+        when s.owner_access_tier_override is not null then 'owner_forced_' || s.owner_access_tier_override
         when exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'current_publication_protected'
         else case when s.tier_decision_reason='hidden_status' or s.tier_decision_reason like 'owner_forced_%' then 'needs_more_votes' else coalesce(s.tier_decision_reason,'needs_more_votes') end end,
       published_at = case when (case when s.owner_status_override is null and exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'published' else coalesce(s.owner_status_override,s.automated_status) end)='published'
