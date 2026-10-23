@@ -240,7 +240,14 @@ begin
     editorial_reviewed_at = case when p_review_status = 'pending' then null else pg_catalog.now() end,
     owner_status_override = case when p_review_status in ('quarantine', 'retire') then 'archived' else owner_status_override end,
     owner_access_tier_override = case when p_review_status in ('quarantine', 'retire') then 'hidden' else owner_access_tier_override end,
-    owner_note = case when p_review_status in ('quarantine', 'retire') then normalized_note else owner_note end
+    owner_note = case when p_review_status in ('quarantine', 'retire') then normalized_note else owner_note end,
+    status = case when p_review_status in ('quarantine', 'retire') then 'archived' else status end,
+    calculated_access_tier = case when p_review_status in ('quarantine', 'retire') then 'hidden' else calculated_access_tier end,
+    decision_reason = case when p_review_status in ('quarantine', 'retire') then 'owner_status_override' else decision_reason end,
+    tier_decision_reason = case when p_review_status in ('quarantine', 'retire') then 'hidden_status' else tier_decision_reason end,
+    trashed_at = case when p_review_status in ('quarantine', 'retire') and published_at is null then coalesce(trashed_at,pg_catalog.now()) else trashed_at end,
+    trash_reason = case when p_review_status in ('quarantine', 'retire') and published_at is null then coalesce(trash_reason,'declined') else trash_reason end,
+    purge_after = case when p_review_status in ('quarantine', 'retire') and published_at is null then coalesce(purge_after,pg_catalog.now()+pg_catalog.make_interval(days => (select trash_retention_days from public.cardforge_contributor_program_settings where id='default'))) else purge_after end
   where id = p_submission_id;
 
   -- Editorial decisions are target-local. Voting/settings commands own global rebalancing.

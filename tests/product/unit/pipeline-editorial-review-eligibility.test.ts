@@ -17,5 +17,8 @@ describe('replacement review and editorial isolation', () => {
     expect(editorial).toContain('perform public.cardforge_sync_contributor_asset_registry(p_submission_id)');
     expect(editorial).toContain("owner_status_override = case when p_review_status in ('quarantine', 'retire') then 'archived'");
     expect(editorial).toContain('editorial_review_evidence_conflict');
+    expect(editorial).toContain("status = case when p_review_status in ('quarantine', 'retire') then 'archived'");
+    expect(editorial).toContain("calculated_access_tier = case when p_review_status in ('quarantine', 'retire') then 'hidden'");
   });
 });
+
