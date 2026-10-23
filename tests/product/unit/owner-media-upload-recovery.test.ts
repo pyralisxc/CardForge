@@ -1,10 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const state = vi.hoisted(() => ({ error: null as unknown, remove: vi.fn(), update: vi.fn(), upload: vi.fn() }));
+const state = vi.hoisted(() => ({ error: null as unknown, remove: vi.fn(), update: vi.fn(), upload: vi.fn(), retention: vi.fn() }));
 vi.mock('server-only', () => ({}));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/features/owner/server/ownerSiteCommands', () => ({ finalizeOwnerPublication: vi.fn() }));
 vi.mock('@/infrastructure/security/abuseProtection', () => ({ consumeRateLimit: async () => ({ allowed: true }) }));
-vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ storage: { from: () => ({ upload: state.upload, remove: state.remove }) } }) }));
+vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({
+  from: (table: string) => {
+    if (table !== 'cardforge_website_revision_media') throw new Error('Unexpected retention table');
+    return { select: () => ({ eq: () => ({ limit: state.retention }) }) };
+  },
+  storage: { from: () => ({ upload: state.upload, remove: state.remove }) },
+}) }));
 vi.mock('@/features/public-site/server', () => ({
   SiteMediaStoreError: class extends Error { constructor(message: string, public status = 503) { super(message); } },
   isSiteMediaSlot: () => true, isComposedSiteMediaSlot: () => false,
@@ -18,7 +24,7 @@ vi.mock('@/features/public-site/server', () => ({
 }));
 import { SiteMediaStoreError } from '@/features/public-site/server';
 import { publishOwnerSiteMedia } from '@/features/owner/server/ownerMediaCommands';
-beforeEach(() => { vi.clearAllMocks(); state.upload.mockResolvedValue({ error: null }); state.remove.mockResolvedValue({ error: null }); });
+beforeEach(() => { vi.clearAllMocks(); state.upload.mockResolvedValue({ error: null }); state.remove.mockResolvedValue({ error: null }); state.retention.mockResolvedValue({ data: [], error: null }); });
 const publish = () => publishOwnerSiteMedia({ actor: { userId: 'owner', email: null }, slot: 'landing.hero', alt: 'Fixture', presentation: {}, expectedUpdatedAt: 'revision', image: new File(['fixture'], 'image.png', { type: 'image/png' }) });
 describe('uploaded media recovery', () => {
   it.each([new Error('Response lost'), new SiteMediaStoreError('Database unavailable', 503)])('retains uploaded bytes when persistence outcome is uncertain', async (error) => {
@@ -30,6 +36,21 @@ describe('uploaded media recovery', () => {
   it('removes uncommitted bytes after a proven revision conflict', async () => {
     state.error = new SiteMediaStoreError('Revision changed', 409);
     await expect(publish()).rejects.toMatchObject({ status: 409 });
+    expect(state.retention).toHaveBeenCalledOnce();
     expect(state.remove).toHaveBeenCalledWith(['landing/hero/uncommitted.webp']);
+  });
+  it('keeps bytes when edition history retains them even after a proven conflict', async () => {
+    state.error = new SiteMediaStoreError('Revision changed', 409);
+    state.retention.mockResolvedValue({ data: [{ revision_id: 'retained' }], error: null });
+    await expect(publish()).rejects.toMatchObject({ status: 409 });
+    expect(state.retention).toHaveBeenCalledOnce();
+    expect(state.remove).not.toHaveBeenCalled();
+  });
+  it('fails closed when the native edition retention query fails', async () => {
+    state.error = new SiteMediaStoreError('Revision changed', 409);
+    state.retention.mockResolvedValue({ data: null, error: { message: 'unavailable' } });
+    await expect(publish()).rejects.toMatchObject({ status: 409 });
+    expect(state.retention).toHaveBeenCalledOnce();
+    expect(state.remove).not.toHaveBeenCalled();
   });
 });

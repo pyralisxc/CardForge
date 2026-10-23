@@ -31,7 +31,7 @@ const projectRevision = (revisionId: string, manifest: WebsitePresentationManife
  * One async resolution per server request. Nothing here reads client query
  * parameters, cookies, or other untrusted revision selectors.
  */
-export const resolveLiveWebsitePresentation = cache(async (): Promise<ResolvedWebsitePresentation> => {
+const loadLiveWebsitePresentation = async (): Promise<ResolvedWebsitePresentation> => {
   const previewRevision = (await cookies()).get('cf-owner-website-preview')?.value;
   if (previewRevision) {
     const owner = await getCurrentOwnerAccess();
@@ -55,7 +55,7 @@ export const resolveLiveWebsitePresentation = cache(async (): Promise<ResolvedWe
     getPublicSiteConfiguration(), getSiteContentBlocks(), getSiteMedia(),
   ]);
   return { revisionId: null, privatePreview: false, generation: live.generation, configuration, content, media };
-});
+};
 
 /** Explicit server-owned Owner access is required even if a revision ID is known. */
 export async function resolveOwnerWebsiteRevision(revisionId: string): Promise<ResolvedWebsitePresentation> {
@@ -65,7 +65,7 @@ export async function resolveOwnerWebsiteRevision(revisionId: string): Promise<R
 }
 
 /** Sitemap and crawlers must never inherit an Owner's private preview cookie. */
-export const resolvePublishedWebsitePresentation = cache(async (): Promise<ResolvedWebsitePresentation> => {
+const loadPublishedWebsitePresentation = async (): Promise<ResolvedWebsitePresentation> => {
  const live=await readLiveWebsiteRevision();
  if(live.revisionId) return {
    ...projectRevision(live.revisionId,await readWebsiteRevision(live.revisionId)),
@@ -75,4 +75,19 @@ export const resolvePublishedWebsitePresentation = cache(async (): Promise<Resol
    getPublicSiteConfiguration(),getSiteContentBlocks(),getSiteMedia(),
  ]);
  return {revisionId:null,privatePreview:false,generation:live.generation,configuration,content,media};
-});
+};
+
+// Initialize lazily so repository tests that stub unrelated React exports can
+// import server boundaries without eagerly invoking the React request cache.
+// The same cached function identity is reused for every request; React owns
+// per-request memoization, never module-global presentation data.
+let cachedLive: ReturnType<typeof cache<typeof loadLiveWebsitePresentation>> | undefined;
+let cachedPublished: ReturnType<typeof cache<typeof loadPublishedWebsitePresentation>> | undefined;
+export const resolveLiveWebsitePresentation = (): Promise<ResolvedWebsitePresentation> => {
+ cachedLive ??= cache(loadLiveWebsitePresentation);
+ return cachedLive();
+};
+export const resolvePublishedWebsitePresentation = (): Promise<ResolvedWebsitePresentation> => {
+ cachedPublished ??= cache(loadPublishedWebsitePresentation);
+ return cachedPublished();
+};
