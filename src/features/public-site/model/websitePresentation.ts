@@ -42,9 +42,9 @@ const storagePathPattern = /^(?:website-drafts|brand|landing|founder)\/[a-zA-Z0-
 
 const isWebsiteStoragePath = (path: string): boolean => {
   if (storagePathPattern.test(path)) return true;
-  // Published uploads retain the canonical slot's dots in the landing directory.
+  // Public and private uploads retain the canonical slot's dots in the landing directory.
   // Admit only known slots and one safe filename, never arbitrary dotted paths.
-  const canonicalLanding = /^landing\/([a-zA-Z0-9_.-]+)\/[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$/u.exec(path);
+  const canonicalLanding = /^(?:website-drafts\/)?landing\/([a-zA-Z0-9_.-]+)\/[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$/u.exec(path);
   return canonicalLanding !== null && canonicalLanding[0] === path && isSiteMediaSlot(`landing.${canonicalLanding[1]}`);
 };
 
