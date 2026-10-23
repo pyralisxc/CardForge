@@ -137,7 +137,7 @@ export function PublicSiteOwnerLiveControls({
     setManifest(editionSession?.manifest ?? null);
     setLiveGeneration(editionSession?.liveGeneration ?? 0);
     setEditionDirty(false);
-  }, [editionSession?.editionId, editionSession?.revisionId, editionSession?.liveGeneration]);
+  }, [editionSession?.editionId, editionSession?.revisionId, editionSession?.liveGeneration, editionSession?.manifest]);
 
   const finishInlineEdit = useCallback((restore: boolean) => {
     const element = inlineElementRef.current;
