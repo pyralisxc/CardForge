@@ -38,7 +38,7 @@ const keysOnly = (value: Record<string, unknown>, keys: readonly string[]): bool
   Object.keys(value).every((key) => keys.includes(key));
 
 const digestPattern = /^[a-f0-9]{64}$/u;
-const storagePathPattern = /^(?:brand|landing|founder)\/[a-zA-Z0-9/_-]+\.[a-zA-Z0-9]+$/u;
+const storagePathPattern = /^(?:website-drafts|brand|landing|founder)\/[a-zA-Z0-9/_-]+\.[a-zA-Z0-9]+$/u;
 
 export const validateWebsitePresentationManifest = (input: unknown): WebsitePresentationManifest => {
   if (!record(input) || !keysOnly(input, ['schemaVersion', 'configuration', 'content', 'media'])) {

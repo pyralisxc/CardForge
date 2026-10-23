@@ -6,8 +6,8 @@ import {
   getDefaultSiteMedia,
   getSiteMediaContentType,
   isSiteMediaSlot,
-  SITE_MEDIA_BUCKET,
 } from '@/features/public-site/server';
+import { websiteMediaBucketForPath } from '@/features/public-site/server/websiteEditionStore';
 import { resolveLiveWebsitePresentation } from '@/features/public-site/server/websitePresentationResolver';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
@@ -100,10 +100,18 @@ export async function GET(
   }
 
   if (!supabase) return new Response(null, { status: 503 });
-  const { data, error } = await supabase.storage.from(SITE_MEDIA_BUCKET).download(effectivePath);
+  const { data, error } = await supabase.storage.from(websiteMediaBucketForPath(effectivePath)).download(effectivePath);
   if (error || !data) {
     console.error('Failed to read homepage image:', error);
     return new Response(null, { status: 404 });
+  }
+  if (effectivePath.startsWith('website-drafts/') && !resolved.privatePreview) {
+    // Only the currently activated revision or a historically activated
+    // immutable version reaches this point. The private native Storage URL
+    // remains inaccessible even after website activation.
+    const current = resolved.revisionId !== null
+      && resolved.media.some(asset => asset.slot === slot && asset.storagePath === effectivePath);
+    if (!current && !historicalDigest) return new Response(null, {status:404});
   }
   if (historicalDigest) {
     const actual = createHash('sha256').update(Buffer.from(await data.arrayBuffer())).digest('hex');

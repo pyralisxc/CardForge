@@ -3,6 +3,10 @@ import { SITE_MEDIA_BUCKET } from '../model/siteMedia';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { validateWebsitePresentationManifest, websiteManifestFromPublished, validateWebsiteUrlDisposition, type WebsitePresentationManifest } from '../model/websitePresentation';
 
+export const WEBSITE_DRAFT_MEDIA_BUCKET = 'cardforge-website-drafts';
+export const websiteMediaBucketForPath = (path: string): string =>
+  path.startsWith('website-drafts/') ? WEBSITE_DRAFT_MEDIA_BUCKET : SITE_MEDIA_BUCKET;
+
 export class WebsiteEditionStoreError extends Error {
   constructor(message: string, public readonly status: number) { super(message); }
 }
@@ -55,7 +59,7 @@ export async function verifyWebsiteMediaBytes(manifest: WebsitePresentationManif
   const db = database();
   for (const ref of manifest.media) {
     if (!ref.storagePath) continue;
-    const { data, error } = await db.storage.from(SITE_MEDIA_BUCKET).download(ref.storagePath);
+    const { data, error } = await db.storage.from(websiteMediaBucketForPath(ref.storagePath)).download(ref.storagePath);
     if (error || !data) throw new WebsiteEditionStoreError('A referenced website image is missing.', 409);
     const digest = createHash('sha256').update(Buffer.from(await data.arrayBuffer())).digest('hex');
     if (digest !== ref.sha256) throw new WebsiteEditionStoreError('Website image bytes changed. Reload before saving.', 409);
@@ -153,7 +157,7 @@ export async function initializeWebsiteEditions(actor: string, operationId: stri
       slot: asset.slot, storagePath: null, sha256: null, alt: asset.alt,
       width: asset.width, height: asset.height, presentation: asset.presentation,
     };
-    const { data, error } = await db.storage.from(SITE_MEDIA_BUCKET).download(asset.storagePath);
+    const { data, error } = await db.storage.from(websiteMediaBucketForPath(asset.storagePath)).download(asset.storagePath);
     if (error || !data) throw new WebsiteEditionStoreError('Current published media is unreadable.', 503);
     return {
       slot: asset.slot, storagePath: asset.storagePath,

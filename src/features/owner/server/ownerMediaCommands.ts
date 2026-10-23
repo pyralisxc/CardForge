@@ -9,6 +9,7 @@ import {
   SiteMediaStoreError, updateSiteMedia, validateSiteMediaFile, restorePreviousSiteMedia,
   assertComposedSiteMediaReference, getDefaultSiteMedia, isComposedSiteMediaSlot,
 } from '@/features/public-site/server';
+import { WEBSITE_DRAFT_MEDIA_BUCKET, websiteMediaBucketForPath } from '@/features/public-site/server/websiteEditionStore';
 import { finalizeOwnerPublication, type OwnerCommandActor } from './ownerSiteCommands';
 
 export class OwnerMediaRateLimitError extends SiteMediaStoreError {
@@ -125,9 +126,18 @@ export async function stageOwnerWebsiteEditionMedia(input: {
    // bytes there would bypass Owner preview authorization via native URLs.
    // Hold image staging until the existing Storage owner has a private,
    // access-controlled destination and explicit activation transition.
-   throw new SiteMediaStoreError('Private edition artwork upload is unavailable until protected Storage staging is configured.',409);
+   const checked=validateSiteMediaFile(input.image);
+   if(!checked.ok) throw new SiteMediaStoreError(checked.message,400);
+   const processed=await processSiteMediaImage(Buffer.from(await input.image.arrayBuffer()),input.slot);
+   storagePath='website-drafts/'+getSiteMediaStoragePath(input.slot,randomUUID());
+   const uploaded=await db.storage.from(WEBSITE_DRAFT_MEDIA_BUCKET).upload(storagePath,processed.buffer,{
+     cacheControl:'0',contentType:getSiteMediaContentType(input.slot),upsert:false,
+   });
+   if(uploaded.error) throw new SiteMediaStoreError('Protected website draft storage unavailable; no image was staged.',503);
+   width=processed.width;height=processed.height;
+   sha256=createHash('sha256').update(processed.buffer).digest('hex');
  } else if(storagePath) {
-   const data=await db.storage.from(SITE_MEDIA_BUCKET).download(storagePath);
+   const data=await db.storage.from(websiteMediaBucketForPath(storagePath)).download(storagePath);
    if(data.error||!data.data) throw new SiteMediaStoreError('Selected website image is no longer readable.',409);
    sha256=createHash('sha256').update(Buffer.from(await data.data.arrayBuffer())).digest('hex');
  }
