@@ -74,16 +74,16 @@ begin
         then 'owner_status_override' else s.decision_reason end,
       published_at = case when coalesce(s.owner_status_override, s.automated_status)='published'
         and s.published_at is null then pg_catalog.now() else s.published_at end,
-      trashed_at = case when coalesce(s.owner_status_override, s.automated_status) in ('archived','rejected')
+      trashed_at = case when coalesce(s.owner_status_override, s.automated_status) = 'archived'
         and s.published_at is null then coalesce(s.trashed_at, pg_catalog.now())
         when coalesce(s.owner_status_override, s.automated_status) not in ('archived','rejected') then null
         else s.trashed_at end,
-      trash_reason = case when coalesce(s.owner_status_override,s.automated_status) in ('archived','rejected')
+      trash_reason = case when coalesce(s.owner_status_override,s.automated_status) = 'archived'
         and s.published_at is null then coalesce(s.trash_reason,'declined')
         when coalesce(s.owner_status_override,s.automated_status) not in ('archived','rejected') then null
         else s.trash_reason end,
-      purge_after = case when coalesce(s.owner_status_override,s.automated_status) in ('archived','rejected')
-        and s.published_at is null then coalesce(s.purge_after,pg_catalog.now()+interval '30 days')
+      purge_after = case when coalesce(s.owner_status_override,s.automated_status) = 'archived'
+        and s.published_at is null then coalesce(s.purge_after,pg_catalog.now()+pg_catalog.make_interval(days => (select trash_retention_days from public.cardforge_contributor_program_settings where id='default')))
         when coalesce(s.owner_status_override,s.automated_status) not in ('archived','rejected') then null
         else s.purge_after end
   where s.id = p_submission_id and s.purge_state is null;
