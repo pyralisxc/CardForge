@@ -14,7 +14,7 @@ const state = vi.hoisted(() => ({
     defaultSrc: '/site-fallbacks/landing/cardforge-hero-workbench.png',
     updatedAt: '2026-10-08T20:00:00.000Z',
   } as TestSiteMediaAsset,
-  download: vi.fn(),
+  download: vi.fn(), bucket: vi.fn(), rpc: vi.fn(), privatePreview: false, revisionId: null as string | null,
 }));
 
 vi.mock('@/features/public-site/server', () => ({
@@ -38,14 +38,15 @@ vi.mock('@/features/public-site/server', () => ({
 vi.mock('@/infrastructure/database/supabaseServer', () => ({
   getSupabaseServerClient: () => ({
     storage: {
-      from: () => ({
+      from: (bucket: string) => { state.bucket(bucket); return ({
         download: state.download,
-      }),
+      }); },
     },
+    rpc: state.rpc,
   }),
 }));
 
-vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({resolveLiveWebsitePresentation: async () => ({privatePreview:false,configuration:{homepageSections:[],pages:[]},media:[state.asset]})}));
+vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({resolveLiveWebsitePresentation: async () => ({privatePreview:state.privatePreview,revisionId:state.revisionId,configuration:{homepageSections:[],pages:[]},media:[state.asset]})}));
 import { GET } from '@/app/api/public/site-media/[slot]/route';
 
 const get = (
@@ -63,8 +64,32 @@ const get = (
 );
 
 describe('public site media cache identity', () => {
+  it('keeps private drafts Owner-only and serves activated private bytes through the same route', async () => {
+    state.asset={...state.asset,storagePath:'website-drafts/brand/social/private.webp'};
+    state.privatePreview=true;
+    const preview=await get('brand.social');
+    expect(preview.status).toBe(200);
+    expect(preview.headers.get('cache-control')).toBe('private, no-store');
+    expect(state.bucket).toHaveBeenCalledWith('cardforge-website-drafts');
+
+    state.privatePreview=false;
+    state.asset={...state.asset,storagePath:'brand/social/current.webp'};
+    state.rpc.mockResolvedValue({data:[],error:null});
+    const undisclosed=await get('brand.social',{query:'?v=website-drafts/brand/social/private.webp'});
+    expect(undisclosed.status).toBe(404);
+
+    state.revisionId='10000000-0000-4000-8000-000000000001';
+    state.asset={...state.asset,storagePath:'website-drafts/brand/social/private.webp'};
+    const activated=await get('brand.social');
+    expect(activated.status).toBe(200);
+    expect(state.bucket).toHaveBeenCalledWith('cardforge-website-drafts');
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    state.privatePreview = false;
+    state.revisionId = null;
+    state.rpc.mockResolvedValue({data:[],error:null});
     state.asset = {
       slot: 'brand.social',
       storagePath: 'brand/social/current.webp',
