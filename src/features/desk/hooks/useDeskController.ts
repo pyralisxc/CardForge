@@ -291,10 +291,30 @@ export function useDeskController({
     storedCards, visibleCards,
   } = projectState;
   const generationTargetTemplateId = generationContextTool?.targetIds[1] ?? null;
-  const generatorSelectedTemplateId = generationTargetTemplateId ?? storedGeneratorSelectedTemplateId;
-  const generatorSelectedBackingTemplateId = generationTargetTemplateId
-    ? generationContextTool?.targetIds[2] ?? null
-    : storedGeneratorSelectedBackingTemplateId;
+  const generationTargetBackingId = generationContextTool?.targetIds[2] ?? null;
+  const initializedGenerateContextRef = useRef<{ instanceId: string; targetKey: string } | null>(null);
+  // A tool instance ID is stable for desk/tool/set, not unique per opening.
+  // Clear closed sessions and initialize only a new context or explicit retarget.
+  // User selection changes leave targetIds alone, so they never replay history.
+  useEffect(() => {
+    const instanceId = generationContextTool?.instanceId;
+    if (!instanceId) {
+      initializedGenerateContextRef.current = null;
+      return;
+    }
+    if (!generationTargetTemplateId || !projection.templateCatalogReady) return;
+    const targetKey = JSON.stringify([generationTargetTemplateId, generationTargetBackingId]);
+    if (initializedGenerateContextRef.current?.instanceId === instanceId
+      && initializedGenerateContextRef.current.targetKey === targetKey) return;
+    if (!templates.some((template) => template.id === generationTargetTemplateId)) return;
+    if (generationTargetBackingId && !templates.some((template) => template.id === generationTargetBackingId)) return;
+    initializedGenerateContextRef.current = { instanceId, targetKey };
+    setGeneratorSelectedTemplateId(generationTargetTemplateId);
+    setGeneratorSelectedBackingTemplateId(generationTargetBackingId);
+  }, [generationContextTool?.instanceId, generationTargetTemplateId, generationTargetBackingId,
+    projection.templateCatalogReady, templates, setGeneratorSelectedTemplateId, setGeneratorSelectedBackingTemplateId]);
+  const generatorSelectedTemplateId = storedGeneratorSelectedTemplateId;
+  const generatorSelectedBackingTemplateId = storedGeneratorSelectedBackingTemplateId;
   const focusedArtifactIdForArrival = interactionSession.focusPath.artifactId;
   const focusedDestinationReady = Boolean(focusedItem)
     && (!focusedArtifactIdForArrival || focusedCards.some((card) => card.uniqueId === focusedArtifactIdForArrival));
