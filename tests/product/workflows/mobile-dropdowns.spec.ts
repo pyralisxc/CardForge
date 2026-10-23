@@ -80,6 +80,24 @@ test.describe('mobile Desk controls', () => {
     await expect(set).toContainText('Playing deck');
   });
 
+  test('releases a settled scene frame when its inline board owner is disconnected', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100);
+    await page.goto('/account', { waitUntil: 'domcontentloaded' });
+    const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+    await set.click();
+    await set.press('Enter');
+    const owner = page.locator('[data-scene-slot="scale-card-1"][data-scene-inline-board="true"]');
+    await expect(owner).toBeVisible();
+    const frame = page.locator('[data-scene-artifact="scale-card-1"]');
+    await expect(frame).toHaveCount(1);
+    // Model real owner disconnection without creating a test-only scene API.
+    await owner.evaluate((node) => {
+      node.remove();
+      window.dispatchEvent(new Event('resize'));
+    });
+    await expect(frame).toHaveCount(0);
+  });
+
   test('commits and dismisses a normal non-modal Select', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.goto('/account', { waitUntil: 'domcontentloaded' });
