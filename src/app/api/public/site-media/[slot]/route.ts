@@ -46,7 +46,7 @@ export async function GET(
   if (!isSiteMediaSlot(slot)) return new Response(null, { status: 404 });
   if (isComposedSiteMediaSlot(slot)) {
     const settings = await getCachedPublicSiteConfiguration();
-    const included = settings.homepageSections.some((section) => (
+    const included = [...settings.homepageSections, ...(settings.pages ?? []).flatMap((page) => page.sections)].some((section) => (
       isHomepageCustomSection(section) && section.blocks.some((block) => (
         block.kind === 'image' && block.mediaSlot === slot && slot === `landing.composer.${block.id}`
       ))
