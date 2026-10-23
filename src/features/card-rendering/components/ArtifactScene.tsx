@@ -275,7 +275,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     // becomes ready. A focused tile otherwise hides workTileMain before RAF.
     const stackSlot = [...slots.current.values()].find((slot) =>
       slot.depth === 'stack' && slot.setId === setId && slot.node.isConnected);
-    const source = stackSlot?.node.closest<HTMLElement>('[data-desk-set-stack]')?.closest<HTMLElement>('.workTileMain');
+    const source = stackSlot?.node.closest<HTMLElement>('[data-desk-set-stack]')?.closest<HTMLElement>('button');
     if (source) {
       source.dataset.artifactTravelHeld = 'true';
       heldStackSources.current.set(setId, source);
