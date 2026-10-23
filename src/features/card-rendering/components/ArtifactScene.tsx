@@ -115,6 +115,11 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
   const frame = useRef<number | null>(null);
   const observer = useRef<ResizeObserver | null>(null);
   const [projections, setProjections] = useState<Projection[]>([]);
+  // Only the currently focused Set may keep its last projected frames while
+  // the settled board renders inline. Never retain arbitrary historical Sets.
+  const activeSetRef = useRef(activeSetId);
+  activeSetRef.current = activeSetId;
+  const projectedRef = useRef<Projection[]>([]);
   const [directMotion, setDirectMotion] = useState(false);
   const [faces, setFaces] = useState<Record<string, CardFace>>({});
   const [settledDepths, setSettledDepths] = useState<Record<string, Depth>>({});
@@ -178,8 +183,33 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       selected.set(slot.card.uniqueId, projection);
       if (slot.depth === 'stack') origins.current.set(slot.setId, projection);
     }
+    // Board slots unregister after inline settlement. Keeping the last frame
+    // mounted for the active Set preserves DOM identity for the return journey
+    // without owning visible pixels or keeping previously visited Sets alive.
+    const focusedSet = activeSetRef.current;
+    if (focusedSet) {
+      // Retention is justified only by a connected, intentionally settled
+      // inline board owner. A removed/culled card must release its scene frame.
+      const settledOwners = new Set(
+        Array.from(document.querySelectorAll<HTMLElement>('[data-scene-inline-board="true"][data-scene-slot]'))
+          .filter((node) => node.isConnected
+            && !node.closest('[data-scene-hidden="true"]')
+            && getComputedStyle(node).visibility !== 'hidden'
+            && node.getBoundingClientRect().width > 0
+            && node.getBoundingClientRect().height > 0)
+          .map((node) => node.dataset.sceneSlot),
+      );
+      for (const prior of projectedRef.current) {
+        if (prior.setId === focusedSet && !selected.has(prior.card.uniqueId)
+          && settledOwners.has(prior.card.uniqueId)) {
+          selected.set(prior.card.uniqueId, prior);
+        }
+      }
+    }
+    const next = [...selected.values()];
+    projectedRef.current = next;
     setDirectMotion(performance.now() < directUntil.current || dragging.current);
-    setProjections([...selected.values()]);
+    setProjections(next);
   }, []);
   const refresh = useCallback(() => {
     if (frame.current === null) frame.current = requestAnimationFrame(measure);

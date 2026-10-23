@@ -132,7 +132,14 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
       const details = mobileFiltersRef.current;
       if (!details?.open || !(event.target instanceof Node)) return;
       if (details.contains(event.target)) return;
-      if (event.target instanceof Element && event.target.closest('[data-cardforge-dropdown-content]')) return;
+      if (event.target instanceof Element) {
+        if (event.target.closest('[data-cardforge-dropdown-content]')) return;
+        const selectContent = event.target.closest<HTMLElement>('[data-cardforge-select-content][role="listbox"]');
+        // Radix Select portals outside the disclosure; keep it open only when
+        // its active trigger belongs to this exact Desk Filters instance.
+        if (selectContent?.id && Array.from(details.querySelectorAll<HTMLElement>('[aria-controls]'))
+          .some((trigger) => trigger.getAttribute('aria-controls') === selectContent.id)) return;
+      }
       details.open = false;
     };
     const closeOnEscape = (event: KeyboardEvent) => {
