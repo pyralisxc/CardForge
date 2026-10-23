@@ -21,7 +21,7 @@ declare
   manifest2 jsonb := '{"schemaVersion":1,"configuration":{},"content":[],"media":[]}'::jsonb;
   path text := 'website-drafts/brand/social/fixture.webp';
   digest text := repeat('a',64);
-  source_slot text := 'landing.showcase.generator-bulk';
+  source_slug text := 'landing.website-fixture-' || replace(gen_random_uuid()::text, '-', '');
   source_epochs jsonb;
   source_media jsonb;
   settings_epoch text;
@@ -50,26 +50,27 @@ begin
   if live_before is not null or gen_before <> 0 then
     raise exception 'website_fixture_requires_unactivated_state';
   end if;
-  if exists(select 1 from public.cardforge_site_media where slot=source_slot)
-  then raise exception 'website_fixture_disposable_slot_occupied'; end if;
+  if exists(select 1 from public.cardforge_site_content_blocks where slug=source_slug)
+  then raise exception 'website_fixture_disposable_slug_occupied'; end if;
   select count(*) into activations_before from public.cardforge_website_activations;
   select count(*) into editions_before from public.cardforge_website_editions;
   select updated_at::text into settings_epoch
     from public.cardforge_owner_settings where id='cardforge';
   if settings_epoch is null then raise exception 'website_fixture_missing_legacy_config'; end if;
 
-  -- Only the just-inserted row is removed. Snapshot includes every existing
-  -- row so a genuine provider record is never deleted or modified.
-  insert into public.cardforge_site_media(slot,storage_path,alt,presentation)
-    values(source_slot,null,'Rollback-only website adoption fixture','{}'::jsonb);
+  -- A synthetic permitted content slug is absent by construction. Do not
+  -- overwrite, alter or delete any pre-existing copy or media record.
+  -- Snapshot all native epochs after insertion, then remove ONLY this row.
+  insert into public.cardforge_site_content_blocks(slug,body)
+    values(source_slug,'Rollback-only website adoption fixture');
   select coalesce(jsonb_object_agg(slug,to_jsonb(updated_at)),'{}'::jsonb)
     into source_epochs from public.cardforge_site_content_blocks;
   select coalesce(jsonb_object_agg(slot,to_jsonb(updated_at)),'{}'::jsonb)
     into source_media from public.cardforge_site_media;
-  if not source_media ? source_slot then
+  if not source_epochs ? source_slug then
     raise exception 'website_fixture_source_snapshot_not_captured'; end if;
-  delete from public.cardforge_site_media where slot=source_slot;
-  if found is false then raise exception 'website_fixture_disposable_delete_missing'; end if;
+  delete from public.cardforge_site_content_blocks where slug=source_slug;
+  if not found then raise exception 'website_fixture_disposable_delete_missing'; end if;
   begin
     perform public.cardforge_website_initialize(
       '{"schemaVersion":1,"configuration":{},"content":[],"media":[]}'::jsonb,
