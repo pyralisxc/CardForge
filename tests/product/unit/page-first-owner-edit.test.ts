@@ -8,7 +8,7 @@ vi.mock('next/image', () => ({
   default: ({ src, alt, fill: _fill, priority: _priority, unoptimized: _unoptimized, ...props }: {
     src: string; alt: string; fill?: boolean; priority?: boolean; unoptimized?: boolean;
     [key: string]: unknown;
-  }) => createElement('img', { ...props, src, alt }),
+  }) => createElement('img', { ...props, src, alt, 'data-unoptimized': Boolean(_unoptimized) }),
 }));
 
 import {
@@ -21,7 +21,7 @@ import { OutcomeHero } from '@/features/public-site/components/OutcomeHero';
 import { ResponsiveSiteMediaImage } from '@/features/public-site/components/ResponsiveSiteMediaImage';
 import { DEFAULT_SITE_CONTENT_BLOCKS } from '@/features/public-site/model/siteContent';
 import { DEFAULT_PUBLIC_SITE_CONFIGURATION } from '@/features/public-site/model/siteConfiguration';
-import { getDefaultSiteMedia } from '@/features/public-site/model/siteMedia';
+import { getDefaultSiteMedia, getSiteMediaDisplaySrc, getSiteMediaStoragePath } from '@/features/public-site/model/siteMedia';
 
 describe('consolidated page-first Owner editor', () => {
   it('has one entry point outside edit mode, without competing Site settings navigation', () => {
@@ -79,6 +79,30 @@ describe('consolidated page-first Owner editor', () => {
     expect(html).toContain('data-site-media-slot="landing.hero"');
     expect(html).toContain('alt=');
   });
+  it.each([undefined, false, true])('requests private edition media directly even with caller unoptimized=%s', (unoptimized) => {
+    const media = {
+      ...getDefaultSiteMedia('landing.showcase.layout'),
+      storagePath: 'website-drafts/' + getSiteMediaStoragePath('landing.showcase.layout', '01234567-89ab-4cde-8123-0123456789ab'),
+    };
+    const html = renderToStaticMarkup(createElement(ResponsiveSiteMediaImage, {
+      media, width: 1080, height: 693, unoptimized,
+    }));
+    expect(html).toContain(`src="${getSiteMediaDisplaySrc(media)}"`);
+    expect(html).toContain('data-unoptimized="true"');
+  });
+
+  it.each([null, 'landing/showcase.layout/image.webp', 'landing/hero/website-drafts-image.webp'])(
+    'preserves public optimization and explicit caller opt-outs for %s', (storagePath) => {
+      const media = { ...getDefaultSiteMedia('landing.showcase.layout'), storagePath };
+      for (const unoptimized of [undefined, false, true]) {
+        const html = renderToStaticMarkup(createElement(ResponsiveSiteMediaImage, {
+          media, width: 1080, height: 693, unoptimized,
+        }));
+        expect(html).toContain(`data-unoptimized="${Boolean(unoptimized)}"`);
+      }
+    },
+  );
+
   it('marks visible header navigation and primary CTA as selected Owner labels without moving their links', () => {
     const html = renderToStaticMarkup(createElement(PublicSiteHeader, {
       businessIdentity: { brandName: 'CardForge' },
