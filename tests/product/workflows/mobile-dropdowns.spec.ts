@@ -73,7 +73,9 @@ test.describe('mobile Desk controls', () => {
     await expect(filters).toHaveAttribute('open', '');
     await expect(set).toContainText('Playing deck');
     await test.info().attach('owned-filter-selection', { body: await page.screenshot(), contentType: 'image/png' });
-    await set.tap();
+    // The expanded panel covers the Set tile; use the exposed toolbar search
+    // field to prove genuine outside dismissal without forcing an obscured tap.
+    await page.getByRole('textbox', { name: 'Search Desk work', exact: true }).tap();
     await expect(filters).not.toHaveAttribute('open', '');
     await expect(set).toContainText('Playing deck');
   });

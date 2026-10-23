@@ -188,8 +188,20 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     // without owning visible pixels or keeping previously visited Sets alive.
     const focusedSet = activeSetRef.current;
     if (focusedSet) {
+      // Retention is justified only by a connected, intentionally settled
+      // inline board owner. A removed/culled card must release its scene frame.
+      const settledOwners = new Set(
+        Array.from(document.querySelectorAll<HTMLElement>('[data-scene-inline-board="true"][data-scene-slot]'))
+          .filter((node) => node.isConnected
+            && !node.closest('[data-scene-hidden="true"]')
+            && getComputedStyle(node).visibility !== 'hidden'
+            && node.getBoundingClientRect().width > 0
+            && node.getBoundingClientRect().height > 0)
+          .map((node) => node.dataset.sceneSlot),
+      );
       for (const prior of projectedRef.current) {
-        if (prior.setId === focusedSet && !selected.has(prior.card.uniqueId)) {
+        if (prior.setId === focusedSet && !selected.has(prior.card.uniqueId)
+          && settledOwners.has(prior.card.uniqueId)) {
           selected.set(prior.card.uniqueId, prior);
         }
       }
