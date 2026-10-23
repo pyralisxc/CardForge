@@ -10,7 +10,7 @@ const authorized = async () => {
   const owner = await getCurrentOwnerAccess();
   return owner.isOwner && owner.userId ? owner.userId : null;
 };
-export const websiteRevisionErrorResponse = (error: unknown) => error instanceof WebsitePresentationValidationError
+const websiteRevisionErrorResponse = (error: unknown) => error instanceof WebsitePresentationValidationError
   ? createApiErrorResponse(400, 'website_revision_invalid', error.message)
   : error instanceof WebsiteEditionStoreError
   ? createApiErrorResponse(error.status, error.status === 409 ? 'website_revision_conflict' : error.status === 403 ? 'owner_access_required' : 'website_revision_unavailable', error.message)

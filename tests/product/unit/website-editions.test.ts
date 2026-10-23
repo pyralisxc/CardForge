@@ -1,4 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+const routeState = vi.hoisted(() => ({ owner: true }));
+vi.mock('server-only', () => ({}));
+vi.mock('@/features/owner/server', () => ({ getCurrentOwnerAccess: async () => ({ isOwner: routeState.owner, userId: routeState.owner ? 'owner-test' : null }) }));
+vi.mock('@/features/public-site/server/websiteEditionStore', () => ({
+  activateWebsiteRevision: async () => { throw new (await import('@/features/public-site/model/websitePresentation')).WebsitePresentationValidationError('A historical public URL needs an explicit valid replacement redirect.'); },
+  WebsiteEditionStoreError: class extends Error { constructor(message: string, public status: number) { super(message); } },
+}));
+vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({}));
 
 import { DEFAULT_PUBLIC_SITE_CONFIGURATION } from '@/features/public-site/model/siteConfiguration';
 import { DEFAULT_SITE_CONTENT_BLOCKS } from '@/features/public-site/model/siteContent';
@@ -9,7 +18,6 @@ import {
   validateWebsitePresentationManifest,
   validateWebsiteUrlDisposition,
   resolveWebsiteRedirectChain,
-  WebsitePresentationValidationError,
 } from '@/features/public-site/model/websitePresentation';
 
 const defaults = () => ({
@@ -28,18 +36,19 @@ const defaults = () => ({
 });
 
 describe('website redirect validation response', () => {
-  it('classifies cycles as invalid input rather than provider outage', async () => {
-    const { websiteRevisionErrorResponse } = await import('@/app/api/owner/website-revisions/route');
-    let problem: unknown;
-    try {
-      resolveWebsiteRedirectChain(
-        { a: { kind: 'redirect', destination: '/b' } },
-        { b: { kind: 'redirect', destination: '/a' } },
-        new Set<string>(),
-      );
-    } catch (error) { problem = error; }
-    expect(problem).toBeInstanceOf(WebsitePresentationValidationError);
-    const response = websiteRevisionErrorResponse(problem);
+  it('rejects an authenticated activation with a validation error as 400, not 503', async () => {
+    const { PATCH } = await import('@/app/api/owner/website-revisions/route');
+    const request = new Request('https://cardforges.com/api/owner/website-revisions', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        revisionId: '10000000-0000-4000-8000-000000000001',
+        operationId: '20000000-0000-4000-8000-000000000002',
+        expectedGeneration: 1,
+        urlDisposition: {},
+      }),
+    });
+    const response = await PATCH(request);
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
       ok: false, error: { code: 'website_revision_invalid' },
