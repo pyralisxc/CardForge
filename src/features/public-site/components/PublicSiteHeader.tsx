@@ -50,6 +50,7 @@ export function PublicSiteHeader({
   const siteContent = useSiteContent();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuContentRef = useRef<HTMLDivElement>(null);
   const {
     visibleNavigation,
     primaryCtaHref,
@@ -132,11 +133,22 @@ export function PublicSiteHeader({
             </button>
           </SheetTrigger>
           <SheetContent
+            ref={menuContentRef}
             portalContainer={portalContainer}
-            onOpenAutoFocus={portalContainer ? (event) => {
-              event.preventDefault();
-              portalContainer.querySelector<HTMLElement>('#public-mobile-navigation a[href]')?.focus();
-            } : undefined}
+            onOpenAutoFocus={(event) => {
+              const firstNavigationLink = Array.from(
+                menuContentRef.current?.querySelectorAll<HTMLAnchorElement>('nav[aria-label="Mobile navigation"] a[href]') ?? [],
+              ).find((link) =>
+                link.getClientRects().length > 0
+                && link.getAttribute('aria-disabled') !== 'true'
+                && !link.hasAttribute('inert')
+                && link.tabIndex >= 0
+              );
+              if (firstNavigationLink) {
+                event.preventDefault();
+                firstNavigationLink.focus();
+              }
+            }}
             onCloseAutoFocus={portalContainer ? (event) => {
               event.preventDefault(); menuTriggerRef.current?.focus();
             } : undefined}
