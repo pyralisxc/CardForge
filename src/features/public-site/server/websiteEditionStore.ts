@@ -146,10 +146,10 @@ export async function initializeWebsiteEditions(actor: string, operationId: stri
   const db = database();
   const [settings, copy, media] = await Promise.all([
     import('./siteConfigurationStore').then((m) => m.getPublicSiteConfiguration()),
-    import('./contentStore').then((m) => m.getSiteContentBlocks()),
-    import('./siteMediaStore').then((m) => m.getSiteMedia()),
+    import('./contentStore').then((m) => m.readSiteContentSnapshot()),
+    import('./siteMediaStore').then((m) => m.readSiteMediaSnapshot()),
   ]);
-  const refs = await Promise.all(media.map(async (asset) => {
+  const refs = await Promise.all(media.assets.map(async (asset) => {
     if (!asset.storagePath) return {
       slot: asset.slot, storagePath: null, sha256: null, alt: asset.alt,
       width: asset.width, height: asset.height, presentation: asset.presentation,
@@ -162,14 +162,10 @@ export async function initializeWebsiteEditions(actor: string, operationId: stri
       alt: asset.alt, width: asset.width, height: asset.height, presentation: asset.presentation,
     };
   }));
-  const manifest = websiteManifestFromPublished({ configuration: settings, content: copy, media: refs });
-  const copyEpochs = Object.fromEntries(copy.filter((item) => item.updatedAt !== null)
-    .map((item) => [item.slug, item.updatedAt]));
-  const mediaEpochs = Object.fromEntries(media.filter((item) => item.updatedAt !== null)
-    .map((item) => [item.slot, item.updatedAt]));
+  const manifest = websiteManifestFromPublished({ configuration: settings, content: copy.blocks, media: refs });
   const { data, error } = await db.rpc('cardforge_website_initialize', {
     p_manifest: manifest, p_media: manifest.media, p_config_epoch: settings.updatedAt ?? null,
-    p_copy_epochs: copyEpochs, p_media_epochs: mediaEpochs,
+    p_copy_epochs: copy.sourceEpochs, p_media_epochs: media.sourceEpochs,
     p_operation_id: operationId, p_actor: actor,
   });
   if (error?.message?.includes('website_bootstrap_conflict')) {
