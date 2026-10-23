@@ -716,7 +716,7 @@ export function PublicSiteOwnerLiveControls({
       initialSiteConfiguration={siteConfiguration}
       onDirtyChange={setDrawerDirty}
       onAssetsChange={(nextMedia) => { setMedia(nextMedia); router.refresh(); }}
-      onSiteConfigurationChange={(nextSettings) => { setSiteConfiguration(nextSettings); router.refresh(); }}
+      onSiteConfigurationChange={(nextSettings) => { if (manifest && editionId) stageConfiguration(nextSettings); else { setSiteConfiguration(nextSettings); router.refresh(); } }}
       showWatermarkPresentation={slot === 'brand.watermark'}
       onEditionMediaStage={manifest && editionId ? stageEditionMedia : undefined}
     />

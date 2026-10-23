@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 
 import {
-  getCachedPublicSiteConfiguration,
   isComposedSiteMediaSlot,
   isHomepageCustomSection,
   getDefaultSiteMedia,
@@ -44,16 +43,6 @@ export async function GET(
 ) {
   const { slot } = await params;
   if (!isSiteMediaSlot(slot)) return new Response(null, { status: 404 });
-  if (isComposedSiteMediaSlot(slot)) {
-    const settings = await getCachedPublicSiteConfiguration();
-    const included = [...settings.homepageSections, ...(settings.pages ?? []).flatMap((page) => page.sections)].some((section) => (
-      isHomepageCustomSection(section) && section.blocks.some((block) => (
-        block.kind === 'image' && block.mediaSlot === slot && slot === `landing.composer.${block.id}`
-      ))
-    ));
-    if (!included) return new Response(null, { status: 404 });
-  }
-
   const resolved = await resolveLiveWebsitePresentation();
   const media = resolved.media.find((asset) => asset.slot === slot) ?? getDefaultSiteMedia(slot);
   const requestedVersion = new URL(request.url).searchParams.get('v');
@@ -70,6 +59,15 @@ export async function GET(
       historicalPath = candidate.data[0].storage_path as string;
       historicalDigest = candidate.data[0].sha256 as string;
     } else return new Response(null, { status: 404 });
+  }
+  if (isComposedSiteMediaSlot(slot) && !historicalPath) {
+    const settings = resolved.configuration;
+    const included = [...settings.homepageSections, ...(settings.pages ?? []).flatMap((page) => page.sections)].some((section) => (
+      isHomepageCustomSection(section) && section.blocks.some((block) => (
+        block.kind === 'image' && block.mediaSlot === slot && slot === `landing.composer.${block.id}`
+      ))
+    ));
+    if (!included) return new Response(null, { status: 404 });
   }
   const effectivePath = historicalPath ?? media.storagePath;
   const versioned = requestedVersion !== null && requestedVersion === effectivePath && effectivePath !== null;

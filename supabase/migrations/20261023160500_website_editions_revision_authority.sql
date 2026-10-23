@@ -90,7 +90,7 @@ create or replace function public.cardforge_website_activate(
  p_revision_id uuid, p_expected_generation bigint, p_operation_id uuid, p_actor text,
  p_url_disposition jsonb
 ) returns bigint language plpgsql security invoker set search_path = '' as $$
-declare v_live uuid; v_generation bigint; v_existing bigint;
+declare v_live uuid; v_generation bigint; v_existing bigint; v_prior_disposition jsonb;
 begin
  if p_actor is null or btrim(p_actor) = '' or jsonb_typeof(p_url_disposition) <> 'object' then raise exception 'website_invalid_input'; end if;
  select generation into v_existing from public.cardforge_website_activations where operation_id=p_operation_id;
@@ -107,6 +107,9 @@ begin
     where r.id=p_revision_id and e.archived_at is null) then
     raise exception 'website_revision_unavailable';
  end if;
+ select coalesce(url_disposition,'{}'::jsonb) into v_prior_disposition
+ from public.cardforge_website_activations where generation=v_generation;
+ p_url_disposition := coalesce(v_prior_disposition,'{}'::jsonb) || p_url_disposition;
  update public.cardforge_website_state
  set live_revision_id=p_revision_id,generation=v_generation+1 where id='cardforge';
  insert into public.cardforge_website_activations
@@ -182,6 +185,7 @@ for each row execute function public.cardforge_website_reject_history_mutation()
 create or replace function public.cardforge_website_archive_edition(p_edition_id uuid)
 returns boolean language plpgsql security invoker set search_path = '' as $$
 begin
+ perform 1 from public.cardforge_website_state where id='cardforge' for update;
  if exists(select 1 from public.cardforge_website_state s
    join public.cardforge_website_revisions r on r.id=s.live_revision_id
    where r.edition_id=p_edition_id) then raise exception 'website_edition_active'; end if;

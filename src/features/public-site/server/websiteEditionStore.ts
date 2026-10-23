@@ -91,7 +91,13 @@ export async function activateWebsiteRevision(input: {
     throw new WebsiteEditionStoreError('Live website changed. Reload activation state.', 409);
   }
   const previous = current.revisionId ? await readWebsiteRevision(current.revisionId) : null;
-  const disposition = validateWebsiteUrlDisposition(previous, manifest, input.urlDisposition);
+  const previousDisposition = await readEffectiveWebsiteRedirects(current.generation);
+  const newDisposition = validateWebsiteUrlDisposition(previous, manifest, input.urlDisposition);
+  const nextSlugs = new Set((manifest.configuration.pages ?? []).filter(p => p.published).map(p => p.slug));
+  const carried = Object.fromEntries(Object.entries(previousDisposition).filter(([slug, value]) =>
+    !nextSlugs.has(slug) && (['/', '/about', '/plans', '/roadmap', '/contributors', '/cameron', '/contact', '/account'].includes(value.destination)
+      || nextSlugs.has(value.destination.slice(1)))));
+  const disposition = { ...carried, ...newDisposition };
   const { data, error } = await database().rpc('cardforge_website_activate', {
     p_revision_id: input.revisionId, p_expected_generation: input.expectedGeneration,
     p_operation_id: input.operationId, p_actor: input.actor,
@@ -211,4 +217,14 @@ export async function readSavedWebsiteOperation(operationId: string): Promise<st
   .select('id').eq('operation_id',operationId).maybeSingle();
  if (error) throw new WebsiteEditionStoreError('Cannot check saved operation.',503);
  return typeof data?.id==='string'?data.id:null;
+}
+
+export async function readEffectiveWebsiteRedirects(generation: number): Promise<Record<string,{kind:'redirect';destination:string}>> {
+ if (!generation) return {};
+ const {data,error}=await database().from('cardforge_website_activations')
+  .select('url_disposition').eq('generation',generation).maybeSingle();
+ if(error) throw new WebsiteEditionStoreError('Website redirects unavailable.',503);
+ const stored=data?.url_disposition;
+ if(!stored || typeof stored!=='object' || Array.isArray(stored)) return {};
+ return stored as Record<string,{kind:'redirect';destination:string}>;
 }
