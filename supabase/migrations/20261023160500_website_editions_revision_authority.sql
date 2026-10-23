@@ -160,3 +160,32 @@ for each row execute function public.cardforge_website_reject_legacy_presentatio
 create trigger cardforge_site_config_editions_writer_guard
 before update on public.cardforge_owner_settings
 for each row execute function public.cardforge_website_reject_legacy_presentation();
+
+-- Revision identities, bodies and dependencies are immutable, including for
+-- service-role clients. Restores create activations, never UPDATEs.
+create or replace function public.cardforge_website_reject_history_mutation()
+returns trigger language plpgsql security invoker set search_path = '' as $$
+begin raise exception 'website_history_immutable'; end $$;
+create trigger cardforge_website_revisions_immutable
+before update or delete on public.cardforge_website_revisions
+for each row execute function public.cardforge_website_reject_history_mutation();
+create trigger cardforge_website_media_immutable
+before update or delete on public.cardforge_website_revision_media
+for each row execute function public.cardforge_website_reject_history_mutation();
+create trigger cardforge_website_activations_immutable
+before update or delete on public.cardforge_website_activations
+for each row execute function public.cardforge_website_reject_history_mutation();
+
+-- Inactive editions may be archived; active editions and all history survive.
+create or replace function public.cardforge_website_archive_edition(p_edition_id uuid)
+returns boolean language plpgsql security invoker set search_path = '' as $$
+begin
+ if exists(select 1 from public.cardforge_website_state s
+   join public.cardforge_website_revisions r on r.id=s.live_revision_id
+   where r.edition_id=p_edition_id) then raise exception 'website_edition_active'; end if;
+ update public.cardforge_website_editions set archived_at=now()
+ where id=p_edition_id and archived_at is null;
+ return found;
+end $$;
+revoke all on function public.cardforge_website_archive_edition(uuid) from public,anon,authenticated;
+grant execute on function public.cardforge_website_archive_edition(uuid) to service_role;
