@@ -28,8 +28,15 @@ const translate = (error: { message?: string }): never => {
   throw new WebsiteEditionStoreError('Website revision service is unavailable.', 503);
 };
 export async function readLiveWebsiteRevision(): Promise<{ revisionId: string | null; generation: number }> {
-  const { data, error } = await database().from('cardforge_website_state')
+  const db = getSupabaseServerClient();
+  // Pre-migration deployments and provider-less local builds retain the
+  // previous published website; once installed, operational failures fail closed.
+  if (!db) return { revisionId: null, generation: 0 };
+  const { data, error } = await db.from('cardforge_website_state')
     .select('live_revision_id,generation').eq('id', 'cardforge').single();
+  if (error?.code === '42P01' || error?.code === 'PGRST205') {
+    return { revisionId: null, generation: 0 };
+  }
   if (error || !data) throw new WebsiteEditionStoreError('Website activation state is unavailable.', 503);
   return { revisionId: data.live_revision_id as string | null, generation: data.generation as number };
 }
