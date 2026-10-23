@@ -47,6 +47,13 @@ test.describe('mobile Desk controls', () => {
     await panel.getByRole('button', { name: 'Organize Set', exact: true }).tap();
     await expect(panel.getByLabel('Organize selected work')).toBeInViewport({ ratio: 1 });
     await expect(panel.getByRole('combobox', { name: 'Choose a supported or reusable Set type' })).toBeInViewport({ ratio: 1 });
+    const typeSelect = panel.getByRole('combobox', { name: 'Choose a supported or reusable Set type' });
+    await typeSelect.tap();
+    const typeOptions = page.locator('[data-cardforge-select-content][role="listbox"]');
+    await expect(typeOptions).toBeVisible();
+    await typeOptions.getByRole('option').first().tap();
+    await expect(filters).toHaveAttribute('open', '');
+
     await test.info().attach('compact-desk-filters', { body: await page.screenshot(), contentType: 'image/png' });
   });
 
