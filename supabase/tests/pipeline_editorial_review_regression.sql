@@ -130,14 +130,16 @@ begin
       where id=b and status='published' and calculated_access_tier='paid'
         and tier_decision_reason='owner_forced_paid')
   then raise exception 'explicit tier update failed'; end if;
+  select access_tier into live_tier from public.cardforge_asset_registry where asset_id=live_asset;
+  if live_tier <> 'paid' then raise exception 'explicit paid registry tier missing'; end if;
   perform public.cardforge_set_contributor_asset_owner_override(
     b,false,null,true,null,'Reset tier to Automatic',owner_id);
   if not exists(select 1 from public.cardforge_contributor_asset_submissions
       where id=b and status='published' and owner_access_tier_override is null
         and calculated_access_tier=live_tier
-        and tier_decision_reason is distinct from 'owner_forced_paid')
+        and tier_decision_reason='current_publication_protected')
     or not exists(select 1 from public.cardforge_asset_registry
-      where asset_id=live_asset and contributor_submission_id=b and status='published')
+      where asset_id=live_asset and contributor_submission_id=b and status='published' and access_tier=live_tier)
   then raise exception 'Automatic tier reset lost current tier/pointer'; end if;
   select * into sibling_after from public.cardforge_contributor_asset_submissions where id=sibling;
   if to_jsonb(sibling_before) is distinct from to_jsonb(sibling_after)
@@ -164,15 +166,13 @@ begin
   then raise exception 'quarantine/retire touched sibling'; end if;
   -- Archive retention belongs only to an unpublished archived submission.
   perform public.cardforge_set_contributor_asset_owner_override(
-    sibling,true,'archived',false,null,'Disposable unpublished archive',owner_id);
+    sibling,true,'archived',true,'paid','Disposable unpublished archive',owner_id);
   if not exists(select 1 from public.cardforge_contributor_asset_submissions
-      where id=sibling and status='archived' and calculated_access_tier='hidden'
+      where id=sibling and status='archived' and calculated_access_tier='hidden' and tier_decision_reason='hidden_status'
         and trashed_at is not null
-        and purge_after >= trashed_at
-        and purge_after <= trashed_at + (
+        and purge_after = trashed_at + (
           select pg_catalog.make_interval(days => trash_retention_days)
-          from public.cardforge_contributor_program_settings where id='default')
-          + interval '1 minute')
+          from public.cardforge_contributor_program_settings where id='default'))
   then raise exception 'unpublished archive retention mismatch'; end if;
 
   insert into public.cardforge_contributor_asset_submissions
@@ -181,11 +181,14 @@ begin
   values (reject_id,owner_id,'templates','Unpublished rejection','submitted','contributor',
      'https://example.invalid/rejection','image/png',1,array['games'],array['tcg']);
   perform public.cardforge_set_contributor_asset_owner_override(
-    reject_id,true,'rejected',false,null,'Disposable unpublished rejection',owner_id);
+    reject_id,true,'rejected',true,'free','Disposable unpublished rejection',owner_id);
   if not exists(select 1 from public.cardforge_contributor_asset_submissions
-      where id=reject_id and status='rejected' and calculated_access_tier='hidden'
+      where id=reject_id and status='rejected' and calculated_access_tier='hidden' and tier_decision_reason='hidden_status'
         and trashed_at is null and purge_after is null)
   then raise exception 'rejection gained unintended purge schedule'; end if;
+  if exists(select 1 from public.cardforge_asset_registry where asset_id=live_asset and contributor_submission_id<>b)
+    or not exists(select 1 from public.cardforge_asset_registry where asset_id=live_asset and contributor_submission_id=b and status='archived')
+  then raise exception 'unrelated retirement or rejection displaced registry lineage'; end if;
 end
 $fixture$;
 rollback;
