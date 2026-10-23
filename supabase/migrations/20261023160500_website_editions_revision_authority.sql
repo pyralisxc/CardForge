@@ -244,3 +244,24 @@ revoke all on function public.cardforge_website_initialize(jsonb,jsonb,text,json
   from public,anon,authenticated;
 grant execute on function public.cardforge_website_initialize(jsonb,jsonb,text,jsonb,jsonb,uuid,text)
   to service_role;
+
+-- Public history is intentionally narrower than private revision history.
+-- Only media from an activation can be resolved through an old public URL.
+create or replace function public.cardforge_website_activated_media_version(p_slot text,p_path text)
+returns table(storage_path text, sha256 text)
+language sql security invoker set search_path = '' stable as $$
+ select m.storage_path, m.sha256
+ from public.cardforge_website_revision_media m
+ join public.cardforge_website_activations a on a.revision_id=m.revision_id
+ join public.cardforge_website_revisions r on r.id=m.revision_id
+ where m.storage_path=p_path
+  and exists (
+    select 1 from jsonb_array_elements(r.manifest->'media') item
+    where item->>'slot'=p_slot and item->>'storagePath'=p_path
+      and item->>'sha256'=m.sha256
+  )
+ limit 1
+$$;
+revoke all on function public.cardforge_website_activated_media_version(text,text)
+ from public,anon,authenticated;
+grant execute on function public.cardforge_website_activated_media_version(text,text) to service_role;
