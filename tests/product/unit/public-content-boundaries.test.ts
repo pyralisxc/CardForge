@@ -84,7 +84,7 @@ describe('public content cache inputs', () => {
     await expect(getCachedSiteContentBlocks('contributor')).resolves.toEqual(
       DEFAULT_SITE_CONTENT_BLOCKS.filter((block) => block.group === 'contributor'),
     );
-    expect(provider.reads).toHaveBeenCalledTimes(2);
+    expect(provider.reads).toHaveBeenCalledTimes(6); // each standalone call resolves three legacy owners before first activation
   });
   it('keeps public media, configuration, and founder rendering available during transient provider auth failures', async () => {
     provider.error = { code: 'PGRST303', message: 'JWT issued at future' };
@@ -95,7 +95,7 @@ describe('public content cache inputs', () => {
       completePublicSiteConfiguration(DEFAULT_PUBLIC_SITE_CONFIGURATION),
     );
     await expect(getCachedFounderProfile()).resolves.toEqual(DEFAULT_FOUNDER_PROFILE);
-    expect(provider.reads).toHaveBeenCalledTimes(3);
+    expect(provider.reads).toHaveBeenCalledTimes(7); // two three-owner resolutions plus founder
   });
   it('acknowledges a copy write without a fallible post-write reread', async () => {
     provider.error = { message: 'reads unavailable after save' };
