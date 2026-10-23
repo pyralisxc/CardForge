@@ -29,6 +29,15 @@ const removeUncommittedUpload = async (path: string) => {
   try {
     const client = getSupabaseServerClient();
     if (client) {
+      // Immutable edition history retains Storage objects even when the live
+      // mutable slot has advanced. Provider cleanup cannot delete these bytes.
+      const retained = await client.from('cardforge_website_revision_media')
+        .select('revision_id').eq('storage_path', path).limit(1);
+      if (retained.error) {
+        console.error('Unable to verify website media retention; leaving storage object intact:', retained.error);
+        return;
+      }
+      if (retained.data?.length) return;
       const { error } = await client.storage.from(SITE_MEDIA_BUCKET).remove([path]);
       if (error) console.error('Uncommitted image cleanup unavailable:', error);
     }

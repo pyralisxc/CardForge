@@ -200,7 +200,7 @@ create or replace function public.cardforge_website_initialize(
  p_manifest jsonb, p_media jsonb, p_config_epoch text,
  p_copy_epochs jsonb, p_media_epochs jsonb, p_operation_id uuid, p_actor text
 ) returns uuid language plpgsql security invoker set search_path = '' as $$
-declare v_id uuid; v_revision uuid; v_config_epoch text;
+declare v_id uuid; v_revision uuid; v_config_epoch timestamptz;
  v_copy jsonb; v_media jsonb; v_existing uuid;
 begin
  if p_manifest is null or jsonb_typeof(p_manifest) <> 'object'
@@ -217,12 +217,12 @@ begin
         and a.revision_id=v_existing) then return v_existing; end if;
    raise exception 'website_already_initialized';
  end if;
- select updated_at::text into v_config_epoch from public.cardforge_owner_settings where id='cardforge';
- select coalesce(jsonb_object_agg(slug,to_jsonb(updated_at::text)),'{}'::jsonb)
+ select updated_at into v_config_epoch from public.cardforge_owner_settings where id='cardforge';
+ select coalesce(jsonb_object_agg(slug,to_jsonb(updated_at)),'{}'::jsonb)
  into v_copy from public.cardforge_site_content_blocks;
- select coalesce(jsonb_object_agg(slot,to_jsonb(updated_at::text)),'{}'::jsonb)
+ select coalesce(jsonb_object_agg(slot,to_jsonb(updated_at)),'{}'::jsonb)
  into v_media from public.cardforge_site_media;
- if v_config_epoch is distinct from p_config_epoch or
+ if v_config_epoch is distinct from p_config_epoch::timestamptz or
    v_copy is distinct from p_copy_epochs or
    v_media is distinct from p_media_epochs then
    raise exception 'website_bootstrap_conflict';
