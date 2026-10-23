@@ -59,7 +59,7 @@ const loadLiveWebsitePresentation = async (): Promise<ResolvedWebsitePresentatio
 
 /** Explicit server-owned Owner access is required even if a revision ID is known. */
 export async function resolveOwnerWebsiteRevision(revisionId: string): Promise<ResolvedWebsitePresentation> {
-  const owner = await getCurrentOwnerAccess();
+  const owner = (await getCurrentCardforgeUserAccess()).ownerAccess;
   if (!owner.isOwner || !owner.userId) throw new WebsiteEditionStoreError('Owner access required.', 403);
   return { ...projectRevision(revisionId, await readWebsiteRevision(revisionId)), privatePreview: true };
 }
