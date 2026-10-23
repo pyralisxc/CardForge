@@ -14,11 +14,13 @@ const safeStateMatch = (expected: string, received: string): boolean => {
   return left.length === right.length && timingSafeEqual(left, right);
 };
 
-const ownerRedirect = (status: string, message?: string) => {
-  const url = new URL('/account', getPublicAppUrl());
-  url.searchParams.set('section', 'library');
-  url.searchParams.set('scope', 'campaigns');
-  url.searchParams.set('meta', status);
+const ownerRedirect = (status: string, message?: string, destination?: URL) => {
+  const url = destination ?? new URL('/account', getPublicAppUrl());
+  if (!destination) {
+    url.searchParams.set('section', 'library');
+    url.searchParams.set('scope', 'campaigns');
+    url.searchParams.set('meta', status);
+  }
   if (message) url.searchParams.set('message', message.slice(0, 240));
   const response = NextResponse.redirect(url);
   response.cookies.set('cardforge_meta_oauth_state', '', {
@@ -43,6 +45,11 @@ export async function GET(request: Request) {
   }
   try {
     const result = await connectMetaAccounts(code, owner.userId);
+    if ('selectionId' in result && result.selectionId) {
+      const pending = new URL('/owner/marketing/meta/select', getPublicAppUrl());
+      pending.searchParams.set('selection', result.selectionId);
+      return ownerRedirect('select', undefined, pending);
+    }
     await recordOwnerActivity({
       actorUserId: owner.userId,
       actorEmail: owner.email,

@@ -1,4 +1,4 @@
-import { encryptMarketingToken } from './marketingTokenCrypto';
+import { encryptMarketingToken, decryptMarketingToken } from './marketingTokenCrypto';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
@@ -159,14 +159,27 @@ export const connectMetaAccounts = async (code: string, actorId: string) => {
   if (!pages.data?.length) throw new Error('Meta did not return a Facebook Page that this account can manage.');
   const selectedPages = config.pageId
     ? pages.data.filter((page) => page.id === config.pageId)
-    : pages.data.length === 1
-      ? pages.data
-      : [];
-  if (!selectedPages.length) {
-    throw new Error(config.pageId
-      ? 'The configured CardForge Facebook Page was not returned by Meta.'
-      : 'Meta returned multiple manageable Pages. Add CARDFORGE_META_PAGE_ID so CardForge stores only the intended Page.');
+    : pages.data.length === 1 ? pages.data : [];
+  if (config.pageId && !selectedPages.length) {
+    throw new Error('The configured CardForge Facebook Page was not returned by Meta.');
   }
+  if (!selectedPages.length) {
+    const database = getSupabaseServerClient();
+    if (!database) throw new Error('The marketing database is not configured.');
+    const encrypted = encryptMarketingToken(JSON.stringify(pages.data));
+    const { data: pending, error } = await database.from('cardforge_meta_page_selections').insert({
+      owner_user_id: actorId,
+      payload_ciphertext: encrypted.ciphertext,
+      payload_iv: encrypted.iv,
+      payload_auth_tag: encrypted.authTag,
+    }).select('id').single();
+    if (error || !pending?.id) throw new Error('Unable to prepare Meta Page selection.');
+    return { pageCount: pages.data.length, connectionCount: 0, selectionId: String(pending.id) };
+  }
+  return persistMetaPages(selectedPages, actorId);
+};
+
+const persistMetaPages = async (selectedPages: MetaPage[], actorId: string) => {
   let connectionCount = 0;
   for (const page of selectedPages) {
     const facebookConnectionId = await saveConnection({
@@ -193,4 +206,36 @@ export const connectMetaAccounts = async (code: string, actorId: string) => {
     }
   }
   return { pageCount: selectedPages.length, connectionCount };
+};
+
+export const readPendingMetaPageSelection = async (selectionId: string, actorId: string) => {
+  const database = getSupabaseServerClient();
+  if (!database) throw new Error('The marketing database is not configured.');
+  const { data, error } = await database.from('cardforge_meta_page_selections')
+    .select('id,owner_user_id,payload_ciphertext,payload_iv,payload_auth_tag,expires_at')
+    .eq('id',selectionId).eq('owner_user_id',actorId).single();
+  if (error || !data || Date.parse(data.expires_at) <= Date.now())
+    throw new Error('The Meta Page selection expired. Reconnect to start again.');
+  const pages = JSON.parse(decryptMarketingToken({
+    ciphertext: data.payload_ciphertext, iv: data.payload_iv, authTag: data.payload_auth_tag,
+  })) as MetaPage[];
+  return { pages, database };
+};
+
+export const listPendingMetaPages = async (selectionId: string, actorId: string) => {
+  const { pages } = await readPendingMetaPageSelection(selectionId, actorId);
+  return pages.map(page => ({ id: page.id, name: page.name, instagram: page.instagram_business_account?.username ?? null }));
+};
+
+export const completePendingMetaPageSelection = async (selectionId: string, actorId: string, selectedPageId: string | null) => {
+  const { pages, database } = await readPendingMetaPageSelection(selectionId,actorId);
+  if (selectedPageId && !pages.some(page => page.id === selectedPageId))
+    throw new Error('The selected Facebook Page is unavailable.');
+  // Consume the one-time decision before writing durable connection records.
+  const { data: removed, error } = await database.from('cardforge_meta_page_selections')
+    .delete().eq('id',selectionId).eq('owner_user_id',actorId).select('id').single();
+  if (error || !removed) throw new Error('The Meta Page selection was already used.');
+  if (!selectedPageId) return { cancelled: true, connectionCount: 0 };
+  const saved = await persistMetaPages(pages.filter(page => page.id === selectedPageId),actorId);
+  return { cancelled: false, connectionCount: saved.connectionCount };
 };
