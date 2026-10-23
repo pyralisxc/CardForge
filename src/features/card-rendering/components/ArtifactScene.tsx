@@ -35,6 +35,22 @@ interface Projection extends SceneSlot {
   clip: string;
   travelClip: string;
 }
+// A rotated inline stack's DOMRect is an axis-aligned bounding box, not
+// Motion's unrotated width/top-left. Recover the pre-rotation box in the same
+// screen coordinates as scene projections, using the existing Desk zoom.
+function stackSceneGeometry(node: HTMLElement, rotation: number) {
+  const rect = node.getBoundingClientRect();
+  const world = node.closest<HTMLElement>('[data-desk-world]');
+  const scale = world && world.offsetWidth > 0
+    ? world.getBoundingClientRect().width / world.offsetWidth : 1;
+  const width = node.offsetWidth * scale;
+  const height = node.offsetHeight * scale;
+  const radians = rotation * Math.PI / 180;
+  const halfX = (width * Math.cos(radians) - height * Math.sin(radians)) / 2;
+  const halfY = (width * Math.sin(radians) + height * Math.cos(radians)) / 2;
+  return { x: rect.left + rect.width / 2 - halfX, y: rect.top + rect.height / 2 - halfY, width };
+}
+
 interface SceneRegistry {
   register: (id: string, slot: SceneSlot) => () => void;
   refresh: () => void;
@@ -187,12 +203,10 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
               ...slot,
               node: inlineNode,
               depth: inlineNode.dataset.sceneInlineStack === 'true' ? 'stack' : 'board',
-              rotation: inlineNode.dataset.sceneInlineStack === 'true'
-                ? projectedRef.current.find((prior) => prior.card.uniqueId === slot.card.uniqueId)?.rotation ?? 0
-                : slot.rotation,
-              x: inlineRect.left,
-              y: inlineRect.top,
-              width: inlineRect.width,
+              rotation: slot.rotation,
+              ...(inlineNode.dataset.sceneInlineStack === 'true'
+                ? stackSceneGeometry(inlineNode, slot.rotation)
+                : { x: inlineRect.left, y: inlineRect.top, width: inlineRect.width }),
               opacity: 1,
               clip: 'inset(0px)',
               travelClip: 'inset(0px)',
@@ -249,7 +263,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       if (!prior) continue;
       inlineOrigins.current.set(slot.card.uniqueId, {
         ...prior, node: slot.node, depth: 'stack',
-        x: rect.left, y: rect.top, width: rect.width,
+        ...stackSceneGeometry(slot.node, slot.rotation),
         opacity: 1, clip: 'inset(0px)', travelClip: 'inset(0px)',
       });
     }
