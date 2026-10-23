@@ -24,6 +24,10 @@ declare
   path text := 'website-drafts/brand/social/fixture.webp';
   digest text := repeat('a',64);
 begin
+  -- The historical media authorization routine requires the identical slot,
+  -- path and digest inside the immutable revision manifest as well as ledger.
+  manifest1 := jsonb_set(manifest1, '{media}', jsonb_build_array(
+    jsonb_build_object('slot','brand.social','storagePath',path,'sha256',digest)));
   if has_function_privilege('anon',
       'public.cardforge_website_save_revision(uuid,uuid,uuid,text,jsonb,jsonb)','EXECUTE')
     or has_function_privilege('authenticated',
