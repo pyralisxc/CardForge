@@ -292,17 +292,23 @@ export function useDeskController({
   } = projectState;
   const generationTargetTemplateId = generationContextTool?.targetIds[1] ?? null;
   const generationTargetBackingId = generationContextTool?.targetIds[2] ?? null;
-  const initializedGenerateInstanceRef = useRef<string | null>(null);
-  // Restored tool history may arrive before the Template catalog. Initialize
-  // the store once per tool instance only when both targets can be validated;
-  // subsequent user selections must never be replayed from the history snapshot.
+  const initializedGenerateContextRef = useRef<{ instanceId: string; targetKey: string } | null>(null);
+  // A tool instance ID is stable for desk/tool/set, not unique per opening.
+  // Clear closed sessions and initialize only a new context or explicit retarget.
+  // User selection changes leave targetIds alone, so they never replay history.
   useEffect(() => {
     const instanceId = generationContextTool?.instanceId;
-    if (!instanceId || !generationTargetTemplateId || !projection.templateCatalogReady
-      || initializedGenerateInstanceRef.current === instanceId) return;
+    if (!instanceId) {
+      initializedGenerateContextRef.current = null;
+      return;
+    }
+    if (!generationTargetTemplateId || !projection.templateCatalogReady) return;
+    const targetKey = JSON.stringify([generationTargetTemplateId, generationTargetBackingId]);
+    if (initializedGenerateContextRef.current?.instanceId === instanceId
+      && initializedGenerateContextRef.current.targetKey === targetKey) return;
     if (!templates.some((template) => template.id === generationTargetTemplateId)) return;
     if (generationTargetBackingId && !templates.some((template) => template.id === generationTargetBackingId)) return;
-    initializedGenerateInstanceRef.current = instanceId;
+    initializedGenerateContextRef.current = { instanceId, targetKey };
     setGeneratorSelectedTemplateId(generationTargetTemplateId);
     setGeneratorSelectedBackingTemplateId(generationTargetBackingId);
   }, [generationContextTool?.instanceId, generationTargetTemplateId, generationTargetBackingId,
