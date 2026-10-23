@@ -31,6 +31,9 @@ begin
     raise exception 'editorial_review_reason_required';
   end if;
 
+  -- Serialize target mutation with Pipeline votes/settings before reading or updating.
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('cardforge-contributor-pipeline', 0));
+
   update public.cardforge_contributor_asset_submissions
   set
     owner_status_override = case when p_update_status_override then p_status_override else owner_status_override end,
@@ -60,8 +63,7 @@ begin
   end if;
 
   -- Owner actions change the exact reviewed target, not every submitted asset.
-  -- Lock the shared Pipeline lifecycle to serialize with voting/settings changes.
-  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('cardforge-contributor-pipeline', 0));
+  -- The shared lifecycle lock is already held above.
   -- An exact current registry publication remains live when an Owner override
   -- is cleared; its historical automated score need not have caught up.
   update public.cardforge_contributor_asset_submissions as s
@@ -72,16 +74,17 @@ begin
       calculated_access_tier = case
         when (case when s.owner_status_override is null and exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'published' else coalesce(s.owner_status_override,s.automated_status) end) = 'published'
           then coalesce(s.owner_access_tier_override,
+             (select r.access_tier from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published'),
              case when s.automated_access_tier in ('free','paid') then s.automated_access_tier else null end, 'free')
         when (case when s.owner_status_override is null and exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'published' else coalesce(s.owner_status_override,s.automated_status) end) in ('archived','rejected') then 'hidden'
         else 'contributor' end,
       decision_reason = case when s.owner_status_override is not null then 'owner_status_override'
         when exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'current_publication_protected'
-        else coalesce(nullif(s.decision_reason,'owner_status_override'),'needs_more_votes') end,
+        else coalesce(nullif(nullif(s.decision_reason,'owner_status_override'),'current_publication_protected'),'needs_more_votes') end,
       tier_decision_reason = case when s.owner_access_tier_override is not null then 'owner_forced_' || s.owner_access_tier_override
         when s.owner_status_override in ('archived','rejected') then 'hidden_status'
         when exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'current_publication_protected'
-        else coalesce(nullif(s.tier_decision_reason,'hidden_status'), 'needs_more_votes') end,
+        else coalesce(nullif(nullif(s.tier_decision_reason,'hidden_status'),'owner_forced_free'), 'needs_more_votes') end,
       published_at = case when (case when s.owner_status_override is null and exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'published' else coalesce(s.owner_status_override,s.automated_status) end)='published'
         and s.published_at is null then pg_catalog.now() else s.published_at end,
       trashed_at = case when (case when s.owner_status_override is null and exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'published' else coalesce(s.owner_status_override,s.automated_status) end) = 'archived'
