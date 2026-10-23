@@ -107,10 +107,10 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         lastPointerTypeRef.current = event.pointerType;
         event.currentTarget.style.cursor = 'grabbing';
         const modified = event.metaKey || event.ctrlKey || event.shiftKey;
-        const touchArrangeSelection = event.pointerType === 'touch' && props.arrangeMode && !props.selected && !modified;
-        if (!props.selected && !modified && !touchArrangeSelection) props.onSelect(props.item, { additive: touchArrangeSelection });
-        if (touchArrangeSelection) suppressTouchSelectionClickRef.current = true;
-        if (!modified) props.beginDrag(props.item.id, event, { additive: touchArrangeSelection });
+        const additiveModeSelection = props.arrangeMode && !props.selected && !modified;
+        if (!props.selected && !modified && !additiveModeSelection) props.onSelect(props.item);
+        if (additiveModeSelection) suppressTouchSelectionClickRef.current = true;
+        if (!modified) props.beginDrag(props.item.id, event, { additive: additiveModeSelection });
       }}
       onPointerMove={props.moveDrag}
       onPointerUp={(event) => { event.currentTarget.style.cursor = 'grab'; props.endDrag(event); }}
@@ -119,7 +119,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         if (props.shouldSuppressActivation(props.item.id)) return;
         if (suppressTouchSelectionClickRef.current) { suppressTouchSelectionClickRef.current = false; return; }
         props.onSelect(props.item, {
-          additive: event.metaKey || event.ctrlKey || (props.arrangeMode && lastPointerTypeRef.current === 'touch'),
+          additive: event.metaKey || event.ctrlKey || props.arrangeMode,
           range: event.shiftKey,
         });
       }}
@@ -127,7 +127,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
         const intent = getDeskWorkKeyboardIntent(event.key, event.shiftKey || event.metaKey || event.ctrlKey);
         if (intent === 'open') { event.preventDefault(); openSet(); }
-        else if (intent === 'select' || intent === 'select-additive') { event.preventDefault(); props.onSelect(props.item, { additive: intent === 'select-additive' }); }
+        else if (intent === 'select' || intent === 'select-additive') { event.preventDefault(); props.onSelect(props.item, { additive: props.arrangeMode || intent === 'select-additive' }); }
       }}
       aria-label={`${props.selected ? 'Selected' : 'Select'} ${props.item.name}. Drag to move; press Enter to open.`}
     >
