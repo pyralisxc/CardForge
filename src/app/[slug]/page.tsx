@@ -31,7 +31,7 @@ const readPage = async (slug: string) => {
 export async function generateMetadata({ params }: Props) {
   const { page, privatePreview } = await readPage((await params).slug);
   return createPageMetadata({ title: page.title, description: page.description,
-    keywords: page.keywords, path: `/${page.slug}`, ...(privatePreview ? { robots: { index: false, follow: false } } : {}) });
+    keywords: page.keywords, path: `/${page.slug}`, index: !privatePreview });
 }
 
 export default async function OwnerAuthoredPublicPage({ params }: Props) {

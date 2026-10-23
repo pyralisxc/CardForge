@@ -31,7 +31,7 @@ export async function generateMetadata() {
     description: siteConfiguration.homepageDescription,
     keywords: siteConfiguration.searchKeywords,
     path: '/',
-    ...(resolved.privatePreview ? { robots: { index: false, follow: false } } : {}),
+    index: !resolved.privatePreview,
   });
 }
 
