@@ -28,10 +28,14 @@ const mapSiteContentRow = (row: SiteContentBlockRow): SiteContentBlock => ({
   updatedAt: row.updated_at,
 });
 
-export const getSiteContentBlocks = async (): Promise<SiteContentBlock[]> => {
+/** Presentation and complete CAS tokens must describe the same database read. */
+export const readSiteContentSnapshot = async (): Promise<{
+  blocks: SiteContentBlock[];
+  sourceEpochs: Record<string, string | null>;
+}> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) {
-    return DEFAULT_SITE_CONTENT_BLOCKS;
+    return { blocks: DEFAULT_SITE_CONTENT_BLOCKS, sourceEpochs: {} };
   }
 
   const { data, error } = await supabase
@@ -44,11 +48,15 @@ export const getSiteContentBlocks = async (): Promise<SiteContentBlock[]> => {
     throw new PublicSiteStoreError('Public site content is temporarily unavailable.', 503);
   }
 
-  return DEFAULT_SITE_CONTENT_BLOCKS.map((defaultBlock) => {
+  const blocks = DEFAULT_SITE_CONTENT_BLOCKS.map((defaultBlock) => {
     const row = (data ?? []).find((block) => block.slug === defaultBlock.slug) as SiteContentBlockRow | undefined;
     return row ? mapSiteContentRow(row) : defaultBlock;
   });
+  return { blocks, sourceEpochs: Object.fromEntries((data ?? []).map((row) => [row.slug, row.updated_at])) };
 };
+
+export const getSiteContentBlocks = async (): Promise<SiteContentBlock[]> =>
+  (await readSiteContentSnapshot()).blocks;
 
 export const updateSiteContentBlock = async (
   input: { slug?: unknown; body?: unknown },

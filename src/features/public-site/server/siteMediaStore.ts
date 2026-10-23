@@ -111,10 +111,14 @@ export const assertComposedSiteMediaReference = async (slot: SiteMediaSlot): Pro
   if (!allowed) throw new SiteMediaStoreError('This image is not part of the published site design.', 404);
 };
 
-export const getSiteMedia = async (): Promise<SiteMediaAsset[]> => {
+/** Keep historical row tokens even when those slots are not presented. */
+export const readSiteMediaSnapshot = async (): Promise<{
+  assets: SiteMediaAsset[];
+  sourceEpochs: Record<string, string | null>;
+}> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) {
-    return DEFAULT_SITE_MEDIA.map((asset) => getDefaultSiteMedia(asset.slot));
+    return { assets: DEFAULT_SITE_MEDIA.map((asset) => getDefaultSiteMedia(asset.slot)), sourceEpochs: {} };
   }
 
   const { data, error } = await supabase
@@ -122,10 +126,16 @@ export const getSiteMedia = async (): Promise<SiteMediaAsset[]> => {
     .select('slot,storage_path,alt,width,height,presentation,previous_storage_path,previous_alt,previous_width,previous_height,previous_presentation,previous_updated_at,updated_at')
     .order('slot', { ascending: true });
 
-  if (!error) return mergeRowsWithDefaults((data ?? []) as SiteMediaRow[], mapRow);
+  if (!error) return {
+    assets: mergeRowsWithDefaults((data ?? []) as SiteMediaRow[], mapRow),
+    sourceEpochs: Object.fromEntries((data ?? []).map((row) => [row.slot, row.updated_at])),
+  };
   console.error('Failed to load public site media:', error);
   throw new SiteMediaStoreError('Public site images are temporarily unavailable.', 503);
 };
+
+export const getSiteMedia = async (): Promise<SiteMediaAsset[]> =>
+  (await readSiteMediaSnapshot()).assets;
 
 const validateDimensions = (width: unknown, height: unknown): { width: number | null; height: number | null } => {
   const validDimension = (value: unknown): value is number => (
