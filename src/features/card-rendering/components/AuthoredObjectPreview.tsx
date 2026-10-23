@@ -82,7 +82,7 @@ export function AuthoredObjectPreview({
       {visualCards.map((card, index) => {
         const cardWidth = physicalScale ? getCardPhysicalSizeMm(card).widthMm : width;
         return (
-          <span key={card.uniqueId} className={styles.card} data-card-position={index} data-preview-artifact-id={card.uniqueId} aria-hidden="true">
+          <span key={card.uniqueId} className={styles.card} style={{ rotate: `${[0, -7, 7, -14, 14][index]}deg` }} data-card-position={index} data-preview-artifact-id={card.uniqueId} aria-hidden="true">
             <ArtifactSlot card={card} face={face} width={cardWidth} depth="stack" setId={setId} rotation={[0, -7, 7, -14, 14][index]} order={5 - index} />
           </span>
         );

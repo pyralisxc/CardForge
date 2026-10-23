@@ -123,6 +123,8 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
   const [directMotion, setDirectMotion] = useState(false);
   const [faces, setFaces] = useState<Record<string, CardFace>>({});
   const [settledDepths, setSettledDepths] = useState<Record<string, Depth>>({});
+  const settledDepthsRef = useRef(settledDepths);
+  settledDepthsRef.current = settledDepths;
   const reducedMotion = useReducedMotion();
   const directUntil = useRef(0);
   const dragging = useRef(false);
@@ -160,8 +162,8 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
         opacity: slot.node.closest('[data-surface-authority="context"]') ? CONTEXT_ARTIFACT_OPACITY : 1,
         clip: `inset(${top}px ${Math.max(0, window.innerWidth - right)}px ${Math.max(0, window.innerHeight - bottom)}px ${left}px)`,
       };
-      if (slot.depth !== 'board') {
-        const inlineNode = Array.from(document.querySelectorAll<HTMLElement>('[data-scene-inline-board="true"]'))
+      if (slot.depth !== 'board' || settledDepthsRef.current[slot.card.uniqueId] === 'stack') {
+        const inlineNode = Array.from(document.querySelectorAll<HTMLElement>('[data-scene-inline-board="true"], [data-scene-inline-stack="true"]'))
           .find((candidate) => candidate.dataset.sceneSlot === slot.card.uniqueId);
         if (inlineNode?.isConnected) {
           const inlineRect = rectOf(inlineNode);
@@ -169,7 +171,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
             inlineOrigins.current.set(slot.card.uniqueId, {
               ...slot,
               node: inlineNode,
-              depth: 'board',
+              depth: inlineNode.dataset.sceneInlineStack === 'true' ? 'stack' : 'board',
               x: inlineRect.left,
               y: inlineRect.top,
               width: inlineRect.width,
@@ -207,6 +209,13 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       }
     }
     const next = [...selected.values()];
+    // Settled stack pixels are tile-owned. Motion remains mounted for the
+    // next real depth transition, but no longer tracks the tile every frame.
+    const prior = projectedRef.current;
+    if (next.length === prior.length && next.every((item) =>
+      item.depth === 'stack' && settledDepthsRef.current[item.card.uniqueId] === 'stack'
+      && prior.some((previous) => previous.card.uniqueId === item.card.uniqueId && previous.depth === 'stack')
+    )) return;
     projectedRef.current = next;
     setDirectMotion(performance.now() < directUntil.current || dragging.current);
     setProjections(next);
@@ -338,8 +347,9 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
   const resolvedSetId = setId || scene?.activeSetId || '';
   const template = getCardFaceTemplate(card, persistentFace);
   const geometry = getCardPreviewLayout({ targetWidthPx: width, aspectRatio: template.aspectRatio, canvas: getCardFaceCanvas(card, persistentFace), isPrintMode: false });
-  const inlineSettled = Boolean(scene && depth !== 'stack' && scene.settledDepths[card.uniqueId] === depth);
+  const inlineSettled = Boolean(scene && scene.settledDepths[card.uniqueId] === depth);
   const inlineBoard = inlineSettled && depth === 'board';
+  const inlineStack = inlineSettled && depth === 'stack';
   const register = scene?.register;
   const refresh = scene?.refresh;
   useLayoutEffect(() => {
@@ -357,6 +367,7 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
     data-scene-slot={card.uniqueId}
     data-scene-slot-depth={depth}
     data-scene-inline-board={inlineBoard ? 'true' : 'false'}
+    data-scene-inline-stack={inlineStack ? 'true' : 'false'}
     data-scene-inline-settled={inlineSettled ? depth : undefined}
     style={{
       position: 'relative',
