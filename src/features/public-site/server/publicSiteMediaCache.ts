@@ -1,16 +1,10 @@
 import { resolveLiveWebsitePresentation } from './websitePresentationResolver';
-import { revalidateTag, unstable_cache } from 'next/cache';
+import { revalidateTag } from 'next/cache';
 
-import { DEFAULT_SITE_MEDIA, getDefaultSiteMedia, type SiteMediaAsset } from '../model/siteMedia';
-import { getSiteMedia, SiteMediaStoreError } from './siteMediaStore';
+import type { SiteMediaAsset } from '../model/siteMedia';
+import { SiteMediaStoreError } from './siteMediaStore';
 
 export const SITE_MEDIA_TAG = 'public:site-media';
-
-const readCachedSiteMedia = unstable_cache(
-  getSiteMedia,
-  ['public-site-media'],
-  { tags: [SITE_MEDIA_TAG], revalidate: 3600 },
-);
 
 export const getCachedSiteMedia = async (): Promise<SiteMediaAsset[]> => {
   try {

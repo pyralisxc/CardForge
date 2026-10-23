@@ -1,18 +1,10 @@
 import { resolveLiveWebsitePresentation } from './websitePresentationResolver';
-import { revalidateTag, unstable_cache } from 'next/cache';
+import { revalidateTag } from 'next/cache';
 
-import { DEFAULT_SITE_CONTENT_BLOCKS, type SiteContentBlock, type SiteContentGroup } from '../model/siteContent';
-import { getSiteContentBlocks, PublicSiteStoreError } from './contentStore';
+import { type SiteContentBlock, type SiteContentGroup } from '../model/siteContent';
+import { PublicSiteStoreError } from './contentStore';
 
 export const SITE_CONTENT_TAG = 'public:site-content';
-
-const readCachedSiteContent = unstable_cache(
-  getSiteContentBlocks,
-  // Bump when canonical defaults or provider copy change outside the owner
-  // mutation route (which normally revalidates).
-  ['public-site-content', 'desk-model-v6'],
-  { tags: [SITE_CONTENT_TAG], revalidate: 3600 },
-);
 
 const readPublicSiteContent = async (): Promise<SiteContentBlock[]> => {
   try {
