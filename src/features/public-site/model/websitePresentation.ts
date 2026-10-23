@@ -129,3 +129,36 @@ export const websiteManifestFromPublished = (input: {
   content: input.content.map(({ slug, body }) => ({ slug, body })),
   media: input.media,
 });
+
+/** Published authored URLs require deliberate redirect disposition when removed. */
+export type WebsiteUrlDisposition = Record<string, { kind: 'redirect'; destination: string }>;
+export const validateWebsiteUrlDisposition = (
+ previous: WebsitePresentationManifest | null,
+ next: WebsitePresentationManifest,
+ input: unknown,
+): WebsiteUrlDisposition => {
+ if (!record(input)) throw new WebsitePresentationValidationError('Public URL disposition is required.');
+ const previousSlugs = new Set((previous?.configuration.pages ?? []).filter((p) => p.published).map((p) => p.slug));
+ const nextSlugs = new Set((next.configuration.pages ?? []).filter((p) => p.published).map((p) => p.slug));
+ const removed = [...previousSlugs].filter((slug) => !nextSlugs.has(slug));
+ const disposition: WebsiteUrlDisposition = {};
+ if (Object.keys(input).length !== removed.length) {
+   throw new WebsitePresentationValidationError('Every removed public page needs one explicit redirect.');
+ }
+ for (const slug of removed) {
+   const value = input[slug];
+   if (!record(value) || Object.keys(value).sort().join(',') !== 'destination,kind'
+     || value.kind !== 'redirect' || typeof value.destination !== 'string'
+     || !/^\/(?!\/)[a-z0-9/_-]+$/u.test(value.destination)
+     || value.destination === '/' + slug) {
+     throw new WebsitePresentationValidationError('Choose a valid internal redirect for each removed public page.');
+   }
+   // Destination must exist after activation, not merely be syntactically valid.
+   const builtin = ['/','/about','/plans','/roadmap','/contributors','/cameron','/contact','/account'];
+   if (!builtin.includes(value.destination) && !nextSlugs.has(value.destination.slice(1))) {
+     throw new WebsitePresentationValidationError('Redirect destinations must be live in the selected revision.');
+   }
+   disposition[slug] = { kind: 'redirect', destination: value.destination };
+ }
+ return disposition;
+};

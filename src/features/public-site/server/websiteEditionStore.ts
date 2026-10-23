@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { SITE_MEDIA_BUCKET } from '../model/siteMedia';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { validateWebsitePresentationManifest, websiteManifestFromPublished, type WebsitePresentationManifest } from '../model/websitePresentation';
+import { validateWebsitePresentationManifest, websiteManifestFromPublished, validateWebsiteUrlDisposition, type WebsitePresentationManifest } from '../model/websitePresentation';
 
 export class WebsiteEditionStoreError extends Error {
   constructor(message: string, public readonly status: number) { super(message); }
@@ -74,15 +74,21 @@ export async function saveWebsiteRevision(input: {
 }
 export async function activateWebsiteRevision(input: {
   revisionId: string; expectedGeneration: number; operationId: string; actor: string;
+  urlDisposition: unknown;
 }): Promise<number> {
   assertId(input.revisionId); assertId(input.operationId);
   const manifest = await readWebsiteRevision(input.revisionId);
   await verifyWebsiteMediaBytes(manifest);
-  // URL disposition must be checked against current live routes before
-  // an activation command is exposed to Owner UI.
+  const current = await readLiveWebsiteRevision();
+  if (current.generation !== input.expectedGeneration) {
+    throw new WebsiteEditionStoreError('Live website changed. Reload activation state.', 409);
+  }
+  const previous = current.revisionId ? await readWebsiteRevision(current.revisionId) : null;
+  const disposition = validateWebsiteUrlDisposition(previous, manifest, input.urlDisposition);
   const { data, error } = await database().rpc('cardforge_website_activate', {
     p_revision_id: input.revisionId, p_expected_generation: input.expectedGeneration,
     p_operation_id: input.operationId, p_actor: input.actor,
+    p_url_disposition: disposition,
   });
   if (error) translate(error);
   if (!Number.isSafeInteger(data)) throw new WebsiteEditionStoreError('Activation result is unconfirmed. Read back before retry.', 503);
@@ -161,4 +167,32 @@ export async function initializeWebsiteEditions(actor: string, operationId: stri
   if (error) translate(error);
   if (typeof data !== 'string') throw new WebsiteEditionStoreError('Initial adoption is unconfirmed. Read live state before retrying.', 503);
   return data;
+}
+
+export async function readActivatedWebsiteRedirect(
+ generation: number, slug: string,
+): Promise<string | null> {
+ const { data, error } = await database().from('cardforge_website_activations')
+   .select('url_disposition').eq('generation',generation).maybeSingle();
+ if (error) throw new WebsiteEditionStoreError('Website redirects unavailable.',503);
+ const value=(data?.url_disposition as Record<string,unknown>|undefined)?.[slug];
+ if (!value || typeof value!=='object' || Array.isArray(value)) return null;
+ const row=value as Record<string,unknown>;
+ return row.kind==='redirect' && typeof row.destination==='string' ? row.destination : null;
+}
+export async function readWebsiteRevisionIdentity(revisionId: string):
+ Promise<{ editionId: string; ordinal: number }> {
+ assertId(revisionId);
+ const {data,error}=await database().from('cardforge_website_revisions')
+  .select('edition_id,ordinal').eq('id',revisionId).single();
+ if(error || !data) throw new WebsiteEditionStoreError('Website revision unavailable.',404);
+ return {editionId:data.edition_id as string,ordinal:data.ordinal as number};
+}
+export async function listWebsiteRevisions(editionId: string): Promise<
+ {id:string;ordinal:number;createdAt:string}[]> {
+ assertId(editionId);
+ const {data,error}=await database().from('cardforge_website_revisions')
+  .select('id,ordinal,created_at').eq('edition_id',editionId).order('ordinal',{ascending:false});
+ if(error) throw new WebsiteEditionStoreError('Website history unavailable.',503);
+ return (data??[]).map((item)=>({id:item.id as string,ordinal:item.ordinal as number,createdAt:item.created_at as string}));
 }

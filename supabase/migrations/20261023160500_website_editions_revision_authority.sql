@@ -35,6 +35,7 @@ create table if not exists public.cardforge_website_activations (
  generation bigint not null unique,
  actor text not null,
  operation_id uuid not null unique,
+ url_disposition jsonb not null default '{}'::jsonb,
  created_at timestamptz not null default now()
 );
 insert into public.cardforge_website_state (id) values ('cardforge') on conflict (id) do nothing;
@@ -86,15 +87,16 @@ begin
  return v_revision;
 end $$;
 create or replace function public.cardforge_website_activate(
- p_revision_id uuid, p_expected_generation bigint, p_operation_id uuid, p_actor text
+ p_revision_id uuid, p_expected_generation bigint, p_operation_id uuid, p_actor text,
+ p_url_disposition jsonb
 ) returns bigint language plpgsql security invoker set search_path = '' as $$
 declare v_live uuid; v_generation bigint; v_existing bigint;
 begin
- if p_actor is null or btrim(p_actor) = '' then raise exception 'website_invalid_input'; end if;
+ if p_actor is null or btrim(p_actor) = '' or jsonb_typeof(p_url_disposition) <> 'object' then raise exception 'website_invalid_input'; end if;
  select generation into v_existing from public.cardforge_website_activations where operation_id=p_operation_id;
  if v_existing is not null then
    if not exists(select 1 from public.cardforge_website_activations where operation_id=p_operation_id
-     and revision_id=p_revision_id) then raise exception 'website_operation_conflict'; end if;
+     and revision_id=p_revision_id and url_disposition=p_url_disposition) then raise exception 'website_operation_conflict'; end if;
    return v_existing;
  end if;
  select live_revision_id,generation into v_live,v_generation
@@ -108,14 +110,14 @@ begin
  update public.cardforge_website_state
  set live_revision_id=p_revision_id,generation=v_generation+1 where id='cardforge';
  insert into public.cardforge_website_activations
- (revision_id,previous_revision_id,generation,actor,operation_id)
- values(p_revision_id,v_live,v_generation+1,p_actor,p_operation_id);
+ (revision_id,previous_revision_id,generation,actor,operation_id,url_disposition)
+ values(p_revision_id,v_live,v_generation+1,p_actor,p_operation_id,p_url_disposition);
  return v_generation+1;
 end $$;
 revoke all on function public.cardforge_website_save_revision(uuid,uuid,uuid,text,jsonb,jsonb) from public,anon,authenticated;
-revoke all on function public.cardforge_website_activate(uuid,bigint,uuid,text) from public,anon,authenticated;
+revoke all on function public.cardforge_website_activate(uuid,bigint,uuid,text,jsonb) from public,anon,authenticated;
 grant execute on function public.cardforge_website_save_revision(uuid,uuid,uuid,text,jsonb,jsonb) to service_role;
-grant execute on function public.cardforge_website_activate(uuid,bigint,uuid,text) to service_role;
+grant execute on function public.cardforge_website_activate(uuid,bigint,uuid,text,jsonb) to service_role;
 grant all on public.cardforge_website_editions, public.cardforge_website_revisions,
  public.cardforge_website_revision_media, public.cardforge_website_state,
  public.cardforge_website_activations to service_role;

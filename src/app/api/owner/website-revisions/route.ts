@@ -1,5 +1,5 @@
 import { getCurrentOwnerAccess } from '@/features/owner/server';
-import { saveWebsiteRevision, readLiveWebsiteRevision, WebsiteEditionStoreError } from '@/features/public-site/server/websiteEditionStore';
+import { saveWebsiteRevision, activateWebsiteRevision, listWebsiteRevisions, readLiveWebsiteRevision, WebsiteEditionStoreError } from '@/features/public-site/server/websiteEditionStore';
 import { resolveOwnerWebsiteRevision } from '@/features/public-site/server/websitePresentationResolver';
 import { parseJsonBodyWithLimit } from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
@@ -18,6 +18,8 @@ export async function GET(request: Request) {
   try {
     const id = new URL(request.url).searchParams.get('revisionId');
     if (id) return createNoStoreJsonResponse(await resolveOwnerWebsiteRevision(id));
+    const editionId = new URL(request.url).searchParams.get('editionId');
+    if (editionId) return createNoStoreJsonResponse({ revisions: await listWebsiteRevisions(editionId) });
     return createNoStoreJsonResponse(await readLiveWebsiteRevision());
   } catch (error) { return failure(error); }
 }
@@ -38,5 +40,24 @@ export async function POST(request: Request) {
       expectedRevisionId: body.expectedRevisionId, actor, manifest: body.manifest,
     });
     return createNoStoreJsonResponse({ revisionId });
+  } catch (error) { return failure(error); }
+}
+
+export async function PATCH(request: Request) {
+  const actor = await authorized();
+  if (!actor) return createApiErrorResponse(403, 'owner_access_required', 'Owner access required.');
+  try {
+    const parsed = await parseJsonBodyWithLimit(request);
+    if (!parsed.ok) return createApiErrorResponse(parsed.code === 'payload_too_large' ? 413 : 400, parsed.code, parsed.message);
+    const body = parsed.data as Record<string, unknown>;
+    if (!body || typeof body.revisionId !== 'string'
+      || typeof body.operationId !== 'string' || !Number.isSafeInteger(body.expectedGeneration)) {
+      return createApiErrorResponse(400, 'website_revision_invalid', 'Invalid activation command.');
+    }
+    const generation = await activateWebsiteRevision({
+      revisionId: body.revisionId, expectedGeneration: body.expectedGeneration as number,
+      operationId: body.operationId, actor, urlDisposition: body.urlDisposition,
+    });
+    return createNoStoreJsonResponse({ generation });
   } catch (error) { return failure(error); }
 }
