@@ -17,6 +17,7 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
     return { from: () => query, rpc: provider.rpc };
   },
 }));
+vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({resolveLiveWebsitePresentation: async () => ({content:await (await import('@/features/public-site/server/contentStore')).getSiteContentBlocks(),media:await (await import('@/features/public-site/server/siteMediaStore')).getSiteMedia(),configuration:await (await import('@/features/public-site/server/siteConfigurationStore')).getPublicSiteConfiguration()})}));
 import {
   getSiteContentBlocks,
   publishSiteContentBlockRevision,

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({resolvePublishedWebsitePresentation: async () => ({configuration:{pages:state.pages}})}));
 import sitemap from '@/app/sitemap';
 import * as sitemapRoute from '@/app/sitemap';
 

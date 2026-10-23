@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({}));
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 

@@ -39,6 +39,8 @@ vi.mock('@/app/_components/OwnerRoadmapRulesLiveEditor', () => ({
   OwnerRoadmapRulesLiveEditor: () => null,
 }));
 
+vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({resolveLiveWebsitePresentation: async () => ({revisionId:null,configuration:await (await import('@/features/public-site/server')).getPublicSiteConfiguration(),content:await (await import('@/features/public-site/server')).getSiteContentBlocks(),media:await (await import('@/features/public-site/server')).getSiteMedia()})}));
+vi.mock('@/features/public-site/server/websiteEditionStore', () => ({readLiveWebsiteRevision:async()=>({revisionId:null,generation:0})}));
 import { OwnerPublicSiteControlsSlot } from '@/app/_components/OwnerPublicSiteControlsSlot';
 
 beforeEach(() => {

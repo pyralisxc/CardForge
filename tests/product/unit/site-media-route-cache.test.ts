@@ -45,6 +45,7 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
   }),
 }));
 
+vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({resolveLiveWebsitePresentation: async () => ({privatePreview:false,configuration:{homepageSections:[],pages:[]},media:[state.asset]})}));
 import { GET } from '@/app/api/public/site-media/[slot]/route';
 
 const get = (
