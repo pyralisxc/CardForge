@@ -1,3 +1,4 @@
+import { resolveLiveWebsitePresentation } from './websitePresentationResolver';
 import { revalidateTag, unstable_cache } from 'next/cache';
 
 import { getPublicSiteConfiguration, PublicSiteConfigurationStoreError } from './siteConfigurationStore';
@@ -15,10 +16,10 @@ const readCachedPublicSiteConfiguration = unstable_cache(
 
 export const getCachedPublicSiteConfiguration = async () => {
   try {
-    return projectPublicSiteConfiguration(completePublicSiteConfiguration(await readCachedPublicSiteConfiguration()));
+    return projectPublicSiteConfiguration(completePublicSiteConfiguration((await resolveLiveWebsitePresentation()).configuration));
   } catch (error) {
     console.error('Unable to load public site configuration; using compiled defaults for this request.', error);
-    return completePublicSiteConfiguration(DEFAULT_PUBLIC_SITE_CONFIGURATION);
+    throw new PublicSiteConfigurationStoreError('Live website presentation is unavailable.', 503);
   }
 };
 

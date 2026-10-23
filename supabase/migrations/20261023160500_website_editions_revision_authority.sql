@@ -119,3 +119,44 @@ grant execute on function public.cardforge_website_activate(uuid,bigint,uuid,tex
 grant all on public.cardforge_website_editions, public.cardforge_website_revisions,
  public.cardforge_website_revision_media, public.cardforge_website_state,
  public.cardforge_website_activations to service_role;
+
+-- Existing flat stores become non-writable for presentation after the first
+-- exact activation. Domain columns on the owner settings row remain writable.
+create or replace function public.cardforge_website_reject_legacy_presentation()
+returns trigger language plpgsql security invoker set search_path = '' as $$
+declare v_active boolean;
+begin
+ select live_revision_id is not null into v_active
+ from public.cardforge_website_state where id='cardforge';
+ if not coalesce(v_active,false) then
+   if TG_OP = 'DELETE' then return old; end if;
+   return new;
+ end if;
+ if TG_TABLE_NAME = 'cardforge_owner_settings' and TG_OP = 'UPDATE' then
+   if (select jsonb_object_agg(k, to_jsonb(old)->k)
+     from unnest(array['announcement_enabled','announcement_message',
+       'primary_cta_label','primary_cta_href','support_offer_visible',
+       'homepage_title','homepage_description','search_keywords',
+       'watermark_preview_opacity','watermark_share_opacity','watermark_width_percent',
+       'primary_navigation','homepage_sections','site_pages']) as k)
+     is not distinct from
+     (select jsonb_object_agg(k, to_jsonb(new)->k)
+     from unnest(array['announcement_enabled','announcement_message',
+       'primary_cta_label','primary_cta_href','support_offer_visible',
+       'homepage_title','homepage_description','search_keywords',
+       'watermark_preview_opacity','watermark_share_opacity','watermark_width_percent',
+       'primary_navigation','homepage_sections','site_pages']) as k) then
+       return new;
+   end if;
+ end if;
+ raise exception 'website_legacy_writer_disabled';
+end $$;
+create trigger cardforge_site_content_editions_writer_guard
+before insert or update or delete on public.cardforge_site_content_blocks
+for each row execute function public.cardforge_website_reject_legacy_presentation();
+create trigger cardforge_site_media_editions_writer_guard
+before insert or update or delete on public.cardforge_site_media
+for each row execute function public.cardforge_website_reject_legacy_presentation();
+create trigger cardforge_site_config_editions_writer_guard
+before update on public.cardforge_owner_settings
+for each row execute function public.cardforge_website_reject_legacy_presentation();

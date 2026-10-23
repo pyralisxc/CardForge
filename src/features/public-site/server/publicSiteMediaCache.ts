@@ -1,3 +1,4 @@
+import { resolveLiveWebsitePresentation } from './websitePresentationResolver';
 import { revalidateTag, unstable_cache } from 'next/cache';
 
 import { DEFAULT_SITE_MEDIA, getDefaultSiteMedia, type SiteMediaAsset } from '../model/siteMedia';
@@ -13,13 +14,13 @@ const readCachedSiteMedia = unstable_cache(
 
 export const getCachedSiteMedia = async (): Promise<SiteMediaAsset[]> => {
   try {
-    return await readCachedSiteMedia();
+    return (await resolveLiveWebsitePresentation()).media;
   } catch (error) {
     // Public rendering has a checked-in availability floor. Keep strict store
     // reads for Owner operations, but never let a transient provider/JWT
     // failure make the public site or a deployment build unavailable.
     console.error('Unable to load public site media; using compiled defaults for this request.', error);
-    return DEFAULT_SITE_MEDIA.map((asset) => getDefaultSiteMedia(asset.slot));
+    throw new SiteMediaStoreError('Live website presentation is unavailable.', 503);
   }
 };
 
