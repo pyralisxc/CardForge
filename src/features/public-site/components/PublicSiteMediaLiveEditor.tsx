@@ -58,6 +58,7 @@ export function PublicSiteMediaLiveEditor({
   focusSlot = null,
   publicationEnvironment,
   onDirtyChange,
+  onEditionMediaStage,
 }: {
   initialAssets: SiteMediaAsset[];
   initialSiteConfiguration: PublicSiteConfiguration;
@@ -67,9 +68,20 @@ export function PublicSiteMediaLiveEditor({
   focusSlot?: SiteMediaAsset['slot'] | null;
   publicationEnvironment: OwnerPublicationEnvironment;
   onDirtyChange?: (dirty: boolean) => void;
+  onEditionMediaStage?: (asset: SiteMediaAsset, sha256: string | null) => void;
 }) {
   const { toast } = useToast();
   const publicationPresentation = getOwnerPublicationPresentation(publicationEnvironment);
+  const [privateMediaReady, setPrivateMediaReady] = useState(false);
+  useEffect(() => {
+    if(!onEditionMediaStage) return;
+    let mounted=true;
+    void fetch('/api/owner/website-media',{cache:'no-store'})
+      .then(async response => response.ok ? response.json() as Promise<{ready:boolean}> : {ready:false})
+      .then(result => {if(mounted) setPrivateMediaReady(result.ready === true);})
+      .catch(()=>{if(mounted) setPrivateMediaReady(false);});
+    return ()=>{mounted=false;};
+  },[onEditionMediaStage]);
   const [files, setFiles] = useState<Partial<Record<SiteMediaAsset['slot'], File>>>({});
   const { baseline: mediaBaseline, draft: drafts, setDraft: setDrafts, setSaving: setSavingMedia, acceptPublished: acceptMedia } = useEditorDraft(initialAssets, undefined, Object.values(files).some(Boolean));
   const [busySlot, setBusySlot] = useState<SiteMediaAsset['slot'] | null>(null);
@@ -91,6 +103,12 @@ export function PublicSiteMediaLiveEditor({
   useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
 
   const saveBrandSettings = async () => {
+    if (onEditionMediaStage) {
+      onSiteConfigurationChange(brandSettings);
+      acceptBrand(brandSettings);
+      toast({title:'Website draft updated',description:'Watermark presentation staged locally; Save a revision to retain changes.'});
+      return;
+    }
     setSavingBrandSettings(true);
     try {
       const response = await fetch('/api/owner/site-configuration', {
@@ -137,8 +155,9 @@ export function PublicSiteMediaLiveEditor({
       if (image) body.set('image', image);
       body.set('alt', asset.alt);
       body.set('expectedUpdatedAt', asset.updatedAt ?? 'null');
+      if (onEditionMediaStage) { body.set('slot', asset.slot); body.set('storagePath', asset.storagePath ?? 'null'); }
       body.set('presentation', JSON.stringify(asset.presentation));
-      const response = await fetch(`/api/owner/site-media/${asset.slot}`, {
+      const response = await fetch(onEditionMediaStage ? '/api/owner/website-media' : `/api/owner/site-media/${asset.slot}`, {
         method: 'POST',
         body,
         signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
@@ -147,11 +166,19 @@ export function PublicSiteMediaLiveEditor({
         rejected = true;
         throw new Error(await readApiErrorMessage(response, 'Unable to publish the public image.'));
       }
-      const result = await response.json() as { media: SiteMediaAsset; receipt: { committed: boolean; refreshComplete: boolean; message: string } };
+      const result = await response.json() as { media: SiteMediaAsset; sha256?: string | null; receipt?: { committed: boolean; refreshComplete: boolean; message: string } };
+      if (onEditionMediaStage && result.media) {
+        onEditionMediaStage(result.media, result.sha256 ?? null);
+        acceptMedia(mediaBaseline.map((item) => item.slot === asset.slot ? result.media : item), drafts.map((item) => item.slot === asset.slot ? result.media : item));
+        setFiles((current) => ({ ...current, [asset.slot]: undefined }));
+        setInputVersion((current) => current + 1);
+        toast({title:'Image staged',description:'Save a website revision before activating this image.'});
+        return;
+      }
       if (!result.receipt?.committed || !result.media) throw new Error('Publication outcome is unknown. Reload to verify the current image.');
       acceptMedia(mediaBaseline.map((item) => item.slot === asset.slot ? result.media : item), drafts.map((item) => item.slot === asset.slot ? result.media : item));
       onAssetsChange(initialAssets.map((item) => item.slot === asset.slot ? result.media : item));
-      if (!result.receipt.refreshComplete) setRestoreNotice(result.receipt.message);
+      if (!result.receipt?.refreshComplete) setRestoreNotice(result.receipt.message);
       setFiles((current) => ({ ...current, [asset.slot]: undefined }));
       setInputVersion((current) => current + 1);
       toast({ title: publicationPresentation.publishedTitle, description: publicationPresentation.publishedDescription(asset.label) });
@@ -169,7 +196,7 @@ export function PublicSiteMediaLiveEditor({
   };
 
   const restore = async (asset: SiteMediaAsset) => {
-    if (restoreNotice) return;
+    if (restoreNotice || onEditionMediaStage) return;
     setBusySlot(asset.slot);
     setSavingMedia(true);
     let rejected = false;
@@ -250,7 +277,9 @@ export function PublicSiteMediaLiveEditor({
               onAssetChange={updateDraft}
               onFileChange={(file) => setFiles((current) => ({ ...current, [draft.slot]: file }))}
               onPublish={() => publish(draft)}
-              onRestore={() => restore(draft)}
+              onRestore={onEditionMediaStage ? undefined : () => restore(draft)}
+              draftMode={Boolean(onEditionMediaStage)}
+              privateMediaReady={privateMediaReady}
             />
           );
           })}
@@ -272,6 +301,8 @@ function OwnerMediaEditor({
   onFileChange,
   onPublish,
   onRestore,
+  draftMode = false,
+  privateMediaReady = false,
 }: {
   asset: SiteMediaAsset;
   published: SiteMediaAsset;
@@ -282,7 +313,9 @@ function OwnerMediaEditor({
   onAssetChange: (asset: SiteMediaAsset) => void;
   onFileChange: (file?: File) => void;
   onPublish: () => void;
-  onRestore: () => void;
+  onRestore?: () => void;
+  draftMode?: boolean;
+  privateMediaReady?: boolean;
 }) {
   const [viewport, setViewport] = useState<PreviewViewport>('desktop');
   const [detectedDimensions, setDetectedDimensions] = useState<FileDimensions | null>(null);
@@ -383,10 +416,11 @@ function OwnerMediaEditor({
             <input className={inputClassName} maxLength={300} value={asset.alt} onChange={(event) => onAssetChange({ ...asset, alt: event.target.value })} />
           </label>
           <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
-            Replacement image
+            {draftMode && !privateMediaReady ? 'Private artwork upload unavailable until protected Storage staging is verified' : 'Replacement image'}
             <input
               key={`${asset.slot}-${inputVersion}`}
               type="file"
+              disabled={draftMode && !privateMediaReady}
               accept="image/jpeg,image/png,image/webp"
               className={`${inputClassName} file:mr-3 file:border-0 file:bg-[var(--cf-accent-strong)] file:px-3 file:py-2 file:font-semibold file:text-[var(--cf-accent-contrast)]`}
               onChange={(event) => onFileChange(event.target.files?.[0])}
@@ -435,11 +469,11 @@ function OwnerMediaEditor({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#3a2d1d] pt-4">
         <p className="text-xs text-[var(--cf-text-subtle)]">{hasChanges ? 'Previewing unpublished changes.' : asset.updatedAt ? `Live version published ${new Date(asset.updatedAt).toLocaleString()}.` : 'Using the bundled default.'}</p>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" disabled={locked || !asset.previousVersion} onClick={onRestore}>
+          {onRestore ? <Button type="button" variant="outline" disabled={locked || !asset.previousVersion} onClick={onRestore}>
             <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />Restore previous
-          </Button>
+          </Button> : null}
           <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={locked || !hasChanges || !asset.alt.trim()} onClick={onPublish}>
-            <ImageUp className="mr-2 h-4 w-4" aria-hidden="true" />{busy ? 'Publishing...' : 'Publish changes'}
+            <ImageUp className="mr-2 h-4 w-4" aria-hidden="true" />{busy ? (draftMode ? 'Staging...' : 'Publishing...') : (draftMode ? 'Stage changes' : 'Publish changes')}
           </Button>
         </div>
       </div>

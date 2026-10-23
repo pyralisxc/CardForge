@@ -17,6 +17,14 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
     return { from: () => query, rpc: provider.rpc };
   },
 }));
+const edition = vi.hoisted(() => ({ live: { revisionId: null as string | null, generation: 0 }, read: vi.fn() }));
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }) }));
+vi.mock('@/features/public-site/server/websiteEditionStore', () => ({
+  readLiveWebsiteRevision: async () => edition.live,
+  readWebsiteRevision: (...args: unknown[]) => edition.read(...args),
+  WebsiteEditionStoreError: class extends Error { constructor(message: string, public status = 503) { super(message); } },
+}));
+
 import {
   getSiteContentBlocks,
   publishSiteContentBlockRevision,
@@ -43,8 +51,23 @@ beforeEach(() => {
   provider.configured = true;
   provider.error = null;
   provider.data = [];
+  edition.live = { revisionId: null, generation: 0 };
+  edition.read.mockReset();
 });
 describe('public content cache inputs', () => {
+  it('uses the real resolver and fails closed on an unreadable activated revision', async () => {
+    const { resolveLiveWebsitePresentation } = await import('@/features/public-site/server/websitePresentationResolver');
+    provider.error = { code: 'PGRST303', message: 'legacy provider unavailable' };
+    await expect(resolveLiveWebsitePresentation()).resolves.toMatchObject({
+      revisionId: null,
+      content: DEFAULT_SITE_CONTENT_BLOCKS,
+    });
+    edition.live = { revisionId: '10000000-0000-4000-8000-000000000001', generation: 1 };
+    edition.read.mockRejectedValue(new Error('saved revision temporarily unavailable'));
+    await expect(resolveLiveWebsitePresentation()).rejects.toThrow('saved revision temporarily unavailable');
+    expect(edition.read).toHaveBeenCalled();
+  });
+
   it.each(readers.map((read, index) => ({ read, index })))('keeps unconfigured local defaults ($index)', async ({ read }) => {
     provider.configured = false;
     await expect(read()).resolves.toBeDefined();
@@ -71,7 +94,7 @@ describe('public content cache inputs', () => {
     await expect(getCachedSiteContentBlocks('contributor')).resolves.toEqual(
       DEFAULT_SITE_CONTENT_BLOCKS.filter((block) => block.group === 'contributor'),
     );
-    expect(provider.reads).toHaveBeenCalledTimes(2);
+    expect(provider.reads).toHaveBeenCalledTimes(6); // each standalone call resolves three legacy owners before first activation
   });
   it('keeps public media, configuration, and founder rendering available during transient provider auth failures', async () => {
     provider.error = { code: 'PGRST303', message: 'JWT issued at future' };
@@ -82,7 +105,7 @@ describe('public content cache inputs', () => {
       completePublicSiteConfiguration(DEFAULT_PUBLIC_SITE_CONFIGURATION),
     );
     await expect(getCachedFounderProfile()).resolves.toEqual(DEFAULT_FOUNDER_PROFILE);
-    expect(provider.reads).toHaveBeenCalledTimes(3);
+    expect(provider.reads).toHaveBeenCalledTimes(7); // two three-owner resolutions plus founder
   });
   it('acknowledges a copy write without a fallible post-write reread', async () => {
     provider.error = { message: 'reads unavailable after save' };

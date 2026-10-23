@@ -1,0 +1,68 @@
+import { getCurrentOwnerAccess } from '@/features/owner/server';
+import { saveWebsiteRevision, activateWebsiteRevision, listWebsiteRevisions, readSavedWebsiteOperation, readLiveWebsiteRevision, WebsiteEditionStoreError } from '@/features/public-site/server/websiteEditionStore';
+import { WebsitePresentationValidationError } from '@/features/public-site/server';
+import { resolveOwnerWebsiteRevision } from '@/features/public-site/server/websitePresentationResolver';
+import { parseJsonBodyWithLimit } from '@/infrastructure/http/apiValidation';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+
+export const dynamic = 'force-dynamic';
+const authorized = async () => {
+  const owner = await getCurrentOwnerAccess();
+  return owner.isOwner && owner.userId ? owner.userId : null;
+};
+const websiteRevisionErrorResponse = (error: unknown) => error instanceof WebsitePresentationValidationError
+  ? createApiErrorResponse(400, 'website_revision_invalid', error.message)
+  : error instanceof WebsiteEditionStoreError
+  ? createApiErrorResponse(error.status, error.status === 409 ? 'website_revision_conflict' : error.status === 403 ? 'owner_access_required' : 'website_revision_unavailable', error.message)
+  : createApiErrorResponse(503, 'website_revision_unavailable', 'Website revisions are unavailable.');
+
+export async function GET(request: Request) {
+  if (!await authorized()) return createApiErrorResponse(403, 'owner_access_required', 'Owner access required.');
+  try {
+    const id = new URL(request.url).searchParams.get('revisionId');
+    if (id) return createNoStoreJsonResponse(await resolveOwnerWebsiteRevision(id));
+    const operationId = new URL(request.url).searchParams.get('operationId');
+    if (operationId) return createNoStoreJsonResponse({ revisionId: await readSavedWebsiteOperation(operationId) });
+    const editionId = new URL(request.url).searchParams.get('editionId');
+    if (editionId) return createNoStoreJsonResponse({ revisions: await listWebsiteRevisions(editionId) });
+    return createNoStoreJsonResponse(await readLiveWebsiteRevision());
+  } catch (error) { return websiteRevisionErrorResponse(error); }
+}
+export async function POST(request: Request) {
+  const actor = await authorized();
+  if (!actor) return createApiErrorResponse(403, 'owner_access_required', 'Owner access required.');
+  try {
+    const parsed = await parseJsonBodyWithLimit(request);
+    if (!parsed.ok) return createApiErrorResponse(parsed.code === 'payload_too_large' ? 413 : 400, parsed.code, parsed.message);
+    const body = parsed.data as Record<string, unknown>;
+    if (!body || typeof body !== 'object' || Array.isArray(body)
+      || typeof body.editionId !== 'string' || typeof body.operationId !== 'string'
+      || !(body.expectedRevisionId === null || typeof body.expectedRevisionId === 'string')) {
+      return createApiErrorResponse(400, 'website_revision_invalid', 'Invalid website revision command.');
+    }
+    const revisionId = await saveWebsiteRevision({
+      editionId: body.editionId, operationId: body.operationId,
+      expectedRevisionId: body.expectedRevisionId, actor, manifest: body.manifest,
+    });
+    return createNoStoreJsonResponse({ revisionId });
+  } catch (error) { return websiteRevisionErrorResponse(error); }
+}
+
+export async function PATCH(request: Request) {
+  const actor = await authorized();
+  if (!actor) return createApiErrorResponse(403, 'owner_access_required', 'Owner access required.');
+  try {
+    const parsed = await parseJsonBodyWithLimit(request);
+    if (!parsed.ok) return createApiErrorResponse(parsed.code === 'payload_too_large' ? 413 : 400, parsed.code, parsed.message);
+    const body = parsed.data as Record<string, unknown>;
+    if (!body || typeof body.revisionId !== 'string'
+      || typeof body.operationId !== 'string' || !Number.isSafeInteger(body.expectedGeneration)) {
+      return createApiErrorResponse(400, 'website_revision_invalid', 'Invalid activation command.');
+    }
+    const generation = await activateWebsiteRevision({
+      revisionId: body.revisionId, expectedGeneration: body.expectedGeneration as number,
+      operationId: body.operationId, actor, urlDisposition: body.urlDisposition,
+    });
+    return createNoStoreJsonResponse({ generation });
+  } catch (error) { return websiteRevisionErrorResponse(error); }
+}

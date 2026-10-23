@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { vi } from 'vitest';
+vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({}));
+import { describe, expect, it } from 'vitest';
 
 import {
   getLegalDocuments,

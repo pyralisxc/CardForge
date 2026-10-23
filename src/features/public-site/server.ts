@@ -119,3 +119,5 @@ export {
 } from './model/homepageComposition';
 export { type HomepageLayoutSection } from './model/siteConfiguration';
 export { getSiteCompositionSections, isPublicSitePageSlug, validatePublicSitePages, type PublicSitePage } from './model/sitePages';
+
+export { WebsitePresentationValidationError } from './model/websitePresentation';

@@ -1,15 +1,14 @@
 import { createHash } from 'node:crypto';
 
 import {
-  getCachedSiteMedia,
-  getCachedPublicSiteConfiguration,
   isComposedSiteMediaSlot,
   isHomepageCustomSection,
   getDefaultSiteMedia,
   getSiteMediaContentType,
   isSiteMediaSlot,
-  SITE_MEDIA_BUCKET,
 } from '@/features/public-site/server';
+import { websiteMediaBucketForPath } from '@/features/public-site/server/websiteEditionStore';
+import { resolveLiveWebsitePresentation } from '@/features/public-site/server/websitePresentationResolver';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 export const dynamic = 'force-dynamic';
@@ -44,21 +43,36 @@ export async function GET(
 ) {
   const { slot } = await params;
   if (!isSiteMediaSlot(slot)) return new Response(null, { status: 404 });
-  if (isComposedSiteMediaSlot(slot)) {
-    const settings = await getCachedPublicSiteConfiguration();
-    const included = settings.homepageSections.some((section) => (
+  const resolved = await resolveLiveWebsitePresentation();
+  const media = resolved.media.find((asset) => asset.slot === slot) ?? getDefaultSiteMedia(slot);
+  const requestedVersion = new URL(request.url).searchParams.get('v');
+  const supabase = getSupabaseServerClient();
+  let historicalPath: string | null = null;
+  let historicalDigest: string | null = null;
+  if (requestedVersion
+     && /^(?:website-drafts|brand|founder|landing)\/[a-zA-Z0-9/_.-]+$/u.test(requestedVersion)
+     && !resolved.privatePreview && supabase) {
+    const candidate = await supabase.rpc('cardforge_website_activated_media_version', {
+      p_slot: slot, p_path: requestedVersion,
+    });
+    if (!candidate.error && Array.isArray(candidate.data) && candidate.data[0]) {
+      historicalPath = candidate.data[0].storage_path as string;
+      historicalDigest = candidate.data[0].sha256 as string;
+    } else return new Response(null, { status: 404 });
+  }
+  if (isComposedSiteMediaSlot(slot) && !historicalPath) {
+    const settings = resolved.configuration;
+    const included = [...settings.homepageSections, ...(settings.pages ?? []).flatMap((page) => page.sections)].some((section) => (
       isHomepageCustomSection(section) && section.blocks.some((block) => (
         block.kind === 'image' && block.mediaSlot === slot && slot === `landing.composer.${block.id}`
       ))
     ));
     if (!included) return new Response(null, { status: 404 });
   }
-
-  const media = (await getCachedSiteMedia()).find((asset) => asset.slot === slot)
-    ?? getDefaultSiteMedia(slot);
-  const versioned = new URL(request.url).searchParams.has('v');
-  const etag = mediaRevisionEtag(media);
-  const cacheControl = cacheControlFor(slot, versioned);
+  const effectivePath = historicalPath ?? media.storagePath;
+  const versioned = requestedVersion !== null && requestedVersion === effectivePath && effectivePath !== null;
+  const etag = mediaRevisionEtag({ ...media, storagePath: effectivePath });
+  const cacheControl = resolved.privatePreview ? 'private, no-store' : cacheControlFor(slot, versioned);
   // Anonymous public image bytes must stay usable in creator canvas exports
   // across app/deployment origins, including fallback redirects and 304s.
   const publicImageHeaders = { 'Access-Control-Allow-Origin': '*' };
@@ -72,7 +86,7 @@ export async function GET(
       },
     });
   }
-  if (!media.storagePath) {
+  if (!effectivePath) {
     if (!media.defaultSrc) return new Response(null, { status: 404 });
     return new Response(null, {
       status: 307,
@@ -85,12 +99,23 @@ export async function GET(
     });
   }
 
-  const supabase = getSupabaseServerClient();
   if (!supabase) return new Response(null, { status: 503 });
-  const { data, error } = await supabase.storage.from(SITE_MEDIA_BUCKET).download(media.storagePath);
+  const { data, error } = await supabase.storage.from(websiteMediaBucketForPath(effectivePath)).download(effectivePath);
   if (error || !data) {
     console.error('Failed to read homepage image:', error);
     return new Response(null, { status: 404 });
+  }
+  if (effectivePath.startsWith('website-drafts/') && !resolved.privatePreview) {
+    // Only the currently activated revision or a historically activated
+    // immutable version reaches this point. The private native Storage URL
+    // remains inaccessible even after website activation.
+    const current = resolved.revisionId !== null
+      && resolved.media.some(asset => asset.slot === slot && asset.storagePath === effectivePath);
+    if (!current && !historicalDigest) return new Response(null, {status:404});
+  }
+  if (historicalDigest) {
+    const actual = createHash('sha256').update(Buffer.from(await data.arrayBuffer())).digest('hex');
+    if (actual !== historicalDigest) return new Response(null, { status: 503 });
   }
   return new Response(data, {
     headers: {

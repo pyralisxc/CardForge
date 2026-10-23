@@ -11,6 +11,8 @@ import type { PrimaryNavigationId, PublicSiteConfiguration } from '../model/site
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import type { SiteContentBlock } from '../model/siteContent';
 import type { SiteMediaAsset } from '../model/siteMedia';
+import { WebsiteEditionsPanel } from './WebsiteEditionsPanel';
+import type { WebsitePresentationManifest } from '../model/websitePresentation';
 import { getOwnerSitePageContext, isOwnerSiteMediaTarget } from '../model/sitePages';
 import {
   getOwnerPublicationPresentation,
@@ -18,6 +20,11 @@ import {
 } from '../model/ownerPublicationEnvironment';
 import { PublicSiteCopyLiveEditor, PublicSiteFocusedTextEditor, savePublicSiteContentBlock, SiteContentPublicationError } from './PublicSiteCopyLiveEditor';
 import { PublicSiteMediaLiveEditor } from './PublicSiteMediaLiveEditor';
+
+export const WebsiteEditionDraftContext = createContext<{
+  stageConfiguration: (configuration: PublicSiteConfiguration) => void;
+  configuration: PublicSiteConfiguration;
+} | null>(null);
 
 export const OwnerPageEditorStateContext = createContext<(state: { dirty: boolean; saving: boolean }) => void>(() => {});
 
@@ -65,6 +72,7 @@ export function PublicSiteOwnerLiveControls({
   initialSiteConfiguration,
   roadmapRulesEditor,
   siteOperationsEditor,
+  editionSession,
 }: {
   currentPath: string;
   publicationEnvironment: OwnerPublicationEnvironment;
@@ -73,6 +81,12 @@ export function PublicSiteOwnerLiveControls({
   initialSiteConfiguration: PublicSiteConfiguration;
   roadmapRulesEditor?: ReactNode;
   siteOperationsEditor?: ReactNode;
+  editionSession?: {
+    editionId: string;
+    revisionId: string;
+    liveGeneration: number;
+    manifest: WebsitePresentationManifest;
+  } | null;
 }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -81,6 +95,13 @@ export function PublicSiteOwnerLiveControls({
     [publicationEnvironment],
   );
   const [editMode, setEditMode] = useState(false);
+  const [editionId, setEditionId] = useState(editionSession?.editionId ?? '');
+  const [revisionId, setRevisionId] = useState<string | null>(editionSession?.revisionId ?? null);
+  const [manifest, setManifest] = useState<WebsitePresentationManifest | null>(editionSession?.manifest ?? null);
+  const [editionDirty, setEditionDirty] = useState(false);
+  const [editionSaving, setEditionSaving] = useState(false);
+  const [editionReadbackId, setEditionReadbackId] = useState<string | null>(null);
+  const [liveGeneration, setLiveGeneration] = useState(editionSession?.liveGeneration ?? 0);
   const [drawer, setDrawer] = useState<DrawerView | null>(null);
   const [drawerDirty, setDrawerDirty] = useState(false);
   const [settingsEditorState, setSettingsEditorState] = useState({ dirty: false, saving: false });
@@ -110,6 +131,13 @@ export function PublicSiteOwnerLiveControls({
   useEffect(() => { setBlocks(initialBlocks); }, [initialBlocks]);
   useEffect(() => { setMedia(initialMedia); }, [initialMedia]);
   useEffect(() => { setSiteConfiguration(initialSiteConfiguration); }, [initialSiteConfiguration]);
+  useEffect(() => {
+    setEditionId(editionSession?.editionId ?? '');
+    setRevisionId(editionSession?.revisionId ?? null);
+    setManifest(editionSession?.manifest ?? null);
+    setLiveGeneration(editionSession?.liveGeneration ?? 0);
+    setEditionDirty(false);
+  }, [editionSession?.editionId, editionSession?.revisionId, editionSession?.liveGeneration, editionSession?.manifest]);
 
   const finishInlineEdit = useCallback((restore: boolean) => {
     const element = inlineElementRef.current;
@@ -203,9 +231,23 @@ export function PublicSiteOwnerLiveControls({
 
   const publishSelectedLabel = useCallback(async (value: string): Promise<boolean> => {
     if (needsReadback || checkingPublication || configSaving || !drawer || (drawer.kind !== 'config-label' && drawer.kind !== 'navigation-label')) return false;
-    if (!siteConfiguration.updatedAt) {
+    if (!siteConfiguration.updatedAt && !editionSession) {
       toast({ title: 'Reload to edit this label', description: 'The current site configuration revision is unavailable.', variant: 'destructive' });
       return false;
+    }
+    if (manifest && editionId) {
+      setSiteConfiguration((current) => {
+        if (drawer.kind === 'config-label') return { ...current, [drawer.field]: value };
+        if (drawer.kind === 'navigation-label') {
+          return { ...current, primaryNavigation: current.primaryNavigation.map((entry) =>
+            entry.id === drawer.id ? { ...entry, label: value } : entry) };
+        }
+        return current;
+      });
+      setEditionDirty(true);
+      setDrawerDirty(false);
+      toast({ title: 'Label staged', description: 'Only Save revision makes this private edit durable.' });
+      return true;
     }
     setConfigSaving(true);
     let definitivelyRejected = false;
@@ -257,7 +299,7 @@ export function PublicSiteOwnerLiveControls({
     } finally {
       setConfigSaving(false);
     }
-  }, [checkingPublication, needsReadback, configSaving, drawer, publicationPresentation, router, siteConfiguration.updatedAt, toast]);
+  }, [checkingPublication, needsReadback, configSaving, drawer, publicationPresentation, router, siteConfiguration.updatedAt, toast, editionSession, manifest, editionId]);
 
   const publishCopy = useCallback(async (block: SiteContentBlock, rawBody: string): Promise<boolean> => {
     if (copySaving || needsReadback || checkingPublication) return false;
@@ -265,6 +307,18 @@ export function PublicSiteOwnerLiveControls({
     if (!body || body.length > block.maxLength) {
       toast({ title: 'Invalid page copy', description: `Use 1–${block.maxLength} characters for ${block.label}.`, variant: 'destructive' });
       return false;
+    }
+    if (manifest && editionId) {
+      setBlocks((current) => current.map((candidate) =>
+        candidate.slug === block.slug ? { ...candidate, body } : candidate));
+      document.querySelectorAll<HTMLElement>('[data-site-content-slug]').forEach((element) => {
+        if (element.dataset.siteContentSlug === block.slug && element.childElementCount === 0)
+          element.textContent = body;
+      });
+      setEditionDirty(true);
+      setDrawerDirty(false);
+      toast({title:'Copy staged',description:'Save a website revision to retain the private change.'});
+      return true;
     }
     setCopySaving(true);
     try {
@@ -297,7 +351,7 @@ export function PublicSiteOwnerLiveControls({
     } finally {
       setCopySaving(false);
     }
-  }, [checkingPublication, needsReadback, copySaving, publicationPresentation, router, toast]);
+  }, [checkingPublication, needsReadback, copySaving, publicationPresentation, router, toast, manifest, editionId]);
 
   const saveInlineEdit = useCallback(async () => {
     const element = inlineElementRef.current;
@@ -518,6 +572,141 @@ export function PublicSiteOwnerLiveControls({
         }
       : null;
 
+
+  const stageConfiguration = useCallback((configuration: PublicSiteConfiguration) => {
+    setSiteConfiguration(configuration);
+    setEditionDirty(true);
+  }, []);
+
+  const stageEditionMedia = useCallback((next: SiteMediaAsset, sha256: string | null) => {
+    setMedia((current) => current.map((item) => item.slot === next.slot ? next : item));
+    setManifest((current) => current ? {
+      ...current,
+      media: [
+        ...current.media.filter((item) => item.slot !== next.slot),
+        {
+          slot: next.slot, storagePath: next.storagePath, sha256,
+          alt: next.alt, width: next.width, height: next.height,
+          presentation: next.presentation,
+        },
+      ],
+    } : current);
+    setEditionDirty(true);
+  }, []);
+
+  const saveEditionRevision = async () => {
+    if (!manifest || !editionId || editionSaving || editionReadbackId || !editionDirty) return;
+    const operationId = crypto.randomUUID();
+    const draft: WebsitePresentationManifest = {
+      ...manifest,
+      configuration: siteConfiguration,
+      content: blocks.map(({ slug, body }) => ({ slug, body })),
+    };
+    setEditionSaving(true);
+    let definitelyRejected = false;
+    try {
+      const response = await fetch('/api/owner/website-revisions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          editionId, expectedRevisionId: revisionId, operationId, manifest: draft,
+        }),
+      });
+      if (!response.ok) {
+        definitelyRejected = response.status >= 400 && response.status < 500 && response.status !== 409;
+        throw new Error(await readApiErrorMessage(response, 'Unable to save website revision.'));
+      }
+      const saved = await response.json() as { revisionId?: string };
+      if (!saved.revisionId) throw new Error('Revision commit receipt is incomplete.');
+      setRevisionId(saved.revisionId);
+      setManifest(draft);
+      setEditionDirty(false);
+      toast({ title: 'Website revision saved', description: 'The live website is unchanged until you explicitly activate this exact revision.' });
+      const preview = await fetch('/api/owner/website-preview', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ revisionId: saved.revisionId }),
+      });
+      if (preview.ok) router.refresh();
+    } catch(error) {
+      if (!definitelyRejected) setEditionReadbackId(operationId);
+      toast({title:definitelyRejected?'Revision not saved':'Save needs readback',
+        description:definitelyRejected && error instanceof Error ? error.message
+        : 'Your private draft is preserved. Check the operation result before retrying.',
+        variant:'destructive'});
+    } finally { setEditionSaving(false); }
+  };
+
+  const checkEditionReadback = async () => {
+    if (!editionReadbackId) return;
+    try {
+      const response=await fetch('/api/owner/website-revisions?operationId='+encodeURIComponent(editionReadbackId),{cache:'no-store'});
+      if(!response.ok) throw new Error('Cannot confirm the saved revision.');
+      const result=await response.json() as { revisionId: string | null };
+      if(result.revisionId) {
+        setRevisionId(result.revisionId);
+        setManifest((current)=> current ? {
+          ...current,
+          configuration: siteConfiguration,
+          content: blocks.map(({slug,body})=>({slug,body})),
+        } : null);
+        setEditionDirty(false);
+        toast({title:'Revision commit confirmed',description:'Your saved revision was found by operation identity.'});
+        setEditionReadbackId(null);
+      } else {
+        const headResponse = await fetch('/api/owner/website-revisions?editionId='+encodeURIComponent(editionId),{cache:'no-store'});
+        if(!headResponse.ok) throw new Error('Cannot reconcile the edition head.');
+        const head = await headResponse.json() as { revisions: {id:string}[] };
+        const currentHead = head.revisions[0]?.id ?? null;
+        if(currentHead !== revisionId) {
+          toast({title:'Edition head changed',description:'Keep your draft; review the newer revision before choosing another Save.',variant:'destructive'});
+          return;
+        }
+        setEditionReadbackId(null);
+        toast({title:'Save not committed',description:'The exact operation was not found and the edition head is unchanged; your draft is preserved.'});
+      }
+    } catch(error) { toast({title:'Readback unavailable',description:'Keep your draft and do not retry yet.',variant:'destructive'}); }
+  };
+
+  const activateEditionRevision = async () => {
+    if (!revisionId || !manifest || editionDirty || editionSaving) return;
+    if (!window.confirm('Activate this exact saved website revision? The current live website will change; immutable history remains available.')) return;
+    try {
+      // Public URL removal requires a deliberate per-path redirect rather
+      // than quietly losing inbound links.
+      const activationRead = await fetch('/api/owner/website-revisions',{cache:'no-store'});
+      if(!activationRead.ok) throw new Error('Cannot read current live activation.');
+      const activation = await activationRead.json() as {revisionId:string|null;generation:number};
+      if(activation.generation !== liveGeneration) throw new Error('Live website changed. Reload before activation.');
+      let oldPages: {slug:string;published:boolean}[] = [];
+      if(activation.revisionId) {
+        const current = await fetch('/api/owner/website-revisions?revisionId='+encodeURIComponent(activation.revisionId),{cache:'no-store'});
+        if(!current.ok) throw new Error('Current published pages cannot be checked.');
+        const snapshot = await current.json() as {configuration:PublicSiteConfiguration};
+        oldPages = snapshot.configuration.pages ?? [];
+      }
+      const nextPublic = new Set((manifest.configuration.pages??[]).filter((page)=>page.published).map((page)=>page.slug));
+      const removed = oldPages.filter((page)=>page.published && !nextPublic.has(page.slug));
+      const urlDisposition: Record<string,{kind:'redirect';destination:string}> = {};
+      for (const page of removed) {
+        const destination=window.prompt('Public /'+page.slug+' will be removed. Choose an existing internal redirect (for example /about).');
+        if (!destination) return;
+        urlDisposition[page.slug]={kind:'redirect',destination};
+      }
+      const response = await fetch('/api/owner/website-revisions',{
+        method:'PATCH',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          revisionId, expectedGeneration:liveGeneration,
+          operationId:crypto.randomUUID(),urlDisposition,
+        }),
+      });
+      if(!response.ok) throw new Error(await readApiErrorMessage(response,'Unable to activate website revision.'));
+      const receipt=await response.json() as {generation:number};
+      setLiveGeneration(receipt.generation);
+      await fetch('/api/owner/website-preview',{method:'DELETE'});
+      router.refresh();
+      toast({title:'Exact website revision activated',description:'Live activation changed; saved revision history was preserved.'});
+    } catch(error) { toast({title:'Activation not confirmed',description:error instanceof Error?error.message:'Read current live state before retrying.',variant:'destructive'}); }
+  };
+
   const renderedMediaEditor = (slot: MediaSlot) => (
     <PublicSiteMediaLiveEditor
       key={slot}
@@ -527,8 +716,9 @@ export function PublicSiteOwnerLiveControls({
       initialSiteConfiguration={siteConfiguration}
       onDirtyChange={setDrawerDirty}
       onAssetsChange={(nextMedia) => { setMedia(nextMedia); router.refresh(); }}
-      onSiteConfigurationChange={(nextSettings) => { setSiteConfiguration(nextSettings); router.refresh(); }}
+      onSiteConfigurationChange={(nextSettings) => { if (manifest && editionId) stageConfiguration(nextSettings); else { setSiteConfiguration(nextSettings); router.refresh(); } }}
       showWatermarkPresentation={slot === 'brand.watermark'}
+      onEditionMediaStage={manifest && editionId ? stageEditionMedia : undefined}
     />
   );
 
@@ -536,6 +726,13 @@ export function PublicSiteOwnerLiveControls({
     <div className={inlineSlug ? 'h-36 sm:h-28' : 'h-24'} aria-hidden="true" data-owner-live-controls-reserve />
     <div className="fixed bottom-5 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] items-center gap-2 rounded-full border border-[var(--public-brass)] bg-[var(--cf-surface)] p-2 shadow-2xl" data-owner-live-controls>
       <span className="hidden pl-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)] sm:inline">{publicationPresentation.badgeLabel}</span>
+      {manifest && editionId ? <>
+        <Button size="sm" type="button" disabled={!editionDirty || editionSaving || Boolean(editionReadbackId)} onClick={() => void saveEditionRevision()}>
+          {editionSaving ? 'Saving…' : 'Save revision'}
+        </Button>
+        {editionReadbackId ? <Button size="sm" type="button" variant="outline" onClick={() => void checkEditionReadback()}>Check Save</Button> : null}
+        <Button size="sm" type="button" variant="outline" disabled={editionDirty || editionSaving || !revisionId} onClick={() => void activateEditionRevision()}>Activate saved</Button>
+      </> : null}
       <Button type="button" size="sm" variant={editMode ? 'default' : 'outline'} aria-pressed={editMode} onClick={() => {
         if (editMode && !abandonDraft()) return;
         setEditMode((current) => !current);
@@ -551,7 +748,7 @@ export function PublicSiteOwnerLiveControls({
       Select copy, images, or a composed content block to edit it. Add new sections in Site settings.
     </div> : null}
     {inlineSlug ? <div className="fixed bottom-20 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] flex-wrap items-center gap-2 border border-[var(--public-brass)] bg-[var(--cf-surface)] p-3 shadow-2xl" role="toolbar" aria-label="Inline site copy editor">
-      <span className="mr-2 text-sm text-[var(--cf-text-muted)]">Edit the field and publish, or cancel.</span>
+      <span className="mr-2 text-sm text-[var(--cf-text-muted)]">{manifest ? 'Edit the field and stage it, or cancel.' : 'Edit the field and publish, or cancel.'}</span>
       {recoveryControl}
       {inlineSlug && needsReadback === null ? <span className="text-xs">Current published value: {blocks.find((block) => block.slug === inlineSlug)?.body}</span> : null}
       <Button size="sm" type="button" disabled={copySaving || checkingPublication || needsReadback !== null} onClick={() => void saveInlineEdit()}>
@@ -587,11 +784,16 @@ export function PublicSiteOwnerLiveControls({
             onPublish={publishSelectedLabel}
             onDirtyChange={setDrawerDirty}
             publicationEnvironment={publicationEnvironment}
-            help="This publishes only the selected label, without changing destinations, other navigation items or layout."
+            help={manifest ? 'Stages only this label in your private website draft.' : 'Publishes only the selected label without changing other settings.'}
           /> : null}
           {drawer?.kind === 'media' && selectedMedia ? renderedMediaEditor(selectedMedia) : null}
           {drawer?.kind === 'settings' ? <>
-            <OwnerPageEditorStateContext.Provider value={setSettingsEditorState}>{siteOperationsEditor}</OwnerPageEditorStateContext.Provider>
+            <WebsiteEditionsPanel editionId={editionId} revisionId={revisionId}
+              unsaved={editionDirty || drawerDirty || settingsEditorState.dirty}
+              onCreateEdition={(id)=>{setEditionId(id);setRevisionId(null);setEditionDirty(true);}} />
+            <WebsiteEditionDraftContext.Provider value={manifest && editionId ? { stageConfiguration, configuration: siteConfiguration } : null}>
+              <OwnerPageEditorStateContext.Provider value={setSettingsEditorState}>{siteOperationsEditor}</OwnerPageEditorStateContext.Provider>
+            </WebsiteEditionDraftContext.Provider>
             {(supplementalSlugs.length > 0 || supplementalMediaSlots.length > 0) ? (
               <details className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                 <summary className="cursor-pointer font-semibold text-[var(--cf-accent-text)]">Other editable content on this page</summary>

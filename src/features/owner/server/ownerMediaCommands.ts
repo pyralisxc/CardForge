@@ -1,14 +1,15 @@
 import 'server-only';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { consumeRateLimit } from '@/infrastructure/security/abuseProtection';
 import {
   getSiteMedia, getSiteMediaStoragePath, getSiteMediaContentType, isSiteMediaSlot,
-  normalizeSiteMediaAlt, processSiteMediaImage, revalidateSiteMediaCache, SITE_MEDIA_BUCKET,
+  normalizeSiteMediaAlt, normalizeSiteMediaPresentation, processSiteMediaImage, revalidateSiteMediaCache, SITE_MEDIA_BUCKET,
   SiteMediaStoreError, updateSiteMedia, validateSiteMediaFile, restorePreviousSiteMedia,
   assertComposedSiteMediaReference, getDefaultSiteMedia, isComposedSiteMediaSlot,
 } from '@/features/public-site/server';
+import { WEBSITE_DRAFT_MEDIA_BUCKET, websiteMediaBucketForPath } from '@/features/public-site/server/websiteEditionStore';
 import { finalizeOwnerPublication, type OwnerCommandActor } from './ownerSiteCommands';
 
 export class OwnerMediaRateLimitError extends SiteMediaStoreError {
@@ -29,6 +30,15 @@ const removeUncommittedUpload = async (path: string) => {
   try {
     const client = getSupabaseServerClient();
     if (client) {
+      // Immutable edition history retains Storage objects even when the live
+      // mutable slot has advanced. Provider cleanup cannot delete these bytes.
+      const retained = await client.from('cardforge_website_revision_media')
+        .select('revision_id').eq('storage_path', path).limit(1);
+      if (retained.error) {
+        console.error('Unable to verify website media retention; leaving storage object intact:', retained.error);
+        return;
+      }
+      if (retained.data?.length) return;
       const { error } = await client.storage.from(SITE_MEDIA_BUCKET).remove([path]);
       if (error) console.error('Uncommitted image cleanup unavailable:', error);
     }
@@ -91,3 +101,45 @@ export const restoreOwnerSiteMedia = async ({ actor, slot, expectedUpdatedAt }: 
   return finalizeOwnerPublication({ actor, value, action: 'site.media.restore', targetType: 'site_media', targetId: slot,
     summary: 'Restored the previous public site image version.', subject: value.label, refreshSteps: refreshSteps(slot) });
 };
+
+/** Owner image staging reuses the canonical public-media upload/processing owner.
+ * No flat slot is published; the exact reference travels only with a saved edition.
+ */
+export async function stageOwnerWebsiteEditionMedia(input: {
+ actor: OwnerCommandActor; slot: string; image: File | null; currentStoragePath: string | null;
+ alt: string; presentation: unknown;
+}): Promise<{ media: import('@/features/public-site/server').SiteMediaAsset; sha256: string | null }> {
+ if (!isSiteMediaSlot(input.slot)) throw new SiteMediaStoreError('Unknown website image.',400);
+ await authorizeMediaAttempt(input.actor,'site-media-upload');
+ const alt=normalizeSiteMediaAlt(input.alt);
+ if (!alt) throw new SiteMediaStoreError('Image description is required.',400);
+ const presentation=normalizeSiteMediaPresentation(input.slot,input.presentation);
+ if (!presentation.ok) throw new SiteMediaStoreError(presentation.message,400);
+ const db=getSupabaseServerClient();
+ if (!db) throw new SiteMediaStoreError('Public image storage unavailable.',503);
+ const fallback=getDefaultSiteMedia(input.slot);
+ let storagePath=input.currentStoragePath;
+ let width=fallback.width; let height=fallback.height;
+ let sha256: string|null=null;
+ if(input.image) {
+   // cardforge-public-media is a public Storage bucket. Placing unpublished
+   // bytes there would bypass Owner preview authorization via native URLs.
+   // Hold image staging until the existing Storage owner has a private,
+   // access-controlled destination and explicit activation transition.
+   const checked=validateSiteMediaFile(input.image);
+   if(!checked.ok) throw new SiteMediaStoreError(checked.message,400);
+   const processed=await processSiteMediaImage(Buffer.from(await input.image.arrayBuffer()),input.slot);
+   storagePath='website-drafts/'+getSiteMediaStoragePath(input.slot,randomUUID());
+   const uploaded=await db.storage.from(WEBSITE_DRAFT_MEDIA_BUCKET).upload(storagePath,processed.buffer,{
+     cacheControl:'0',contentType:getSiteMediaContentType(input.slot),upsert:false,
+   });
+   if(uploaded.error) throw new SiteMediaStoreError('Protected website draft storage unavailable; no image was staged.',503);
+   width=processed.width;height=processed.height;
+   sha256=createHash('sha256').update(processed.buffer).digest('hex');
+ } else if(storagePath) {
+   const data=await db.storage.from(websiteMediaBucketForPath(storagePath)).download(storagePath);
+   if(data.error||!data.data) throw new SiteMediaStoreError('Selected website image is no longer readable.',409);
+   sha256=createHash('sha256').update(Buffer.from(await data.data.arrayBuffer())).digest('hex');
+ }
+ return {media:{...fallback,storagePath,alt,width,height,presentation:presentation.value,updatedAt:null,previousVersion:null},sha256};
+}

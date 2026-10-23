@@ -13,6 +13,7 @@ import {
   getCachedPublicSiteConfiguration,
   StructuredData,
 } from '@/features/public-site/server';
+import { resolveLiveWebsitePresentation } from '@/features/public-site/server/websitePresentationResolver';
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import {
@@ -23,12 +24,14 @@ import { getCurrentProductAccessPricePresentation } from '@/features/billing/ser
 import { OwnerPublicSiteControlsSlot } from '@/app/_components/OwnerPublicSiteControlsSlot';
 
 export async function generateMetadata() {
-  const siteConfiguration = await getCachedPublicSiteConfiguration();
+  const resolved = await resolveLiveWebsitePresentation();
+  const siteConfiguration = resolved.configuration;
   return createPageMetadata({
     title: siteConfiguration.homepageTitle,
     description: siteConfiguration.homepageDescription,
     keywords: siteConfiguration.searchKeywords,
     path: '/',
+    index: !resolved.privatePreview,
   });
 }
 

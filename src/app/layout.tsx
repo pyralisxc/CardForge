@@ -1,5 +1,6 @@
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
+import { unstable_rethrow } from 'next/navigation';
 import { Suspense } from 'react';
 import './globals.css';
 import './cardforgePresentation.css';
@@ -20,7 +21,7 @@ import {
 } from '@/features/public-site/server';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
-import { resolveWithTimeout } from '@/shared/asyncTimeout';
+import { AsyncTimeoutError, resolveWithTimeoutOrThrow } from '@/shared/asyncTimeout';
 import { createRootSiteMetadata, type RootSiteMetadataInput } from '@/shared/siteMetadata';
 
 const ROOT_METADATA_TIMEOUT_MS = 800;
@@ -46,7 +47,8 @@ const compiledRootMetadataInput = (): RootSiteMetadataInput => {
 
 const loadRootMetadataInput = async (): Promise<RootSiteMetadataInput> => {
   const fallback = compiledRootMetadataInput();
-  return resolveWithTimeout(
+  try {
+    return await resolveWithTimeoutOrThrow(
     Promise.all([
       getCachedBusinessIdentity(),
       getCachedPublicSiteConfiguration(),
@@ -71,11 +73,15 @@ const loadRootMetadataInput = async (): Promise<RootSiteMetadataInput> => {
         metadataBase: fallback.metadataBase,
       };
     }),
-    {
-      fallback,
-      timeoutMs: ROOT_METADATA_TIMEOUT_MS,
-    },
+    ROOT_METADATA_TIMEOUT_MS,
   );
+  } catch (error) {
+    unstable_rethrow(error);
+    if (error instanceof AsyncTimeoutError) return fallback;
+    // A saved website revision can be the authoritative live state. Never
+    // silently substitute compiled metadata on failed authoritative reads.
+    throw error;
+  }
 };
 
 export async function generateMetadata(): Promise<Metadata> {

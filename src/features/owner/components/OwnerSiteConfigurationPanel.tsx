@@ -53,6 +53,7 @@ const move = <T,>(items: T[], index: number, direction: -1 | 1): T[] => {
 export function OwnerSiteConfigurationPanel({
   settings,
   onSettingsChange,
+  onStage,
   publicationEnvironment,
   onEditorStateChange,
   currentPath = '/',
@@ -60,6 +61,7 @@ export function OwnerSiteConfigurationPanel({
 }: {
   settings: PublicSiteConfiguration;
   onSettingsChange: (settings: PublicSiteConfiguration) => void;
+  onStage?: (settings: PublicSiteConfiguration) => void;
   publicationEnvironment: OwnerPublicationEnvironment;
   onEditorStateChange?: (state: { dirty: boolean; saving: boolean }) => void;
   currentPath?: string;
@@ -83,6 +85,13 @@ export function OwnerSiteConfigurationPanel({
 
   const save = async () => {
     if (saving || needsReadback) return;
+    if (onStage) {
+      onStage(draft);
+      acceptPublished(draft);
+      onSettingsChange(draft);
+      toast({title:'Website configuration staged',description:'Save an immutable edition revision to retain these private changes.'});
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     let rejected = false;
