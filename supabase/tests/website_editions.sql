@@ -1,6 +1,7 @@
 -- Website Editions: transaction BODY; caller must provide a single outer
 -- BEGIN; SET LOCAL lock_timeout='5s'; SET LOCAL statement_timeout='30s';
--- SET LOCAL ROLE service_role; [exact migration SQL if unapplied]; [this body];
+-- [exact migration SQL as privileged migrator if unapplied];
+-- SET LOCAL ROLE service_role; [this body];
 -- ROLLBACK. Never COMMIT the proof. No direct Storage API actions.
 -- The same body can run after an already-applied migration, in isolated Staging.
 -- Do not run with actual Owner publication or acceptance activity.
