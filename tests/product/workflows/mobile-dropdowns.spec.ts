@@ -73,9 +73,29 @@ test.describe('mobile Desk controls', () => {
     await expect(filters).toHaveAttribute('open', '');
     await expect(set).toContainText('Playing deck');
     await test.info().attach('owned-filter-selection', { body: await page.screenshot(), contentType: 'image/png' });
-    await set.tap();
+    // The expanded panel covers the Set tile; use the exposed toolbar search
+    // field to prove genuine outside dismissal without forcing an obscured tap.
+    await page.getByRole('textbox', { name: 'Search Desk work', exact: true }).tap();
     await expect(filters).not.toHaveAttribute('open', '');
     await expect(set).toContainText('Playing deck');
+  });
+
+  test('releases a settled scene frame when its inline board owner is disconnected', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100);
+    await page.goto('/account', { waitUntil: 'domcontentloaded' });
+    const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+    await set.click();
+    await set.press('Enter');
+    const owner = page.locator('[data-scene-slot="scale-card-1"][data-scene-inline-board="true"]');
+    await expect(owner).toBeVisible();
+    const frame = page.locator('[data-scene-artifact="scale-card-1"]');
+    await expect(frame).toHaveCount(1);
+    // Model real owner disconnection without creating a test-only scene API.
+    await owner.evaluate((node) => {
+      node.remove();
+      window.dispatchEvent(new Event('resize'));
+    });
+    await expect(frame).toHaveCount(0);
   });
 
   test('commits and dismisses a normal non-modal Select', async ({ page }) => {
