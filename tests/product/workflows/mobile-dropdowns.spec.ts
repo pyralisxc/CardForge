@@ -47,7 +47,83 @@ test.describe('mobile Desk controls', () => {
     await panel.getByRole('button', { name: 'Organize Set', exact: true }).tap();
     await expect(panel.getByLabel('Organize selected work')).toBeInViewport({ ratio: 1 });
     await expect(panel.getByRole('combobox', { name: 'Choose a supported or reusable Set type' })).toBeInViewport({ ratio: 1 });
+    const typeSelect = panel.getByRole('combobox', { name: 'Choose a supported or reusable Set type' });
+    await typeSelect.tap();
+    const typeOptions = page.locator('[data-cardforge-select-content][role="listbox"]');
+    await expect(typeOptions).toBeVisible();
+    await typeOptions.getByRole('option').first().tap();
+    await expect(filters).toHaveAttribute('open', '');
+
     await test.info().attach('compact-desk-filters', { body: await page.screenshot(), contentType: 'image/png' });
+  });
+
+  test('commits an owned Filters Select and dismisses Filters on outside interaction', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100);
+    await page.goto('/account', { waitUntil: 'domcontentloaded' });
+    const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+    await set.tap();
+    const filters = page.locator('[data-mobile-desk-filters]');
+    await filters.locator('summary').tap();
+    const panel = filters.locator('[aria-label="Desk views and filters"]');
+    await panel.getByRole('button', { name: 'Organize Set', exact: true }).tap();
+    await panel.getByRole('combobox', { name: 'Choose a supported or reusable Set type' }).tap();
+    const options = page.locator('[data-cardforge-select-content][role="listbox"]');
+    await options.getByRole('option', { name: 'Playing deck', exact: true }).tap();
+    await expect(options).toHaveCount(0);
+    await expect(filters).toHaveAttribute('open', '');
+    await expect(set).toContainText('Playing deck');
+    await test.info().attach('owned-filter-selection', { body: await page.screenshot(), contentType: 'image/png' });
+    await set.tap();
+    await expect(filters).not.toHaveAttribute('open', '');
+    await expect(set).toContainText('Playing deck');
+  });
+
+  test('commits and dismisses a normal non-modal Select', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100);
+    await page.goto('/account', { waitUntil: 'domcontentloaded' });
+    const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+    await set.tap();
+    await set.press('Enter');
+    await page.getByRole('button', { name: /^Organize/ }).tap();
+    const arrangement = page.getByRole('combobox', { name: 'Arrange cards' });
+    await arrangement.tap();
+    await page.getByRole('option', { name: 'Arrange as grid', exact: true }).tap();
+    await expect(arrangement).toContainText('Arrange: Grid');
+    await arrangement.tap();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    await expect(arrangement).toContainText('Arrange: Grid');
+    await expect(page.getByRole('button', { name: 'Back to Desk', exact: true })).toBeVisible();
+  });
+
+  test('commits New Card Design Selects above the modal by touch', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100);
+    await page.goto('/account', { waitUntil: 'domcontentloaded' });
+    const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+    await set.tap();
+    await set.press('Enter');
+    await page.getByRole('button', { name: 'Design', exact: true }).tap();
+    await page.getByRole('button', { name: 'Open editor menu', exact: true }).tap();
+    await page.getByRole('button', { name: 'Create new front design', exact: true }).tap();
+    const dialog = page.getByRole('dialog', { name: 'Create a Template', exact: true });
+    await expect(dialog).toBeVisible();
+    const options = page.locator('[data-cardforge-select-content][role="listbox"]');
+    for (const [label, option, expected] of [
+      ['View measurements', 'Inches', 'Inches'],
+      ['Choose card format', 'Tarot', 'Tarot'],
+      ['Choose starting point', 'Blank canvas', 'Blank canvas'],
+    ]) {
+      const trigger = dialog.getByRole('combobox', { name: label, exact: true });
+      await trigger.tap();
+      await expect(options).toBeVisible();
+      await test.info().attach(`modal-select-${label}`, { body: await page.screenshot(), contentType: 'image/png' });
+      await options.getByRole('option', { name: option, exact: label !== 'Choose card format' }).tap();
+      await expect(options).toHaveCount(0);
+      await expect(trigger).toContainText(expected);
+      await expect(dialog).toBeVisible();
+    }
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).tap();
+    await expect(dialog).toBeHidden();
   });
 
   test('@golden opens, selects, and dismisses shared dropdown controls by touch', async ({ page }) => {
