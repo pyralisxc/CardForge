@@ -215,4 +215,4 @@ export const normalizeMarketingStrategyInput = (
   };
 };
 
-export { resolveMarketingConnectionReadiness } from '@/features/marketing-distribution/model';
+export { resolveMarketingConnectionReadiness } from '@/features/marketing-distribution/client';
