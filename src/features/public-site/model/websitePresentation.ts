@@ -162,3 +162,25 @@ export const validateWebsiteUrlDisposition = (
  }
  return disposition;
 };
+
+/** Flatten successive dispositions; never silently lose an inbound URL. */
+export const resolveWebsiteRedirectChain = (
+ previous: WebsiteUrlDisposition, added: WebsiteUrlDisposition, publishedSlugs: ReadonlySet<string>,
+): WebsiteUrlDisposition => {
+ const builtin=new Set(['/','/about','/plans','/roadmap','/contributors','/cameron','/contact','/account']);
+ const proposed={...previous,...added};
+ const effective:WebsiteUrlDisposition={};
+ for(const slug of Object.keys(proposed)){
+   if(publishedSlugs.has(slug)) continue;
+   const seen=new Set([slug]);
+   let destination=proposed[slug].destination;
+   while(!builtin.has(destination) && !publishedSlugs.has(destination.slice(1))){
+     const target=destination.slice(1);
+     if(seen.has(target) || !proposed[target]) throw new WebsitePresentationValidationError('A historical public URL needs an explicit valid replacement redirect.');
+     seen.add(target);
+     destination=proposed[target].destination;
+   }
+   effective[slug]={kind:'redirect',destination};
+ }
+ return effective;
+};

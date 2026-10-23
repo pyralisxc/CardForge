@@ -8,6 +8,7 @@ import {
   assertWebsiteMediaReferencesPresent,
   validateWebsitePresentationManifest,
   validateWebsiteUrlDisposition,
+  resolveWebsiteRedirectChain,
 } from '@/features/public-site/model/websitePresentation';
 
 const defaults = () => ({
@@ -26,6 +27,15 @@ const defaults = () => ({
 });
 
 describe('Website Editions presentation contract', () => {
+  it('preserves chained retired URLs and rejects loops without silent deletion', () => {
+    const old = { a:{kind:'redirect' as const,destination:'/b'} };
+    const next = { b:{kind:'redirect' as const,destination:'/c'} };
+    expect(resolveWebsiteRedirectChain(old,next,new Set(['c']))).toEqual({
+      a:{kind:'redirect',destination:'/c'},b:{kind:'redirect',destination:'/c'},
+    });
+    expect(() => resolveWebsiteRedirectChain(old,{ b:{kind:'redirect',destination:'/a'} },new Set())).toThrow(/replacement/);
+  });
+
   it('allows the current published presentation without domain snapshots', () => {
     const revision = validateWebsitePresentationManifest(defaults());
     expect(revision.schemaVersion).toBe(1);
