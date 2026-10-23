@@ -8,7 +8,7 @@ import { combineEditorDraftStates, type EditorDraftState } from '@/components/ui
 import { CardForgeSectionIntro, CardForgeWorkspaceState } from '@/components/ui/cardforge-presentation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { OwnerOperationsPayload, OwnerSiteControlPayload } from '@/features/owner/lib/ownerOperations';
-import { OwnerPageEditorStateContext, type OwnerPublicationEnvironment } from '@/features/public-site/client';
+import { OwnerPageEditorStateContext, WebsiteEditionDraftContext, type OwnerPublicationEnvironment } from '@/features/public-site/client';
 import { loadOwnerSiteControls } from '@/features/owner/model/ownerOperationsClient';
 
 const panelFallback = () => <CardForgeWorkspaceState state="loading" message="Loading public-site controls…" />;
@@ -30,6 +30,7 @@ export function OwnerPublicSiteOperations({ publicationEnvironment, currentPath 
 }) {
   const router = useRouter();
   const onEditorStateChange = useContext(OwnerPageEditorStateContext);
+  const editionDraft = useContext(WebsiteEditionDraftContext);
   const [siteOperations, setSiteOperations] = useState<OwnerSiteControlPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -94,9 +95,11 @@ export function OwnerPublicSiteOperations({ publicationEnvironment, currentPath 
       <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" onIdentityEditorStateChange={reportIdentity} operationsPayload={{ businessIdentity: siteOperations.businessIdentity, roadmapItems: siteOperations.roadmapItems, databaseMetrics: null }} onOperationsChange={updateOperations} /><OwnerFounderProfilePanel onEditorStateChange={reportFounder} operationsPayload={siteOperations} onOperationsChange={updateOperations} /></TabsContent>
       <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel publicationEnvironment={publicationEnvironment} currentPath={currentPath}
         preview={siteOperations.publicPlans ? { media: siteOperations.siteMedia, businessIdentity: siteOperations.businessIdentity, plans: siteOperations.publicPlans } : undefined}
-        onEditorStateChange={reportPages} settings={siteOperations.siteConfiguration} onSettingsChange={(siteConfiguration) => {
+        onEditorStateChange={reportPages} settings={siteOperations.siteConfiguration}
+        onStage={editionDraft?.stageConfiguration}
+        onSettingsChange={(siteConfiguration) => {
         setSiteOperations((current) => current ? { ...current, siteConfiguration } : current);
-        router.refresh();
+        if (!editionDraft) router.refresh();
       }} /></TabsContent>
       <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel onEditorStateChange={reportExperience} settings={siteOperations.experienceSettings} onSettingsChange={(experienceSettings) => {
         setSiteOperations((current) => current ? { ...current, experienceSettings } : current);
