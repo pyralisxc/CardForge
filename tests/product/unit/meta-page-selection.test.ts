@@ -19,9 +19,9 @@ const makeDatabase=(record: (Omit<typeof fixture, 'terminal_receipt'> & { termin
 describe('Meta Page-selection failure and identity boundary', () => {
   beforeEach(()=>{process.env.CARDFORGE_SOCIAL_TOKEN_ENCRYPTION_KEY=key;});
   it('passes only the selected discovered Page to the atomic native operation',async()=>{
-    const database=makeDatabase(fixture,{cancelled:false,connectionCount:2});
+    const database=makeDatabase(fixture,{cancelled:false,connectionCount:2,selectedPageId:'page-a'});
     vi.mocked(getSupabaseServerClient).mockReturnValue(database as never);
-    await expect(completePendingMetaPageSelection(id,owner,'page-a')).resolves.toEqual({cancelled:false,connectionCount:2});
+    await expect(completePendingMetaPageSelection(id,owner,'page-a')).resolves.toEqual({cancelled:false,connectionCount:2,selectedPageId:'page-a'});
     expect(database.rpc).toHaveBeenCalledOnce();
     const [,args]=database.rpc.mock.calls[0];
     expect(args.p_page_id).toBe('page-a');
@@ -29,9 +29,9 @@ describe('Meta Page-selection failure and identity boundary', () => {
     expect(JSON.stringify(args)).not.toContain('private-page-token');
   });
   it('cancels without reading or updating existing identities',async()=>{
-    const database=makeDatabase(null,{cancelled:true,connectionCount:0});
+    const database=makeDatabase(null,{cancelled:true,connectionCount:0,selectedPageId:null});
     vi.mocked(getSupabaseServerClient).mockReturnValue(database as never);
-    await expect(completePendingMetaPageSelection(id,owner,null)).resolves.toEqual({cancelled:true,connectionCount:0});
+    await expect(completePendingMetaPageSelection(id,owner,null)).resolves.toEqual({cancelled:true,connectionCount:0,selectedPageId:null});
     expect(database.from).not.toHaveBeenCalled();
     expect(database.rpc.mock.calls[0][1].p_accounts).toEqual([]);
   });
@@ -50,7 +50,7 @@ describe('Meta Page-selection failure and identity boundary', () => {
   it('replays a terminal receipt without writing provider connections again',async()=>{
     const database=makeDatabase({...fixture,terminal_receipt:{cancelled:false,connectionCount:2,selectedPageId:'page-a'}},null);
     vi.mocked(getSupabaseServerClient).mockReturnValue(database as never);
-    await expect(completePendingMetaPageSelection(id,owner,'page-a')).resolves.toEqual({cancelled:false,connectionCount:2});
+    await expect(completePendingMetaPageSelection(id,owner,'page-a')).resolves.toEqual({cancelled:false,connectionCount:2,selectedPageId:'page-a'});
     expect(database.rpc).not.toHaveBeenCalled();
   });
 });
