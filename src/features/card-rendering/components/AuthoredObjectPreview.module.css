@@ -16,6 +16,7 @@
 }
 
 .card:has([data-scene-inline-stack='true']) {
+  transform-origin: 0 0;
   rotate: var(--settled-stack-rotation, 0deg);
 }
 

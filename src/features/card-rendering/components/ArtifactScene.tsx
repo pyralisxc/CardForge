@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, memo, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion, useIsPresent, usePresenceData, useReducedMotion } from 'motion/react';
+import { AnimatePresence, motion, useAnimationControls, useIsPresent, usePresenceData, useReducedMotion } from 'motion/react';
 import { RefreshCcw } from 'lucide-react';
 import { getCardFaceCanvas, getCardFaceTemplate, getCardPreviewLayout, hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
@@ -59,6 +59,21 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
   onSettled: (id: string, depth: Depth) => void;
 }) {
   const [settledDepth, setSettledDepth] = useState<Depth | null>(null);
+  const controls = useAnimationControls();
+  const wasInline = useRef(false);
+  useLayoutEffect(() => {
+    if (wasInline.current && !inlineSettled) {
+      // Depth promotion: reseed the existing hidden frame from the current
+      // tile-owned pixels before the scene becomes the visible travel owner.
+      controls.set({ x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0 });
+    }
+    wasInline.current = inlineSettled;
+    void controls.start({
+      x: item.x, y: item.y, scale: item.width / RENDER_WIDTH,
+      rotate: item.rotation, opacity: inlineSettled ? 0 : item.opacity,
+      transition: inlineSettled || immediate ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 32, mass: 0.9, opacity: { duration: 0.18 } },
+    });
+  }, [controls, immediate, inlineSettled, item, origin]);
   const present = useIsPresent();
   const activeSetId = usePresenceData();
   const culled = !present && activeSetId === item.setId;
@@ -80,13 +95,12 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
       data-scene-template={template.id}
       data-scene-moving={travelling}
       initial={{ x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0 }}
-      animate={{ x: item.x, y: item.y, scale: item.width / RENDER_WIDTH, rotate: item.rotation, opacity: inlineSettled ? 0 : item.opacity }}
+      animate={controls}
       exit={culled || immediate ? { opacity: 0, transition: { duration: 0 } } : { x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0, transition: { opacity: { delay: 0.3, duration: 0.15 } } }}
       onAnimationComplete={() => {
         setSettledDepth(item.depth);
         onSettled(item.card.uniqueId, item.depth);
       }}
-      transition={inlineSettled ? { duration: 0 } : immediate ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 32, mass: 0.9, opacity: { duration: 0.18 } }}
       style={{ position: 'absolute', left: 0, top: 0, width: RENDER_WIDTH, visibility: inlineSettled ? 'hidden' : 'visible', transformOrigin: '0 0', filter: 'drop-shadow(0 12px 18px rgb(0 0 0 / 24%))', '--artifact-hit-scale': screenScale / Math.max(previewScale, 0.001) } as React.CSSProperties}
     >
       {item.interactionOverlay && !inlineSettled
@@ -172,6 +186,9 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
               ...slot,
               node: inlineNode,
               depth: inlineNode.dataset.sceneInlineStack === 'true' ? 'stack' : 'board',
+              rotation: inlineNode.dataset.sceneInlineStack === 'true'
+                ? projectedRef.current.find((prior) => prior.card.uniqueId === slot.card.uniqueId)?.rotation ?? 0
+                : slot.rotation,
               x: inlineRect.left,
               y: inlineRect.top,
               width: inlineRect.width,
