@@ -55,7 +55,7 @@ const SceneCardContent = memo(function SceneCardContent({ card, face, watermark,
 function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, onSettled }: {
   item: Projection; origin: Projection; immediate: boolean; inlineSettled: boolean;
   onFlip: (id: string, face: CardFace) => void;
-  onSettled: (id: string, depth: Depth) => void;
+  onSettled: (id: string, depth: Depth, valid: () => boolean) => void;
 }) {
   const [present, safeToRemove] = usePresence();
   const activeSetId = usePresenceData();
@@ -74,6 +74,7 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
   const rotate = useMotionValue(origin.rotation), opacity = useMotionValue(0);
   const controls = useRef<Array<{ stop: () => void }>>([]);
   const generation = useRef(0), appliedRevision = useRef(-1), disposed = useRef(false);
+  const mode = useRef('');
   const settledCallback = useRef(onSettled);
   settledCallback.current = onSettled;
   const stop = useCallback(() => {
@@ -82,7 +83,7 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
     controls.current = [];
   }, []);
   const jump = useCallback((target: Projection, alpha: number) => {
-    if (disposed.current) return;
+    if (disposed.current || target.revision < appliedRevision.current) return;
     stop();
     x.jump(target.x); y.jump(target.y);
     scale.jump(target.width / RENDER_WIDTH);
@@ -90,7 +91,7 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
     appliedRevision.current = target.revision;
   }, [stop, x, y, scale, rotate, opacity]);
   const publishDirect = useCallback((target: Projection) => {
-    if (disposed.current || !present || travelling || inlineSettled || target.depth !== item.depth) return;
+    if (disposed.current || !present || travelling || inlineSettled || target.depth !== item.depth || target.revision < appliedRevision.current) return;
     jump(target, target.opacity);
   }, [present, travelling, inlineSettled, item.depth, jump]);
   useLayoutEffect(() => {
@@ -103,6 +104,9 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
   }, [item, publishDirect]);
   useLayoutEffect(() => {
     if (disposed.current) return;
+    const nextMode = !present ? 'exit' : `${item.depth}:${inlineSettled ? 'inline' : 'scene'}:${immediate ? 'direct' : 'travel'}`;
+    const modeChanged = mode.current !== nextMode;
+    mode.current = nextMode;
     if (!present) {
       stop();
       const token = generation.current;
@@ -120,16 +124,22 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
       }).catch(() => undefined);
       return;
     }
-    if (!travelling && appliedRevision.current === item.revision) return;
+    // A direct measurement can publish N+1 before React commits N. Geometry
+    // revisions only increase; lifecycle changes remain independently eligible.
+    if (!modeChanged && item.revision <= appliedRevision.current) return;
+    if (item.revision < appliedRevision.current && !modeChanged) return;
     const alpha = inlineSettled ? 0 : item.opacity;
     if (immediate || inlineSettled) {
-      jump(item, alpha);
+      if (item.revision >= appliedRevision.current) jump(item, alpha);
+      else { stop(); opacity.jump(alpha); }
+      const token = generation.current;
       if (settledDepth !== item.depth) {
         setSettledDepth(item.depth);
-        settledCallback.current(item.card.uniqueId, item.depth);
+        settledCallback.current(item.card.uniqueId, item.depth, () => !disposed.current && generation.current === token);
       }
       return;
     }
+    if (item.revision < appliedRevision.current) return;
     stop();
     const token = generation.current;
     const motions = [
@@ -144,7 +154,7 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
     void Promise.all(motions.map((motion) => Promise.resolve(motion))).then(() => {
       if (disposed.current || generation.current !== token) return;
       setSettledDepth(item.depth);
-      settledCallback.current(item.card.uniqueId, item.depth);
+      settledCallback.current(item.card.uniqueId, item.depth, () => !disposed.current && generation.current === token);
     }).catch(() => undefined);
   }, [present, culled, immediate, travelling, inlineSettled, settledDepth, item, origin, safeToRemove, stop, jump, x, y, scale, rotate, opacity]);
   return <motion.div style={{ position: 'absolute', inset: 0, clipPath: travelling ? item.travelClip : item.clip, zIndex: priority[item.depth] * 100 + item.order }}>
@@ -194,11 +204,15 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
   const directUntil = useRef(0);
   const dragging = useRef(false);
   const previousDepth = useRef(new Map<string, Depth>());
-  const pendingSettled = useRef(new Map<string, Depth>());
+  const pendingSettled = useRef(new Map<string, { depth: Depth; valid: () => boolean }>());
+  const sceneActive = useRef(false);
+  const sceneEpoch = useRef(0);
   const settledFrame = useRef<number | null>(null);
 
   const measure = useCallback(() => {
     measureQueued.current = false;
+    if (!sceneActive.current) return;
+    const epoch = sceneEpoch.current;
     const selected = new Map<string, Projection>();
     const bounds = new Map<Element, DOMRect>();
     const rectOf = (node: Element) => {
@@ -286,11 +300,13 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
         }
       }
     }
+    if (!sceneActive.current || sceneEpoch.current !== epoch) return;
     projectedRef.current = next;
     setDirectMotion(performance.now() < directUntil.current || dragging.current);
     setProjections(next);
   }, []);
   const refresh = useCallback(() => {
+    if (!sceneActive.current) return;
     if (!measureQueued.current) { measureQueued.current = true; frame.read(measure); }
   }, [measure]);
   const register = useCallback((id: string, slot: SceneSlot) => {
@@ -304,6 +320,8 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     };
   }, [refresh]);
   useLayoutEffect(() => {
+    sceneActive.current = true;
+    sceneEpoch.current++;
     observer.current = new ResizeObserver(refresh);
     for (const slot of slots.current.values()) observer.current.observe(slot.node);
     const onScroll = () => { directUntil.current = performance.now() + 180; refresh(); };
@@ -318,6 +336,9 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     window.addEventListener('pointercancel', onPointerUp, true);
     refresh();
     return () => {
+      sceneActive.current = false;
+      sceneEpoch.current++;
+      pendingSettled.current.clear();
       observer.current?.disconnect();
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('wheel', onWheel);
@@ -328,26 +349,31 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       cancelFrame(measure);
       measureQueued.current = false;
       if (settledFrame.current !== null) cancelAnimationFrame(settledFrame.current);
-      measureQueued.current = false;
+      pendingSettled.current.clear();
       settledFrame.current = null;
     };
-  }, [refresh]);
+  }, [refresh, measure]);
   // Every parent commit can change layout without resizing the card itself.
   useLayoutEffect(refresh, [children, refresh]);
-  const markSettled = useCallback((id: string, depth: Depth) => {
-    pendingSettled.current.set(id, depth);
+  const markSettled = useCallback((id: string, depth: Depth, valid: () => boolean) => {
+    if (!sceneActive.current || !valid()) return;
+    pendingSettled.current.set(id, { depth, valid });
     if (settledFrame.current !== null) return;
+    const epoch = sceneEpoch.current;
     settledFrame.current = requestAnimationFrame(() => {
       settledFrame.current = null;
+      if (!sceneActive.current || sceneEpoch.current !== epoch) return;
       const pending = new Map(pendingSettled.current);
       pendingSettled.current.clear();
       setSettledDepths((current) => {
-        let changed = false;
+        if (!sceneActive.current || sceneEpoch.current !== epoch) return current;
         const next = { ...current };
-        for (const [artifactId, settledDepth] of pending) {
-          if (next[artifactId] === settledDepth) continue;
-          next[artifactId] = settledDepth;
-          changed = true;
+        let changed = false;
+        for (const [artifactId, entry] of pending) {
+          if (!entry.valid()) continue;
+          const owner = projectedRef.current.find((item) => item.card.uniqueId === artifactId);
+          if (!owner || owner.depth !== entry.depth) continue;
+          if (next[artifactId] !== entry.depth) { next[artifactId] = entry.depth; changed = true; }
         }
         return changed ? next : current;
       });
