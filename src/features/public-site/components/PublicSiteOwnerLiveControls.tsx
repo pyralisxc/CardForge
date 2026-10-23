@@ -603,6 +603,7 @@ export function PublicSiteOwnerLiveControls({
       content: blocks.map(({ slug, body }) => ({ slug, body })),
     };
     setEditionSaving(true);
+    let definitelyRejected = false;
     try {
       const response = await fetch('/api/owner/website-revisions', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -610,7 +611,10 @@ export function PublicSiteOwnerLiveControls({
           editionId, expectedRevisionId: revisionId, operationId, manifest: draft,
         }),
       });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save website revision.'));
+      if (!response.ok) {
+        definitelyRejected = response.status >= 400 && response.status < 500 && response.status !== 409;
+        throw new Error(await readApiErrorMessage(response, 'Unable to save website revision.'));
+      }
       const saved = await response.json() as { revisionId?: string };
       if (!saved.revisionId) throw new Error('Revision commit receipt is incomplete.');
       setRevisionId(saved.revisionId);
@@ -623,8 +627,11 @@ export function PublicSiteOwnerLiveControls({
       });
       if (preview.ok) router.refresh();
     } catch(error) {
-      setEditionReadbackId(operationId);
-      toast({title:'Save needs readback',description:'Your private draft is preserved. Check the operation result before retrying.',variant:'destructive'});
+      if (!definitelyRejected) setEditionReadbackId(operationId);
+      toast({title:definitelyRejected?'Revision not saved':'Save needs readback',
+        description:definitelyRejected && error instanceof Error ? error.message
+        : 'Your private draft is preserved. Check the operation result before retrying.',
+        variant:'destructive'});
     } finally { setEditionSaving(false); }
   };
 
@@ -643,8 +650,19 @@ export function PublicSiteOwnerLiveControls({
         } : null);
         setEditionDirty(false);
         toast({title:'Revision commit confirmed',description:'Your saved revision was found by operation identity.'});
-      } else toast({title:'No commit found',description:'The draft is still private; review the edition head before attempting another Save.'});
-      setEditionReadbackId(null);
+        setEditionReadbackId(null);
+      } else {
+        const headResponse = await fetch('/api/owner/website-revisions?editionId='+encodeURIComponent(editionId),{cache:'no-store'});
+        if(!headResponse.ok) throw new Error('Cannot reconcile the edition head.');
+        const head = await headResponse.json() as { revisions: {id:string}[] };
+        const currentHead = head.revisions[0]?.id ?? null;
+        if(currentHead !== revisionId) {
+          toast({title:'Edition head changed',description:'Keep your draft; review the newer revision before choosing another Save.',variant:'destructive'});
+          return;
+        }
+        setEditionReadbackId(null);
+        toast({title:'Save not committed',description:'The exact operation was not found and the edition head is unchanged; your draft is preserved.'});
+      }
     } catch(error) { toast({title:'Readback unavailable',description:'Keep your draft and do not retry yet.',variant:'destructive'}); }
   };
 
@@ -652,11 +670,32 @@ export function PublicSiteOwnerLiveControls({
     if (!revisionId || !manifest || editionDirty || editionSaving) return;
     if (!window.confirm('Activate this exact saved website revision? The current live website will change; immutable history remains available.')) return;
     try {
+      // Public URL removal requires a deliberate per-path redirect rather
+      // than quietly losing inbound links.
+      const activationRead = await fetch('/api/owner/website-revisions',{cache:'no-store'});
+      if(!activationRead.ok) throw new Error('Cannot read current live activation.');
+      const activation = await activationRead.json() as {revisionId:string|null;generation:number};
+      if(activation.generation !== liveGeneration) throw new Error('Live website changed. Reload before activation.');
+      let oldPages: {slug:string;published:boolean}[] = [];
+      if(activation.revisionId) {
+        const current = await fetch('/api/owner/website-revisions?revisionId='+encodeURIComponent(activation.revisionId),{cache:'no-store'});
+        if(!current.ok) throw new Error('Current published pages cannot be checked.');
+        const snapshot = await current.json() as {configuration:PublicSiteConfiguration};
+        oldPages = snapshot.configuration.pages ?? [];
+      }
+      const nextPublic = new Set((manifest.configuration.pages??[]).filter((page)=>page.published).map((page)=>page.slug));
+      const removed = oldPages.filter((page)=>page.published && !nextPublic.has(page.slug));
+      const urlDisposition: Record<string,{kind:'redirect';destination:string}> = {};
+      for (const page of removed) {
+        const destination=window.prompt('Public /'+page.slug+' will be removed. Choose an existing internal redirect (for example /about).');
+        if (!destination) return;
+        urlDisposition[page.slug]={kind:'redirect',destination};
+      }
       const response = await fetch('/api/owner/website-revisions',{
         method:'PATCH',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
           revisionId, expectedGeneration:liveGeneration,
-          operationId:crypto.randomUUID(),urlDisposition:{},
+          operationId:crypto.randomUUID(),urlDisposition,
         }),
       });
       if(!response.ok) throw new Error(await readApiErrorMessage(response,'Unable to activate website revision.'));
