@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { cache } from 'react';
-import { getCurrentOwnerAccess } from '@/features/owner/server';
+import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { getPublicSiteConfiguration } from './siteConfigurationStore';
 import { getSiteContentBlocks } from './contentStore';
 import { getSiteMedia } from './siteMediaStore';
@@ -34,7 +34,7 @@ const projectRevision = (revisionId: string, manifest: WebsitePresentationManife
 const loadLiveWebsitePresentation = async (): Promise<ResolvedWebsitePresentation> => {
   const previewRevision = (await cookies()).get('cf-owner-website-preview')?.value;
   if (previewRevision) {
-    const owner = await getCurrentOwnerAccess();
+    const owner = (await getCurrentCardforgeUserAccess()).ownerAccess;
     if (owner.isOwner && owner.userId) {
       // An untrusted cookie is merely a hint: this authorization and exact
       // read are enforced on every request before any draft can render.
