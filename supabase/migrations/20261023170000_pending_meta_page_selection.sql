@@ -13,21 +13,45 @@ alter table public.cardforge_meta_page_selections enable row level security;
 revoke all on public.cardforge_meta_page_selections from public, anon, authenticated;
 grant select, insert, delete on public.cardforge_meta_page_selections to service_role;
 
--- New OAuth attempts opportunistically purge already-expired encrypted payloads,
--- without activating a new scheduler. Terminal receipts remain for recovery.
-create or replace function public.cardforge_prune_meta_page_selections()
-returns trigger language plpgsql security definer set search_path='' as $cleanup$
+-- Do not activate a cleanup schedule in this migration. The Owner must separately
+-- authorize the exact pg_cron job. Every invocation is bounded to 200 locked rows.
+-- Expired encrypted selections are scrubbed and retain only a 24-hour receipt;
+-- old terminal receipts are then deleted. Live connections are never referenced.
+create or replace function public.cardforge_cleanup_meta_page_selections(p_limit integer default 200)
+returns table(scrubbed integer, removed integer)
+language plpgsql security definer set search_path='' as $cleanup$
+declare
+  v_row record;
+  v_scrubbed integer := 0;
+  v_removed integer := 0;
 begin
-  delete from public.cardforge_meta_page_selections
-    where expires_at <= pg_catalog.now() and terminal_receipt is null;
-  return new;
+  if p_limit < 1 or p_limit > 200 then raise exception 'invalid_cleanup_limit'; end if;
+  for v_row in
+    select id, terminal_receipt, completed_at
+    from public.cardforge_meta_page_selections
+    where (terminal_receipt is null and expires_at <= pg_catalog.now())
+       or (terminal_receipt is not null and completed_at <= pg_catalog.now() - interval '24 hours')
+    order by coalesce(completed_at,expires_at),id
+    for update skip locked
+    limit p_limit
+  loop
+    if v_row.terminal_receipt is null then
+      update public.cardforge_meta_page_selections
+      set payload_ciphertext=null, payload_iv=null, payload_auth_tag=null,
+          terminal_receipt='{"cancelled":true,"connectionCount":0,"selectedPageId":null}'::jsonb,
+          completed_at=pg_catalog.now()
+      where id=v_row.id;
+      v_scrubbed:=v_scrubbed+1;
+    else
+      delete from public.cardforge_meta_page_selections where id=v_row.id;
+      v_removed:=v_removed+1;
+    end if;
+  end loop;
+  scrubbed:=v_scrubbed; removed:=v_removed;
+  return next;
 end;
 $cleanup$;
-revoke all on function public.cardforge_prune_meta_page_selections() from public,anon,authenticated;
-drop trigger if exists cardforge_meta_page_selection_cleanup on public.cardforge_meta_page_selections;
-create trigger cardforge_meta_page_selection_cleanup before insert
-  on public.cardforge_meta_page_selections for each statement
-  execute function public.cardforge_prune_meta_page_selections();
+revoke all on function public.cardforge_cleanup_meta_page_selections(integer) from public,anon,authenticated,service_role;
 
 create or replace function public.cardforge_complete_meta_page_selection(
   p_selection_id uuid, p_actor_id text, p_page_id text, p_accounts jsonb
@@ -59,7 +83,7 @@ begin
   end if;
   if p_page_id is null then
     if p_accounts <> '[]'::jsonb then raise exception 'invalid_cancel_payload'; end if;
-    v_receipt := '{"cancelled":true,"connectionCount":0}'::jsonb;
+    v_receipt := '{"cancelled":true,"connectionCount":0,"selectedPageId":null}'::jsonb;
   else
     if pg_catalog.jsonb_typeof(p_accounts) <> 'array' or pg_catalog.jsonb_array_length(p_accounts) not between 1 and 2 then
       raise exception 'invalid_accounts';
