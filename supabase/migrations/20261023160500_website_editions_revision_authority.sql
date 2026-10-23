@@ -280,3 +280,21 @@ $$;
 revoke all on function public.cardforge_website_activated_media_version(text,text)
  from public,anon,authenticated;
 grant execute on function public.cardforge_website_activated_media_version(text,text) to service_role;
+
+-- COORDINATED PROVIDER GATE: do not apply this migration without Root review.
+-- Dedicated private bucket belongs to the public-site media owner; existing
+-- feature-specific private buckets and the live public bucket are untouched.
+insert into storage.buckets (id,name,public,file_size_limit,allowed_mime_types)
+values ('cardforge-website-drafts','cardforge-website-drafts',false,12582912,
+ array['image/png','image/webp'])
+on conflict (id) do nothing;
+do $$
+begin
+ if not exists(select 1 from storage.buckets
+   where id='cardforge-website-drafts' and public=false) then
+    raise exception 'website_private_media_bucket_must_remain_private';
+ end if;
+end $$;
+-- No browser-role policy is created for this bucket. Existing authenticated
+-- Owner server commands use the service-role connection to upload/download
+-- validated images and expose only revision-authorized application responses.
