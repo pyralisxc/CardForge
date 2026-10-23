@@ -55,8 +55,8 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
   const suppressTouchSelectionClickRef = useRef(false);
   const openSet = () => {
     const setId = props.item.references.localSetId;
-    if (setId) captureStackOrigins?.(setId);
-    props.onFocus(props.item);
+    if (setId && captureStackOrigins) captureStackOrigins(setId, () => props.onFocus(props.item));
+    else props.onFocus(props.item);
   };
   const presentationMeta = getDeskWorkPresentationMeta(props.item);
   const positionStyle = props.position

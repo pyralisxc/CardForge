@@ -55,7 +55,7 @@ function stackSceneGeometry(node: HTMLElement, rotation: number) {
 interface SceneRegistry {
   register: (id: string, slot: SceneSlot) => () => void;
   refresh: () => void;
-  captureStackOrigins: (setId: string) => void;
+  captureStackOrigins: (setId: string, openSet: () => void) => void;
   activeSetId: string | null;
   settledDepths: Record<string, Depth>;
 }
@@ -270,7 +270,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     setDirectMotion(performance.now() < directUntil.current || dragging.current);
     setProjections(next);
   }, []);
-  const captureStackOrigins = useCallback((setId: string) => {
+  const captureStackOrigins = useCallback((setId: string, openSet: () => void) => {
     // This runs while the tile still has its Desk world transform. Transfer
     // visual ownership to the retained scene synchronously, before focus can
     // hide/reflow it; hold the scene at these coordinates until depth changes.
@@ -289,12 +289,28 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       inlineOrigins.current.set(slot.card.uniqueId, origin);
       captured.set(slot.card.uniqueId, origin);
     }
-    if (!captured.size) return;
+    if (!captured.size) { openSet(); return; }
     departingSetRef.current = setId;
     flushSync(() => {
       setDepartingSetId(setId);
       setProjections((current) => current.map((item) => captured.get(item.card.uniqueId) ?? item));
+      openSet();
     });
+  }, []);
+  // Once the focused Set is left, no departing ownership may be retained.
+  // Component unmount also clears this transient transfer state; it is never
+  // persisted or shared with history.
+  const hadFocusedDeparture = useRef(false);
+  useLayoutEffect(() => {
+    if (departingSetId && activeSetId === departingSetId) hadFocusedDeparture.current = true;
+    if (hadFocusedDeparture.current && departingSetId && activeSetId !== departingSetId) {
+      hadFocusedDeparture.current = false;
+      departingSetRef.current = null;
+      setDepartingSetId(null);
+    }
+  }, [activeSetId, departingSetId]);
+  useLayoutEffect(() => () => {
+    departingSetRef.current = null;
   }, []);
   const refresh = useCallback(() => {
     // Once every stack slot owns its local pixels, tile movement and camera
