@@ -19,7 +19,7 @@
   rotate: var(--settled-stack-rotation, 0deg);
 }
 
-.card[data-card-position='0'] { z-index: 3; }
+.card[data-card-position='0'] { z-index: 5; }
 .card[data-card-position='1'] { z-index: 4; transform: translate(-24%, 7%); }
 .card[data-card-position='2'] { z-index: 3; transform: translate(24%, 8%); }
 .card[data-card-position='3'] { z-index: 2; transform: translate(-45%, 17%); }

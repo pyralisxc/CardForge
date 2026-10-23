@@ -306,7 +306,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       <AnimatePresence custom={activeSetId}>
         {projections.map((item) => {
           const origin = inlineOrigins.current.get(item.card.uniqueId) ?? origins.current.get(item.setId) ?? item;
-          const inlineSettled = item.depth !== 'stack' && settledDepths[item.card.uniqueId] === item.depth;
+          const inlineSettled = settledDepths[item.card.uniqueId] === item.depth;
           return <SceneArtifactFrame
             key={item.card.uniqueId}
             item={item}
@@ -392,11 +392,11 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
     {inlineSettled ? <>
       <CardPreview card={card} face={persistentFace} targetWidthPx={width} isEditorPreview interactionOverlay={interactionOverlay} />
       {watermark ? <CardWatermarkOverlay /> : null}
-      <span
+      {depth !== 'stack' ? <span
         data-artifact-template-border
         aria-hidden="true"
         style={{ position: 'absolute', inset: -3, border: `2px dashed ${getTemplateAccent(template.id ?? template.name)}`, borderRadius: 4, pointerEvents: 'none' }}
-      />
+      /> : null}
     </> : null}
   </span>;
 }
