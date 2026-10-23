@@ -96,8 +96,15 @@ export const connectMetaAccounts = async (code: string, actorId: string) => {
   // All paths use one atomic consume-and-persist operation. The selected Page
   // is still confirmed by the owner if discovery returned more than one.
   if (selectedPages.length > 1) return { pageCount:selectedPages.length, connectionCount:0, selectionId:String(pending.id) };
-  const result = await completePendingMetaPageSelection(String(pending.id),actorId,selectedPages[0].id);
-  return { pageCount:1, connectionCount:result.connectionCount };
+  try {
+    const result = await completePendingMetaPageSelection(String(pending.id),actorId,selectedPages[0].id);
+    return { pageCount:1, connectionCount:result.connectionCount };
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('outcome unknown')) {
+      return { pageCount:1, connectionCount:0, selectionId:String(pending.id) };
+    }
+    throw error;
+  }
 };
 
 export const readPendingMetaPageSelection = async (selectionId: string, actorId: string) => {
@@ -163,13 +170,13 @@ export const completePendingMetaPageSelection = async (selectionId: string, acto
     p_accounts: accounts,
   });
   if (error || !data) {
-    try {
-      const observed = await readPendingMetaPageSelection(selectionId,actorId);
-      if (observed.receipt) {
-        if (observed.receipt.selectedPageId !== selectedPageId) throw new Error('The selection completed with a different Page.');
-        return observed.receipt;
-      }
-    } catch { /* Readback itself may be unavailable: outcome remains unknown. */ }
+    let observed: Awaited<ReturnType<typeof readPendingMetaPageSelection>> | null = null;
+    try { observed = await readPendingMetaPageSelection(selectionId,actorId); }
+    catch { /* The read itself was inconclusive. */ }
+    if (observed?.receipt) {
+      if (observed.receipt.selectedPageId !== selectedPageId) throw new Error('The selection completed with a different Page.');
+      return observed.receipt;
+    }
     throw new Error('Meta selection outcome unknown. Check the connected account before retrying.');
   }
   return data as { cancelled: boolean; connectionCount: number; selectedPageId: string | null };
