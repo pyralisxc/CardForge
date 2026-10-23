@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, memo, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, forwardRef, useImperativeHandle, memo, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { AnimatePresence, motion, useAnimationControls, useIsPresent, usePresenceData, useReducedMotion } from 'motion/react';
 import { RefreshCcw } from 'lucide-react';
@@ -145,10 +145,16 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, travelPend
  * Native scrolling is measured in one viewport coordinate system, not copied
  * into another navigation or persistence store.
  */
-export function ArtifactScene({ children, activeSetId }: { children: ReactNode; activeSetId: string | null }) {
+export interface ArtifactSceneHandle {
+  returnToDesk: (commit: () => void) => void;
+}
+
+export const ArtifactScene = forwardRef<ArtifactSceneHandle, { children: ReactNode; activeSetId: string | null }>(function ArtifactScene({ children, activeSetId }, ref) {
   const slots = useRef(new Map<string, SceneSlot>());
   const [departingSetId, setDepartingSetId] = useState<string | null>(null);
   const departingSetRef = useRef<string | null>(null);
+  const [departingDepth, setDepartingDepth] = useState<Depth>('stack');
+  const departingDepthRef = useRef<Depth>('stack');
   const origins = useRef(new Map<string, Projection>());
   const inlineOrigins = useRef(new Map<string, Projection>());
   const frame = useRef<number | null>(null);
@@ -263,7 +269,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       && prior.some((previous) => previous.card.uniqueId === item.card.uniqueId && previous.depth === 'stack')
     )) return;
     projectedRef.current = next;
-    if (departingSetRef.current && next.some((item) => item.setId === departingSetRef.current && item.depth !== 'stack')) {
+    if (departingSetRef.current && next.some((item) => item.setId === departingSetRef.current && item.depth !== departingDepthRef.current)) {
       departingSetRef.current = null;
       setDepartingSetId(null);
     }
@@ -291,24 +297,54 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     }
     if (!captured.size) { openSet(); return; }
     departingSetRef.current = setId;
+    departingDepthRef.current = 'stack';
     flushSync(() => {
+      setDepartingDepth('stack');
       setDepartingSetId(setId);
       setProjections((current) => current.map((item) => captured.get(item.card.uniqueId) ?? item));
       openSet();
     });
   }, []);
+  const captureBoardReturn = useCallback((commit: () => void) => {
+    const setId = activeSetRef.current;
+    if (!setId) { commit(); return; }
+    const captured = new Map<string, Projection>();
+    for (const node of document.querySelectorAll<HTMLElement>('[data-scene-inline-board="true"]')) {
+      const prior = projectedRef.current.find((item) => item.setId === setId && item.card.uniqueId === node.dataset.sceneSlot);
+      if (!prior || !node.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
+      const rect = node.getBoundingClientRect();
+      if (!rect.width || !rect.height) continue;
+      const origin: Projection = { ...prior, node, depth: 'board', rotation: 0,
+        x: rect.left, y: rect.top, width: rect.width, opacity: 1,
+        clip: 'inset(0px)', travelClip: 'inset(0px)' };
+      inlineOrigins.current.set(prior.card.uniqueId, origin);
+      captured.set(prior.card.uniqueId, origin);
+    }
+    if (!captured.size) { commit(); return; }
+    departingSetRef.current = setId;
+    departingDepthRef.current = 'board';
+    // The navigation owner calls this only after its dirty guards resolve.
+    // Capture, scene takeover, and outgoing owner removal share one commit.
+    flushSync(() => {
+      setDepartingDepth('board');
+      setDepartingSetId(setId);
+      setProjections((current) => current.map((item) => captured.get(item.card.uniqueId) ?? item));
+      commit();
+    });
+  }, []);
+  useImperativeHandle(ref, () => ({ returnToDesk: captureBoardReturn }), [captureBoardReturn]);
   // Once the focused Set is left, no departing ownership may be retained.
   // Component unmount also clears this transient transfer state; it is never
   // persisted or shared with history.
   const hadFocusedDeparture = useRef(false);
   useLayoutEffect(() => {
-    if (departingSetId && activeSetId === departingSetId) hadFocusedDeparture.current = true;
-    if (hadFocusedDeparture.current && departingSetId && activeSetId !== departingSetId) {
+    if (departingDepth === 'stack' && departingSetId && activeSetId === departingSetId) hadFocusedDeparture.current = true;
+    if (departingDepth === 'stack' && hadFocusedDeparture.current && departingSetId && activeSetId !== departingSetId) {
       hadFocusedDeparture.current = false;
       departingSetRef.current = null;
       setDepartingSetId(null);
     }
-  }, [activeSetId, departingSetId]);
+  }, [activeSetId, departingSetId, departingDepth]);
   useLayoutEffect(() => () => {
     departingSetRef.current = null;
   }, []);
@@ -398,7 +434,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       <AnimatePresence custom={activeSetId}>
         {projections.map((item) => {
           const origin = inlineOrigins.current.get(item.card.uniqueId) ?? origins.current.get(item.setId) ?? item;
-          const travelPending = departingSetId === item.setId && item.depth === 'stack';
+          const travelPending = departingSetId === item.setId && item.depth === departingDepth;
           const inlineSettled = !travelPending && settledDepths[item.card.uniqueId] === item.depth;
           return <SceneArtifactFrame
             key={item.card.uniqueId}
@@ -414,7 +450,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       </AnimatePresence>
     </div>
   </RegistryContext.Provider>;
-}
+});
 
 export function useCaptureArtifactStackOrigins() {
   return useContext(RegistryContext)?.captureStackOrigins;

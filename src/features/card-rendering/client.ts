@@ -52,3 +52,5 @@ export {
   shouldShowVisibleCardWatermark,
   SOCIAL_SHARE_WATERMARK_OPACITY,
 } from './model/watermarkPolicy';
+
+export type { ArtifactSceneHandle } from './components/ArtifactScene';

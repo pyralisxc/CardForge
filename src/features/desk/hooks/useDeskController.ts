@@ -59,6 +59,7 @@ const driveWorkingNeedsAttention = (phase: GoogleDriveWorkingSessionPhase) => (
 );
 
 interface DeskControllerOptions {
+  transitionToDesk?: (commit: () => void) => void;
   persistenceScope: ProjectPersistenceScope;
   experience: AccountExperienceProjection;
   initialFocusedWorkId?: string | null;
@@ -70,6 +71,7 @@ interface DeskControllerOptions {
 }
 
 export function useDeskController({
+  transitionToDesk,
   persistenceScope,
   experience,
   initialFocusedWorkId,
@@ -145,7 +147,7 @@ export function useDeskController({
     setDirtyCloseRequested,
     setInspectorWorkId,
     setInteractionSession,
-  } = useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId });
+  } = useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId, transitionToDesk });
   const [pendingTool, setPendingTool] = useState<{
     setId: string;
     tool: Parameters<typeof navigateToTool>[1];

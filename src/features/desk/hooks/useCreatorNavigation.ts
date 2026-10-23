@@ -27,11 +27,12 @@ import {
 } from '../model/creatorHistory';
 
 interface CreatorNavigationOptions {
+  transitionToDesk?: (commit: () => void) => void;
   initialFocusedWorkId?: string | null;
   initialFocusedArtifactId?: string | null;
 }
 
-export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId }: CreatorNavigationOptions) {
+export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId, transitionToDesk }: CreatorNavigationOptions) {
   const [navigationReady, setNavigationReady] = useState(false);
   const [focusedWorkId, setFocusedWorkId] = useState<string | null>(initialFocusedWorkId ?? null);
   const [inspectorWorkId, setInspectorWorkId] = useState<string | null>(null);
@@ -286,9 +287,10 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     pendingPopSnapshotRef.current = null;
     bypassDirtyCloseRef.current = false;
     setDirtyCloseTarget(null);
-    applySnapshot(next);
-    replaceSnapshot(next);
-  }, [applySnapshot, replaceSnapshot]);
+    const commit = () => { applySnapshot(next); replaceSnapshot(next); };
+    if (transitionToDesk) transitionToDesk(commit);
+    else commit();
+  }, [applySnapshot, replaceSnapshot, transitionToDesk]);
 
   const returnToSet = useCallback(() => {
     const current = currentRef.current;

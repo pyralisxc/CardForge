@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Boxes,
   Cloud,
@@ -27,7 +27,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/components/ui/use-toast';
 import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
-import { ArtifactScene, AuthoredObjectPreview } from '@/features/card-rendering/client';
+import { ArtifactScene, type ArtifactSceneHandle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import {
@@ -151,6 +151,11 @@ export function Desk({
   securityStatus,
   storageConnections,
 }: DeskProps) {
+  const artifactSceneRef = useRef<ArtifactSceneHandle>(null);
+  const transitionToDesk = useCallback((commit: () => void) => {
+    if (artifactSceneRef.current) artifactSceneRef.current.returnToDesk(commit);
+    else commit();
+  }, []);
   const { toast } = useToast();
   const browserSaveStatus = useBrowserWorkspaceSaveStatus();
   const browserStoragePersistence = useBrowserStoragePersistence();
@@ -321,6 +326,7 @@ export function Desk({
     workTemplate,
     zones,
   } = useDeskController({
+    transitionToDesk,
     persistenceScope,
     experience,
     initialFocusedWorkId,
@@ -457,7 +463,7 @@ export function Desk({
 
   return (
     <div className={styles.creatorEnvironment} data-desk-arrival-phase={deskArrival.phase}>
-      <ArtifactScene activeSetId={focusedLocalSetId}>
+      <ArtifactScene ref={artifactSceneRef} activeSetId={focusedLocalSetId}>
       <EnvironmentShell
         ariaLabel="CardForge Desk"
         brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }}
