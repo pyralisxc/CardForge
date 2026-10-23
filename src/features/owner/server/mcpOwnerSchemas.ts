@@ -622,3 +622,43 @@ export const ownerOperationalReadOutputSchema = fromJsonSchema({
   type: 'object', additionalProperties: false, required: ['environment', 'area', 'value'],
   properties: { environment: { type: 'string' }, area: { type: 'string', enum: ['overview', 'analytics', 'mcpUsage'] }, value: { type: 'object' } },
 });
+
+
+/** Explicit edition authority. Legacy flat-site publishers never use these schemas. */
+const editionUuid = { type: 'string', format: 'uuid' } as const;
+export const ownerEditionListInputSchema = fromJsonSchema<{ editionId?: string }>({
+  type: 'object', additionalProperties: false,
+  properties: { editionId: editionUuid },
+});
+export const ownerEditionCreateInputSchema = fromJsonSchema<{ name: string }>({
+  type: 'object', additionalProperties: false, required: ['name'],
+  properties: { name: { type: 'string', minLength: 1, maxLength: 100 } },
+});
+export const ownerEditionSaveInputSchema = fromJsonSchema<{
+  editionId: string; expectedRevisionId: string | null; operationId: string; manifest: unknown;
+}>({
+  type: 'object', additionalProperties: false,
+  required: ['editionId', 'expectedRevisionId', 'operationId', 'manifest'],
+  properties: {
+    editionId: editionUuid, expectedRevisionId: editionUuidOrNull,
+    operationId: editionUuid, manifest: { type: 'object' },
+  },
+});
+const editionUuidOrNull = { type: ['string', 'null'] } as const;
+export const ownerEditionPreviewInputSchema = fromJsonSchema<{ revisionId: string }>({
+  type: 'object', additionalProperties: false, required: ['revisionId'],
+  properties: { revisionId: editionUuid },
+});
+export const ownerEditionActivateInputSchema = fromJsonSchema<{
+  revisionId: string; expectedGeneration: number; operationId: string; urlDisposition: Record<string, unknown>;
+}>({
+  type: 'object', additionalProperties: false,
+  required: ['revisionId', 'expectedGeneration', 'operationId', 'urlDisposition'],
+  properties: { revisionId: editionUuid, expectedGeneration: { type: 'integer', minimum: 0 },
+    operationId: editionUuid, urlDisposition: { type: 'object' } },
+});
+export const ownerEditionResultOutputSchema = fromJsonSchema({
+  type: 'object', additionalProperties: true,
+  required: ['environment', 'action'],
+  properties: { environment: { type: 'string' }, action: { type: 'string' } },
+});

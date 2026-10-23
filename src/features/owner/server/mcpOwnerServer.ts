@@ -4,7 +4,7 @@ import { getMcpOwnerAccess } from './mcpOwnerAccess';
 import { registerOwnerReadTools } from './mcpOwnerTools';
 import { createOwnerMcpToolError } from './mcpOwnerToolError';
 
-export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.8.0';
+export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.9.0';
 
 export const cardForgeOwnerMcpHandler = createMcpHandler(
   (server) => {
@@ -25,6 +25,7 @@ export const cardForgeOwnerMcpHandler = createMcpHandler(
       'Start by reading current site state, provider readiness, and accountable Owner activity before recommending operational changes. get_owner_workspace_health, get_owner_analytics and get_owner_mcp_usage use the same native browser readers; preserve configuration, missing metrics and provider warnings.',
       'Never imply that Preview state is live production state.',
       'Do not claim provider configuration or availability beyond the provider-readiness projection returned by CardForge.',
+      'After website adoption, Owner MCP must use owner_website_editions, owner_website_create_edition, owner_website_revision and owner_website_save_revision for unpublished drafts; only owner_website_activate_revision explicitly publishes. Legacy site publish commands fail before media uploads and must not be used after adoption.',
       'Owner tools use native feature commands. get_owner_site_configuration and publish_owner_site_configuration cover full public settings; get_owner_presentation_editor and publish_owner_presentation cover Identity, Founder, Experience, roadmap settings/status and immutable legal publication. get_owner_site_media, publish_owner_site_media and restore_owner_site_media share browser media commands. Read exact revisions before proposing a publication, omit revision fields from edited values, and never replay a committed receipt. publish_owner_site_copy changes one copy block; get_owner_site_fields and publish_owner_site_field support CTA labels, navigation labels and announcement text. Each publication requires the exact canonical revision previously read.',
       'For page design requests, inspect get_owner_homepage_design then use the focused publish_owner_homepage_section or publish_owner_homepage_block commands with the exact settings revision. Preserve other sections. Use the existing Owner media commands for every uploaded image and do not mistake a fallback image for a current product screenshot.',
       'First-party pages live in get_owner_site_configuration.settings.pages. publish_owner_site_page saves or removes exactly one page while preserving others. Set published false to keep it out of public routes, navigation and client props. Existing account, Plans, Roadmap and legal routes remain code/provider-owned. The same trusted blocks, managed media and safe internal actions render every composed page.',

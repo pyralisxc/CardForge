@@ -1,4 +1,5 @@
 import { createMcpHandler } from 'mcp-handler';
+import { readLiveWebsiteRevision, listWebsiteEditions, listWebsiteRevisions, readWebsiteRevision, readWebsiteRevisionIdentity, createWebsiteEdition, saveWebsiteRevision, readSavedWebsiteOperation, activateWebsiteRevision } from '@/features/public-site/server/websiteEditionStore';
 import { resolveOwnerAccess } from '@/domain/entitlements';
 
 import { getOwnerAnalyticsSnapshot } from '@/features/analytics/server';
@@ -25,6 +26,7 @@ import { getBusinessIdentity } from '@/features/business-identity/server';
 import { getExperienceSettings } from '@/features/experience-settings/server';
 import type { McpOwnerAccess } from './mcpOwnerAccess';
 import {
+  ownerEditionListInputSchema, ownerEditionCreateInputSchema, ownerEditionSaveInputSchema, ownerEditionPreviewInputSchema, ownerEditionActivateInputSchema, ownerEditionResultOutputSchema,
   ownerOperationalReadOutputSchema,
   ownerActivityInputSchema,
   ownerActivityOutputSchema,
@@ -79,6 +81,13 @@ const projectOwnerSiteFields = (settings: PublicSiteConfiguration) => ({
   navigation: settings.primaryNavigation.map(({ id, label, href, visible }) => ({ id, label, href, visible })),
 });
 
+const legacyWebsiteWrites = new Set([
+  'publish_owner_site_copy', 'publish_owner_site_field', 'publish_owner_site_configuration',
+  'publish_owner_site_page', 'publish_owner_homepage_showcase',
+  'publish_owner_homepage_section', 'publish_owner_homepage_block',
+  'publish_owner_site_media', 'restore_owner_site_media',
+]);
+
 export const registerOwnerReadTools = ({
   server,
   getAccess,
@@ -99,6 +108,14 @@ export const registerOwnerReadTools = ({
   }): Promise<Result | ToolErrorResult> => {
     try {
       const access = await getAccess();
+      // The flat store is no longer writable once a live edition is adopted.
+      // Gate before legacy handlers perform image uploads or any other side effect.
+      if (legacyWebsiteWrites.has(toolName)) {
+        const live = await readLiveWebsiteRevision();
+        if (live.revisionId) {
+          throw new Error('Website Editions is authoritative. This legacy publisher cannot mutate the adopted site. Read owner_website_editions, then use owner_website_save_revision for a draft; only owner_website_activate_revision publishes explicitly.');
+        }
+      }
       return await observeMcpToolExecution({
         ownerUserId: access.user.id,
         toolName,
@@ -596,6 +613,84 @@ export const registerOwnerReadTools = ({
     return { content: [{ type: 'text', text: publication.receipt.message + ' Do not repeat Restore; verify current state.' }],
       structuredContent: { environment: deploymentEnvironment(), livePublication: deploymentEnvironment() === 'production', media: publication.value, receipt: publication.receipt } };
   } }));
+
+
+  // All commands reuse the browser's revision store and the existing MCP Owner access.
+  // SAVE never changes the activation pointer. ACTIVATE is a separate explicit operation.
+  server.registerTool('owner_website_editions', {
+    title: 'Read authoritative website editions',
+    description: 'Read current live revision/generation and named editions; optionally include revision history for an exact edition. No flat-store publication state is authoritative after adoption.',
+    inputSchema: ownerEditionListInputSchema, outputSchema: ownerEditionResultOutputSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ editionId }) => runObserved({ toolName: 'owner_website_editions', input: {editionId},
+    execute: async () => {
+      const [live, editions, revisions] = await Promise.all([
+        readLiveWebsiteRevision(), listWebsiteEditions(),
+        editionId ? listWebsiteRevisions(editionId) : Promise.resolve([]),
+      ]);
+      return { content:[{type:'text' as const,text:'Read authoritative website edition state; no mutation.'}],
+        structuredContent:{ environment:deploymentEnvironment(),action:'read',live,editions,revisions } };
+    },
+  }));
+  server.registerTool('owner_website_create_edition', {
+    title:'Create an unpublished named website edition',
+    description:'Create only an edition identity. No revision is saved and no live activation occurs. On uncertain response read owner_website_editions before retrying.',
+    inputSchema:ownerEditionCreateInputSchema,outputSchema:ownerEditionResultOutputSchema,
+    annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false},
+  }, async ({name}) => runObserved({toolName:'owner_website_create_edition',input:{name},
+    execute:async () => {
+      const editionId=await createWebsiteEdition(name);
+      return {content:[{type:'text' as const,text:'Unpublished edition created; website remains unchanged.'}],
+        structuredContent:{environment:deploymentEnvironment(),action:'create',editionId,name} };
+    },
+  }));
+  server.registerTool('owner_website_revision', {
+    title:'Read a saved edition revision for private review',
+    description:'Read exact immutable manifest and edition identity, without changing the active website. This does not issue a browser preview cookie.',
+    inputSchema:ownerEditionPreviewInputSchema,outputSchema:ownerEditionResultOutputSchema,
+    annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false},
+  }, async ({revisionId}) => runObserved({toolName:'owner_website_revision',input:{revisionId},
+    execute:async () => {
+      const [manifest,identity]=await Promise.all([readWebsiteRevision(revisionId),readWebsiteRevisionIdentity(revisionId)]);
+      return {content:[{type:'text' as const,text:'Read immutable edition revision; not activated.'}],
+        structuredContent:{environment:deploymentEnvironment(),action:'preview-read',revisionId,identity,manifest} };
+    },
+  }));
+  server.registerTool('owner_website_save_revision', {
+    title:'Save a draft website revision (does not publish)',
+    description:'Save an entire validated manifest under selected editionId, exact expectedRevisionId (null only for the first revision), and unique stable operationId. Never infer activation from Save. On uncertain outcome read the operation ID before retrying.',
+    inputSchema:ownerEditionSaveInputSchema,outputSchema:ownerEditionResultOutputSchema,
+    annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false},
+  }, async ({editionId,expectedRevisionId,operationId,manifest}) => runObserved({
+    toolName:'owner_website_save_revision',input:{editionId,expectedRevisionId,operationId,manifest},
+    execute:async (access) => {
+      let revisionId:string;
+      try {
+        revisionId=await saveWebsiteRevision({editionId,expectedRevisionId,operationId,manifest,actor:access.user.id});
+      } catch (error) {
+        const saved=await readSavedWebsiteOperation(operationId).catch(()=>null);
+        if (!saved) throw error;
+        const identity=await readWebsiteRevisionIdentity(saved);
+        if(identity.editionId!==editionId) throw error;
+        revisionId=saved;
+      }
+      return {content:[{type:'text' as const,text:'Draft revision saved. No website activation occurred.'}],
+        structuredContent:{environment:deploymentEnvironment(),action:'save-draft',editionId,revisionId,operationId,published:false} };
+    },
+  }));
+  server.registerTool('owner_website_activate_revision', {
+    title:'Explicitly activate one saved website revision',
+    description:'PUBLICATION operation. Only after explicit Owner request; requires selected revisionId, exact live expectedGeneration, stable operationId, and reviewed URL disposition. Never invoked by Save or a legacy publish name. Unknown outcome requires authoritative generation/history readback, not replay.',
+    inputSchema:ownerEditionActivateInputSchema,outputSchema:ownerEditionResultOutputSchema,
+    annotations:{readOnlyHint:false,destructiveHint:true,openWorldHint:false},
+  }, async ({revisionId,expectedGeneration,operationId,urlDisposition}) => runObserved({
+    toolName:'owner_website_activate_revision',input:{revisionId,expectedGeneration,operationId,urlDisposition},
+    execute:async(access)=>{
+      const generation=await activateWebsiteRevision({revisionId,expectedGeneration,operationId,urlDisposition,actor:access.user.id});
+      return {content:[{type:'text' as const,text:'Website activation committed at generation '+generation+'.'}],
+        structuredContent:{environment:deploymentEnvironment(),action:'activate',revisionId,operationId,generation} };
+    },
+  }));
 
   server.registerTool(
     'get_owner_provider_readiness',
