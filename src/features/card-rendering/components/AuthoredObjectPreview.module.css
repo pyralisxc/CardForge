@@ -15,6 +15,10 @@
   filter: drop-shadow(0 0.7rem 1rem rgb(0 0 0 / 30%));
 }
 
+.card:has([data-scene-inline-stack='true']) {
+  rotate: var(--settled-stack-rotation, 0deg);
+}
+
 .card[data-card-position='0'] { z-index: 3; }
 .card[data-card-position='1'] { z-index: 4; transform: translate(-24%, 7%); }
 .card[data-card-position='2'] { z-index: 3; transform: translate(24%, 8%); }
