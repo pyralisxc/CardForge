@@ -133,10 +133,20 @@ export function PublicSiteHeader({
           </SheetTrigger>
           <SheetContent
             portalContainer={portalContainer}
-            onOpenAutoFocus={portalContainer ? (event) => {
-              event.preventDefault();
-              portalContainer.querySelector<HTMLElement>('#public-mobile-navigation a[href]')?.focus();
-            } : undefined}
+            onOpenAutoFocus={(event) => {
+              const firstNavigationLink = Array.from(
+                event.currentTarget.querySelectorAll<HTMLAnchorElement>('nav[aria-label="Mobile navigation"] a[href]'),
+              ).find((link) =>
+                link.getClientRects().length > 0
+                && link.getAttribute('aria-disabled') !== 'true'
+                && !link.hasAttribute('inert')
+                && link.tabIndex >= 0
+              );
+              if (firstNavigationLink) {
+                event.preventDefault();
+                firstNavigationLink.focus();
+              }
+            }}
             onCloseAutoFocus={portalContainer ? (event) => {
               event.preventDefault(); menuTriggerRef.current?.focus();
             } : undefined}
