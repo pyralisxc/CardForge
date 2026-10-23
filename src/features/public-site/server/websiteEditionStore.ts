@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { SITE_MEDIA_BUCKET } from '../model/siteMedia';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { validateWebsitePresentationManifest, type WebsitePresentationManifest } from '../model/websitePresentation';
 
@@ -38,6 +40,21 @@ export async function readWebsiteRevision(revisionId: string): Promise<WebsitePr
   if (error || !data) throw new WebsiteEditionStoreError('Website revision not found.', 404);
   return validateWebsitePresentationManifest(data.manifest);
 }
+/**
+ * Exact media proof happens at the trusted server boundary. Bytes are read from
+ * existing public-site Storage, not copied to a second bucket or embedded in JSON.
+ */
+export async function verifyWebsiteMediaBytes(manifest: WebsitePresentationManifest): Promise<void> {
+  const db = database();
+  for (const ref of manifest.media) {
+    if (!ref.storagePath) continue;
+    const { data, error } = await db.storage.from(SITE_MEDIA_BUCKET).download(ref.storagePath);
+    if (error || !data) throw new WebsiteEditionStoreError('A referenced website image is missing.', 409);
+    const digest = createHash('sha256').update(Buffer.from(await data.arrayBuffer())).digest('hex');
+    if (digest !== ref.sha256) throw new WebsiteEditionStoreError('Website image bytes changed. Reload before saving.', 409);
+  }
+}
+
 export async function saveWebsiteRevision(input: {
   editionId: string; expectedRevisionId: string | null; operationId: string;
   actor: string; manifest: unknown;
@@ -45,6 +62,7 @@ export async function saveWebsiteRevision(input: {
   assertId(input.editionId); assertId(input.operationId);
   if (input.expectedRevisionId) assertId(input.expectedRevisionId);
   const manifest = validateWebsitePresentationManifest(input.manifest);
+  await verifyWebsiteMediaBytes(manifest);
   const { data, error } = await database().rpc('cardforge_website_save_revision', {
     p_edition_id: input.editionId, p_expected_revision_id: input.expectedRevisionId,
     p_operation_id: input.operationId, p_actor: input.actor,
@@ -58,8 +76,10 @@ export async function activateWebsiteRevision(input: {
   revisionId: string; expectedGeneration: number; operationId: string; actor: string;
 }): Promise<number> {
   assertId(input.revisionId); assertId(input.operationId);
-  // Callers must validate exact media retention, schema compatibility, route disposition
-  // and the same saved revision before this transaction is considered eligible.
+  const manifest = await readWebsiteRevision(input.revisionId);
+  await verifyWebsiteMediaBytes(manifest);
+  // URL disposition must be checked against current live routes before
+  // an activation command is exposed to Owner UI.
   const { data, error } = await database().rpc('cardforge_website_activate', {
     p_revision_id: input.revisionId, p_expected_generation: input.expectedGeneration,
     p_operation_id: input.operationId, p_actor: input.actor,
