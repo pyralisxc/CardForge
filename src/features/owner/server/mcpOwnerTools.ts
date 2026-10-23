@@ -1,5 +1,5 @@
 import { createMcpHandler } from 'mcp-handler';
-import { readLiveWebsiteRevision, listWebsiteEditions, listWebsiteRevisions, readWebsiteRevision, readWebsiteRevisionIdentity, createWebsiteEdition, saveWebsiteRevision, readSavedWebsiteOperation, activateWebsiteRevision } from '@/features/public-site/server/websiteEditionStore';
+import { readLiveWebsiteRevision, listWebsiteEditions, listWebsiteRevisions, readWebsiteRevision, readWebsiteRevisionIdentity, createWebsiteEdition, saveWebsiteRevision, activateWebsiteRevision } from '@/features/public-site/server/websiteEditionStore';
 import { resolveOwnerAccess } from '@/domain/entitlements';
 
 import { getOwnerAnalyticsSnapshot } from '@/features/analytics/server';
@@ -664,16 +664,7 @@ export const registerOwnerReadTools = ({
   }, async ({editionId,expectedRevisionId,operationId,manifest}) => runObserved({
     toolName:'owner_website_save_revision',input:{editionId,expectedRevisionId,operationId,manifest},
     execute:async (access) => {
-      let revisionId:string;
-      try {
-        revisionId=await saveWebsiteRevision({editionId,expectedRevisionId,operationId,manifest,actor:access.user.id});
-      } catch (error) {
-        const saved=await readSavedWebsiteOperation(operationId).catch(()=>null);
-        if (!saved) throw error;
-        const identity=await readWebsiteRevisionIdentity(saved);
-        if(identity.editionId!==editionId) throw error;
-        revisionId=saved;
-      }
+      const revisionId=await saveWebsiteRevision({editionId,expectedRevisionId,operationId,manifest,actor:access.user.id});
       return {content:[{type:'text' as const,text:'Draft revision saved. No website activation occurred.'}],
         structuredContent:{environment:deploymentEnvironment(),action:'save-draft',editionId,revisionId,operationId,published:false} };
     },

@@ -626,6 +626,7 @@ export const ownerOperationalReadOutputSchema = fromJsonSchema({
 
 /** Explicit edition authority. Legacy flat-site publishers never use these schemas. */
 const editionUuid = { type: 'string', format: 'uuid' } as const;
+const editionUuidOrNull = { type: ['string', 'null'] } as const;
 export const ownerEditionListInputSchema = fromJsonSchema<{ editionId?: string }>({
   type: 'object', additionalProperties: false,
   properties: { editionId: editionUuid },
@@ -644,7 +645,6 @@ export const ownerEditionSaveInputSchema = fromJsonSchema<{
     operationId: editionUuid, manifest: { type: 'object' },
   },
 });
-const editionUuidOrNull = { type: ['string', 'null'] } as const;
 export const ownerEditionPreviewInputSchema = fromJsonSchema<{ revisionId: string }>({
   type: 'object', additionalProperties: false, required: ['revisionId'],
   properties: { revisionId: editionUuid },
