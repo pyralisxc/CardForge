@@ -291,10 +291,17 @@ export function useDeskController({
     storedCards, visibleCards,
   } = projectState;
   const generationTargetTemplateId = generationContextTool?.targetIds[1] ?? null;
-  const generatorSelectedTemplateId = generationTargetTemplateId ?? storedGeneratorSelectedTemplateId;
-  const generatorSelectedBackingTemplateId = generationTargetTemplateId
-    ? generationContextTool?.targetIds[2] ?? null
-    : storedGeneratorSelectedBackingTemplateId;
+  const generationTargetBackingId = generationContextTool?.targetIds[2] ?? null;
+  // Context targets initialize the existing Generate selection; they are not
+  // a permanent display override. The picker and the store validator must use
+  // the same front ID after a user chooses a different backing.
+  useEffect(() => {
+    if (!generationTargetTemplateId) return;
+    setGeneratorSelectedTemplateId(generationTargetTemplateId);
+    setGeneratorSelectedBackingTemplateId(generationTargetBackingId);
+  }, [generationTargetTemplateId, generationTargetBackingId, setGeneratorSelectedTemplateId, setGeneratorSelectedBackingTemplateId]);
+  const generatorSelectedTemplateId = storedGeneratorSelectedTemplateId;
+  const generatorSelectedBackingTemplateId = storedGeneratorSelectedBackingTemplateId;
   const focusedArtifactIdForArrival = interactionSession.focusPath.artifactId;
   const focusedDestinationReady = Boolean(focusedItem)
     && (!focusedArtifactIdForArrival || focusedCards.some((card) => card.uniqueId === focusedArtifactIdForArrival));
