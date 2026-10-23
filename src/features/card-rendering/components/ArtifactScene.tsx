@@ -58,6 +58,8 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
   onSettled: (id: string, depth: Depth, valid: () => boolean) => void;
 }) {
   const [present, safeToRemove] = usePresence();
+  const presentRef = useRef(present);
+  presentRef.current = present;
   const activeSetId = usePresenceData();
   const culled = !present && activeSetId === item.setId;
   const [settledDepth, setSettledDepth] = useState<Depth | null>(null);
@@ -116,12 +118,14 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
       journey.current++;
       settledJourney.current = -1;
     }
-    const settledValid = () => !disposed.current && present && journey.current === currentJourney;
     const currentJourney = journey.current;
+    const settledValid = () => !disposed.current && presentRef.current && journey.current === currentJourney;
+    // Invalidate an older exit before any stale-geometry bailout can run.
+    if (modeChanged && present) stop();
     if (!present) {
       stop();
       const token = generation.current;
-      if (culled || immediate) { opacity.jump(0); safeToRemove?.(); return; }
+      if (culled || immediate) { opacity.jump(0); if (!presentRef.current) safeToRemove?.(); return; }
       const motions = [
         animate(x, origin.x, { type: 'spring', stiffness: 260, damping: 32, mass: 0.9 }),
         animate(y, origin.y, { type: 'spring', stiffness: 260, damping: 32, mass: 0.9 }),
@@ -131,7 +135,7 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
       ];
       controls.current = motions;
       void Promise.all(motions.map((motion) => Promise.resolve(motion))).then(() => {
-        if (!disposed.current && generation.current === token) safeToRemove?.();
+        if (!disposed.current && !presentRef.current && generation.current === token) safeToRemove?.();
       }).catch(() => undefined);
       return;
     }
@@ -149,7 +153,11 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
       }
       return;
     }
-    if (item.revision < appliedRevision.current) return;
+    if (item.revision < appliedRevision.current) {
+      // Re-entry changes presence, not the authority of already-newer geometry.
+      // Preserve current coordinates and wait for a fresh measurement.
+      return;
+    }
     stop();
     const token = generation.current;
     const motions = [
@@ -162,7 +170,7 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
     controls.current = motions;
     appliedRevision.current = item.revision;
     void Promise.all(motions.map((motion) => Promise.resolve(motion))).then(() => {
-      if (disposed.current || generation.current !== token) return;
+      if (disposed.current || !presentRef.current || generation.current !== token || journey.current !== currentJourney) return;
       setSettledDepth(item.depth);
       settledJourney.current = currentJourney;
       settledCallback.current(item.card.uniqueId, item.depth, settledValid);
