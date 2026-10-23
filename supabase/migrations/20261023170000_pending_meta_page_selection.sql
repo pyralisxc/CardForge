@@ -25,7 +25,7 @@ declare
   v_scrubbed integer := 0;
   v_removed integer := 0;
 begin
-  if p_limit < 1 or p_limit > 200 then raise exception 'invalid_cleanup_limit'; end if;
+  if p_limit is null or p_limit < 1 or p_limit > 200 then raise exception 'invalid_cleanup_limit'; end if;
   for v_row in
     select id, terminal_receipt, completed_at
     from public.cardforge_meta_page_selections
