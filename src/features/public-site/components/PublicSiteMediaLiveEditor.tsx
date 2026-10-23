@@ -72,6 +72,16 @@ export function PublicSiteMediaLiveEditor({
 }) {
   const { toast } = useToast();
   const publicationPresentation = getOwnerPublicationPresentation(publicationEnvironment);
+  const [privateMediaReady, setPrivateMediaReady] = useState(false);
+  useEffect(() => {
+    if(!onEditionMediaStage) return;
+    let mounted=true;
+    void fetch('/api/owner/website-media',{cache:'no-store'})
+      .then(async response => response.ok ? response.json() as Promise<{ready:boolean}> : {ready:false})
+      .then(result => {if(mounted) setPrivateMediaReady(result.ready === true);})
+      .catch(()=>{if(mounted) setPrivateMediaReady(false);});
+    return ()=>{mounted=false;};
+  },[onEditionMediaStage]);
   const [files, setFiles] = useState<Partial<Record<SiteMediaAsset['slot'], File>>>({});
   const { baseline: mediaBaseline, draft: drafts, setDraft: setDrafts, setSaving: setSavingMedia, acceptPublished: acceptMedia } = useEditorDraft(initialAssets, undefined, Object.values(files).some(Boolean));
   const [busySlot, setBusySlot] = useState<SiteMediaAsset['slot'] | null>(null);
@@ -402,11 +412,11 @@ function OwnerMediaEditor({
             <input className={inputClassName} maxLength={300} value={asset.alt} onChange={(event) => onAssetChange({ ...asset, alt: event.target.value })} />
           </label>
           <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
-            {onEditionMediaStage ? 'Private artwork upload requires protected Storage staging' : 'Replacement image'}
+            {onEditionMediaStage && !privateMediaReady ? 'Private artwork upload unavailable until protected Storage staging is verified' : 'Replacement image'}
             <input
               key={`${asset.slot}-${inputVersion}`}
               type="file"
-              disabled={Boolean(onEditionMediaStage)}
+              disabled={Boolean(onEditionMediaStage) && !privateMediaReady}
               accept="image/jpeg,image/png,image/webp"
               className={`${inputClassName} file:mr-3 file:border-0 file:bg-[var(--cf-accent-strong)] file:px-3 file:py-2 file:font-semibold file:text-[var(--cf-accent-contrast)]`}
               onChange={(event) => onFileChange(event.target.files?.[0])}
