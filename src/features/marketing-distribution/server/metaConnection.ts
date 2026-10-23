@@ -236,6 +236,15 @@ export const listPendingMetaPages = async (selectionId: string, actorId: string)
 };
 
 export const completePendingMetaPageSelection = async (selectionId: string, actorId: string, selectedPageId: string | null) => {
+  const database = getSupabaseServerClient();
+  if (!database) throw new Error('The marketing database is unavailable.');
+  if (selectedPageId === null) {
+    const { data, error } = await database.rpc('cardforge_complete_meta_page_selection', {
+      p_selection_id:selectionId,p_actor_id:actorId,p_page_id:null,p_accounts:[],
+    });
+    if (error || !data) throw new Error('Unable to cancel the pending Meta selection.');
+    return data as {cancelled:boolean;connectionCount:number};
+  }
   const { pages, receipt } = await readPendingMetaPageSelection(selectionId, actorId);
   if (receipt) return receipt;
   if (selectedPageId && !pages.some(page => page.id === selectedPageId))
@@ -252,8 +261,6 @@ export const completePendingMetaPageSelection = async (selectionId: string, acto
         : page.instagram_business_account.name ?? `${page.name} Instagram`, page.access_token,
     )] : []),
   ] : [];
-  const database = getSupabaseServerClient();
-  if (!database) throw new Error('The marketing database is unavailable.');
   const { data, error } = await database.rpc('cardforge_complete_meta_page_selection', {
     p_selection_id: selectionId,
     p_actor_id: actorId,

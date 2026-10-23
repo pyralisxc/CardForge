@@ -13,6 +13,22 @@ alter table public.cardforge_meta_page_selections enable row level security;
 revoke all on public.cardforge_meta_page_selections from public, anon, authenticated;
 grant select, insert, delete on public.cardforge_meta_page_selections to service_role;
 
+-- New OAuth attempts opportunistically purge already-expired encrypted payloads,
+-- without activating a new scheduler. Terminal receipts remain for recovery.
+create or replace function public.cardforge_prune_meta_page_selections()
+returns trigger language plpgsql security definer set search_path='' as $cleanup$
+begin
+  delete from public.cardforge_meta_page_selections
+    where expires_at <= pg_catalog.now() and terminal_receipt is null;
+  return new;
+end;
+$cleanup$;
+revoke all on function public.cardforge_prune_meta_page_selections() from public,anon,authenticated;
+drop trigger if exists cardforge_meta_page_selection_cleanup on public.cardforge_meta_page_selections;
+create trigger cardforge_meta_page_selection_cleanup before insert
+  on public.cardforge_meta_page_selections for each statement
+  execute function public.cardforge_prune_meta_page_selections();
+
 create or replace function public.cardforge_complete_meta_page_selection(
   p_selection_id uuid, p_actor_id text, p_page_id text, p_accounts jsonb
 ) returns jsonb language plpgsql security definer set search_path = '' as $fn$
@@ -29,7 +45,13 @@ begin
     where id=p_selection_id and owner_user_id=p_actor_id for update;
   if not found then raise exception 'selection_not_found'; end if;
   if v_pending.terminal_receipt is not null then return v_pending.terminal_receipt; end if;
-  if v_pending.expires_at <= pg_catalog.now() then raise exception 'selection_expired'; end if;
+  if v_pending.expires_at <= pg_catalog.now() then
+    if p_page_id is not null then raise exception 'selection_expired'; end if;
+    v_receipt:='{"cancelled":true,"connectionCount":0}'::jsonb;
+    update public.cardforge_meta_page_selections set payload_ciphertext=null,payload_iv=null,
+      payload_auth_tag=null,terminal_receipt=v_receipt,completed_at=pg_catalog.now() where id=p_selection_id;
+    return v_receipt;
+  end if;
   if p_page_id is null then
     if p_accounts <> '[]'::jsonb then raise exception 'invalid_cancel_payload'; end if;
     v_receipt := '{"cancelled":true,"connectionCount":0}'::jsonb;
