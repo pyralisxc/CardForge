@@ -26,9 +26,11 @@ begin
     owner_id,'',pg_catalog.jsonb_build_object('id',live_asset,'name','Isolated live'),
     0,'parent-' || replace(gen_random_uuid()::text,'-',''));
 
+  update public.cardforge_contributor_asset_submissions set specialty_tags=array['games'],
+    use_case_tags=array['tcg'], semantic_role='template-front' where id=a;
   perform public.cardforge_set_contributor_asset_owner_override(a,true,'published',true,'free','Disposable parent approval',owner_id);
   if not exists(select 1 from public.cardforge_asset_registry where asset_id=live_asset and contributor_submission_id=a and status='published') then raise exception 'native parent pin missing'; end if;
-  if live_asset is null then raise exception 'fixture parent publication failed'; end if;
+
   expected_base := public.cardforge_read_template_review_base(live_asset)->'expectedBase';
   b := public.cardforge_create_template_review_revision(
     live_asset,expected_base,pg_catalog.jsonb_build_object('id',live_asset,'name','Isolated replacement'),
@@ -63,7 +65,7 @@ begin
     array['games'],array['tcg'],'template.front');
   perform public.cardforge_set_contributor_asset_owner_override(retire_id,true,'published',true,'free','Disposable retirement baseline',owner_id);
   if not exists(select 1 from public.cardforge_asset_registry where asset_id=retired_asset and contributor_submission_id=retire_id and status='published') then raise exception 'retirement pin missing'; end if;
-  if retired_asset is null then raise exception 'fixture retirement publication failed'; end if;
+
 
   perform public.cardforge_rebalance_contributor_asset_pipeline(null);
   if not exists(select 1 from public.cardforge_contributor_asset_submissions
@@ -88,7 +90,7 @@ begin
   if not exists(select 1 from public.cardforge_asset_registry
       where asset_id=live_asset and contributor_submission_id=b and status='published')
     or not exists(select 1 from public.cardforge_contributor_asset_submissions
-      where id=a and source_url='https://example.invalid/live')
+      where id=a and source_payload->>'id'=live_asset)
     or (select count(*) from public.cardforge_pipeline_publication_events
       where published_submission_id=b) <> 1
   then raise exception 'replacement pointer or immutable publication history failed'; end if;
