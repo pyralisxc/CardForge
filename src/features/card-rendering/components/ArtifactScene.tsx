@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, memo, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, animate, cancelFrame, frame, motion, useMotionValue, usePresence, usePresenceData, useReducedMotion } from 'motion/react';
+import { AnimatePresence, animate, cancelFrame, frame, motion, useMotionValue, usePresence, usePresenceData, useReducedMotion, type MotionStyle } from 'motion/react';
 import { RefreshCcw } from 'lucide-react';
 import { getCardFaceCanvas, getCardFaceTemplate, getCardPreviewLayout, hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
@@ -182,7 +182,7 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
       style={{ x, y, scale, rotate, opacity, position: 'absolute', left: 0, top: 0,
         width: RENDER_WIDTH, visibility: inlineSettled ? 'hidden' : 'visible',
         transformOrigin: '0 0', filter: 'drop-shadow(0 12px 18px rgb(0 0 0 / 24%))',
-        '--artifact-hit-scale': screenScale / Math.max(previewScale, 0.001) } as React.CSSProperties}>
+        '--artifact-hit-scale': screenScale / Math.max(previewScale, 0.001) } as MotionStyle}>
       {item.interactionOverlay && !inlineSettled
         ? <SceneCardContent card={item.card} face={item.face} watermark={item.watermark} interactionOverlay={item.interactionOverlay} />
         : <div aria-hidden="true" inert><SceneCardContent card={item.card} face={item.face} watermark={item.watermark} /></div>}
