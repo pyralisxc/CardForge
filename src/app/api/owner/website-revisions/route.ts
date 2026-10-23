@@ -1,5 +1,6 @@
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { saveWebsiteRevision, activateWebsiteRevision, listWebsiteRevisions, readSavedWebsiteOperation, readLiveWebsiteRevision, WebsiteEditionStoreError } from '@/features/public-site/server/websiteEditionStore';
+import { WebsitePresentationValidationError } from '@/features/public-site/model/websitePresentation';
 import { resolveOwnerWebsiteRevision } from '@/features/public-site/server/websitePresentationResolver';
 import { parseJsonBodyWithLimit } from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
@@ -9,7 +10,9 @@ const authorized = async () => {
   const owner = await getCurrentOwnerAccess();
   return owner.isOwner && owner.userId ? owner.userId : null;
 };
-const failure = (error: unknown) => error instanceof WebsiteEditionStoreError
+export const websiteRevisionErrorResponse = (error: unknown) => error instanceof WebsitePresentationValidationError
+  ? createApiErrorResponse(400, 'website_revision_invalid', error.message)
+  : error instanceof WebsiteEditionStoreError
   ? createApiErrorResponse(error.status, error.status === 409 ? 'website_revision_conflict' : error.status === 403 ? 'owner_access_required' : 'website_revision_unavailable', error.message)
   : createApiErrorResponse(503, 'website_revision_unavailable', 'Website revisions are unavailable.');
 
@@ -23,7 +26,7 @@ export async function GET(request: Request) {
     const editionId = new URL(request.url).searchParams.get('editionId');
     if (editionId) return createNoStoreJsonResponse({ revisions: await listWebsiteRevisions(editionId) });
     return createNoStoreJsonResponse(await readLiveWebsiteRevision());
-  } catch (error) { return failure(error); }
+  } catch (error) { return websiteRevisionErrorResponse(error); }
 }
 export async function POST(request: Request) {
   const actor = await authorized();
@@ -42,7 +45,7 @@ export async function POST(request: Request) {
       expectedRevisionId: body.expectedRevisionId, actor, manifest: body.manifest,
     });
     return createNoStoreJsonResponse({ revisionId });
-  } catch (error) { return failure(error); }
+  } catch (error) { return websiteRevisionErrorResponse(error); }
 }
 
 export async function PATCH(request: Request) {
@@ -61,5 +64,5 @@ export async function PATCH(request: Request) {
       operationId: body.operationId, actor, urlDisposition: body.urlDisposition,
     });
     return createNoStoreJsonResponse({ generation });
-  } catch (error) { return failure(error); }
+  } catch (error) { return websiteRevisionErrorResponse(error); }
 }

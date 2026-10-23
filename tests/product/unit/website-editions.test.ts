@@ -9,6 +9,7 @@ import {
   validateWebsitePresentationManifest,
   validateWebsiteUrlDisposition,
   resolveWebsiteRedirectChain,
+  WebsitePresentationValidationError,
 } from '@/features/public-site/model/websitePresentation';
 
 const defaults = () => ({
@@ -24,6 +25,26 @@ const defaults = () => ({
     height: null,
     presentation: getDefaultSiteMedia('landing.hero').presentation,
   }],
+});
+
+describe('website redirect validation response', () => {
+  it('classifies cycles as invalid input rather than provider outage', async () => {
+    const { websiteRevisionErrorResponse } = await import('@/app/api/owner/website-revisions/route');
+    let problem: unknown;
+    try {
+      resolveWebsiteRedirectChain(
+        { a: { kind: 'redirect', destination: '/b' } },
+        { b: { kind: 'redirect', destination: '/a' } },
+        new Set<string>(),
+      );
+    } catch (error) { problem = error; }
+    expect(problem).toBeInstanceOf(WebsitePresentationValidationError);
+    const response = websiteRevisionErrorResponse(problem);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false, error: { code: 'website_revision_invalid' },
+    });
+  });
 });
 
 describe('Website Editions presentation contract', () => {
