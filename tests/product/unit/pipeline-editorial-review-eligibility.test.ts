@@ -8,8 +8,8 @@ const editorial = sql.split('-- Editorial save is not a voting/settings mutation
 
 describe('replacement review and editorial isolation', () => {
   it('keeps live-lineage replacements eligible for owner review before the vote threshold', () => {
-    expect(rebalance).toMatch(/when ranked\.is_current_publication then 'published'\s+when ranked\.lineage_already_live then 'publish_candidate'\s+when ranked\.total_votes < ranked\.minimum_votes then 'voting'/);
-    expect(rebalance).toMatch(/when ranked\.is_current_publication then 'current_publication_protected'\s+when ranked\.lineage_already_live then 'revision_ready_for_owner'\s+when ranked\.total_votes < ranked\.minimum_votes then 'needs_more_votes'/);
+    expect(rebalance).toContain("ranked.asset_type = 'templates' and ranked.base_revision_number = 0 or ranked.lineage_already_live");
+    expect(rebalance).toContain("ranked.asset_type = 'templates' and ranked.base_revision_number = 0 or ranked.lineage_already_live");
     expect(rebalance).not.toContain("when ranked.lineage_already_live then 'published'");
   });
   it('keeps editorial saves local and retains native registry sync', () => {

@@ -38,7 +38,7 @@ begin
   with settings as (
     select * from public.cardforge_contributor_program_settings where id = 'default'
   ), scored as (
-    select submission.id, submission.lineage_id, submission.asset_type, submission.submitted_at,
+    select submission.id, submission.lineage_id, submission.asset_type, submission.base_revision_number, submission.submitted_at,
       submission.positive_votes, submission.negative_votes,
       submission.positive_votes + submission.negative_votes as total_votes,
       case when submission.positive_votes + submission.negative_votes = 0 then 0 else
@@ -85,11 +85,11 @@ begin
     select ranked.id, ranked.quality_score, ranked.trash_retention_days,
       case
         when ranked.is_current_publication then 'published'
-        when ranked.lineage_already_live then 'publish_candidate'
+        when (ranked.asset_type = 'templates' and ranked.base_revision_number = 0 or ranked.lineage_already_live) then 'publish_candidate'
         when ranked.total_votes < ranked.minimum_votes then 'voting'
         when not ranked.review_age_met then 'publish_candidate'
         when ranked.quality_score < ranked.free_threshold then 'archived'
-        when ranked.lineage_already_live then 'publish_candidate'
+        when (ranked.asset_type = 'templates' and ranked.base_revision_number = 0 or ranked.lineage_already_live) then 'publish_candidate'
         when ranked.quality_score >= ranked.paid_threshold
           and ranked.paid_rank <= greatest(ranked.paid_cap - coalesce(occupied.paid_used, 0), 0) then 'published'
         when ranked.quality_score >= ranked.free_threshold
@@ -111,11 +111,11 @@ begin
       end as automated_access_tier,
       case
         when ranked.is_current_publication then 'current_publication_protected'
-        when ranked.lineage_already_live then 'revision_ready_for_owner'
+        when (ranked.asset_type = 'templates' and ranked.base_revision_number = 0 or ranked.lineage_already_live) then 'revision_ready_for_owner'
         when ranked.total_votes < ranked.minimum_votes then 'needs_more_votes'
         when not ranked.review_age_met then 'minimum_review_age'
         when ranked.quality_score < ranked.free_threshold then 'below_free_threshold'
-        when ranked.lineage_already_live then 'revision_ready_for_owner'
+        when (ranked.asset_type = 'templates' and ranked.base_revision_number = 0 or ranked.lineage_already_live) then 'revision_ready_for_owner'
         when ranked.quality_score >= ranked.paid_threshold
           and ranked.paid_rank <= greatest(ranked.paid_cap - coalesce(occupied.paid_used, 0), 0) then 'paid_candidate'
         when ranked.quality_score >= ranked.free_threshold
