@@ -11,6 +11,7 @@ import type { PrimaryNavigationId, PublicSiteConfiguration } from '../model/site
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import type { SiteContentBlock } from '../model/siteContent';
 import type { SiteMediaAsset } from '../model/siteMedia';
+import { WebsiteEditionsPanel } from './WebsiteEditionsPanel';
 import type { WebsitePresentationManifest } from '../model/websitePresentation';
 import { getOwnerSitePageContext, isOwnerSiteMediaTarget } from '../model/sitePages';
 import {
@@ -748,6 +749,9 @@ export function PublicSiteOwnerLiveControls({
           /> : null}
           {drawer?.kind === 'media' && selectedMedia ? renderedMediaEditor(selectedMedia) : null}
           {drawer?.kind === 'settings' ? <>
+            <WebsiteEditionsPanel editionId={editionId} revisionId={revisionId}
+              unsaved={editionDirty || drawerDirty || settingsEditorState.dirty}
+              onCreateEdition={(id)=>{setEditionId(id);setRevisionId(null);setEditionDirty(true);}} />
             <WebsiteEditionDraftContext.Provider value={manifest && editionId ? { stageConfiguration, configuration: siteConfiguration } : null}>
               <OwnerPageEditorStateContext.Provider value={setSettingsEditorState}>{siteOperationsEditor}</OwnerPageEditorStateContext.Provider>
             </WebsiteEditionDraftContext.Provider>
