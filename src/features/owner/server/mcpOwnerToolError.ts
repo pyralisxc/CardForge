@@ -12,6 +12,7 @@ import {
 } from '@/features/public-site/server';
 import { ExperienceSettingsStoreError } from '@/features/experience-settings/server';
 import { RoadmapStoreError } from '@/features/roadmap/server';
+import { WebsiteEditionStoreError } from '@/features/public-site/server/websiteEditionStore';
 import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
 
 const isSafeOwnerMcpError = (error: unknown): error is Error => (
@@ -23,6 +24,7 @@ const isSafeOwnerMcpError = (error: unknown): error is Error => (
   || error instanceof PublicSiteConfigurationStoreError
   || error instanceof PublicSiteStoreError
   || error instanceof SiteMediaStoreError
+  || error instanceof WebsiteEditionStoreError
   || error instanceof ExperienceSettingsStoreError
   || error instanceof RoadmapStoreError
 );

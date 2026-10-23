@@ -10,7 +10,16 @@ import { registerOwnerReadTools } from '@/features/owner/server/mcpOwnerTools';
 import { ownerSiteFieldPublishInputSchema } from '@/features/owner/server/mcpOwnerSchemas';
 
 vi.mock('server-only', () => ({}));
-const mocks = vi.hoisted(() => ({ publish: vi.fn(), publishField: vi.fn(), publishConfiguration: vi.fn(), publishPresentation: vi.fn(), readFields: vi.fn(), readCopy: vi.fn(), readiness: vi.fn(), site: vi.fn(), access: vi.fn() }));
+const mocks = vi.hoisted(() => ({ publish: vi.fn(), publishField: vi.fn(), publishConfiguration: vi.fn(), publishPresentation: vi.fn(), readFields: vi.fn(), readCopy: vi.fn(), readiness: vi.fn(), site: vi.fn(), access: vi.fn(), liveEdition: vi.fn(), savedOperation: vi.fn(), saveRevision: vi.fn(), activateRevision: vi.fn(), revisionIdentity: vi.fn() }));
+vi.mock('@/features/public-site/server/websiteEditionStore', () => ({
+  readLiveWebsiteRevision: mocks.liveEdition,
+  readSavedWebsiteOperation: mocks.savedOperation,
+  readWebsiteRevisionIdentity: mocks.revisionIdentity,
+  saveWebsiteRevision: mocks.saveRevision,
+  activateWebsiteRevision: mocks.activateRevision,
+  listWebsiteEditions: vi.fn().mockResolvedValue([]),
+  listWebsiteRevisions: vi.fn().mockResolvedValue([]),
+}));
 vi.mock('@/features/legal/server', () => ({ getLegalDocuments: mocks.site }));
 vi.mock('@/features/roadmap/server', () => ({ getRoadmapSettings: mocks.site, getRoadmapAdminItems: mocks.site }));
 vi.mock('@/features/owner/server/ownerMediaCommands', () => ({ publishOwnerSiteMedia: mocks.publishPresentation, restoreOwnerSiteMedia: mocks.publishPresentation }));
@@ -61,6 +70,8 @@ beforeEach(() => {
   vi.stubEnv('VERCEL_ENV', 'preview');
   mocks.access.mockResolvedValue({ user: { id: 'owner', emailAddresses: ['owner@example.com'], privateMetadata: {} }, email: 'owner@example.com', isOwner: true });
   mocks.readCopy.mockResolvedValue(DEFAULT_SITE_CONTENT_BLOCKS);
+  mocks.liveEdition.mockResolvedValue({revisionId:null,generation:0});
+  mocks.revisionIdentity.mockResolvedValue({editionId:'edition-1',ordinal:2});
   tools.clear();
   registerOwnerReadTools({
     server: {
@@ -83,6 +94,40 @@ async function invoke(name: string, input: Record<string, unknown> = {}) {
 }
 
 describe('Owner MCP registered output contracts', () => {
+
+  it.each(['get_owner_site_snapshot','get_owner_site_configuration','get_owner_site_media'])
+    ('refuses stale legacy %s after activation without reading flat data', async (name) => {
+      mocks.liveEdition.mockResolvedValue({ revisionId: 'live-revision', generation: 3 });
+      const result = await tools.get(name)!.handler({});
+      expect(result).toMatchObject({isError:true});
+      expect(JSON.stringify(result)).toContain('owner_website_revision');
+      expect(mocks.site).not.toHaveBeenCalled();
+      expect(mocks.readFields).not.toHaveBeenCalled();
+    });
+
+  it('returns the existing Save operation ID readback and does not activate', async () => {
+    mocks.savedOperation.mockResolvedValue('revision-2');
+    const result = await invoke('owner_website_save_operation_status', {operationId:'11111111-1111-4111-8111-111111111111'});
+    expect(result).toMatchObject({action:'save-operation-readback', revisionId:'revision-2', identity:{editionId:'edition-1', ordinal:2}});
+    expect(mocks.activateRevision).not.toHaveBeenCalled();
+    mocks.savedOperation.mockResolvedValue(null);
+    const missing = await invoke('owner_website_save_operation_status', {operationId:'22222222-2222-4222-8222-222222222222'});
+    expect(missing.revisionId).toBeNull();
+  });
+
+  it('keeps Save distinct from activation and rejects non-owner before either operation', async () => {
+    mocks.saveRevision.mockResolvedValue('revision-2');
+    const input = {editionId:'edition-1',expectedRevisionId:null,operationId:'11111111-1111-4111-8111-111111111111',manifest:{}};
+    const saved = await invoke('owner_website_save_revision',input);
+    expect(saved).toMatchObject({action:'save-draft',published:false,revisionId:'revision-2'});
+    expect(mocks.activateRevision).not.toHaveBeenCalled();
+    mocks.access.mockRejectedValue(new Error('Owner permission required'));
+    expect(await tools.get('owner_website_save_revision')!.handler(input)).toMatchObject({isError:true});
+    expect(await tools.get('owner_website_activate_revision')!.handler({revisionId:'revision-2',expectedGeneration:1,operationId:input.operationId,urlDisposition:{}})).toMatchObject({isError:true});
+    expect(mocks.saveRevision).toHaveBeenCalledTimes(1);
+    expect(mocks.activateRevision).not.toHaveBeenCalled();
+  });
+
   it.each([['get_owner_workspace_health', 'overview'], ['get_owner_analytics', 'analytics'], ['get_owner_mcp_usage', 'mcpUsage']])('reads %s through its native browser reader', async (name, area) => {
     mocks.site.mockResolvedValue({ warnings: ['Unavailable metric'], observationOnly: true, databaseMetrics: null });
     expect(await invoke(name)).toMatchObject({ environment: 'preview', area, value: { warnings: ['Unavailable metric'], databaseMetrics: null } });
