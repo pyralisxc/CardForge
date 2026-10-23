@@ -10,7 +10,7 @@ const id='550e8400-e29b-41d4-a716-446655440000';
 const pages=[{id:'page-a',name:'Shared Name',access_token:'private-page-token',instagram_business_account:{id:'ig-a',username:'example'}},{id:'page-b',name:'Shared Name',access_token:'another-private-token'}];
 const payload=encryptMarketingToken(JSON.stringify(pages),key);
 const fixture={id,owner_user_id:owner,payload_ciphertext:payload.ciphertext,payload_iv:payload.iv,payload_auth_tag:payload.authTag,expires_at:'2099-01-01T00:00:00Z',terminal_receipt:null};
-const makeDatabase=(record: (Omit<typeof fixture, 'terminal_receipt'> & { terminal_receipt: { cancelled: boolean; connectionCount: number } | null }) | null, outcome: unknown) => {
+const makeDatabase=(record: (Omit<typeof fixture, 'terminal_receipt'> & { terminal_receipt: { cancelled: boolean; connectionCount: number; selectedPageId: string | null } | null }) | null, outcome: unknown) => {
   const maybeSingle=vi.fn().mockResolvedValue({data:record,error:null});
   const query={select:vi.fn(),eq:vi.fn(),maybeSingle};
   query.select.mockReturnValue(query);query.eq.mockReturnValue(query);

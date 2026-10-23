@@ -2,14 +2,6 @@ import { encryptMarketingToken, decryptMarketingToken } from './marketingTokenCr
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
-const META_SCOPES = [
-  'pages_show_list',
-  'pages_read_engagement',
-  'pages_manage_posts',
-  'instagram_basic',
-  'instagram_content_publish',
-] as const;
-
 export const getMetaConfiguration = () => {
   const required = {
     CARDFORGE_META_APP_ID: process.env.CARDFORGE_META_APP_ID,
