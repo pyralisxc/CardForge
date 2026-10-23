@@ -78,7 +78,7 @@ begin
   perform public.cardforge_set_contributor_asset_editorial_review(b,'quarantine','Quarantine test',owner_id,null);
   if not exists(select 1 from public.cardforge_contributor_asset_submissions
       where id=b and status='archived' and calculated_access_tier='hidden'
-        and trashed_at is not null)
+        and published_at is not null and trashed_at is null and purge_after is null)
     or not exists(select 1 from public.cardforge_asset_registry
       where asset_id=live_asset and status='archived' and access_tier='hidden')
   then raise exception 'published replacement quarantine exposure failed'; end if;
@@ -88,6 +88,8 @@ begin
       where id=retire_id and status='archived' and calculated_access_tier='hidden')
     or not exists(select 1 from public.cardforge_asset_registry
       where asset_id=retired_asset and status='archived' and access_tier='hidden')
+    or not exists(select 1 from public.cardforge_contributor_asset_submissions
+      where id=retire_id and published_at is not null and trashed_at is null)
   then raise exception 'live retirement exposure failed'; end if;
   select * into sibling_after from public.cardforge_contributor_asset_submissions where id=sibling;
   if to_jsonb(sibling_before) is distinct from to_jsonb(sibling_after)
