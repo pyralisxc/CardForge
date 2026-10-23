@@ -1,3 +1,4 @@
+import { unstable_rethrow } from 'next/navigation';
 import { resolveLiveWebsitePresentation } from './websitePresentationResolver';
 import { revalidateTag } from 'next/cache';
 
@@ -10,6 +11,7 @@ export const getCachedPublicSiteConfiguration = async () => {
   try {
     return projectPublicSiteConfiguration(completePublicSiteConfiguration((await resolveLiveWebsitePresentation()).configuration));
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Unable to load public site configuration; using compiled defaults for this request.', error);
     throw new PublicSiteConfigurationStoreError('Live website presentation is unavailable.', 503);
   }

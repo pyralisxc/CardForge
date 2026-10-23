@@ -1,3 +1,4 @@
+import { unstable_rethrow } from 'next/navigation';
 import { resolveLiveWebsitePresentation } from './websitePresentationResolver';
 import { revalidateTag } from 'next/cache';
 
@@ -10,6 +11,7 @@ export const getCachedSiteMedia = async (): Promise<SiteMediaAsset[]> => {
   try {
     return (await resolveLiveWebsitePresentation()).media;
   } catch (error) {
+    unstable_rethrow(error);
     // Public rendering has a checked-in availability floor. Keep strict store
     // reads for Owner operations, but never let a transient provider/JWT
     // failure make the public site or a deployment build unavailable.

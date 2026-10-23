@@ -1,3 +1,4 @@
+import { unstable_rethrow } from 'next/navigation';
 import { resolveLiveWebsitePresentation } from './websitePresentationResolver';
 import { revalidateTag } from 'next/cache';
 
@@ -10,6 +11,7 @@ const readPublicSiteContent = async (): Promise<SiteContentBlock[]> => {
   try {
     return (await resolveLiveWebsitePresentation()).content;
   } catch (error) {
+    unstable_rethrow(error);
     // Keep the provider read fail-closed so a transient outage can never be
     // cached as authored truth. The public presentation may still use the
     // compiled defaults for this request, including during deployment builds.
