@@ -11,7 +11,7 @@ vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({}))
 
 import { DEFAULT_PUBLIC_SITE_CONFIGURATION } from '@/features/public-site/model/siteConfiguration';
 import { DEFAULT_SITE_CONTENT_BLOCKS } from '@/features/public-site/model/siteContent';
-import { getDefaultSiteMedia, type SiteMediaSlot } from '@/features/public-site/model/siteMedia';
+import { getDefaultSiteMedia, getSiteMediaStoragePath, SITE_MEDIA_SLOTS } from '@/features/public-site/model/siteMedia';
 import {
   WEBSITE_PRESENTATION_SCHEMA_VERSION,
   websiteManifestFromPublished,
@@ -81,12 +81,11 @@ describe('Website Editions presentation contract', () => {
     expect(() => validateWebsitePresentationManifest({ ...base, content: [base.content[0], base.content[0]] })).toThrow(/duplicate/);
   });
 
-  it.each([
-    'layout', 'generator-bulk', 'generator-single', 'output', 'set',
-    'art.playing.ace',
-  ])('adopts unchanged canonical showcase.%s media', (name) => {
-    const slot = `landing.showcase.${name}` as SiteMediaSlot;
-    const storagePath = `landing/showcase.${name}/01234567-89ab-4cde-8123-0123456789ab.webp`;
+  it.each([...SITE_MEDIA_SLOTS, 'landing.composer.block-example' as const].flatMap((slot) =>
+    ['', 'website-drafts/'].map((prefix) => ({ slot, prefix })),
+  ))('preserves canonical uploader output $prefix$slot', ({ slot, prefix }) => {
+    // The public uploader uses this builder; private staging prepends website-drafts/.
+    const storagePath = prefix + getSiteMediaStoragePath(slot, '01234567-89ab-4cde-8123-0123456789ab');
     const media = [{ ...defaults().media[0], slot, storagePath, sha256: 'b'.repeat(64),
       presentation: getDefaultSiteMedia(slot).presentation }];
     const adopted = websiteManifestFromPublished({
@@ -120,7 +119,9 @@ describe('Website Editions presentation contract', () => {
     'landing/showcase.layout/image.webp?x=1',
     'landing/showcase.layout/image.webp#fragment',
     'landing/showcase.layout/image.webp\n',
-  ])('rejects unsafe or noncanonical dotted media path %s', (storagePath) => {
+    'website-drafts/landing/showcase.layout/image.webp/../other.webp',
+    'website-drafts/website-drafts/landing/showcase.layout/image.webp',
+  ].flatMap((path) => [path, `website-drafts/${path}`]))('rejects unsafe or noncanonical dotted media path %s', (storagePath) => {
     expect(() => validateWebsitePresentationManifest({
       ...defaults(), media: [{ ...defaults().media[0], storagePath, sha256: 'b'.repeat(64) }],
     })).toThrow(/exact verified storage/);
