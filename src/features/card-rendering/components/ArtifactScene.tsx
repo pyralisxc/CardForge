@@ -75,6 +75,9 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
   const controls = useRef<Array<{ stop: () => void }>>([]);
   const generation = useRef(0), appliedRevision = useRef(-1), disposed = useRef(false);
   const mode = useRef('');
+  const journey = useRef(0);
+  const journeyKey = useRef('');
+  const settledJourney = useRef(-1);
   const settledCallback = useRef(onSettled);
   settledCallback.current = onSettled;
   const stop = useCallback(() => {
@@ -107,6 +110,14 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
     const nextMode = !present ? 'exit' : `${item.depth}:${inlineSettled ? 'inline' : 'scene'}:${immediate ? 'direct' : 'travel'}`;
     const modeChanged = mode.current !== nextMode;
     mode.current = nextMode;
+    const nextJourney = `${present ? 'present' : 'exit'}:${item.depth}:${inlineSettled ? 'inline' : 'scene'}`;
+    if (journeyKey.current !== nextJourney) {
+      journeyKey.current = nextJourney;
+      journey.current++;
+      settledJourney.current = -1;
+    }
+    const settledValid = () => !disposed.current && present && journey.current === currentJourney;
+    const currentJourney = journey.current;
     if (!present) {
       stop();
       const token = generation.current;
@@ -126,16 +137,15 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
     }
     // A direct measurement can publish N+1 before React commits N. Geometry
     // revisions only increase; lifecycle changes remain independently eligible.
-    if (!modeChanged && item.revision <= appliedRevision.current) return;
-    if (item.revision < appliedRevision.current && !modeChanged) return;
+    if (!modeChanged && item.revision <= appliedRevision.current && settledJourney.current === currentJourney) return;
     const alpha = inlineSettled ? 0 : item.opacity;
     if (immediate || inlineSettled) {
       if (item.revision >= appliedRevision.current) jump(item, alpha);
       else { stop(); opacity.jump(alpha); }
-      const token = generation.current;
-      if (settledDepth !== item.depth) {
+      if (settledJourney.current !== currentJourney || settledDepth !== item.depth) {
+        settledJourney.current = currentJourney;
         setSettledDepth(item.depth);
-        settledCallback.current(item.card.uniqueId, item.depth, () => !disposed.current && generation.current === token);
+        settledCallback.current(item.card.uniqueId, item.depth, settledValid);
       }
       return;
     }
@@ -154,7 +164,8 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
     void Promise.all(motions.map((motion) => Promise.resolve(motion))).then(() => {
       if (disposed.current || generation.current !== token) return;
       setSettledDepth(item.depth);
-      settledCallback.current(item.card.uniqueId, item.depth, () => !disposed.current && generation.current === token);
+      settledJourney.current = currentJourney;
+      settledCallback.current(item.card.uniqueId, item.depth, settledValid);
     }).catch(() => undefined);
   }, [present, culled, immediate, travelling, inlineSettled, settledDepth, item, origin, safeToRemove, stop, jump, x, y, scale, rotate, opacity]);
   return <motion.div style={{ position: 'absolute', inset: 0, clipPath: travelling ? item.travelClip : item.clip, zIndex: priority[item.depth] * 100 + item.order }}>
