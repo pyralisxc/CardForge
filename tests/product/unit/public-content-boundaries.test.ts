@@ -17,7 +17,19 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
     return { from: () => query, rpc: provider.rpc };
   },
 }));
-vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({resolveLiveWebsitePresentation: async () => ({content:await (await import('@/features/public-site/server/contentStore')).getSiteContentBlocks(),media:await (await import('@/features/public-site/server/siteMediaStore')).getSiteMedia(),configuration:await (await import('@/features/public-site/server/siteConfigurationStore')).getPublicSiteConfiguration()})}));
+vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({resolveLiveWebsitePresentation: async () => {
+  const [copy, media, config, defaultsCopy, defaultsMedia, defaultsConfig] = await Promise.all([
+    import('@/features/public-site/server/contentStore'), import('@/features/public-site/server/siteMediaStore'),
+    import('@/features/public-site/server/siteConfigurationStore'), import('@/features/public-site/model/siteContent'),
+    import('@/features/public-site/model/siteMedia'), import('@/features/public-site/model/siteConfiguration'),
+  ]);
+  const [content, assets, configuration] = await Promise.all([
+    copy.getSiteContentBlocks().catch(() => defaultsCopy.DEFAULT_SITE_CONTENT_BLOCKS),
+    media.getSiteMedia().catch(() => defaultsMedia.DEFAULT_SITE_MEDIA.map(asset => defaultsMedia.getDefaultSiteMedia(asset.slot))),
+    config.getPublicSiteConfiguration().catch(() => defaultsConfig.DEFAULT_PUBLIC_SITE_CONFIGURATION),
+  ]);
+  return {content,media:assets,configuration};
+}}));
 import {
   getSiteContentBlocks,
   publishSiteContentBlockRevision,

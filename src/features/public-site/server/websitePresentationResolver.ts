@@ -5,9 +5,9 @@ import { getPublicSiteConfiguration } from './siteConfigurationStore';
 import { getSiteContentBlocks } from './contentStore';
 import { getSiteMedia } from './siteMediaStore';
 import { readLiveWebsiteRevision, readWebsiteRevision, WebsiteEditionStoreError } from './websiteEditionStore';
-import { getDefaultSiteMedia, type SiteMediaAsset } from '../model/siteMedia';
-import { getDefaultSiteContentBlock, type SiteContentBlock } from '../model/siteContent';
-import type { PublicSiteConfiguration } from '../model/siteConfiguration';
+import { DEFAULT_SITE_MEDIA, getDefaultSiteMedia, type SiteMediaAsset } from '../model/siteMedia';
+import { DEFAULT_SITE_CONTENT_BLOCKS, getDefaultSiteContentBlock, type SiteContentBlock } from '../model/siteContent';
+import { DEFAULT_PUBLIC_SITE_CONFIGURATION, type PublicSiteConfiguration } from '../model/siteConfiguration';
 import type { WebsitePresentationManifest } from '../model/websitePresentation';
 
 export interface ResolvedWebsitePresentation {
@@ -52,7 +52,7 @@ const loadLiveWebsitePresentation = async (): Promise<ResolvedWebsitePresentatio
   }
   if (live.revisionId) return { ...projectRevision(live.revisionId, await readWebsiteRevision(live.revisionId)), generation: live.generation };
   const [configuration, content, media] = await Promise.all([
-    getPublicSiteConfiguration(), getSiteContentBlocks(), getSiteMedia(),
+    getPublicSiteConfiguration().catch(() => DEFAULT_PUBLIC_SITE_CONFIGURATION), getSiteContentBlocks().catch(() => DEFAULT_SITE_CONTENT_BLOCKS), getSiteMedia().catch(() => DEFAULT_SITE_MEDIA.map(asset => getDefaultSiteMedia(asset.slot))),
   ]);
   return { revisionId: null, privatePreview: false, generation: live.generation, configuration, content, media };
 };
@@ -72,7 +72,7 @@ const loadPublishedWebsitePresentation = async (): Promise<ResolvedWebsitePresen
    generation:live.generation,
  };
  const [configuration,content,media]=await Promise.all([
-   getPublicSiteConfiguration(),getSiteContentBlocks(),getSiteMedia(),
+   getPublicSiteConfiguration().catch(() => DEFAULT_PUBLIC_SITE_CONFIGURATION),getSiteContentBlocks().catch(() => DEFAULT_SITE_CONTENT_BLOCKS),getSiteMedia().catch(() => DEFAULT_SITE_MEDIA.map(asset => getDefaultSiteMedia(asset.slot))),
  ]);
  return {revisionId:null,privatePreview:false,generation:live.generation,configuration,content,media};
 };

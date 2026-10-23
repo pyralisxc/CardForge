@@ -137,11 +137,11 @@ describe('public site media cache identity', () => {
     expect(state.download).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps explicit version URLs immutable', async () => {
+  it('does not give a legacy arbitrary version query immutable caching', async () => {
     const response = await get('brand.social', { query: '?v=revision-123' });
 
     expect(response.status).toBe(200);
-    expect(response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(response.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
   });
 
   it('gives the stable favicon fallback alias the same revision-aware revalidation contract', async () => {
