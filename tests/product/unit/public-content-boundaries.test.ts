@@ -17,19 +17,14 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
     return { from: () => query, rpc: provider.rpc };
   },
 }));
-vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({resolveLiveWebsitePresentation: async () => {
-  const [copy, media, config, defaultsCopy, defaultsMedia, defaultsConfig] = await Promise.all([
-    import('@/features/public-site/server/contentStore'), import('@/features/public-site/server/siteMediaStore'),
-    import('@/features/public-site/server/siteConfigurationStore'), import('@/features/public-site/model/siteContent'),
-    import('@/features/public-site/model/siteMedia'), import('@/features/public-site/model/siteConfiguration'),
-  ]);
-  const [content, assets, configuration] = await Promise.all([
-    copy.getSiteContentBlocks().catch(() => defaultsCopy.DEFAULT_SITE_CONTENT_BLOCKS),
-    media.getSiteMedia().catch(() => defaultsMedia.DEFAULT_SITE_MEDIA.map(asset => defaultsMedia.getDefaultSiteMedia(asset.slot))),
-    config.getPublicSiteConfiguration().catch(() => defaultsConfig.DEFAULT_PUBLIC_SITE_CONFIGURATION),
-  ]);
-  return {content,media:assets,configuration};
-}}));
+const edition = vi.hoisted(() => ({ live: { revisionId: null as string | null, generation: 0 }, read: vi.fn() }));
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }) }));
+vi.mock('@/features/public-site/server/websiteEditionStore', () => ({
+  readLiveWebsiteRevision: async () => edition.live,
+  readWebsiteRevision: (...args: unknown[]) => edition.read(...args),
+  WebsiteEditionStoreError: class extends Error { constructor(message: string, public status = 503) { super(message); } },
+}));
+
 import {
   getSiteContentBlocks,
   publishSiteContentBlockRevision,
@@ -56,8 +51,23 @@ beforeEach(() => {
   provider.configured = true;
   provider.error = null;
   provider.data = [];
+  edition.live = { revisionId: null, generation: 0 };
+  edition.read.mockReset();
 });
 describe('public content cache inputs', () => {
+  it('uses the real resolver and fails closed on an unreadable activated revision', async () => {
+    const { resolveLiveWebsitePresentation } = await import('@/features/public-site/server/websitePresentationResolver');
+    provider.error = { code: 'PGRST303', message: 'legacy provider unavailable' };
+    await expect(resolveLiveWebsitePresentation()).resolves.toMatchObject({
+      revisionId: null,
+      content: DEFAULT_SITE_CONTENT_BLOCKS,
+    });
+    edition.live = { revisionId: '10000000-0000-4000-8000-000000000001', generation: 1 };
+    edition.read.mockRejectedValue(new Error('saved revision temporarily unavailable'));
+    await expect(resolveLiveWebsitePresentation()).rejects.toThrow('saved revision temporarily unavailable');
+    expect(edition.read).toHaveBeenCalled();
+  });
+
   it.each(readers.map((read, index) => ({ read, index })))('keeps unconfigured local defaults ($index)', async ({ read }) => {
     provider.configured = false;
     await expect(read()).resolves.toBeDefined();
