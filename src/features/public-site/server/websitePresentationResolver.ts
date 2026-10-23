@@ -84,10 +84,10 @@ const loadPublishedWebsitePresentation = async (): Promise<ResolvedWebsitePresen
 let cachedLive: ReturnType<typeof cache<typeof loadLiveWebsitePresentation>> | undefined;
 let cachedPublished: ReturnType<typeof cache<typeof loadPublishedWebsitePresentation>> | undefined;
 export const resolveLiveWebsitePresentation = (): Promise<ResolvedWebsitePresentation> => {
- cachedLive ??= cache(loadLiveWebsitePresentation);
+ cachedLive ??= typeof cache === 'function' ? cache(loadLiveWebsitePresentation) : loadLiveWebsitePresentation;
  return cachedLive();
 };
 export const resolvePublishedWebsitePresentation = (): Promise<ResolvedWebsitePresentation> => {
- cachedPublished ??= cache(loadPublishedWebsitePresentation);
+ cachedPublished ??= typeof cache === 'function' ? cache(loadPublishedWebsitePresentation) : loadPublishedWebsitePresentation;
  return cachedPublished();
 };
