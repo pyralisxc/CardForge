@@ -16,7 +16,7 @@ export default async function MetaPageSelection({searchParams}: {searchParams: P
     <form method="post" action="/api/owner/marketing/meta/select" className="space-y-4">
       <input type="hidden" name="selection" value={selection}/>
       {pages.map(page=><label key={page.id} className="block border p-4">
-        <input type="radio" name="page" value={page.id} required/> {page.name}
+        <input type="radio" name="page" value={page.id} required/> {page.name} <span className="text-xs">(Page ID: {page.id})</span>
         {page.instagram ? <span className="ml-2 text-sm">Instagram @{page.instagram}</span> : null}
       </label>)}
       <button className="border px-4 py-2" type="submit">Connect selected Page</button>

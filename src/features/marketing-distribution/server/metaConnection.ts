@@ -210,32 +210,56 @@ const persistMetaPages = async (selectedPages: MetaPage[], actorId: string) => {
 
 export const readPendingMetaPageSelection = async (selectionId: string, actorId: string) => {
   const database = getSupabaseServerClient();
-  if (!database) throw new Error('The marketing database is not configured.');
+  if (!database) throw new Error('The marketing database is unavailable.');
   const { data, error } = await database.from('cardforge_meta_page_selections')
-    .select('id,owner_user_id,payload_ciphertext,payload_iv,payload_auth_tag,expires_at')
-    .eq('id',selectionId).eq('owner_user_id',actorId).single();
-  if (error || !data || Date.parse(data.expires_at) <= Date.now())
-    throw new Error('The Meta Page selection expired. Reconnect to start again.');
-  const pages = JSON.parse(decryptMarketingToken({
-    ciphertext: data.payload_ciphertext, iv: data.payload_iv, authTag: data.payload_auth_tag,
-  })) as MetaPage[];
-  return { pages, database };
+    .select('id,owner_user_id,payload_ciphertext,payload_iv,payload_auth_tag,expires_at,terminal_receipt')
+    .eq('id', selectionId).eq('owner_user_id', actorId).maybeSingle();
+  if (error) throw new Error('Unable to read the pending Meta Page selection.');
+  if (!data) throw new Error('The Meta Page selection was not found.');
+  if (data.terminal_receipt) return { pages: [] as MetaPage[], receipt: data.terminal_receipt as {cancelled:boolean;connectionCount:number} };
+  if (Date.parse(data.expires_at) <= Date.now()) throw new Error('The Meta Page selection expired. Reconnect to start again.');
+  if (!data.payload_ciphertext || !data.payload_iv || !data.payload_auth_tag) throw new Error('The Meta Page selection is unavailable.');
+  let pages: MetaPage[];
+  try {
+    pages = JSON.parse(decryptMarketingToken({
+      ciphertext: data.payload_ciphertext, iv: data.payload_iv, authTag: data.payload_auth_tag,
+    })) as MetaPage[];
+    if (!Array.isArray(pages)) throw new Error('Invalid Page payload');
+  } catch { throw new Error('Unable to recover the encrypted Meta Page selection.'); }
+  return { pages, receipt: null };
 };
 
 export const listPendingMetaPages = async (selectionId: string, actorId: string) => {
-  const { pages } = await readPendingMetaPageSelection(selectionId, actorId);
+  const { pages, receipt } = await readPendingMetaPageSelection(selectionId, actorId);
+  if (receipt) throw new Error('This Meta Page selection has already completed.');
   return pages.map(page => ({ id: page.id, name: page.name, instagram: page.instagram_business_account?.username ?? null }));
 };
 
 export const completePendingMetaPageSelection = async (selectionId: string, actorId: string, selectedPageId: string | null) => {
-  const { pages, database } = await readPendingMetaPageSelection(selectionId,actorId);
+  const { pages, receipt } = await readPendingMetaPageSelection(selectionId, actorId);
+  if (receipt) return receipt;
   if (selectedPageId && !pages.some(page => page.id === selectedPageId))
     throw new Error('The selected Facebook Page is unavailable.');
-  // Consume the one-time decision before writing durable connection records.
-  const { data: removed, error } = await database.from('cardforge_meta_page_selections')
-    .delete().eq('id',selectionId).eq('owner_user_id',actorId).select('id').single();
-  if (error || !removed) throw new Error('The Meta Page selection was already used.');
-  if (!selectedPageId) return { cancelled: true, connectionCount: 0 };
-  const saved = await persistMetaPages(pages.filter(page => page.id === selectedPageId),actorId);
-  return { cancelled: false, connectionCount: saved.connectionCount };
+  const page = pages.find(page => page.id === selectedPageId);
+  const prepare = (service: 'facebook' | 'instagram', accountId: string, displayName: string, token: string) => ({
+    service, account_id: accountId, display_name: displayName, ...encryptMarketingToken(token),
+  });
+  const accounts = page ? [
+    prepare('facebook', page.id, page.name, page.access_token),
+    ...(page.instagram_business_account?.id ? [prepare(
+      'instagram', page.instagram_business_account.id,
+      page.instagram_business_account.username ? `@${page.instagram_business_account.username}`
+        : page.instagram_business_account.name ?? `${page.name} Instagram`, page.access_token,
+    )] : []),
+  ] : [];
+  const database = getSupabaseServerClient();
+  if (!database) throw new Error('The marketing database is unavailable.');
+  const { data, error } = await database.rpc('cardforge_complete_meta_page_selection', {
+    p_selection_id: selectionId,
+    p_actor_id: actorId,
+    p_page_id: selectedPageId,
+    p_accounts: accounts,
+  });
+  if (error || !data) throw new Error('The Meta selection could not be saved. Your previous connection is unchanged; retry this selection.');
+  return data as { cancelled: boolean; connectionCount: number };
 };
