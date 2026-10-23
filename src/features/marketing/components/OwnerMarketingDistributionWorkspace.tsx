@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { resolveMarketingConnectionReadiness } from "@/features/marketing-distribution/model";
 import { parsePacificDateTimeLocal } from "@/domain/marketing/schedule";
 import type { MarketingContentWorkspaceView } from "@/features/marketing-content/client";
 import {
@@ -124,7 +125,30 @@ export function OwnerMarketingDistributionWorkspace({
           {/* Provider OAuth must start as a full browser navigation, not a client router request. */}
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           {marketing.meta.configured ? <Button asChild><a href="/api/owner/marketing/meta/connect">{marketing.connections.length ? "Reconnect Meta" : "Connect Meta"}</a></Button> : null}
-        </div>
+        {marketing.connections.length ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {marketing.connections.map((connection) => {
+              const readiness = resolveMarketingConnectionReadiness(connection);
+              const description = {
+                verified: 'Recently verified with Meta',
+                stale: 'Last verification is stale; authorization needs checking',
+                expired: 'Connection expired; reconnect required',
+                revoked: 'Access revoked; reconnect required',
+                error: 'Connection error; review and reconnect',
+                not_verified: 'Verification unavailable',
+              }[readiness];
+              return (
+                <div key={connection.id} className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-3">
+                  <p className="font-medium text-[var(--cf-text-strong)]">{connection.displayName}</p>
+                  <p className="text-xs text-[var(--cf-text-muted)]">{connection.service} · {description}</p>
+                  <p className="text-xs text-[var(--cf-text-subtle)]">
+                    {connection.lastVerifiedAt ? `Last verified: ${new Date(connection.lastVerifiedAt).toLocaleDateString()}` : 'Never verified'}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
