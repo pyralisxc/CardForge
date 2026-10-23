@@ -62,21 +62,31 @@ begin
   -- Owner actions change the exact reviewed target, not every submitted asset.
   -- Lock the shared Pipeline lifecycle to serialize with voting/settings changes.
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('cardforge-contributor-pipeline', 0));
+  -- An exact current registry publication remains live when an Owner override
+  -- is cleared; its historical automated score need not have caught up.
   update public.cardforge_contributor_asset_submissions as s
-  set status = coalesce(s.owner_status_override, s.automated_status),
+  set status = case when s.owner_status_override is null and exists (
+        select 1 from public.cardforge_asset_registry r
+        where r.contributor_submission_id=s.id and r.status='published'
+      ) then 'published' else coalesce(s.owner_status_override,s.automated_status) end,
       calculated_access_tier = case
-        when coalesce(s.owner_status_override, s.automated_status) = 'published'
+        when (case when s.owner_status_override is null and exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'published' else coalesce(s.owner_status_override,s.automated_status) end) = 'published'
           then coalesce(s.owner_access_tier_override,
              case when s.automated_access_tier in ('free','paid') then s.automated_access_tier else null end, 'free')
-        when coalesce(s.owner_status_override, s.automated_status) in ('archived','rejected') then 'hidden'
+        when (case when s.owner_status_override is null and exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'published' else coalesce(s.owner_status_override,s.automated_status) end) in ('archived','rejected') then 'hidden'
         else 'contributor' end,
-      decision_reason = case when s.owner_status_override is not null
-        then 'owner_status_override' else s.decision_reason end,
-      published_at = case when coalesce(s.owner_status_override, s.automated_status)='published'
+      decision_reason = case when s.owner_status_override is not null then 'owner_status_override'
+        when exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'current_publication_protected'
+        else coalesce(nullif(s.decision_reason,'owner_status_override'),'needs_more_votes') end,
+      tier_decision_reason = case when s.owner_access_tier_override is not null then 'owner_forced_' || s.owner_access_tier_override
+        when s.owner_status_override in ('archived','rejected') then 'hidden_status'
+        when exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'current_publication_protected'
+        else coalesce(nullif(s.tier_decision_reason,'hidden_status'), 'needs_more_votes') end,
+      published_at = case when (case when s.owner_status_override is null and exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'published' else coalesce(s.owner_status_override,s.automated_status) end)='published'
         and s.published_at is null then pg_catalog.now() else s.published_at end,
-      trashed_at = case when coalesce(s.owner_status_override, s.automated_status) = 'archived'
+      trashed_at = case when (case when s.owner_status_override is null and exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'published' else coalesce(s.owner_status_override,s.automated_status) end) = 'archived'
         and s.published_at is null then coalesce(s.trashed_at, pg_catalog.now())
-        when coalesce(s.owner_status_override, s.automated_status) not in ('archived','rejected') then null
+        when (case when s.owner_status_override is null and exists (select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id and r.status='published') then 'published' else coalesce(s.owner_status_override,s.automated_status) end) not in ('archived','rejected') then null
         else s.trashed_at end,
       trash_reason = case when coalesce(s.owner_status_override,s.automated_status) = 'archived'
         and s.published_at is null then coalesce(s.trash_reason,'declined')
