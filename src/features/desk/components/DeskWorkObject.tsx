@@ -123,7 +123,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
           range: event.shiftKey,
         });
       }}
-      onDoubleClick={openSet}
+      onDoubleClick={props.arrangeMode ? undefined : openSet}
       onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
         const intent = getDeskWorkKeyboardIntent(event.key, event.shiftKey || event.metaKey || event.ctrlKey);
         if (intent === 'open') { event.preventDefault(); openSet(); }
