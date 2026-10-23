@@ -20,6 +20,8 @@ declare
   evidence_facts jsonb := '{"technicalTrace":"Disposable regression proof","creatorFacts":"Fixture author","rightsFacts":"Fixture rights","aiFacts":null,"aiDisclosurePublic":false}'::jsonb;
   sibling_before public.cardforge_contributor_asset_submissions%rowtype;
   sibling_after public.cardforge_contributor_asset_submissions%rowtype;
+  live_tier text;
+  live_pointer uuid;
 begin
   -- Native first Template submission, then the actual owner publication command.
   a := public.cardforge_submit_template_revision(live_asset,'Isolated live','Disposable fixture parent',
@@ -76,6 +78,16 @@ begin
       where asset_id=live_asset and contributor_submission_id=a and status='published')
   then raise exception 'replacement eligibility or live pin failed'; end if;
 
+  -- An unapproved correction must not be publishable through Owner override.
+  begin
+    perform public.cardforge_set_contributor_asset_owner_override(
+      b,true,'published',true,'free','Premature correction',owner_id);
+    raise exception 'unapproved correction unexpectedly published';
+  exception when raise_exception then
+    if sqlerrm = 'unapproved correction unexpectedly published' then raise; end if;
+    if sqlerrm not like '%editorial%' and sqlerrm not like '%review%' then raise; end if;
+  end;
+
   select * into sibling_before from public.cardforge_contributor_asset_submissions where id=sibling;
   perform public.cardforge_set_contributor_asset_editorial_review(b,'approved','Verified source, style and fit',owner_id,1);
   select * into sibling_after from public.cardforge_contributor_asset_submissions where id=sibling;
@@ -97,6 +109,38 @@ begin
   if (select status from public.cardforge_contributor_asset_submissions where id=sibling)
        is distinct from sibling_before.status
   then raise exception 'native publication changed sibling'; end if;
+
+  -- Reset status to Automatic while the scoring projection still lags.
+  select contributor_submission_id,access_tier into live_pointer,live_tier
+    from public.cardforge_asset_registry where asset_id=live_asset;
+  perform public.cardforge_set_contributor_asset_owner_override(
+    b,true,null,false,null,'Reset status to Automatic',owner_id);
+  if not exists(select 1 from public.cardforge_contributor_asset_submissions
+      where id=b and status='published' and owner_status_override is null
+        and decision_reason='current_publication_protected')
+    or not exists(select 1 from public.cardforge_asset_registry
+      where asset_id=live_asset and contributor_submission_id=live_pointer and status='published'
+        and access_tier=live_tier)
+  then raise exception 'Automatic reset lost current publication'; end if;
+
+  perform public.cardforge_set_contributor_asset_owner_override(
+    b,false,null,true,'paid','Disposable paid tier',owner_id);
+  if not exists(select 1 from public.cardforge_contributor_asset_submissions
+      where id=b and status='published' and calculated_access_tier='paid'
+        and tier_decision_reason='owner_forced_paid')
+  then raise exception 'explicit tier update failed'; end if;
+  perform public.cardforge_set_contributor_asset_owner_override(
+    b,false,null,true,null,'Reset tier to Automatic',owner_id);
+  if not exists(select 1 from public.cardforge_contributor_asset_submissions
+      where id=b and status='published' and owner_access_tier_override is null
+        and calculated_access_tier=live_tier
+        and tier_decision_reason is distinct from 'owner_forced_paid')
+    or not exists(select 1 from public.cardforge_asset_registry
+      where asset_id=live_asset and contributor_submission_id=b and status='published')
+  then raise exception 'Automatic tier reset lost current tier/pointer'; end if;
+  select * into sibling_after from public.cardforge_contributor_asset_submissions where id=sibling;
+  if to_jsonb(sibling_before) is distinct from to_jsonb(sibling_after)
+  then raise exception 'Owner publication/reset changed unrelated sibling'; end if;
 
   perform public.cardforge_set_contributor_asset_editorial_review(b,'quarantine','Quarantine test',owner_id,1);
   if not exists(select 1 from public.cardforge_contributor_asset_submissions
