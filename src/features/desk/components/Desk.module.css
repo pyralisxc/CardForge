@@ -548,6 +548,12 @@
   display: none;
 }
 
+/* Only the outgoing source remains visible across the focus-to-scene RAF gap.
+ * The existing scene frame releases this hold before the next paint. */
+.workTile[data-presentation="focused"] .workTileMain[data-artifact-travel-held="true"] {
+  display: grid;
+}
+
 .workTile[data-featured="true"] {
   z-index: 4;
 }

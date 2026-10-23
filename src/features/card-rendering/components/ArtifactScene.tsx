@@ -67,13 +67,14 @@ const SceneCardContent = memo(function SceneCardContent({ card, face, watermark,
   return <><CardPreview card={card} face={face} targetWidthPx={RENDER_WIDTH} interactionOverlay={interactionOverlay} />{watermark ? <CardWatermarkOverlay /> : null}</>;
 });
 
-function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, onSettled }: {
+function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, onSettled, onTravelReady }: {
   item: Projection;
   origin: Projection;
   immediate: boolean;
   inlineSettled: boolean;
   onFlip: (id: string, face: CardFace) => void;
   onSettled: (id: string, depth: Depth) => void;
+  onTravelReady: (setId: string) => void;
 }) {
   const [settledDepth, setSettledDepth] = useState<Depth | null>(null);
   const controls = useAnimationControls();
@@ -82,7 +83,11 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
     if (wasInline.current && !inlineSettled) {
       // Depth promotion: reseed the existing hidden frame from the current
       // tile-owned pixels before the scene becomes the visible travel owner.
-      controls.set({ x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0 });
+      controls.set({ x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 1 });
+      // The outgoing tile stays painted through the focus/RAF gap. Release
+      // it in this layout effect once the existing scene frame is positioned
+      // and opaque, before the next browser paint.
+      onTravelReady(item.setId);
     }
     wasInline.current = inlineSettled;
     void controls.start({
@@ -90,7 +95,7 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
       rotate: item.rotation, opacity: inlineSettled ? 0 : item.opacity,
       transition: inlineSettled || immediate ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 32, mass: 0.9, opacity: { duration: 0.18 } },
     });
-  }, [controls, immediate, inlineSettled, item, origin]);
+  }, [controls, immediate, inlineSettled, item, origin, onTravelReady]);
   const present = useIsPresent();
   const activeSetId = usePresenceData();
   const culled = !present && activeSetId === item.setId;
@@ -141,6 +146,7 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
  */
 export function ArtifactScene({ children, activeSetId }: { children: ReactNode; activeSetId: string | null }) {
   const slots = useRef(new Map<string, SceneSlot>());
+  const heldStackSources = useRef(new Map<string, HTMLElement>());
   const origins = useRef(new Map<string, Projection>());
   const inlineOrigins = useRef(new Map<string, Projection>());
   const frame = useRef<number | null>(null);
@@ -258,7 +264,22 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     setDirectMotion(performance.now() < directUntil.current || dragging.current);
     setProjections(next);
   }, []);
+  const releaseStackSource = useCallback((setId: string) => {
+    const source = heldStackSources.current.get(setId);
+    if (!source) return;
+    delete source.dataset.artifactTravelHeld;
+    heldStackSources.current.delete(setId);
+  }, []);
   const captureStackOrigins = useCallback((setId: string) => {
+    // Preserve the outgoing visible source until the retained Motion frame
+    // becomes ready. A focused tile otherwise hides workTileMain before RAF.
+    const stackSlot = [...slots.current.values()].find((slot) =>
+      slot.depth === 'stack' && slot.setId === setId && slot.node.isConnected);
+    const source = stackSlot?.node.closest<HTMLElement>('[data-desk-set-stack]')?.closest<HTMLElement>('.workTileMain');
+    if (source) {
+      source.dataset.artifactTravelHeld = 'true';
+      heldStackSources.current.set(setId, source);
+    }
     // Called by the existing Set-opening gesture while the Desk tile is still
     // visible. The next React render can hide workTileMain before RAF measure.
     for (const slot of slots.current.values()) {
@@ -369,6 +390,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
             inlineSettled={inlineSettled}
             onFlip={setFace}
             onSettled={markSettled}
+            onTravelReady={releaseStackSource}
           />;
         })}
       </AnimatePresence>
