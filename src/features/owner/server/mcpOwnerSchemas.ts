@@ -662,3 +662,19 @@ export const ownerEditionResultOutputSchema = fromJsonSchema({
   required: ['environment', 'action'],
   properties: { environment: { type: 'string' }, action: { type: 'string' } },
 });
+
+export const ownerEditionStageMediaInputSchema = fromJsonSchema<{
+  editionId: string; expectedRevisionId: string | null; slot: string; alt: string;
+  presentation: unknown; currentStoragePath: string | null;
+  image?: {name:string;mimeType:string;base64:string};
+}>({
+ type:'object',additionalProperties:false,
+ required:['editionId','expectedRevisionId','slot','alt','presentation','currentStoragePath'],
+ properties:{
+  editionId:editionUuid,expectedRevisionId:editionUuidOrNull,
+  slot:{type:'string'},alt:{type:'string'},presentation:{type:'object'},
+  currentStoragePath:{type:['string','null']},
+  image:{type:'object',additionalProperties:false,required:['name','mimeType','base64'],
+   properties:{name:{type:'string'},mimeType:{type:'string',enum:['image/png','image/webp']},base64:{type:'string'}}},
+ },
+});

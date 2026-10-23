@@ -1,4 +1,6 @@
 import { createMcpHandler } from 'mcp-handler';
+import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
+import { WEBSITE_DRAFT_MEDIA_BUCKET } from '@/features/public-site/server/websiteEditionStore';
 import { readLiveWebsiteRevision, listWebsiteEditions, listWebsiteRevisions, readWebsiteRevision, readWebsiteRevisionIdentity, createWebsiteEdition, saveWebsiteRevision, activateWebsiteRevision } from '@/features/public-site/server/websiteEditionStore';
 import { resolveOwnerAccess } from '@/domain/entitlements';
 
@@ -19,14 +21,14 @@ import {
   type HomepageLayoutSection,
   getSiteCompositionSections,
 } from '@/features/public-site/server';
-import { publishOwnerSiteMedia, restoreOwnerSiteMedia } from './ownerMediaCommands';
+import { publishOwnerSiteMedia, restoreOwnerSiteMedia, stageOwnerWebsiteEditionMedia } from './ownerMediaCommands';
 import { getLegalDocuments } from '@/features/legal/server';
 import { getRoadmapSettings, getRoadmapAdminItems } from '@/features/roadmap/server';
 import { getBusinessIdentity } from '@/features/business-identity/server';
 import { getExperienceSettings } from '@/features/experience-settings/server';
 import type { McpOwnerAccess } from './mcpOwnerAccess';
 import {
-  ownerEditionListInputSchema, ownerEditionCreateInputSchema, ownerEditionSaveInputSchema, ownerEditionPreviewInputSchema, ownerEditionActivateInputSchema, ownerEditionResultOutputSchema,
+  ownerEditionListInputSchema, ownerEditionCreateInputSchema, ownerEditionSaveInputSchema, ownerEditionPreviewInputSchema, ownerEditionActivateInputSchema, ownerEditionStageMediaInputSchema, ownerEditionResultOutputSchema,
   ownerOperationalReadOutputSchema,
   ownerActivityInputSchema,
   ownerActivityOutputSchema,
@@ -667,6 +669,45 @@ export const registerOwnerReadTools = ({
       const revisionId=await saveWebsiteRevision({editionId,expectedRevisionId,operationId,manifest,actor:access.user.id});
       return {content:[{type:'text' as const,text:'Draft revision saved. No website activation occurred.'}],
         structuredContent:{environment:deploymentEnvironment(),action:'save-draft',editionId,revisionId,operationId,published:false} };
+    },
+  }));
+
+  server.registerTool('owner_website_stage_media', {
+    title:'Stage private image bytes for a selected unpublished website edition',
+    description:'Owner-only private PNG/WebP stage. Requires selected editionId and exact expectedRevisionId; returns an uncommitted media reference and SHA256 for the manifest. Stage does NOT Save or Activate. On uncertain upload outcome do not replay or delete unknown bytes; read back and reconcile the identity first.',
+    inputSchema:ownerEditionStageMediaInputSchema,outputSchema:ownerEditionResultOutputSchema,
+    annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false},
+  }, async (input)=>runObserved({toolName:'owner_website_stage_media',input:{...input,image:input.image?{name:input.image.name,mimeType:input.image.mimeType,bytes:'provided'}:undefined},
+    execute:async(access)=>{
+      const editions=await listWebsiteEditions();
+      if(!editions.some(edition=>edition.id===input.editionId&&!edition.archivedAt)) {
+        throw new SiteMediaStoreError('Selected website edition is unavailable.',404);
+      }
+      const revisions=await listWebsiteRevisions(input.editionId);
+      if((revisions[0]?.id??null)!==input.expectedRevisionId) {
+        throw new SiteMediaStoreError('Edition revision changed. Reload before uploading bytes.',409);
+      }
+      const db=getSupabaseServerClient();
+      const bucket=await db?.storage.getBucket(WEBSITE_DRAFT_MEDIA_BUCKET);
+      if(!bucket||bucket.error||bucket.data?.public!==false) {
+        throw new SiteMediaStoreError('Protected website draft media bucket is unavailable.',503);
+      }
+      let image:File|null=null;
+      if(input.image) {
+        if(!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(input.image.base64)) {
+          throw new SiteMediaStoreError('Image bytes must be valid raw base64.',400);
+        }
+        image=new File([new Uint8Array(Buffer.from(input.image.base64,'base64'))],
+          input.image.name,{type:input.image.mimeType});
+      }
+      const staged=await stageOwnerWebsiteEditionMedia({
+        actor:{userId:access.user.id,email:access.email},slot:input.slot,
+        alt:input.alt,presentation:input.presentation,
+        currentStoragePath:input.currentStoragePath,image,
+      });
+      return {content:[{type:'text' as const,text:'Private edition media staged; Save a revision explicitly to retain the reference. No publication occurred.'}],
+       structuredContent:{environment:deploymentEnvironment(),action:'stage-private-media',editionId:input.editionId,expectedRevisionId:input.expectedRevisionId,
+         media:staged.media,sha256:staged.sha256,published:false}};
     },
   }));
   server.registerTool('owner_website_activate_revision', {
