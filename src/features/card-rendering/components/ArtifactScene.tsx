@@ -221,6 +221,16 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     setProjections(next);
   }, []);
   const refresh = useCallback(() => {
+    // Once every stack slot owns its local pixels, tile movement and camera
+    // transforms need no second screen-space measurement. New/removing slots
+    // or a promoted depth still schedule the normal transition measurement.
+    const slotsNow = [...slots.current.values()];
+    const previous = projectedRef.current;
+    const steadyStack = slotsNow.length > 0 && slotsNow.length === previous.length
+      && slotsNow.every((slot) => slot.depth === 'stack'
+        && settledDepthsRef.current[slot.card.uniqueId] === 'stack'
+        && previous.some((item) => item.card.uniqueId === slot.card.uniqueId && item.depth === 'stack'));
+    if (steadyStack) return;
     if (frame.current === null) frame.current = requestAnimationFrame(measure);
   }, [measure]);
   const register = useCallback((id: string, slot: SceneSlot) => {
