@@ -9,7 +9,17 @@ export default async function MetaPageSelection({searchParams}: {searchParams: P
   if (!selection || !/^[0-9a-f-]{36}$/i.test(selection)) redirect('/account');
   let pages: Awaited<ReturnType<typeof listPendingMetaPages>>;
   try { pages = await listPendingMetaPages(selection,owner.userId); }
-  catch { redirect('/account?section=library&scope=campaigns&meta=expired'); }
+  catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    const status = message.includes('expired') ? 'expired'
+      : message.includes('already completed') ? 'completed'
+      : message.includes('not found') ? 'missing' : 'unavailable';
+    return <main className="mx-auto max-w-xl space-y-4 p-8">
+      <h1 className="text-2xl font-semibold">Meta Page selection {status}</h1>
+      <p>{status === 'unavailable' ? 'The selection could not be read. Your connection state has not been confirmed.' : status === 'completed' ? 'This selection has already been completed.' : status === 'expired' ? 'The selection has expired. Start a new connection to continue.' : 'This selection was not found.'}</p>
+      <a href="/account?section=library&scope=campaigns" className="underline">Return to Connections</a>
+    </main>;
+  }
   return <main className="mx-auto max-w-xl space-y-5 p-8">
     <h1 className="text-2xl font-semibold">Choose a Facebook Page</h1>
     <p>Only the Page you choose will be connected. Cancel keeps existing connections unchanged.</p>

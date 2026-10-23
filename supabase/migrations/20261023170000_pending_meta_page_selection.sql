@@ -44,10 +44,15 @@ begin
   select * into v_pending from public.cardforge_meta_page_selections
     where id=p_selection_id and owner_user_id=p_actor_id for update;
   if not found then raise exception 'selection_not_found'; end if;
-  if v_pending.terminal_receipt is not null then return v_pending.terminal_receipt; end if;
+  if v_pending.terminal_receipt is not null then
+    if (v_pending.terminal_receipt->>'selectedPageId') is distinct from p_page_id then
+      raise exception 'selection_intent_conflict';
+    end if;
+    return v_pending.terminal_receipt;
+  end if;
   if v_pending.expires_at <= pg_catalog.now() then
     if p_page_id is not null then raise exception 'selection_expired'; end if;
-    v_receipt:='{"cancelled":true,"connectionCount":0}'::jsonb;
+    v_receipt:='{"cancelled":true,"connectionCount":0,"selectedPageId":null}'::jsonb;
     update public.cardforge_meta_page_selections set payload_ciphertext=null,payload_iv=null,
       payload_auth_tag=null,terminal_receipt=v_receipt,completed_at=pg_catalog.now() where id=p_selection_id;
     return v_receipt;
@@ -104,7 +109,7 @@ begin
       end if;
       v_count:=v_count+1;
     end loop;
-    v_receipt:=pg_catalog.jsonb_build_object('cancelled',false,'connectionCount',v_count);
+    v_receipt:=pg_catalog.jsonb_build_object('cancelled',false,'connectionCount',v_count,'selectedPageId',p_page_id);
   end if;
   update public.cardforge_meta_page_selections set
     payload_ciphertext=null,payload_iv=null,payload_auth_tag=null,

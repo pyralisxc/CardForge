@@ -158,54 +158,22 @@ export const connectMetaAccounts = async (code: string, actorId: string) => {
   });
   if (!pages.data?.length) throw new Error('Meta did not return a Facebook Page that this account can manage.');
   const selectedPages = config.pageId
-    ? pages.data.filter((page) => page.id === config.pageId)
-    : pages.data.length === 1 ? pages.data : [];
-  if (config.pageId && !selectedPages.length) {
-    throw new Error('The configured CardForge Facebook Page was not returned by Meta.');
-  }
-  if (!selectedPages.length) {
-    const database = getSupabaseServerClient();
-    if (!database) throw new Error('The marketing database is not configured.');
-    const encrypted = encryptMarketingToken(JSON.stringify(pages.data));
-    const { data: pending, error } = await database.from('cardforge_meta_page_selections').insert({
-      owner_user_id: actorId,
-      payload_ciphertext: encrypted.ciphertext,
-      payload_iv: encrypted.iv,
-      payload_auth_tag: encrypted.authTag,
-    }).select('id').single();
-    if (error || !pending?.id) throw new Error('Unable to prepare Meta Page selection.');
-    return { pageCount: pages.data.length, connectionCount: 0, selectionId: String(pending.id) };
-  }
-  return persistMetaPages(selectedPages, actorId);
-};
-
-const persistMetaPages = async (selectedPages: MetaPage[], actorId: string) => {
-  let connectionCount = 0;
-  for (const page of selectedPages) {
-    const facebookConnectionId = await saveConnection({
-      actorId,
-      service: 'facebook',
-      accountId: page.id,
-      displayName: page.name,
-      accessToken: page.access_token,
-    });
-    await saveAutomaticDestination({ actorId, connectionId: facebookConnectionId, service: 'facebook', accountId: page.id, displayName: page.name });
-    connectionCount += 1;
-    const instagram = page.instagram_business_account;
-    if (instagram?.id) {
-      const displayName = instagram.username ? `@${instagram.username}` : instagram.name ?? `${page.name} Instagram`;
-      const instagramConnectionId = await saveConnection({
-        actorId,
-        service: 'instagram',
-        accountId: instagram.id,
-        displayName,
-        accessToken: page.access_token,
-      });
-      await saveAutomaticDestination({ actorId, connectionId: instagramConnectionId, service: 'instagram', accountId: instagram.id, displayName });
-      connectionCount += 1;
-    }
-  }
-  return { pageCount: selectedPages.length, connectionCount };
+    ? pages.data.filter(page => page.id === config.pageId)
+    : pages.data;
+  if (!selectedPages.length) throw new Error('The configured Facebook Page was not returned by Meta.');
+  const database = getSupabaseServerClient();
+  if (!database) throw new Error('The marketing database is unavailable.');
+  const encrypted = encryptMarketingToken(JSON.stringify(selectedPages));
+  const { data: pending, error } = await database.from('cardforge_meta_page_selections').insert({
+    owner_user_id: actorId, payload_ciphertext: encrypted.ciphertext,
+    payload_iv: encrypted.iv, payload_auth_tag: encrypted.authTag,
+  }).select('id').single();
+  if (error || !pending?.id) throw new Error('Unable to prepare Meta Page selection.');
+  // All paths use one atomic consume-and-persist operation. The selected Page
+  // is still confirmed by the owner if discovery returned more than one.
+  if (selectedPages.length > 1) return { pageCount:selectedPages.length, connectionCount:0, selectionId:String(pending.id) };
+  const result = await completePendingMetaPageSelection(String(pending.id),actorId,selectedPages[0].id);
+  return { pageCount:1, connectionCount:result.connectionCount };
 };
 
 export const readPendingMetaPageSelection = async (selectionId: string, actorId: string) => {
@@ -216,7 +184,7 @@ export const readPendingMetaPageSelection = async (selectionId: string, actorId:
     .eq('id', selectionId).eq('owner_user_id', actorId).maybeSingle();
   if (error) throw new Error('Unable to read the pending Meta Page selection.');
   if (!data) throw new Error('The Meta Page selection was not found.');
-  if (data.terminal_receipt) return { pages: [] as MetaPage[], receipt: data.terminal_receipt as {cancelled:boolean;connectionCount:number} };
+  if (data.terminal_receipt) return { pages: [] as MetaPage[], receipt: data.terminal_receipt as {cancelled:boolean;connectionCount:number;selectedPageId:string|null} };
   if (Date.parse(data.expires_at) <= Date.now()) throw new Error('The Meta Page selection expired. Reconnect to start again.');
   if (!data.payload_ciphertext || !data.payload_iv || !data.payload_auth_tag) throw new Error('The Meta Page selection is unavailable.');
   let pages: MetaPage[];
@@ -246,7 +214,10 @@ export const completePendingMetaPageSelection = async (selectionId: string, acto
     return data as {cancelled:boolean;connectionCount:number};
   }
   const { pages, receipt } = await readPendingMetaPageSelection(selectionId, actorId);
-  if (receipt) return receipt;
+  if (receipt) {
+    if (receipt.selectedPageId !== selectedPageId) throw new Error('The selection was already completed with a different Page.');
+    return receipt;
+  }
   if (selectedPageId && !pages.some(page => page.id === selectedPageId))
     throw new Error('The selected Facebook Page is unavailable.');
   const page = pages.find(page => page.id === selectedPageId);
@@ -267,6 +238,15 @@ export const completePendingMetaPageSelection = async (selectionId: string, acto
     p_page_id: selectedPageId,
     p_accounts: accounts,
   });
-  if (error || !data) throw new Error('The Meta selection could not be saved. Your previous connection is unchanged; retry this selection.');
-  return data as { cancelled: boolean; connectionCount: number };
+  if (error || !data) {
+    try {
+      const observed = await readPendingMetaPageSelection(selectionId,actorId);
+      if (observed.receipt) {
+        if (observed.receipt.selectedPageId !== selectedPageId) throw new Error('The selection completed with a different Page.');
+        return observed.receipt;
+      }
+    } catch { /* Readback itself may be unavailable: outcome remains unknown. */ }
+    throw new Error('Meta selection outcome unknown. Check the connected account before retrying.');
+  }
+  return data as { cancelled: boolean; connectionCount: number; selectedPageId: string | null };
 };
