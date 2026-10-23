@@ -1,12 +1,9 @@
--- Website Editions: isolated disposable SQL proof AFTER the migration is applied
--- in an explicitly approved Staging environment. Never run on production.
--- No Storage object is created and no existing edition is modified permanently.
--- All inserts and the temporary global activation pointer change ROLLBACK.
--- Do not run concurrently with public acceptance or Owner writes.
-begin;
-set local lock_timeout = '5s';
-set local statement_timeout = '30s';
-set local role service_role;
+-- Website Editions: transaction BODY; caller must provide a single outer
+-- BEGIN; SET LOCAL lock_timeout='5s'; SET LOCAL statement_timeout='30s';
+-- SET LOCAL ROLE service_role; [exact migration SQL if unapplied]; [this body];
+-- ROLLBACK. Never COMMIT the proof. No direct Storage API actions.
+-- The same body can run after an already-applied migration, in isolated Staging.
+-- Do not run with actual Owner publication or acceptance activity.
 
 do $$
 declare
@@ -23,6 +20,13 @@ declare
   manifest2 jsonb := '{"schemaVersion":1,"configuration":{},"content":[],"media":[]}'::jsonb;
   path text := 'website-drafts/brand/social/fixture.webp';
   digest text := repeat('a',64);
+  source_slot text := 'landing.showcase.generator-bulk';
+  source_epochs jsonb;
+  source_media jsonb;
+  settings_epoch text;
+  stale_operation uuid := gen_random_uuid();
+  activations_before bigint;
+  editions_before bigint;
 begin
   -- The historical media authorization routine requires the identical slot,
   -- path and digest inside the immutable revision manifest as well as ledger.
@@ -39,6 +43,47 @@ begin
   select generation,live_revision_id into gen_before,live_before
     from public.cardforge_website_state where id='cardforge' for update;
   if not found then raise exception 'missing website state singleton'; end if;
+
+  -- Adoption exercises global singleton authority; this disposable proof is
+  -- ineligible if an actual revision was already activated.
+  if live_before is not null or gen_before <> 0 then
+    raise exception 'website_fixture_requires_unactivated_state';
+  end if;
+  if exists(select 1 from public.cardforge_site_media where slot=source_slot)
+  then raise exception 'website_fixture_disposable_slot_occupied'; end if;
+  select count(*) into activations_before from public.cardforge_website_activations;
+  select count(*) into editions_before from public.cardforge_website_editions;
+  select updated_at::text into settings_epoch
+    from public.cardforge_owner_settings where id='cardforge';
+  if settings_epoch is null then raise exception 'website_fixture_missing_legacy_config'; end if;
+
+  -- Only the just-inserted row is removed. Snapshot includes every existing
+  -- row so a genuine provider record is never deleted or modified.
+  insert into public.cardforge_site_media(slot,storage_path,alt,presentation)
+    values(source_slot,null,'Rollback-only website adoption fixture','{}'::jsonb);
+  select coalesce(jsonb_object_agg(slug,to_jsonb(updated_at)),'{}'::jsonb)
+    into source_epochs from public.cardforge_site_content_blocks;
+  select coalesce(jsonb_object_agg(slot,to_jsonb(updated_at)),'{}'::jsonb)
+    into source_media from public.cardforge_site_media;
+  if not source_media ? source_slot then
+    raise exception 'website_fixture_source_snapshot_not_captured'; end if;
+  delete from public.cardforge_site_media where slot=source_slot;
+  if found is false then raise exception 'website_fixture_disposable_delete_missing'; end if;
+  begin
+    perform public.cardforge_website_initialize(
+      '{"schemaVersion":1,"configuration":{},"content":[],"media":[]}'::jsonb,
+      '[]'::jsonb,settings_epoch,source_epochs,source_media,
+      stale_operation,'website-fixture');
+    raise exception 'stale website adoption unexpectedly accepted';
+  exception when raise_exception then
+    if sqlerrm <> 'website_bootstrap_conflict' then raise; end if;
+  end;
+  if (select generation from public.cardforge_website_state where id='cardforge')<>gen_before
+    or (select live_revision_id from public.cardforge_website_state where id='cardforge') is distinct from live_before
+    or (select count(*) from public.cardforge_website_activations)<>activations_before
+    or (select count(*) from public.cardforge_website_editions)<>editions_before
+    or exists(select 1 from public.cardforge_website_revisions where operation_id=stale_operation)
+  then raise exception 'rejected adoption mutated canonical website state'; end if;
 
   insert into public.cardforge_website_editions(id,name)
     values(e,'rollback-proof-'||e::text);
@@ -80,6 +125,8 @@ begin
     if sqlerrm <> 'website_history_immutable' then raise; end if;
   end;
 
+  if exists(select 1 from public.cardforge_website_activated_media_version('brand.social',path))
+  then raise exception 'inactive media identity was publicly authorized'; end if;
   generation_after := public.cardforge_website_activate(
     rev1,gen_before,act,'website-fixture','{}'::jsonb);
   if generation_after<>gen_before+1
@@ -90,6 +137,9 @@ begin
     or not exists(select 1 from public.cardforge_website_activated_media_version(
         'brand.social',path) where storage_path=path and sha256=digest)
   then raise exception 'activation pointer, history or exact media authorization failed'; end if;
+  if exists(select 1 from public.cardforge_website_activated_media_version('brand.favicon',path))
+    or exists(select 1 from public.cardforge_website_activated_media_version('brand.social',path||'-wrong'))
+  then raise exception 'incorrect media identity unexpectedly authorized'; end if;
   if public.cardforge_website_activate(rev1,gen_before,act,
       'website-fixture','{}'::jsonb)<>generation_after then
     raise exception 'activation operation idempotency failed'; end if;
@@ -112,15 +162,6 @@ begin
     raise exception 'activation operation wrote duplicate history'; end if;
 end $$;
 
-rollback;
-
--- Separate two-connection proof for adoption deletion (not run by this script):
--- In session A take an exact published source snapshot outside the transaction.
--- Session B removes only a disposable row created for the proof; commit its
--- removal while there is no website activation, recording both source epochs.
--- Session A calls cardforge_website_initialize with the stale copied epoch map
--- in BEGIN/ROLLBACK. Expect website_bootstrap_conflict and no new activation.
--- Do not interpret a serial tool's two SQL requests as concurrency evidence.
--- Never delete or update real authored copy, media or the live singleton.
--- This fixture does not prove object bytes, Storage API authorization,
--- cross-session races, browser preview isolation or deployed publication.
+-- This is SEQUENTIAL stale-snapshot rejection, NOT a two-session race proof.
+-- Caller MUST ROLLBACK the outer transaction even when all assertions pass.
+-- A simultaneous writer and Storage bytes/policy are not exercised here.
