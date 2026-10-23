@@ -12,6 +12,7 @@ import type { WebsitePresentationManifest } from '../model/websitePresentation';
 
 export interface ResolvedWebsitePresentation {
   privatePreview: boolean;
+  generation: number | null;
   revisionId: string | null;
   configuration: PublicSiteConfiguration;
   content: SiteContentBlock[];
@@ -20,6 +21,7 @@ export interface ResolvedWebsitePresentation {
 const projectRevision = (revisionId: string, manifest: WebsitePresentationManifest): ResolvedWebsitePresentation => ({
   revisionId,
   privatePreview: false,
+  generation: null,
   configuration: manifest.configuration,
   content: manifest.content.map((block) => ({ ...getDefaultSiteContentBlock(block.slug), ...block, updatedAt: null })),
   media: manifest.media.map((ref) => ({ ...getDefaultSiteMedia(ref.slot), ...ref, previousVersion: null, updatedAt: null })),
@@ -48,11 +50,11 @@ export const resolveLiveWebsitePresentation = cache(async (): Promise<ResolvedWe
     if (error instanceof WebsiteEditionStoreError) throw error;
     throw new WebsiteEditionStoreError('Live website revision cannot be resolved.', 503);
   }
-  if (live.revisionId) return projectRevision(live.revisionId, await readWebsiteRevision(live.revisionId));
+  if (live.revisionId) return { ...projectRevision(live.revisionId, await readWebsiteRevision(live.revisionId)), generation: live.generation };
   const [configuration, content, media] = await Promise.all([
     getPublicSiteConfiguration(), getSiteContentBlocks(), getSiteMedia(),
   ]);
-  return { revisionId: null, privatePreview: false, configuration, content, media };
+  return { revisionId: null, privatePreview: false, generation: live.generation, configuration, content, media };
 });
 
 /** Explicit server-owned Owner access is required even if a revision ID is known. */
@@ -61,3 +63,16 @@ export async function resolveOwnerWebsiteRevision(revisionId: string): Promise<R
   if (!owner.isOwner || !owner.userId) throw new WebsiteEditionStoreError('Owner access required.', 403);
   return { ...projectRevision(revisionId, await readWebsiteRevision(revisionId)), privatePreview: true };
 }
+
+/** Sitemap and crawlers must never inherit an Owner's private preview cookie. */
+export const resolvePublishedWebsitePresentation = cache(async (): Promise<ResolvedWebsitePresentation> => {
+ const live=await readLiveWebsiteRevision();
+ if(live.revisionId) return {
+   ...projectRevision(live.revisionId,await readWebsiteRevision(live.revisionId)),
+   generation:live.generation,
+ };
+ const [configuration,content,media]=await Promise.all([
+   getPublicSiteConfiguration(),getSiteContentBlocks(),getSiteMedia(),
+ ]);
+ return {revisionId:null,privatePreview:false,generation:live.generation,configuration,content,media};
+});

@@ -1,11 +1,13 @@
 import { Suspense } from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { ContributorPublicAuthSlot } from '@/features/contributor-access/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { PublicSiteShell } from '@/features/public-site/client/shell';
 import { ComposedPageContent } from '@/features/public-site/client/landing';
-import { getCachedPublicSiteConfiguration, getCachedSiteMedia, isPublicSitePageSlug } from '@/features/public-site/server';
+import { getCachedSiteMedia, isPublicSitePageSlug } from '@/features/public-site/server';
+import { resolveLiveWebsitePresentation } from '@/features/public-site/server/websitePresentationResolver';
+import { readActivatedWebsiteRedirect } from '@/features/public-site/server/websiteEditionStore';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { OwnerPublicSiteControlsSlot } from '@/app/_components/OwnerPublicSiteControlsSlot';
@@ -14,16 +16,22 @@ type Props = { params: Promise<{ slug: string }> };
 
 const readPage = async (slug: string) => {
   if (!isPublicSitePageSlug(slug)) notFound();
-  const settings = await getCachedPublicSiteConfiguration();
+  const resolved = await resolveLiveWebsitePresentation();
+  const settings = resolved.configuration;
   const page = settings.pages?.find((item) => item.slug === slug && item.published);
-  if (!page) notFound();
-  return { page, settings };
+  if (!page) {
+    const redirect = !resolved.privatePreview && resolved.generation !== null
+      ? await readActivatedWebsiteRedirect(resolved.generation, slug) : null;
+    if (redirect) permanentRedirect(redirect);
+    notFound();
+  }
+  return { page, settings, privatePreview: resolved.privatePreview };
 };
 
 export async function generateMetadata({ params }: Props) {
-  const { page } = await readPage((await params).slug);
+  const { page, privatePreview } = await readPage((await params).slug);
   return createPageMetadata({ title: page.title, description: page.description,
-    keywords: page.keywords, path: `/${page.slug}` });
+    keywords: page.keywords, path: `/${page.slug}`, ...(privatePreview ? { robots: { index: false, follow: false } } : {}) });
 }
 
 export default async function OwnerAuthoredPublicPage({ params }: Props) {
