@@ -3,7 +3,6 @@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { normalizeAppearanceForElement } from '@/domain/templates';
 import { isElementPresetApplicable, type BlankShapePrimitive, type ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
 import type { FreeformCardElement } from '@/domain/templates';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
@@ -14,6 +13,7 @@ interface ShapeInspectorPanelProps {
   blankPrimitives: BlankShapePrimitive[];
   rolePresets: ElementPresetRecipe[];
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
+  onApplyPreset: (preset: ElementPresetRecipe) => void;
 }
 
 export function ShapeInspectorPanel({
@@ -22,6 +22,7 @@ export function ShapeInspectorPanel({
   blankPrimitives,
   rolePresets,
   onUpdateElement,
+  onApplyPreset,
 }: ShapeInspectorPanelProps) {
   const compatibleRolePresets = rolePresets.filter((preset) => isElementPresetApplicable(preset, element));
 
@@ -62,10 +63,7 @@ export function ShapeInspectorPanel({
               title={getPipelineRecipeTitle(preset)}
               aria-label={`Apply ${preset.label} shape recipe`}
               className="h-auto min-h-8 flex-col items-start rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
-              onClick={() => {
-                const next = { ...element, ...preset.updates } as FreeformCardElement;
-                onUpdateElement({ ...preset.updates, appearance: normalizeAppearanceForElement(next) });
-              }}
+              onClick={() => onApplyPreset(preset)}
             >
               <span className="w-full truncate text-[#f1dfb4]">{preset.label}</span>
               <PipelineRecipeMeta recipe={preset} />
