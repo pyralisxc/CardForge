@@ -38,6 +38,7 @@ interface Projection extends SceneSlot {
 interface SceneRegistry {
   register: (id: string, slot: SceneSlot) => () => void;
   refresh: () => void;
+  captureStackOrigins: (setId: string) => void;
   activeSetId: string | null;
   settledDepths: Record<string, Depth>;
 }
@@ -237,6 +238,22 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     setDirectMotion(performance.now() < directUntil.current || dragging.current);
     setProjections(next);
   }, []);
+  const captureStackOrigins = useCallback((setId: string) => {
+    // Called by the existing Set-opening gesture while the Desk tile is still
+    // visible. The next React render can hide workTileMain before RAF measure.
+    for (const slot of slots.current.values()) {
+      if (slot.depth !== 'stack' || slot.setId !== setId || !slot.node.isConnected) continue;
+      const rect = slot.node.getBoundingClientRect();
+      if (!rect.width || !rect.height) continue;
+      const prior = projectedRef.current.find((item) => item.card.uniqueId === slot.card.uniqueId);
+      if (!prior) continue;
+      inlineOrigins.current.set(slot.card.uniqueId, {
+        ...prior, node: slot.node, depth: 'stack',
+        x: rect.left, y: rect.top, width: rect.width,
+        opacity: 1, clip: 'inset(0px)', travelClip: 'inset(0px)',
+      });
+    }
+  }, []);
   const refresh = useCallback(() => {
     // Once every stack slot owns its local pixels, tile movement and camera
     // transforms need no second screen-space measurement. New/removing slots
@@ -309,7 +326,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       });
     });
   }, []);
-  const registry = useMemo(() => ({ register, refresh, activeSetId, settledDepths }), [activeSetId, refresh, register, settledDepths]);
+  const registry = useMemo(() => ({ register, refresh, captureStackOrigins, activeSetId, settledDepths }), [activeSetId, refresh, captureStackOrigins, register, settledDepths]);
   const setFace = useCallback((id: string, face: CardFace) => setFaces((current) => ({ ...current, [id]: face })), []);
   const faceState = useMemo(() => ({ faces, setFace }), [faces, setFace]);
   const immediate = Boolean(reducedMotion) || directMotion;
@@ -337,6 +354,10 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       </AnimatePresence>
     </div>
   </RegistryContext.Provider>;
+}
+
+export function useCaptureArtifactStackOrigins() {
+  return useContext(RegistryContext)?.captureStackOrigins;
 }
 
 export function useArtifactFace(artifactId: string, initialFace: CardFace = 'front') {

@@ -4,7 +4,7 @@ import { useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, t
 import { Copy, Info, MoreHorizontal, Pencil, Pin, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useArtifactFaces } from '@/features/card-rendering/client';
+import { useArtifactFaces, useCaptureArtifactStackOrigins } from '@/features/card-rendering/client';
 import type { CardFace } from '@/domain/cards';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
@@ -49,10 +49,15 @@ const tileActionClassName = 'min-h-11 min-w-11 md:min-h-9 md:min-w-9';
 
 export function DeskWorkObject(props: DeskWorkObjectProps) {
   const [faces, setFace] = useArtifactFaces();
+  const captureStackOrigins = useCaptureArtifactStackOrigins();
   const face = faces[props.artifactIds[0]] ?? 'front';
   const lastPointerTypeRef = useRef('mouse');
   const suppressTouchSelectionClickRef = useRef(false);
-  const openSet = () => props.onFocus(props.item);
+  const openSet = () => {
+    const setId = props.item.references.localSetId;
+    if (setId) captureStackOrigins?.(setId);
+    props.onFocus(props.item);
+  };
   const presentationMeta = getDeskWorkPresentationMeta(props.item);
   const positionStyle = props.position
     ? ({
