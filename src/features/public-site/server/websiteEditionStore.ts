@@ -98,10 +98,23 @@ export async function activateWebsiteRevision(input: {
   const previousDisposition = await readEffectiveWebsiteRedirects(current.generation);
   const newDisposition = validateWebsiteUrlDisposition(previous, manifest, input.urlDisposition);
   const nextSlugs = new Set((manifest.configuration.pages ?? []).filter(p => p.published).map(p => p.slug));
-  const carried = Object.fromEntries(Object.entries(previousDisposition).filter(([slug, value]) =>
-    !nextSlugs.has(slug) && (['/', '/about', '/plans', '/roadmap', '/contributors', '/cameron', '/contact', '/account'].includes(value.destination)
-      || nextSlugs.has(value.destination.slice(1)))));
-  const disposition = { ...carried, ...newDisposition };
+  const knownBuiltins = new Set(['/', '/about', '/plans', '/roadmap', '/contributors', '/cameron', '/contact', '/account']);
+  const proposed = { ...previousDisposition, ...newDisposition };
+  const disposition: Record<string, { kind: 'redirect'; destination: string }> = {};
+  for (const slug of Object.keys(proposed)) {
+    if (nextSlugs.has(slug)) continue; // Restored page displaces older redirect.
+    const seen = new Set([slug]);
+    let destination = proposed[slug].destination;
+    while (!knownBuiltins.has(destination) && !nextSlugs.has(destination.slice(1))) {
+      const target = destination.slice(1);
+      if (seen.has(target) || !proposed[target]) {
+        throw new WebsiteEditionStoreError('A historical public URL needs an explicit valid replacement redirect.', 409);
+      }
+      seen.add(target);
+      destination = proposed[target].destination;
+    }
+    disposition[slug] = { kind: 'redirect', destination };
+  }
   const { data, error } = await database().rpc('cardforge_website_activate', {
     p_revision_id: input.revisionId, p_expected_generation: input.expectedGeneration,
     p_operation_id: input.operationId, p_actor: input.actor,

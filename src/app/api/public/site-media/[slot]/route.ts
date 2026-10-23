@@ -49,8 +49,8 @@ export async function GET(
   const supabase = getSupabaseServerClient();
   let historicalPath: string | null = null;
   let historicalDigest: string | null = null;
-  if (requestedVersion && requestedVersion !== media.storagePath
-     && /^(?:brand|founder|landing)\/[a-zA-Z0-9/_.-]+$/u.test(requestedVersion)
+  if (requestedVersion
+     && /^(?:website-drafts|brand|founder|landing)\/[a-zA-Z0-9/_.-]+$/u.test(requestedVersion)
      && !resolved.privatePreview && supabase) {
     const candidate = await supabase.rpc('cardforge_website_activated_media_version', {
       p_slot: slot, p_path: requestedVersion,
