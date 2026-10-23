@@ -1,5 +1,5 @@
 import { getCurrentOwnerAccess } from '@/features/owner/server';
-import { saveWebsiteRevision, activateWebsiteRevision, listWebsiteRevisions, readLiveWebsiteRevision, WebsiteEditionStoreError } from '@/features/public-site/server/websiteEditionStore';
+import { saveWebsiteRevision, activateWebsiteRevision, listWebsiteRevisions, readSavedWebsiteOperation, readLiveWebsiteRevision, WebsiteEditionStoreError } from '@/features/public-site/server/websiteEditionStore';
 import { resolveOwnerWebsiteRevision } from '@/features/public-site/server/websitePresentationResolver';
 import { parseJsonBodyWithLimit } from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
@@ -18,6 +18,8 @@ export async function GET(request: Request) {
   try {
     const id = new URL(request.url).searchParams.get('revisionId');
     if (id) return createNoStoreJsonResponse(await resolveOwnerWebsiteRevision(id));
+    const operationId = new URL(request.url).searchParams.get('operationId');
+    if (operationId) return createNoStoreJsonResponse({ revisionId: await readSavedWebsiteOperation(operationId) });
     const editionId = new URL(request.url).searchParams.get('editionId');
     if (editionId) return createNoStoreJsonResponse({ revisions: await listWebsiteRevisions(editionId) });
     return createNoStoreJsonResponse(await readLiveWebsiteRevision());

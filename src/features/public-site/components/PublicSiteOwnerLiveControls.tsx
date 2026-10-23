@@ -22,6 +22,7 @@ import { PublicSiteMediaLiveEditor } from './PublicSiteMediaLiveEditor';
 
 export const WebsiteEditionDraftContext = createContext<{
   stageConfiguration: (configuration: PublicSiteConfiguration) => void;
+  configuration: PublicSiteConfiguration;
 } | null>(null);
 
 export const OwnerPageEditorStateContext = createContext<(state: { dirty: boolean; saving: boolean }) => void>(() => {});
@@ -743,11 +744,11 @@ export function PublicSiteOwnerLiveControls({
             onPublish={publishSelectedLabel}
             onDirtyChange={setDrawerDirty}
             publicationEnvironment={publicationEnvironment}
-            help="{manifest ? 'Stages only this label in your private website draft.' : 'Publishes only the selected label without changing other settings.'}"
+            help={manifest ? 'Stages only this label in your private website draft.' : 'Publishes only the selected label without changing other settings.'}
           /> : null}
           {drawer?.kind === 'media' && selectedMedia ? renderedMediaEditor(selectedMedia) : null}
           {drawer?.kind === 'settings' ? <>
-            <WebsiteEditionDraftContext.Provider value={manifest && editionId ? { stageConfiguration } : null}>
+            <WebsiteEditionDraftContext.Provider value={manifest && editionId ? { stageConfiguration, configuration: siteConfiguration } : null}>
               <OwnerPageEditorStateContext.Provider value={setSettingsEditorState}>{siteOperationsEditor}</OwnerPageEditorStateContext.Provider>
             </WebsiteEditionDraftContext.Provider>
             {(supplementalSlugs.length > 0 || supplementalMediaSlots.length > 0) ? (

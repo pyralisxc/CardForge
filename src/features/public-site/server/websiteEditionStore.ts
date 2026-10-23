@@ -196,3 +196,12 @@ export async function listWebsiteRevisions(editionId: string): Promise<
  if(error) throw new WebsiteEditionStoreError('Website history unavailable.',503);
  return (data??[]).map((item)=>({id:item.id as string,ordinal:item.ordinal as number,createdAt:item.created_at as string}));
 }
+
+/** Exact operation-id readback; only called from a verified Owner route. */
+export async function readSavedWebsiteOperation(operationId: string): Promise<string | null> {
+ assertId(operationId);
+ const { data, error } = await database().from('cardforge_website_revisions')
+  .select('id').eq('operation_id',operationId).maybeSingle();
+ if (error) throw new WebsiteEditionStoreError('Cannot check saved operation.',503);
+ return typeof data?.id==='string'?data.id:null;
+}

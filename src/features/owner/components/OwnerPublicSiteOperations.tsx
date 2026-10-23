@@ -95,7 +95,7 @@ export function OwnerPublicSiteOperations({ publicationEnvironment, currentPath 
       <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" onIdentityEditorStateChange={reportIdentity} operationsPayload={{ businessIdentity: siteOperations.businessIdentity, roadmapItems: siteOperations.roadmapItems, databaseMetrics: null }} onOperationsChange={updateOperations} /><OwnerFounderProfilePanel onEditorStateChange={reportFounder} operationsPayload={siteOperations} onOperationsChange={updateOperations} /></TabsContent>
       <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel publicationEnvironment={publicationEnvironment} currentPath={currentPath}
         preview={siteOperations.publicPlans ? { media: siteOperations.siteMedia, businessIdentity: siteOperations.businessIdentity, plans: siteOperations.publicPlans } : undefined}
-        onEditorStateChange={reportPages} settings={siteOperations.siteConfiguration}
+        onEditorStateChange={reportPages} settings={editionDraft?.configuration ?? siteOperations.siteConfiguration}
         onStage={editionDraft?.stageConfiguration}
         onSettingsChange={(siteConfiguration) => {
         setSiteOperations((current) => current ? { ...current, siteConfiguration } : current);
