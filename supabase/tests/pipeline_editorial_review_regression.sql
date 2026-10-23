@@ -10,6 +10,7 @@ declare
   b uuid := gen_random_uuid();
   sibling uuid := gen_random_uuid();
   retire_id uuid := gen_random_uuid();
+  reject_id uuid := gen_random_uuid();
   owner_id text := 'pipeline-regression-' || gen_random_uuid()::text;
   live_asset text := 'pipeline-proof-live-' || gen_random_uuid()::text;
   retired_asset text := 'pipeline-proof-retire-' || gen_random_uuid()::text;
@@ -161,6 +162,30 @@ begin
   select * into sibling_after from public.cardforge_contributor_asset_submissions where id=sibling;
   if to_jsonb(sibling_before) is distinct from to_jsonb(sibling_after)
   then raise exception 'quarantine/retire touched sibling'; end if;
+  -- Archive retention belongs only to an unpublished archived submission.
+  perform public.cardforge_set_contributor_asset_owner_override(
+    sibling,true,'archived',false,null,'Disposable unpublished archive',owner_id);
+  if not exists(select 1 from public.cardforge_contributor_asset_submissions
+      where id=sibling and status='archived' and calculated_access_tier='hidden'
+        and trashed_at is not null
+        and purge_after >= trashed_at
+        and purge_after <= trashed_at + (
+          select pg_catalog.make_interval(days => trash_retention_days)
+          from public.cardforge_contributor_program_settings where id='default')
+          + interval '1 minute')
+  then raise exception 'unpublished archive retention mismatch'; end if;
+
+  insert into public.cardforge_contributor_asset_submissions
+    (id,contributor_id,asset_type,name,status,calculated_access_tier,
+     source_url,source_mime_type,revision_number,specialty_tags,use_case_tags)
+  values (reject_id,owner_id,'templates','Unpublished rejection','submitted','contributor',
+     'https://example.invalid/rejection','image/png',1,array['games'],array['tcg']);
+  perform public.cardforge_set_contributor_asset_owner_override(
+    reject_id,true,'rejected',false,null,'Disposable unpublished rejection',owner_id);
+  if not exists(select 1 from public.cardforge_contributor_asset_submissions
+      where id=reject_id and status='rejected' and calculated_access_tier='hidden'
+        and trashed_at is null and purge_after is null)
+  then raise exception 'rejection gained unintended purge schedule'; end if;
 end
 $fixture$;
 rollback;
