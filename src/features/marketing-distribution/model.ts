@@ -43,6 +43,25 @@ export interface MarketingConnectionSummary {
   updatedAt: string;
 }
 
+export type MarketingConnectionReadiness = 'verified' | 'stale' | 'expired' | 'revoked' | 'error' | 'not_verified';
+
+export const resolveMarketingConnectionReadiness = (
+  connection: MarketingConnectionSummary,
+  nowMs: number = Date.now(),
+): MarketingConnectionReadiness => {
+  if (connection.status === 'revoked') return 'revoked';
+  if (connection.status === 'expired') return 'expired';
+  if (connection.status === 'error') return 'error';
+  if (connection.expiresAt) {
+    const expiresAt = Date.parse(connection.expiresAt);
+    if (Number.isFinite(expiresAt) && expiresAt <= nowMs) return 'expired';
+  }
+  if (!connection.lastVerifiedAt) return 'not_verified';
+  const verifiedAt = Date.parse(connection.lastVerifiedAt);
+  if (!Number.isFinite(verifiedAt) || verifiedAt > nowMs || nowMs - verifiedAt > 24 * 60 * 60 * 1000) return 'stale';
+  return 'verified';
+};
+
 export interface MarketingDistributionView {
   configured: boolean;
   destinations: MarketingDestination[];
