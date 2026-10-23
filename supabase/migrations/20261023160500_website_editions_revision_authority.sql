@@ -1,0 +1,121 @@
+-- Website Editions: append-only presentation history, one atomic live pointer.
+-- Forward-only; ROOT must coordinate application against the exact Staging migration head.
+create table if not exists public.cardforge_website_editions (
+ id uuid primary key default gen_random_uuid(),
+ name text not null check (length(btrim(name)) between 1 and 100),
+ created_at timestamptz not null default now(),
+ archived_at timestamptz null
+);
+create table if not exists public.cardforge_website_revisions (
+ id uuid primary key default gen_random_uuid(),
+ edition_id uuid not null references public.cardforge_website_editions(id) on delete restrict,
+ ordinal bigint not null check (ordinal > 0),
+ schema_version integer not null check (schema_version > 0),
+ manifest jsonb not null,
+ created_by text not null,
+ created_at timestamptz not null default now(),
+ operation_id uuid not null unique,
+ unique(edition_id, ordinal)
+);
+create table if not exists public.cardforge_website_revision_media (
+ revision_id uuid not null references public.cardforge_website_revisions(id) on delete restrict,
+ storage_path text not null,
+ sha256 text not null check (sha256 ~ '^[a-f0-9]{64}$'),
+ primary key (revision_id, storage_path)
+);
+create table if not exists public.cardforge_website_state (
+ id text primary key check (id = 'cardforge'),
+ live_revision_id uuid null references public.cardforge_website_revisions(id) on delete restrict,
+ generation bigint not null default 0 check (generation >= 0)
+);
+create table if not exists public.cardforge_website_activations (
+ id uuid primary key default gen_random_uuid(),
+ revision_id uuid not null references public.cardforge_website_revisions(id) on delete restrict,
+ previous_revision_id uuid null references public.cardforge_website_revisions(id) on delete restrict,
+ generation bigint not null unique,
+ actor text not null,
+ operation_id uuid not null unique,
+ created_at timestamptz not null default now()
+);
+insert into public.cardforge_website_state (id) values ('cardforge') on conflict (id) do nothing;
+
+alter table public.cardforge_website_editions enable row level security;
+alter table public.cardforge_website_revisions enable row level security;
+alter table public.cardforge_website_revision_media enable row level security;
+alter table public.cardforge_website_state enable row level security;
+alter table public.cardforge_website_activations enable row level security;
+revoke all on public.cardforge_website_editions, public.cardforge_website_revisions,
+ public.cardforge_website_revision_media, public.cardforge_website_state,
+ public.cardforge_website_activations from public, anon, authenticated;
+
+-- Only the existing server-side service-role boundary may call these routines.
+create or replace function public.cardforge_website_save_revision(
+ p_edition_id uuid, p_expected_revision_id uuid, p_operation_id uuid,
+ p_actor text, p_manifest jsonb, p_media jsonb
+) returns uuid language plpgsql security invoker set search_path = '' as $$
+declare v_current uuid; v_existing uuid; v_revision uuid; v_ordinal bigint;
+begin
+ if p_actor is null or btrim(p_actor) = '' or p_manifest is null
+    or jsonb_typeof(p_manifest) <> 'object' or jsonb_typeof(p_media) <> 'array' then
+   raise exception 'website_invalid_input';
+ end if;
+ -- Lock the stable edition row, serializing independent Save requests.
+ perform 1 from public.cardforge_website_editions where id=p_edition_id and archived_at is null for update;
+ if not found then raise exception 'website_edition_unavailable'; end if;
+ select id into v_existing from public.cardforge_website_revisions where operation_id=p_operation_id;
+ if v_existing is not null then
+   if not exists(select 1 from public.cardforge_website_revisions
+       where id=v_existing and edition_id=p_edition_id and manifest=p_manifest) then
+     raise exception 'website_operation_conflict';
+   end if;
+   return v_existing;
+ end if;
+ select id into v_current from public.cardforge_website_revisions
+   where edition_id=p_edition_id order by ordinal desc limit 1;
+ if v_current is distinct from p_expected_revision_id then raise exception 'website_revision_conflict'; end if;
+ select coalesce(max(ordinal),0)+1 into v_ordinal
+   from public.cardforge_website_revisions where edition_id=p_edition_id;
+ insert into public.cardforge_website_revisions
+   (edition_id,ordinal,schema_version,manifest,created_by,operation_id)
+   values(p_edition_id,v_ordinal,(p_manifest->>'schemaVersion')::integer,p_manifest,p_actor,p_operation_id)
+   returning id into v_revision;
+ insert into public.cardforge_website_revision_media(revision_id,storage_path,sha256)
+   select v_revision, value->>'storagePath', value->>'sha256'
+   from jsonb_array_elements(p_media) as value
+   where value->>'storagePath' is not null;
+ return v_revision;
+end $$;
+create or replace function public.cardforge_website_activate(
+ p_revision_id uuid, p_expected_generation bigint, p_operation_id uuid, p_actor text
+) returns bigint language plpgsql security invoker set search_path = '' as $$
+declare v_live uuid; v_generation bigint; v_existing bigint;
+begin
+ if p_actor is null or btrim(p_actor) = '' then raise exception 'website_invalid_input'; end if;
+ select generation into v_existing from public.cardforge_website_activations where operation_id=p_operation_id;
+ if v_existing is not null then
+   if not exists(select 1 from public.cardforge_website_activations where operation_id=p_operation_id
+     and revision_id=p_revision_id) then raise exception 'website_operation_conflict'; end if;
+   return v_existing;
+ end if;
+ select live_revision_id,generation into v_live,v_generation
+ from public.cardforge_website_state where id='cardforge' for update;
+ if v_generation is distinct from p_expected_generation then raise exception 'website_activation_conflict'; end if;
+ if not exists(select 1 from public.cardforge_website_revisions r
+    join public.cardforge_website_editions e on e.id=r.edition_id
+    where r.id=p_revision_id and e.archived_at is null) then
+    raise exception 'website_revision_unavailable';
+ end if;
+ update public.cardforge_website_state
+ set live_revision_id=p_revision_id,generation=v_generation+1 where id='cardforge';
+ insert into public.cardforge_website_activations
+ (revision_id,previous_revision_id,generation,actor,operation_id)
+ values(p_revision_id,v_live,v_generation+1,p_actor,p_operation_id);
+ return v_generation+1;
+end $$;
+revoke all on function public.cardforge_website_save_revision(uuid,uuid,uuid,text,jsonb,jsonb) from public,anon,authenticated;
+revoke all on function public.cardforge_website_activate(uuid,bigint,uuid,text) from public,anon,authenticated;
+grant execute on function public.cardforge_website_save_revision(uuid,uuid,uuid,text,jsonb,jsonb) to service_role;
+grant execute on function public.cardforge_website_activate(uuid,bigint,uuid,text) to service_role;
+grant all on public.cardforge_website_editions, public.cardforge_website_revisions,
+ public.cardforge_website_revision_media, public.cardforge_website_state,
+ public.cardforge_website_activations to service_role;

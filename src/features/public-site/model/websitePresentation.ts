@@ -53,7 +53,7 @@ export const validateWebsitePresentationManifest = (input: unknown): WebsitePres
   let configuration: PublicSiteConfiguration;
   try {
     configuration = normalizePublicSiteConfigurationInput(input.configuration);
-    assertSiteConfigurationBudget(configuration);
+    assertSiteConfigurationBudget(configuration as unknown as Record<string, unknown>);
   } catch (error) {
     throw new WebsitePresentationValidationError(error instanceof Error ? error.message : 'Invalid website configuration.');
   }
