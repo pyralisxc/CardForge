@@ -189,3 +189,58 @@ begin
 end $$;
 revoke all on function public.cardforge_website_archive_edition(uuid) from public,anon,authenticated;
 grant execute on function public.cardforge_website_archive_edition(uuid) to service_role;
+
+-- First cutover is explicit and atomic: snapshot validated legacy output and
+-- activate Current Website only when source revision tokens still match.
+-- Root coordinates the migration and first invocation; no migration-time
+-- content mutation or unauthenticated browser write occurs.
+create or replace function public.cardforge_website_initialize(
+ p_manifest jsonb, p_media jsonb, p_config_epoch text,
+ p_copy_epochs jsonb, p_media_epochs jsonb, p_operation_id uuid, p_actor text
+) returns uuid language plpgsql security invoker set search_path = '' as $$
+declare v_id uuid; v_revision uuid; v_config_epoch text;
+ v_copy jsonb; v_media jsonb; v_existing uuid;
+begin
+ if p_manifest is null or jsonb_typeof(p_manifest) <> 'object'
+   or jsonb_typeof(p_media) <> 'array'
+   or p_actor is null or btrim(p_actor) = '' then raise exception 'website_invalid_input'; end if;
+ -- Lock flat owners before validating source tokens. A stale snapshot cannot
+ -- cross this gate even if it was assembled before another publication.
+ lock table public.cardforge_owner_settings, public.cardforge_site_content_blocks,
+   public.cardforge_site_media in share mode;
+ select live_revision_id into v_existing from public.cardforge_website_state
+ where id='cardforge' for update;
+ if v_existing is not null then
+   if exists(select 1 from public.cardforge_website_activations a where a.operation_id=p_operation_id
+        and a.revision_id=v_existing) then return v_existing; end if;
+   raise exception 'website_already_initialized';
+ end if;
+ select updated_at::text into v_config_epoch from public.cardforge_owner_settings where id='cardforge';
+ select coalesce(jsonb_object_agg(slug,to_jsonb(updated_at::text)),'{}'::jsonb)
+ into v_copy from public.cardforge_site_content_blocks;
+ select coalesce(jsonb_object_agg(slot,to_jsonb(updated_at::text)),'{}'::jsonb)
+ into v_media from public.cardforge_site_media;
+ if v_config_epoch is distinct from p_config_epoch or
+   v_copy is distinct from p_copy_epochs or
+   v_media is distinct from p_media_epochs then
+   raise exception 'website_bootstrap_conflict';
+ end if;
+ insert into public.cardforge_website_editions(name) values('Current Website') returning id into v_id;
+ insert into public.cardforge_website_revisions
+  (edition_id,ordinal,schema_version,manifest,created_by,operation_id)
+ values(v_id,1,(p_manifest->>'schemaVersion')::integer,p_manifest,p_actor,p_operation_id)
+ returning id into v_revision;
+ insert into public.cardforge_website_revision_media(revision_id,storage_path,sha256)
+ select v_revision, value->>'storagePath', value->>'sha256'
+ from jsonb_array_elements(p_media) as value
+ where value->>'storagePath' is not null;
+ update public.cardforge_website_state set live_revision_id=v_revision,generation=1 where id='cardforge';
+ insert into public.cardforge_website_activations
+ (revision_id,previous_revision_id,generation,actor,operation_id)
+ values(v_revision,null,1,p_actor,p_operation_id);
+ return v_revision;
+end $$;
+revoke all on function public.cardforge_website_initialize(jsonb,jsonb,text,jsonb,jsonb,uuid,text)
+  from public,anon,authenticated;
+grant execute on function public.cardforge_website_initialize(jsonb,jsonb,text,jsonb,jsonb,uuid,text)
+  to service_role;

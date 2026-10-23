@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { SITE_MEDIA_BUCKET } from '../model/siteMedia';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { validateWebsitePresentationManifest, type WebsitePresentationManifest } from '../model/websitePresentation';
+import { validateWebsitePresentationManifest, websiteManifestFromPublished, type WebsitePresentationManifest } from '../model/websitePresentation';
 
 export class WebsiteEditionStoreError extends Error {
   constructor(message: string, public readonly status: number) { super(message); }
@@ -114,4 +114,51 @@ export async function archiveWebsiteEdition(editionId: string): Promise<void> {
   }
   if (error) translate(error);
   if (data !== true) throw new WebsiteEditionStoreError('Edition is already archived or missing.', 404);
+}
+
+/**
+ * Idempotent initial adoption. Published settings and existing media remain
+ * unchanged. The database atomically compares all source update tokens before
+ * installing the first live revision; any concurrent edit rejects adoption.
+ */
+export async function initializeWebsiteEditions(actor: string, operationId: string): Promise<string> {
+  assertId(operationId);
+  const db = database();
+  const [settings, copy, media] = await Promise.all([
+    import('./siteConfigurationStore').then((m) => m.getPublicSiteConfiguration()),
+    import('./contentStore').then((m) => m.getSiteContentBlocks()),
+    import('./siteMediaStore').then((m) => m.getSiteMedia()),
+  ]);
+  const refs = await Promise.all(media.map(async (asset) => {
+    if (!asset.storagePath) return {
+      slot: asset.slot, storagePath: null, sha256: null, alt: asset.alt,
+      width: asset.width, height: asset.height, presentation: asset.presentation,
+    };
+    const { data, error } = await db.storage.from(SITE_MEDIA_BUCKET).download(asset.storagePath);
+    if (error || !data) throw new WebsiteEditionStoreError('Current published media is unreadable.', 503);
+    return {
+      slot: asset.slot, storagePath: asset.storagePath,
+      sha256: createHash('sha256').update(Buffer.from(await data.arrayBuffer())).digest('hex'),
+      alt: asset.alt, width: asset.width, height: asset.height, presentation: asset.presentation,
+    };
+  }));
+  const manifest = websiteManifestFromPublished({ configuration: settings, content: copy, media: refs });
+  const copyEpochs = Object.fromEntries(copy.filter((item) => item.updatedAt !== null)
+    .map((item) => [item.slug, item.updatedAt]));
+  const mediaEpochs = Object.fromEntries(media.filter((item) => item.updatedAt !== null)
+    .map((item) => [item.slot, item.updatedAt]));
+  const { data, error } = await db.rpc('cardforge_website_initialize', {
+    p_manifest: manifest, p_media: manifest.media, p_config_epoch: settings.updatedAt ?? null,
+    p_copy_epochs: copyEpochs, p_media_epochs: mediaEpochs,
+    p_operation_id: operationId, p_actor: actor,
+  });
+  if (error?.message?.includes('website_bootstrap_conflict')) {
+    throw new WebsiteEditionStoreError('Published website changed while adopting it. Reload before retrying.', 409);
+  }
+  if (error?.message?.includes('website_already_initialized')) {
+    throw new WebsiteEditionStoreError('Website editions have already been initialized. Read current activation.', 409);
+  }
+  if (error) translate(error);
+  if (typeof data !== 'string') throw new WebsiteEditionStoreError('Initial adoption is unconfirmed. Read live state before retrying.', 503);
+  return data;
 }

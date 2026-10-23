@@ -1,5 +1,5 @@
 import { getCurrentOwnerAccess } from '@/features/owner/server';
-import { createWebsiteEdition, listWebsiteEditions, archiveWebsiteEdition, WebsiteEditionStoreError } from '@/features/public-site/server/websiteEditionStore';
+import { createWebsiteEdition, listWebsiteEditions, archiveWebsiteEdition, initializeWebsiteEditions, WebsiteEditionStoreError } from '@/features/public-site/server/websiteEditionStore';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { parseJsonBodyWithLimit } from '@/infrastructure/http/apiValidation';
 export const dynamic = 'force-dynamic';
@@ -35,5 +35,18 @@ export async function DELETE(request: Request) {
      return createApiErrorResponse(400,'website_edition_invalid','Choose an edition.');
    await archiveWebsiteEdition(body.editionId);
    return createNoStoreJsonResponse({ archived: true });
+ } catch(e) { return fail(e); }
+}
+
+export async function PUT(request: Request) {
+ const owner=await getCurrentOwnerAccess();
+ if(!owner.isOwner || !owner.userId) return createApiErrorResponse(403,'owner_access_required','Owner access required.');
+ try {
+   const parsed=await parseJsonBodyWithLimit(request);
+   if(!parsed.ok) return createApiErrorResponse(parsed.code==='payload_too_large'?413:400,parsed.code,parsed.message);
+   const body=parsed.data as Record<string,unknown>;
+   if(!body || typeof body.operationId!=='string')
+     return createApiErrorResponse(400,'website_edition_invalid','An operation identity is required.');
+   return createNoStoreJsonResponse({ revisionId: await initializeWebsiteEditions(owner.userId, body.operationId) });
  } catch(e) { return fail(e); }
 }
