@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, memo, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion, useIsPresent, usePresenceData, useReducedMotion } from 'motion/react';
+import { createContext, forwardRef, useImperativeHandle, memo, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
+import { AnimatePresence, motion, useAnimationControls, useIsPresent, usePresenceData, useReducedMotion } from 'motion/react';
 import { RefreshCcw } from 'lucide-react';
 import { getCardFaceCanvas, getCardFaceTemplate, getCardPreviewLayout, hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
@@ -35,9 +36,26 @@ interface Projection extends SceneSlot {
   clip: string;
   travelClip: string;
 }
+// A rotated inline stack's DOMRect is an axis-aligned bounding box, not
+// Motion's unrotated width/top-left. Recover the pre-rotation box in the same
+// screen coordinates as scene projections, using the existing Desk zoom.
+function stackSceneGeometry(node: HTMLElement, rotation: number) {
+  const rect = node.getBoundingClientRect();
+  const world = node.closest<HTMLElement>('[data-desk-world]');
+  const scale = world && world.offsetWidth > 0
+    ? world.getBoundingClientRect().width / world.offsetWidth : 1;
+  const width = node.offsetWidth * scale;
+  const height = node.offsetHeight * scale;
+  const radians = rotation * Math.PI / 180;
+  const halfX = (width * Math.cos(radians) - height * Math.sin(radians)) / 2;
+  const halfY = (width * Math.sin(radians) + height * Math.cos(radians)) / 2;
+  return { x: rect.left + rect.width / 2 - halfX, y: rect.top + rect.height / 2 - halfY, width };
+}
+
 interface SceneRegistry {
   register: (id: string, slot: SceneSlot) => () => void;
   refresh: () => void;
+  captureStackOrigins: (setId: string, openSet: () => void) => void;
   activeSetId: string | null;
   settledDepths: Record<string, Depth>;
 }
@@ -50,15 +68,35 @@ const SceneCardContent = memo(function SceneCardContent({ card, face, watermark,
   return <><CardPreview card={card} face={face} targetWidthPx={RENDER_WIDTH} interactionOverlay={interactionOverlay} />{watermark ? <CardWatermarkOverlay /> : null}</>;
 });
 
-function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, onSettled }: {
+function SceneArtifactFrame({ item, origin, immediate, inlineSettled, travelPending, onFlip, onSettled }: {
   item: Projection;
   origin: Projection;
   immediate: boolean;
   inlineSettled: boolean;
   onFlip: (id: string, face: CardFace) => void;
   onSettled: (id: string, depth: Depth) => void;
+  travelPending: boolean;
 }) {
   const [settledDepth, setSettledDepth] = useState<Depth | null>(null);
+  const controls = useAnimationControls();
+  const wasInline = useRef(false);
+  useLayoutEffect(() => {
+    if ((wasInline.current && !inlineSettled) || travelPending) {
+      // Depth promotion: reseed the existing hidden frame from the current
+      // tile-owned pixels before the scene becomes the visible travel owner.
+      controls.set({ x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 1 });
+      // The outgoing tile stays painted through the focus/RAF gap. Release
+      // it in this layout effect once the existing scene frame is positioned
+      // and opaque, before the next browser paint.
+      if (travelPending) { wasInline.current = false; return; }
+    }
+    wasInline.current = inlineSettled;
+    void controls.start({
+      x: item.x, y: item.y, scale: item.width / RENDER_WIDTH,
+      rotate: item.rotation, opacity: inlineSettled ? 0 : item.opacity,
+      transition: inlineSettled || immediate ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 32, mass: 0.9, opacity: { duration: 0.18 } },
+    });
+  }, [controls, immediate, inlineSettled, item, origin, travelPending]);
   const present = useIsPresent();
   const activeSetId = usePresenceData();
   const culled = !present && activeSetId === item.setId;
@@ -80,13 +118,12 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
       data-scene-template={template.id}
       data-scene-moving={travelling}
       initial={{ x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0 }}
-      animate={{ x: item.x, y: item.y, scale: item.width / RENDER_WIDTH, rotate: item.rotation, opacity: inlineSettled ? 0 : item.opacity }}
+      animate={controls}
       exit={culled || immediate ? { opacity: 0, transition: { duration: 0 } } : { x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0, transition: { opacity: { delay: 0.3, duration: 0.15 } } }}
       onAnimationComplete={() => {
         setSettledDepth(item.depth);
         onSettled(item.card.uniqueId, item.depth);
       }}
-      transition={inlineSettled ? { duration: 0 } : immediate ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 32, mass: 0.9, opacity: { duration: 0.18 } }}
       style={{ position: 'absolute', left: 0, top: 0, width: RENDER_WIDTH, visibility: inlineSettled ? 'hidden' : 'visible', transformOrigin: '0 0', filter: 'drop-shadow(0 12px 18px rgb(0 0 0 / 24%))', '--artifact-hit-scale': screenScale / Math.max(previewScale, 0.001) } as React.CSSProperties}
     >
       {item.interactionOverlay && !inlineSettled
@@ -108,8 +145,16 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
  * Native scrolling is measured in one viewport coordinate system, not copied
  * into another navigation or persistence store.
  */
-export function ArtifactScene({ children, activeSetId }: { children: ReactNode; activeSetId: string | null }) {
+export interface ArtifactSceneHandle {
+  returnToDesk: (commit: () => void) => void;
+}
+
+export const ArtifactScene = forwardRef<ArtifactSceneHandle, { children: ReactNode; activeSetId: string | null }>(function ArtifactScene({ children, activeSetId }, ref) {
   const slots = useRef(new Map<string, SceneSlot>());
+  const [departingSetId, setDepartingSetId] = useState<string | null>(null);
+  const departingSetRef = useRef<string | null>(null);
+  const [departingDepth, setDepartingDepth] = useState<Depth>('stack');
+  const departingDepthRef = useRef<Depth>('stack');
   const origins = useRef(new Map<string, Projection>());
   const inlineOrigins = useRef(new Map<string, Projection>());
   const frame = useRef<number | null>(null);
@@ -123,6 +168,8 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
   const [directMotion, setDirectMotion] = useState(false);
   const [faces, setFaces] = useState<Record<string, CardFace>>({});
   const [settledDepths, setSettledDepths] = useState<Record<string, Depth>>({});
+  const settledDepthsRef = useRef(settledDepths);
+  settledDepthsRef.current = settledDepths;
   const reducedMotion = useReducedMotion();
   const directUntil = useRef(0);
   const dragging = useRef(false);
@@ -156,12 +203,18 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
         right = Math.min(right, clip.right); bottom = Math.min(bottom, clip.bottom);
       }
       const projection: Projection = {
-        ...slot, travelClip, x: rect.left, y: rect.top, width: rect.width,
+        ...slot, travelClip,
+        // An unsettled stack slot has translated-but-unrotated layout.
+        // Motion supplies rotation after translation, matching the settled
+        // inline wrapper's translate(...) rotate(...) composition.
+        ...(slot.depth === 'stack'
+          ? stackSceneGeometry(slot.node, 0)
+          : { x: rect.left, y: rect.top, width: rect.width }),
         opacity: slot.node.closest('[data-surface-authority="context"]') ? CONTEXT_ARTIFACT_OPACITY : 1,
         clip: `inset(${top}px ${Math.max(0, window.innerWidth - right)}px ${Math.max(0, window.innerHeight - bottom)}px ${left}px)`,
       };
-      if (slot.depth !== 'board') {
-        const inlineNode = Array.from(document.querySelectorAll<HTMLElement>('[data-scene-inline-board="true"]'))
+      if (departingSetRef.current !== slot.setId && (slot.depth !== 'board' || settledDepthsRef.current[slot.card.uniqueId] === 'stack')) {
+        const inlineNode = Array.from(document.querySelectorAll<HTMLElement>('[data-scene-inline-board="true"], [data-scene-inline-stack="true"]'))
           .find((candidate) => candidate.dataset.sceneSlot === slot.card.uniqueId);
         if (inlineNode?.isConnected) {
           const inlineRect = rectOf(inlineNode);
@@ -169,10 +222,11 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
             inlineOrigins.current.set(slot.card.uniqueId, {
               ...slot,
               node: inlineNode,
-              depth: 'board',
-              x: inlineRect.left,
-              y: inlineRect.top,
-              width: inlineRect.width,
+              depth: inlineNode.dataset.sceneInlineStack === 'true' ? 'stack' : 'board',
+              rotation: slot.rotation,
+              ...(inlineNode.dataset.sceneInlineStack === 'true'
+                ? stackSceneGeometry(inlineNode, slot.rotation)
+                : { x: inlineRect.left, y: inlineRect.top, width: inlineRect.width }),
               opacity: 1,
               clip: 'inset(0px)',
               travelClip: 'inset(0px)',
@@ -207,11 +261,104 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       }
     }
     const next = [...selected.values()];
+    // Settled stack pixels are tile-owned. Motion remains mounted for the
+    // next real depth transition, but no longer tracks the tile every frame.
+    const prior = projectedRef.current;
+    if (next.length === prior.length && next.every((item) =>
+      item.depth === 'stack' && settledDepthsRef.current[item.card.uniqueId] === 'stack'
+      && prior.some((previous) => previous.card.uniqueId === item.card.uniqueId && previous.depth === 'stack')
+    )) return;
     projectedRef.current = next;
+    if (departingSetRef.current && next.some((item) => item.setId === departingSetRef.current && item.depth !== departingDepthRef.current)) {
+      departingSetRef.current = null;
+      setDepartingSetId(null);
+    }
     setDirectMotion(performance.now() < directUntil.current || dragging.current);
     setProjections(next);
   }, []);
+  const captureStackOrigins = useCallback((setId: string, openSet: () => void) => {
+    // This runs while the tile still has its Desk world transform. Transfer
+    // visual ownership to the retained scene synchronously, before focus can
+    // hide/reflow it; hold the scene at these coordinates until depth changes.
+    const captured = new Map<string, Projection>();
+    for (const slot of slots.current.values()) {
+      if (slot.depth !== 'stack' || slot.setId !== setId || !slot.node.isConnected) continue;
+      const rect = slot.node.getBoundingClientRect();
+      if (!rect.width || !rect.height) continue;
+      const prior = projectedRef.current.find((item) => item.card.uniqueId === slot.card.uniqueId);
+      if (!prior) continue;
+      const origin = {
+        ...prior, node: slot.node, depth: 'stack' as const,
+        ...stackSceneGeometry(slot.node, slot.rotation),
+        opacity: 1, clip: 'inset(0px)', travelClip: 'inset(0px)',
+      };
+      inlineOrigins.current.set(slot.card.uniqueId, origin);
+      captured.set(slot.card.uniqueId, origin);
+    }
+    if (!captured.size) { openSet(); return; }
+    departingSetRef.current = setId;
+    departingDepthRef.current = 'stack';
+    flushSync(() => {
+      setDepartingDepth('stack');
+      setDepartingSetId(setId);
+      setProjections((current) => current.map((item) => captured.get(item.card.uniqueId) ?? item));
+      openSet();
+    });
+  }, []);
+  const captureBoardReturn = useCallback((commit: () => void) => {
+    const setId = activeSetRef.current;
+    if (!setId) { commit(); return; }
+    const captured = new Map<string, Projection>();
+    for (const node of document.querySelectorAll<HTMLElement>('[data-scene-inline-board="true"]')) {
+      const prior = projectedRef.current.find((item) => item.setId === setId && item.card.uniqueId === node.dataset.sceneSlot);
+      if (!prior || !node.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
+      const rect = node.getBoundingClientRect();
+      if (!rect.width || !rect.height) continue;
+      const origin: Projection = { ...prior, node, depth: 'board', rotation: 0,
+        x: rect.left, y: rect.top, width: rect.width, opacity: 1,
+        clip: 'inset(0px)', travelClip: 'inset(0px)' };
+      inlineOrigins.current.set(prior.card.uniqueId, origin);
+      captured.set(prior.card.uniqueId, origin);
+    }
+    if (!captured.size) { commit(); return; }
+    departingSetRef.current = setId;
+    departingDepthRef.current = 'board';
+    // The navigation owner calls this only after its dirty guards resolve.
+    // Capture, scene takeover, and outgoing owner removal share one commit.
+    flushSync(() => {
+      setDepartingDepth('board');
+      setDepartingSetId(setId);
+      setProjections((current) => current.map((item) => captured.get(item.card.uniqueId) ?? item));
+      commit();
+    });
+  }, []);
+  useImperativeHandle(ref, () => ({ returnToDesk: captureBoardReturn }), [captureBoardReturn]);
+  // Once the focused Set is left, no departing ownership may be retained.
+  // Component unmount also clears this transient transfer state; it is never
+  // persisted or shared with history.
+  const hadFocusedDeparture = useRef(false);
+  useLayoutEffect(() => {
+    if (departingDepth === 'stack' && departingSetId && activeSetId === departingSetId) hadFocusedDeparture.current = true;
+    if (departingDepth === 'stack' && hadFocusedDeparture.current && departingSetId && activeSetId !== departingSetId) {
+      hadFocusedDeparture.current = false;
+      departingSetRef.current = null;
+      setDepartingSetId(null);
+    }
+  }, [activeSetId, departingSetId, departingDepth]);
+  useLayoutEffect(() => () => {
+    departingSetRef.current = null;
+  }, []);
   const refresh = useCallback(() => {
+    // Once every stack slot owns its local pixels, tile movement and camera
+    // transforms need no second screen-space measurement. New/removing slots
+    // or a promoted depth still schedule the normal transition measurement.
+    const slotsNow = [...slots.current.values()];
+    const previous = projectedRef.current;
+    const steadyStack = slotsNow.length > 0 && slotsNow.length === previous.length
+      && slotsNow.every((slot) => slot.depth === 'stack'
+        && settledDepthsRef.current[slot.card.uniqueId] === 'stack'
+        && previous.some((item) => item.card.uniqueId === slot.card.uniqueId && item.depth === 'stack'));
+    if (steadyStack) return;
     if (frame.current === null) frame.current = requestAnimationFrame(measure);
   }, [measure]);
   const register = useCallback((id: string, slot: SceneSlot) => {
@@ -273,7 +420,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       });
     });
   }, []);
-  const registry = useMemo(() => ({ register, refresh, activeSetId, settledDepths }), [activeSetId, refresh, register, settledDepths]);
+  const registry = useMemo(() => ({ register, refresh, captureStackOrigins, activeSetId, settledDepths }), [activeSetId, refresh, captureStackOrigins, register, settledDepths]);
   const setFace = useCallback((id: string, face: CardFace) => setFaces((current) => ({ ...current, [id]: face })), []);
   const faceState = useMemo(() => ({ faces, setFace }), [faces, setFace]);
   const immediate = Boolean(reducedMotion) || directMotion;
@@ -287,7 +434,8 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       <AnimatePresence custom={activeSetId}>
         {projections.map((item) => {
           const origin = inlineOrigins.current.get(item.card.uniqueId) ?? origins.current.get(item.setId) ?? item;
-          const inlineSettled = item.depth !== 'stack' && settledDepths[item.card.uniqueId] === item.depth;
+          const travelPending = departingSetId === item.setId && item.depth === departingDepth;
+          const inlineSettled = !travelPending && settledDepths[item.card.uniqueId] === item.depth;
           return <SceneArtifactFrame
             key={item.card.uniqueId}
             item={item}
@@ -296,11 +444,16 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
             inlineSettled={inlineSettled}
             onFlip={setFace}
             onSettled={markSettled}
+            travelPending={travelPending}
           />;
         })}
       </AnimatePresence>
     </div>
   </RegistryContext.Provider>;
+});
+
+export function useCaptureArtifactStackOrigins() {
+  return useContext(RegistryContext)?.captureStackOrigins;
 }
 
 export function useArtifactFace(artifactId: string, initialFace: CardFace = 'front') {
@@ -338,8 +491,9 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
   const resolvedSetId = setId || scene?.activeSetId || '';
   const template = getCardFaceTemplate(card, persistentFace);
   const geometry = getCardPreviewLayout({ targetWidthPx: width, aspectRatio: template.aspectRatio, canvas: getCardFaceCanvas(card, persistentFace), isPrintMode: false });
-  const inlineSettled = Boolean(scene && depth !== 'stack' && scene.settledDepths[card.uniqueId] === depth);
+  const inlineSettled = Boolean(scene && scene.settledDepths[card.uniqueId] === depth);
   const inlineBoard = inlineSettled && depth === 'board';
+  const inlineStack = inlineSettled && depth === 'stack';
   const register = scene?.register;
   const refresh = scene?.refresh;
   useLayoutEffect(() => {
@@ -357,6 +511,7 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
     data-scene-slot={card.uniqueId}
     data-scene-slot-depth={depth}
     data-scene-inline-board={inlineBoard ? 'true' : 'false'}
+    data-scene-inline-stack={inlineStack ? 'true' : 'false'}
     data-scene-inline-settled={inlineSettled ? depth : undefined}
     style={{
       position: 'relative',
@@ -371,11 +526,11 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
     {inlineSettled ? <>
       <CardPreview card={card} face={persistentFace} targetWidthPx={width} isEditorPreview interactionOverlay={interactionOverlay} />
       {watermark ? <CardWatermarkOverlay /> : null}
-      <span
+      {depth !== 'stack' ? <span
         data-artifact-template-border
         aria-hidden="true"
         style={{ position: 'absolute', inset: -3, border: `2px dashed ${getTemplateAccent(template.id ?? template.name)}`, borderRadius: 4, pointerEvents: 'none' }}
-      />
+      /> : null}
     </> : null}
   </span>;
 }

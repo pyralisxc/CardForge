@@ -27,11 +27,12 @@ import {
 } from '../model/creatorHistory';
 
 interface CreatorNavigationOptions {
+  transitionToDesk?: (commit: () => void) => void;
   initialFocusedWorkId?: string | null;
   initialFocusedArtifactId?: string | null;
 }
 
-export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId }: CreatorNavigationOptions) {
+export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId, transitionToDesk }: CreatorNavigationOptions) {
   const [navigationReady, setNavigationReady] = useState(false);
   const [focusedWorkId, setFocusedWorkId] = useState<string | null>(initialFocusedWorkId ?? null);
   const [inspectorWorkId, setInspectorWorkId] = useState<string | null>(null);
@@ -84,6 +85,18 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
       preserveCreatorLaunchIntent(createCreatorHref(snapshot), window.location.href),
     );
   }, []);
+
+  // Only committed Set-to-Desk departures transfer visible ownership. Requests
+  // that merely open a dirty confirmation never reach this boundary.
+  const commitReturnSnapshot = useCallback((snapshot: CreatorHistorySnapshot, replaceHistory = false) => {
+    const commit = () => {
+      applySnapshot(snapshot);
+      if (replaceHistory) replaceSnapshot(snapshot);
+    };
+    if (currentRef.current.session.focusPath.setId && !snapshot.session.focusPath.setId && transitionToDesk) {
+      transitionToDesk(commit);
+    } else commit();
+  }, [applySnapshot, replaceSnapshot, transitionToDesk]);
 
   const pushSnapshot = useCallback((snapshot: CreatorHistorySnapshot) => {
     if (typeof window === 'undefined') return;
@@ -150,12 +163,11 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
       pendingPopSnapshotRef.current = null;
       const target = pending ?? readCreatorHistorySnapshot(event.state);
       if (target) {
-        applySnapshot(target);
-        if (pending) replaceSnapshot(target);
+        commitReturnSnapshot(target, Boolean(pending));
         return;
       }
       const closed = closeCreatorContext(current.session);
-      applySnapshot({
+      commitReturnSnapshot({
         ...current,
         focusedWorkId: closed.closed === 'set-focus' ? null : current.focusedWorkId,
         inspectorWorkId: closed.closed === 'inspection' ? null : current.inspectorWorkId,
@@ -164,7 +176,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [applySnapshot, pushSnapshot, replaceSnapshot, setDirtyCloseRequested]);
+  }, [commitReturnSnapshot, pushSnapshot, setDirtyCloseRequested]);
 
   const requestHistoryBack = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -185,9 +197,8 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
       inspectorWorkId: closed.closed === 'inspection' ? null : current.inspectorWorkId,
       session: closed.session,
     };
-    applySnapshot(next);
-    replaceSnapshot(next);
-  }, [applySnapshot, replaceSnapshot, setDirtyCloseRequested]);
+    commitReturnSnapshot(next, true);
+  }, [commitReturnSnapshot, setDirtyCloseRequested]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -286,9 +297,8 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     pendingPopSnapshotRef.current = null;
     bypassDirtyCloseRef.current = false;
     setDirtyCloseTarget(null);
-    applySnapshot(next);
-    replaceSnapshot(next);
-  }, [applySnapshot, replaceSnapshot]);
+    commitReturnSnapshot(next, true);
+  }, [commitReturnSnapshot]);
 
   const returnToSet = useCallback(() => {
     const current = currentRef.current;
