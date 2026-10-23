@@ -1,6 +1,6 @@
 import { assertSiteConfigurationBudget, normalizePublicSiteConfigurationInput, type PublicSiteConfiguration } from './siteConfiguration';
 import { normalizeSiteContentBlockInput, type SiteContentBlock, type SiteContentBlockSlug } from './siteContent';
-import { getDefaultSiteMedia, isSiteMediaSlot, normalizeSiteMediaPresentation, type SiteMediaAsset, type SiteMediaSlot } from './siteMedia';
+import { isSiteMediaSlot, normalizeSiteMediaPresentation, type SiteMediaAsset, type SiteMediaSlot } from './siteMedia';
 
 /**
  * Versioned website-presentation value. Domain authorities (identity, legal,
