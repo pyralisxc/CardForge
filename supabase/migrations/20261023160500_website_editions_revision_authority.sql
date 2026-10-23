@@ -201,7 +201,7 @@ create or replace function public.cardforge_website_initialize(
  p_copy_epochs jsonb, p_media_epochs jsonb, p_operation_id uuid, p_actor text
 ) returns uuid language plpgsql security invoker set search_path = '' as $$
 declare v_id uuid; v_revision uuid; v_config_epoch timestamptz;
- v_copy jsonb; v_media jsonb; v_existing uuid;
+ v_existing uuid;
 begin
  if p_manifest is null or jsonb_typeof(p_manifest) <> 'object'
    or jsonb_typeof(p_media) <> 'array'
@@ -218,13 +218,25 @@ begin
    raise exception 'website_already_initialized';
  end if;
  select updated_at into v_config_epoch from public.cardforge_owner_settings where id='cardforge';
- select coalesce(jsonb_object_agg(slug,to_jsonb(updated_at)),'{}'::jsonb)
- into v_copy from public.cardforge_site_content_blocks;
- select coalesce(jsonb_object_agg(slot,to_jsonb(updated_at)),'{}'::jsonb)
- into v_media from public.cardforge_site_media;
- if v_config_epoch is distinct from p_config_epoch::timestamptz or
-   v_copy is distinct from p_copy_epochs or
-   v_media is distinct from p_media_epochs then
+ if v_config_epoch is distinct from p_config_epoch::timestamptz
+   or jsonb_typeof(p_copy_epochs) <> 'object'
+   or jsonb_typeof(p_media_epochs) <> 'object'
+   or exists (
+     select 1 from public.cardforge_site_content_blocks b
+     where (p_copy_epochs->>b.slug)::timestamptz is distinct from b.updated_at
+   )
+   or exists (
+     select 1 from jsonb_object_keys(p_copy_epochs) slug
+     where not exists(select 1 from public.cardforge_site_content_blocks b where b.slug=slug)
+   )
+   or exists (
+     select 1 from public.cardforge_site_media m
+     where (p_media_epochs->>m.slot)::timestamptz is distinct from m.updated_at
+   )
+   or exists (
+     select 1 from jsonb_object_keys(p_media_epochs) slot
+     where not exists(select 1 from public.cardforge_site_media m where m.slot=slot)
+   ) then
    raise exception 'website_bootstrap_conflict';
  end if;
  insert into public.cardforge_website_editions(name) values('Current Website') returning id into v_id;
