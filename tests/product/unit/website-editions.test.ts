@@ -11,9 +11,10 @@ vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({}))
 
 import { DEFAULT_PUBLIC_SITE_CONFIGURATION } from '@/features/public-site/model/siteConfiguration';
 import { DEFAULT_SITE_CONTENT_BLOCKS } from '@/features/public-site/model/siteContent';
-import { getDefaultSiteMedia } from '@/features/public-site/model/siteMedia';
+import { getDefaultSiteMedia, type SiteMediaSlot } from '@/features/public-site/model/siteMedia';
 import {
   WEBSITE_PRESENTATION_SCHEMA_VERSION,
+  websiteManifestFromPublished,
   assertWebsiteMediaReferencesPresent,
   validateWebsitePresentationManifest,
   validateWebsiteUrlDisposition,
@@ -78,6 +79,51 @@ describe('Website Editions presentation contract', () => {
     expect(() => validateWebsitePresentationManifest({ ...base, schemaVersion: 2 })).toThrow(/compatibility/);
     expect(() => validateWebsitePresentationManifest({ ...base, providerCredentials: {} })).toThrow(/Invalid/);
     expect(() => validateWebsitePresentationManifest({ ...base, content: [base.content[0], base.content[0]] })).toThrow(/duplicate/);
+  });
+
+  it.each([
+    'layout', 'generator-bulk', 'generator-single', 'output', 'set',
+    'art.playing.ace',
+  ])('adopts unchanged canonical showcase.%s media', (name) => {
+    const slot = `landing.showcase.${name}` as SiteMediaSlot;
+    const storagePath = `landing/showcase.${name}/01234567-89ab-4cde-8123-0123456789ab.webp`;
+    const media = [{ ...defaults().media[0], slot, storagePath, sha256: 'b'.repeat(64),
+      presentation: getDefaultSiteMedia(slot).presentation }];
+    const adopted = websiteManifestFromPublished({
+      configuration: DEFAULT_PUBLIC_SITE_CONFIGURATION,
+      content: DEFAULT_SITE_CONTENT_BLOCKS,
+      media,
+    });
+    expect(adopted.media).toEqual(media);
+  });
+
+  it.each([
+    'brand/mark/image.png', 'founder/portrait/image.webp',
+    'landing/hero/image.webp', 'website-drafts/edition/revision/image.webp',
+  ])('preserves existing undotted storage paths %s', (storagePath) => {
+    const media = [{ ...defaults().media[0], storagePath, sha256: 'b'.repeat(64) }];
+    expect(validateWebsitePresentationManifest({ ...defaults(), media }).media).toEqual(media);
+  });
+
+  it.each([
+    'landing/../secret.webp', 'landing/./image.webp',
+    'landing/showcase.layout/../image.webp',
+    'landing/showcase.layout/%2e%2e/image.webp',
+    'landing/showcase.layout%2f../image.webp',
+    'landing/showcase.layout/..\\image.webp',
+    'landing/showcase.layout//image.webp',
+    'landing/showcase.unknown/image.webp',
+    'brand/showcase.layout/image.webp',
+    'website-drafts/showcase.layout/image.webp',
+    '/landing/showcase.layout/image.webp',
+    'https://example.com/landing/showcase.layout/image.webp',
+    'landing/showcase.layout/image.webp?x=1',
+    'landing/showcase.layout/image.webp#fragment',
+    'landing/showcase.layout/image.webp\n',
+  ])('rejects unsafe or noncanonical dotted media path %s', (storagePath) => {
+    expect(() => validateWebsitePresentationManifest({
+      ...defaults(), media: [{ ...defaults().media[0], storagePath, sha256: 'b'.repeat(64) }],
+    })).toThrow(/exact verified storage/);
   });
 
   it('requires exact media digests and refuses missing or changed archived bytes', () => {

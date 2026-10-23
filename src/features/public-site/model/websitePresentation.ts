@@ -40,6 +40,14 @@ const keysOnly = (value: Record<string, unknown>, keys: readonly string[]): bool
 const digestPattern = /^[a-f0-9]{64}$/u;
 const storagePathPattern = /^(?:website-drafts|brand|landing|founder)\/[a-zA-Z0-9/_-]+\.[a-zA-Z0-9]+$/u;
 
+const isWebsiteStoragePath = (path: string): boolean => {
+  if (storagePathPattern.test(path)) return true;
+  // Published uploads retain the canonical slot's dots in the landing directory.
+  // Admit only known slots and one safe filename, never arbitrary dotted paths.
+  const canonicalLanding = /^landing\/([a-zA-Z0-9_.-]+)\/[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$/u.exec(path);
+  return canonicalLanding !== null && canonicalLanding[0] === path && isSiteMediaSlot(`landing.${canonicalLanding[1]}`);
+};
+
 export const validateWebsitePresentationManifest = (input: unknown): WebsitePresentationManifest => {
   if (!record(input) || !keysOnly(input, ['schemaVersion', 'configuration', 'content', 'media'])) {
     throw new WebsitePresentationValidationError('Invalid website presentation manifest.');
@@ -81,7 +89,7 @@ export const validateWebsitePresentationManifest = (input: unknown): WebsitePres
     const slot = item.slot as SiteMediaSlot;
     const path = item.storagePath;
     const sha = item.sha256;
-    if ((path !== null && (typeof path !== 'string' || !storagePathPattern.test(path)))
+    if ((path !== null && (typeof path !== 'string' || !isWebsiteStoragePath(path)))
       || (path === null && sha !== null)
       || (path !== null && (typeof sha !== 'string' || !digestPattern.test(sha)))) {
       throw new WebsitePresentationValidationError('Website media must pin exact verified storage bytes.');
