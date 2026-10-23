@@ -109,6 +109,14 @@
   box-shadow: none !important;
   overflow-x: auto;
   overscroll-behavior-x: contain;
+}
+/* Allow the expanded native Filters disclosure to escape the toolbar's
+   horizontal scroll clip; scroll containment returns when it closes. */
+[data-desk-toolbar]:has([data-mobile-desk-filters][open]) {
+  overflow: visible;
+}
+[data-desk-toolbar] {
+
   scrollbar-width: none;
 }
 
