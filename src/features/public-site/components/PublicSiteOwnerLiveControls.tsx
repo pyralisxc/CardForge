@@ -758,8 +758,10 @@ export function PublicSiteOwnerLiveControls({
     <div className="fixed bottom-5 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] items-center gap-2 rounded-full border border-[var(--public-brass)] bg-[var(--cf-surface)] p-2 shadow-2xl" data-owner-live-controls>
       <span className="hidden pl-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)] sm:inline">{publicationPresentation.badgeLabel}</span>
       {manifest && editionId ? <>
-        <span className="max-w-64 truncate text-xs text-[var(--cf-text-muted)]" role="status" title={editionLabel ? `${editionLabel.name} · ${editionLabel.ordinal === null ? 'Unsaved edition' : 'Revision '+editionLabel.ordinal}` : `Edition ${editionId}`}>
-          {editionLabel ? `${editionLabel.name} · ${editionLabel.ordinal === null ? 'New draft' : 'Revision '+editionLabel.ordinal}` : 'Loading edition…'}{editionDirty ? ' · Unsaved edits' : ''}
+        <span className="flex min-w-0 max-w-64 items-center gap-1 text-xs text-[var(--cf-text-muted)]" role="status" title={editionLabel ? `${editionLabel.name} · ${editionLabel.ordinal === null ? 'New draft' : 'Revision '+editionLabel.ordinal}` : `Edition ${editionId}`}>
+          <span className="min-w-0 truncate">{editionLabel?.name ?? 'Loading edition…'}</span>
+          {editionLabel ? <span className="shrink-0 whitespace-nowrap">· {editionLabel.ordinal === null ? 'New draft' : `Revision ${editionLabel.ordinal}`}</span> : null}
+          {editionDirty ? <span className="shrink-0 whitespace-nowrap">· Unsaved</span> : null}
         </span>
         <Button size="sm" type="button" disabled={!editionDirty || editionSaving || Boolean(editionReadbackId)} onClick={() => void saveEditionRevision()}>
           {editionSaving ? 'Saving…' : 'Save revision'}
