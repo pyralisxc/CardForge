@@ -86,7 +86,7 @@ export function useDeskSpatialLayout({
   const edgePanFrameRef = useRef<number | null>(null);
   const edgePanLastTimeRef = useRef<number | null>(null);
   const cameraApiRef = useRef<ReturnType<typeof useDeskCamera> | null>(null);
-  const emptyHoldRef = useRef<((point: { x: number; y: number }, pointerId: number, viewport: HTMLDivElement) => void) | null>(null);
+  const emptyHoldRef = useRef<((point: { clientX: number; clientY: number }, pointerId: number, viewport: HTMLDivElement) => void) | null>(null);
   const [storedPositions, setStoredPositions] = useState<Record<string, DeskWorldPosition>>({});
   const [positionsWritable, setPositionsWritable] = useState(false);
   const [positionsResolved, setPositionsResolved] = useState(false);
