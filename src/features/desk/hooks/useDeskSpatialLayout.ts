@@ -167,7 +167,7 @@ export function useDeskSpatialLayout({
   });
   cameraApiRef.current = camera;
   emptyHoldRef.current = (point, pointerId, viewport) => {
-    const world = camera.projectClientPoint({ clientX: point.x, clientY: point.y });
+    const world = camera.projectClientPoint(point);
     camera.enterCustom();
     marqueeRef.current = { pointerId, startX: world.x, startY: world.y, additiveIds: [] };
     viewport.setPointerCapture(pointerId);
