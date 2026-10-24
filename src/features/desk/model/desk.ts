@@ -212,7 +212,6 @@ export const zoneAction = (
 
 export const getWorkActions = (
   item: AccountLibraryItem,
-  pinned: boolean,
   canDelete: boolean,
   canContribute = false,
   canUseProjectFiles = false,

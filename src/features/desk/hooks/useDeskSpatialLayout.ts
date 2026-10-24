@@ -387,6 +387,13 @@ export function useDeskSpatialLayout({
     if (!state || state.pointerId !== event.pointerId) return;
     const point = camera.projectClientPoint(event);
     const selectedRect = rectFromPoints(state.startX, state.startY, point.x, point.y);
+    // A long hold released without drawing a rectangle is not a selection
+    // command; preserve the creator's existing selection.
+    if (Math.hypot(point.x - state.startX, point.y - state.startY) < 6 / camera.zoom) {
+      marqueeRef.current = null;
+      setMarquee(null);
+      return;
+    }
     const hits = getDeskMarqueeSelection(collectWorldItems(), selectedRect);
     const next = Array.from(new Set([...state.additiveIds, ...hits]));
     onSelectionChange(next, hits.at(-1) ?? state.additiveIds.at(-1) ?? null);

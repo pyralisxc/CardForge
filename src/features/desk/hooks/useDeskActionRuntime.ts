@@ -43,9 +43,9 @@ export function useDeskActionRuntime({
   const { toast } = useToast();
   const actionItem = inspectorItem ?? focusedItem;
   const descriptors: ActionDescriptor[] = inspectorItem
-    ? getWorkActions(inspectorItem, false, true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
+    ? getWorkActions(inspectorItem, true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
     : focusedItem
-      ? getWorkActions(focusedItem, false, true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
+      ? getWorkActions(focusedItem, true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
       : [zoneAction('desk.create-set', 'New Set', 'tool-opened')];
   const requireItem = () => { if (!actionItem) throw new Error('Choose a Desk object first.'); return actionItem; };
   const requireSet = () => { const item = requireItem(); if (!item.references.localSetId) throw new Error('Open this Set in the browser first.'); return item.references.localSetId; };

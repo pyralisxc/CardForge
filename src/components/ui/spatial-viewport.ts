@@ -351,8 +351,17 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
         const openFieldPan = event.button === 0 && !event.shiftKey && !isSpatialInteractiveTarget(event.target);
         if (!middlePan && !openFieldPan) return;
         points.current.set(event.pointerId, point);
-        gesture.current = { start: point, last: point, mode: 'pan', target: event.currentTarget, resolution: null };
+        gesture.current = { start: point, last: point, mode: middlePan ? 'pan' : 'pending', target: event.currentTarget, resolution: null, startEvent: pointerStart(event) };
         event.currentTarget.setPointerCapture(event.pointerId);
+        if (openFieldPan && allowHold) {
+          const heldViewport = event.currentTarget;
+          const heldPointerId = event.pointerId;
+          holdTimer.current = setTimeout(() => {
+            if (gesture.current?.mode !== 'pending') return;
+            gesture.current.mode = 'drag';
+            current.current.onEmptySpaceHold?.(point, heldPointerId, heldViewport);
+          }, 350);
+        }
         stop(event);
         return;
       }
