@@ -395,12 +395,15 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
       gesture.current = { start: point, last: point, mode: immediate ? 'drag' : 'pending', target, resolution: null, startEvent: pointerStart(event) };
       // Descendant object handlers may replace capture to retain their own target.
       target.setPointerCapture(event.pointerId);
+      const heldViewport = event.currentTarget;
+      const heldTarget = event.target as HTMLElement;
+      const heldPointerId = event.pointerId;
       if (allowHold && !immediate) holdTimer.current = setTimeout(() => {
         if (gesture.current?.mode !== 'pending') return;
         gesture.current.mode = 'drag';
         target.setAttribute('data-spatial-held', 'true');
-        if (target === event.currentTarget && !(event.target as HTMLElement).closest('button, input, [data-set-object]')) {
-          current.current.onEmptySpaceHold?.(point, event.pointerId, event.currentTarget);
+        if (target === heldViewport && !heldTarget.closest('button, input, [data-set-object]')) {
+          current.current.onEmptySpaceHold?.(point, heldPointerId, heldViewport);
         }
       }, 350);
     },

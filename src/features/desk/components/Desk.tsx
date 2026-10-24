@@ -239,7 +239,6 @@ export function Desk({
     otherSets,
     pendingDeleteCards,
     pendingDeleteWork,
-    pinnedIds,
     pipelineSubmitSetId,
     projection,
     publishedSets,
@@ -310,7 +309,6 @@ export function Desk({
     tagDraft,
     tagFilter,
     templates,
-    togglePin,
     updateOrganization,
     updateGeneratedCard,
     updateSelectedWorkOrganization,
@@ -486,7 +484,6 @@ export function Desk({
           toolDirty={activeTool?.dirty}
           localSet={Boolean(focusedLocalSetId)}
           workingLocationStatus={workingLocationStatus}
-          pinned={Boolean(focusedItem && pinnedIds.includes(focusedItem.id))}
           renaming={renaming}
           renameDraft={renameDraft}
           selectedDeskCount={selectedDeskIds.length}
@@ -510,7 +507,6 @@ export function Desk({
           onOpenLocation={() => { if (focusedItem) setLocationItem(focusedItem); }}
           onDuplicateWork={() => { if (focusedItem) duplicateWork(focusedItem); }}
           onOpenOutput={() => { if (focusedItem) openWorkLane(focusedItem, 'export'); }}
-          onTogglePin={() => { if (focusedItem) togglePin(focusedItem.id); }}
           onInspect={() => { if (focusedItem) inspectItem(focusedItem); }}
           onDeleteWork={() => { if (focusedItem) setPendingDeleteWork(focusedItem); }}
           onEditArtifact={() => { if (focusedArtifactId) startArtifactEdit(focusedArtifactId); }}
@@ -563,7 +559,6 @@ export function Desk({
             visibleWork={visibleWork}
             focusedItemId={focusedItem?.id ?? null}
             activeWorkId={activeWorkId}
-            pinnedIds={pinnedIds}
             selectedIds={selectedDeskIds}
             positions={deskPositions}
             worldSize={deskWorldSize}
@@ -682,7 +677,6 @@ export function Desk({
             onShowGridChange={() => setShowGrid((value) => !value)}
             onSnapToGridChange={() => setSnapToGrid((value) => !value)}
             onFocusWork={focusWork}
-            onTogglePin={togglePin}
             onOpenLane={openWorkLane}
             onOpenLocation={setLocationItem}
             onOpenPipeline={openPipelineSubmission}

@@ -17,7 +17,6 @@ interface DeskActionCommands {
   createWork: () => void;
   focusWork: (item: AccountLibraryItem) => ActionOperationResult;
   openRemoteWork: (item: AccountLibraryItem) => Promise<ActionOperationResult>;
-  togglePin: (itemId: string) => void;
   openGenerate: (setId: string) => void;
   openOutput: (setId: string) => void;
   openLocation: (item: AccountLibraryItem) => void;
@@ -32,7 +31,6 @@ interface DeskActionRuntimeOptions {
   experience: AccountExperienceProjection;
   focusedItem: AccountLibraryItem | null;
   inspectorItem: AccountLibraryItem | null;
-  pinned: boolean;
   commands: DeskActionCommands;
 }
 
@@ -40,22 +38,20 @@ export function useDeskActionRuntime({
   experience,
   focusedItem,
   inspectorItem,
-  pinned,
   commands,
 }: DeskActionRuntimeOptions) {
   const { toast } = useToast();
   const actionItem = inspectorItem ?? focusedItem;
   const descriptors: ActionDescriptor[] = inspectorItem
-    ? getWorkActions(inspectorItem, pinned, true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
+    ? getWorkActions(inspectorItem, false, true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
     : focusedItem
-      ? getWorkActions(focusedItem, pinned, true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
+      ? getWorkActions(focusedItem, false, true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
       : [zoneAction('desk.create-set', 'New Set', 'tool-opened')];
   const requireItem = () => { if (!actionItem) throw new Error('Choose a Desk object first.'); return actionItem; };
   const requireSet = () => { const item = requireItem(); if (!item.references.localSetId) throw new Error('Open this Set in the browser first.'); return item.references.localSetId; };
   const operations: Record<string, () => ActionOperationResult | Promise<ActionOperationResult>> = {
     'desk.create-set': () => { commands.createWork(); return { kind: 'tool-opened', toolId: 'create-set' }; },
     'desk.open-set': () => { const item = requireItem(); return item.references.localSetId ? commands.focusWork(item) : commands.openRemoteWork(item); },
-    'desk.pin-set': () => { const item = requireItem(); commands.togglePin(item.id); return { kind: 'mutation', changedIds: [item.id] }; },
     'desk.generate-set': () => { commands.openGenerate(requireSet()); return { kind: 'tool-opened', toolId: 'generate' }; },
     'desk.export-set': () => { commands.openOutput(requireSet()); return { kind: 'tool-opened', toolId: 'output' }; },
     'desk.save-move-set': () => { commands.openLocation(requireItem()); return { kind: 'tool-opened', toolId: 'locations' }; },

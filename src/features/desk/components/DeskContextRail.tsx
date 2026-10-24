@@ -9,7 +9,6 @@ import {
   Info,
   MoreHorizontal,
   Pencil,
-  Pin,
   Printer,
   Save,
   Trash2,
