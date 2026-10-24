@@ -439,6 +439,16 @@
   overscroll-behavior: contain;
 }
 
+/* Flow browse is document-scrolled. A non-scrollable primary area must not
+ * trap wheel chaining with overscroll containment; task and Desk retain their
+ * existing viewport-owned scrolling behavior. */
+@media (min-width: 768px) {
+  .shell[data-viewport="flow"][data-presentation-mode="browse"] .primarySurface {
+    overflow: visible;
+    overscroll-behavior: auto;
+  }
+}
+
 .primarySurface[data-scroll="contained"] {
   overflow: hidden;
   padding: 0;
