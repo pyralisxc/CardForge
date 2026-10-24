@@ -277,7 +277,7 @@ const originatesInsideViewport = (event: { currentTarget: HTMLElement; target: E
  * only events whose DOM target is actually inside this viewport may start or suppress a
  * gesture. This keeps menus, dialogs, and tool overlays from being captured as canvas input.
  */
-export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen, cancelDrag, resolvePointerTarget, onResolvedPointerDown, disabled = false, allowHold = true }: {
+export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen, cancelDrag, resolvePointerTarget, onResolvedPointerDown, onEmptySpaceHold, disabled = false, allowHold = true }: {
   viewportRef: RefObject<HTMLDivElement | null>;
   zoom: number;
   changeZoom: (zoom: number, point?: SpatialPoint, previousPoint?: SpatialPoint) => void;
@@ -285,11 +285,12 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
   cancelDrag?: () => void;
   resolvePointerTarget?: SpatialPointerTargetResolver;
   onResolvedPointerDown?: SpatialResolvedPointerDownHandler;
+  onEmptySpaceHold?: (point: SpatialPoint, pointerId: number, viewport: HTMLDivElement) => void;
   disabled?: boolean;
   allowHold?: boolean;
 }) {
-  const current = useRef({ zoom, changeZoom, panByScreen, cancelDrag, resolvePointerTarget, onResolvedPointerDown, disabled });
-  current.current = { zoom, changeZoom, panByScreen, cancelDrag, resolvePointerTarget, onResolvedPointerDown, disabled };
+  const current = useRef({ zoom, changeZoom, panByScreen, cancelDrag, resolvePointerTarget, onResolvedPointerDown, onEmptySpaceHold, disabled });
+  current.current = { zoom, changeZoom, panByScreen, cancelDrag, resolvePointerTarget, onResolvedPointerDown, onEmptySpaceHold, disabled };
   const points = useRef(new Map<number, SpatialPoint>());
   const gesture = useRef<Gesture | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -350,8 +351,17 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
         const openFieldPan = event.button === 0 && !event.shiftKey && !isSpatialInteractiveTarget(event.target);
         if (!middlePan && !openFieldPan) return;
         points.current.set(event.pointerId, point);
-        gesture.current = { start: point, last: point, mode: 'pan', target: event.currentTarget, resolution: null };
+        gesture.current = { start: point, last: point, mode: middlePan ? 'pan' : 'pending', target: event.currentTarget, resolution: null, startEvent: pointerStart(event) };
         event.currentTarget.setPointerCapture(event.pointerId);
+        if (openFieldPan && allowHold) {
+          const heldViewport = event.currentTarget;
+          const heldPointerId = event.pointerId;
+          holdTimer.current = setTimeout(() => {
+            if (gesture.current?.mode !== 'pending') return;
+            gesture.current.mode = 'drag';
+            current.current.onEmptySpaceHold?.(point, heldPointerId, heldViewport);
+          }, 350);
+        }
         stop(event);
         return;
       }
@@ -394,10 +404,16 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
       gesture.current = { start: point, last: point, mode: immediate ? 'drag' : 'pending', target, resolution: null, startEvent: pointerStart(event) };
       // Descendant object handlers may replace capture to retain their own target.
       target.setPointerCapture(event.pointerId);
+      const heldViewport = event.currentTarget;
+      const heldTarget = event.target as HTMLElement;
+      const heldPointerId = event.pointerId;
       if (allowHold && !immediate) holdTimer.current = setTimeout(() => {
         if (gesture.current?.mode !== 'pending') return;
         gesture.current.mode = 'drag';
         target.setAttribute('data-spatial-held', 'true');
+        if (target === heldViewport && !heldTarget.closest('button, input, [data-set-object]')) {
+          current.current.onEmptySpaceHold?.(point, heldPointerId, heldViewport);
+        }
       }, 350);
     },
     onPointerMoveCapture: (event: ReactPointerEvent<HTMLDivElement>) => {

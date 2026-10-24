@@ -86,6 +86,7 @@ export function useDeskSpatialLayout({
   const edgePanFrameRef = useRef<number | null>(null);
   const edgePanLastTimeRef = useRef<number | null>(null);
   const cameraApiRef = useRef<ReturnType<typeof useDeskCamera> | null>(null);
+  const emptyHoldRef = useRef<((point: { clientX: number; clientY: number }, pointerId: number, viewport: HTMLDivElement) => void) | null>(null);
   const [storedPositions, setStoredPositions] = useState<Record<string, DeskWorldPosition>>({});
   const [positionsWritable, setPositionsWritable] = useState(false);
   const [positionsResolved, setPositionsResolved] = useState(false);
@@ -162,8 +163,15 @@ export function useDeskSpatialLayout({
     selectionBounds,
     viewportRef: workGridRef,
     onPinchStart: cancelPointerGesture,
+    onEmptySpaceHold: (point, pointerId, viewport) => emptyHoldRef.current?.(point, pointerId, viewport),
   });
   cameraApiRef.current = camera;
+  emptyHoldRef.current = (point, pointerId, viewport) => {
+    const world = camera.projectClientPoint(point);
+    camera.enterCustom();
+    marqueeRef.current = { pointerId, startX: world.x, startY: world.y, additiveIds: [] };
+    viewport.setPointerCapture(pointerId);
+  };
 
   const itemKey = itemIds.join('\u0000');
   const visibleItemKey = visibleItemIds.join('\u0000');
@@ -379,6 +387,13 @@ export function useDeskSpatialLayout({
     if (!state || state.pointerId !== event.pointerId) return;
     const point = camera.projectClientPoint(event);
     const selectedRect = rectFromPoints(state.startX, state.startY, point.x, point.y);
+    // A long hold released without drawing a rectangle is not a selection
+    // command; preserve the creator's existing selection.
+    if (Math.hypot(point.x - state.startX, point.y - state.startY) < 6 / camera.zoom) {
+      marqueeRef.current = null;
+      setMarquee(null);
+      return;
+    }
     const hits = getDeskMarqueeSelection(collectWorldItems(), selectedRect);
     const next = Array.from(new Set([...state.additiveIds, ...hits]));
     onSelectionChange(next, hits.at(-1) ?? state.additiveIds.at(-1) ?? null);

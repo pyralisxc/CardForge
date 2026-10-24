@@ -9,7 +9,6 @@ import {
   Info,
   MoreHorizontal,
   Pencil,
-  Pin,
   Printer,
   Save,
   Trash2,
@@ -48,7 +47,6 @@ interface DeskContextRailProps {
     onRepair?: () => void;
     onReconcile?: () => void;
   } | null;
-  pinned: boolean;
   renaming: boolean;
   renameDraft: string;
   selectedDeskCount: number;
@@ -72,7 +70,6 @@ interface DeskContextRailProps {
   onOpenLocation: () => void;
   onDuplicateWork: () => void;
   onOpenOutput: () => void;
-  onTogglePin: () => void;
   onInspect: () => void;
   onDeleteWork: () => void;
   onEditArtifact: () => void;
@@ -169,7 +166,6 @@ export function DeskContextRail(props: DeskContextRailProps) {
             <DropdownMenuItem className={`${compactMenuItemClassName} md:hidden`} onSelect={selectMenuAction(props.onOpenLocation)}><Save aria-hidden="true" />Save &amp; move</DropdownMenuItem>
             {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onToggleRenaming)}><Pencil aria-hidden="true" />Rename</DropdownMenuItem> : null}
             {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onDuplicateWork)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
-            <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onTogglePin}><Pin aria-hidden="true" />{props.pinned ? 'Unpin from Desk' : 'Pin to Desk'}</DropdownMenuItem>
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onInspect)}><Info aria-hidden="true" />Details</DropdownMenuItem>
             {props.localSet ? <><DropdownMenuSeparator /><DropdownMenuItem className={`${compactMenuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(props.onDeleteWork)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
           </DropdownMenuContent></DropdownMenu>

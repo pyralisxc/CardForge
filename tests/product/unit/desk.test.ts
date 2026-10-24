@@ -71,7 +71,7 @@ describe('Desk model', () => {
       references: { localSetId: 'set-alpha' },
       organization: { workflow: 'card-set', type: null, tags: [], source: 'none', publicationState: 'working' },
     };
-    expect(getWorkActions(localSet, false, true)[0]).toMatchObject({
+    expect(getWorkActions(localSet, true)[0]).toMatchObject({
       id: 'desk.open-set', label: 'Open Set', ownerFeature: 'project',
     });
   });
@@ -84,10 +84,10 @@ describe('Desk model', () => {
       details: [], sizeBytes: null, revision: '2', updatedAt: null, expiresAt: null, webViewLink: null, references,
       organization: { workflow: references.campaignId ? 'campaign' : 'published-resource', type: null, tags: [], source: 'none', publicationState: references.campaignId ? 'campaign' : 'published' },
     });
-    expect(getWorkActions(remote('campaign:summer', { campaignId: 'summer' }), false, true)[0]).toMatchObject({
+    expect(getWorkActions(remote('campaign:summer', { campaignId: 'summer' }), true)[0]).toMatchObject({
       label: 'Open campaign workspace', ownerFeature: 'marketing-content',
     });
-    expect(getWorkActions(remote('pipeline:lineage', { pipelineLineageId: 'lineage', pipelineAssetType: 'assets' }), false, true)[0]).toMatchObject({
+    expect(getWorkActions(remote('pipeline:lineage', { pipelineLineageId: 'lineage', pipelineAssetType: 'assets' }), true)[0]).toMatchObject({
       label: 'Open published work', ownerFeature: 'pipeline',
     });
   });

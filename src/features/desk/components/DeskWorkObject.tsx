@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { Copy, Info, MoreHorizontal, Pencil, Pin, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
+import { Copy, Info, MoreHorizontal, Pencil, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useArtifactFaces, useCaptureArtifactStackOrigins } from '@/features/card-rendering/client';
@@ -20,7 +20,6 @@ interface DeskWorkObjectProps {
   selected: boolean;
   arrangeMode: boolean;
   obscured: boolean;
-  pinned: boolean;
   position?: DeskPosition;
   presentationSize?: { width: number; height: number; visualHeight: number; physical: boolean };
   canUseProjectFiles: boolean;
@@ -35,7 +34,6 @@ interface DeskWorkObjectProps {
   shouldSuppressActivation: (itemId: string) => boolean;
   onSelect: (item: AccountLibraryItem, options?: { additive?: boolean; range?: boolean }) => void;
   onFocus: (item: AccountLibraryItem) => void;
-  onTogglePin: (itemId: string) => void;
   onOpenLane: (item: AccountLibraryItem, lane: 'open' | 'generate' | 'export') => void;
   onOpenLocation: (item: AccountLibraryItem) => void;
   onOpenPipeline: (setId: string) => void;
@@ -89,7 +87,6 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     data-physical-footprint={props.presentationSize?.physical || undefined}
     data-active={props.active}
     data-selected={props.selected}
-    data-pinned={props.pinned}
     aria-hidden={props.obscured || undefined}
   >
     <button
@@ -141,7 +138,6 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     {props.focused ? props.focusedSurface : <>
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => props.artifactIds.forEach((id) => setFace(id, face === 'front' ? 'back' : 'front'))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}
       <div className={styles.tileActions}>
-        <button type="button" className={`${styles.iconButton} ${tileActionClassName}`} data-active={props.pinned} onClick={() => props.onTogglePin(props.item.id)} aria-label={`${props.pinned ? 'Unpin' : 'Pin'} ${props.item.name}`} title={props.pinned ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={`${styles.iconButton} ${tileActionClassName}`} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
