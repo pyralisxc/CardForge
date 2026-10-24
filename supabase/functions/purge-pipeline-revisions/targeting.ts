@@ -14,3 +14,24 @@ export const parsePipelineRetentionRequest=(body:string):PipelineRetentionSelect
     throw new Error("invalid_retention_target");
   return {mode:"targeted",submissionId:row.submissionId.toLowerCase()};
 };
+
+export type TargetPurgeClaim = { submission_id:string;storage_bucket:string|null;storage_path:string|null };
+export const routePipelineRetentionClaims=async (
+  selection: PipelineRetentionSelection,
+  rpc:(name:string,args:Record<string,unknown>)=>Promise<{data:unknown;error:unknown}>,
+):Promise<{expired:number;claims:TargetPurgeClaim[];error?:'expiry_failed'|'purge_claim_failed'|'target_not_eligible'}>=>{
+  let expired=0;
+  if(selection.mode==="batch"){
+    const result=await rpc("cardforge_expire_inactive_pipeline_reviews",{p_limit:100});
+    if(result.error)return {expired:0,claims:[],error:"expiry_failed"};
+    expired=Number(result.data??0);
+  }
+  const result=selection.mode==="targeted"
+    ?await rpc("cardforge_claim_pipeline_revision_purge_target",{p_submission_id:selection.submissionId})
+    :await rpc("cardforge_claim_pipeline_revision_purges",{p_limit:50});
+  if(result.error)return {expired,claims:[],error:"purge_claim_failed"};
+  const claims=(result.data??[]) as TargetPurgeClaim[];
+  if(selection.mode==="targeted"&&(claims.length!==1||claims[0].submission_id!==selection.submissionId))
+    return {expired,claims:[],error:"target_not_eligible"};
+  return {expired,claims};
+};

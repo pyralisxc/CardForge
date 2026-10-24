@@ -16,3 +16,20 @@ describe('Pipeline retention target selection',()=>{
       expect(()=>parsePipelineRetentionRequest(input)).toThrow('invalid_retention_target');
   });
 });
+
+import {vi} from 'vitest';
+import {routePipelineRetentionClaims} from '../../../supabase/functions/purge-pipeline-revisions/targeting';
+describe('targeted worker claim routing',()=>{
+  it('never invokes global expiry or claim for targeted requests',async()=>{
+    const rpc=vi.fn().mockResolvedValue({data:[{submission_id:id,storage_bucket:null,storage_path:null}],error:null});
+    const result=await routePipelineRetentionClaims({mode:'targeted',submissionId:id},rpc);
+    expect(result.claims).toHaveLength(1);
+    expect(rpc.mock.calls).toEqual([['cardforge_claim_pipeline_revision_purge_target',{p_submission_id:id}]]);
+  });
+  it('returns no claims for mismatched target, so no Storage deletion can be reached',async()=>{
+    const rpc=vi.fn().mockResolvedValue({data:[{submission_id:'550e8400-e29b-41d4-a716-446655440001',storage_bucket:'bucket',storage_path:'unsafe'}],error:null});
+    const result=await routePipelineRetentionClaims({mode:'targeted',submissionId:id},rpc);
+    expect(result).toEqual({expired:0,claims:[],error:'target_not_eligible'});
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+});
