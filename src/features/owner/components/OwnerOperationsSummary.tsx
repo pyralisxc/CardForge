@@ -53,6 +53,7 @@ export function OwnerOperationsSummary({ payload }: { payload: OwnerOperationsRe
         <div className="flex flex-wrap gap-2 text-xs text-[var(--cf-text-muted)]">
           <CardForgeSurface tone="inset" className="border-[var(--cf-border-subtle)] px-3 py-2">{payload.ownerAccess.email ?? 'Owner session'}</CardForgeSurface>
           {payload.integrationStatus.publicationEnvironment ? <CardForgeSurface tone="inset" className="border-[var(--cf-border-subtle)] px-3 py-2">{getOwnerPublicationPresentation(payload.integrationStatus.publicationEnvironment).badgeLabel}</CardForgeSurface> : null}
+          <a className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-2 text-[var(--cf-accent-text)]" href="/owner?workspace=site" title="Open the Owner website editor and Website editions under Site settings">Website editions <ExternalLink className="ml-1 inline h-3.5 w-3.5" /></a>
           <a className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-2 text-[var(--cf-accent-text)]" href={payload.integrationStatus.site.publicAppUrl} target="_blank" rel="noreferrer">Open site <ExternalLink className="ml-1 inline h-3.5 w-3.5" /></a>
         </div>
       </div>
