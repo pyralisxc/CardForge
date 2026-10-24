@@ -31,7 +31,10 @@ Deno.serve(async (request: Request) => {
   let selection: ReturnType<typeof parsePipelineRetentionRequest>;
   try { selection = parsePipelineRetentionRequest(await request.text()); }
   catch { return respond(400, { error: "invalid_retention_target" }); }
-  const routed=await routePipelineRetentionClaims(selection,(name,args)=>supabase.rpc(name,args));
+  const routed=await routePipelineRetentionClaims(selection,async (name,args)=>{
+    const result = await supabase.rpc(name,args);
+    return { data:result.data, error:result.error };
+  });
   if(routed.error)return respond(routed.error==="target_not_eligible"?409:500,{error:routed.error,expired:routed.expired});
   const expired=routed.expired;
   const claims=routed.claims as PurgeClaim[];
