@@ -31,16 +31,12 @@ begin
   select * into v_sibling_before from public.cardforge_contributor_asset_submissions where id=v_sibling;
   select submission_id into v_claim from public.cardforge_claim_pipeline_revision_purge_target(v_target);
   if v_claim is distinct from v_target then raise exception 'exact target not claimed'; end if;
-  if exists(select 1 from public.cardforge_claim_pipeline_revision_purge_target(v_sibling)
-    where submission_id<>v_sibling) then raise exception 'claim escaped exact target'; end if;
-  -- The sibling claim above is intentionally a valid explicit target; release
-  -- it and assert the original sibling was not modified by the first claim.
-  perform public.cardforge_release_pipeline_revision_purge(v_sibling);
+  if (select pg_catalog.to_jsonb(submission) from public.cardforge_contributor_asset_submissions submission
+      where id=v_sibling) is distinct from pg_catalog.to_jsonb(v_sibling_before)
+  then raise exception 'unrelated due sibling mutated'; end if;
   if not exists(select 1 from public.cardforge_contributor_asset_submissions
       where id=v_target and purge_state='pending')
-     or not exists(select 1 from public.cardforge_contributor_asset_submissions
-      where id=v_sibling and purge_state is null)
-  then raise exception 'target claim unexpectedly touched sibling'; end if;
+  then raise exception 'target claim was not retained'; end if;
   if exists(select 1 from public.cardforge_claim_pipeline_revision_purge_target(v_held))
     or exists(select 1 from public.cardforge_claim_pipeline_revision_purge_target(v_not_due))
   then raise exception 'protected target was claimed'; end if;
