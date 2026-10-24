@@ -16,31 +16,31 @@ begin
   insert into public.cardforge_contributor_asset_submissions
     (id,contributor_id,asset_type,name,status,calculated_access_tier,
      source_url,source_mime_type,revision_number,specialty_tags,use_case_tags,
-     trashed_at,purge_after,retention_hold)
+     trashed_at,purge_after,trash_reason,retention_hold)
   values
     (v_target,v_owner,'templates','Disposable eligible target','archived','hidden',
       'https://example.invalid/target','image/png',1,array['games'],array['tcg'],
-      now()-interval '2 days',now()-interval '1 day',false),
+      now()-interval '2 days',now()-interval '1 day','expired',false),
     (v_sibling,v_owner,'templates','Disposable unrelated due','archived','hidden',
       'https://example.invalid/sibling','image/png',1,array['games'],array['tcg'],
-      now()-interval '2 days',now()-interval '1 day',false),
+      now()-interval '2 days',now()-interval '1 day','expired',false),
     (v_held,v_owner,'templates','Disposable held due','archived','hidden',
       'https://example.invalid/held','image/png',1,array['games'],array['tcg'],
-      now()-interval '2 days',now()-interval '1 day',true),
+      now()-interval '2 days',now()-interval '1 day','expired',true),
     (v_not_due,v_owner,'templates','Disposable not yet due','archived','hidden',
       'https://example.invalid/future','image/png',1,array['games'],array['tcg'],
-      now()-interval '1 hour',now()+interval '1 day',false);
+      now()-interval '1 hour',now()+interval '1 day','expired',false);
   insert into public.cardforge_contributor_asset_submissions
     (id,contributor_id,asset_type,name,status,calculated_access_tier,
      source_url,source_mime_type,revision_number,specialty_tags,use_case_tags,
-     trashed_at,purge_after,retention_hold,published_at)
+     trashed_at,purge_after,trash_reason,retention_hold,published_at)
   values
     (v_published,v_owner,'templates','Previously published target','archived','hidden',
      'https://example.invalid/published','image/png',1,array['games'],array['tcg'],
-     now()-interval '2 days',now()-interval '1 day',false,now()-interval '3 days'),
+     now()-interval '2 days',now()-interval '1 day','expired',false,now()-interval '3 days'),
     (v_referenced,v_owner,'templates','Registry referenced target','archived','hidden',
      'https://example.invalid/referenced','image/png',1,array['games'],array['tcg'],
-     now()-interval '2 days',now()-interval '1 day',false,null);
+     now()-interval '2 days',now()-interval '1 day','expired',false,null);
   insert into public.cardforge_asset_registry
     (asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id)
   values ('pipeline-target-proof-'||replace(v_referenced::text,'-',''),
