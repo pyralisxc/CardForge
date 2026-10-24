@@ -277,7 +277,7 @@ const originatesInsideViewport = (event: { currentTarget: HTMLElement; target: E
  * only events whose DOM target is actually inside this viewport may start or suppress a
  * gesture. This keeps menus, dialogs, and tool overlays from being captured as canvas input.
  */
-export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen, cancelDrag, resolvePointerTarget, onResolvedPointerDown, disabled = false, allowHold = true }: {
+export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen, cancelDrag, resolvePointerTarget, onResolvedPointerDown, onEmptySpaceHold, disabled = false, allowHold = true }: {
   viewportRef: RefObject<HTMLDivElement | null>;
   zoom: number;
   changeZoom: (zoom: number, point?: SpatialPoint, previousPoint?: SpatialPoint) => void;
@@ -285,11 +285,12 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
   cancelDrag?: () => void;
   resolvePointerTarget?: SpatialPointerTargetResolver;
   onResolvedPointerDown?: SpatialResolvedPointerDownHandler;
+  onEmptySpaceHold?: (point: SpatialPoint, pointerId: number, viewport: HTMLDivElement) => void;
   disabled?: boolean;
   allowHold?: boolean;
 }) {
-  const current = useRef({ zoom, changeZoom, panByScreen, cancelDrag, resolvePointerTarget, onResolvedPointerDown, disabled });
-  current.current = { zoom, changeZoom, panByScreen, cancelDrag, resolvePointerTarget, onResolvedPointerDown, disabled };
+  const current = useRef({ zoom, changeZoom, panByScreen, cancelDrag, resolvePointerTarget, onResolvedPointerDown, onEmptySpaceHold, disabled });
+  current.current = { zoom, changeZoom, panByScreen, cancelDrag, resolvePointerTarget, onResolvedPointerDown, onEmptySpaceHold, disabled };
   const points = useRef(new Map<number, SpatialPoint>());
   const gesture = useRef<Gesture | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -398,6 +399,9 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
         if (gesture.current?.mode !== 'pending') return;
         gesture.current.mode = 'drag';
         target.setAttribute('data-spatial-held', 'true');
+        if (target === event.currentTarget && !(event.target as HTMLElement).closest('button, input, [data-set-object]')) {
+          current.current.onEmptySpaceHold?.(point, event.pointerId, event.currentTarget);
+        }
       }, 350);
     },
     onPointerMoveCapture: (event: ReactPointerEvent<HTMLDivElement>) => {

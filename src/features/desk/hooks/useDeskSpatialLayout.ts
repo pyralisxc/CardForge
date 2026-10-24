@@ -86,6 +86,7 @@ export function useDeskSpatialLayout({
   const edgePanFrameRef = useRef<number | null>(null);
   const edgePanLastTimeRef = useRef<number | null>(null);
   const cameraApiRef = useRef<ReturnType<typeof useDeskCamera> | null>(null);
+  const emptyHoldRef = useRef<((point: { x: number; y: number }, pointerId: number, viewport: HTMLDivElement) => void) | null>(null);
   const [storedPositions, setStoredPositions] = useState<Record<string, DeskWorldPosition>>({});
   const [positionsWritable, setPositionsWritable] = useState(false);
   const [positionsResolved, setPositionsResolved] = useState(false);
@@ -162,8 +163,15 @@ export function useDeskSpatialLayout({
     selectionBounds,
     viewportRef: workGridRef,
     onPinchStart: cancelPointerGesture,
+    onEmptySpaceHold: (point, pointerId, viewport) => emptyHoldRef.current?.(point, pointerId, viewport),
   });
   cameraApiRef.current = camera;
+  emptyHoldRef.current = (point, pointerId, viewport) => {
+    const world = camera.projectClientPoint({ clientX: point.x, clientY: point.y });
+    camera.enterCustom();
+    marqueeRef.current = { pointerId, startX: world.x, startY: world.y, additiveIds: [] };
+    viewport.setPointerCapture(pointerId);
+  };
 
   const itemKey = itemIds.join('\u0000');
   const visibleItemKey = visibleItemIds.join('\u0000');
