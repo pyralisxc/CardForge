@@ -39,6 +39,17 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
+/* A flow page becomes a viewport-owned workspace while a desktop task
+ * tool is open. Without this, the browse shell's 48rem/36rem minimums
+ * place the tool panel below the viewport even at its maximum scrollTop. */
+@media (min-width: 768px) {
+  .shell[data-viewport="flow"][data-presentation-mode="task"] {
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+}
+
 .rail {
   grid-area: rail;
   display: flex;
