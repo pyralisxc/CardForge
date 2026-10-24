@@ -45,7 +45,7 @@ begin
     (asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id)
   values ('pipeline-target-proof-'||replace(v_referenced::text,'-',''),
     'Disposable registry pin','template','https://example.invalid/referenced',
-    'archived','hidden','developer',v_referenced);
+    'archived','hidden','contributor',v_referenced);
 
   select * into v_sibling_before from public.cardforge_contributor_asset_submissions where id=v_sibling;
   select submission_id into v_claim from public.cardforge_claim_pipeline_revision_purge_target(v_target);
