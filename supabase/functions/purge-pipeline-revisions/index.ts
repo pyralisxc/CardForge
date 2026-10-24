@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
+import { parsePipelineRetentionRequest } from "./targeting.ts";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 type PurgeClaim = { submission_id: string; storage_bucket: string | null; storage_path: string | null };
@@ -27,18 +28,24 @@ Deno.serve(async (request: Request) => {
   if (authorizationError) return respond(503, { error: "retention_authorization_unavailable" });
   if (!authorized) return respond(401, { error: "retention_unauthorized" });
 
-  const { data: expired, error: expiryError } = await supabase.rpc(
-    "cardforge_expire_inactive_pipeline_reviews",
-    { p_limit: 100 },
-  );
-  if (expiryError) return respond(500, { error: "expiry_failed" });
-  const { data, error: claimError } = await supabase.rpc(
-    "cardforge_claim_pipeline_revision_purges",
-    { p_limit: 50 },
-  );
+  let selection: ReturnType<typeof parsePipelineRetentionRequest>;
+  try { selection = parsePipelineRetentionRequest(await request.text()); }
+  catch { return respond(400, { error: "invalid_retention_target" }); }
+  // Targeted maintenance must never perform global expiry or global claims.
+  const expired = selection.mode === "targeted" ? 0 : await (async () => {
+    const result = await supabase.rpc("cardforge_expire_inactive_pipeline_reviews", { p_limit: 100 });
+    if (result.error) throw new Error("expiry_failed");
+    return result.data ?? 0;
+  })().catch(() => null);
+  if (expired === null) return respond(500, { error: "expiry_failed" });
+  const { data, error: claimError } = selection.mode === "targeted"
+    ? await supabase.rpc("cardforge_claim_pipeline_revision_purge_target", { p_submission_id: selection.submissionId })
+    : await supabase.rpc("cardforge_claim_pipeline_revision_purges", { p_limit: 50 });
   if (claimError) return respond(500, { error: "purge_claim_failed", expired: expired ?? 0 });
 
   const claims = (data ?? []) as PurgeClaim[];
+  if (selection.mode === "targeted" && (claims.length !== 1 || claims[0].submission_id !== selection.submissionId))
+    return respond(409, { error: "target_not_eligible" });
   let purged = 0;
   let failed = 0;
   for (const claim of claims) {
