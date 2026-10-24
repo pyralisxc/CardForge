@@ -727,8 +727,8 @@ export function PublicSiteOwnerLiveControls({
     <div className="fixed bottom-5 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] items-center gap-2 rounded-full border border-[var(--public-brass)] bg-[var(--cf-surface)] p-2 shadow-2xl" data-owner-live-controls>
       <span className="hidden pl-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)] sm:inline">{publicationPresentation.badgeLabel}</span>
       {manifest && editionId ? <>
-        <span className="max-w-44 truncate text-xs text-[var(--cf-text-muted)]" role="status" title={`Edition ${editionId} · ${revisionId ? 'Saved revision selected' : 'Unsaved edition'}`}>
-          {revisionId ? 'Private revision selected' : 'Unpublished edition'}{editionDirty ? ' · Unsaved edits' : ''}
+        <span className="max-w-44 truncate text-xs text-[var(--cf-text-muted)]" role="status" title={`Edition ${editionId} · ${revisionId ? 'Revision selected' : 'Unsaved edition'}`}>
+          {revisionId ? 'Edition revision selected' : 'Unpublished edition'}{editionDirty ? ' · Unsaved edits' : ''}
         </span>
         <Button size="sm" type="button" disabled={!editionDirty || editionSaving || Boolean(editionReadbackId)} onClick={() => void saveEditionRevision()}>
           {editionSaving ? 'Saving…' : 'Save revision'}
