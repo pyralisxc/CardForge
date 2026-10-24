@@ -96,6 +96,7 @@ export function PublicSiteOwnerLiveControls({
   );
   const [editMode, setEditMode] = useState(false);
   const [editionId, setEditionId] = useState(editionSession?.editionId ?? '');
+  const [editionLabel, setEditionLabel] = useState<{name:string;ordinal:number|null}|null>(null);
   const [revisionId, setRevisionId] = useState<string | null>(editionSession?.revisionId ?? null);
   const [manifest, setManifest] = useState<WebsitePresentationManifest | null>(editionSession?.manifest ?? null);
   const [editionDirty, setEditionDirty] = useState(false);
@@ -185,6 +186,36 @@ export function PublicSiteOwnerLiveControls({
     inspectOtherTargets();
     setDrawer({ kind: 'settings' });
   }, [abandonDraft, inspectOtherTargets]);
+
+  // Owner shell handoff is a one-time entry intent, not a second website editor.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('ownerSite') !== 'editions') return;
+    window.history.replaceState(window.history.state, '', window.location.pathname);
+    setEditMode(true);
+    openSettings();
+  }, [openSettings]);
+
+  useEffect(() => {
+    setEditionLabel(null);
+    if (!editionId) return;
+    let active = true;
+    void Promise.all([
+      fetch('/api/owner/website-editions',{cache:'no-store'}).then(async response => {
+        if (!response.ok) throw new Error('Edition label unavailable');
+        return response.json() as Promise<{editions:Array<{id:string;name:string}>}>;
+      }),
+      revisionId ? fetch('/api/owner/website-revisions?editionId='+encodeURIComponent(editionId),{cache:'no-store'})
+        .then(async response => {
+          if (!response.ok) throw new Error('Revision label unavailable');
+          return response.json() as Promise<{revisions:Array<{id:string;ordinal:number}>}>;
+        }) : Promise.resolve({revisions:[] as Array<{id:string;ordinal:number}>}),
+    ]).then(([editions,history]) => {
+      if (!active) return;
+      const name=editions.editions.find(value=>value.id===editionId)?.name;
+      if (name) setEditionLabel({name,ordinal:history.revisions.find(value=>value.id===revisionId)?.ordinal??null});
+    }).catch(()=>{ /* Never replace an authoritative identity with a guessed name. */ });
+    return () => {active=false;};
+  }, [editionId,revisionId]);
 
   const openEditableSection = useCallback((sectionId: string, blockId?: string) => {
     if (!abandonDraft()) return;
@@ -727,8 +758,8 @@ export function PublicSiteOwnerLiveControls({
     <div className="fixed bottom-5 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] items-center gap-2 rounded-full border border-[var(--public-brass)] bg-[var(--cf-surface)] p-2 shadow-2xl" data-owner-live-controls>
       <span className="hidden pl-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)] sm:inline">{publicationPresentation.badgeLabel}</span>
       {manifest && editionId ? <>
-        <span className="max-w-44 truncate text-xs text-[var(--cf-text-muted)]" role="status" title={`Edition ${editionId} · ${revisionId ? 'Revision selected' : 'Unsaved edition'}`}>
-          {revisionId ? 'Edition revision selected' : 'Unpublished edition'}{editionDirty ? ' · Unsaved edits' : ''}
+        <span className="max-w-64 truncate text-xs text-[var(--cf-text-muted)]" role="status" title={editionLabel ? `${editionLabel.name} · ${editionLabel.ordinal === null ? 'Unsaved edition' : 'Revision '+editionLabel.ordinal}` : `Edition ${editionId}`}>
+          {editionLabel ? `${editionLabel.name} · ${editionLabel.ordinal === null ? 'New draft' : 'Revision '+editionLabel.ordinal}` : 'Loading edition…'}{editionDirty ? ' · Unsaved edits' : ''}
         </span>
         <Button size="sm" type="button" disabled={!editionDirty || editionSaving || Boolean(editionReadbackId)} onClick={() => void saveEditionRevision()}>
           {editionSaving ? 'Saving…' : 'Save revision'}

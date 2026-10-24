@@ -40,7 +40,7 @@ export default async function OwnerPage({
   if (!campaignRequested && !pipelineRequested && !publicSiteRequested) targetParams.set('ownerWorkspace', workspace);
   if (params.meta === 'connected' || params.meta === 'error') targetParams.set('meta', params.meta);
   if (params.meta === 'error' && params.message) targetParams.set('message', params.message.slice(0, 240));
-  const target = publicSiteRequested ? '/' : `/account?${targetParams.toString()}`;
+  const target = publicSiteRequested ? '/?ownerSite=editions' : `/account?${targetParams.toString()}`;
 
   if (authConfigured) {
     const { isAuthenticated } = await auth();
