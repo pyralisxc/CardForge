@@ -63,6 +63,7 @@ interface OwnerAssetLibraryPanelProps {
   ) => Promise<boolean>;
   onRevisionCreated?: () => Promise<void> | void;
   onDeletePermanently: (submissionId: string, confirmationName: string) => Promise<void>;
+  onDeleteRevisionNow: (submissionId:string,confirmationName:string,storagePath:string|null)=>Promise<void>;
 }
 
 const statusOptions: PipelineStatus[] = [
@@ -88,6 +89,7 @@ export function OwnerAssetLibraryPanel({
   onUpdateOverride,
   onUpdateEditorialReview,
   onDeletePermanently,
+  onDeleteRevisionNow,
   onRevisionCreated,
 }: OwnerAssetLibraryPanelProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -190,6 +192,16 @@ export function OwnerAssetLibraryPanel({
       ownerNote: ownerNote || submission.ownerNote || 'Retired by the owner.',
     });
     setManagingId(null);
+  };
+
+  const deleteRevisionNow = async (submission: PipelineProgramView['submissions'][number]) => {
+    if (submission.status !== 'archived' || !submission.trashedAt ||
+        submission.publishedAt || submission.retentionHold) return;
+    const name = window.prompt(
+      `Delete ONLY this trashed revision permanently? This removes its managed Storage file and submission row, not sibling revisions.\n\nRevision: ${submission.revisionNumber ?? 'unknown'}\nName: ${submission.name}\nStorage: ${submission.sourceStoragePath}\n\nType the exact name to confirm:`
+    );
+    if (name !== submission.name) return;
+    await onDeleteRevisionNow(submission.id,name,submission.sourceStoragePath);
   };
 
   const deletePermanently = async (submission: PipelineProgramView['submissions'][number]) => {
@@ -397,6 +409,13 @@ export function OwnerAssetLibraryPanel({
                     >
                       <Archive className="mr-1 h-4 w-4" /> Retire
                     </Button>
+                    {submission.status === 'archived' && submission.trashedAt && !submission.publishedAt &&
+                      !submission.retentionHold ? (
+                      <Button size="sm" variant="outline" disabled={updatingSubmissionId === submission.id}
+                        onClick={() => void deleteRevisionNow(submission)}>
+                        <Trash2 className="mr-1 h-4 w-4" /> Delete now (one revision)
+                      </Button>
+                    ) : null}
                     <Button
                       size="sm"
                       variant="outline"

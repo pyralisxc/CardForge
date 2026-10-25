@@ -179,6 +179,22 @@ export function OwnerContributorProgramPanel({
     }
   };
 
+  const deleteRevisionNow = async (submissionId:string,confirmationName:string,storagePath:string|null) => {
+    setUpdatingSubmissionId(submissionId);
+    try{
+      const response=await fetch(`/api/pipeline/${submissionId}/delete-revision`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({confirmationName,storagePath})
+      });
+      if(!response.ok)throw new Error(await readApiErrorMessage(response,'Unable to delete selected revision.'));
+      await loadProgram();
+      toast({title:'Revision deleted',description:'One selected trashed revision was permanently removed.'});
+    }catch(error){
+      toast({title:'Revision not confirmed deleted',
+        description:error instanceof Error?error.message:'Deletion incomplete',variant:'destructive'});
+    }finally{setUpdatingSubmissionId(null);}
+  };
+
   const deletePermanently = async (submissionId: string, confirmationName: string) => {
     setUpdatingSubmissionId(submissionId);
     try {
@@ -272,6 +288,7 @@ export function OwnerContributorProgramPanel({
             onUpdateOverride={updateOverride}
             onUpdateEditorialReview={updateEditorialReview}
             onDeletePermanently={deletePermanently}
+            onDeleteRevisionNow={deleteRevisionNow}
           />
         </TabsContent>
         <TabsContent value="studio-map" className="mt-0">

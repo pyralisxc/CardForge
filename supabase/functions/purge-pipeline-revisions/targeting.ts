@@ -15,7 +15,7 @@ export const parsePipelineRetentionRequest=(body:string):PipelineRetentionSelect
   return {mode:"targeted",submissionId:row.submissionId.toLowerCase()};
 };
 
-export type TargetPurgeClaim = { submission_id:string;storage_bucket:string|null;storage_path:string|null };
+export type TargetPurgeClaim = { submission_id:string;storage_bucket:string|null;storage_path:string|null;claim_token:string };
 export const routePipelineRetentionClaims=async (
   selection: PipelineRetentionSelection,
   rpc:(name:string,args:Record<string,unknown>)=>Promise<{data:unknown;error:unknown}>,
