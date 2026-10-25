@@ -4,7 +4,10 @@ alter table public.cardforge_contributor_asset_submissions
  add column purge_claim_token uuid;
 
 -- Both batch and exact-target timer claims issue a fresh attempt identity.
-create or replace function public.cardforge_claim_pipeline_revision_purges(p_limit integer default 50)
+-- Replace the old 3-column result signature; PostgreSQL cannot CREATE OR REPLACE
+-- a function while changing its return row type.
+drop function public.cardforge_claim_pipeline_revision_purges(integer);
+create function public.cardforge_claim_pipeline_revision_purges(p_limit integer default 50)
 returns table(submission_id uuid,storage_bucket text,storage_path text,claim_token uuid)
 language plpgsql security invoker set search_path='' as $$
 begin
