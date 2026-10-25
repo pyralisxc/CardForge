@@ -27,3 +27,25 @@ describe('shared Pipeline revision deletion processor',()=>{
   expect(rpc).toHaveBeenNthCalledWith(2,'cardforge_release_pipeline_revision_purge',{p_submission_id:claim.submission_id,p_claim_token:claim.claim_token});
  });
 });
+
+describe('revision-only processing without attached Storage',()=>{
+ it('finalizes a valid row-only Template revision without Storage API calls',async()=>{
+  const from=vi.fn();
+  const rpc=vi.fn(async()=>({data:true,error:null}));
+  const rowOnly={...claim,storage_bucket:null,storage_path:null};
+  expect(await processRevisionPurge({storage:{from},rpc},rowOnly)).toEqual({purged:true,failed:false});
+  expect(from).not.toHaveBeenCalled();
+  expect(rpc).toHaveBeenCalledWith('cardforge_finalize_pipeline_revision_purge',{
+    p_submission_id:claim.submission_id,p_claim_token:claim.claim_token,
+  });
+ });
+ it('uses the old claim token on interrupted attempts, never an ID-only release',async()=>{
+  const rpc=vi.fn(async(name:string)=>({data:name!=='cardforge_finalize_pipeline_revision_purge',error:null}));
+  const from=vi.fn();
+  expect(await processRevisionPurge({storage:{from},rpc},{...claim,storage_bucket:null,storage_path:null}))
+   .toEqual({purged:false,failed:true});
+  expect(rpc).toHaveBeenNthCalledWith(2,'cardforge_release_pipeline_revision_purge',{
+    p_submission_id:claim.submission_id,p_claim_token:claim.claim_token,
+  });
+ });
+});
