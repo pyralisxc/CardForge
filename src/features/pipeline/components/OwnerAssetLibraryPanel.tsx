@@ -196,7 +196,7 @@ export function OwnerAssetLibraryPanel({
 
   const deleteRevisionNow = async (submission: PipelineProgramView['submissions'][number]) => {
     if (submission.status !== 'archived' || !submission.trashedAt ||
-        submission.publishedAt || submission.retentionHold || !submission.sourceStoragePath) return;
+        submission.publishedAt || submission.retentionHold) return;
     const name = window.prompt(
       `Delete ONLY this trashed revision permanently? This removes its managed Storage file and submission row, not sibling revisions.\n\nRevision: ${submission.revisionNumber ?? 'unknown'}\nName: ${submission.name}\nStorage: ${submission.sourceStoragePath}\n\nType the exact name to confirm:`
     );
@@ -410,7 +410,7 @@ export function OwnerAssetLibraryPanel({
                       <Archive className="mr-1 h-4 w-4" /> Retire
                     </Button>
                     {submission.status === 'archived' && submission.trashedAt && !submission.publishedAt &&
-                      !submission.retentionHold && submission.sourceStoragePath ? (
+                      !submission.retentionHold && true ? (
                       <Button size="sm" variant="outline" disabled={updatingSubmissionId === submission.id}
                         onClick={() => void deleteRevisionNow(submission)}>
                         <Trash2 className="mr-1 h-4 w-4" /> Delete now (one revision)

@@ -1,6 +1,6 @@
 import {createApiErrorResponse,createNoStoreJsonResponse} from '@/infrastructure/http/apiResponses';
 import {getCurrentOwnerAccess,recordOwnerActivity} from '@/features/owner/server';
-import {deleteOneTrashedPipelineRevision} from '@/features/pipeline/server/ownerRevisionDeletion';
+import {deleteOneTrashedPipelineRevision,RevisionDeleteError} from '@/features/pipeline/server/ownerRevisionDeletion';
 import {revalidateCardForgeCatalog} from '@/features/pipeline/server/catalogCache';
 export async function POST(request:Request,{params}:{params:Promise<{submissionId:string}>}){
  const owner=await getCurrentOwnerAccess();
@@ -8,8 +8,8 @@ export async function POST(request:Request,{params}:{params:Promise<{submissionI
  try{
   const id=(await params).submissionId;
   const body=await request.json() as {confirmationName?:unknown;storagePath?:unknown};
-  if(typeof body.confirmationName!=='string'||typeof body.storagePath!=='string')
-   return createApiErrorResponse(400,'invalid_confirmation','Exact name and path required');
+  if(typeof body.confirmationName!=='string'||!(typeof body.storagePath==='string'||body.storagePath===null))
+   return createApiErrorResponse(400,'pipeline_request_invalid','Exact name and path required');
   await deleteOneTrashedPipelineRevision({submissionId:id,name:body.confirmationName,storagePath:body.storagePath});
   revalidateCardForgeCatalog();
   await recordOwnerActivity({actorUserId:owner.userId,actorEmail:owner.email,
@@ -17,7 +17,7 @@ export async function POST(request:Request,{params}:{params:Promise<{submissionI
    summary:'Owner-confirmed permanent deletion of one trashed Pipeline revision.'});
   return createNoStoreJsonResponse({deleted:true,submissionId:id});
  }catch(error){
-  return createApiErrorResponse(409,'revision_delete_unconfirmed',
+  return createApiErrorResponse(error instanceof SyntaxError?400:error instanceof RevisionDeleteError?error.status:503,'pipeline_request_invalid',
    error instanceof Error?error.message:'Selected revision could not be deleted');
  }
 }

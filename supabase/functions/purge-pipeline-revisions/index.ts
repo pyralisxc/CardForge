@@ -4,7 +4,7 @@ import { parsePipelineRetentionRequest, routePipelineRetentionClaims } from "./t
 import { processRevisionPurge } from "./processor.ts";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
-type PurgeClaim = { submission_id: string; storage_bucket: string | null; storage_path: string | null };
+type PurgeClaim = { submission_id: string; storage_bucket: string | null; storage_path: string | null;claim_token:string };
 const respond = (status: number, body: Record<string, unknown>) => new Response(
   JSON.stringify(body),
   { status, headers: JSON_HEADERS },
