@@ -393,6 +393,16 @@
   overflow: hidden;
   overscroll-behavior: contain;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Preserve native selection and editing in controls inside the spatial Desk. */
+.workGrid :is(input, textarea, [contenteditable="true"]) {
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
 }
 
 .workGrid[data-grid="true"] {
