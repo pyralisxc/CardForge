@@ -7,11 +7,13 @@ import type {
   PipelineVoteValue,
 } from '@/features/pipeline/lib/pipelineItems';
 import type { StudioAssetDestination, StudioAssetRoutingMode, TCGCardTemplate } from '@/domain/templates';
+import type { PipelineEditorialReviewStatus } from './pipelineProgram';
 import { getCanonicalOwnerAccountEmail } from '@/domain/entitlements';
 import { getUniqueActiveContributorProfileReferenceByEmail } from '@/features/contributor-access/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 import { externalizePipelineTemplateAssets } from './pipelineTemplateAssets';
+import { templateReviewPayload } from './templateReview';
 
 export { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 
@@ -21,6 +23,14 @@ export interface SetPipelineOwnerOverrideInput {
   ownerAccessTierOverride?: PipelineAccessTierOverride | null;
   ownerNote: string;
   ownerContributorId: string;
+}
+
+export interface SetPipelineEditorialReviewInput {
+  submissionId: string;
+  reviewStatus: PipelineEditorialReviewStatus;
+  reviewNote: string;
+  reviewerContributorId: string;
+  expectedEvidenceVersion?: number | null;
 }
 
 export interface UpsertPipelineRegistryAssetInput {
@@ -117,14 +127,24 @@ const requireSupabase = () => {
   return supabase;
 };
 
-const throwIfPublicationBusy = (errorMessage?: string): void => {
-  if (errorMessage?.includes('pipeline_publication_unavailable')) {
+const throwIfPublicationBusy = (errorMessage?: string, errorCode?: string): void => {
+  if (errorCode === '55P03' || errorMessage?.includes('pipeline_media_unavailable') || errorMessage?.includes('pipeline_publication_unavailable')) {
     throw new PipelineRegistryCommandError('The shared library is being updated. Try this action again.', 503, 'pipeline_publication_unavailable');
+  }
+};
+
+const throwIfMediaRevisionFailure = (errorMessage?: string): void => {
+  if (errorMessage?.includes('pipeline_media_editorial_review_required')) {
+    throw new PipelineRegistryCommandError('Review and approve this exact media revision separately before publishing it. Publish cannot approve it as a side effect.', 409);
+  }
+  if (errorMessage?.includes('pipeline_media_conflict') || errorMessage?.includes('pipeline_media_not_permitted')) {
+    throw new PipelineRegistryCommandError('The published parent, source, classification or presentation changed. Reload and review a new exact candidate before publishing.', 409);
   }
 };
 
 const throwRegistryCommandError = (message: string, errorMessage?: string): never => {
   throwIfPublicationBusy(errorMessage);
+  throwIfMediaRevisionFailure(errorMessage);
   const status = errorMessage?.includes('pipeline_asset_not_found') ? 404 : 500;
   throw new PipelineRegistryCommandError(
     status === 404 ? 'The shared library asset was not found.' : message,
@@ -176,12 +196,48 @@ const throwTemplateRevisionError = (errorMessage?: string): never => {
   throw new PipelineRegistryCommandError('Unable to submit the template revision.', 500);
 };
 
+const throwEditorialReviewError = (errorMessage?: string, errorCode?: string): never => {
+  throwIfPublicationBusy(errorMessage, errorCode);
+  throwIfMediaRevisionFailure(errorMessage);
+  if (errorMessage?.includes('contributor_asset_not_found')) {
+    throw new PipelineRegistryCommandError('Pipeline revision was not found.', 404);
+  }
+  if (errorMessage?.includes('invalid_editorial_review_status')) {
+    throw new PipelineRegistryCommandError('Choose a supported editorial review outcome.', 400);
+  }
+  if (errorMessage?.includes('editorial_review_reason_required')) {
+    throw new PipelineRegistryCommandError('Add an editorial review reason before recording this decision.', 400);
+  }
+  if (errorMessage?.includes('editorial_review_live_requires_quarantine')) {
+    throw new PipelineRegistryCommandError('Live content must be quarantined or retired when it needs correction; “needs revision” is for unpublished candidates.', 409);
+  }
+  if (errorMessage?.includes('editorial_review_evidence_conflict')) {
+    throw new PipelineRegistryCommandError('Source evidence changed or was not read. Inspect the current evidence before approving this exact revision.', 409);
+  }
+  if (errorMessage?.includes('editorial_review_source_notes_required')) {
+    throw new PipelineRegistryCommandError('Supply provenance and publication-rights evidence before approval. Correction candidates use Record source evidence; inherited creator notes remain unchanged.', 400);
+  }
+  if (errorMessage?.includes('editorial_review_preview_required')) {
+    throw new PipelineRegistryCommandError('Add current preview evidence before approving this revision.', 400);
+  }
+  if (errorMessage?.includes('editorial_review_classification_required')) {
+    throw new PipelineRegistryCommandError('Complete the revision classification before approving it.', 400);
+  }
+  throw new PipelineRegistryCommandError('Unable to save this editorial review decision.', 500);
+};
+
 const throwPipelinePurgeError = (errorMessage?: string): never => {
   if (errorMessage?.includes('contributor_asset_not_found')) {
     throw new PipelineRegistryCommandError('Pipeline submission was not found.', 404);
   }
   if (errorMessage?.includes('contributor_asset_purge_confirmation_mismatch')) {
     throw new PipelineRegistryCommandError('Type the exact asset name to confirm permanent deletion.', 400);
+  }
+  if (errorMessage?.includes('contributor_asset_purge_identity_conflict')) {
+    throw new PipelineRegistryCommandError(
+      'The deletion identity changed. Refresh the Library before trying again; no files were removed by this attempt.',
+      409,
+    );
   }
   if (errorMessage?.includes('contributor_asset_storage_reference_incomplete')) {
     throw new PipelineRegistryCommandError(
@@ -251,7 +307,7 @@ export const createTemplatePipelineDraft = async ({
   submissionKey,
 }: TemplatePipelineDraftInput): Promise<TemplatePipelineDraftResult> => {
   const supabase = requireSupabase();
-  const storedTemplate = await externalizePipelineTemplateAssets(template);
+  const storedTemplate = await externalizePipelineTemplateAssets(templateReviewPayload(template));
   const { data: submissionId, error } = await supabase.rpc('cardforge_create_template_pipeline_draft', {
     p_asset_id: storedTemplate.id,
     p_name: storedTemplate.name,
@@ -314,7 +370,7 @@ const writeTemplateRevision = async ({
   submissionKey,
 }: SubmitTemplateRevisionInput, publishDirectly: boolean): Promise<TemplateRevisionResult> => {
   const supabase = requireSupabase();
-  const storedTemplate = await externalizePipelineTemplateAssets(template);
+  const storedTemplate = await externalizePipelineTemplateAssets(templateReviewPayload(template));
   const { data: revisionId, error } = await supabase.rpc(
     publishDirectly ? 'cardforge_publish_owner_template_revision' : 'cardforge_submit_template_revision',
     {
@@ -415,6 +471,9 @@ export const castPipelineVote = async ({
     if (error.message?.includes('template_revision_conflict')) {
       throwTemplateRevisionError(error.message);
     }
+    if (error.message?.includes('editorial_review_reason_required')) {
+      throwEditorialReviewError(error.message, error.code);
+    }
     const statusCode = error.message?.includes('contributor_asset_not_found') ? 404 : 500;
     throw new PipelineRegistryCommandError(
       statusCode === 404
@@ -461,7 +520,8 @@ export const setPipelineOwnerOverride = async ({
     p_owner_contributor_id: ownerContributorId,
   });
   if (error) {
-    throwIfPublicationBusy(error.message);
+    throwIfPublicationBusy(error.message, error.code);
+    throwIfMediaRevisionFailure(error.message);
     if (error.message?.includes('contributor_asset_lineage_purge_pending')) {
       throw new PipelineRegistryCommandError(
         'This Pipeline object is being permanently deleted and can no longer be changed.',
@@ -479,6 +539,24 @@ export const setPipelineOwnerOverride = async ({
       statusCode,
     );
   }
+};
+
+export const setPipelineEditorialReview = async ({
+  submissionId,
+  reviewStatus,
+  reviewNote,
+  reviewerContributorId,
+  expectedEvidenceVersion,
+}: SetPipelineEditorialReviewInput): Promise<void> => {
+  const supabase = requireSupabase();
+  const { error } = await supabase.rpc('cardforge_set_contributor_asset_editorial_review', {
+    p_submission_id: submissionId,
+    p_review_status: reviewStatus,
+    p_review_note: reviewNote,
+    p_reviewer_contributor_id: reviewerContributorId,
+    p_expected_evidence_version: expectedEvidenceVersion ?? null,
+  });
+  if (error) throwEditorialReviewError(error.message, error.code);
 };
 
 export const purgePipelineSubmission = async ({
@@ -517,10 +595,10 @@ export const purgePipelineSubmission = async ({
     }
   }
 
-  const { error: finalizeError } = await supabase.rpc('cardforge_finalize_contributor_asset_purge', {
+  const { data: finalized, error: finalizeError } = await supabase.rpc('cardforge_finalize_contributor_asset_purge', {
     p_submission_id: submissionId,
   });
-  if (finalizeError) {
+  if (finalizeError || finalized !== true) {
     throw new PipelineRegistryCommandError(
       'The file was removed, but the database cleanup still needs to finish. Retry permanent deletion for this asset.',
       503,

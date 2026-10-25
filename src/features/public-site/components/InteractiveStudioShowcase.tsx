@@ -1,13 +1,15 @@
 "use client";
 
-import { Database, LayoutTemplate, Layers3 } from 'lucide-react';
+import { Images, Layers3 } from 'lucide-react';
 import { useCallback, useEffect, useState, type ComponentType } from 'react';
 
 import {
   getDefaultSiteMedia,
+  getSiteMediaDisplaySrc,
   type SiteMediaAsset,
 } from '@/features/public-site/model/siteMedia';
 import { getSiteMediaFrameAspectRatio, ResponsiveSiteMediaImage } from './ResponsiveSiteMediaImage';
+import { createLegacyHomepageShowcaseStages, type HomepageShowcaseStage } from '../model/homepageShowcaseStages';
 import {
   createDefaultHomepageShowcaseExamples,
   type HomepageShowcaseExample,
@@ -72,29 +74,40 @@ export function InteractiveStudioShowcase({
   layoutMedia = getDefaultSiteMedia('landing.showcase.layout'),
   generatorSingleMedia = getDefaultSiteMedia('landing.showcase.generator-single'),
   generatorBulkMedia = getDefaultSiteMedia('landing.showcase.generator-bulk'),
+  mediaAssets = [],
+  stages: configuredStages,
   examples = createDefaultHomepageShowcaseExamples(),
 }: {
   layoutMedia?: SiteMediaAsset;
   generatorSingleMedia?: SiteMediaAsset;
   generatorBulkMedia?: SiteMediaAsset;
+  mediaAssets?: SiteMediaAsset[];
+  stages?: HomepageShowcaseStage[];
   examples?: HomepageShowcaseExample[];
 }) {
   const siteContent = useSiteContent();
   const brand = useBrandPresentation();
-  const stages = [
-    { label: siteContent['landing.showcase.stage.templates'], icon: LayoutTemplate },
-    { label: siteContent['landing.showcase.stage.make'], icon: Database },
-    { label: siteContent['landing.showcase.stage.review'], icon: Layers3 },
-  ] as const;
+  // Absence of Owner stages is an intentional compatibility mode: existing
+  // published copy controls still determine the original three-stage walkthrough.
+  const stages = configuredStages?.length ? configuredStages : createLegacyHomepageShowcaseStages(siteContent);
   const [activeStage, setActiveStage] = useState(0);
+  const [activeView, setActiveView] = useState(0);
   const [activeExample, setActiveExample] = useState(0);
-  const [activeGeneratorView, setActiveGeneratorView] = useState<'single' | 'bulk'>('single');
   const [pauseUntil, setPauseUntil] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [FinishedSetShowcase, setFinishedSetShowcase] = useState<FinishedSetComponent | null>(null);
   const [finishedSetLoadFailed, setFinishedSetLoadFailed] = useState(false);
   const configuredExamples = examples.filter((example) => example.visible);
   const visibleExamples = configuredExamples.length ? configuredExamples : createDefaultHomepageShowcaseExamples();
+  const currentStage = stages[activeStage] ?? stages[0]!;
+  const currentViews = currentStage.kind === 'screenshots' ? (currentStage.views ?? []) : [];
+  const selectedView = currentViews[activeView] ?? currentViews[0];
+  const legacyMedia = [layoutMedia, generatorSingleMedia, generatorBulkMedia];
+  const selectedMedia = selectedView
+    ? mediaAssets.find((asset) => asset.slot === selectedView.mediaSlot)
+      ?? legacyMedia.find((asset) => asset.slot === selectedView.mediaSlot)
+      ?? getDefaultSiteMedia(selectedView.mediaSlot)
+    : null;
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -105,44 +118,37 @@ export function InteractiveStudioShowcase({
   }, []);
 
   useEffect(() => {
+    if (activeStage >= stages.length) setActiveStage(0);
+  }, [activeStage, stages.length]);
+
+  useEffect(() => {
     if (activeExample >= visibleExamples.length) setActiveExample(0);
   }, [activeExample, visibleExamples.length]);
 
   useEffect(() => {
-    const delay = getShowcaseAdvanceDelay({
-      now: Date.now(),
-      pauseUntil,
-      reducedMotion,
-    });
+    const delay = getShowcaseAdvanceDelay({ now: Date.now(), pauseUntil, reducedMotion });
     if (delay === null) return;
     const timer = window.setTimeout(() => {
       setActiveStage((current) => getNextShowcaseStage(current, stages.length));
+      setActiveView(0);
     }, delay);
     return () => window.clearTimeout(timer);
   }, [activeStage, pauseUntil, reducedMotion, stages.length]);
 
   useEffect(() => {
-    if (activeStage !== 2 || FinishedSetShowcase || finishedSetLoadFailed) return;
+    if (currentStage.kind !== 'rendered-set' || FinishedSetShowcase || finishedSetLoadFailed) return;
     let cancelled = false;
     void import('./FinishedSetShowcase')
-      .then((module) => {
-        if (!cancelled) setFinishedSetShowcase(() => module.FinishedSetShowcase);
-      })
-      .catch(() => {
-        if (!cancelled) setFinishedSetLoadFailed(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [FinishedSetShowcase, activeStage, finishedSetLoadFailed]);
+      .then((module) => { if (!cancelled) setFinishedSetShowcase(() => module.FinishedSetShowcase); })
+      .catch(() => { if (!cancelled) setFinishedSetLoadFailed(true); });
+    return () => { cancelled = true; };
+  }, [FinishedSetShowcase, currentStage.kind, finishedSetLoadFailed]);
 
   const pauseAutomaticMovement = useCallback(() => {
     setPauseUntil(Date.now() + INTERACTION_PAUSE_MS);
   }, []);
-
   const example = visibleExamples[activeExample] ?? visibleExamples[0]!;
   const panelId = 'showcase-stage-panel';
-  const generatorMedia = activeGeneratorView === 'single' ? generatorSingleMedia : generatorBulkMedia;
 
   return (
     <section
@@ -153,12 +159,8 @@ export function InteractiveStudioShowcase({
       <div className="mx-auto max-w-7xl">
         <div className="max-w-3xl">
           <p className="text-base font-semibold text-[var(--public-brass)]">{siteContent['landing.showcase.eyebrow']}</p>
-          <h2 id="interactive-showcase-heading" className="mt-2 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
-            {siteContent['landing.showcase.headline']}
-          </h2>
-          <p className="mt-3 text-lg leading-8 text-[var(--public-muted-text)]">
-            {siteContent['landing.showcase.body']}
-          </p>
+          <h2 id="interactive-showcase-heading" className="mt-2 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">{siteContent['landing.showcase.headline']}</h2>
+          <p className="mt-3 text-lg leading-8 text-[var(--public-muted-text)]">{siteContent['landing.showcase.body']}</p>
         </div>
 
         <div
@@ -174,83 +176,68 @@ export function InteractiveStudioShowcase({
               <span className="h-2.5 w-2.5 rounded-full bg-[#78965b]" aria-hidden="true" />
               <strong className="ml-1 font-[var(--public-font-display)] text-base text-[var(--public-ivory)]">{brand.brandName}</strong>
             </div>
-            <div role="tablist" aria-label="CardForge product walkthrough" className="grid grid-cols-3 gap-1 rounded-[var(--public-radius)] border border-[#3b2b19] bg-[#0f0c08] p-1">
-              {stages.map((stage, index) => (
-                <button
-                  key={stage.label}
-                  id={`showcase-tab-${index}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeStage === index}
-                  aria-controls={panelId}
-                  onClick={() => setActiveStage(index)}
-                  className={`flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] px-3 text-base font-bold transition-colors ${
-                    activeStage === index
+            <div role="tablist" aria-label="CardForge product walkthrough" className="flex max-w-full gap-1 overflow-x-auto rounded-[var(--public-radius)] border border-[#3b2b19] bg-[#0f0c08] p-1">
+              {stages.map((stage, index) => {
+                const Icon = stage.kind === 'rendered-set' ? Layers3 : Images;
+                return (
+                  <button
+                    key={stage.id}
+                    id={`showcase-tab-${index}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeStage === index}
+                    aria-controls={panelId}
+                    onClick={() => { setActiveStage(index); setActiveView(0); }}
+                    className={`flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[var(--public-radius)] px-3 text-sm font-bold transition-colors sm:text-base ${activeStage === index
                       ? 'bg-[var(--public-brass)] text-[var(--public-obsidian)]'
-                      : 'text-[var(--public-muted-text)] hover:bg-[var(--cf-surface-raised)] hover:text-[var(--public-ivory)]'
-                  }`}
-                >
-                  <stage.icon className="hidden h-4 w-4 sm:block" aria-hidden="true" />
-                  {stage.label}
-                </button>
-              ))}
+                      : 'text-[var(--public-muted-text)] hover:bg-[var(--cf-surface-raised)] hover:text-[var(--public-ivory)]'}`}
+                  >
+                    <Icon className="hidden h-4 w-4 sm:block" aria-hidden="true" />{stage.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
+          {currentStage.description ? (
+            <p className="border-b border-[#302315] bg-[#100d09] px-5 py-3 text-sm leading-6 text-[var(--public-muted-text)]">{currentStage.description}</p>
+          ) : null}
 
-          {activeStage === 1 ? (
+          {currentStage.kind === 'screenshots' && currentViews.length > 1 ? (
             <div className="border-b border-[#302315] bg-[#100d09] px-3 py-3">
-              <p className="sr-only">Choose how to make cards</p>
-              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Card-making screenshot">
-                {(['single', 'bulk'] as const).map((view) => (
-                  <button
-                    key={view}
-                    type="button"
-                    aria-pressed={activeGeneratorView === view}
-                    onClick={() => setActiveGeneratorView(view)}
-                    className={`min-h-11 rounded-[var(--public-radius)] border px-4 text-base font-semibold ${
-                      activeGeneratorView === view
-                        ? 'border-[var(--public-brass)] bg-[#281b0e] text-[var(--public-ivory)]'
-                        : 'border-[#3b2b19] text-[var(--public-muted-text)] hover:border-[#76501f]'
-                    }`}
-                  >
-                    {view === 'single' ? siteContent['landing.showcase.generator.single'] : siteContent['landing.showcase.generator.bulk']}
-                  </button>
+              <p className="sr-only">Choose a walkthrough screenshot</p>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Walkthrough screenshots">
+                {currentViews.map((view, index) => (
+                  <button key={view.mediaSlot} type="button" aria-pressed={activeView === index}
+                    onClick={() => setActiveView(index)}
+                    className={`min-h-11 rounded-[var(--public-radius)] border px-4 text-base font-semibold ${activeView === index
+                      ? 'border-[var(--public-brass)] bg-[#281b0e] text-[var(--public-ivory)]'
+                      : 'border-[#3b2b19] text-[var(--public-muted-text)] hover:border-[#76501f]'}`}
+                  >{view.label}</button>
                 ))}
               </div>
             </div>
-          ) : activeStage === 2 ? (
+          ) : currentStage.kind === 'rendered-set' ? (
             <div className="border-b border-[#302315] bg-[#100d09] px-3 py-3">
               <p className="sr-only">Choose a demonstration set</p>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {visibleExamples.map((candidate, index) => (
-                  <button
-                    key={candidate.slug}
-                    type="button"
-                    aria-pressed={activeExample === index}
+                  <button key={candidate.slug} type="button" aria-pressed={activeExample === index}
                     onClick={() => setActiveExample(index)}
-                    className={`min-h-11 shrink-0 rounded-[var(--public-radius)] border px-4 text-left text-base font-semibold ${
-                      activeExample === index
-                        ? 'border-[var(--public-brass)] bg-[#281b0e] text-[var(--public-ivory)]'
-                        : 'border-[#3b2b19] text-[var(--public-muted-text)] hover:border-[#76501f]'
-                    }`}
-                  >
-                    {candidate.name}
-                  </button>
+                    className={`min-h-11 shrink-0 rounded-[var(--public-radius)] border px-4 text-left text-base font-semibold ${activeExample === index
+                      ? 'border-[var(--public-brass)] bg-[#281b0e] text-[var(--public-ivory)]'
+                      : 'border-[#3b2b19] text-[var(--public-muted-text)] hover:border-[#76501f]'}`}
+                  >{candidate.name}</button>
                 ))}
               </div>
             </div>
           ) : null}
 
-          <div
-            id={panelId}
-            role="tabpanel"
-            aria-labelledby={`showcase-tab-${activeStage}`}
-            className="bg-[radial-gradient(circle_at_top,#2a1a0c_0%,#11100d_45%,#090806_100%)] p-3 sm:p-5"
-          >
-            {activeStage === 0 ? (
-              <StudioScreenshot media={layoutMedia} />
-            ) : activeStage === 1 ? (
-              <StudioScreenshot media={generatorMedia} />
+          <div id={panelId} role="tabpanel" aria-labelledby={`showcase-tab-${activeStage}`}
+            className="bg-[radial-gradient(circle_at_top,#2a1a0c_0%,#11100d_45%,#090806_100%)] p-3 sm:p-5">
+            {currentStage.kind === 'screenshots' ? (
+              selectedMedia && getSiteMediaDisplaySrc(selectedMedia)
+                ? <StudioScreenshot media={selectedMedia} />
+                : <div role="status" className="grid min-h-[25rem] place-items-center text-center text-base text-[var(--public-muted-text)]">A screenshot has not yet been published for this walkthrough view.</div>
             ) : finishedSetLoadFailed ? (
               <div role="status" className="grid min-h-[25rem] place-items-center text-center text-base text-[var(--public-muted-text)]">
                 The finished-set preview is temporarily unavailable. You can still explore the Studio screenshots.
@@ -263,9 +250,10 @@ export function InteractiveStudioShowcase({
               </div>
             )}
           </div>
-
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--public-border)] bg-[var(--public-surface)] px-4 py-3 text-base text-[var(--public-muted-text)]">
-            <span>{(activeStage === 2 ? siteContent['landing.showcase.footer.rendering'] : siteContent['landing.showcase.footer.screenshot']).replaceAll('{brand}', brand.brandName)}</span>
+            <span>{(currentStage.kind === 'rendered-set'
+              ? siteContent['landing.showcase.footer.rendering']
+              : siteContent['landing.showcase.footer.screenshot']).replaceAll('{brand}', brand.brandName)}</span>
             <span>{reducedMotion ? siteContent['landing.showcase.footer.reduced'] : siteContent['landing.showcase.footer.auto']}</span>
           </div>
         </div>

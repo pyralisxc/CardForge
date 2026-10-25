@@ -1,6 +1,7 @@
 "use client";
 
 import Script from 'next/script';
+import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -312,7 +313,7 @@ export function AnalyticsProvider({
               <Button ref={acceptButtonRef} type="button" onClick={() => choose('granted')}>Accept</Button>
               <Button type="button" variant="outline" onClick={() => choose('granted_once')}>Accept once</Button>
               <Button type="button" variant="outline" onClick={() => choose('denied')}>Decline</Button>
-              <Button asChild type="button" variant="ghost"><a href="/privacy">Privacy details</a></Button>
+              <Button asChild type="button" variant="ghost"><Link href="/privacy">Privacy details</Link></Button>
             </div>
           </aside>
         </div>

@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import type { TCGCardTemplate } from '@/domain/templates';
 
 import { createProjectScaleFixture } from '../../../fixtures/projectScale';
 
@@ -78,7 +79,7 @@ const workspaceStateFor = (
     appearanceStyles: fixture.appearanceStyles,
     storedCards,
     cardSets,
-    activeCardSet: cardSets[0] ?? null,
+    activeCardSet: cardSets.length ? cardSets[0]! : null,
     studioView: 'template',
     generatorSelectedTemplateId: initialTemplateId,
     generatorSelectedBackingTemplateId: null,
@@ -132,8 +133,13 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
   templateContent?: boolean;
   cardLimit?: number;
   exportSample?: boolean;
+  lowResolutionArtwork?: boolean;
   mixedTemplates?: boolean;
   needsWorkFixture?: boolean;
+  emptyDesk?: boolean;
+  publicTemplate?: boolean;
+  templatePatch?: Partial<TCGCardTemplate>;
+  unreadableFolderIndex?: boolean;
 } = {}) => {
   const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
   if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
@@ -148,17 +154,32 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     options.needsWorkFixture,
   );
   if (options.cardLimit !== undefined) state.storedCards = state.storedCards.slice(0, options.cardLimit);
+  if (options.emptyDesk) {
+    state.storedCards = [];
+    state.cardSets = [];
+    state.activeCardSet = null;
+  }
   if (options.exportSample) {
     for (const template of state.userTemplates) {
       template.freeformCanvas!.elements.push({
         id: `${template.id}-title`, name: 'Card title', type: 'text',
         x: 25, y: 550, width: 580, height: 100, zIndex: 2,
-        content: '{{cardName}}', fontSizePx: 40, textColor: '#234567',
+        content: '{{cardName}}', fontSizePx: 40, fontFamily: 'font-cinzel', textColor: '#234567',
       });
     }
     state.storedCards = state.storedCards.map((card) => ({ ...card, backingData: { ...card.data, cardName: `Back · ${card.data.cardName}` } }));
   }
-  await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue }) => {
+  if (options.templatePatch) state.userTemplates = state.userTemplates.map((template) => ({ ...template, ...options.templatePatch }));
+  if (options.publicTemplate) {
+    const template = { ...state.userTemplates[0]!, templateSource: 'default' };
+    state.userTemplates = [];
+    await page.route('**/api/catalog/studio-bootstrap', (route) => route.fulfill({ json: {
+      templates: { defaults: [template], userTemplates: [] },
+      styles: { styles: [] },
+      studioDefaults: { defaultTemplateId: template.id },
+    } }));
+  }
+  await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue, lowResolutionArtwork, unreadableFolderIndex }) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(databaseName, 1);
       request.onupgradeneeded = () => {
@@ -167,6 +188,18 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
+    let rasterBlob: Blob | null = null;
+    if (lowResolutionArtwork) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 64;
+      const context = canvas.getContext('2d')!;
+      context.fillStyle = '#4f7dc8'; context.fillRect(0, 0, 64, 64);
+      stateValue.userTemplates.forEach((template) => {
+        template.cardBackgroundImageUrl = canvas.toDataURL('image/png');
+        template.appearance = { ...template.appearance, assetSource: `cardforge-browser-asset://${'f'.repeat(64)}` };
+      });
+      rasterBlob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Fixture image failed')), 'image/png'));
+    }
     const persistedValue = JSON.stringify({ state: stateValue, version: 4 });
     const record = JSON.stringify({
       cardforgeWorkspaceRecord: 1,
@@ -177,14 +210,19 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(objectStoreName, 'readwrite');
       const store = transaction.objectStore(objectStoreName);
-      scopes.forEach((scope) => store.put(record, `project-workspace:${scope}:workspace`));
+      scopes.forEach((scope) => {
+        store.put(record, `project-workspace:${scope}:workspace`);
+        // Exercise a real non-blocking source failure without a provider session.
+        if (unreadableFolderIndex) store.put({ unreadableFixture: true }, `project-assets:${scope}:local-work-folder-binding-index`);
+        if (lowResolutionArtwork) store.put(new Blob(['<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="none"/></svg>'], { type: 'image/svg+xml' }), `project-content-asset:${scope}:${'f'.repeat(64)}`);
+      });
       stateValue.storedCards.forEach((card, index) => {
         const reference = typeof card.data.artwork === 'string' ? card.data.artwork : '';
         const assetId = reference.replace('cardforge-browser-asset://', '');
         const marks = Array.from({ length: 36 }, (_, mark) => `<circle cx="${(mark * 83 + index * 17) % 512}" cy="${(mark * 137 + index * 29) % 720}" r="${12 + (mark % 22)}" fill="#4f7dc8" fill-opacity="0.42"/>`).join('');
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="720"><rect width="512" height="720" fill="#101723"/>${marks}<text x="24" y="680" fill="white" font-size="42">Artifact ${index + 1}</text></svg>`;
         scopes.forEach((scope) => {
-          store.put(new Blob([svg], { type: 'image/svg+xml' }), `project-content-asset:${scope}:${assetId}`);
+          store.put(rasterBlob ?? new Blob([svg], { type: 'image/svg+xml' }), `project-content-asset:${scope}:${assetId}`);
         });
       });
       transaction.oncomplete = () => resolve();
@@ -197,6 +235,8 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     objectStoreName: BROWSER_STORE,
     scopes: LOCAL_WORKSPACE_SCOPES,
     stateValue: state,
+    lowResolutionArtwork: options.lowResolutionArtwork ?? false,
+    unreadableFolderIndex: options.unreadableFolderIndex ?? false,
   });
 };
 

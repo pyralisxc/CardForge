@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { DisplayCard } from '@/domain/rendering';
 
+import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
+
 import {
   createCardZipExportItems,
+  createPrintProductionManifest,
   createTabletopSimulatorSheets,
   createTabletopSimulatorManifest,
   getTabletopSimulatorExportPreset,
@@ -10,6 +13,7 @@ import {
   getTabletopSimulatorCardCellSize,
   createZipExportCopy,
   getTabletopSimulatorSheetFileName,
+  getPrintProductionFileName,
   getZipExportFileName,
 } from '@/features/card-generator/lib/zipExport';
 
@@ -93,6 +97,33 @@ describe('zip export helpers', () => {
     });
 
     expect(fileName).toBe('012_A_Name__With___Weird___Things_back.png');
+  });
+
+  it('creates deterministic bleed-bearing production package metadata', () => {
+    const items = createCardZipExportItems([makeCard()]);
+    const preflight = createPrintProductionPreflight([items[0].card], 300);
+    const manifest = createPrintProductionManifest(items, preflight);
+
+    expect(getPrintProductionFileName(items[0])).toBe('001_Arcane_Output_front_print-bleed.png');
+    expect(manifest).toMatchObject({
+      format: 'cardforge-print-production-png-v1',
+      preflightFile: 'cardforge-print-preflight.json',
+      productionPrepared: true,
+      pressReady: false,
+      faces: [{
+        file: '001_Arcane_Output_front_print-bleed.png',
+        cardIndex: 0,
+        uniqueId: 'card-1',
+        face: 'front',
+        trimWidthMm: 63,
+        trimHeightMm: 88,
+        bleedMm: 3,
+        safeMarginMm: 4,
+        productionWidthMm: 69,
+        productionHeightMm: 94,
+      }],
+    });
+    expect(manifest.notes.join(' ')).toContain('RGB raster');
   });
 
   it('splits Tabletop Simulator sprite sheets at the 69-card deck limit', () => {

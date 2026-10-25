@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyProjectDocumentToWorkspace } from '@/features/project/client/projectWorkspaceDocument';
+import { applyProjectDocumentToWorkspace, cleanCurrentWorkspaceCompletedDeletions } from '@/features/project/client/projectWorkspaceDocument';
 import { hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProjectStore } from '@/features/project/store/workspaceStore';
 import { createBrowserKeyValueStorage } from '@/features/project/persistence/indexedDbStorage';
 import { restoreBrowserWorkspaceRecovery } from '@/features/project/persistence/projectPersistenceScope';
@@ -24,6 +24,32 @@ describe('atomic project apply', () => {
     await persistProjectWorkspaceNow();
   });
   afterEach(() => vi.restoreAllMocks());
+
+  it('leaves live and durable work unchanged when installation was cancelled', async () => {
+    const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
+    const before = await raw.getItem('workspace');
+    const state = useProjectStore.getState();
+    const controller = new AbortController(); controller.abort();
+    await expect(applyProjectDocumentToWorkspace(fixture(), 'adopt', { signal: controller.signal })).rejects.toBeDefined();
+    expect(useProjectStore.getState()).toBe(state);
+    expect(await raw.getItem('workspace')).toBe(before);
+  });
+  it('rolls back a cancellation during the native import transaction', async () => {
+    const controller = new AbortController();
+    const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
+    const before = await raw.getItem('workspace');
+    const state = useProjectStore.getState();
+    const put = IDBObjectStore.prototype.put;
+    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
+      const request = put.call(this, value, key);
+      if (key === `project-workspace:${scope}:workspace`) controller.abort();
+      return request;
+    });
+    await expect(applyProjectDocumentToWorkspace(fixture(), 'adopt', { signal: controller.signal })).rejects.toBeDefined();
+    expect(useProjectStore.getState()).toBe(state);
+    expect(await raw.getItem('workspace')).toBe(before);
+    expect(await createBrowserKeyValueStorage(`project-assets:${scope}`).getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).toBeNull();
+  });
 
   it('commits once, and restores workspace and artwork catalogs together', async () => {
     const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
@@ -149,4 +175,47 @@ describe('atomic project apply', () => {
     expect(useProjectStore.getState().cardSets.some((set) => set.id === setId)).toBe(false);
     expect(await raw.getItem('__recovery__:workspace')).toBe(source);
   });
+});
+
+it('preserves newer work when confirmed deletion evidence arrives after an edit', async () => {
+  await hydrateProjectWorkspaceForScope('account:cleanup-race');
+  await new Promise((resolve) => setTimeout(resolve, 1));
+  await persistProjectWorkspaceNow();
+  let release!: (value: Response) => void;
+  const response = new Promise<Response>((resolve) => { release = resolve; });
+  const fetch = vi.spyOn(globalThis, 'fetch').mockReturnValue(response);
+  try {
+    const incoming = fixture();
+    const applying = applyProjectDocumentToWorkspace(incoming, 'replace');
+    useProjectStore.getState().setExportDpi(150);
+    release(new Response(JSON.stringify({ deletedUrls: ['https://example.com/fixture.png'] })));
+    await expect(applying).rejects.toThrow('workspace changed');
+    expect(useProjectStore.getState().exportDpi).toBe(150);
+    expect(useProjectStore.getState().storedCards).toHaveLength(0);
+    await persistProjectWorkspaceNow();
+  } finally { fetch.mockRestore(); }
+});
+
+
+it('rejects cleanup after a concurrent artwork catalog edit outside Zustand', async () => {
+  const scope = 'account:cleanup-catalog-race';
+  await hydrateProjectWorkspaceForScope(scope);
+  await new Promise((resolve) => setTimeout(resolve, 1));
+  await applyProjectDocumentToWorkspace(fixture(), 'replace');
+  const assets = createBrowserKeyValueStorage(`project-assets:${scope}`);
+  let release!: (value: Response) => void;
+  let started!: () => void;
+  const pending = new Promise<void>((resolve) => { started = resolve; });
+  const response = new Promise<Response>((resolve) => { release = resolve; });
+  const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(() => { started(); return response; });
+  try {
+    const cleaning = cleanCurrentWorkspaceCompletedDeletions();
+    await pending;
+    const updated = JSON.stringify([{ id: 'new-art', name: 'New artwork', url: 'https://example.com/new.png' }]);
+    await assets.setItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY, updated);
+    release(new Response(JSON.stringify({ deletedUrls: ['https://example.com/fixture.png'] })));
+    await expect(cleaning).rejects.toThrow();
+    expect(await assets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).toBe(updated);
+    expect(useProjectStore.getState().storedCards).toHaveLength(100);
+  } finally { fetch.mockRestore(); }
 });

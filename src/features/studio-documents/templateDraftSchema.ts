@@ -195,6 +195,7 @@ export const templateDraftSchema = z.object({
   baseBackgroundColor: boundedString(255).optional(),
   baseTextColor: boundedString(255).optional(),
   cardBackgroundImageUrl: boundedString(20_000).optional(),
+  cardBackgroundImageFit: z.enum(['cover', 'contain', 'fill']).optional(),
   cardBorderImageSource: boundedString(20_000).optional(),
   defaultElementBorderColor: boundedString(255).optional(),
   cardBorderColor: boundedString(255).optional(),

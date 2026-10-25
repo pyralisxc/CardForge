@@ -21,12 +21,20 @@ import {
   type PersonalLibraryItem,
 } from '@/features/pipeline/components/PipelineContributionModel';
 import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
+import { ContentQualityGuidance } from '@/features/pipeline/components/ContentQualityGuidance';
+import { buildPipelineSourceEvidence, type PipelineAiAssistance } from '@/features/pipeline/lib/contentQualityStandard';
 import { FieldHelp } from '@/features/pipeline/components/PipelineContributionUi';
 import { usePipelineSubmissionCandidates } from '@/features/pipeline/components/usePipelineSubmissionCandidates';
 import {
   hasRequiredPipelineClassification,
+  CARDFORGE_COMPATIBILITY_OPTIONS,
   CARDFORGE_SPECIALTY_OPTIONS,
   CARDFORGE_USE_CASE_OPTIONS,
+  CARDFORGE_VARIANT_KIND_OPTIONS,
+  getDefaultSemanticRole,
+  getSemanticRoleOptions,
+  type PipelineSemanticRole,
+  type PipelineVariantKind,
 } from '@/features/pipeline/lib/contentTaxonomy';
 import { getPipelineTypeLabel } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import {
@@ -65,8 +73,16 @@ export function PipelineSubmissionPanel({
   const [studioDestination, setStudioDestination] = useState<StudioAssetDestination | null>('element.icon');
   const [specialtyTags, setSpecialtyTags] = useState<string[]>([]);
   const [useCaseTags, setUseCaseTags] = useState<string[]>([]);
+  const [semanticRole, setSemanticRole] = useState<PipelineSemanticRole>('icon');
+  const [visualFamily, setVisualFamily] = useState('');
+  const [variantKind, setVariantKind] = useState<PipelineVariantKind>('base');
+  const [variantLabel, setVariantLabel] = useState('');
+  const [compatibilityTags, setCompatibilityTags] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [rightsAndSources, setRightsAndSources] = useState('');
+  const [aiAssistance, setAiAssistance] = useState<PipelineAiAssistance | ''>('');
+  const [aiProcess, setAiProcess] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
@@ -97,8 +113,10 @@ export function PipelineSubmissionPanel({
   };
 
   const changeAssetType = (nextAssetType: ContributorUploadAssetType) => {
+    const nextDestination = getDefaultPipelineStudioDestination(nextAssetType);
     setAssetType(nextAssetType);
-    setStudioDestination(getDefaultPipelineStudioDestination(nextAssetType));
+    setStudioDestination(nextDestination);
+    setSemanticRole(getDefaultSemanticRole(nextAssetType, nextDestination));
     setPersonalLibraryFilter(nextAssetType);
   };
 
@@ -111,8 +129,10 @@ export function PipelineSubmissionPanel({
   const choosePersonalLibraryItem = useCallback(async (item: PersonalLibraryItem) => {
     try {
       const file = await item.createFile();
+      const nextDestination = getDefaultPipelineStudioDestination(item.assetType);
       setAssetType(item.assetType);
-      setStudioDestination(getDefaultPipelineStudioDestination(item.assetType));
+      setStudioDestination(nextDestination);
+      setSemanticRole(getDefaultSemanticRole(item.assetType, nextDestination));
       setName((currentName) => currentName.trim() ? currentName : item.name);
       setDescription((currentDescription) => currentDescription.trim() ? currentDescription : item.helperText);
       setPreviewUrl((currentPreviewUrl) => currentPreviewUrl.trim() ? currentPreviewUrl : item.previewUrl ?? '');
@@ -150,6 +170,8 @@ export function PipelineSubmissionPanel({
       if (!specialtyTags.length) throw new Error('Choose at least one CardForge specialty.');
       if (!hasRequiredPipelineClassification(assetType, specialtyTags, useCaseTags)) throw new Error('Choose at least one CardForge use case.');
       if (!selectedFile) throw new Error('Choose a source file before submitting.');
+      const sourceEvidence = buildPipelineSourceEvidence({ rightsAndSources, aiAssistance, aiProcess });
+      if (!sourceEvidence.ok) throw new Error(sourceEvidence.message);
 
       const planResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload_plan', () => fetch('/api/pipeline/upload-plan', {
         method: 'POST',
@@ -186,8 +208,14 @@ export function PipelineSubmissionPanel({
           studioDestination: submissionStudioDestination,
           specialtyTags,
           useCaseTags,
+          semanticRole,
+          visualFamily,
+          variantKind,
+          variantLabel,
+          compatibilityTags,
           name,
           description,
+          sourceNotes: sourceEvidence.value,
           previewUrl,
           uploadedFile: {
             storagePath: uploadPlan.storagePath,
@@ -203,9 +231,17 @@ export function PipelineSubmissionPanel({
       await onSubmitted();
       setName('');
       setDescription('');
+      setRightsAndSources('');
+      setAiAssistance('');
+      setAiProcess('');
       setPreviewUrl('');
       setSpecialtyTags([]);
       setUseCaseTags([]);
+      setSemanticRole(getDefaultSemanticRole(assetType, studioDestination));
+      setVisualFamily('');
+      setVariantKind('base');
+      setVariantLabel('');
+      setCompatibilityTags([]);
       setSelectedFile(null);
       setFileInputKey((key) => key + 1);
       toast({ title: 'Asset submitted', description: 'Your classified asset is now in Forge Review.' });
@@ -281,7 +317,11 @@ export function PipelineSubmissionPanel({
               id="pipeline-asset-studio-destination"
               className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]"
               value={studioDestination}
-              onChange={(event) => setStudioDestination(event.target.value as StudioAssetDestination)}
+              onChange={(event) => {
+                const nextDestination = event.target.value as StudioAssetDestination;
+                setStudioDestination(nextDestination);
+                setSemanticRole(getDefaultSemanticRole(assetType, nextDestination));
+              }}
             >
               {studioDestinationOptions.map((destination) => (
                 <option key={destination} value={destination}>{getPipelineStudioDestinationLabel(destination)}</option>
@@ -289,6 +329,68 @@ export function PipelineSubmissionPanel({
             </select>
             <span className="text-xs leading-5 text-[var(--cf-text-subtle)]">{submissionGuidance.destination}</span>
           </label> : <div className="grid gap-1 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-sm"><strong className="text-[var(--cf-accent-text)]">Published Set destination</strong><span className="text-xs leading-5 text-[var(--cf-text-subtle)]">Sets become immutable starters in Desk and Pipeline Library. Creators receive a new independent browser copy.</span></div>}
+          <div className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3">
+            <div>
+              <p className="text-sm font-semibold text-[var(--cf-accent-text)]">Content identity</p>
+              <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">
+                Semantic role describes what this object is. Studio destination only controls where creators find it.
+              </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">
+                Semantic role
+                <select
+                  className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 text-[var(--cf-accent-text)]"
+                  value={semanticRole}
+                  onChange={(event) => setSemanticRole(event.target.value as PipelineSemanticRole)}
+                >
+                  {getSemanticRoleOptions(assetType).map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">
+                Visual family / pack <span className="text-xs text-[var(--cf-text-subtle)]">Optional</span>
+                <input
+                  className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 text-[var(--cf-accent-text)]"
+                  maxLength={80}
+                  placeholder="e.g. Ember Court"
+                  value={visualFamily}
+                  onChange={(event) => setVisualFamily(event.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">
+                Family relationship
+                <select
+                  className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 text-[var(--cf-accent-text)]"
+                  value={variantKind}
+                  onChange={(event) => setVariantKind(event.target.value as PipelineVariantKind)}
+                >
+                  {CARDFORGE_VARIANT_KIND_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">
+                Variant label <span className="text-xs text-[var(--cf-text-subtle)]">Optional</span>
+                <input
+                  className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 text-[var(--cf-accent-text)]"
+                  maxLength={80}
+                  placeholder="e.g. Poker format"
+                  value={variantLabel}
+                  onChange={(event) => setVariantLabel(event.target.value)}
+                />
+              </label>
+            </div>
+            <ControlledTaxonomySelect
+              label="Compatibility"
+              selectedIds={compatibilityTags}
+              options={CARDFORGE_COMPATIBILITY_OPTIONS}
+              onChange={setCompatibilityTags}
+              emptyLabel="Optional compositional traits such as Print, Full Bleed, or Tileable."
+            />
+          </div>
+          <ContentQualityGuidance role={semanticRole} />
           <div data-pipeline-taxonomy-grid className="grid gap-3">
             <ControlledTaxonomySelect
               label="Specialties"
@@ -306,7 +408,7 @@ export function PipelineSubmissionPanel({
             />
           </div>
           <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
-            Studio destination controls where the asset appears. Specialty and use-case classification comes from CardForge's shared taxonomy and is stored with the submission from the start.
+            Semantic role identifies the object itself. Visual family and variant group related treatments. Studio destination controls placement; specialties, use cases, and compatibility remain controlled discovery metadata.
           </p>
           <label htmlFor="pipeline-asset-name" className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
             <span className="flex items-center justify-between gap-2">
@@ -428,6 +530,28 @@ export function PipelineSubmissionPanel({
               onChange={(event) => setDescription(event.target.value)}
             />
           </label>
+          <section className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3" aria-label="Source rights and AI disclosure">
+            <div>
+              <p className="text-sm font-semibold text-[var(--cf-accent-text)]">Source, rights and creative process</p>
+              <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">Required for editorial approval. Private review evidence is not projected into the public catalog. Do not include sensitive prompts, user data or secrets.</p>
+            </div>
+            <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">
+              Creator, sources, licenses and publication rights
+              <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-[var(--cf-accent-text)]" maxLength={540} value={rightsAndSources} placeholder="Who made it? Which sources and licenses permit CardForge publication?" onChange={(event) => setRightsAndSources(event.target.value)} />
+            </label>
+            <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">
+              AI assistance
+              <select className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-[var(--cf-accent-text)]" value={aiAssistance} onChange={(event) => setAiAssistance(event.target.value as PipelineAiAssistance | '')}>
+                <option value="">Choose AI-use disclosure</option>
+                <option value="none">No AI assistance used</option>
+                <option value="used">AI-assisted or generated</option>
+              </select>
+            </label>
+            {aiAssistance === 'used' ? <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">
+              Non-sensitive AI process and human edits
+              <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-[var(--cf-accent-text)]" maxLength={400} placeholder="Tool/model and date if known; references, creation summary, edits and review." value={aiProcess} onChange={(event) => setAiProcess(event.target.value)} />
+            </label> : null}
+          </section>
           <Button className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving || context.remainingSubmissions <= 0} onClick={submitAsset}>
             {isSaving ? 'Uploading...' : context.remainingSubmissions > 0 ? 'Send to Forge Review' : 'Monthly submission limit reached'}
           </Button>

@@ -76,7 +76,7 @@ export const registerAccountWorkflowTools = ({
     'get_cardforge_capabilities',
     {
       title: 'Get the linked CardForge account capabilities',
-      description: 'Read the signed-in user’s current CardForge tier, Studio capabilities, owner/Contributor role, and contribution scopes. Use before assuming that a Contributor, owner, or paid capability is available. Normal Studio/card tools remain available to signed-in customers even when contribution tools are not.',
+      description: 'Read the signed-in user’s current CardForge tier, Studio capabilities, owner/Contributor role, and contribution scopes. Reports the authenticated account id and configured deployment/database identity; unknown identity is not confirmation of Preview. Use before assuming that a Contributor, owner, or paid capability is available. Normal Studio/card tools remain available to signed-in customers even when contribution tools are not.',
       outputSchema: accountCapabilitiesOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
@@ -84,6 +84,18 @@ export const registerAccountWorkflowTools = ({
       toolName: 'get_cardforge_capabilities',
       input: {},
       execute: async (access) => {
+        let databaseHost: string | null = null;
+        try {
+          databaseHost = new URL(process.env.SUPABASE_URL?.trim() || '').hostname || null;
+        } catch {
+          // Unknown is not proof of a configured database.
+        }
+        const serverIdentity = {
+          environment: process.env.VERCEL_ENV?.trim() || 'unknown',
+          publicOrigin,
+          databaseHost,
+          sourceRevision: process.env.VERCEL_GIT_COMMIT_SHA?.trim() || null,
+        };
         const contribution = {
           canSubmitLibrary: hasContributionScope(access.scopes, 'library.submit'),
           canPublishLibrary: hasContributionScope(access.scopes, 'library.publish'),
@@ -96,9 +108,13 @@ export const registerAccountWorkflowTools = ({
               : access.isContributor
                 ? 'This linked CardForge account is a Contributor account. Customer Studio tools plus its granted contribution scopes may be used.'
                 : `This linked CardForge account is a normal ${access.entitlement.accessMode} customer account. Use customer Studio, card, project, and temporary working-document tools; do not imply owner or Contributor powers.`,
+          }, {
+            type: 'text',
+            text: `Server: ${serverIdentity.environment}; database: ${serverIdentity.databaseHost ?? 'unknown'}; authenticated account: ${access.user.id}. Verify this identity before using private documents or privileged tools.`,
           }],
           structuredContent: {
             account: {
+              userId: access.user.id,
               accessMode: access.entitlement.accessMode,
               paidPlan: access.entitlement.paidPlan,
               isOwner: access.isOwner,
@@ -118,6 +134,7 @@ export const registerAccountWorkflowTools = ({
               ...contribution,
             },
             guidance: {
+              serverIdentity,
               normalCustomerTools: ['Template creation/revision', 'card and Set creation/revision', 'temporary working documents', 'connected-project checkout and commit'],
               gatedContributionTools: 'Forge Review, shared-library publication, and owner-only publication actions remain scope-gated even though the same MCP server can describe them.',
               renderGuidance: 'Preview tools never prove that a revision was installed in Studio. They render the exact server revision; use get_agent_install_status separately when local application state matters.',

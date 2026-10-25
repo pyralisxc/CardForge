@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import jsPDF from 'jspdf';
-import type { CardFace } from '@/domain/cards';
 import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileDown } from 'lucide-react';
@@ -16,23 +15,23 @@ import {
 } from '@/features/card-generator/lib/printValidation';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
-import { getCardPhysicalSizeMm } from '@/domain/rendering';
-import { renderCardToCanvasWithProfile, resolveCardExportWatermark } from '@/features/card-generator/lib/cardPreviewExport';
+import {
+  createCardFaceExportRenderer,
+  resolveCardExportWatermark,
+  type CardFaceExportRenderer,
+} from '@/features/card-generator/lib/cardPreviewExport';
+import {
+  createPdfDuplexBackPage,
+  createPdfPlacementPages,
+  createScreenPdfPages,
+  getPdfCropMarkSegments,
+  type PdfCardPlacement,
+} from '@/features/card-generator/lib/pdfProductionLayout';
+import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 import { hasCardBacking } from '@/domain/rendering';
 import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 import { useBrandPresentation } from '@/features/brand-presentation/client';
-
-const MAX_PDF_CARDS_PER_FILE = 500;
-const MAX_TOTAL_PDF_EXPORT_CARDS = 10000;
-
-interface PdfCardPlacement {
-  card: DisplayCard;
-  face: CardFace;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+import { MAX_PDF_CARDS_PER_FILE, MAX_TOTAL_PDF_EXPORT_CARDS } from '../lib/pdfExportLimits';
 
 interface SaveAsPdfButtonProps {
   generatedDisplayCards: DisplayCard[];
@@ -42,6 +41,7 @@ interface SaveAsPdfButtonProps {
   pdfIncludeCutLines: boolean;
   pdfDuplexLayout: PdfDuplexLayout;
   exportMode: ExportMode;
+  pdfProfile?: 'sheet' | 'screen';
   exportDpi: number;
   richTextHighlightColor: string;
   canExportClean: boolean;
@@ -57,6 +57,7 @@ export function SaveAsPdfButton({
   pdfIncludeCutLines,
   pdfDuplexLayout,
   exportMode,
+  pdfProfile = 'sheet',
   exportDpi,
   richTextHighlightColor,
   canExportClean,
@@ -91,16 +92,20 @@ export function SaveAsPdfButton({
 
     setIsLoadingPdf(true);
 
-    const exportProfile = getExportProfile(exportMode, exportDpi);
-    const rasterQuality = getRasterExportQualityOption(exportDpi);
+    const isScreenPdf = pdfProfile === 'screen';
+    const activeMode: ExportMode = isScreenPdf ? 'virtual' : exportMode;
+    // Digital copies have their own screen recipe, independent of print settings.
+    const activeDpi = isScreenPdf ? 150 : exportDpi;
+    const exportProfile = getExportProfile(activeMode, activeDpi);
+    const rasterQuality = getRasterExportQualityOption(activeDpi);
     const firstCardDimensions = generatedDisplayCards[0]
-      ? getRasterExportDimensionsPx(generatedDisplayCards[0], exportMode, exportDpi)
+      ? getRasterExportDimensionsPx(generatedDisplayCards[0], activeMode, activeDpi)
       : null;
     const criticalIssues = new Set<string>();
     const warningIssues = new Set<string>();
 
     generatedDisplayCards.forEach((card) => {
-      const validation = validateCardExportQuality(card, exportMode, exportDpi);
+      const validation = validateCardExportQuality(card, activeMode, activeDpi);
       validation.critical.forEach((issue) => criticalIssues.add(issue));
       validation.warnings.forEach((issue) => warningIssues.add(issue));
     });
@@ -128,9 +133,11 @@ export function SaveAsPdfButton({
       .replace(/[^a-zA-Z0-9_\- ]/g, '')
       .trim()
       .replace(/\s+/g, '-') || 'cardforge-cards';
-    const pdfModeSlug = exportMode === 'physical'
-      ? (pdfDuplexLayout === 'same-page' ? 'print-same-sheet' : 'print-duplex-sheets')
-      : 'digital-sheet';
+    const pdfModeSlug = isScreenPdf
+      ? 'digital-cards'
+      : exportMode === 'physical'
+        ? (pdfDuplexLayout === 'same-page' ? 'print-same-sheet' : (pdfDuplexLayout === 'separate-pages-short-edge' ? 'print-duplex-short-edge' : 'print-duplex-long-edge'))
+        : 'digital-sheet';
     const timestamp = new Date().toISOString().slice(0, 10);
     const watermarkSuffix = canExportClean ? '' : '-watermarked';
 
@@ -156,41 +163,97 @@ export function SaveAsPdfButton({
           });
         }
 
+        const screenPages = isScreenPdf ? createScreenPdfPages(chunkCards) : [];
+        const pageWidthMm = screenPages[0]?.widthMm ?? selectedPaperSize.widthMm;
+        const pageHeightMm = screenPages[0]?.heightMm ?? selectedPaperSize.heightMm;
         const pdf = new jsPDF({
           compress: true,
-          orientation: selectedPaperSize.widthMm < selectedPaperSize.heightMm ? 'p' : 'l',
+          orientation: pageWidthMm <= pageHeightMm ? 'p' : 'l',
           unit: 'mm',
-          format: [selectedPaperSize.widthMm, selectedPaperSize.heightMm],
+          format: [pageWidthMm, pageHeightMm],
         });
 
         const effectivePrintableWidthMm = selectedPaperSize.widthMm - 2 * pdfMarginMm;
         const effectivePrintableHeightMm = selectedPaperSize.heightMm - 2 * pdfMarginMm;
 
-        if (exportMode === 'physical' && pdfDuplexLayout === 'separate-pages') {
-          const frontPages = createPdfPlacementPages(chunkCards, 'front', effectivePrintableWidthMm, effectivePrintableHeightMm);
-          for (let pageIndex = 0; pageIndex < frontPages.length; pageIndex++) {
-            if (pageIndex > 0) pdf.addPage();
-            await processPage(pdf, frontPages[pageIndex], exportProfile);
+        const renderer = createCardFaceExportRenderer(
+          exportProfile,
+          richTextHighlightColor,
+          resolveCardExportWatermark(canExportClean, brand),
+        );
+        try {
+          if (isScreenPdf) {
+            // The page itself is the trimmed card face. Never inherit sheet margins,
+            // duplex imposition, bleed, crop marks, or press-only quality checks.
+            for (const [pageIndex, screenPage] of screenPages.entries()) {
+              if (pageIndex > 0) {
+                pdf.addPage(
+                  [screenPage.widthMm, screenPage.heightMm],
+                  screenPage.widthMm <= screenPage.heightMm ? 'p' : 'l',
+                );
+              }
+              const canvas = await renderer.renderToCanvas(screenPage.card, screenPage.face);
+              pdf.addImage(
+                canvas.toDataURL('image/png'),
+                'PNG',
+                0,
+                0,
+                screenPage.widthMm,
+                screenPage.heightMm,
+              );
+            }
+            pdf.setProperties({
+              subject: 'CardForge RGB screen copy; one trimmed card face per page. Visual PDF, not an editable project or tagged accessible text.',
+            });
+          } else if (exportMode === 'physical' && pdfDuplexLayout !== 'same-page') {
+            const frontPages = createPdfPlacementPages({
+              items: chunkCards,
+              forcedFace: 'front',
+              printableWidthMm: effectivePrintableWidthMm,
+              printableHeightMm: effectivePrintableHeightMm,
+              marginMm: pdfMarginMm,
+              spacingMm: pdfCardSpacingMm,
+              physical: true,
+              includeCutLines: pdfIncludeCutLines,
+            });
+            for (let pageIndex = 0; pageIndex < frontPages.length; pageIndex++) {
+              if (pageIndex > 0) pdf.addPage();
+              await processPage(pdf, frontPages[pageIndex], renderer);
 
-            const backPage = frontPages[pageIndex]
-              .filter((placement) => hasCardBacking(placement.card))
-              .map((placement) => ({ ...placement, face: 'back' as const }));
-            if (backPage.length > 0) {
-              pdf.addPage();
-              await processPage(pdf, backPage, exportProfile);
+              const backPage = createPdfDuplexBackPage(frontPages[pageIndex], { widthMm: selectedPaperSize.widthMm, heightMm: selectedPaperSize.heightMm, flip: pdfDuplexLayout === 'separate-pages-short-edge' ? 'short-edge' : 'long-edge' });
+              if (chunkCards.some(hasCardBacking)) {
+                pdf.addPage();
+                await processPage(pdf, backPage, renderer);
+              }
+            }
+          } else {
+            const faceItems = chunkCards.flatMap((cardItem) => (
+              hasCardBacking(cardItem)
+                ? [{ card: cardItem, face: 'front' as const }, { card: cardItem, face: 'back' as const }]
+                : [{ card: cardItem, face: 'front' as const }]
+            ));
+            const facePages = createPdfPlacementPages({
+              items: faceItems,
+              printableWidthMm: effectivePrintableWidthMm,
+              printableHeightMm: effectivePrintableHeightMm,
+              marginMm: pdfMarginMm,
+              spacingMm: pdfCardSpacingMm,
+              physical: exportMode === 'physical',
+              includeCutLines: exportMode === 'physical' && pdfIncludeCutLines,
+            });
+            for (let pageIndex = 0; pageIndex < facePages.length; pageIndex++) {
+              if (pageIndex > 0) pdf.addPage();
+              await processPage(pdf, facePages[pageIndex], renderer);
             }
           }
-        } else {
-          const faceItems = chunkCards.flatMap((cardItem) => (
-            hasCardBacking(cardItem)
-              ? [{ card: cardItem, face: 'front' as const }, { card: cardItem, face: 'back' as const }]
-              : [{ card: cardItem, face: 'front' as const }]
-          ));
-          const facePages = createPdfPlacementPages(faceItems, undefined, effectivePrintableWidthMm, effectivePrintableHeightMm);
-          for (let pageIndex = 0; pageIndex < facePages.length; pageIndex++) {
-            if (pageIndex > 0) pdf.addPage();
-            await processPage(pdf, facePages[pageIndex], exportProfile);
+          if (!isScreenPdf && exportMode === 'physical') {
+            const preflight = createPrintProductionPreflight(chunkCards, exportDpi, renderer.getSourceImageDetails());
+            pdf.setProperties({ subject: 'CardForge RGB production preparation; not certified PDF/X. Duplex: ' + pdfDuplexLayout });
+            const lowDetail = preflight.issues.filter((issue) => issue.code === 'resolution.source_below_300_ppi');
+            if (lowDetail.length) toast({ title: 'Review original artwork detail', description: `${lowDetail.length} placed image(s) are below 300 source PPI. A denser PDF does not restore missing original detail.`, duration: 7000 });
           }
+        } finally {
+          renderer.cleanup();
         }
 
         const chunkSuffix = totalChunks > 1 ? `-part-${chunkIndex + 1}-of-${totalChunks}` : '';
@@ -212,7 +275,7 @@ export function SaveAsPdfButton({
       } else {
         toast({
           title: 'PDF saved',
-          description: `${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}.pdf downloaded${canExportClean ? '' : ' with the CardForge watermark'}. Next step: inspect print margins and image quality before production use.`,
+          description: `${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}.pdf downloaded${canExportClean ? '' : ' with the CardForge watermark'}.${isScreenPdf ? ' Each card face is a separate trimmed page, without print bleed or crop marks. It is a visual copy, not an editable CardForge project.' : exportMode === 'physical' ? ' Physical faces include CardForge format bleed and trim crop marks when enabled; this remains RGB raster PDF output, not PDF/X or a printer-specific ICC contract.' : ''}`,
         });
       }
 
@@ -230,84 +293,30 @@ export function SaveAsPdfButton({
   };
 
   async function processPage(
-    pdf: jsPDF, 
+    pdf: jsPDF,
     pageCards: PdfCardPlacement[],
-    exportProfile: ReturnType<typeof getExportProfile>
+    renderer: CardFaceExportRenderer,
   ) {
-    for (const { card, face, x, y, w, h } of pageCards) {
-      const canvas = await renderCardToCanvasWithProfile(
-        card,
-        exportProfile,
-        face,
-        richTextHighlightColor,
-        resolveCardExportWatermark(canExportClean, brand),
+    for (const placement of pageCards) {
+      const canvas = exportMode === 'physical'
+        ? await renderer.renderProductionToCanvas(placement.card, placement.face)
+        : await renderer.renderToCanvas(placement.card, placement.face);
+      pdf.addImage(
+        canvas.toDataURL('image/png'),
+        'PNG',
+        placement.imageX,
+        placement.imageY,
+        placement.imageWidth,
+        placement.imageHeight,
       );
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h);
-      if (pdfIncludeCutLines) drawCutLines(pdf, x, y, w, h);
+      if (exportMode === 'physical' && pdfIncludeCutLines) {
+        pdf.setDrawColor(180, 180, 180);
+        pdf.setLineWidth(0.1);
+        getPdfCropMarkSegments(placement).forEach((segment) => {
+          pdf.line(segment.x1, segment.y1, segment.x2, segment.y2);
+        });
+      }
     }
-  }
-
-  function createPdfPlacementPages(
-    items: DisplayCard[] | Array<{ card: DisplayCard; face: CardFace }>,
-    forcedFace: CardFace | undefined,
-    effectivePrintableWidthMm: number,
-    effectivePrintableHeightMm: number
-  ): PdfCardPlacement[][] {
-    const pages: PdfCardPlacement[][] = [];
-    let currentPage: PdfCardPlacement[] = [];
-    let currentX = pdfMarginMm;
-    let currentY = pdfMarginMm;
-    let currentRowMaxHeightMm = 0;
-
-    for (const item of items) {
-      const cardItem = 'card' in item ? item.card : item;
-      const face = forcedFace ?? ('face' in item ? item.face : 'front');
-      const { widthMm: cardWidthMm, heightMm: cardHeightMm } = getCardPhysicalSizeMm(
-        cardItem,
-        effectivePrintableWidthMm,
-        effectivePrintableHeightMm
-      );
-
-      if (currentX + cardWidthMm > effectivePrintableWidthMm + pdfMarginMm && currentPage.length > 0) {
-        currentX = pdfMarginMm;
-        currentY += currentRowMaxHeightMm + pdfCardSpacingMm;
-        currentRowMaxHeightMm = 0;
-      }
-      if (currentY + cardHeightMm > effectivePrintableHeightMm + pdfMarginMm && currentPage.length > 0) {
-        pages.push(currentPage);
-        currentPage = [];
-        currentX = pdfMarginMm;
-        currentY = pdfMarginMm;
-        currentRowMaxHeightMm = 0;
-      }
-      currentPage.push({ card: cardItem, face, x: currentX, y: currentY, w: cardWidthMm, h: cardHeightMm });
-      currentRowMaxHeightMm = Math.max(currentRowMaxHeightMm, cardHeightMm);
-      currentX += cardWidthMm + pdfCardSpacingMm;
-    }
-
-    if (currentPage.length > 0) pages.push(currentPage);
-    return pages;
-  }
-  
-  function drawCutLines(pdf: jsPDF, x: number, y: number, w: number, h: number) {
-      pdf.setDrawColor(180, 180, 180); 
-      pdf.setLineWidth(0.1);
-      const cutOffset = pdfCardSpacingMm === 0 ? 0.2 : 0; 
-      const cutLength = pdfCardSpacingMm === 0 ? 2 : 3;
-
-      pdf.line(x - cutLength + cutOffset, y + cutOffset, x + cutOffset, y + cutOffset);
-      pdf.line(x + cutOffset, y - cutLength + cutOffset, x + cutOffset, y + cutOffset);
-      pdf.line(x + w + cutLength - cutOffset, y + cutOffset, x + w - cutOffset, y + cutOffset);
-      pdf.line(x + w - cutOffset, y - cutLength + cutOffset, x + w - cutOffset, y + cutOffset);
-      pdf.line(x - cutLength + cutOffset, y + h - cutOffset, x + cutOffset, y + h - cutOffset);
-      pdf.line(x + cutOffset, y + h + cutLength - cutOffset, x + cutOffset, y + h - cutOffset);
-      pdf.line(x + w + cutLength - cutOffset, y + h - cutOffset, x + w - cutOffset, y + h - cutOffset);
-      pdf.line(x + w - cutOffset, y + h + cutLength - cutOffset, x + w - cutOffset, y + h - cutOffset);
-      
-      if (pdfCardSpacingMm === 0 && pdfIncludeCutLines) {
-          pdf.setDrawColor(200, 200, 200); 
-          pdf.rect(x, y, w, h);
-      }
   }
 
 
@@ -316,12 +325,12 @@ export function SaveAsPdfButton({
       {isLoadingPdf ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Saving PDF...
+          {pdfProfile === 'screen' ? 'Preparing digital PDF...' : 'Saving PDF...'}
         </>
       ) : (
         <>
           <FileDown className="mr-2 h-4 w-4" />
-          Save as PDF
+          {pdfProfile === 'screen' ? 'Download digital PDF' : 'Save as PDF'}
         </>
       )}
     </Button>

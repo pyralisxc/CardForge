@@ -1,6 +1,15 @@
 import { z } from 'zod';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { normalizeSpecialtyTags, normalizeUseCaseTags } from '../lib/contentTaxonomy';
+import {
+  CARDFORGE_SEMANTIC_ROLE_OPTIONS,
+  isPipelineCompatibilityTag,
+  isPipelineVariantKind,
+  normalizeCompatibilityTags,
+  normalizeSpecialtyTags,
+  normalizeUseCaseTags,
+  normalizeVariantLabel,
+  normalizeVisualFamily,
+} from '../lib/contentTaxonomy';
 import { PipelineRegistryCommandError } from '../lib/pipelineRegistryCommandsError';
 
 const inputSchema = z.object({
@@ -10,8 +19,18 @@ const inputSchema = z.object({
   expectedRevision: z.number().int().nonnegative(),
   expectedSpecialtyTags: z.array(z.string()).max(12),
   expectedUseCaseTags: z.array(z.string()).max(12),
+  expectedSemanticRole: z.string().min(1).max(80),
+  expectedVisualFamily: z.string().max(80).nullable(),
+  expectedVariantKind: z.string().min(1).max(40),
+  expectedVariantLabel: z.string().max(80).nullable(),
+  expectedCompatibilityTags: z.array(z.string()).max(12),
   specialtyTags: z.array(z.string()).min(1).max(12),
   useCaseTags: z.array(z.string()).max(12),
+  semanticRole: z.string().min(1).max(80),
+  visualFamily: z.string().max(80).nullable(),
+  variantKind: z.string().min(1).max(40),
+  variantLabel: z.string().max(80).nullable(),
+  compatibilityTags: z.array(z.string()).max(12),
 }).strict();
 
 export async function readPublishedPipelineClassification(assetId: string) {
@@ -23,7 +42,7 @@ export async function readPublishedPipelineClassification(assetId: string) {
   if (error) throw new PipelineRegistryCommandError('Published content is unavailable. Try again.', 503, 'pipeline_classification_unavailable');
   if (!registry) throw new PipelineRegistryCommandError('The published asset no longer exists.', 404, 'pipeline_classification_not_found');
   const { data: submission, error: sourceError } = await supabase.from('cardforge_contributor_asset_submissions')
-    .select('id,lineage_id,status,purge_state,specialty_tags,use_case_tags,asset_type').eq('id', registry.contributor_submission_id).maybeSingle();
+    .select('id,lineage_id,status,purge_state,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags,asset_type').eq('id', registry.contributor_submission_id).maybeSingle();
   if (sourceError) throw new PipelineRegistryCommandError('Published classification is unavailable. Try again.', 503, 'pipeline_classification_unavailable');
   if (!submission?.lineage_id || registry.status !== 'published' || submission.status !== 'published' || submission.purge_state) {
     throw new PipelineRegistryCommandError('This asset is no longer available for published classification. Reload its current revision.', 409, 'pipeline_classification_conflict');
@@ -32,7 +51,14 @@ export async function readPublishedPipelineClassification(assetId: string) {
   return { assetId: registry.asset_id, name: registry.name, assetType: submission.asset_type,
     expectedSubmissionId: submission.id, expectedLineageId: submission.lineage_id,
     expectedRevision: /^[0-9]+$/.test(revision) ? Number(revision) : 0,
-    expectedSpecialtyTags: submission.specialty_tags ?? [], expectedUseCaseTags: submission.use_case_tags ?? [] };
+    expectedSpecialtyTags: submission.specialty_tags ?? [],
+    expectedUseCaseTags: submission.use_case_tags ?? [],
+    expectedSemanticRole: submission.semantic_role ?? '',
+    expectedVisualFamily: submission.visual_family ?? null,
+    expectedVariantKind: submission.variant_kind ?? 'base',
+    expectedVariantLabel: submission.variant_label ?? null,
+    expectedCompatibilityTags: submission.compatibility_tags ?? [],
+  };
 }
 
 /** Invoked only after the request owner gate. SQL owns the locked comparison. */
@@ -40,9 +66,20 @@ export async function classifyPublishedPipelineAsset(value: unknown): Promise<vo
   const parsed = inputSchema.safeParse(value);
   if (!parsed.success) throw new PipelineRegistryCommandError('Provide the exact published identity and supported classification.', 400, 'pipeline_classification_invalid');
   const input = parsed.data;
+  if (!CARDFORGE_SEMANTIC_ROLE_OPTIONS.some((option) => option.id === input.semanticRole)) {
+    throw new PipelineRegistryCommandError('Choose a supported semantic role.', 400, 'pipeline_classification_invalid');
+  }
+  const normalizedVisualFamily = normalizeVisualFamily(input.visualFamily);
+  const normalizedVariantLabel = normalizeVariantLabel(input.variantLabel);
   if (JSON.stringify(normalizeSpecialtyTags(input.specialtyTags)) !== JSON.stringify(input.specialtyTags)
-    || JSON.stringify(normalizeUseCaseTags(input.useCaseTags)) !== JSON.stringify(input.useCaseTags)) {
+    || JSON.stringify(normalizeUseCaseTags(input.useCaseTags)) !== JSON.stringify(input.useCaseTags)
+    || input.compatibilityTags.some((tag) => !isPipelineCompatibilityTag(tag))
+    || JSON.stringify(normalizeCompatibilityTags(input.compatibilityTags)) !== JSON.stringify(input.compatibilityTags)
+    || !isPipelineVariantKind(input.variantKind)) {
     throw new PipelineRegistryCommandError('Choose supported classification values without duplicates.', 400, 'pipeline_classification_invalid');
+  }
+  if (input.visualFamily !== normalizedVisualFamily || input.variantLabel !== normalizedVariantLabel) {
+    throw new PipelineRegistryCommandError('Use normalized family and variant labels.', 400, 'pipeline_classification_invalid');
   }
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new PipelineRegistryCommandError('Pipeline is unavailable. Try again.', 503, 'pipeline_unavailable');
@@ -53,8 +90,18 @@ export async function classifyPublishedPipelineAsset(value: unknown): Promise<vo
     p_expected_revision: input.expectedRevision,
     p_expected_specialty_tags: input.expectedSpecialtyTags,
     p_expected_use_case_tags: input.expectedUseCaseTags,
+    p_expected_semantic_role: input.expectedSemanticRole,
+    p_expected_visual_family: input.expectedVisualFamily,
+    p_expected_variant_kind: input.expectedVariantKind,
+    p_expected_variant_label: input.expectedVariantLabel,
+    p_expected_compatibility_tags: input.expectedCompatibilityTags,
     p_specialty_tags: input.specialtyTags,
     p_use_case_tags: input.useCaseTags,
+    p_semantic_role: input.semanticRole,
+    p_visual_family: input.visualFamily,
+    p_variant_kind: input.variantKind,
+    p_variant_label: input.variantLabel,
+    p_compatibility_tags: input.compatibilityTags,
   });
   if (!error) return;
   if (error.message.includes('pipeline_classification_conflict')) throw new PipelineRegistryCommandError('The published revision or classification changed. Reload before classifying it again.', 409, 'pipeline_classification_conflict');

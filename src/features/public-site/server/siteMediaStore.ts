@@ -8,6 +8,9 @@ import {
   type SiteMediaSlot,
   type SiteMediaVersion,
 } from '@/features/public-site/model/siteMedia';
+import { getPublicSiteConfiguration } from './siteConfigurationStore';
+import { isHomepageCustomSection } from '../model/homepageComposition';
+import { isComposedSiteMediaSlot } from '../model/siteMedia';
 import {
   getSupabaseServerClient,
   getSupabaseServerConfigStatus,
@@ -69,15 +72,53 @@ const mapRow = (row: SiteMediaRow): SiteMediaAsset => {
 const mergeRowsWithDefaults = <Row extends { slot: SiteMediaSlot }>(
   rows: Row[],
   mapper: (row: Row) => SiteMediaAsset,
-): SiteMediaAsset[] => DEFAULT_SITE_MEDIA.map((asset) => {
-  const row = rows.find((candidate) => candidate.slot === asset.slot);
-  return row ? mapper(row) : getDefaultSiteMedia(asset.slot);
-});
+): SiteMediaAsset[] => {
+  const slotIds = [
+    ...DEFAULT_SITE_MEDIA.map((asset) => asset.slot),
+    ...rows.filter((row) => isComposedSiteMediaSlot(row.slot)).map((row) => row.slot),
+  ];
+  return [...new Set(slotIds)].map((slot) => {
+    const row = rows.find((candidate) => candidate.slot === slot);
+    return row ? mapper(row) : getDefaultSiteMedia(slot);
+  });
+};
 
-export const getSiteMedia = async (): Promise<SiteMediaAsset[]> => {
+/** Use already-read Owner configuration to expose never-uploaded section images. No extra provider reads. */
+export const completeSiteMediaForSections = (
+  assets: SiteMediaAsset[],
+  sections: readonly { id: string }[],
+): SiteMediaAsset[] => {
+  const known = new Set(assets.map((asset) => asset.slot));
+  const missing = sections.flatMap((section) => {
+    if (!isHomepageCustomSection(section)) return [];
+    return section.blocks.flatMap((block) => (
+      block.kind === 'image' && isComposedSiteMediaSlot(block.mediaSlot) && !known.has(block.mediaSlot)
+        ? [getDefaultSiteMedia(block.mediaSlot)] : []
+    ));
+  });
+  return [...assets, ...missing];
+};
+
+/** Dynamic image access is limited to existing published Owner composition blocks. */
+export const assertComposedSiteMediaReference = async (slot: SiteMediaSlot): Promise<void> => {
+  if (!isComposedSiteMediaSlot(slot)) return;
+  const settings = await getPublicSiteConfiguration();
+  const allowed = [...settings.homepageSections, ...(settings.pages ?? []).flatMap((page) => page.sections)].some((section) => (
+    isHomepageCustomSection(section) && section.blocks.some((block) => (
+      block.kind === 'image' && block.mediaSlot === slot
+    ))
+  ));
+  if (!allowed) throw new SiteMediaStoreError('This image is not part of the published site design.', 404);
+};
+
+/** Keep historical row tokens even when those slots are not presented. */
+export const readSiteMediaSnapshot = async (): Promise<{
+  assets: SiteMediaAsset[];
+  sourceEpochs: Record<string, string | null>;
+}> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) {
-    return DEFAULT_SITE_MEDIA.map((asset) => getDefaultSiteMedia(asset.slot));
+    return { assets: DEFAULT_SITE_MEDIA.map((asset) => getDefaultSiteMedia(asset.slot)), sourceEpochs: {} };
   }
 
   const { data, error } = await supabase
@@ -85,10 +126,16 @@ export const getSiteMedia = async (): Promise<SiteMediaAsset[]> => {
     .select('slot,storage_path,alt,width,height,presentation,previous_storage_path,previous_alt,previous_width,previous_height,previous_presentation,previous_updated_at,updated_at')
     .order('slot', { ascending: true });
 
-  if (!error) return mergeRowsWithDefaults((data ?? []) as SiteMediaRow[], mapRow);
+  if (!error) return {
+    assets: mergeRowsWithDefaults((data ?? []) as SiteMediaRow[], mapRow),
+    sourceEpochs: Object.fromEntries((data ?? []).map((row) => [row.slot, row.updated_at])),
+  };
   console.error('Failed to load public site media:', error);
   throw new SiteMediaStoreError('Public site images are temporarily unavailable.', 503);
 };
+
+export const getSiteMedia = async (): Promise<SiteMediaAsset[]> =>
+  (await readSiteMediaSnapshot()).assets;
 
 const validateDimensions = (width: unknown, height: unknown): { width: number | null; height: number | null } => {
   const validDimension = (value: unknown): value is number => (
@@ -116,6 +163,22 @@ const validateStoragePath = (slot: SiteMediaSlot, storagePath: unknown): string 
   return storagePath;
 };
 
+const commitMediaVersion = async (supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>, row: Record<string, unknown>, expectedUpdatedAt: unknown): Promise<SiteMediaAsset> => {
+  if (expectedUpdatedAt !== null && (typeof expectedUpdatedAt !== 'string' || !Number.isFinite(Date.parse(expectedUpdatedAt)))) {
+    throw new SiteMediaStoreError('Reload the current image before publishing or restoring.', 409);
+  }
+  let query = supabase.from('cardforge_site_media').update(row).eq('slot', row.slot);
+  query = expectedUpdatedAt === null ? query.is('updated_at', null) : query.eq('updated_at', expectedUpdatedAt);
+  let { data, error } = await query.select('*').maybeSingle();
+  if (!error && !data && expectedUpdatedAt === null) {
+    const created = await supabase.from('cardforge_site_media').insert(row).select('*').maybeSingle();
+    data = created.data; error = created.error;
+  }
+  if (error?.code === '23505' || (!error && !data)) throw new SiteMediaStoreError('The image changed in another session. Reload and review its current version.', 409);
+  if (error) { console.error('Media version publication failed:', error); throw new SiteMediaStoreError('Unable to publish the public image.', 503); }
+  return mapRow(data as SiteMediaRow);
+};
+
 export const updateSiteMedia = async (input: {
   slot: unknown;
   storagePath: unknown;
@@ -123,8 +186,10 @@ export const updateSiteMedia = async (input: {
   width: unknown;
   height: unknown;
   presentation: unknown;
-}): Promise<void> => {
+  expectedUpdatedAt?: unknown;
+}): Promise<SiteMediaAsset> => {
   if (!isSiteMediaSlot(input.slot)) throw new SiteMediaStoreError('Unknown public image.', 400);
+  await assertComposedSiteMediaReference(input.slot);
   const storagePath = validateStoragePath(input.slot, input.storagePath);
   const dimensions = validateDimensions(input.width, input.height);
   if (typeof input.alt !== 'string' || !input.alt.trim() || input.alt.trim().length > 300) {
@@ -137,8 +202,9 @@ export const updateSiteMedia = async (input: {
   if (!supabase) throw new SiteMediaStoreError('Public image storage is not configured yet.', 503);
   const current = (await getSiteMedia()).find((asset) => asset.slot === input.slot)
     ?? getDefaultSiteMedia(input.slot);
+  if (current.updatedAt !== input.expectedUpdatedAt) throw new SiteMediaStoreError('The image changed since it was loaded. Reload and review before publication.', 409);
   const updatedAt = new Date().toISOString();
-  const { error } = await supabase.from('cardforge_site_media').upsert({
+  return commitMediaVersion(supabase, {
     slot: input.slot,
     storage_path: storagePath,
     alt: input.alt.trim(),
@@ -152,21 +218,19 @@ export const updateSiteMedia = async (input: {
     previous_presentation: current.presentation,
     previous_updated_at: current.updatedAt,
     updated_at: updatedAt,
-  }, { onConflict: 'slot' });
-  if (error) {
-    console.error('Failed to update public site media:', error);
-    throw new SiteMediaStoreError('Unable to publish the public image.');
-  }
+  }, input.expectedUpdatedAt);
 };
 
-export const restorePreviousSiteMedia = async (slot: unknown): Promise<void> => {
+export const restorePreviousSiteMedia = async (slot: unknown, expectedUpdatedAt: unknown): Promise<SiteMediaAsset> => {
   if (!isSiteMediaSlot(slot)) throw new SiteMediaStoreError('Unknown public image.', 400);
+  await assertComposedSiteMediaReference(slot);
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new SiteMediaStoreError('Public image storage is not configured yet.', 503);
   const current = (await getSiteMedia()).find((asset) => asset.slot === slot);
   if (!current?.previousVersion) throw new SiteMediaStoreError('There is no previous image version to restore.', 409);
+  if (current.updatedAt !== expectedUpdatedAt) throw new SiteMediaStoreError('The image changed since it was loaded. Reload and review before Restore.', 409);
   const previous = current.previousVersion;
-  const { error } = await supabase.from('cardforge_site_media').upsert({
+  return commitMediaVersion(supabase, {
     slot,
     storage_path: previous.storagePath,
     alt: previous.alt,
@@ -180,9 +244,5 @@ export const restorePreviousSiteMedia = async (slot: unknown): Promise<void> => 
     previous_presentation: current.presentation,
     previous_updated_at: current.updatedAt,
     updated_at: new Date().toISOString(),
-  }, { onConflict: 'slot' });
-  if (error) {
-    console.error('Failed to restore public site media:', error);
-    throw new SiteMediaStoreError('Unable to restore the previous public image.');
-  }
+  }, expectedUpdatedAt);
 };

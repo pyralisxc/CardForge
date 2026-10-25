@@ -6,6 +6,7 @@ import {
   getCardFaceData,
   getCardExportDimensionsPx,
   getCardFaceCanvas,
+  getTemplateProductionGeometryMm,
   hasCardBacking,
 } from '@/domain/rendering';
 import type { DisplayCard, ExportMode } from '@/domain/rendering';
@@ -95,7 +96,6 @@ const computeCanvasPixelRatio = (dpi: number): number => {
 };
 
 const KNOWN_FONT_VALUES = new Set(AVAILABLE_FONTS.map((font) => font.value));
-const PHYSICAL_SAFE_AREA_RATIO = 0.04;
 
 const isKnownFontValue = (fontFamily: string): boolean =>
   KNOWN_FONT_VALUES.has(fontFamily) || fontFamily.startsWith('font-contributor-');
@@ -167,8 +167,10 @@ export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, d
       { label: 'back', canvas: hasCardBacking(card) ? getCardFaceCanvas(card, 'back') : undefined },
     ].forEach(({ label, canvas }) => {
       if (!canvas) return;
-      const safeX = canvas.width * PHYSICAL_SAFE_AREA_RATIO;
-      const safeY = canvas.height * PHYSICAL_SAFE_AREA_RATIO;
+      const template = label === 'back' && card.backingTemplate ? card.backingTemplate : card.template;
+      const productionGeometry = getTemplateProductionGeometryMm(template);
+      const safeX = (productionGeometry.safeMarginMm / productionGeometry.trimWidthMm) * canvas.width;
+      const safeY = (productionGeometry.safeMarginMm / productionGeometry.trimHeightMm) * canvas.height;
       (canvas.elements || [])
         .filter((element) => element.type === 'text' || element.type === 'icon')
         .forEach((element) => {
@@ -180,7 +182,7 @@ export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, d
 
           if (tooClose) {
             warnings.push(
-              `${label === 'back' ? 'Back' : 'Front'} ${element.type} element "${element.name || element.id}" is inside the print safe area. Keep important text and icons at least 4% away from trim edges, or confirm the placement intentionally bleeds.`
+              `${label === 'back' ? 'Back' : 'Front'} ${element.type} element "${element.name || element.id}" crosses the safe content boundary. Keep important text and icons at least ${productionGeometry.safeMarginMm} mm inside the trim edge, or confirm the placement intentionally approaches trim.`
             );
           }
         });

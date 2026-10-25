@@ -11,11 +11,12 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { getCardExportDimensionsPx, hasCardBacking } from '@/domain/rendering';
+import { getCardExportDimensionsPx, getCardProductionGeometryMm, hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
 import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
 import type { ZipExportKind } from '@/features/card-generator/hooks/useCardZipExportActions';
+import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 import {
   RASTER_EXPORT_QUALITY_OPTIONS,
   getRasterExportDimensionsPx,
@@ -50,6 +51,8 @@ interface ExportControlsPanelProps {
   zipExportKind: ZipExportKind | null;
   zipProgress: { done: number; total: number } | null;
   onExportAllAsZip: () => void;
+  onExportPrintPngSet: () => void;
+  onExportPressCandidate: () => void;
   onExportTabletopSimulatorSpritesheets: (quality: TabletopSimulatorExportQuality) => void;
   onSelectPaperSize: (size: PaperSize) => void;
   onSetExportDpi: (dpi: number) => void;
@@ -92,6 +95,8 @@ export function ExportControlsPanel({
   zipExportKind,
   zipProgress,
   onExportAllAsZip,
+  onExportPrintPngSet,
+  onExportPressCandidate,
   onExportTabletopSimulatorSpritesheets,
   onSelectPaperSize,
   onSetExportDpi,
@@ -106,6 +111,13 @@ export function ExportControlsPanel({
     0
   );
   const rasterQuality = getRasterExportQualityOption(exportDpi);
+  const productionGeometry = firstCard && exportMode === 'physical'
+    ? getCardProductionGeometryMm(firstCard)
+    : null;
+  const printPreflight = useMemo(
+    () => createPrintProductionPreflight(generatedDisplayCards, exportDpi),
+    [exportDpi, generatedDisplayCards],
+  );
   const rasterDimensions = firstCard
     ? getRasterExportDimensionsPx(firstCard, exportMode, exportDpi)
     : null;
@@ -144,6 +156,7 @@ export function ExportControlsPanel({
     ? Math.round((zipProgress.done / zipProgress.total) * 100)
     : 0;
   const isPngSetExporting = isZipExporting && zipExportKind === 'png-set';
+  const isPrintPngSetExporting = isZipExporting && zipExportKind === 'print-png-set';
   const isTabletopExporting = isZipExporting && zipExportKind === 'tabletop-simulator';
   const exportsDisabled = isEntitlementPending || generatedDisplayCards.length === 0 || isZipExporting;
 
@@ -258,6 +271,103 @@ export function ExportControlsPanel({
             ) : null}
           </section>
 
+          <section aria-labelledby="screen-pdf-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
+            <div>
+              <h3 id="screen-pdf-heading" className="font-semibold">Digital PDF · easy sharing</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                One card face per trimmed page, front followed by back, for viewing in ordinary PDF readers on phones, tablets and computers.
+                No print bleed, cut marks or paper layout settings. This is a visual RGB copy, not an editable project or selectable, screen-reader-tagged text.
+              </p>
+            </div>
+            <SaveAsPdfButton
+              pdfProfile="screen"
+              generatedDisplayCards={generatedDisplayCards}
+              selectedPaperSize={selectedPaperSize}
+              pdfMarginMm={pdfMarginMm}
+              pdfCardSpacingMm={pdfCardSpacingMm}
+              pdfIncludeCutLines={pdfIncludeCutLines}
+              pdfDuplexLayout={pdfDuplexLayout}
+              exportMode="virtual"
+              exportDpi={150}
+              richTextHighlightColor={richTextHighlightColor}
+              canExportClean={canExportClean}
+              disabled={exportsDisabled}
+              templateName={firstCard?.template?.name}
+            />
+          </section>
+
+          {exportMode === 'physical' && productionGeometry ? (
+            <section aria-labelledby="print-production-png-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
+              <div>
+                <h3 id="print-production-png-heading" className="font-semibold">Print production PNGs</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Keeps the authored trim design unchanged and adds the format&apos;s bleed outside it. The ZIP includes exact production geometry metadata for each face.
+                </p>
+              </div>
+              <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                <p><span className="font-medium text-foreground">Trim:</span> {productionGeometry.trimWidthMm} × {productionGeometry.trimHeightMm} mm</p>
+                <p><span className="font-medium text-foreground">Bleed:</span> {productionGeometry.bleedMm} mm on every edge</p>
+                <p><span className="font-medium text-foreground">Safe margin:</span> {productionGeometry.safeMarginMm} mm inside trim</p>
+                <p><span className="font-medium text-foreground">Production face:</span> {productionGeometry.productionWidthMm} × {productionGeometry.productionHeightMm} mm</p>
+              </div>
+              <div className="grid gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-xs">
+                <p className="font-semibold text-foreground">
+                  Production preflight: {printPreflight.productionPrepared ? 'Prepared' : 'Blocked'}
+                </p>
+                <p className="text-muted-foreground">
+                  {printPreflight.issueSummary.blockers} blockers · {printPreflight.issueSummary.warnings} review warnings · {printPreflight.issueSummary.standardsGaps} press-standard gap{printPreflight.issueSummary.standardsGaps === 1 ? '' : 's'}.
+                </p>
+                <p className="font-medium text-foreground">
+                  Press ready: {printPreflight.pressReady ? 'Yes' : 'Not yet'}
+                </p>
+                {!printPreflight.pressReady ? (
+                  <p className="text-muted-foreground">
+                    These PNGs and sheet PDFs have no ICC output intent. The separate color-managed press candidate below still requires independent prepress and professional-workflow acceptance.
+                  </p>
+                ) : null}
+                {printPreflight.issues.filter((issue) => issue.severity === 'blocker').slice(0, 2).map((issue) => (
+                  <p key={`${issue.code}:${issue.scope}:${issue.message}`} className="text-[var(--cf-danger)]">
+                    {issue.message}
+                  </p>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Bleed repeats the authored background edge pixels, not mirrored card borders or text. The trim design stays in place; digital rounded corners are not a physical cut specification. Inspect every edge and keep important content inside the safe area. The ZIP includes preflight and geometry reports.
+              </p>
+              <Button
+                variant="outline"
+                onClick={onExportPrintPngSet}
+                disabled={exportsDisabled || !printPreflight.productionPrepared}
+                className="w-full gap-2"
+              >
+                <Download className="h-4 w-4" />
+                {isPrintPngSetExporting
+                  ? `Preparing print PNGs… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
+                  : isEntitlementPending
+                    ? 'Checking account access…'
+                    : `Download print production PNG ZIP (${exportFaceCount} ${exportFaceCount === 1 ? 'face' : 'faces'})`}
+              </Button>
+            </section>
+          ) : null}
+
+          {exportMode === 'physical' && productionGeometry ? (
+            <section aria-labelledby="press-candidate-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
+              <h3 id="press-candidate-heading" className="font-semibold">Color-managed press candidate · validation pending</h3>
+              <p className="text-xs text-muted-foreground">
+                One bleed-bearing face per page, with exact trim/bleed boxes, white-paper compositing and tagged sRGB pixels.
+                The embedded FOGRA39L coated-offset reference is an older printing condition, not printer/stock calibration or preconverted CMYK.
+                This is not an imposed duplex sheet, a PDF/X conformance certificate, or press-ready acceptance.
+              </p>
+              <p className="text-xs text-muted-foreground">The ZIP includes PDFs, exact pixel/PDF/profile hashes, geometry, preflight and complete profile notices. Independent PDF/X validation and a representative professional print workflow are still required.</p>
+              <Button variant="outline" onClick={onExportPressCandidate} disabled={exportsDisabled || !printPreflight.productionPrepared} className="w-full gap-2">
+                <Download className="h-4 w-4" />
+                {isZipExporting && zipExportKind === 'press-candidate'
+                  ? `Preparing press candidate… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
+                  : 'Download color-managed press candidate ZIP'}
+              </Button>
+            </section>
+          ) : null}
+
           <details className="rounded-md border bg-muted/20 p-3">
             <summary className="cursor-pointer font-semibold">Print PDF</summary>
             <div className="mt-4 space-y-3">
@@ -328,12 +438,13 @@ export function ExportControlsPanel({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="separate-pages">Separate front/back sheets</SelectItem>
+                      <SelectItem value="separate-pages">Duplex sheets · flip long edge</SelectItem>
+                      <SelectItem value="separate-pages-short-edge">Duplex sheets · flip short edge</SelectItem>
                       <SelectItem value="same-page">Front + back on same sheet</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Separate sheets supports duplex printing. Same sheet places each back after its front for review, hand cutting, or manual assembly.
+                    Duplex sheets pair every front sheet with its back, placing backs for the selected paper-flip edge. Match that edge in your printer settings and print a two-sided alignment proof at actual size. Same sheet places each back after its front for review, hand cutting, or manual assembly.
                   </p>
                 </div>
               ) : null}
@@ -411,12 +522,18 @@ export function ExportControlsPanel({
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-sm font-semibold">
-                {zipExportKind === 'tabletop-simulator' ? 'Tabletop Simulator export running' : 'PNG set export running'}
+                {zipExportKind === 'tabletop-simulator'
+                  ? 'Tabletop Simulator export running'
+                  : zipExportKind === 'print-png-set'
+                    ? 'Print production PNG export running'
+                    : 'PNG set export running'}
               </p>
               <p className="text-xs text-muted-foreground">
                 {zipExportKind === 'tabletop-simulator'
                   ? `Rendering ${zipProgress.done} of ${zipProgress.total} 4K spritesheet faces.`
-                  : `Rendering ${zipProgress.done} of ${zipProgress.total} individual card faces. Estimated PNG ZIP size about ${formatBytes(estimatedPngZipBytes)}.`}
+                  : zipExportKind === 'print-png-set'
+                    ? `Rendering ${zipProgress.done} of ${zipProgress.total} bleed-bearing production faces.`
+                    : `Rendering ${zipProgress.done} of ${zipProgress.total} individual card faces. Estimated PNG ZIP size about ${formatBytes(estimatedPngZipBytes)}.`}
               </p>
             </div>
             <p className="text-sm font-semibold tabular-nums">{progressPercent}%</p>

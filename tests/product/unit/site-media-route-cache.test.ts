@@ -1,0 +1,187 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+type TestSiteMediaAsset = {
+  slot: string;
+  storagePath: string | null;
+  defaultSrc: string | null;
+  updatedAt: string | null;
+};
+
+const state = vi.hoisted(() => ({
+  asset: {
+    slot: 'brand.social',
+    storagePath: 'brand/social/current.webp',
+    defaultSrc: '/site-fallbacks/landing/cardforge-hero-workbench.png',
+    updatedAt: '2026-10-08T20:00:00.000Z',
+  } as TestSiteMediaAsset,
+  download: vi.fn(), bucket: vi.fn(), rpc: vi.fn(), privatePreview: false, revisionId: null as string | null,
+}));
+
+vi.mock('@/features/public-site/server', () => ({
+  getCachedSiteMedia: async () => [state.asset],
+  getCachedPublicSiteConfiguration: async () => ({ homepageSections: [] }),
+  isComposedSiteMediaSlot: () => false,
+  isHomepageCustomSection: () => false,
+  getDefaultSiteMedia: (slot: string) => ({
+    slot,
+    storagePath: null,
+    defaultSrc: slot === 'brand.favicon'
+      ? '/brand/cardforge-studio/favicon.svg'
+      : '/site-fallbacks/landing/cardforge-hero-workbench.png',
+    updatedAt: null,
+  }),
+  getSiteMediaContentType: (slot: string) => slot === 'brand.favicon' ? 'image/png' : 'image/webp',
+  isSiteMediaSlot: (slot: string) => ['brand.social', 'brand.favicon', 'landing.hero'].includes(slot),
+  SITE_MEDIA_BUCKET: 'cardforge-public-media',
+}));
+
+vi.mock('@/infrastructure/database/supabaseServer', () => ({
+  getSupabaseServerClient: () => ({
+    storage: {
+      from: (bucket: string) => { state.bucket(bucket); return ({
+        download: state.download,
+      }); },
+    },
+    rpc: state.rpc,
+  }),
+}));
+
+vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({resolveLiveWebsitePresentation: async () => ({privatePreview:state.privatePreview,revisionId:state.revisionId,configuration:{homepageSections:[],pages:[]},media:[state.asset]})}));
+import { GET } from '@/app/api/public/site-media/[slot]/route';
+
+const get = (
+  slot: string,
+  {
+    query = '',
+    headers,
+  }: {
+    query?: string;
+    headers?: HeadersInit;
+  } = {},
+) => GET(
+  new Request(`https://cardforges.com/api/public/site-media/${slot}${query}`, { headers }),
+  { params: Promise.resolve({ slot }) },
+);
+
+describe('public site media cache identity', () => {
+  it('keeps private drafts Owner-only and serves activated private bytes through the same route', async () => {
+    state.asset={...state.asset,storagePath:'website-drafts/brand/social/private.webp'};
+    state.privatePreview=true;
+    const preview=await get('brand.social');
+    expect(preview.status).toBe(200);
+    expect(preview.headers.get('cache-control')).toBe('private, no-store');
+    expect(state.bucket).toHaveBeenCalledWith('cardforge-website-drafts');
+
+    state.privatePreview=false;
+    state.asset={...state.asset,storagePath:'brand/social/current.webp'};
+    state.rpc.mockResolvedValue({data:[],error:null});
+    const undisclosed=await get('brand.social',{query:'?v=website-drafts/brand/social/private.webp'});
+    expect(undisclosed.status).toBe(404);
+
+    state.revisionId='10000000-0000-4000-8000-000000000001';
+    state.asset={...state.asset,storagePath:'website-drafts/brand/social/private.webp'};
+    const activated=await get('brand.social');
+    expect(activated.status).toBe(200);
+    expect(state.bucket).toHaveBeenCalledWith('cardforge-website-drafts');
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    state.privatePreview = false;
+    state.revisionId = null;
+    state.rpc.mockResolvedValue({data:[],error:null});
+    state.asset = {
+      slot: 'brand.social',
+      storagePath: 'brand/social/current.webp',
+      defaultSrc: '/site-fallbacks/landing/cardforge-hero-workbench.png',
+      updatedAt: '2026-10-08T20:00:00.000Z',
+    };
+    state.download.mockResolvedValue({
+      data: new Blob(['fixture'], { type: 'image/webp' }),
+      error: null,
+    });
+  });
+
+  it('keeps anonymous public media readable for cross-origin canvas exports', async () => {
+    const stored = await get('brand.social', {
+      headers: { Origin: 'https://another-preview.vercel.app' },
+    });
+    expect(stored.status).toBe(200);
+    expect(stored.headers.get('access-control-allow-origin')).toBe('*');
+    expect(stored.headers.get('access-control-allow-credentials')).toBeNull();
+
+    const etag = stored.headers.get('etag')!;
+    const unchanged = await get('brand.social', { headers: { 'If-None-Match': etag } });
+    expect(unchanged.status).toBe(304);
+    expect(unchanged.headers.get('access-control-allow-origin')).toBe('*');
+
+    state.asset = { ...state.asset, storagePath: null };
+    const fallback = await get('brand.social');
+    expect(fallback.status).toBe(307);
+    expect(fallback.headers.get('access-control-allow-origin')).toBe('*');
+
+    const unknown = await get('private-document');
+    expect(unknown.status).toBe(404);
+    expect(unknown.headers.get('access-control-allow-origin')).toBeNull();
+  });
+
+  it('requires crawler-facing stable social aliases to revalidate against a revision ETag', async () => {
+    const first = await get('brand.social');
+    const etag = first.headers.get('etag');
+
+    expect(first.status).toBe(200);
+    expect(etag).toMatch(/^"cf-site-media-[a-f0-9]{24}"$/u);
+    expect(first.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
+    expect(state.download).toHaveBeenCalledTimes(1);
+
+    state.download.mockClear();
+    const unchanged = await get('brand.social', {
+      headers: { 'If-None-Match': etag! },
+    });
+
+    expect(unchanged.status).toBe(304);
+    expect(unchanged.headers.get('etag')).toBe(etag);
+    expect(state.download).not.toHaveBeenCalled();
+  });
+
+  it('changes the stable alias ETag when the Owner media revision changes', async () => {
+    const first = await get('brand.social');
+    const previousEtag = first.headers.get('etag');
+
+    state.asset = {
+      ...state.asset,
+      storagePath: 'brand/social/next.webp',
+      updatedAt: '2026-10-08T21:00:00.000Z',
+    };
+    const next = await get('brand.social', {
+      headers: { 'If-None-Match': previousEtag! },
+    });
+
+    expect(next.status).toBe(200);
+    expect(next.headers.get('etag')).not.toBe(previousEtag);
+    expect(state.download).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not give a legacy arbitrary version query immutable caching', async () => {
+    const response = await get('brand.social', { query: '?v=revision-123' });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
+  });
+
+  it('gives the stable favicon fallback alias the same revision-aware revalidation contract', async () => {
+    state.asset = {
+      slot: 'brand.favicon',
+      storagePath: null,
+      defaultSrc: '/brand/cardforge-studio/favicon.svg',
+      updatedAt: null,
+    };
+
+    const response = await get('brand.favicon');
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('/brand/cardforge-studio/favicon.svg');
+    expect(response.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
+    expect(response.headers.get('etag')).toMatch(/^"cf-site-media-[a-f0-9]{24}"$/u);
+  });
+});

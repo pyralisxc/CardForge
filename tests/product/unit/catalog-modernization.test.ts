@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { prepareCatalogModernization } from '../../../scripts/prepare-pipeline-catalog-modernization.mjs';
 import { buildStarterSetProject, buildDeterministicStarterSetPackage } from '../../../scripts/sync-pipeline-defaults.mjs';
 import { CARDFORGE_USE_CASE_OPTIONS, hasRequiredPipelineClassification, normalizeSpecialtyTags, normalizeUseCaseTags } from '@/features/pipeline/lib/contentTaxonomy';
@@ -11,6 +11,10 @@ import { decodeCardForgeProjectPackage, hydrateCardForgeProjectSnapshot } from '
 import { TemplateThumbnail } from '@/features/card-rendering/client';
 import { resolveTemplateCardFormat } from '@/domain/card-formats';
 import type { TCGCardTemplate } from '@/domain/templates';
+import { classifyPublishedPipelineAsset } from '@/features/pipeline/server/classifyPublishedAsset';
+
+const classificationBoundary = vi.hoisted(() => ({ rpc: vi.fn().mockResolvedValue({ error: null }) }));
+vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ rpc: classificationBoundary.rpc }) }));
 
 const read = (file: string) => JSON.parse(readFileSync(`data/pipeline-bootstrap/${file}`, 'utf8'));
 const ids = ['default-name-card-theme', 'default-event-badge-theme'];
@@ -25,6 +29,50 @@ const input = () => ({
 });
 
 describe('catalog modernization preparation', () => {
+  const unclassified = () => ({
+    asset_id: 'source-backed-texture', asset_type: 'texture', source_path: 'data/texture.json',
+    contributor_submission_id: '63300e01-8d07-4f22-8221-a56de17221e5',
+    lineage_id: '0ba353d7-5deb-4dbe-8c9a-159ddb509155', registry_revision: 3,
+    specialty_tags: [], use_case_tags: [], submission_specialty_tags: [], submission_use_case_tags: [],
+    submission_semantic_role: 'texture', submission_visual_family: 'Authored family',
+    submission_variant_kind: 'treatment', submission_variant_label: 'Authored variant',
+    submission_compatibility_tags: ['digital'],
+  });
+
+  it('emits current native classification guards and preserves all non-target authored metadata', async () => {
+    const item = unclassified();
+    const entry = prepareCatalogModernization({ ...input(), inventory: [item] }).entries[0];
+    expect(entry.action).toBe('classify-discovery-metadata');
+    expect(entry.request.body).toMatchObject({
+      expectedSemanticRole: 'texture', semanticRole: 'texture',
+      expectedVisualFamily: 'Authored family', visualFamily: 'Authored family',
+      expectedVariantKind: 'treatment', variantKind: 'treatment',
+      expectedVariantLabel: 'Authored variant', variantLabel: 'Authored variant',
+      expectedCompatibilityTags: ['digital'], compatibilityTags: ['digital'],
+    });
+    classificationBoundary.rpc.mockClear();
+    await classifyPublishedPipelineAsset(entry.request.body);
+    expect(classificationBoundary.rpc).toHaveBeenCalledWith('cardforge_classify_published_pipeline_asset', expect.objectContaining({
+      p_expected_revision: 3, p_expected_semantic_role: 'texture',
+      p_expected_visual_family: 'Authored family', p_visual_family: 'Authored family',
+      p_expected_variant_kind: 'treatment', p_variant_kind: 'treatment',
+      p_expected_compatibility_tags: ['digital'], p_compatibility_tags: ['digital'],
+    }));
+  });
+
+  it.each([
+    'contributor_submission_id', 'lineage_id', 'registry_revision',
+    'submission_specialty_tags', 'submission_use_case_tags', 'submission_semantic_role',
+    'submission_visual_family', 'submission_variant_kind', 'submission_variant_label', 'submission_compatibility_tags',
+  ])('requires an exact current %s instead of inventing a write baseline', (field) => {
+    const item: Record<string, unknown> = unclassified();
+    delete item[field];
+    const entry = prepareCatalogModernization({ ...input(), inventory: [item] }).entries[0];
+    expect(entry.action).toBe('classification-review');
+    expect(entry.reason).toContain('current classification snapshot');
+    expect(entry).not.toHaveProperty('request');
+  });
+
   it.each([['business', 'business-card', 'Business Card'], ['events', 'event-badge', 'Event Badge']])('retains and displays %s classification in the shared control', (specialty, useCase, label) => {
     expect(normalizeUseCaseTags([useCase, 'invented-category'])).toEqual([useCase]);
     expect(normalizeSpecialtyTags([useCase])).toEqual([]);

@@ -292,6 +292,7 @@ const templateSchema = {
     baseBackgroundColor: { type: 'string', maxLength: 255 },
     baseTextColor: { type: 'string', maxLength: 255 },
     cardBackgroundImageUrl: { type: 'string', maxLength: 20000 },
+    cardBackgroundImageFit: { type: 'string', enum: ['cover', 'contain', 'fill'] },
     cardBorderImageSource: { type: 'string', maxLength: 20000 },
     defaultElementBorderColor: { type: 'string', maxLength: 255 },
     cardBorderColor: { type: 'string', maxLength: 255 },

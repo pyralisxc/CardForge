@@ -130,8 +130,14 @@ export async function POST(request: Request) {
       studioDestination: body.studioDestination,
       specialtyTags: body.specialtyTags,
       useCaseTags: body.useCaseTags,
+      semanticRole: body.semanticRole,
+      visualFamily: body.visualFamily,
+      variantKind: body.variantKind,
+      variantLabel: body.variantLabel,
+      compatibilityTags: body.compatibilityTags,
       name: body.name,
       description: body.description,
+      sourceNotes: body.sourceNotes,
       previewUrl: body.previewUrl,
       uploadedFile: uploadedFile as {
         storagePath: string;

@@ -37,7 +37,7 @@ export function OutcomeHero({
   secondaryActionLabel?: string;
 }) {
   return (
-    <section className={`relative flex overflow-hidden border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-12 md:px-8 md:py-16 ${mobileHeightClass[media.presentation.mobileSize]} ${desktopHeightClass[media.presentation.desktopSize]}`}>
+    <section data-site-media-slot={media.slot} className={`relative flex overflow-hidden border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-12 md:px-8 md:py-16 ${mobileHeightClass[media.presentation.mobileSize]} ${desktopHeightClass[media.presentation.desktopSize]}`}>
       <ResponsiveSiteMediaImage
         media={media}
         fill
@@ -63,6 +63,7 @@ export function OutcomeHero({
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link
+              data-site-configuration-field="primaryCtaLabel"
               href={primaryActionHref}
               prefetch={false}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-6 text-base font-bold text-[var(--public-obsidian)] shadow-[var(--public-shadow)] hover:bg-[#f0bd58]"

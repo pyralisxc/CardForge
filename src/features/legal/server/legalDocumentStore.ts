@@ -113,13 +113,13 @@ export const getLegalDocuments = async (
 
   if (error) {
     if (!isMissingLegalStorageError(error)) console.error('Failed to load legal documents:', error);
-    return DEFAULT_LEGAL_DOCUMENTS;
+    throw new LegalDocumentStoreError('Legal documents are temporarily unavailable.', 503);
   }
 
   const rows = Array.isArray(data) ? data as LegalDocumentRow[] : [];
   return DEFAULT_LEGAL_DOCUMENTS.map((defaultDocument) => {
     const latest = rows.find((candidate) => candidate.slug === defaultDocument.slug);
-    return latest ? mapLegalDocumentRow(latest) : defaultDocument;
+    return latest ? mapLegalDocumentRow(latest) : { ...defaultDocument, version: 0 };
   });
 };
 
@@ -169,9 +169,10 @@ export const publishLegalDocument = async (
     body?: unknown;
     effectiveDate?: unknown;
     expectedBusinessIdentityVersion?: unknown;
+    expectedVersion?: unknown;
   },
   dependencies: LegalDocumentStoreDependencies = {},
-): Promise<LegalDocument[]> => {
+): Promise<LegalDocument> => {
   const normalized = normalizeLegalDocumentInput(input);
   if (!normalized.ok) throw new LegalDocumentStoreError(normalized.message, 400);
 
@@ -186,9 +187,13 @@ export const publishLegalDocument = async (
     p_body: normalized.value.body,
     p_effective_date: normalized.value.effectiveDate,
     p_expected_identity_version: normalized.value.expectedBusinessIdentityVersion,
+    p_expected_document_version: normalized.value.expectedVersion,
   });
 
   if (error) {
+    if (typeof error === 'object' && error !== null && 'message' in error && error.message === 'cardforge_legal_document_version_conflict') {
+      throw new LegalDocumentStoreError('Legal document changed since it was loaded. Reload and review before publishing.', 409);
+    }
     if (isIdentityVersionConflict(error)) {
       throw new LegalDocumentStoreError(
         'Business identity changed since this legal page was loaded. Refresh and publish again.',
@@ -208,5 +213,5 @@ export const publishLegalDocument = async (
   const published = (Array.isArray(data) ? data[0] : data) as LegalDocumentRow | null | undefined;
   if (!published) throw new LegalDocumentStoreError('Legal publication returned no result.');
 
-  return getLegalDocuments({ configured, client });
+  return mapLegalDocumentRow(published);
 };

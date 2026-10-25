@@ -8,7 +8,6 @@ import type { AccountLibraryItem, AccountLibrarySource } from '@/features/storag
 
 import {
   DESK_ORDER_KEY,
-  DESK_PINS_KEY,
   getDeskSourceFacets,
   getDeskTagFacets,
   getDeskTypeFacets,
@@ -51,34 +50,10 @@ export function useDeskLayout({
   selectedIds,
   onSelectionChange,
 }: DeskLayoutOptions) {
-  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [deskOrderIds, setDeskOrderIds] = useState<string[]>([]);
-  const [pinPreferencesWritable, setPinPreferencesWritable] = useState(false);
   const [orderPreferencesWritable, setOrderPreferencesWritable] = useState(false);
-  const [pinPreferencesResolved, setPinPreferencesResolved] = useState(false);
   const [orderPreferencesResolved, setOrderPreferencesResolved] = useState(false);
-  const pinKey = `${DESK_PINS_KEY}:${persistenceScope}`;
   const orderKey = `${DESK_ORDER_KEY}:${persistenceScope}`;
-  useEffect(() => {
-    let cancelled = false;
-    setPinPreferencesWritable(false);
-    setPinPreferencesResolved(false);
-    void readProjectPreferenceSafely<unknown>(pinKey).then((result) => {
-      if (cancelled) return;
-      if (result.kind === 'unavailable') {
-        setPinPreferencesResolved(true);
-        return;
-      }
-      const value = result.kind === 'available' ? result.value : null;
-      if (Array.isArray(value)) {
-        setPinnedIds(value.filter((entry): entry is string => typeof entry === 'string'));
-      } else setPinnedIds([]);
-      setPinPreferencesWritable(true);
-      setPinPreferencesResolved(true);
-    });
-    return () => { cancelled = true; };
-  }, [pinKey]);
-
   useEffect(() => {
     let cancelled = false;
     setOrderPreferencesWritable(false);
@@ -159,14 +134,6 @@ export function useDeskLayout({
     onSelectionChange,
   });
 
-  const togglePin = (itemId: string) => {
-    setPinnedIds((current) => {
-      const next = current.includes(itemId) ? current.filter((id) => id !== itemId) : [itemId, ...current];
-      if (pinPreferencesWritable) void writeProjectPreference(pinKey, next);
-      return next;
-    });
-  };
-
   return {
     beginDrag,
     beginMarquee,
@@ -177,15 +144,13 @@ export function useDeskLayout({
     moveDrag,
     moveMarquee,
     nudgeSelection,
-    pinnedIds,
     positions,
-    preferencesResolved: pinPreferencesResolved && orderPreferencesResolved,
+    preferencesResolved: orderPreferencesResolved,
     sceneReady,
     shouldSuppressActivation,
     sourceFacets,
     tagFacets,
     typeFacets,
-    togglePin,
     visibleWork,
     workGridRef,
     workWorldRef,

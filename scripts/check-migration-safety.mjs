@@ -7,6 +7,17 @@ import { pathToFileURL } from 'node:url';
 
 const MIGRATION_ROOT = 'supabase/migrations/';
 const CONTRIBUTOR_CUTOVER_VERSION = '20260831015135';
+const OWNER_PRESENTATION_CUTOVER_VERSION = '20261008000000';
+const OWNER_PRESENTATION_TABLES = [
+  'cardforge_site_content_blocks',
+  'cardforge_site_media',
+  'cardforge_owner_settings',
+  'cardforge_business_identity',
+  'cardforge_founder_profile',
+  'cardforge_legal_documents',
+  'cardforge_mcp_allowance_settings',
+];
+const OWNER_STATE_WRITE_MARKER = /^\s*--\s*CARDFORGE_OWNER_STATE_WRITE:\s*\S.+$/mu;
 const RETIRED_DEVELOPER_TABLES = [
   'cardforge_developer_profiles',
   'cardforge_developer_program_settings',
@@ -23,6 +34,11 @@ const APPROVED_BOOTSTRAP_REPAIR_HASHES = new Map([
   [`${MIGRATION_ROOT}202605270002_remove_text_frame_presets.sql`, 'c4301bf98325e521ff63dbdb937806f290308c44ba9cf7f4259af7bd712b4560'],
   [`${MIGRATION_ROOT}202607140001_harden_privileged_functions.sql`, '0a6437e14753298869378c89c9d9ad839e92690e7985365692956898d499e618'],
   [`${MIGRATION_ROOT}20260814220651_consolidate_owner_identity.sql`, 'de835efd03c445b6cd3d1340bd9df63a2a0feb806d195752b02ae7db4d918fdb'],
+  // One-time correction of a never-applied isolated Staging migration. The
+  // 20261010030000 GRANT had an extra text parameter (SQLSTATE 42883). The
+  // whole transaction rolled back and neither provider has this applied version.
+  // Allow exactly the two-signature correction; other migration edits fail.
+  [`${MIGRATION_ROOT}20261010030000_first_party_font_registry_source.sql`, '521278dab0c6ef891081ea4ff4684d8d0035048ca0be2e98236b15524e8caba8'],
 ]);
 
 export const parseMigrationChanges = (output) => output
@@ -43,6 +59,20 @@ export const findRetiredPostCutoverReferences = (filePath, contents) => {
   if (!version || version <= CONTRIBUTOR_CUTOVER_VERSION) return [];
   return RETIRED_DEVELOPER_TABLES.filter((table) => (
     new RegExp(`\\bpublic\\.${table}\\b`, 'u').test(contents)
+  ));
+};
+
+export const findUnapprovedOwnerPresentationWrites = (filePath, contents) => {
+  const normalizedPath = filePath.replaceAll('\\', '/');
+  const version = path.basename(normalizedPath).match(/^(\d+)/u)?.[1];
+  if (!version || version <= OWNER_PRESENTATION_CUTOVER_VERSION) return [];
+  if (OWNER_STATE_WRITE_MARKER.test(contents)) return [];
+
+  return OWNER_PRESENTATION_TABLES.filter((table) => (
+    new RegExp(
+      '^\\s*(?:insert\\s+into|update|delete\\s+from)\\s+(?:public\\.)?' + table + '\\b',
+      'imu',
+    ).test(contents)
   ));
 };
 
@@ -108,6 +138,30 @@ export const checkMigrationSafety = ({ root, base }) => {
       .join('\n');
     throw new Error(
       `Existing Supabase migrations are immutable. Add a forward migration instead:\n${details}`,
+    );
+  }
+
+  const ownerPresentationWrites = changes
+    .flatMap(({ paths }) => paths)
+    .map((filePath) => ({
+      filePath,
+      tables: findUnapprovedOwnerPresentationWrites(
+        filePath,
+        readFileSync(path.resolve(root, filePath), 'utf8'),
+      ),
+    }))
+    .filter(({ tables }) => tables.length > 0);
+  if (ownerPresentationWrites.length > 0) {
+    const details = ownerPresentationWrites
+      .map(({ filePath, tables }) => '  ' + filePath + ': ' + tables.join(', '))
+      .join('\n');
+    throw new Error(
+      [
+        'Post-cutover migrations may not silently edit Owner-controlled presentation state.',
+        'If a forward migration must seed, transform, or exceptionally transition Owner state, add one explicit rationale line:',
+        '  -- CARDFORGE_OWNER_STATE_WRITE: <why this migration is allowed to write owner state>',
+        details,
+      ].join('\n'),
     );
   }
 

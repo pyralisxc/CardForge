@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ImageUp, Monitor, RotateCcw, Smartphone } from 'lucide-react';
 
+import { useEditorDraft } from '@/components/ui/use-editor-draft';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { getOwnerPublicationPresentation, type OwnerPublicationEnvironment } from '../model/ownerPublicationEnvironment';
 import {
   getSiteMediaDisplaySrc,
   type SiteMediaAsset,
@@ -53,28 +55,60 @@ export function PublicSiteMediaLiveEditor({
   onAssetsChange,
   onSiteConfigurationChange,
   showWatermarkPresentation = false,
+  focusSlot = null,
+  publicationEnvironment,
+  onDirtyChange,
+  onEditionMediaStage,
 }: {
   initialAssets: SiteMediaAsset[];
   initialSiteConfiguration: PublicSiteConfiguration;
   onAssetsChange: (assets: SiteMediaAsset[]) => void;
   onSiteConfigurationChange: (settings: PublicSiteConfiguration) => void;
   showWatermarkPresentation?: boolean;
+  focusSlot?: SiteMediaAsset['slot'] | null;
+  publicationEnvironment: OwnerPublicationEnvironment;
+  onDirtyChange?: (dirty: boolean) => void;
+  onEditionMediaStage?: (asset: SiteMediaAsset, sha256: string | null) => void;
 }) {
   const { toast } = useToast();
-  const [drafts, setDrafts] = useState(initialAssets);
+  const publicationPresentation = getOwnerPublicationPresentation(publicationEnvironment);
+  const [privateMediaReady, setPrivateMediaReady] = useState(false);
+  useEffect(() => {
+    if(!onEditionMediaStage) return;
+    let mounted=true;
+    void fetch('/api/owner/website-media',{cache:'no-store'})
+      .then(async response => response.ok ? response.json() as Promise<{ready:boolean}> : {ready:false})
+      .then(result => {if(mounted) setPrivateMediaReady(result.ready === true);})
+      .catch(()=>{if(mounted) setPrivateMediaReady(false);});
+    return ()=>{mounted=false;};
+  },[onEditionMediaStage]);
   const [files, setFiles] = useState<Partial<Record<SiteMediaAsset['slot'], File>>>({});
+  const { baseline: mediaBaseline, draft: drafts, setDraft: setDrafts, setSaving: setSavingMedia, acceptPublished: acceptMedia } = useEditorDraft(initialAssets, undefined, Object.values(files).some(Boolean));
   const [busySlot, setBusySlot] = useState<SiteMediaAsset['slot'] | null>(null);
   const [inputVersion, setInputVersion] = useState(0);
-  const [brandSettings, setBrandSettings] = useState(initialSiteConfiguration);
-  const [savingBrandSettings, setSavingBrandSettings] = useState(false);
+  const { draft: brandSettings, setDraft: setBrandSettings, saving: savingBrandSettings, setSaving: setSavingBrandSettings, dirty: brandDirty, acceptPublished: acceptBrand } = useEditorDraft(initialSiteConfiguration);
   const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
+  const visibleDrafts = focusSlot ? drafts.filter((asset) => asset.slot === focusSlot) : drafts;
+  const isDirty = Boolean(
+    Object.values(files).some(Boolean)
+    || drafts.some((draft) => {
+      const saved = mediaBaseline.find((asset) => asset.slot === draft.slot);
+      return saved && (draft.alt !== saved.alt || JSON.stringify(draft.presentation) !== JSON.stringify(saved.presentation));
+    })
+    || brandDirty
+    || busySlot !== null || savingBrandSettings
+  );
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
-  useEffect(() => {
-    setDrafts(initialAssets);
-    setBrandSettings(initialSiteConfiguration);
-  }, [initialAssets, initialSiteConfiguration]);
+  useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
 
   const saveBrandSettings = async () => {
+    if (onEditionMediaStage) {
+      onSiteConfigurationChange(brandSettings);
+      acceptBrand(brandSettings);
+      toast({title:'Website draft updated',description:'Watermark presentation staged locally; Save a revision to retain changes.'});
+      return;
+    }
     setSavingBrandSettings(true);
     try {
       const response = await fetch('/api/owner/site-configuration', {
@@ -83,11 +117,25 @@ export function PublicSiteMediaLiveEditor({
         body: JSON.stringify(brandSettings),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save watermark presentation.'));
-      const body = await response.json() as { settings: PublicSiteConfiguration };
+      const body = await response.json() as {
+        settings: PublicSiteConfiguration;
+        receipt?: { refreshComplete: boolean; activityRecorded: boolean; message: string };
+      };
+      acceptBrand(body.settings);
       onSiteConfigurationChange(body.settings);
-      toast({ title: 'Watermark presentation saved', description: 'Card previews and social images now use these owner-approved settings.' });
+      toast(body.receipt && !body.receipt.refreshComplete
+        ? {
+            title: `${publicationPresentation.publishedTitle}; reload to verify`,
+            description: body.receipt.message,
+          }
+        : {
+            title: publicationPresentation.publishedTitle,
+            description: body.receipt?.activityRecorded === false
+              ? `${publicationPresentation.publishedDescription('Watermark presentation')} Owner activity history could not be recorded.`
+              : publicationPresentation.publishedDescription('Watermark presentation'),
+          });
     } catch (error) {
-      toast({ title: 'Watermark presentation not saved', description: error instanceof Error ? error.message : 'Unable to save watermark presentation.', variant: 'destructive' });
+      toast({ title: 'Watermark presentation not published', description: error instanceof Error ? error.message : 'Unable to publish watermark presentation.', variant: 'destructive' });
     } finally {
       setSavingBrandSettings(false);
     }
@@ -100,41 +148,63 @@ export function PublicSiteMediaLiveEditor({
   const publish = async (asset: SiteMediaAsset) => {
     const image = files[asset.slot];
     setBusySlot(asset.slot);
+    setSavingMedia(true);
+    let rejected = false;
     try {
       const body = new FormData();
       if (image) body.set('image', image);
       body.set('alt', asset.alt);
+      body.set('expectedUpdatedAt', asset.updatedAt ?? 'null');
+      if (onEditionMediaStage) { body.set('slot', asset.slot); body.set('storagePath', asset.storagePath ?? 'null'); }
       body.set('presentation', JSON.stringify(asset.presentation));
-      const response = await fetch(`/api/owner/site-media/${asset.slot}`, {
+      const response = await fetch(onEditionMediaStage ? '/api/owner/website-media' : `/api/owner/site-media/${asset.slot}`, {
         method: 'POST',
         body,
         signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to publish the public image.'));
-      const result = await response.json() as { operations: { siteMedia: SiteMediaAsset[] } };
-      onAssetsChange(result.operations.siteMedia);
+      if (!response.ok) {
+        rejected = true;
+        throw new Error(await readApiErrorMessage(response, 'Unable to publish the public image.'));
+      }
+      const result = await response.json() as { media: SiteMediaAsset; sha256?: string | null; receipt?: { committed: boolean; refreshComplete: boolean; message: string } };
+      if (onEditionMediaStage && result.media) {
+        onEditionMediaStage(result.media, result.sha256 ?? null);
+        acceptMedia(mediaBaseline.map((item) => item.slot === asset.slot ? result.media : item), drafts.map((item) => item.slot === asset.slot ? result.media : item));
+        setFiles((current) => ({ ...current, [asset.slot]: undefined }));
+        setInputVersion((current) => current + 1);
+        toast({title:'Image staged',description:'Save a website revision before activating this image.'});
+        return;
+      }
+      if (!result.receipt?.committed || !result.media) throw new Error('Publication outcome is unknown. Reload to verify the current image.');
+      acceptMedia(mediaBaseline.map((item) => item.slot === asset.slot ? result.media : item), drafts.map((item) => item.slot === asset.slot ? result.media : item));
+      onAssetsChange(initialAssets.map((item) => item.slot === asset.slot ? result.media : item));
+      if (!result.receipt?.refreshComplete) setRestoreNotice(result.receipt.message);
       setFiles((current) => ({ ...current, [asset.slot]: undefined }));
       setInputVersion((current) => current + 1);
-      toast({ title: 'Site media published', description: `${asset.label} and its responsive presentation are now live.` });
+      toast({ title: publicationPresentation.publishedTitle, description: publicationPresentation.publishedDescription(asset.label) });
     } catch (error) {
-      const message = error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError')
-        ? 'This publish took too long. The current live image is unchanged; try a smaller image or try again.'
-        : error instanceof Error
-          ? error.message
-          : 'Unable to publish the public image.';
-      toast({ title: 'Site media not published', description: message, variant: 'destructive' });
+      const uncertain = !rejected;
+      const message = uncertain
+        ? 'The image publication result could not be confirmed. Reload the page and inspect the current image before attempting another publication.'
+        : error instanceof Error ? error.message : 'Unable to publish the public image.';
+      if (uncertain) setRestoreNotice(message);
+      toast({ title: uncertain ? 'Image result unconfirmed' : 'Site media not published', description: message, variant: 'destructive' });
     } finally {
       setBusySlot(null);
+      setSavingMedia(false);
     }
   };
 
   const restore = async (asset: SiteMediaAsset) => {
-    if (restoreNotice) return;
+    if (restoreNotice || onEditionMediaStage) return;
     setBusySlot(asset.slot);
+    setSavingMedia(true);
     let rejected = false;
     try {
       const response = await fetch(`/api/owner/site-media/${asset.slot}/restore`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedUpdatedAt: asset.updatedAt }),
         signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       });
       if (!response.ok) {
@@ -143,19 +213,21 @@ export function PublicSiteMediaLiveEditor({
       }
       const result = await response.json() as {
         restore: { committed: true; refresh: 'complete' | 'unavailable'; message?: string };
-        operations?: { siteMedia: SiteMediaAsset[] };
+        media?: SiteMediaAsset;
+        receipt?: { committed: boolean };
       };
+      if (!result.media) throw new Error('The restored image response could not be read.');
+      acceptMedia(mediaBaseline.map((item) => item.slot === asset.slot ? result.media! : item), drafts.map((item) => item.slot === asset.slot ? result.media! : item));
+      onAssetsChange(initialAssets.map((item) => item.slot === asset.slot ? result.media! : item));
+      setFiles((current) => ({ ...current, [asset.slot]: undefined }));
+      setInputVersion((current) => current + 1);
       if (result.restore.refresh === 'unavailable') {
         const message = result.restore.message ?? 'The image was restored. Reload to verify it before another media action.';
         setRestoreNotice(message);
         toast({ title: 'Image restored; reload to verify', description: message });
         return;
       }
-      if (!result.operations) throw new Error('The restored image response could not be read.');
-      onAssetsChange(result.operations.siteMedia);
-      setFiles((current) => ({ ...current, [asset.slot]: undefined }));
-      setInputVersion((current) => current + 1);
-      toast({ title: 'Previous image restored', description: `${asset.label} has been rolled back. The version you replaced is still available.` });
+      toast({ title: 'Previous image restored', description: `${asset.label} was restored in this ${publicationEnvironment === 'production' ? 'live production' : 'non-production'} environment. Its former version is retained.` });
     } catch (error) {
       const message = rejected
         ? error instanceof Error ? error.message : 'Unable to restore the previous image.'
@@ -164,20 +236,20 @@ export function PublicSiteMediaLiveEditor({
       toast({ title: rejected ? 'Image not restored' : 'Restore result unavailable', description: message, variant: 'destructive' });
     } finally {
       setBusySlot(null);
+      setSavingMedia(false);
     }
   };
 
   return (
     <section className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 sm:p-6">
       {restoreNotice ? <div role="status" className="mb-4 border border-amber-500/45 p-3 text-sm"><p>{restoreNotice}</p><Button type="button" className="mt-2" variant="outline" onClick={() => window.location.reload()}>Reload media</Button></div> : null}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">Visual publishing</p>
-        <h2 className="mt-1 font-serif text-2xl text-[var(--cf-text-strong)]">Site media</h2>
-        <p className="mt-2 max-w-4xl text-sm leading-6 text-[#a98a7a]">
-          Replace every public brand and marketing image from one catalog. JPEG, PNG, and WebP files up to 12 MB are supported. Changes stay in these previews until you publish them, and the previous version remains available for a one-step restore.
+      {!focusSlot ? <div>
+        <h2 className="font-serif text-xl text-[var(--cf-text-strong)]">Site media</h2>
+        <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
+          Select one owned image or brand asset. Publication and one-step restore use CardForge's existing protected media owner.
         </p>
-      </div>
-      <div className="mt-6 grid gap-6">
+      </div> : null}
+      <fieldset disabled={busySlot !== null || savingBrandSettings || Boolean(restoreNotice)} className="mt-6 grid gap-6">
         {showWatermarkPresentation ? <article className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
           <h3 className="font-serif text-xl text-[var(--cf-accent-text)]">Watermark presentation</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[#a98a7a]">The artwork is replaced below. These controls determine how strongly it appears; entitlement code still decides when a watermark is required.</p>
@@ -188,10 +260,10 @@ export function PublicSiteMediaLiveEditor({
           </div>
           <Button type="button" className="mt-4 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={savingBrandSettings || JSON.stringify(brandSettings) === JSON.stringify(initialSiteConfiguration)} onClick={() => void saveBrandSettings()}>{savingBrandSettings ? 'Saving presentation...' : 'Save watermark presentation'}</Button>
         </article> : null}
-        {([...new Set(drafts.map((asset) => asset.group))] as SiteMediaAsset['group'][]).map((group) => <details key={group} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)]" open={group === 'brand' || drafts.every((asset) => asset.group === group)}>
-          <summary className="cursor-pointer px-4 py-3 font-serif text-xl text-[var(--cf-accent-text)]">{mediaGroupLabels[group]} <span className="ml-2 text-xs font-sans text-[var(--cf-text-subtle)]">{drafts.filter((asset) => asset.group === group).length} assets</span></summary>
+        {([...new Set(visibleDrafts.map((asset) => asset.group))] as SiteMediaAsset['group'][]).map((group) => <details key={group} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)]" open={Boolean(focusSlot) || group === 'brand' || visibleDrafts.every((asset) => asset.group === group)}>
+          <summary className="cursor-pointer px-4 py-3 font-serif text-xl text-[var(--cf-accent-text)]">{mediaGroupLabels[group]} <span className="ml-2 text-xs font-sans text-[var(--cf-text-subtle)]">{visibleDrafts.filter((asset) => asset.group === group).length} assets</span></summary>
           <div className="grid gap-6 border-t border-[var(--cf-border-subtle)] p-4">
-          {drafts.filter((asset) => asset.group === group).map((draft) => {
+          {visibleDrafts.filter((asset) => asset.group === group).map((draft) => {
           const published = initialAssets.find((asset) => asset.slot === draft.slot) ?? draft;
           return (
             <OwnerMediaEditor
@@ -205,13 +277,15 @@ export function PublicSiteMediaLiveEditor({
               onAssetChange={updateDraft}
               onFileChange={(file) => setFiles((current) => ({ ...current, [draft.slot]: file }))}
               onPublish={() => publish(draft)}
-              onRestore={() => restore(draft)}
+              onRestore={onEditionMediaStage ? undefined : () => restore(draft)}
+              draftMode={Boolean(onEditionMediaStage)}
+              privateMediaReady={privateMediaReady}
             />
           );
           })}
           </div>
         </details>)}
-      </div>
+      </fieldset>
     </section>
   );
 }
@@ -227,6 +301,8 @@ function OwnerMediaEditor({
   onFileChange,
   onPublish,
   onRestore,
+  draftMode = false,
+  privateMediaReady = false,
 }: {
   asset: SiteMediaAsset;
   published: SiteMediaAsset;
@@ -237,7 +313,9 @@ function OwnerMediaEditor({
   onAssetChange: (asset: SiteMediaAsset) => void;
   onFileChange: (file?: File) => void;
   onPublish: () => void;
-  onRestore: () => void;
+  onRestore?: () => void;
+  draftMode?: boolean;
+  privateMediaReady?: boolean;
 }) {
   const [viewport, setViewport] = useState<PreviewViewport>('desktop');
   const [detectedDimensions, setDetectedDimensions] = useState<FileDimensions | null>(null);
@@ -338,10 +416,11 @@ function OwnerMediaEditor({
             <input className={inputClassName} maxLength={300} value={asset.alt} onChange={(event) => onAssetChange({ ...asset, alt: event.target.value })} />
           </label>
           <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
-            Replacement image
+            {draftMode && !privateMediaReady ? 'Private artwork upload unavailable until protected Storage staging is verified' : 'Replacement image'}
             <input
               key={`${asset.slot}-${inputVersion}`}
               type="file"
+              disabled={draftMode && !privateMediaReady}
               accept="image/jpeg,image/png,image/webp"
               className={`${inputClassName} file:mr-3 file:border-0 file:bg-[var(--cf-accent-strong)] file:px-3 file:py-2 file:font-semibold file:text-[var(--cf-accent-contrast)]`}
               onChange={(event) => onFileChange(event.target.files?.[0])}
@@ -390,11 +469,11 @@ function OwnerMediaEditor({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#3a2d1d] pt-4">
         <p className="text-xs text-[var(--cf-text-subtle)]">{hasChanges ? 'Previewing unpublished changes.' : asset.updatedAt ? `Live version published ${new Date(asset.updatedAt).toLocaleString()}.` : 'Using the bundled default.'}</p>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" disabled={locked || !asset.previousVersion} onClick={onRestore}>
+          {onRestore ? <Button type="button" variant="outline" disabled={locked || !asset.previousVersion} onClick={onRestore}>
             <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />Restore previous
-          </Button>
+          </Button> : null}
           <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={locked || !hasChanges || !asset.alt.trim()} onClick={onPublish}>
-            <ImageUp className="mr-2 h-4 w-4" aria-hidden="true" />{busy ? 'Publishing...' : 'Publish changes'}
+            <ImageUp className="mr-2 h-4 w-4" aria-hidden="true" />{busy ? (draftMode ? 'Staging...' : 'Publishing...') : (draftMode ? 'Stage changes' : 'Publish changes')}
           </Button>
         </div>
       </div>

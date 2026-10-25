@@ -1,4 +1,5 @@
-export const CARDFORGE_RENDERER_CONTRACT_VERSION = '2026-08-23.1';
+// Persisted pixels are version-keyed: bump this when canonical rendering changes.
+export const CARDFORGE_RENDERER_CONTRACT_VERSION = '2026-10-18.1';
 export const CARDFORGE_RENDER_ARTIFACT_BUCKET = 'cardforge-render-artifacts';
 export const MAX_RENDER_ARTIFACT_BYTES = 16 * 1024 * 1024;
 

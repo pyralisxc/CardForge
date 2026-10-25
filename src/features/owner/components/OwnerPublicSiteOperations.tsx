@@ -1,18 +1,17 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import {
-  CardForgeSectionIntro,
-  CardForgeStatusBadge,
-  CardForgeSurface,
-  CardForgeWorkspaceState,
-} from '@/components/ui/cardforge-presentation';
+import { combineEditorDraftStates, type EditorDraftState } from '@/components/ui/use-editor-draft';
+import { CardForgeSectionIntro, CardForgeWorkspaceState } from '@/components/ui/cardforge-presentation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useOwnerOperations } from '@/features/owner/hooks/useOwnerOperations';
+import type { OwnerOperationsPayload, OwnerSiteControlPayload } from '@/features/owner/lib/ownerOperations';
+import { OwnerPageEditorStateContext, WebsiteEditionDraftContext, type OwnerPublicationEnvironment } from '@/features/public-site/client';
+import { loadOwnerSiteControls } from '@/features/owner/model/ownerOperationsClient';
 
-const panelFallback = () => <CardForgeWorkspaceState state="loading" message="Loading public-site operations…" />;
+const panelFallback = () => <CardForgeWorkspaceState state="loading" message="Loading public-site controls…" />;
 const OwnerReadinessPanel = dynamic(() => import('./OwnerReadinessPanel').then((module) => module.OwnerReadinessPanel), { loading: panelFallback });
 const OwnerSiteConfigurationPanel = dynamic(() => import('./OwnerSiteConfigurationPanel').then((module) => module.OwnerSiteConfigurationPanel), { loading: panelFallback });
 const OwnerFounderProfilePanel = dynamic(() => import('./OwnerFounderProfilePanel').then((module) => module.OwnerFounderProfilePanel), { loading: panelFallback });
@@ -21,57 +20,91 @@ const OwnerExperienceControlsPanel = dynamic(() => import('@/features/experience
 const subtabClassName = 'rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[var(--cf-text-subtle)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[var(--cf-surface-raised)] data-[state=active]:text-[var(--cf-accent-text)]';
 const subtabListClassName = 'flex h-auto flex-wrap justify-start rounded-none border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-1';
 
-const siteControlOwnership = [
-  ['Launch experience', 'Owner controlled', 'Analytics consent presentation, presentation profile, announcements, and offer visibility change without a deployment.'],
-  ['Pages and navigation', 'Owner controlled', 'Approved navigation labels, visibility, order, homepage sections, primary action, and homepage search/share metadata publish here.'],
-  ['Public messaging', 'Context controlled', 'Rendered copy is edited directly on each native public page.'],
-  ['Brand and site media', 'Context controlled', 'Relevant media publishes and restores on the homepage or founder surface.'],
-  ['Founder and roadmap', 'Context controlled', 'Founder presence lives here; Roadmap economics, voting rules, and checkpoints live on Roadmap.'],
-  ['Legal publications', 'Governance controlled', 'Versioned policies publish from Profile governance while immutable publication history remains intact.'],
-  ['Product behavior', 'Code owned', 'Allowed routes, components, validation, permissions, and capability claims remain reviewed code.'],
-  ['Providers and secrets', 'Provider owned', 'Credentials and service configuration remain in their native provider dashboards.'],
-] as const;
-
-export function OwnerPublicSiteOperations() {
-  const { isLoadingSite, siteLoadError, payload, siteOperations, loadSite, updateOperations } = useOwnerOperations();
-  const [workspace, setWorkspace] = useState('identity');
+/**
+ * The one protected site-controls read is intentionally fresh on opening the
+ * drawer. It replaces the unrelated Owner overview + site fetch chain.
+ */
+export function OwnerPublicSiteOperations({ publicationEnvironment, currentPath = '/' }: {
+  publicationEnvironment: OwnerPublicationEnvironment;
+  currentPath?: string;
+}) {
+  const router = useRouter();
+  const onEditorStateChange = useContext(OwnerPageEditorStateContext);
+  const editionDraft = useContext(WebsiteEditionDraftContext);
+  const [siteOperations, setSiteOperations] = useState<OwnerSiteControlPayload | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadGeneration, setLoadGeneration] = useState(0);
+  const [workspace, setWorkspace] = useState('pages');
+  const [editorStates, setEditorStates] = useState<Record<string, EditorDraftState>>({});
+  const editorState = useMemo(() => combineEditorDraftStates(editorStates), [editorStates]);
+  const report = useCallback((key: string, state: EditorDraftState) => {
+    setEditorStates((current) => {
+      if (current[key]?.dirty === state.dirty && current[key]?.saving === state.saving) return current;
+      return { ...current, [key]: state };
+    });
+  }, []);
+  const reportPages = useCallback((state: EditorDraftState) => report('pages', state), [report]);
+  const reportIdentity = useCallback((state: EditorDraftState) => report('identity', state), [report]);
+  const reportFounder = useCallback((state: EditorDraftState) => report('founder', state), [report]);
+  const reportExperience = useCallback((state: EditorDraftState) => report('experience', state), [report]);
+  useEffect(() => { onEditorStateChange(editorState); }, [editorState, onEditorStateChange]);
+  useEffect(() => () => { onEditorStateChange({ dirty: false, saving: false }); }, [onEditorStateChange]);
+  const changeWorkspace = (next: string) => {
+    if (editorState.saving || next === workspace) return;
+    if (editorState.dirty && !window.confirm('Discard unpublished site settings?')) return;
+    setWorkspace(next);
+  };
 
   useEffect(() => {
-    if (payload && !siteOperations && !isLoadingSite && !siteLoadError) void loadSite();
-  }, [isLoadingSite, loadSite, payload, siteOperations, siteLoadError]);
+    let active = true;
+    setIsLoading(true);
+    setLoadError(null);
+    void loadOwnerSiteControls().then((site) => {
+      if (active) setSiteOperations(site);
+    }).catch((error: unknown) => {
+      if (active) setLoadError(error instanceof Error ? error.message : 'Unable to load current site settings.');
+    }).finally(() => {
+      if (active) setIsLoading(false);
+    });
+    return () => { active = false; };
+  }, [loadGeneration]);
 
-  if (!siteOperations) {
+  const updateOperations = useCallback((next: OwnerOperationsPayload) => {
+    setSiteOperations(next);
+    router.refresh();
+  }, [router]);
+
+  if (!siteOperations || isLoading || loadError) {
     return <CardForgeWorkspaceState
-      state={siteLoadError ? 'error' : 'loading'}
-      message={siteLoadError ?? 'Loading public-site operations…'}
-      onRetry={siteLoadError ? () => { void loadSite(); } : undefined}
-      retryLabel="Retry public-site operations"
+      state={loadError ? 'error' : 'loading'}
+      message={loadError ?? 'Loading current Owner site settings…'}
+      onRetry={loadError ? () => setLoadGeneration((generation) => generation + 1) : undefined}
+      retryLabel="Retry site settings"
     />;
   }
 
   return <section className="space-y-4">
-    <CardForgeSectionIntro eyebrow="Public experience" title="Operate the site from the site itself" body="Page copy and media stay in their rendered context. This homepage workspace owns the small set of site-wide identity, navigation, launch, and access-presentation controls." />
-    <CardForgeSurface as="section" tone="inset" className="p-5" aria-labelledby="site-control-map-heading">
-      <h3 id="site-control-map-heading" className="font-serif text-xl text-[var(--cf-text-strong)]">Where each public responsibility lives</h3>
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {siteControlOwnership.map(([label, owner, description]) => <CardForgeSurface key={label} className="p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h4 className="font-medium text-[var(--cf-accent-text)]">{label}</h4>
-            <CardForgeStatusBadge tone={owner === 'Owner controlled' ? 'success' : 'neutral'} className="px-2 py-0.5 text-[10px] uppercase tracking-[0.12em]">{owner}</CardForgeStatusBadge>
-          </div>
-          <p className="mt-2 text-xs leading-5 text-[var(--cf-text-subtle)]">{description}</p>
-        </CardForgeSurface>)}
-      </div>
-    </CardForgeSurface>
-    <Tabs value={workspace} onValueChange={setWorkspace} className="space-y-4">
+    <CardForgeSectionIntro eyebrow="Site settings" title="Controls beyond the page" body="Edit visible content on the page itself. These native settings only manage the values you cannot select in the rendered page." />
+    <Tabs activationMode="manual" value={workspace} onValueChange={changeWorkspace} className="space-y-4">
       <TabsList className={subtabListClassName}>
         <TabsTrigger value="identity" className={subtabClassName}>Brand &amp; Identity</TabsTrigger>
         <TabsTrigger value="pages" className={subtabClassName}>Pages &amp; SEO</TabsTrigger>
         <TabsTrigger value="experience" className={subtabClassName}>Experience &amp; Access</TabsTrigger>
       </TabsList>
-      <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" operationsPayload={siteOperations} onOperationsChange={updateOperations} /><OwnerFounderProfilePanel operationsPayload={siteOperations} onOperationsChange={updateOperations} /></TabsContent>
-      <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel settings={siteOperations.siteConfiguration} onSettingsChange={(siteConfiguration) => updateOperations({ ...siteOperations, siteConfiguration })} /></TabsContent>
-      <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel settings={siteOperations.experienceSettings} onSettingsChange={(experienceSettings) => updateOperations({ ...siteOperations, experienceSettings })} /></TabsContent>
+      <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" onIdentityEditorStateChange={reportIdentity} operationsPayload={{ businessIdentity: siteOperations.businessIdentity, roadmapItems: siteOperations.roadmapItems, databaseMetrics: null }} onOperationsChange={updateOperations} /><OwnerFounderProfilePanel onEditorStateChange={reportFounder} operationsPayload={siteOperations} onOperationsChange={updateOperations} /></TabsContent>
+      <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel publicationEnvironment={publicationEnvironment} currentPath={currentPath}
+        preview={siteOperations.publicPlans ? { media: siteOperations.siteMedia, businessIdentity: siteOperations.businessIdentity, plans: siteOperations.publicPlans } : undefined}
+        onEditorStateChange={reportPages} settings={editionDraft?.configuration ?? siteOperations.siteConfiguration}
+        onStage={editionDraft?.stageConfiguration}
+        onSettingsChange={(siteConfiguration) => {
+        setSiteOperations((current) => current ? { ...current, siteConfiguration } : current);
+        if (!editionDraft) router.refresh();
+      }} /></TabsContent>
+      <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel onEditorStateChange={reportExperience} settings={siteOperations.experienceSettings} onSettingsChange={(experienceSettings) => {
+        setSiteOperations((current) => current ? { ...current, experienceSettings } : current);
+        router.refresh();
+      }} /></TabsContent>
     </Tabs>
   </section>;
 }

@@ -5,7 +5,10 @@ import {
   isMcpAvailableForAccount,
   resolveMcpUsagePlanKey,
 } from '@/features/mcp-usage/lib/mcpUsage';
-import { observeMcpToolExecution } from '@/features/mcp-usage/server/mcpUsageStore';
+import {
+  observeMcpToolExecution,
+  updateMcpAllowance,
+} from '@/features/mcp-usage/server/mcpUsageStore';
 
 describe('MCP usage observation', () => {
   it('maps account access to usage tiers without changing sign-in entitlement', () => {
@@ -17,6 +20,26 @@ describe('MCP usage observation', () => {
     expect(isMcpAvailableForAccount({ isSignedIn: true })).toBe(true);
     expect(isMcpAvailableForAccount({ isSignedIn: false })).toBe(false);
     expect(DEFAULT_MCP_ALLOWANCES.map(({ monthlyActionLimit }) => monthlyActionLimit)).toEqual([30, 300, 1_000, 10_000]);
+  });
+
+  it('rejects Owner attempts to overwrite Stripe-owned Creator and Designer monetary facts', async () => {
+    await expect(updateMcpAllowance({
+      planKey: 'creator',
+      displayName: 'Creator Pass',
+      description: 'Creator plan',
+      featureSummary: 'Features',
+      ctaLabel: 'Choose Creator',
+      priceLabel: '$1.00',
+      priceNote: 'per month',
+      isVisible: true,
+      monthlyActionLimit: 300,
+      dailySafetyLimit: 50,
+      onlineStorageLimitBytes: 2 * 1024 ** 3,
+      draftRetentionHours: 24,
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'Creator and Designer amount, currency, and billing interval are owned by Stripe.',
+    });
   });
 
   it('counts successful mutations without letting telemetry break tool results', async () => {

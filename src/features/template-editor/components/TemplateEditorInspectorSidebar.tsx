@@ -153,6 +153,7 @@ export function TemplateEditorInspectorSidebar({
                 primitiveOptions={SHAPE_PRIMITIVE_OPTIONS}
                 blankPrimitives={BLANK_SHAPE_PRIMITIVES}
                 rolePresets={elements.selectedElementPresetRecipeGroups.shapeRole}
+                onApplyPreset={elements.applyElementPresetRecipe}
                 onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
               />
             ) : null}

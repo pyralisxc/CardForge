@@ -38,6 +38,7 @@ import {
   type DeskAccountStatus,
 } from '../model/desk';
 import { createDeskAccountStatuses } from '../model/accountStatuses';
+import { isDeskSourceSnapshotReady, resolveDeskMissingFocus } from '../model/deskArrival';
 import { getDeskSetPresentationFootprint } from '../model/deskSetFootprint';
 import { useCreatorNavigation } from './useCreatorNavigation';
 import { useArtifactCommands } from './useArtifactCommands';
@@ -58,6 +59,7 @@ const driveWorkingNeedsAttention = (phase: GoogleDriveWorkingSessionPhase) => (
 );
 
 interface DeskControllerOptions {
+  transitionToDesk?: (commit: () => void) => void;
   persistenceScope: ProjectPersistenceScope;
   experience: AccountExperienceProjection;
   initialFocusedWorkId?: string | null;
@@ -69,6 +71,7 @@ interface DeskControllerOptions {
 }
 
 export function useDeskController({
+  transitionToDesk,
   persistenceScope,
   experience,
   initialFocusedWorkId,
@@ -124,6 +127,7 @@ export function useDeskController({
   const [renameDraft, setRenameDraft] = useState('');
   const [preparingWorkId, setPreparingWorkId] = useState<string | null>(null);
   const {
+    navigationReady,
     closeContextTool,
     confirmDirtyClose,
     dirtyCloseRequested,
@@ -143,7 +147,7 @@ export function useDeskController({
     setDirtyCloseRequested,
     setInspectorWorkId,
     setInteractionSession,
-  } = useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId });
+  } = useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId, transitionToDesk });
   const [pendingTool, setPendingTool] = useState<{
     setId: string;
     tool: Parameters<typeof navigateToTool>[1];
@@ -192,6 +196,7 @@ export function useDeskController({
     visibleWorkKinds.has(item.kind)
   )), [discoveredWork.items, projection.items, projection.privateOrganization]);
   const itemById = useMemo(() => new Map(workItems.map((item) => [item.id, item])), [workItems]);
+  const focusedItem = focusedWorkId ? itemById.get(focusedWorkId) ?? null : null;
   const remoteWorkspaceItem = remoteWorkspaceId ? itemById.get(remoteWorkspaceId) ?? null : null;
   const {
     beginDrag: beginDeskDrag,
@@ -203,14 +208,12 @@ export function useDeskController({
     moveDrag: moveDeskDrag,
     moveMarquee: moveDeskMarquee,
     nudgeSelection: nudgeDeskSelection,
-    pinnedIds,
     positions: deskPositions,
     preferencesResolved: deskLayoutPreferencesResolved,
     sceneReady: deskSceneReady,
     shouldSuppressActivation,
     sourceFacets,
     tagFacets,
-    togglePin,
     typeFacets,
     visibleWork,
     workGridRef,
@@ -225,12 +228,11 @@ export function useDeskController({
     tagFilters: deskViewPreferences.preferences.tags,
     tagMatch: deskViewPreferences.preferences.tagMatch,
     viewIds: activeDeskViews,
-    focused: Boolean(focusedWorkId),
+    focused: Boolean(focusedItem),
     snapToGrid,
     selectedIds: selectedDeskIds,
     onSelectionChange: (ids, anchorId) => setInteractionSession((current) => selectCreatorDeskSets(current, ids, anchorId)),
   });
-  const focusedItem = focusedWorkId ? itemById.get(focusedWorkId) ?? null : null;
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
   const driveWorkingSession = useGoogleDriveWorkingSession({
@@ -289,15 +291,41 @@ export function useDeskController({
     storedCards, visibleCards,
   } = projectState;
   const generationTargetTemplateId = generationContextTool?.targetIds[1] ?? null;
-  const generatorSelectedTemplateId = generationTargetTemplateId ?? storedGeneratorSelectedTemplateId;
-  const generatorSelectedBackingTemplateId = generationTargetTemplateId
-    ? generationContextTool?.targetIds[2] ?? null
-    : storedGeneratorSelectedBackingTemplateId;
+  const generationTargetBackingId = generationContextTool?.targetIds[2] ?? null;
+  const initializedGenerateContextRef = useRef<{ instanceId: string; targetKey: string } | null>(null);
+  // A tool instance ID is stable for desk/tool/set, not unique per opening.
+  // Clear closed sessions and initialize only a new context or explicit retarget.
+  // User selection changes leave targetIds alone, so they never replay history.
+  useEffect(() => {
+    const instanceId = generationContextTool?.instanceId;
+    if (!instanceId) {
+      initializedGenerateContextRef.current = null;
+      return;
+    }
+    if (!generationTargetTemplateId || !projection.templateCatalogReady) return;
+    const targetKey = JSON.stringify([generationTargetTemplateId, generationTargetBackingId]);
+    if (initializedGenerateContextRef.current?.instanceId === instanceId
+      && initializedGenerateContextRef.current.targetKey === targetKey) return;
+    if (!templates.some((template) => template.id === generationTargetTemplateId)) return;
+    if (generationTargetBackingId && !templates.some((template) => template.id === generationTargetBackingId)) return;
+    initializedGenerateContextRef.current = { instanceId, targetKey };
+    setGeneratorSelectedTemplateId(generationTargetTemplateId);
+    setGeneratorSelectedBackingTemplateId(generationTargetBackingId);
+  }, [generationContextTool?.instanceId, generationTargetTemplateId, generationTargetBackingId,
+    projection.templateCatalogReady, templates, setGeneratorSelectedTemplateId, setGeneratorSelectedBackingTemplateId]);
+  const generatorSelectedTemplateId = storedGeneratorSelectedTemplateId;
+  const generatorSelectedBackingTemplateId = storedGeneratorSelectedBackingTemplateId;
   const focusedArtifactIdForArrival = interactionSession.focusPath.artifactId;
   const focusedDestinationReady = Boolean(focusedItem)
     && (!focusedArtifactIdForArrival || focusedCards.some((card) => card.uniqueId === focusedArtifactIdForArrival));
-  const initialSourceSnapshotReady = !projection.isLoading
-    && discoveredWork.sourceStatuses.every((source) => source.phase !== 'loading');
+  const initialSourceSnapshotReady = isDeskSourceSnapshotReady(deskProjection.isLoading, deskProjection.sourceStatuses);
+  const missingFocus = resolveDeskMissingFocus({
+    requestedWorkId: focusedWorkId,
+    workAvailable: Boolean(focusedItem),
+    sourceSnapshotReady: initialSourceSnapshotReady,
+    sources: deskProjection.sourceStatuses,
+    sourceFailed: deskProjection.failures.length > 0,
+  });
   const arrivalAcquisitionReady = initialSourceSnapshotReady
     && (projection.privateOrganizationReady || projection.privateOrganizationUnavailable)
     && (deskViewPreferences.ready || deskViewPreferences.unavailable)
@@ -307,8 +335,26 @@ export function useDeskController({
   const deskArrival = useDeskArrival({
     scopeKey: persistenceScope,
     acquisitionReady: arrivalAcquisitionReady,
-    compositionReady: focusedWorkId ? focusedDestinationReady : deskSceneReady,
+    compositionReady: focusedItem ? focusedDestinationReady : deskSceneReady,
   });
+
+  const recoverMissingWork = useCallback((reason: 'missing' | 'unavailable') => {
+    // Return through the normal navigation owner, including dirty-tool protection.
+    // Source failures remain on the Desk; they are never treated as an empty read.
+    initialToolHandledRef.current = true;
+    requestDeskReturn();
+    toast({
+      title: reason === 'unavailable' ? 'Requested work could not be opened' : 'Work not found in this workspace',
+      description: reason === 'unavailable'
+        ? 'A work source needs attention. Your current Desk is shown below; restore or retry the source to open the work. Existing work is unchanged.'
+        : 'This link does not match work available in the current browser workspace. Your current Desk is unchanged.',
+      variant: 'destructive',
+    });
+  }, [requestDeskReturn, toast]);
+  useEffect(() => {
+    if (!navigationReady || !returnContextResolved || !missingFocus) return;
+    recoverMissingWork(missingFocus);
+  }, [missingFocus, navigationReady, recoverMissingWork, returnContextResolved]);
 
   const openContextTool = useCallback((setId: string, tool: Parameters<typeof navigateToTool>[1], context?: { designTemplateId?: string; generationCard?: DisplayCard }) => {
     const setCards = storedCards.filter((card) => card.setId === setId || (!card.setId && cardSets[0]?.id === setId));
@@ -373,17 +419,23 @@ export function useDeskController({
   }, [focusedItemId]);
 
   useEffect(() => {
-    if (initialToolHandledRef.current || !initialTool) return;
+    if (!navigationReady || initialToolHandledRef.current || !initialTool) return;
     if (initialReturnContextKey && !returnContextRestoredRef.current) return;
-    const targetSetId = focusedLocalSetId ?? activeCardSetId;
+    const targetSetId = focusedWorkId ? focusedLocalSetId : activeCardSetId;
     if (!targetSetId) return;
     initialToolHandledRef.current = true;
+    // Reload restores the complete tool snapshot before replaying URL intent.
+    // Do not push a duplicate history entry for the already-restored tool:
+    // otherwise the first Done goes back to the same tool instead of the Set.
+    if (interactionSession.focusPath.setId === targetSetId
+      && interactionSession.toolStack.at(-1)?.toolId === initialTool) return;
     setActiveCardSetId(targetSetId);
     openContextTool(targetSetId, initialTool);
-  }, [activeCardSetId, focusedLocalSetId, initialReturnContextKey, initialTool, openContextTool, setActiveCardSetId]);
+  }, [activeCardSetId, focusedLocalSetId, focusedWorkId, initialReturnContextKey, initialTool, interactionSession.focusPath.setId, interactionSession.toolStack, navigationReady, openContextTool, setActiveCardSetId]);
 
   useEffect(() => {
     if (!initialReturnContextKey || returnContextRestoredRef.current) return;
+    if (!navigationReady) return;
     if (!deskViewPreferences.ready && !deskViewPreferences.unavailable) return;
     const context = readSurfaceReturnContext(initialReturnContextKey);
     if (!context || context.kind !== 'desk') {
@@ -391,7 +443,20 @@ export function useDeskController({
       setReturnContextResolved(true);
       return;
     }
-    if (context.focusedWorkId && !itemById.has(context.focusedWorkId)) return;
+    if (context.focusedWorkId && !itemById.has(context.focusedWorkId)) {
+      const missingReturnFocus = resolveDeskMissingFocus({
+        requestedWorkId: context.focusedWorkId,
+        workAvailable: false,
+        sourceSnapshotReady: initialSourceSnapshotReady,
+        sources: deskProjection.sourceStatuses,
+        sourceFailed: deskProjection.failures.length > 0,
+      });
+      if (!missingReturnFocus) return;
+      returnContextRestoredRef.current = true;
+      setReturnContextResolved(true);
+      recoverMissingWork(missingReturnFocus);
+      return;
+    }
     returnContextRestoredRef.current = true;
     setReturnContextResolved(true);
     setQuery(context.query);
@@ -413,7 +478,7 @@ export function useDeskController({
       ), { query: context.cardQuery, filterIds: context.tagFilter === 'all' ? [] : [context.tagFilter] }),
     });
     requestAnimationFrame(() => surfaceRef.current?.scrollTo({ top: context.scrollTop }));
-  }, [deskViewPreferences, initialReturnContextKey, itemById, restoreFocusedContext]);
+  }, [deskProjection.failures.length, deskProjection.sourceStatuses, deskViewPreferences, initialReturnContextKey, initialSourceSnapshotReady, itemById, navigationReady, recoverMissingWork, restoreFocusedContext]);
 
   const statuses = createDeskAccountStatuses({ accessStatus, isSignedIn, projection, securityStatus });
 
@@ -613,12 +678,10 @@ export function useDeskController({
     experience,
     focusedItem,
     inspectorItem,
-    pinned: pinnedIds.includes((inspectorItem ?? focusedItem)?.id ?? ''),
     commands: {
       createWork: openCreateMenu,
       focusWork,
       openRemoteWork,
-      togglePin,
       openGenerate: (setId) => openContextTool(setId, 'generate'),
       openOutput: (setId) => openContextStudio(setId, 'output'),
       openLocation: setLocationItem,
@@ -753,7 +816,6 @@ export function useDeskController({
     otherSets,
     pendingDeleteCards,
     pendingDeleteWork,
-    pinnedIds,
     pipelineSubmitSetId,
     preparingWorkId,
     projection: deskProjection,
@@ -824,7 +886,6 @@ export function useDeskController({
     tagDraft,
     tagFilter,
     templates,
-    togglePin,
     updateGeneratedCard,
     updateSelectedWorkOrganization,
     viewGeneratedCards,

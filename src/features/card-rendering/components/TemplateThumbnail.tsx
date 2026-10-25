@@ -1,7 +1,8 @@
 "use client";
 
-import type { TCGCardTemplate } from '@/domain/templates';
+import { normalizeTemplateAppearance, type TCGCardTemplate } from '@/domain/templates';
 import { useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
+import { appearanceToStyle, authoredCardFoundationStyle } from '../model/appearance';
 
 const toThumbnailBackgroundImage = (value?: string): string | undefined => {
   if (!value) return undefined;
@@ -15,8 +16,11 @@ const toThumbnailBackgroundImage = (value?: string): string | undefined => {
 };
 
 export function TemplateThumbnail({ template }: { template: TCGCardTemplate }) {
-  const rawBackground = template.cardBackgroundImageUrl ?? template.appearance?.rawCss?.backgroundImage;
-  const safeBackgroundImage = useProjectBinaryAssetValue(toThumbnailBackgroundImage(rawBackground));
+  const appearance = appearanceToStyle(normalizeTemplateAppearance(template));
+  const hasAuthoredBackground = Boolean(template.cardBackgroundImageUrl?.trim());
+  const rawBackground = hasAuthoredBackground ? template.cardBackgroundImageUrl : appearance.backgroundImage;
+  const foundationStyle = authoredCardFoundationStyle(template, hasAuthoredBackground ? toThumbnailBackgroundImage(template.cardBackgroundImageUrl) : undefined, appearance);
+  const safeBackgroundImage = useProjectBinaryAssetValue(foundationStyle?.backgroundImage ?? toThumbnailBackgroundImage(rawBackground));
   const backgroundColor = template.baseBackgroundColor ?? template.appearance?.material?.baseColor ?? '#111827';
   const borderColor = template.cardBorderColor ?? template.appearance?.border?.color ?? '#d5ad54';
   const accent = template.baseTextColor ?? template.appearance?.material?.textColor ?? 'var(--cf-accent-text)';
@@ -38,8 +42,10 @@ export function TemplateThumbnail({ template }: { template: TCGCardTemplate }) {
         borderColor,
         backgroundColor,
         backgroundImage: safeBackgroundImage,
-        backgroundPosition: 'center',
-        backgroundSize: safeBackgroundImage ? '100% 100%' : undefined,
+        backgroundPosition: foundationStyle?.backgroundPosition ?? (hasAuthoredBackground ? 'center' : appearance.backgroundPosition || 'center'),
+        backgroundRepeat: foundationStyle?.backgroundRepeat ?? (hasAuthoredBackground ? 'no-repeat' : appearance.backgroundRepeat || 'no-repeat'),
+        backgroundSize: foundationStyle?.backgroundSize ?? (safeBackgroundImage ? hasAuthoredBackground ? '100% 100%' : appearance.backgroundSize || '100% 100%' : undefined),
+        backgroundBlendMode: foundationStyle ? appearance.backgroundBlendMode : hasAuthoredBackground ? undefined : appearance.backgroundBlendMode,
       }}
       aria-hidden="true"
     >

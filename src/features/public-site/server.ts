@@ -1,12 +1,15 @@
 export {
   getSiteContentBlocks,
   PublicSiteStoreError,
+  publishSiteContentBlockRevision,
   updateSiteContentBlock,
 } from './server/contentStore';
 export {
   getPublicSiteConfiguration,
   PublicSiteConfigurationStoreError,
   updatePublicSiteConfiguration,
+  updatePublicSiteVisibleField,
+  type PublicSiteVisibleFieldInput,
 } from './server/siteConfigurationStore';
 export {
   getCachedPublicSiteConfiguration,
@@ -36,6 +39,7 @@ export {
   SITE_MEDIA_SLOTS,
   getDefaultSiteMedia,
   getSiteMediaDisplaySrc,
+  isComposedSiteMediaSlot,
   getSiteMediaContentType,
   getSiteMediaStoragePath,
   isSiteMediaSlot,
@@ -48,6 +52,8 @@ export {
 } from './model/siteMedia';
 export {
   getSiteMedia,
+  completeSiteMediaForSections,
+  assertComposedSiteMediaReference,
   restorePreviousSiteMedia,
   SiteMediaStoreError,
   updateSiteMedia,
@@ -92,3 +98,26 @@ export {
   serializeStructuredData,
   StructuredData,
 } from './server/structuredData';
+export { resolveOwnerPublicationEnvironment } from './model/ownerPublicationEnvironment';
+export type { OwnerPublicationEnvironment } from './model/ownerPublicationEnvironment';
+
+export {
+  DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
+  createLegacyHomepageShowcaseStages,
+  HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
+  validateHomepageShowcaseStagesInput,
+  type HomepageShowcaseStage,
+} from './model/homepageShowcaseStages';
+export {
+  HOMEPAGE_COMPOSER_MEDIA_SLOTS,
+  isHomepageCustomSection,
+  parseHomepageCustomSection,
+  validateHomepageCustomSections,
+  type HomepageCustomSection,
+  type HomepageContentBlock,
+  type HomepageSectionDesign,
+} from './model/homepageComposition';
+export { type HomepageLayoutSection } from './model/siteConfiguration';
+export { getSiteCompositionSections, isPublicSitePageSlug, validatePublicSitePages, type PublicSitePage } from './model/sitePages';
+
+export { WebsitePresentationValidationError } from './model/websitePresentation';

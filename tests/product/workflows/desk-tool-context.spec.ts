@@ -16,6 +16,158 @@ for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
     test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });
 
+    test('@golden creates, designs, generates, edits and reopens a fresh Set without seeded cards', async ({ page }, testInfo) => {
+      test.setTimeout(180_000);
+      page.setDefaultTimeout(15_000);
+      if (!mobile) await page.setViewportSize({ width: 1180, height: 757 });
+      await seedGuestScaleWorkspace(page, 100, { emptyDesk: true, exportSample: true, publicTemplate: true, unreadableFolderIndex: !mobile });
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+      await expect(page.locator('[data-set-object]')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Create your first Set', exact: true }).click();
+      await page.getByRole('button', { name: 'Fresh Set', exact: true }).click();
+      await page.getByRole('textbox', { name: 'Set name', exact: true }).fill('Creator loop Set');
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(page.getByText('This Set is ready for its first card', { exact: true })).toBeVisible();
+
+      await page.getByRole('button', { name: 'Design', exact: true }).click();
+      const design = page.getByRole('region', { name: 'Design', exact: true });
+      await expect(design.getByRole('region', { name: 'Template canvas', exact: true })).toBeVisible();
+      if (mobile) await design.getByRole('button', { name: 'Open editor menu', exact: true }).click();
+      await design.getByRole('button', { name: 'Card Setup', exact: true }).click();
+      await design.getByRole('textbox', { name: 'Template name', exact: true }).fill('Creator loop Template');
+      if (mobile) await design.getByRole('button', { name: 'Close library', exact: true }).click();
+      await design.getByRole('button', { name: mobile ? 'Save a personal Template copy' : 'Save copy', exact: true }).click();
+      // Saving forks the public source. The same tool must keep the saved
+      // personal copy selected instead of replaying its original entry target.
+      if (mobile) await expect(design.getByRole('toolbar', { name: 'Canvas controls' })).toContainText('Creator loop Template Variant');
+      else await expect(design.getByRole('textbox', { name: 'Template name', exact: true })).toHaveValue('Creator loop Template Variant');
+      const rail = page.locator('[data-desk-context-rail]');
+      await rail.getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(design).toHaveCount(0);
+      await page.getByRole('button', { name: 'Design', exact: true }).click();
+      if (mobile) await expect(design.getByRole('toolbar', { name: 'Canvas controls' })).toContainText('Creator loop Template Variant');
+      else {
+        await design.getByRole('button', { name: 'Card Setup', exact: true }).click();
+        await expect(design.getByRole('textbox', { name: 'Template name', exact: true })).toHaveValue('Creator loop Template Variant');
+      }
+      await rail.getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(design).toHaveCount(0);
+
+      const openTool = async (name: 'Generate' | 'Output') => {
+        if (mobile) {
+          await rail.getByRole('button', { name: 'More Set actions', exact: true }).click();
+          await page.getByRole('menuitem', { name, exact: true }).click();
+        } else await rail.getByRole('button', { name, exact: true }).click();
+      };
+      await openTool('Generate');
+      await expect(page.locator('#deck-front-template')).toContainText('Creator loop Template Variant');
+      await page.getByRole('button', { name: 'Continue to card data', exact: true }).click();
+      const artwork = new URL('/brand/cardforge-studio/brand-mark.svg', page.url()).href;
+      const data = page.getByLabel('Add your card list', { exact: true });
+      await data.fill(`cardName,artwork\nFirst card,${artwork}`);
+      await expect(page.getByText('CardForge is ready to make 1 card.', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Add Cards to Set', exact: true }).click();
+      await expect(page.getByText(/1 card added to Creator loop Set/)).toBeVisible();
+      await page.getByRole('button', { name: 'Add another batch', exact: true }).click();
+      await data.fill(`cardName,artwork\nSecond card,${artwork}\nThird card,${artwork}\nFourth card,${artwork}`);
+      await expect(page.getByText('CardForge is ready to make 3 cards.', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Add Cards to Set', exact: true }).click();
+      await expect(page.getByText(/3 cards added to Creator loop Set/)).toBeVisible();
+      await page.getByRole('button', { name: 'View cards on Desk', exact: true }).click();
+      await page.getByRole('button', { name: 'Clear Artifact selection', exact: true }).click();
+      await expect(page.getByRole('toolbar', { name: 'Selection actions', exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Clear all', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 4', exact: true })).toBeVisible();
+
+      if (!mobile) {
+        const sourceSummary = page.locator('summary').filter({ hasText: /^One work source needs attention$/ });
+        const organize = page.getByRole('button', { name: 'Organize · 4 cards', exact: true });
+        for (const width of [770, 390]) {
+          await page.setViewportSize({ width, height: 757 });
+          await expect(sourceSummary).toBeInViewport({ ratio: 1 });
+          for (const expanded of [false, true]) {
+            if (expanded) {
+              await sourceSummary.click();
+              await expect(page.getByText('The saved folder index is unreadable. Existing folder links were left unchanged.', { exact: true })).toBeVisible();
+            }
+            // Both source states reserve layout space, rather than covering the
+            // focused Set's controls while the document itself still fits.
+            const noticeBottom = await sourceSummary.evaluate((summary) => summary.closest('details')!.getBoundingClientRect().bottom);
+            const control = await organize.boundingBox();
+            expect(control!.y).toBeGreaterThanOrEqual(noticeBottom);
+            await expect.poll(() => organize.evaluate((button) => {
+              const rect = button.getBoundingClientRect();
+              const target = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+              return target === button || button.contains(target);
+            })).toBe(true);
+            await testInfo.attach(`source-recovery-${width}-${expanded ? 'expanded' : 'collapsed'}`, {
+              body: await page.screenshot(), contentType: 'image/png',
+            });
+          }
+          await organize.click();
+          await expect(page.getByRole('combobox', { name: 'Arrange cards', exact: true })).toBeVisible();
+          await page.keyboard.press('Escape');
+          await sourceSummary.click();
+        }
+        await page.setViewportSize({ width: 1180, height: 757 });
+      }
+      await page.getByRole('button', { name: 'Organize · 4 cards', exact: true }).click();
+      await page.getByRole('combobox', { name: 'Arrange cards', exact: true }).click();
+      await page.getByRole('option', { name: 'Arrange as grid', exact: true }).click();
+      await page.getByRole('button', { name: 'Organize · 4 cards', exact: true }).click();
+      await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
+      // The complete interactive tile, including title/subtitle, belongs inside
+      // Fit Work. Camera controls must not cover any of that authored work.
+      await expect.poll(() => page.locator('[data-desk-artifact-stage]').evaluate((stage) => {
+        const bounds = stage.getBoundingClientRect();
+        const controls = stage.parentElement!.querySelector('[data-set-view-controls]')!.getBoundingClientRect();
+        return Array.from(stage.querySelectorAll<HTMLButtonElement>('button[data-artifact-id]')).flatMap((button) => {
+          const rect = button.getBoundingClientRect();
+          const tile = button.parentElement!.getBoundingClientRect();
+          const inside = rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1
+            && rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1;
+          const modeled = rect.right <= tile.right + 1 && rect.bottom <= tile.bottom + 1;
+          const obscured = Math.min(rect.right, controls.right) > Math.max(rect.left, controls.left)
+            && Math.min(rect.bottom, controls.bottom) > Math.max(rect.top, controls.top);
+          return inside && modeled && !obscured ? [] : [button.getAttribute('aria-label')];
+        });
+      })).toEqual([]);
+
+      const first = page.getByRole('button', { name: 'First card. Creator loop Template Variant', exact: true });
+      await first.focus();
+      await first.press('Enter');
+      await rail.getByRole('button', { name: 'Edit', exact: true }).click();
+      const editor = page.locator('[data-artifact-edit-workspace]');
+      if (mobile) {
+        await editor.getByRole('button', { name: 'More focused Artifact actions', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'All fields', exact: true }).click();
+      } else await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+      await editor.getByRole('textbox', { name: /Card title|Card name/i }).first().fill('First card revised');
+      await editor.getByRole('button', { name: 'Save & Done', exact: true }).click();
+      await expect(editor).toHaveCount(0);
+      await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
+      await openTool('Output');
+      const output = page.getByRole('region', { name: 'Output Creator loop Set', exact: true });
+      await expect(output).toBeVisible();
+      await expect(output.getByRole('button', { name: /^Download PNG set/ })).toBeVisible();
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(output).toBeVisible();
+      await rail.getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(output).toHaveCount(0);
+      await expect(page).not.toHaveURL(/[?&]tool=output/);
+      await expect(page.getByRole('button', { name: 'First card revised. Creator loop Template Variant', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 4', exact: true })).toBeVisible();
+
+      await openTool('Generate');
+      await page.getByRole('button', { name: 'Continue to card data', exact: true }).click();
+      await data.fill(`cardName,artwork\nUncommitted card,${artwork}`);
+      await rail.getByRole('button', { name: 'Review & close', exact: true }).click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Close Generate', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 4', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Uncommitted card. Creator loop Template Variant', exact: true })).toHaveCount(0);
+    });
+
     test('protects an edited card and opens Output without mounting another editor', async ({ page }) => {
       test.setTimeout(120_000);
       await seedGuestScaleWorkspace(page, 100);
@@ -192,6 +344,24 @@ for (const mobile of [false, true]) {
       await expect(editor).toBeVisible();
       await expect(editor).not.toContainText('Copy of');
     });
+  });
+}
+
+for (const unavailableSource of [false, true]) {
+  test(`@golden recovers an absent deep-linked Set without opening another Set's tool${unavailableSource ? ' while retaining source failure' : ''}`, async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100, { unreadableFolderIndex: unavailableSource });
+    await page.goto('/account?focus=set%3Amissing-set&tool=generate', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+    await expect(page.locator('[data-set-object]')).toHaveCount(1);
+    await expect(page.locator('#deck-front-template')).toHaveCount(0);
+    await expect(page).toHaveURL(/\/account$/u);
+    await expect(page.getByText(unavailableSource ? 'Requested work could not be opened' : 'Work not found in this workspace', { exact: true })).toBeVisible();
+    if (unavailableSource) {
+      await page.locator('summary').filter({ hasText: /^One work source needs attention$/u }).click();
+      await expect(page.getByText('The saved folder index is unreadable. Existing folder links were left unchanged.', { exact: true })).toBeVisible();
+    }
+    await openScaleSet(page, 100);
+    await expect(page.getByRole('button', { name: 'Ordered Artifact navigator · 100', exact: true })).toBeVisible();
   });
 }
 

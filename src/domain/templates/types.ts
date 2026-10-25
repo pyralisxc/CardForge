@@ -237,6 +237,24 @@ export interface TemplateFieldContract {
   letterSpacing?: string;
 }
 
+/** Optimistic Pipeline context on a recoverable browser draft, never publication authority. */
+export interface TemplatePipelineExpectedBase {
+  assetId: string;
+  parentSubmissionId: string;
+  lineageId: string;
+  baseRevisionNumber: number;
+  revisionHighWater: number;
+  parentContentVersion: string;
+  registryContentVersion: string;
+}
+
+export interface TemplatePipelineContext {
+  schemaVersion: 1;
+  expectedBase: TemplatePipelineExpectedBase;
+  /** Retained across reloads until this exact request has a readable receipt. */
+  attempt?: { key: string; requestFingerprint: string };
+}
+
 export interface TCGCardTemplate {
   id: string | null;
   name: string;
@@ -260,6 +278,7 @@ export interface TCGCardTemplate {
   /** Provenance for an independent personal fork/copy; never implies ownership. */
   templateOriginLineageId?: string;
   templateOriginRevisionId?: string;
+  templatePipelineContext?: TemplatePipelineContext;
   templateUsage?: TemplateUsage;
   templateCategory?: string;
   templateDescription?: string;
@@ -267,6 +286,8 @@ export interface TCGCardTemplate {
   templatePreviewData?: CardData;
   frameStyle?: string;
   cardBackgroundImageUrl?: string;
+  /** Explicit foundation placement; absent preserves the legacy surface defaults. */
+  cardBackgroundImageFit?: 'cover' | 'contain' | 'fill';
   cardBorderImageSource?: string;
   baseBackgroundColor?: string;
   baseTextColor?: string;

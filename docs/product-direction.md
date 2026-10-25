@@ -1,6 +1,6 @@
 # CardForge Product Direction
 
-Last updated: October 8, 2026
+Last updated: October 10, 2026
 
 Status: living product direction. This document records the intended product model and next delivery sequence. It does not describe shipped behavior. [architecture.md](architecture.md) remains authoritative for shipped ownership and invariants and the live `/roadmap` owns publicly presented capability status and votes.
 
@@ -37,7 +37,17 @@ CardForge has three permanent user-navigation surfaces and one focused workbench
 
 The browser Owner experience and the dedicated **CardForge Owner** agent/plugin surface are two clients of the same feature-owned control plane. The Owner plugin is not a fourth private navigation zone and does not share CardForge Studio's creator tool catalog. It reuses the same Clerk identity plus server-resolved Owner authority, canonical state, validation, revision/conflict rules, cache invalidation, and activity history as browser Owner operations.
 
+The agent installation model has **two CardForge product plugins and four clearly named environment connections**, not four implementations or another Contributor product. CardForge Studio (creator and scoped Contributor capabilities) and CardForge Owner (server-enforced Owner operations) each use their canonical production MCP endpoint. Studio Preview and Owner Preview are **unpublished developer plugins**, installed through supported developer settings rather than a public marketplace. Private/developer describes distribution, not website secrecy or network isolation. Preview is the publicly reachable live testing website: testers use the same CardForge sign-in, consent and server-enforced role workflows as Production, with separate Development accounts and Staging providers. Public pages are accessible without a Vercel account; private account data and privileged operations remain protected by CardForge. The four connections share canonical Studio/Owner code, tool contracts and feature-owned commands. Verify actual server environment rather than a plugin display name. A plugin or Work browser session is an authorized client, not a provider credential, a second state owner, or permission to publish Production because Staging passed. Production Studio publication and Owner operation have independent gates; staging records never automatically copy into Production.
+
 For the public property, **code defines capability, the Owner publishes presentation, and providers supply the facts they own**. Vercel Preview proves changes to what the site can do; ordinary production copy/media/navigation/SEO/presentation changes publish through the live Owner surface. Do not add a staging-to-production content-promotion CMS merely to reproduce that solo-owner workflow.
+
+Owner-directed website editing should feel like operating the page: inspect the canonical state, change a supported block or stage, save through the shared revision-safe command, and visually verify the result. Technical revisions prevent overwrites; they are not a separate founder-facing feature-planning or approval workflow for routine reversible presentation edits.
+
+The homepage showcase uses a bounded, ordered vocabulary of screenshot views and real rendered demonstration Sets, with each screenshot referring only to an Owner-managed public media slot. Browser Owner and Owner MCP edit the same approved stage sequence while preserving existing pinned Template examples. Legacy stage copy stays active until the Owner explicitly publishes a new sequence; adding a stage must not silently relabel an unrelated screenshot. Authenticated screenshots are acquired only from a purpose-built demonstration session with private account information excluded, not by borrowing arbitrary user sessions or credentials. Arbitrary executable blocks, routes, full Sites/CMS creation and auto-publishing private screenshots are not part of this step.
+
+The approved long-term direction is a **website creator built from CardForge's own design capabilities**, beginning with CardForge's first-party pages as the proving ground. Ordinary copy, layout, responsive presentation, artwork, calls to action, feature explanations and page arrangement should become Owner-controlled design operations rather than source edits. New executable primitives, account authorization, product capabilities, payment/provider integrations, routing/security and shared renderer improvements remain engineering-owned. Site editing must not execute arbitrary HTML/CSS/JavaScript, allow remote unvetted embeds, or leak signed-in creator work.
+
+The first coherent Owner Site Composer foundation uses the **existing Owner settings row** and published public media owner. The existing site stays exactly as published unless explicitly changed. Owners can add/remove/reorder validated content sections, choose stack/split/grid responsive patterns, theme/spacing/alignment, edit named blocks (headlines, text, features, managed imagery and internal actions), and edit their walkthrough stages. Browser page selection and focused Owner MCP tools operate through the same guarded command and revision. New section image slots are scoped to stable source-block identifiers, stored with other Owner media, and must be deliberately uploaded/published; duplicated blocks may deliberately reuse those published images or select a new independent slot. First-party pages use the same trusted composition, with safe unreserved paths, navigation and SEO in the existing settings row. Unpublished pages are excluded from public routes, sitemap, navigation and serialized public props. The browser supports section/block duplication, local undo/redo/cancel and script-disabled desktop/tablet/phone draft canvases using the live renderer. Existing provider-controlled pages and facts remain native. Pixel-level handles, arbitrary executable content and richer typography are not implied by these supported operations. Real marketing screenshots require consentful demo-session capture, visual review and Owner media publication; an automated browser fixture is not proof of the founder's signed-in private state.
 
 The public site remains CardForge's entrance and explanation surface, not another private workspace.
 
@@ -443,7 +453,7 @@ Profile may hold durable personal defaults only when ownership is truly personal
 
 ## Owner Operations
 
-Owner operations reveal as protected tools at their native recurring object. Profile composes Overview, Growth & People, and Governance. Campaigns live in Library → Campaigns, Pipeline authority lives in Library → Pipeline, public site controls reveal contextually on the homepage, and Roadmap rules/status controls reveal on `/roadmap`, using the same canonical stores and mutations; anonymous visitors receive neither Owner client code nor unpublished control payloads.
+Owner operations reveal as protected tools at their native recurring object. Profile composes Overview, Growth & People, and Governance. Campaigns live in Library → Campaigns, Pipeline authority lives in Library → Pipeline, the public property provides an Owner-only **Edit page** mode directly on every public page, and Roadmap rules/status controls reveal on `/roadmap`, using the same canonical stores and mutations; anonymous visitors receive neither Owner client code nor unpublished control payloads.
 
 Owner responsibilities include:
 
@@ -451,14 +461,14 @@ Owner responsibilities include:
 - people and Contributor scopes;
 - shared Library → Pipeline review/publication/routing;
 - owner overrides and permanent purge;
-- contextual public-homepage site controls;
+- contextual public-page editing and small site-wide settings controls;
 - Library → Campaigns strategy/approval/distribution;
 - contextual Roadmap rules/status controls;
 - legal/governance/history;
 - service/provider readiness;
 - billing/usage/analytics reconciliation.
 
-Owner may reuse the same object renderers, Library projections, and review surfaces, but authority remains explicit and auditable.
+Owner may reuse the same object renderers, Library projections, and review surfaces, but authority remains explicit and auditable. On public pages, **the rendered page is the first editing surface**: the Owner enables Edit page, selects a real copy or media target, edits in place or uses a focused image drawer, and explicitly publishes that one owned value. If a field includes structured markup, preserve it and use a focused copy form instead of mutating its markup. Visible Owner copy and media have one primary selection path; a focused field editor exists only when real page markup cannot be edited safely. Visible primary-action, navigation and enabled-announcement labels are also selectable, but retain their native Owner site-configuration owner. A compact Site settings drawer hosts destinations, order/visibility, SEO, favicon, watermark and other non-selectable controls plus a derived list of Owner-owned copy/media not reachable in the currently rendered page. The drawer is not a second full-page copy or media catalog. Visible CTA and navigation labels are edited by selecting them on the page; settings keeps link destinations, visibility and order, plus fallback label controls for hidden or structurally suppressed navigation items. Design, page/component structure, route capability and permissions remain code-controlled; actual commercial prices and provider configuration remain provider-owned. Site configuration publishes through its existing canonical Owner command, not a parallel page-builder state. Whole-configuration settings edits and focused labels must compare the existing settings updatedAt revision before committing; selected labels update only the relevant column/JSON navigation label, leaving link destinations and unrelated settings intact. Always distinguish staging-only Preview publication from live production publication; Cancel and stale-version conflicts never overwrite already-published content.
 
 ## Campaign Contribution
 

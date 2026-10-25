@@ -8,6 +8,7 @@ import {
 } from '@/features/card-generator/lib/printValidation';
 
 import type { TCGCardTemplate } from '@/domain/templates';
+import { getCardProductionGeometryMm, getCardProductionGeometryPx } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 
 const baseTemplate: TCGCardTemplate = {
@@ -82,6 +83,47 @@ describe('print validation', () => {
     });
   });
 
+  it('resolves one canonical trim, bleed, and safe production geometry', () => {
+    const card = makeCard({ rulesText: 'Text', artworkUrl: 'https://example.com/image.png' });
+
+    expect(getCardProductionGeometryMm(card)).toEqual({
+      trimWidthMm: 63,
+      trimHeightMm: 88,
+      bleedMm: 3,
+      safeMarginMm: 4,
+      productionWidthMm: 69,
+      productionHeightMm: 94,
+      trimOffsetXmm: 3,
+      trimOffsetYmm: 3,
+      safeXmm: 4,
+      safeYmm: 4,
+      safeWidthMm: 55,
+      safeHeightMm: 80,
+    });
+    expect(getCardProductionGeometryPx(card, 300)).toMatchObject({
+      trimWidthPx: 744,
+      trimHeightPx: 1039,
+      bleedPx: 35,
+      safeMarginPx: 47,
+      productionWidthPx: 815,
+      productionHeightPx: 1110,
+      trimOffsetXPx: 35,
+      trimOffsetYPx: 35,
+    });
+  });
+
+  it('allows output profiles to override bleed and safe margins without changing trim', () => {
+    const card = makeCard({ rulesText: 'Text', artworkUrl: 'https://example.com/image.png' });
+    expect(getCardProductionGeometryMm(card, { bleedMm: 3.175, safeMarginMm: 6.35 })).toMatchObject({
+      trimWidthMm: 63,
+      trimHeightMm: 88,
+      bleedMm: 3.175,
+      safeMarginMm: 6.35,
+      productionWidthMm: 69.35,
+      productionHeightMm: 94.35,
+    });
+  });
+
   it('blocks physical exports when placeholders are used', () => {
     const card = makeCard({ rulesText: 'Text', artworkUrl: 'https://placehold.co/600x400.png?text=Artwork' });
     const validation = validateCardExportQuality(card, 'physical');
@@ -138,7 +180,7 @@ describe('print validation', () => {
     const card = makeCard({ rulesText: 'Text', artworkUrl: 'https://example.com/image.png' });
     const validation = validateCardExportQuality(card, 'physical');
 
-    expect(validation.warnings.some((message) => message.includes('inside the print safe area'))).toBe(true);
+    expect(validation.warnings.some((message) => message.includes('crosses the safe content boundary') && message.includes('4 mm'))).toBe(true);
   });
 
   it('does not warn for reviewed contributor font ids', () => {

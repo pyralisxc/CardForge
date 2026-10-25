@@ -4,6 +4,7 @@ import { getCardFormat, resolveTemplateCardFormat } from '@/domain/card-formats'
 import { normalizeAppearanceForElement, normalizeTemplateAppearance } from './appearanceNormalization';
 import { FREEFORM_HIERARCHY_VERSION, migrateLegacyAbsoluteHierarchy } from './hierarchyGeometry';
 import { TCG_ASPECT_RATIO } from './constants';
+import { normalizeTemplatePipelineContext } from './templateIdentity';
 import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from './types';
 
 const DEFAULT_FREEFORM_CANVAS_WIDTH = 630;
@@ -263,12 +264,15 @@ export const reconstructMinimalTemplateObject = (partial: Partial<TCGCardTemplat
     templateParentRevisionId: optionalIdentityText(loaded.templateParentRevisionId),
     templateOriginLineageId: optionalIdentityText(loaded.templateOriginLineageId),
     templateOriginRevisionId: optionalIdentityText(loaded.templateOriginRevisionId),
+    templatePipelineContext: normalizeTemplatePipelineContext(loaded.templatePipelineContext),
     templateUsage: loaded.templateUsage === 'back-preset' ? 'back-preset' : 'standard',
     templateCategory: loaded.templateCategory,
     templateDescription: loaded.templateDescription,
     templateOrder: typeof loaded.templateOrder === 'number' ? loaded.templateOrder : undefined,
     templatePreviewData: loaded.templatePreviewData,
     frameStyle: loaded.frameStyle || 'standard',
+    cardBackgroundImageFit: ['cover', 'contain', 'fill'].includes(loaded.cardBackgroundImageFit ?? '')
+      ? loaded.cardBackgroundImageFit : undefined,
     cardBorderWidth: loaded.cardBorderWidth && loaded.cardBorderWidth.trim() !== '' ? loaded.cardBorderWidth : '4px',
     cardBorderStyle: loaded.cardBorderStyle && loaded.cardBorderStyle !== '_default_' ? loaded.cardBorderStyle : 'solid',
     cardBorderRadius: loaded.cardBorderRadius && loaded.cardBorderRadius.trim() !== '' ? loaded.cardBorderRadius : '0.5rem',

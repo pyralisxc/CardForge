@@ -1,4 +1,4 @@
-export type LibraryPickerSource = 'project' | 'personal' | 'pipeline' | 'published' | 'provider';
+export type LibraryPickerSource = 'builtin' | 'project' | 'personal' | 'pipeline' | 'published' | 'provider';
 export type LibraryPickerSelectionMode = 'single' | 'multiple';
 export type LibraryPickerMaterialization = 'already-local' | 'reference' | 'project-copy';
 

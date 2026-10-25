@@ -2,7 +2,7 @@ export { CardForgeRichTextEditor } from './components/CardForgeRichTextEditor';
 export { CardPreview } from './components/CardPreview';
 export { useArtifactViewport } from './hooks/useArtifactViewport';
 export { AuthoredObjectPreview } from './components/AuthoredObjectPreview';
-export { ArtifactScene, ArtifactSlot, useArtifactFace, useArtifactFaces } from './components/ArtifactScene';
+export { ArtifactScene, ArtifactSlot, useArtifactFace, useArtifactFaces, useCaptureArtifactStackOrigins } from './components/ArtifactScene';
 export { ArtifactThumbnail } from './components/ArtifactThumbnail';
 export { getTemplateAccent } from './model/templateAccent';
 export {
@@ -52,3 +52,5 @@ export {
   shouldShowVisibleCardWatermark,
   SOCIAL_SHARE_WATERMARK_OPACITY,
 } from './model/watermarkPolicy';
+
+export type { ArtifactSceneHandle } from './components/ArtifactScene';

@@ -6,6 +6,7 @@ import {
   cardFontFamilyToCss,
   mapRegistryRowsToCardFontOptions,
   mergeCardFontOptions,
+  createPipelineFontFaceCss,
 } from '@/domain/rendering';
 
 describe('card font registry', () => {
@@ -80,6 +81,17 @@ describe('card font registry', () => {
         sourceUrl: 'https://example.test/aurora.woff2',
       },
     ]);
+  });
+
+  it('respects the exact published Font weight descriptor rather than inventing variable faces', () => {
+    const options = mapRegistryRowsToCardFontOptions([
+      { asset_id: 'official-static', name: 'Static Face', url: 'https://example.test/static.ttf', metadata: { category: 'Utility', fontWeightRange: '400' } },
+      { asset_id: 'official-variable', name: 'Variable Face', url: 'https://example.test/variable.ttf', metadata: { category: 'Classic', fontWeightRange: '200 800' } },
+    ]);
+    const css = createPipelineFontFaceCss(options);
+    expect(css).toContain('font-weight: 400;');
+    expect(css).toContain('font-weight: 200 800;');
+    expect(options.map(item => item.fontWeightRange)).toEqual(['400', '200 800']);
   });
 
   it('merges reviewed contributor fonts after built-ins without duplicate ids', () => {

@@ -15,11 +15,19 @@
   filter: drop-shadow(0 0.7rem 1rem rgb(0 0 0 / 30%));
 }
 
-.card[data-card-position='0'] { z-index: 3; }
-.card[data-card-position='1'] { z-index: 4; transform: translate(-24%, 7%); }
-.card[data-card-position='2'] { z-index: 3; transform: translate(24%, 8%); }
-.card[data-card-position='3'] { z-index: 2; transform: translate(-45%, 17%); }
-.card[data-card-position='4'] { z-index: 1; transform: translate(45%, 18%); }
+.card:has([data-scene-inline-stack='true']) {
+  transform-origin: 0 0;
+  --inline-fan-angle: var(--settled-stack-rotation, 0deg);
+}
+
+/* Composition matches the scene: translation followed by card rotation.
+ * Rotating the separate CSS rotate property first would rotate the fan
+ * offset and cause a different return handback for angled cards. */
+.card[data-card-position='0'] { z-index: 5; transform: rotate(var(--inline-fan-angle, 0deg)); }
+.card[data-card-position='1'] { z-index: 4; transform: translate(-24%, 7%) rotate(var(--inline-fan-angle, 0deg)); }
+.card[data-card-position='2'] { z-index: 3; transform: translate(24%, 8%) rotate(var(--inline-fan-angle, 0deg)); }
+.card[data-card-position='3'] { z-index: 2; transform: translate(-45%, 17%) rotate(var(--inline-fan-angle, 0deg)); }
+.card[data-card-position='4'] { z-index: 1; transform: translate(45%, 18%) rotate(var(--inline-fan-angle, 0deg)); }
 
 .emptyBadge {
   position: absolute;
@@ -55,7 +63,7 @@
   block-size: 100%;
   padding-block-end: 0 !important;
 }
-.stack[data-physical-scale='true'] .card[data-card-position='1'] { transform: translate(-20%, 5%); }
-.stack[data-physical-scale='true'] .card[data-card-position='2'] { transform: translate(20%, 6%); }
-.stack[data-physical-scale='true'] .card[data-card-position='3'] { transform: translate(-38%, 12%); }
-.stack[data-physical-scale='true'] .card[data-card-position='4'] { transform: translate(38%, 13%); }
+.stack[data-physical-scale='true'] .card[data-card-position='1'] { transform: translate(-20%, 5%) rotate(var(--inline-fan-angle, 0deg)); }
+.stack[data-physical-scale='true'] .card[data-card-position='2'] { transform: translate(20%, 6%) rotate(var(--inline-fan-angle, 0deg)); }
+.stack[data-physical-scale='true'] .card[data-card-position='3'] { transform: translate(-38%, 12%) rotate(var(--inline-fan-angle, 0deg)); }
+.stack[data-physical-scale='true'] .card[data-card-position='4'] { transform: translate(38%, 13%) rotate(var(--inline-fan-angle, 0deg)); }

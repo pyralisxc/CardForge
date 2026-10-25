@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Archive, Check, Eye, Save, Sparkles, X } from 'lucide-react';
+import { Archive, Check, Download, Eye, Loader2, Save, Sparkles, X } from 'lucide-react';
 
+import { MediaPresentationPreview } from './MediaPresentationRevision';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
+import { ContentQualityGuidance } from '@/features/pipeline/components/ContentQualityGuidance';
 import {
   appearanceToStyle,
   CardPreview,
@@ -18,7 +21,11 @@ import {
   getReviewProgressLabel,
   getReviewProgressPercent,
   getSubmissionNextStep,
+  buildPipelineTemplateSpecimen,
+  getPipelineSubmissionTemplate,
   getTemplatePreviewId,
+  PIPELINE_TEMPLATE_SPECIMEN_DPI,
+  type PipelineTemplateSpecimenRenderer,
   tierClasses,
   type PipelineSubmission,
 } from '@/features/pipeline/components/PipelineContributionModel';
@@ -32,10 +39,15 @@ import {
   getPipelineTypeLabel,
 } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import {
+  CARDFORGE_COMPATIBILITY_OPTIONS,
   CARDFORGE_SPECIALTY_OPTIONS,
   CARDFORGE_USE_CASE_OPTIONS,
+  CARDFORGE_VARIANT_KIND_OPTIONS,
   formatContentTaxonomyTag,
+  getSemanticRoleOptions,
   hasRequiredPipelineClassification,
+  type PipelineSemanticRole,
+  type PipelineVariantKind,
 } from '@/features/pipeline/lib/contentTaxonomy';
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
 import { isRepositoryStyle } from '@/features/pipeline/lib/registryContentValidation';
@@ -61,6 +73,11 @@ export function EditSubmissionForm({
   sourceNotes,
   specialtyTags,
   useCaseTags,
+  semanticRole,
+  visualFamily,
+  variantKind,
+  variantLabel,
+  compatibilityTags,
   requestedStudioDestination,
   destinationOptions,
   isDraft,
@@ -71,6 +88,11 @@ export function EditSubmissionForm({
   onSourceNotesChange,
   onSpecialtyTagsChange,
   onUseCaseTagsChange,
+  onSemanticRoleChange,
+  onVisualFamilyChange,
+  onVariantKindChange,
+  onVariantLabelChange,
+  onCompatibilityTagsChange,
   onRequestedStudioDestinationChange,
   onCancel,
   onSave,
@@ -83,6 +105,11 @@ export function EditSubmissionForm({
   sourceNotes: string;
   specialtyTags: string;
   useCaseTags: string;
+  semanticRole: PipelineSemanticRole;
+  visualFamily: string;
+  variantKind: PipelineVariantKind;
+  variantLabel: string;
+  compatibilityTags: string;
   requestedStudioDestination: string;
   destinationOptions: Array<{ value: string; label: string }>;
   isDraft: boolean;
@@ -93,6 +120,11 @@ export function EditSubmissionForm({
   onSourceNotesChange: (value: string) => void;
   onSpecialtyTagsChange: (value: string) => void;
   onUseCaseTagsChange: (value: string) => void;
+  onSemanticRoleChange: (value: PipelineSemanticRole) => void;
+  onVisualFamilyChange: (value: string) => void;
+  onVariantKindChange: (value: PipelineVariantKind) => void;
+  onVariantLabelChange: (value: string) => void;
+  onCompatibilityTagsChange: (value: string) => void;
   onRequestedStudioDestinationChange: (value: string) => void;
   onCancel: () => void;
   onSave: () => void;
@@ -112,6 +144,39 @@ export function EditSubmissionForm({
         Description
         <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" value={description} onChange={(event) => onDescriptionChange(event.target.value)} />
       </label>
+      <div className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Content identity</p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+            Semantic role
+            <select className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" value={semanticRole} onChange={(event) => onSemanticRoleChange(event.target.value as PipelineSemanticRole)}>
+              {getSemanticRoleOptions(assetType).map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+            Visual family / pack
+            <input className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" maxLength={80} value={visualFamily} onChange={(event) => onVisualFamilyChange(event.target.value)} />
+          </label>
+          <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+            Family relationship
+            <select className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" value={variantKind} onChange={(event) => onVariantKindChange(event.target.value as PipelineVariantKind)}>
+              {CARDFORGE_VARIANT_KIND_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+            Variant label
+            <input className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" maxLength={80} value={variantLabel} onChange={(event) => onVariantLabelChange(event.target.value)} />
+          </label>
+        </div>
+        <ControlledTaxonomySelect
+          label="Compatibility"
+          selectedIds={parseTaxonomySelection(compatibilityTags)}
+          options={CARDFORGE_COMPATIBILITY_OPTIONS}
+          onChange={(value) => onCompatibilityTagsChange(value.join(','))}
+          emptyLabel="Optional compositional traits."
+        />
+      </div>
+      <ContentQualityGuidance role={semanticRole} />
       <div className="grid gap-3 md:grid-cols-2">
         <ControlledTaxonomySelect
           label="Specialties"
@@ -142,13 +207,13 @@ export function EditSubmissionForm({
         Source and rights notes
         <textarea
           className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
-          placeholder="State who created the artwork, where assets came from, and what publication rights CardForge has."
+          placeholder="State sources, licensing, AI assistance (used/none) and the non-sensitive AI process if used."
           value={sourceNotes}
           onChange={(event) => onSourceNotesChange(event.target.value)}
         />
       </label>
       <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
-        Studio placement controls where the asset appears. Specialty and use-case tags come from CardForge's shared taxonomy so contributors do not invent competing labels.
+        Studio placement controls where creators find it. Keep the rights and AI disclosures attached to this exact revision; Owner quality review depends on this evidence.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving} onClick={onSave}>
@@ -173,6 +238,7 @@ export function AssetRow({
   submission,
   program,
   templatePreviews,
+  renderTemplateSpecimen,
   children,
   expanded = false,
   onToggleExpanded,
@@ -181,6 +247,7 @@ export function AssetRow({
   submission: PipelineSubmission;
   program: Pick<PipelineProgramView, 'settings'>;
   templatePreviews: Record<string, TCGCardTemplate>;
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
   children?: ReactNode;
   expanded?: boolean;
   onToggleExpanded?: () => void;
@@ -202,7 +269,7 @@ export function AssetRow({
     <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3">
       <div className="grid gap-3 sm:grid-cols-[4rem_1fr_auto] sm:items-center">
         <div className="grid h-16 w-16 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)] bg-[linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%),linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%)] bg-[length:16px_16px] bg-[position:0_0,8px_8px]">
-          <AssetPreview submission={submission} templatePreviews={templatePreviews} />
+          <AssetPreview submission={submission} templatePreviews={templatePreviews} renderTemplateSpecimen={renderTemplateSpecimen} />
         </div>
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -247,8 +314,8 @@ export function AssetRow({
       </div>
       {expanded ? (
         <div className="mt-3 grid gap-3 border-t border-[var(--cf-border-subtle)] pt-3 lg:grid-cols-[minmax(14rem,22rem)_1fr]">
-          <div className="grid min-h-48 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)] bg-[linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%),linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%)] bg-[length:18px_18px] bg-[position:0_0,9px_9px]">
-            <AssetPreview submission={submission} templatePreviews={templatePreviews} expanded />
+          <div className="grid min-h-48 min-w-0 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)] bg-[linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%),linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%)] bg-[length:18px_18px] bg-[position:0_0,9px_9px]">
+            <AssetPreview submission={submission} templatePreviews={templatePreviews} renderTemplateSpecimen={renderTemplateSpecimen} expanded />
           </div>
           <div className="text-sm leading-6 text-[var(--cf-text-muted)]">
             <p>{submission.description || 'No notes were provided for this asset.'}</p>
@@ -272,6 +339,10 @@ export function AssetRow({
               <div><dt className="uppercase tracking-[0.12em]">Owner override</dt><dd className="break-all text-[var(--cf-text-muted)]">{submission.ownerStatusOverride || submission.ownerAccessTierOverride ? [submission.ownerStatusOverride, submission.ownerAccessTierOverride].filter(Boolean).join(' / ') : 'None - automatic'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Live catalog id</dt><dd className="break-all text-[var(--cf-text-muted)]">{submission.registryAssetId ?? 'Not published'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Studio placement</dt><dd className="text-[var(--cf-text-muted)]">{submission.requestedStudioDestination ? getPipelineStudioDestinationLabel(submission.requestedStudioDestination) : 'Not confirmed'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Semantic role</dt><dd className="text-[var(--cf-text-muted)]">{formatContentTaxonomyTag(submission.semanticRole)}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Visual family</dt><dd className="text-[var(--cf-text-muted)]">{submission.visualFamily ?? 'Independent object'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Family variant</dt><dd className="text-[var(--cf-text-muted)]">{formatContentTaxonomyTag(submission.variantKind)}{submission.variantLabel ? ` · ${submission.variantLabel}` : ''}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Compatibility</dt><dd className="text-[var(--cf-text-muted)]">{submission.compatibilityTags.length ? submission.compatibilityTags.map(formatContentTaxonomyTag).join(', ') : 'Not specified'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Specialties</dt><dd className="text-[var(--cf-text-muted)]">{submission.specialtyTags.length ? submission.specialtyTags.map(formatContentTaxonomyTag).join(', ') : 'Not confirmed'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Use cases</dt><dd className="text-[var(--cf-text-muted)]">{submission.useCaseTags.length ? submission.useCaseTags.map(formatContentTaxonomyTag).join(', ') : hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, []) ? 'General reusable resource' : 'Not confirmed'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Source and rights</dt><dd className="text-[var(--cf-text-muted)]">{submission.sourceNotes || 'Not confirmed'}</dd></div>
@@ -289,10 +360,12 @@ export function AssetRow({
 function AssetPreview({
   submission,
   templatePreviews,
+  renderTemplateSpecimen,
   expanded = false,
 }: {
   submission: PipelineSubmission;
   templatePreviews: Record<string, TCGCardTemplate>;
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
   expanded?: boolean;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
@@ -301,13 +374,7 @@ function AssetPreview({
   const pipelineRecipe = isRepositoryStyle(submission.sourcePayload)
     ? submission.sourcePayload
     : null;
-  const proposedTemplate = submission.sourcePayload
-    && typeof submission.sourcePayload === 'object'
-    && !Array.isArray(submission.sourcePayload)
-    && typeof (submission.sourcePayload as Partial<TCGCardTemplate>).name === 'string'
-    && typeof (submission.sourcePayload as Partial<TCGCardTemplate>).aspectRatio === 'string'
-      ? submission.sourcePayload as TCGCardTemplate
-      : null;
+  const proposedTemplate = getPipelineSubmissionTemplate(submission);
 
   useEffect(() => {
     setImageFailed(false);
@@ -322,9 +389,33 @@ function AssetPreview({
     if (!expanded) return <TemplateThumbnail template={primaryTemplate} />;
     if (proposedTemplate && template) {
       return (
-        <div className="grid w-full gap-4 p-4 sm:grid-cols-2">
-          <TemplateComparisonPreview label="Current live" template={template} id={`live-${submission.id}`} />
-          <TemplateComparisonPreview label={`Proposed revision ${submission.revisionNumber ?? ''}`.trim()} template={proposedTemplate} id={`proposed-${submission.id}`} />
+        <div className="grid min-w-0 gap-3 overflow-x-auto p-4">
+          <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
+            Exact candidate submission <span className="font-mono">{submission.id}</span>
+            {' · '}lineage <span className="font-mono">{submission.lineageId ?? 'unknown'}</span>
+            {' · '}revision {submission.revisionNumber ?? 'unknown'}
+            {' · '}pinned base revision {submission.baseRevisionNumber ?? 'unknown'}
+            {submission.targetRegistryAssetId ? <> {' · '}registry asset <span className="font-mono">{submission.targetRegistryAssetId}</span></> : null}
+          </p>
+          <div className="flex min-w-0 w-full flex-wrap items-start gap-4">
+            <TemplateComparisonPreview label="Current live" submission={submission} source="live" template={template} id={`live-${submission.id}`} renderTemplateSpecimen={renderTemplateSpecimen} />
+            <TemplateComparisonPreview label={`Proposed revision ${submission.revisionNumber ?? ''}`.trim()} submission={submission} source="candidate" template={proposedTemplate} id={`proposed-${submission.id}`} renderTemplateSpecimen={renderTemplateSpecimen} />
+          </div>
+        </div>
+      );
+    }
+    const specimen = buildPipelineTemplateSpecimen(submission, proposedTemplate ? 'candidate' : 'live', proposedTemplate ? undefined : primaryTemplate);
+    if (specimen) {
+      return (
+        <div className="max-h-[30rem] w-full overflow-auto p-4">
+          <TemplateComparisonPreview
+            label={proposedTemplate ? `Proposed revision ${submission.revisionNumber ?? ''}`.trim() : 'Current live'}
+            submission={submission}
+            source={proposedTemplate ? 'candidate' : 'live'}
+            template={primaryTemplate}
+            id={`single-${submission.id}`}
+            renderTemplateSpecimen={renderTemplateSpecimen}
+          />
         </div>
       );
     }
@@ -337,6 +428,12 @@ function AssetPreview({
         />
       </div>
     );
+  }
+
+  if (submission.mediaPresentation) {
+    return submission.sourceUrl
+      ? <MediaPresentationPreview sourceUrl={submission.sourceUrl} presentation={submission.mediaPresentation} />
+      : <p>Exact source preview requires Owner or original contributor access.</p>;
   }
 
   if (submission.assetType === 'fonts') {
@@ -471,21 +568,73 @@ const getPipelineRecipeKindLabel = (kind: AppearanceStylePreset['kind']): string
 
 function TemplateComparisonPreview({
   label,
+  submission,
+  source,
   template,
   id,
+  renderTemplateSpecimen,
 }: {
   label: string;
+  submission: PipelineSubmission;
+  source: 'candidate' | 'live';
   template: TCGCardTemplate;
   id: string;
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
 }) {
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
+  const specimen = buildPipelineTemplateSpecimen(submission, source, source === 'live' ? template : undefined);
+  const renderedTemplate = specimen?.card.template ?? template;
+
+  const exportSpecimen = async () => {
+    if (!specimen || isExporting) return;
+    setIsExporting(true);
+    try {
+      const blob = await renderTemplateSpecimen(specimen.card, specimen.face, PIPELINE_TEMPLATE_SPECIMEN_DPI);
+      if (blob.type !== 'image/png') throw new Error('The canonical renderer did not return a PNG specimen.');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = specimen.fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast({
+        title: source === 'candidate' ? 'Exact candidate specimen exported' : 'Current live specimen exported',
+        description: `Source canvas ${specimen.widthPx} × ${specimen.heightPx}px (${PIPELINE_TEMPLATE_SPECIMEN_DPI} DPI). Submission ${specimen.submissionId}, revision ${specimen.revisionNumber ?? 'unknown'}, pinned base ${specimen.baseRevisionNumber ?? 'unknown'}.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Template specimen export failed',
+        description: error instanceof Error ? error.message : 'CardForge could not render this exact Template specimen.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
-    <div className="grid content-start justify-items-center gap-2">
+    <div className="mx-auto grid min-w-0 shrink-0 content-start justify-items-center gap-2">
       <p className="text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">{label}</p>
       <CardPreview
-        card={{ template, data: template.templatePreviewData ?? {}, uniqueId: `pipeline-preview-${id}` }}
+        card={specimen?.card ?? { template: renderedTemplate, data: renderedTemplate.templatePreviewData ?? {}, uniqueId: `pipeline-preview-${id}` }}
+        face={specimen?.face}
         targetWidthPx={240}
         isEditorPreview
       />
+      {specimen ? (
+        <>
+          <p className="max-w-[19rem] break-all text-center text-[10px] leading-4 text-[var(--cf-text-subtle)]">
+            {source === 'candidate' ? 'Exact submitted payload' : 'Current live catalog payload'}
+            {' · '}{specimen.widthPx} × {specimen.heightPx}px
+            {' · '}submission {specimen.submissionId}
+          </p>
+          <Button type="button" size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" disabled={isExporting} onClick={() => void exportSpecimen()}>
+            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            {isExporting ? 'Rendering specimen…' : source === 'candidate' ? 'Download exact candidate PNG' : 'Download current live PNG'}
+          </Button>
+        </>
+      ) : null}
     </div>
   );
 }

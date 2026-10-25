@@ -94,6 +94,7 @@ export function useDeskCamera({
   selectionBounds,
   viewportRef,
   onPinchStart,
+  onEmptySpaceHold,
 }: {
   focused: boolean;
   hasItems: boolean;
@@ -102,6 +103,7 @@ export function useDeskCamera({
   selectionBounds: DeskRect | null;
   viewportRef: RefObject<HTMLDivElement | null>;
   onPinchStart?: () => void;
+  onEmptySpaceHold?: (point: ClientSpatialPoint, pointerId: number, viewport: HTMLDivElement) => void;
 }): DeskCamera {
   const viewportStateRef = useRef({ width: 1200, height: 720 });
   const cameraRef = useRef<SpatialCamera2D>({ x: 0, y: 0, zoom: 1 });
@@ -330,6 +332,7 @@ export function useDeskCamera({
     changeZoom,
     panByScreen,
     cancelDrag: onPinchStart,
+    onEmptySpaceHold,
     disabled: focused,
   });
 

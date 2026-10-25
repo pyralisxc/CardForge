@@ -34,6 +34,7 @@ export function PlanChoiceGrid({
             ? designerHref
             : defaultPlanHref(plan.planKey);
         const isFeatured = plan.planKey === featuredPlanKey;
+        const checkoutPriceUnavailable = plan.priceAuthority === 'stripe' && plan.priceAvailable === false;
         const features = [
           ...plan.featureSummary.split('\n').map((feature) => feature.trim()).filter(Boolean),
           plan.planKey === 'enterprise'
@@ -59,6 +60,8 @@ export function PlanChoiceGrid({
             <div className="mt-auto pt-5">
               {isCurrent ? (
                 <span className="inline-flex min-h-11 w-full items-center justify-center border border-[var(--cf-success-border)] px-4 font-semibold text-[var(--cf-success)]">Your current plan</span>
+              ) : checkoutPriceUnavailable ? (
+                <span className="inline-flex min-h-11 w-full items-center justify-center border border-[var(--cf-border)] px-4 text-center font-semibold text-[var(--cf-text-subtle)]">Checkout price unavailable</span>
               ) : (
                 <Link href={href} prefetch={false} className={`inline-flex min-h-11 w-full items-center justify-center border px-4 text-center font-bold transition-colors ${isFeatured ? 'border-[var(--cf-accent-strong)] bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110' : 'border-[var(--cf-accent)] text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)]'}`}>{plan.ctaLabel}</Link>
               )}

@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "publicationState": "candidates-require-founder-review",
+  "upstreamRepository": "https://github.com/google/fonts",
+  "upstreamRevision": "51303ca9e8ac9dcea7b12d307ba568fd0e6fcfca",
+  "license": "OFL-1.1",
+  "items": [
+    {
+      "assetId": "official-grenze-gotisch-display",
+      "family": "Grenze Gotisch",
+      "category": "Fantasy",
+      "fallback": "serif",
+      "sourceDirectory": "grenzegotisch",
+      "sourceFile": "GrenzeGotisch[wght].ttf",
+      "gitBlobSha": "5d093c0a18ebe84b594dd0175e435693d1a48c43",
+      "sizeBytes": 193492,
+      "licenseGitBlobSha": "03e84a8b44d4ec69dfe1a3e66481623c898c5a81",
+      "axes": {
+        "wght": [
+          100,
+          900
+        ]
+      },
+      "intendedRole": "Dramatic fantasy/card-title display; avoid dense rules text",
+      "minimumSuggestedPt": 15,
+      "description": "Distinctive blackletter fantasy title face, paired with a simple body font."
+    },
+    {
+      "assetId": "official-bricolage-grotesque-display",
+      "family": "Bricolage Grotesque",
+      "category": "Utility",
+      "fallback": "sans-serif",
+      "sourceDirectory": "bricolagegrotesque",
+      "sourceFile": "BricolageGrotesque[opsz,wdth,wght].ttf",
+      "gitBlobSha": "9a4ca271ff84357bb8f8830ce71b85ea3571f731",
+      "sizeBytes": 408496,
+      "licenseGitBlobSha": "a397658a5c4ab27c349964553b7caca61a4346f6",
+      "axes": {
+        "opsz": [
+          12,
+          96
+        ],
+        "wdth": [
+          75,
+          100
+        ],
+        "wght": [
+          200,
+          800
+        ]
+      },
+      "intendedRole": "Expressive modern card/game headings with optical-size options",
+      "minimumSuggestedPt": 12,
+      "description": "Playful and distinctive modern display face for original game identities."
+    },
+    {
+      "assetId": "official-atkinson-hyperlegible-next",
+      "family": "Atkinson Hyperlegible Next",
+      "category": "Utility",
+      "fallback": "sans-serif",
+      "sourceDirectory": "atkinsonhyperlegiblenext",
+      "sourceFile": "AtkinsonHyperlegibleNext[wght].ttf",
+      "gitBlobSha": "92a357554bdcca62a7e80d5e3724bf4eb8932e5e",
+      "sizeBytes": 114552,
+      "licenseGitBlobSha": "88955733b80000358ef3e5521f3369b276e066a9",
+      "axes": {
+        "wght": [
+          200,
+          800
+        ]
+      },
+      "intendedRole": "Accessible body/rules text and readable labels on printed cards",
+      "minimumSuggestedPt": 9,
+      "description": "Highly differentiated glyphforms for readable rules and compact player information."
+    },
+    {
+      "assetId": "official-chakra-petch-numerals",
+      "family": "Chakra Petch",
+      "category": "Sci-Fi",
+      "fallback": "sans-serif",
+      "sourceDirectory": "chakrapetch",
+      "sourceFile": "ChakraPetch-Regular.ttf",
+      "gitBlobSha": "c1167ce445c9259e963fdf210eb069dbc4107633",
+      "sizeBytes": 78488,
+      "licenseGitBlobSha": "9cee5a5b7f6f704414504ac9df37ae3b11b45264",
+      "axes": {},
+      "intendedRole": "Mechanical numerals and technical/stat typography",
+      "minimumSuggestedPt": 9,
+      "description": "Technical square forms with distinctive numerals for game stats and diagrams."
+    }
+  ]
+}

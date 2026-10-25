@@ -14,7 +14,7 @@ import {
 import { normalizeTemplateAppearance, type TCGCardTemplate } from '@/domain/templates';
 import { useProjectBinaryAssetUrl, useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
 
-import { appearanceToStyle } from '../model/appearance';
+import { appearanceToStyle, authoredCardFoundationStyle } from '../model/appearance';
 
 const appearanceCache = new WeakMap<TCGCardTemplate, ReturnType<typeof appearanceToStyle>>();
 
@@ -45,13 +45,15 @@ function ResolvedArtifactThumbnailImage({ card, face }: { card: DisplayCard; fac
   const data = getCardFaceData(card, face);
   const canvas = getCardFaceCanvas(card, face);
   const appearance = thumbnailAppearance(template);
-  const authoredBackground = template.cardBackgroundImageUrl
+  const authoredBackground = template.cardBackgroundImageUrl?.trim()
     ? replacePlaceholdersLocal(template.cardBackgroundImageUrl, data, false)
     : undefined;
-  const backgroundImage = useProjectBinaryAssetValue([
-    asBackgroundImage(authoredBackground),
-    appearance.backgroundImage,
-  ].filter(Boolean).join(', ') || undefined);
+  const authoredBackgroundImage = asBackgroundImage(authoredBackground);
+  const foundationStyle = authoredCardFoundationStyle(template, authoredBackgroundImage, appearance);
+  const backgroundImage = useProjectBinaryAssetValue(foundationStyle?.backgroundImage ?? ([
+    authoredBackgroundImage,
+    appearance.backgroundImage === authoredBackgroundImage ? undefined : appearance.backgroundImage,
+  ].filter(Boolean).join(', ') || undefined));
   const image = [...(canvas?.elements ?? [])]
     .filter((element) => element.visible !== false && element.type === 'image')
     .sort((left, right) => {
@@ -70,7 +72,13 @@ function ResolvedArtifactThumbnailImage({ card, face }: { card: DisplayCard; fac
         : undefined;
   const heroUrl = useProjectBinaryAssetUrl(heroSource);
 
-  return <span style={{ position: 'absolute', inset: 0, backgroundImage, backgroundPosition: 'center', backgroundRepeat: 'no-repeat', backgroundSize: 'cover' }}>
+  return <span style={{
+    position: 'absolute', inset: 0, backgroundImage,
+    backgroundPosition: foundationStyle?.backgroundPosition ?? (authoredBackgroundImage ? 'center' : appearance.backgroundPosition || 'center'),
+    backgroundRepeat: foundationStyle?.backgroundRepeat ?? (authoredBackgroundImage ? 'no-repeat' : appearance.backgroundRepeat || 'no-repeat'),
+    backgroundSize: foundationStyle?.backgroundSize ?? (authoredBackgroundImage ? 'cover' : appearance.backgroundSize || 'cover'),
+    backgroundBlendMode: appearance.backgroundBlendMode,
+  }}>
     {heroUrl ? <img src={heroUrl} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} /> : null}
   </span>;
 }
@@ -89,7 +97,7 @@ export const ArtifactThumbnail = memo(function ArtifactThumbnail({ card, face = 
 }) {
   const template = getCardFaceTemplate(card, face);
   const appearance = thumbnailAppearance(template);
-  const structuralBackground = appearance.backgroundImage?.startsWith('linear-gradient') || appearance.backgroundImage?.startsWith('radial-gradient')
+  const structuralBackground = (appearance.backgroundImage?.startsWith('linear-gradient') || appearance.backgroundImage?.startsWith('radial-gradient')) && !appearance.backgroundImage.includes('url(')
     ? appearance.backgroundImage
     : undefined;
 

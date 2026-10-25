@@ -1,12 +1,10 @@
-import { revalidatePath } from 'next/cache';
-
 import {
   ExperienceSettingsStoreError,
-  revalidateExperienceSettingsCache,
-  updateExperienceSettings,
 } from '@/features/experience-settings/server';
-import { getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
+import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+
+import { publishOwnerExperienceSettings } from '@/features/owner/server/ownerSiteCommands';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,19 +16,8 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json() as Record<string, unknown>;
-    const settings = await updateExperienceSettings(body);
-    revalidateExperienceSettingsCache();
-    revalidatePath('/', 'layout');
-    const activityRecorded = await recordOwnerActivity({
-      actorUserId: ownerAccess.userId,
-      actorEmail: ownerAccess.email,
-      action: 'experience.settings.update',
-      targetType: 'experience_settings',
-      targetId: 'cardforge',
-      summary: 'Updated CardForge experience, access, consent, or presentation controls.',
-      metadata: { ...settings },
-    });
-    return createNoStoreJsonResponse({ settings, activityRecorded });
+    const publication = await publishOwnerExperienceSettings({ actor: { userId: ownerAccess.userId, email: ownerAccess.email }, input: body });
+    return createNoStoreJsonResponse({ settings: publication.value, receipt: publication.receipt, activityRecorded: publication.receipt.activityRecorded });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
@@ -38,7 +25,7 @@ export async function PUT(request: Request) {
     if (error instanceof ExperienceSettingsStoreError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 503 ? 'experience_controls_unavailable' : 'experience_controls_invalid',
+        error.status === 409 ? 'experience_controls_conflict' : error.status >= 500 ? 'experience_controls_unavailable' : 'experience_controls_invalid',
         error.message,
       );
     }

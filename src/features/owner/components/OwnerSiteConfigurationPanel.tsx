@@ -1,27 +1,46 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useState, type SetStateAction } from 'react';
 import { ArrowDown, ArrowUp, Megaphone, Save, Search, Settings2 } from 'lucide-react';
 
+import { useEditorDraft } from '@/components/ui/use-editor-draft';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import type {
   HomepageSectionSetting,
+  HomepageLayoutSection,
   HomepageShowcaseExample,
+  HomepageShowcaseStage,
   PrimaryNavigationItem,
   PublicSiteConfiguration,
 } from '@/features/public-site/client';
+import { getOwnerPublicationPresentation, isHomepageCustomSection, type OwnerPublicationEnvironment } from '@/features/public-site/client';
+import { loadOwnerSiteControls } from '@/features/owner/model/ownerOperationsClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { OwnerHomepageShowcasePanel } from './OwnerHomepageShowcasePanel';
+import { OwnerHomepageStagesPanel } from './OwnerHomepageStagesPanel';
+import { OwnerHomepageComposerPanel } from './OwnerHomepageComposerPanel';
+import { OwnerSitePagesPanel } from './OwnerSitePagesPanel';
+import { OwnerSiteDraftPreview } from './OwnerSiteDraftPreview';
+import type { BusinessIdentity } from '@/features/business-identity/client';
+import type { McpAllowance } from '@/features/mcp-usage/client/plans';
+import type { SiteMediaAsset } from '@/features/public-site/client';
 
 const inputClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 const sectionLabels: Record<HomepageSectionSetting['id'], string> = {
+  hero: 'Homepage introduction',
   showcase: 'Product showcase',
   workflow: 'How the workflow works',
   access: 'Plan choices',
   founder: 'Founder introduction',
   final_cta: 'Final Studio action',
 };
+
+const getHomepageSectionLabel = (section: HomepageLayoutSection): string => (
+  isHomepageCustomSection(section)
+    ? section.blocks.find((block) => block.kind === 'heading')?.text || 'Editable section'
+    : sectionLabels[section.id]
+);
 
 const move = <T,>(items: T[], index: number, direction: -1 | 1): T[] => {
   const target = index + direction;
@@ -34,40 +53,110 @@ const move = <T,>(items: T[], index: number, direction: -1 | 1): T[] => {
 export function OwnerSiteConfigurationPanel({
   settings,
   onSettingsChange,
+  onStage,
+  publicationEnvironment,
+  onEditorStateChange,
+  currentPath = '/',
+  preview,
 }: {
   settings: PublicSiteConfiguration;
   onSettingsChange: (settings: PublicSiteConfiguration) => void;
+  onStage?: (settings: PublicSiteConfiguration) => void;
+  publicationEnvironment: OwnerPublicationEnvironment;
+  onEditorStateChange?: (state: { dirty: boolean; saving: boolean }) => void;
+  currentPath?: string;
+  preview?: { media: SiteMediaAsset[]; businessIdentity: BusinessIdentity; plans: McpAllowance[] };
 }) {
   const { toast } = useToast();
-  const [draft, setDraft] = useState(settings);
-  const [saving, setSaving] = useState(false);
+  const { baseline, draft, setDraft: replaceDraft, saving, setSaving, dirty, acceptPublished: accept } = useEditorDraft(settings, onEditorStateChange);
+  const [past, setPast] = useState<PublicSiteConfiguration[]>([]);
+  const [future, setFuture] = useState<PublicSiteConfiguration[]>([]);
+  const setDraft = (value: SetStateAction<PublicSiteConfiguration>) => {
+    setPast((items) => [...items.slice(-39), draft]); setFuture([]);
+    replaceDraft(typeof value === 'function' ? value(draft) : value);
+  };
+  const acceptPublished = (value: PublicSiteConfiguration) => { accept(value); setPast([]); setFuture([]); };
+  const [selectedPageId, setSelectedPageId] = useState<string>(() => settings.pages?.find((page) => '/' + page.slug === currentPath)?.id ?? '');
+  const [showPreview, setShowPreview] = useState(false);
+  const selectedPage = draft.pages?.find((page) => page.id === selectedPageId);
+  const [needsReadback, setNeedsReadback] = useState(false);
+  const publication = getOwnerPublicationPresentation(publicationEnvironment);
   const [saveError, setSaveError] = useState<string | null>(null);
-  useEffect(() => setDraft(settings), [settings]);
 
   const save = async () => {
+    if (saving || needsReadback) return;
+    if (onStage) {
+      onStage(draft);
+      acceptPublished(draft);
+      onSettingsChange(draft);
+      toast({title:'Website configuration staged',description:'Save an immutable edition revision to retain these private changes.'});
+      return;
+    }
     setSaving(true);
     setSaveError(null);
+    let rejected = false;
+    let conflict = false;
     try {
       const response = await fetch('/api/owner/site-configuration', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(draft),
       });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save public site settings.'));
-      const body = await response.json() as { settings: PublicSiteConfiguration; activityRecorded: boolean };
-      setDraft(body.settings);
+      if (!response.ok) {
+        rejected = response.status >= 400 && response.status < 500;
+        conflict = response.status === 409;
+        throw new Error(await readApiErrorMessage(response, 'Unable to publish public site settings.'));
+      }
+      const body = await response.json() as {
+        settings: PublicSiteConfiguration;
+        activityRecorded: boolean;
+        receipt?: {
+          committed: boolean;
+          refreshComplete: boolean;
+          activityRecorded: boolean;
+          message: string;
+        };
+      };
+      if (!body.settings?.updatedAt || body.receipt?.committed !== true || typeof body.receipt.refreshComplete !== 'boolean') throw new Error('Invalid publication receipt.');
+      acceptPublished(body.settings);
       onSettingsChange(body.settings);
-      toast({
-        title: 'Public site settings saved',
-        description: body.activityRecorded
-          ? 'The public site cache and owner change history were updated.'
-          : 'The site was updated, but change history could not be recorded.',
-        variant: body.activityRecorded ? 'default' : 'destructive',
-      });
+      if (body.receipt && !body.receipt.refreshComplete) {
+        toast({
+          title: publication.publishedTitle + '; reload to verify',
+          description: body.receipt.message,
+        });
+      } else {
+        toast({
+          title: publication.publishedTitle,
+          description: body.activityRecorded
+            ? publication.publishedDescription('Site settings')
+            : publication.publishedDescription('Site settings') + ' Owner change history could not be recorded.',
+        });
+      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to save public site settings.';
+      const message = rejected && error instanceof Error ? error.message
+        : 'The publication result is unconfirmed. Your draft is preserved. Reload current settings before trying again.';
+      setNeedsReadback(!rejected || conflict);
       setSaveError(message);
-      toast({ title: 'Public site settings not saved', description: message, variant: 'destructive' });
+      toast({ title: rejected ? 'Site settings not published' : 'Publication result unconfirmed', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const reloadCurrentSettings = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const current = (await loadOwnerSiteControls()).siteConfiguration;
+      if (!current?.updatedAt) throw new Error('The current settings revision is unavailable. Your draft is preserved.');
+      if (dirty && !window.confirm('Replace your unpublished settings draft with the current published settings?')) return;
+      acceptPublished(current);
+      onSettingsChange(current);
+      setNeedsReadback(false);
+      setSaveError(null);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Unable to read current settings. Your draft is preserved.');
     } finally {
       setSaving(false);
     }
@@ -89,10 +178,46 @@ export function OwnerSiteConfigurationPanel({
     }));
   };
 
-  const showcaseExamples = draft.homepageSections.find((section) => section.id === 'showcase')?.showcaseExamples ?? [];
+  const updateShowcaseStages = (stages: HomepageShowcaseStage[]) => {
+    setDraft((current) => ({
+      ...current,
+      homepageSections: current.homepageSections.map((section) => (
+        section.id === 'showcase' ? { ...section, showcaseStages: stages } : section
+      )),
+    }));
+  };
+  const updateHomepageComposition = (sections: HomepageLayoutSection[]) => {
+    setDraft((current) => selectedPage ? { ...current, pages: current.pages?.map((page) => page.id === selectedPage.id
+      ? { ...page, sections: sections.filter(isHomepageCustomSection) } : page) } : { ...current, homepageSections: sections });
+  };
+  const showcaseSection = draft.homepageSections.find((section) => section.id === 'showcase') as HomepageSectionSetting | undefined;
+  const showcaseExamples = showcaseSection?.showcaseExamples ?? [];
+  const showcaseStages = showcaseSection?.showcaseStages;
 
   return (
     <section className="space-y-5">
+      <div role="group" aria-label="Site publication" className="sticky top-0 z-10 space-y-2 border border-[var(--cf-border-strong)] bg-[var(--cf-canvas)] p-3 shadow-lg">
+        <p className="text-xs text-[var(--cf-text-subtle)]" role="status">{dirty ? 'Unpublished site settings' : 'No unpublished site settings'}</p>
+        {saveError ? <p role="alert" className="max-w-2xl border border-destructive/45 bg-destructive/10 px-3 py-2 text-sm leading-6 text-destructive">{saveError}</p> : null}
+        <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={saving || needsReadback || !dirty} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? publication.publishingActionLabel : publication.publishActionLabel}</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" disabled={saving || !past.length} onClick={() => {
+            const previous = past.at(-1); if (!previous) return;
+            setPast(past.slice(0, -1)); setFuture([draft, ...future]); replaceDraft(previous);
+          }}>Undo</Button>
+          <Button type="button" variant="outline" disabled={saving || !future.length} onClick={() => {
+            const next = future[0]; if (!next) return;
+            setFuture(future.slice(1)); setPast([...past, draft]); replaceDraft(next);
+          }}>Redo</Button>
+          <Button type="button" variant="outline" disabled={saving || !dirty} onClick={() => { replaceDraft(baseline); setPast([]); setFuture([]); }}>Cancel unpublished changes</Button>
+          {preview ? <Button type="button" variant="outline" onClick={() => setShowPreview(!showPreview)}>{showPreview ? 'Hide draft preview' : 'Preview draft'}</Button> : null}
+        </div>
+        {needsReadback ? <Button type="button" variant="outline" disabled={saving} onClick={() => void reloadCurrentSettings()}>Reload current settings</Button> : null}
+      </div>
+      <fieldset disabled={saving} className="space-y-5">
+      <OwnerSitePagesPanel pages={draft.pages ?? []} navigation={draft.primaryNavigation} selectedId={selectedPage?.id ?? ''} onSelect={setSelectedPageId}
+        onChange={(pages, primaryNavigation) => setDraft((current) => ({ ...current, pages, primaryNavigation }))} />
+      {showPreview && preview ? <OwnerSiteDraftPreview settings={draft} page={selectedPage} {...preview} /> : null}
       <div className="grid gap-5 xl:grid-cols-2">
         <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
           <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><Megaphone className="h-5 w-5" aria-hidden="true" /><h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Announcement</h2></div>
@@ -121,7 +246,9 @@ export function OwnerSiteConfigurationPanel({
             {draft.primaryNavigation.map((item, index) => (
               <div key={item.id} className="grid gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
                 <input aria-label={`Show ${item.label} in primary navigation`} type="checkbox" checked={item.visible} onChange={(event) => updateNavigation(index, { visible: event.target.checked })} />
-                <label className="grid gap-1 text-xs text-[var(--cf-text-subtle)]">{item.href}<input aria-label={`${item.id} navigation label`} className={inputClassName} maxLength={40} value={item.label} onChange={(event) => updateNavigation(index, { label: event.target.value })} /></label>
+                {!item.visible || item.href === draft.primaryCtaHref
+                  ? <label className="grid gap-1 text-xs text-[var(--cf-text-subtle)]">{item.href}<input aria-label={`${item.id} navigation label`} className={inputClassName} maxLength={40} value={item.label} onChange={(event) => updateNavigation(index, { label: event.target.value })} /></label>
+                  : <span className="grid gap-1 text-sm text-[var(--cf-accent-text)]">{item.label}<span className="text-xs text-[var(--cf-text-subtle)]">Edit this visible label directly on the site</span></span>}
                 <div className="flex gap-1">
                   <Button type="button" size="icon" variant="outline" aria-label={`Move ${item.label} up`} disabled={index === 0} onClick={() => setDraft((current) => ({ ...current, primaryNavigation: move(current.primaryNavigation, index, -1) }))}><ArrowUp className="h-4 w-4" /></Button>
                   <Button type="button" size="icon" variant="outline" aria-label={`Move ${item.label} down`} disabled={index === draft.primaryNavigation.length - 1} onClick={() => setDraft((current) => ({ ...current, primaryNavigation: move(current.primaryNavigation, index, 1) }))}><ArrowDown className="h-4 w-4" /></Button>
@@ -136,11 +263,11 @@ export function OwnerSiteConfigurationPanel({
           <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">Control the order and visibility of the homepage’s approved sections. This cannot introduce unreviewed components or routes.</p>
           <div className="mt-4 space-y-2">
             {draft.homepageSections.map((section, index) => (
-              <div key={section.id} className="flex min-h-11 items-center gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
-                <input aria-label={`Show ${sectionLabels[section.id]}`} type="checkbox" checked={section.visible} onChange={(event) => setDraft((current) => ({ ...current, homepageSections: current.homepageSections.map((item, itemIndex) => itemIndex === index ? { ...item, visible: event.target.checked } : item) }))} />
-                <span className="min-w-0 flex-1 text-sm text-[var(--cf-accent-text)]">{sectionLabels[section.id]}</span>
-                <Button type="button" size="icon" variant="outline" aria-label={`Move ${sectionLabels[section.id]} up`} disabled={index === 0} onClick={() => setDraft((current) => ({ ...current, homepageSections: move(current.homepageSections, index, -1) }))}><ArrowUp className="h-4 w-4" /></Button>
-                <Button type="button" size="icon" variant="outline" aria-label={`Move ${sectionLabels[section.id]} down`} disabled={index === draft.homepageSections.length - 1} onClick={() => setDraft((current) => ({ ...current, homepageSections: move(current.homepageSections, index, 1) }))}><ArrowDown className="h-4 w-4" /></Button>
+              <div key={section.id} data-owner-edit-section={section.id} className="flex min-h-11 items-center gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
+                <input aria-label={`Show ${getHomepageSectionLabel(section)}`} type="checkbox" checked={section.visible} onChange={(event) => setDraft((current) => ({ ...current, homepageSections: current.homepageSections.map((item, itemIndex) => itemIndex === index ? { ...item, visible: event.target.checked } : item) }))} />
+                <span className="min-w-0 flex-1 text-sm text-[var(--cf-accent-text)]">{getHomepageSectionLabel(section)}</span>
+                <Button type="button" size="icon" variant="outline" aria-label={`Move ${getHomepageSectionLabel(section)} up`} disabled={index === 0} onClick={() => setDraft((current) => ({ ...current, homepageSections: move(current.homepageSections, index, -1) }))}><ArrowUp className="h-4 w-4" /></Button>
+                <Button type="button" size="icon" variant="outline" aria-label={`Move ${getHomepageSectionLabel(section)} down`} disabled={index === draft.homepageSections.length - 1} onClick={() => setDraft((current) => ({ ...current, homepageSections: move(current.homepageSections, index, 1) }))}><ArrowDown className="h-4 w-4" /></Button>
               </div>
             ))}
           </div>
@@ -149,20 +276,23 @@ export function OwnerSiteConfigurationPanel({
             <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]">Show founder support offer<input type="checkbox" checked={draft.supportOfferVisible} onChange={(event) => setDraft((current) => ({ ...current, supportOfferVisible: event.target.checked }))} /></label>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">Primary action text<input className={inputClassName} maxLength={80} value={draft.primaryCtaLabel} onChange={(event) => setDraft((current) => ({ ...current, primaryCtaLabel: event.target.value }))} /></label>
-            <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">Primary action path<input className={inputClassName} value={draft.primaryCtaHref} onChange={(event) => setDraft((current) => ({ ...current, primaryCtaHref: event.target.value }))} /></label>
+            <div className="grid content-center gap-1 text-sm text-[var(--cf-text-muted)]">
+              <span className="font-semibold text-[var(--cf-accent-text)]">Primary action wording</span>
+              <span className="text-xs leading-5 text-[var(--cf-text-subtle)]">Select the primary action button while editing the public page to change its label.</span>
+            </div>
+            <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">Primary action destination<input className={inputClassName} value={draft.primaryCtaHref} onChange={(event) => setDraft((current) => ({ ...current, primaryCtaHref: event.target.value }))} /></label>
           </div>
         </article>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
+        <OwnerHomepageComposerPanel sections={selectedPage?.sections ?? draft.homepageSections} onChange={updateHomepageComposition} />
+        <OwnerHomepageStagesPanel stages={showcaseStages} onChange={updateShowcaseStages} />
         <OwnerHomepageShowcasePanel examples={showcaseExamples} onChange={updateShowcaseExamples} />
       </div>
 
-      <div className="space-y-2">
-        {saveError ? <p role="alert" className="max-w-2xl border border-destructive/45 bg-destructive/10 px-3 py-2 text-sm leading-6 text-destructive">Public site settings were not saved. {saveError}</p> : null}
-        <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={saving || JSON.stringify(draft) === JSON.stringify(settings)} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? 'Saving site controls...' : 'Save site controls'}</Button>
-      </div>
+      </fieldset>
+
     </section>
   );
 }

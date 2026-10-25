@@ -14,6 +14,7 @@ interface PageMetadataInput {
   path: `/${string}` | '/';
   index?: boolean;
   image?: SocialImage;
+  keywords?: string[];
 }
 
 export const createPageMetadata = ({
@@ -22,6 +23,7 @@ export const createPageMetadata = ({
   path,
   index = true,
   image = DEFAULT_SOCIAL_IMAGE,
+  keywords,
 }: PageMetadataInput): Metadata => {
   const openGraphImage = {
     ...image,
@@ -31,6 +33,7 @@ export const createPageMetadata = ({
   return ({
   title,
   description,
+  ...(keywords?.length ? { keywords } : {}),
   alternates: { canonical: path },
   robots: index ? { index: true, follow: true } : { index: false, follow: false },
   openGraph: {
@@ -48,3 +51,49 @@ export const createPageMetadata = ({
   },
   });
 };
+
+export interface RootSiteMetadataInput {
+  brandName: string;
+  homepageTitle: string;
+  homepageDescription: string;
+  searchKeywords: string[];
+  socialImage: {
+    url: string;
+    width: number;
+    height: number;
+    alt: string;
+  };
+  faviconUrl: string;
+  metadataBase: URL;
+}
+
+export const createRootSiteMetadata = ({
+  brandName,
+  homepageTitle,
+  homepageDescription,
+  searchKeywords,
+  socialImage,
+  faviconUrl,
+  metadataBase,
+}: RootSiteMetadataInput): Metadata => ({
+  metadataBase,
+  title: {
+    default: `${brandName} | ${homepageTitle}`,
+    template: `%s | ${brandName}`,
+  },
+  description: homepageDescription,
+  keywords: searchKeywords,
+  icons: {
+    icon: faviconUrl,
+    shortcut: faviconUrl,
+    apple: faviconUrl,
+  },
+  openGraph: {
+    siteName: brandName,
+    images: [socialImage],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: [socialImage.url],
+  },
+});

@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: September 1, 2026
+Last updated: October 10, 2026
 
 This is the current runbook for `https://cardforges.com`. It contains only procedures that remain operationally useful. Completed rollout/cutover instructions belong in Git/provider history.
 
@@ -35,13 +35,13 @@ GitHub is the source/CI workspace. Agents run focused/affected checks locally; t
 
 ### Preview lane
 
-`main` is the only production branch. Ordinary work uses one feature/objective branch and one PR into `main`; those branches do not deploy automatically. After the PR reaches its final candidate SHA and GitHub `verify` passes, move the reusable `vercel-preview` branch to that exact SHA once. The stable review hostname is registered in Vercel Project Settings → Domains with an explicit Preview binding to Git branch `vercel-preview`, no redirect, and no custom environment. Vercel owns automatic assignment of that domain to successful branch deployments:
+`main` is the only production branch. Ordinary work uses one feature/objective branch and a PR into the accumulated `vercel-preview` integration branch; ordinary feature branches do not deploy automatically. Integrate an exact-head, CI-verified feature PR into `vercel-preview` through GitHub, preserving merge history. An eligible Preview branch update triggers the native Vercel deployment and the staging Supabase migration integration. Do not reset `vercel-preview` as a disposable deployment pointer. The stable review hostname is registered in Vercel Project Settings → Domains with an explicit Preview binding to Git branch `vercel-preview`, no redirect, and no custom environment. Vercel owns automatic assignment of that domain to successful branch deployments:
 
 `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`
 
-Preserve this explicit branch-domain binding rather than relying only on the generated branch alias or repeatedly assigning a deployment by hand. Keep the hostname unchanged because Preview provider origins and callbacks use it. A routing repair must preserve Vercel Authentication and leave production domains unchanged; verify automatic assignment on a subsequent native Preview deployment before calling the repair complete.
+Preserve this explicit branch-domain binding rather than relying only on the generated branch alias or repeatedly assigning a deployment by hand. Keep the hostname unchanged because Preview provider origins and callbacks use it. A routing repair must preserve this branch binding and leave production domains unchanged; verify automatic assignment on a subsequent native Preview deployment before calling the repair complete.
 
-The stable URL is protected by Vercel Authentication. Vercel's Protection Bypass for Automation supplies the GitHub secret `VERCEL_AUTOMATION_BYPASS_SECRET` to the small signed-out Preview smoke workflow; Stripe separately receives its provider-managed bypass on the branch webhook URL. Never copy either bypass value into Git, documentation, chat, logs, or another environment.
+The stable URL is intended to be publicly reachable for testers without Vercel sign-in, with CardForge/Clerk enforcing private data and operation permissions just as in Production. Verify current provider settings rather than assuming this intended access is already configured. Prefer the narrowest supported setting for this hostname; inspect scope, cost and rollback before applying it. Other deployment URLs may remain protected. The exact-deployment smoke uses the existing GitHub `VERCEL_AUTOMATION_BYPASS_SECRET` where required; separately verify stable-hostname public access without that bypass. Stripe retains its existing provider-managed webhook bypass until its delivery path is deliberately verified and changed. Never copy either bypass value into Git, chat, logs, packages, or another environment.
 
 Vercel's Git integration must emit `vercel.deployment.success` repository-dispatch events. The deployment workflow accepts only project `card-forge`, Preview branch `vercel-preview`, or Production branch `main`, then checks out the exact payload SHA. Preview tests the exact payload URL; Production tests the canonical public domain immediately after the successful `main` deployment. No `VERCEL_TOKEN`, duplicate deployment, polling loop, or CardForge deployment ledger is required. The workflow also has an explicit manual trigger for one-time setup verification before the repository-dispatch file reaches `main`.
 
@@ -54,25 +54,71 @@ Preview provider ownership:
 - Google Drive: `CardForge Connected Storage Preview` OAuth Web client, a branch-only token-encryption key, and the shared Picker key restricted to Google Picker API plus the stable Preview/production origins.
 - GitHub: public `pyralisxc/CardForge`; the active `Updates` ruleset protects `main` with PRs, resolved threads, strict `verify`, deletion protection, and force-push protection.
 
+### Staging SQL and infrastructure development
+
+Under the standing authority in `ORCHESTRATION.md`, an already-authorized development objective may use routine local/Preview/Staging SQL without a new founder confirmation for every statement. Check the **actual** connection target before writing: Staging is `mjdugheniazuiqoefnnb`, not the Production project. Bound affected tables/rows and preserve a recoverable path. Use transactions with final `ROLLBACK` and zero-residual verification for SQL fixtures; use scoped readback/compensation for recoverable Staging test-data changes. Unknown or expired write/confirmation results require native reconciliation before a retry, not a second execution by assumption.
+
+For persistent schema changes, make a new forward-only migration on a feature PR, let the existing `vercel-preview` Supabase integration apply it once, and verify the database state. Do not create an ad hoc permanent Staging schema change or a second migration runner. Protected library/catalog records, publication and lineage, immutable ledgers, Supabase Storage objects, account grants, and other privileged workflows retain their owning APIs and explicit irreversible/permission-expanding approval boundaries. This standing authorization does not authorize Production writes/migrations or Main promotion, broad reset/truncate, cross-project mutations, new cost-bearing resources, permission expansion/RLS bypass, or changes to credentials or billing.
+
+For agents that need native Staging SQL, configure a **separate**, project-scoped Supabase MCP connection through the client's supported custom-server and user-controlled sign-in flow:
+
+```text
+https://mcp.supabase.com/mcp?project_ref=mjdugheniazuiqoefnnb&skip_elicitations=execute_sql
+```
+
+Supabase's [MCP configuration](https://supabase.com/docs/guides/ai-tools/mcp) supports `project_ref` and `skip_elicitations`. This URL intentionally skips only the extra form prompt for `execute_sql`; it omits `apply_migration` because persistent schema changes must use a new forward-only migration in a feature PR and the existing Preview integration, not an ad hoc MCP migration. Skipping the form does **not** skip client tool approval, OAuth, database permissions, RLS, or operational safety. Keep the existing general/Production connection unchanged and never store tokens in Git. This URL is a recommended connection configuration, **not proof that a separate connection has been installed**. Before its first write, verify effective project identity with a read-only project/migration query; do not execute destructive SQL merely to test whether a confirmation appears. If the client still requires a user interaction, use the native prompt rather than a workaround.
+
 The former reusable QA accounts are retired. Do not recreate them or treat an old browser session as the intended acceptance identity. Verify the signed-in account and environment before testing. The real owner has a separate account in Clerk's development instance; production sign-in does not establish a Preview session.
 
-Google's dedicated Preview OAuth client authorizes the stable Preview origin and its `/api/project-sources/google-drive/callback` redirect. The Google app is in Testing, so the selected Google account must also be an allowed test user. Google limits refresh tokens for this external Testing app's Drive grant to seven days; reconnect through the native flow when required ([OAuth app states](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview)). A disconnected Drive account does not imply that Preview OAuth is unsupported. Vercel Authentication, Clerk sign-in, and Drive consent are separate boundaries. Changing the Google app's publishing status affects its clients and is a separate provider decision.
+Google's dedicated Preview OAuth client authorizes the stable Preview origin and its `/api/project-sources/google-drive/callback` redirect. The Google app is in Testing, so the selected Google account must also be an allowed test user. Google limits refresh tokens for this external Testing app's Drive grant to seven days; reconnect through the native flow when required ([OAuth app states](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview)). A disconnected Drive account does not imply that Preview OAuth is unsupported. CardForge Clerk sign-in and Drive consent are separate boundaries; Vercel dashboard authentication is provider administration, not a required tester sign-in. Changing the Google app's publishing status affects its clients and is a separate provider decision.
 
 No password, verification secret, API key, OAuth token, or bypass value belongs in the repository. Use Clerk's provider-defined development testing path and the provider dashboards when a fresh authenticated browser session is required.
 
+### Preview developer plugin acceptance
+
+CardForge has **two plugin products**, with four intended environment-distinct connections:
+
+- Production Studio: `https://cardforges.com/mcp` — public submission/release has its own review gate.
+- Production Owner: `https://cardforges.com/mcp/owner` — private, server-authorized Owner only.
+- Preview Studio: `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app/mcp` — unpublished developer installation, Staging providers only.
+- Preview Owner: `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app/mcp/owner` — unpublished developer installation, server-authorized Owner testing, Staging only.
+
+Developer/private plugin means unpublished distribution through developer settings, not a hidden website or MCP endpoint. Preview is the accessible live testing environment and should mirror Production's user-facing sign-in, consent and role checks with isolated accounts/data.
+
+Preview connections are **a target to verify, not an installed/connected claim**. Confirm the actual endpoint and authority of the existing `CardForge Studio Preview Test` app before trusting its name. If Vercel intercepts requests before Clerk, reconcile the hosting setting with this access contract. Do not add a tunnel, proxy, extra host or separate MCP deployment without a demonstrated unmet requirement. Native browser testing is useful evidence but does not prove persistent plugin connectivity.
+
+For a Work agent, prove signed-out failure, actual environment identity, Studio Free/Contributor scopes, Owner role rejection, staging catalog reads, revision conflicts and one explicitly approved staging-only write/readback before claiming operational parity. Git Main, Production Supabase and public publication are not authorized by this testing gate. Work item #444 owns the connection bridge; Owner #407, Studio public #408 and first-party fonts #377 keep their own domain gates.
+
+Build both unpublished developer variants with `npm run plugin:package:preview`. Outputs are `dist/plugins/cardforge-studio-preview-<canonical-version>.zip` and `dist/plugins/cardforge-owner-preview-<canonical-version>.zip`. The builder reads only the canonical product allowlists, preserves Studio skill bytes and production sources, pins the two stable Preview paths, rejects connection overrides/credentials, and uses deterministic archive metadata. Archives contain one named plugin directory with portable root `plugin.json` and `mcp.json`, canonical Studio skills, and a synchronized legacy Codex overlay. The portable connection uses Streamable HTTP; unpublished listing subtitles fit the host's 30-character limit. Versioning follows the canonical product; do not maintain another Preview source tree. These outputs are preparation artifacts, not an installation receipt. Production package commands and public submission remain separate.
+
+ChatGPT host support is a separate acceptance gate. Imported archives declaring `mcp.json` or `.mcp.json` are desktop-only, including remote HTTPS servers; accepting and installing an archive does not connect its tools in Work on the web. For web testing, use Plugins → Add → Add custom MCP server with the exact Preview endpoint and OAuth, then bind the resulting app to the canonical skill package when supported. Do not substitute the older app based on its display name. See [OpenAI plugin management](https://learn.chatgpt.com/docs/enterprise/plugin-management#desktop-only-plugins) and [the custom MCP quickstart](https://developers.openai.com/plugins/quickstart).
+
+Check the discovered client registration method before creating the web connection. If the Development issuer advertises neither CIMD support nor a registration endpoint, ChatGPT requires a user-defined OAuth client registered for its displayed callback URL. Keep any client secret out of packages and repository files. Do not enable general client registration merely to make the form proceed. Record discovery separately from completed user sign-in, consent, tool availability, and Staging readback.
+
+Verify the native access path before claiming installation acceptance:
+
+1. Open the stable Preview without a Vercel session or bypass. Intended public pages must load; sign into the CardForge Clerk Development instance for protected account workflows. The user completes sign-in and consent. A browser cookie does not authorize remote MCP transport.
+2. Check both Preview MCP paths and OAuth discovery with the supported MCP client. Require CardForge/Clerk authentication metadata or challenges rather than Vercel HTML/login redirection, then complete Development OAuth consent. Confirm the server's environment and authenticated account.
+3. Save each canonical-derived package through the supported developer/private plugin creation flow, without public submission, and connect through user-controlled sign-in/consent. Verify endpoint binding, Staging identity and same-account catalog reads before writes. Reconcile a production-bound app only through an explicit user action.
+4. Exercise Studio generation/revision/render/export and available Owner read/refresh/revision-safe operations. Read a small approved Staging write back in the browser, restore temporary Owner values, and prove stale-revision rejection, signed-out challenges, non-Owner/non-Contributor denials and changed-account/reconnect isolation. Public catalogs must not leak private account data. Keep publication, billing and destructive operations within their own gates.
+
+Vercel offers project protection and domain-specific Deployment Protection Exceptions. Inspect current official guidance and the actual account UI before choosing the smallest native setting; a domain exception can retain protection on other URLs but may carry a paid requirement. Do not enable a paid add-on or widen the scope to Production/unrelated deployments without a separate owner decision. Keep protected sourcemaps and server-side CardForge permissions. If a browser confirmation is required, stage the exact change and explain its scope before submission. Roll back a domain exception by removing that exact hostname, then verify the Vercel gate returns; removal does not revoke Clerk grants or undo Staging writes.
+
 Before any merge into `main`, the agent must send Cameron the stable Preview link, the exact candidate SHA, and the specific review scope, then wait for explicit approval. A READY Vercel deployment does not authorize a merge.
 
-Release sequence:
+Accumulated Preview and release sequence:
 
-1. Implement with focused checks and remove temporary development-only tests/fixtures unless they protect a durable boundary.
-2. Push the coherent candidate and require the GitHub `verify` job, which runs `npm run verify:full` once as the authoritative deterministic gate. Run that full command locally only for high-risk work or a local/CI discrepancy.
-3. Move `vercel-preview` to the exact green candidate and require both a READY deployment and the automated `preview-smoke` result for that SHA.
-4. Exercise only changed provider-backed or signed-in behavior that automation cannot prove. Send Cameron the stable Preview link, exact SHA, and review scope; wait for explicit approval.
-5. Apply production migrations before merge only when the exact change is additive and the current production runtime remains compatible with it.
-6. Merge through the PR; do not bypass `main` safety.
-7. Require Vercel Production READY and the immediate `production-smoke` route result for the merge commit. The six-hour `Production health` schedule continues to run the complete route/product/provider health command.
-8. Apply a destructive schema contraction only after the compatible runtime is already READY in production and provider postflight proves the retired records or objects are empty. If deployment order cannot be guaranteed, split runtime retirement and schema contraction into separate reviewed releases.
-9. Perform the smallest real signed-in production check needed for auth/owner/contributor/billing/provider changes.
+1. Implement one coherent objective on a feature branch with focused checks. Remove temporary tests/fixtures unless they protect a durable guarantee.
+2. Open a PR targeting `vercel-preview` and require the exact-head GitHub `verify` job (`npm run verify:full`) and other affected checks. Run the full gate locally only for high-risk work or a local/CI discrepancy.
+3. Merge the verified feature PR into `vercel-preview`. Preserve ancestry and the integrated Preview history; do not reset/force-move that branch to the feature head.
+4. Verify any new staging migrations and affected provider behavior. For a meaningful hosted change, require Vercel Preview READY and the automated `preview-smoke` result for the integrated SHA; exercise only changed signed-in journeys automation cannot prove.
+5. Continue accumulating coherent feature PRs until the next product checkpoint is saturated. Do not merge individual feature PRs directly into production or declare a Preview build a production release.
+6. Freeze an exact Preview SHA and prepare one Preview-to-`main` release PR. Reconcile the complete delta, any current-`main` divergence, ordered production migrations, and required CI/provider gates against that exact candidate.
+7. Send Cameron the stable Preview link, candidate SHA, substantive review scope, and remaining risks. Wait for explicit approval of that candidate; approval is invalidated if Preview changes materially before the release.
+8. Apply production migrations before the release merge only when the exact change is additive and current production runtime remains compatible; otherwise sequence the migration and code rollout separately under their owner/provider gate.
+9. Merge the approved release PR through GitHub without bypassing `main` safety. Require Vercel Production READY and immediate `production-smoke` for the resulting merge commit; the six-hour `Production health` schedule continues.
+10. Apply destructive schema contraction only after compatible production runtime is READY and provider postflight confirms retired records/objects are empty. Split runtime retirement from contraction if the order cannot be guaranteed.
+11. Perform the smallest real signed-in production check needed for auth/Owner/Contributor/billing/provider changes.
 
 Cloud Set Mirror retirement is complete. The recorded retirement identified the remaining content as owner-approved test data; migration `20260827063958` required empty mirror rows and Studio lineage before removing the schema. Production postflight confirms the table, lineage columns, and dedicated Storage bucket are absent. Keep the historical release and deletion evidence in Git/provider history; there is no outstanding mirror migration or backup service to restore.
 
@@ -113,7 +159,7 @@ For a new migration:
 
 1. Compare the live production migration tail and inspect affected tables/functions/RLS/grants.
 2. Review failure safety, idempotency, and rollback. Multi-table transitions should be one database transaction/function or have explicit compensation.
-3. Apply exactly the reviewed migration once after approval.
+3. Apply the reviewed Staging migration once through the authorized Preview integration (no separate per-statement founder approval); any Production application remains subject to the exact release/owner gate and rollout ordering.
 4. Verify expected schema/object counts and privileged access; browser roles must not gain service-only access.
 5. Run Supabase security/performance advisors and address relevant warnings/errors.
 6. Record provider-applied version/evidence in the PR/release record. Never rewrite historical migration files merely to align provider timestamps.
@@ -135,7 +181,7 @@ Use Profile > Owner operations for cross-product work through three protected gr
 - Overview > Integrations: provider inventory/readiness without secrets.
 - Growth & People: current Clerk accounts plus retained contributor profile/scopes/history.
 - Library → Campaigns: strategy, approval, destination connection, scheduling, distribution, and results for campaign packages.
-- Public homepage: constrained navigation/SEO/experience settings, canonical public copy, and relevant media publish contextually for a server-confirmed Owner.
+- Public pages: constrained composition/navigation/SEO/experience settings, canonical copy and managed media publish contextually for a server-confirmed Owner. New first-party pages stay out of public routing and client props until explicitly made public; product/provider/legal routes remain native. A page path change removes its old address, so review the destination before publication.
 - Roadmap: rules and exact item status changes publish from owner-only controls on `/roadmap`; Profile's read-only summary links there instead of rehosting the Roadmap workspace.
 - Library → Pipeline: complete shared registry, exact revisions, Contributor withdrawal/retirement, Owner publication/purge authority, Content Health, Forge Review, and Design destination map.
 - Governance: append-only owner history and legal/versioned operations.
@@ -195,13 +241,21 @@ The former reusable QA accounts were retired. Do not recreate them for generic c
 
 `npm run smoke:golden` is the compact merge-protected mocked browser lane. `npm run smoke:ui` is the extended browser lane, including scale and soak. Neither proves a real Clerk/Stripe/provider session.
 
-## ChatGPT development beta
+## ChatGPT plugin publication
 
 The packaged integration is `plugins/cardforge-studio`, authored by Cameron Locke, and connects to `https://cardforges.com/mcp`. Public plan names, pricing copy, feature lines, visibility, and MCP capacity targets remain Profile owner-operation content; the plugin must not introduce a parallel tier catalog or access toggle.
 
 `plugins/cardforge-studio/SUBMISSION.md` is the reusable portal listing and review-case source. Keep it aligned with the packaged manifest, live MCP annotations, exact CSP, and current production behavior. Reviewer credentials and the OpenAI challenge token must never be committed.
 
 Assistant draft retention is also controlled by the plan records in Profile owner operations. Defaults are Free 12 hours, Creator 24 hours, and Designer/owner/contributor 48 hours. A document open or update refreshes activity; Account listing does not. Expiration and manual deletion use a 24-hour recoverable trash window.
+
+### Staging collaboration contention and capacity proof
+
+Use the existing isolated Studio Preview connection and an explicitly disposable working document; do not create accounts, credentials, plan changes or Production traffic to manufacture a load test. Read the current document, stable ids and generation contract first. Preserve an exact authored-content baseline separately from operation receipts and lifecycle timestamps.
+
+For a bounded atomicity probe, submit distinct operation ids against the same expected revision concurrently, changing only one fictional test field. Exactly one differing mutation may commit; the other stale writers must report a revision conflict without changing work. Read the winner and its operation receipt, then restore the original field through the native command with the winning revision. Verify the final authored document equals the baseline. Do not retry rejected contenders with fresh revisions: that tests a different scenario and overwrites the winner.
+
+This probe demonstrates compare-and-set behavior, not simultaneous provider throughput or an enrollment guarantee. Connector call durations can include transport serialization. A broader capacity exercise needs an explicitly chosen cohort/concurrency envelope, representative document/artwork distributions and retention windows, and measured provider headroom. Keep account-level telemetry and nonpublic provider metrics private unless separately authorized for publication; never infer Production headroom from Staging or turn planning targets into quotas.
 
 Production cleanup is owned by Supabase Cron and the `purge-assistant-drafts` Edge Function. Vault must contain `project_url` and an active `publishable_key`; the retention migration generates a separate random `assistant_draft_retention_cron_secret`. Never place the service-role key in Cron SQL. Schedule the function every 15 minutes with `pg_cron` + `pg_net` following Supabase's scheduled-functions pattern. Supabase's `apikey` header identifies the project, while the dedicated `X-CardForge-Cron-Secret` is the function's custom authorization and must be validated before maintenance begins. Verify one scheduled invocation reports `expired`, `claimed`, `purged`, and `failed`, then confirm the Cron job exists by name and the function remains custom-authenticated. Storage objects must be removed through the Storage API before the corresponding row is finalized.
 
@@ -215,7 +269,7 @@ For a development-beta release:
 4. Call every tool with one representative request and at least one invalid request, including signed-out/private-data failure paths.
 5. Connect the production MCP URL through ChatGPT Developer Mode and exercise Template creation, one-card and bulk copy/artwork upserts, explicit artwork diagnostics, exact-revision Studio handoff, and connected-project list/checkout/commit when that provider boundary changed.
 6. Confirm image generation returns standalone artwork to CardForge assembly rather than flattened finished-card images.
-7. Keep the public surface labeled development beta until OpenAI review accepts the submitted version.
+7. Submit CardForge Studio as a stable, complete plugin rather than a trial/demo. Capacity figures may remain explicitly labeled current beta planning targets. Until directory publication completes, public site copy may truthfully state that plugin review/availability is still in progress without describing the submitted plugin itself as incomplete.
 
 When OpenAI supplies a domain challenge, set `OPENAI_APPS_CHALLENGE_TOKEN` in the production Vercel environment, redeploy, and confirm `/.well-known/openai-apps-challenge` returns only the exact token as plain text. Remove or rotate the value after verification if OpenAI's current portal guidance permits it.
 

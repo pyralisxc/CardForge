@@ -42,7 +42,6 @@ export interface DeskOverviewSurfaceProps {
   visibleWork: AccountLibraryItem[];
   focusedItemId: string | null;
   activeWorkId: string | null;
-  pinnedIds: string[];
   selectedIds: string[];
   positions: Record<string, DeskPosition>;
   worldSize: DeskWorldSize;
@@ -98,7 +97,6 @@ export interface DeskOverviewSurfaceProps {
   onShowGridChange: () => void;
   onSnapToGridChange: () => void;
   onFocusWork: (item: AccountLibraryItem) => void;
-  onTogglePin: (itemId: string) => void;
   onOpenLane: (item: AccountLibraryItem, lane: 'open' | 'generate' | 'export') => void;
   onOpenLocation: (item: AccountLibraryItem) => void;
   onOpenPipeline: (setId: string) => void;
@@ -114,6 +112,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
   const [viewName, setViewName] = useState('');
   const [isSavingView, setIsSavingView] = useState(false);
   const [isOrganizingSelection, setIsOrganizingSelection] = useState(false);
+  const [touchMultiSelect, setTouchMultiSelect] = useState(false);
   const [organizationType, setOrganizationType] = useState('');
   const [organizationTag, setOrganizationTag] = useState('');
   const [renameFrom, setRenameFrom] = useState('');
@@ -132,7 +131,14 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
       const details = mobileFiltersRef.current;
       if (!details?.open || !(event.target instanceof Node)) return;
       if (details.contains(event.target)) return;
-      if (event.target instanceof Element && event.target.closest('[data-cardforge-dropdown-content]')) return;
+      if (event.target instanceof Element) {
+        if (event.target.closest('[data-cardforge-dropdown-content]')) return;
+        const selectContent = event.target.closest<HTMLElement>('[data-cardforge-select-content][role="listbox"]');
+        // Radix Select portals outside the disclosure; keep it open only when
+        // its active trigger belongs to this exact Desk Filters instance.
+        if (selectContent?.id && Array.from(details.querySelectorAll<HTMLElement>('[aria-controls]'))
+          .some((trigger) => trigger.getAttribute('aria-controls') === selectContent.id)) return;
+      }
       details.open = false;
     };
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -263,6 +269,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
           <summary aria-label="Open Desk filters"><SlidersHorizontal aria-hidden="true" /><span>Filters</span><span className={styles.mobileDeskFilterSummary}>{props.activeRestrictionsLabel}</span></summary>
           <div className={styles.mobileDeskFilterPanel} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         </details>
+        {!props.focusedItemId ? <Button type="button" size="sm" variant={touchMultiSelect ? 'secondary' : 'ghost'} aria-pressed={touchMultiSelect} onClick={() => setTouchMultiSelect((enabled) => !enabled)} title="Add Sets to selection by tapping; tap again to finish">{touchMultiSelect ? 'Done selecting' : 'Select multiple'}</Button> : null}
         {fullViewControls}
         <div className={`${styles.spatialControls} ${styles.compactSpatialControls}`} aria-label="Compact Desk view controls">{compactViewControls}</div>
       </div>
@@ -311,7 +318,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
             {props.visibleWork.map((item) => {
               const featured = item.id === props.activeWorkId;
               const focused = item.id === props.focusedItemId;
-              return <DeskWorkObject key={item.id} item={item} active={featured} featured={featured} focused={focused} selected={props.selectedIds.includes(item.id)} arrangeMode={false} obscured={Boolean(props.focusedItemId) && !focused} pinned={props.pinnedIds.includes(item.id)} position={props.positions[item.id]} presentationSize={props.presentationSize(item)} canUseProjectFiles={props.canUseProjectFiles} canSubmit={props.canSubmit} preview={(face) => props.renderWorkPreview(item, featured, focused, face)} canFlip={props.canFlipWork(item)} artifactIds={props.previewArtifactIds(item)} focusedSurface={focused ? props.renderFocusedSurface(item) : null} beginDrag={props.beginDrag} moveDrag={props.moveDrag} endDrag={props.endDrag} shouldSuppressActivation={props.shouldSuppressActivation} onSelect={props.onSelectWork} onFocus={props.onFocusWork} onTogglePin={props.onTogglePin} onOpenLane={props.onOpenLane} onOpenLocation={props.onOpenLocation} onOpenPipeline={props.onOpenPipeline} onDuplicate={props.onDuplicate} onInspect={props.onInspect} onDelete={props.onDelete} />;
+              return <DeskWorkObject key={item.id} item={item} active={featured} featured={featured} focused={focused} selected={props.selectedIds.includes(item.id)} arrangeMode={touchMultiSelect} obscured={Boolean(props.focusedItemId) && !focused} position={props.positions[item.id]} presentationSize={props.presentationSize(item)} canUseProjectFiles={props.canUseProjectFiles} canSubmit={props.canSubmit} preview={(face) => props.renderWorkPreview(item, featured, focused, face)} canFlip={props.canFlipWork(item)} artifactIds={props.previewArtifactIds(item)} focusedSurface={focused ? props.renderFocusedSurface(item) : null} beginDrag={props.beginDrag} moveDrag={props.moveDrag} endDrag={props.endDrag} shouldSuppressActivation={props.shouldSuppressActivation} onSelect={props.onSelectWork} onFocus={props.onFocusWork} onOpenLane={props.onOpenLane} onOpenLocation={props.onOpenLocation} onOpenPipeline={props.onOpenPipeline} onDuplicate={props.onDuplicate} onInspect={props.onInspect} onDelete={props.onDelete} />;
             })}
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Boxes,
   Cloud,
@@ -27,7 +27,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/components/ui/use-toast';
 import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
-import { ArtifactScene, AuthoredObjectPreview } from '@/features/card-rendering/client';
+import { ArtifactScene, type ArtifactSceneHandle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import {
@@ -151,6 +151,11 @@ export function Desk({
   securityStatus,
   storageConnections,
 }: DeskProps) {
+  const artifactSceneRef = useRef<ArtifactSceneHandle>(null);
+  const transitionToDesk = useCallback((commit: () => void) => {
+    if (artifactSceneRef.current) artifactSceneRef.current.returnToDesk(commit);
+    else commit();
+  }, []);
   const { toast } = useToast();
   const browserSaveStatus = useBrowserWorkspaceSaveStatus();
   const browserStoragePersistence = useBrowserStoragePersistence();
@@ -234,7 +239,6 @@ export function Desk({
     otherSets,
     pendingDeleteCards,
     pendingDeleteWork,
-    pinnedIds,
     pipelineSubmitSetId,
     projection,
     publishedSets,
@@ -305,7 +309,6 @@ export function Desk({
     tagDraft,
     tagFilter,
     templates,
-    togglePin,
     updateOrganization,
     updateGeneratedCard,
     updateSelectedWorkOrganization,
@@ -321,6 +324,7 @@ export function Desk({
     workTemplate,
     zones,
   } = useDeskController({
+    transitionToDesk,
     persistenceScope,
     experience,
     initialFocusedWorkId,
@@ -457,7 +461,7 @@ export function Desk({
 
   return (
     <div className={styles.creatorEnvironment} data-desk-arrival-phase={deskArrival.phase}>
-      <ArtifactScene activeSetId={focusedLocalSetId}>
+      <ArtifactScene ref={artifactSceneRef} activeSetId={focusedLocalSetId}>
       <EnvironmentShell
         ariaLabel="CardForge Desk"
         brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }}
@@ -480,7 +484,6 @@ export function Desk({
           toolDirty={activeTool?.dirty}
           localSet={Boolean(focusedLocalSetId)}
           workingLocationStatus={workingLocationStatus}
-          pinned={Boolean(focusedItem && pinnedIds.includes(focusedItem.id))}
           renaming={renaming}
           renameDraft={renameDraft}
           selectedDeskCount={selectedDeskIds.length}
@@ -504,7 +507,6 @@ export function Desk({
           onOpenLocation={() => { if (focusedItem) setLocationItem(focusedItem); }}
           onDuplicateWork={() => { if (focusedItem) duplicateWork(focusedItem); }}
           onOpenOutput={() => { if (focusedItem) openWorkLane(focusedItem, 'export'); }}
-          onTogglePin={() => { if (focusedItem) togglePin(focusedItem.id); }}
           onInspect={() => { if (focusedItem) inspectItem(focusedItem); }}
           onDeleteWork={() => { if (focusedItem) setPendingDeleteWork(focusedItem); }}
           onEditArtifact={() => { if (focusedArtifactId) startArtifactEdit(focusedArtifactId); }}
@@ -557,7 +559,6 @@ export function Desk({
             visibleWork={visibleWork}
             focusedItemId={focusedItem?.id ?? null}
             activeWorkId={activeWorkId}
-            pinnedIds={pinnedIds}
             selectedIds={selectedDeskIds}
             positions={deskPositions}
             worldSize={deskWorldSize}
@@ -676,7 +677,6 @@ export function Desk({
             onShowGridChange={() => setShowGrid((value) => !value)}
             onSnapToGridChange={() => setSnapToGrid((value) => !value)}
             onFocusWork={focusWork}
-            onTogglePin={togglePin}
             onOpenLane={openWorkLane}
             onOpenLocation={setLocationItem}
             onOpenPipeline={openPipelineSubmission}

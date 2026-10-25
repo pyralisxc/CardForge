@@ -1,3 +1,4 @@
+import { stampContentQualityReviewNote } from '@/features/pipeline/lib/contentQualityStandard';
 import {
   DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   isContributorAssetAccessTierOverride,
@@ -19,6 +20,7 @@ import {
   purgePipelineSubmission,
   setContributorPipelineLifecycle,
   savePipelineProgramSettings,
+  setPipelineEditorialReview,
   setPipelineOwnerOverride,
   submitTemplatePipelineDraft,
 } from '@/features/pipeline/lib/pipelineRegistryCommands';
@@ -31,6 +33,7 @@ import {
   normalizePipelineSubmissionEditInput,
   normalizePipelineSubmissionInput,
   normalizeContributorProfileOverrideInput,
+  type PipelineEditorialReviewStatus,
   type PipelineProgramView,
   type PipelineProgramSettingsRow,
   type ContributorProfileOverrideInput,
@@ -281,8 +284,14 @@ export const createPipelineSubmission = async ({
     studioDestination?: unknown;
     specialtyTags?: unknown;
     useCaseTags?: unknown;
+    semanticRole?: unknown;
+    visualFamily?: unknown;
+    variantKind?: unknown;
+    variantLabel?: unknown;
+    compatibilityTags?: unknown;
     name?: unknown;
     description?: unknown;
+    sourceNotes?: unknown;
     previewUrl?: unknown;
     sourceUrl?: unknown;
     sourceFileSizeBytes?: unknown;
@@ -324,8 +333,14 @@ export const createPipelineSubmission = async ({
       requested_studio_destination: normalized.value.requestedStudioDestination,
       specialty_tags: normalized.value.specialtyTags,
       use_case_tags: normalized.value.useCaseTags,
+      semantic_role: normalized.value.semanticRole,
+      visual_family: normalized.value.visualFamily,
+      variant_kind: normalized.value.variantKind,
+      variant_label: normalized.value.variantLabel,
+      compatibility_tags: normalized.value.compatibilityTags,
       name: normalized.value.name,
       description: normalized.value.description,
+      source_notes: normalized.value.sourceNotes,
       preview_url: normalized.value.previewUrl,
       source_url: normalized.value.sourceUrl,
       source_file_size_bytes: normalized.value.sourceFileSizeBytes,
@@ -393,6 +408,11 @@ export const updatePipelineSubmissionDetails = async ({
     sourceNotes?: unknown;
     specialtyTags?: unknown;
     useCaseTags?: unknown;
+    semanticRole?: unknown;
+    visualFamily?: unknown;
+    variantKind?: unknown;
+    variantLabel?: unknown;
+    compatibilityTags?: unknown;
     requestedStudioDestination?: unknown;
   };
   allowOwnerEdit?: boolean;
@@ -402,7 +422,7 @@ export const updatePipelineSubmissionDetails = async ({
 
   const { data: rows, error: loadError } = await supabase
     .from('cardforge_contributor_asset_submissions')
-    .select('contributor_id,status,source_url,asset_type,specialty_tags,use_case_tags')
+    .select('contributor_id,status,source_url,asset_type,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags,media_presentation')
     .eq('id', submissionId)
     .limit(1);
 
@@ -411,10 +431,26 @@ export const updatePipelineSubmissionDetails = async ({
     throw new PipelineStoreError('Unable to load Pipeline submission.', 500);
   }
 
-  const row = rows?.[0] as { contributor_id?: string; status?: unknown; source_url?: string | null; asset_type?: unknown; specialty_tags?: unknown; use_case_tags?: unknown } | undefined;
+  const row = rows?.[0] as {
+    media_presentation?: unknown;
+    contributor_id?: string;
+    status?: unknown;
+    source_url?: string | null;
+    asset_type?: unknown;
+    specialty_tags?: unknown;
+    use_case_tags?: unknown;
+    semantic_role?: unknown;
+    visual_family?: unknown;
+    variant_kind?: unknown;
+    variant_label?: unknown;
+    compatibility_tags?: unknown;
+  } | undefined;
   if (!row) throw new PipelineStoreError('Pipeline submission was not found.', 404);
   if (!allowOwnerEdit && row.contributor_id !== contributorId) {
     throw new PipelineStoreError('Only the uploader can edit this asset.', 403);
+  }
+  if (row.media_presentation != null) {
+    throw new PipelineStoreError('Presentation revisions preserve inherited content. Create a new exact revision instead of editing this candidate.', 409, { kind: 'conflict' });
   }
   if (row.status === 'published' || row.status === 'rejected') {
     throw new PipelineStoreError('Published or rejected assets cannot be edited from the Pipeline.', 400);
@@ -440,6 +476,11 @@ export const updatePipelineSubmissionDetails = async ({
       ...(normalized.value.sourceNotes !== undefined ? { source_notes: normalized.value.sourceNotes } : {}),
       ...(normalized.value.specialtyTags !== undefined ? { specialty_tags: normalized.value.specialtyTags } : {}),
       ...(normalized.value.useCaseTags !== undefined ? { use_case_tags: normalized.value.useCaseTags } : {}),
+      ...(normalized.value.semanticRole !== undefined ? { semantic_role: normalized.value.semanticRole } : {}),
+      ...(normalized.value.visualFamily !== undefined ? { visual_family: normalized.value.visualFamily } : {}),
+      ...(normalized.value.variantKind !== undefined ? { variant_kind: normalized.value.variantKind } : {}),
+      ...(normalized.value.variantLabel !== undefined ? { variant_label: normalized.value.variantLabel } : {}),
+      ...(normalized.value.compatibilityTags !== undefined ? { compatibility_tags: normalized.value.compatibilityTags } : {}),
       ...(normalized.value.requestedStudioDestination !== undefined
         ? { requested_studio_destination: normalized.value.requestedStudioDestination }
         : {}),
@@ -448,6 +489,9 @@ export const updatePipelineSubmissionDetails = async ({
 
   if (error) {
     console.error('Failed to edit Pipeline submission:', error);
+    if (error.message?.includes('pipeline_media_revision_immutable')) {
+      throw new PipelineStoreError('This exact presentation revision cannot be edited.', 409, { kind: 'conflict' });
+    }
     if (error.message?.includes('contributor_asset_lineage_purge_pending')) {
       throw new PipelineStoreError('This Pipeline object is being permanently deleted and can no longer be edited.', 409, {
         kind: 'conflict',
@@ -472,6 +516,11 @@ export const finalizeContributorTemplatePipelineDraft = async ({
     sourceNotes?: unknown;
     specialtyTags?: unknown;
     useCaseTags?: unknown;
+    semanticRole?: unknown;
+    visualFamily?: unknown;
+    variantKind?: unknown;
+    variantLabel?: unknown;
+    compatibilityTags?: unknown;
     requestedStudioDestination?: unknown;
   };
 }): Promise<void> => {
@@ -496,6 +545,23 @@ export const finalizeContributorTemplatePipelineDraft = async ({
   if (!normalized.value.specialtyTags?.length) throw new PipelineStoreError('Choose at least one specialty.', 400);
   if (!normalized.value.useCaseTags?.length) throw new PipelineStoreError('Choose at least one use-case tag.', 400);
   if (!normalized.value.requestedStudioDestination) throw new PipelineStoreError('Choose where this Template belongs in Studio.', 400);
+  if (!normalized.value.semanticRole) throw new PipelineStoreError('Choose what semantic role this Template serves.', 400);
+
+  const { error: semanticUpdateError } = await supabase
+    .from('cardforge_contributor_asset_submissions')
+    .update({
+      semantic_role: normalized.value.semanticRole,
+      visual_family: normalized.value.visualFamily ?? null,
+      variant_kind: normalized.value.variantKind ?? 'base',
+      variant_label: normalized.value.variantLabel ?? null,
+      compatibility_tags: normalized.value.compatibilityTags ?? [],
+    })
+    .eq('id', submissionId)
+    .eq('contributor_id', contributorId)
+    .eq('status', 'draft');
+  if (semanticUpdateError) {
+    throw new PipelineStoreError('Unable to save this Template’s semantic classification before submission.', 500);
+  }
 
   await runRegistryCommand(async () => {
     await submitTemplatePipelineDraft({
@@ -552,6 +618,49 @@ export const updatePipelineSubmissionStatus = async ({
     ...(ownerAccessTierOverride !== undefined ? { ownerAccessTierOverride: normalizedTierOverride ?? null } : {}),
   }));
 
+  return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
+};
+
+export const updatePipelineEditorialReview = async ({
+  submissionId,
+  reviewStatus,
+  reviewNote,
+  expectedEvidenceVersion,
+  currentUserId,
+  currentContributorIds = [currentUserId],
+}: {
+  submissionId: string;
+  reviewStatus: unknown;
+  reviewNote: unknown;
+  expectedEvidenceVersion?: unknown;
+  currentUserId: string;
+  currentContributorIds?: string[];
+}): Promise<PipelineProgramView> => {
+  if (!currentUserId) throw new PipelineStoreError('Owner identity is required to review an asset.', 403);
+  if (expectedEvidenceVersion != null && (!Number.isInteger(expectedEvidenceVersion) || Number(expectedEvidenceVersion) < 0 || Number(expectedEvidenceVersion) > 2_147_483_647)) throw new PipelineStoreError('Read the exact source evidence version before reviewing.', 400);
+  const normalizedStatus: PipelineEditorialReviewStatus | null = (
+    reviewStatus === 'pending'
+    || reviewStatus === 'approved'
+    || reviewStatus === 'revise'
+    || reviewStatus === 'quarantine'
+    || reviewStatus === 'retire'
+  ) ? reviewStatus : null;
+  if (!normalizedStatus) throw new PipelineStoreError('Choose a supported editorial review outcome.', 400);
+  const normalizedNote = normalizePipelineLongText(reviewNote, 600);
+  if (normalizedStatus !== 'pending' && !normalizedNote) {
+    throw new PipelineStoreError('Add an editorial review reason before recording this decision.', 400);
+  }
+  const decision = normalizedStatus === 'pending'
+    ? { ok: true as const, value: '' }
+    : stampContentQualityReviewNote(normalizedNote);
+  if (!decision.ok) throw new PipelineStoreError(decision.message, 400);
+  await runRegistryCommand(() => setPipelineEditorialReview({
+    submissionId,
+    reviewStatus: normalizedStatus,
+    reviewNote: decision.value,
+    reviewerContributorId: currentUserId,
+    expectedEvidenceVersion: typeof expectedEvidenceVersion === 'number' ? expectedEvidenceVersion : null,
+  }));
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 

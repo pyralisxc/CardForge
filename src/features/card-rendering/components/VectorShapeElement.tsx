@@ -105,9 +105,12 @@ export function VectorShapeElement({ element, style, strokeScale = 1 }: VectorSh
         </defs>
       )}
       {backgroundImage && (
-        <foreignObject x="0" y="0" width="100" height="100" clipPath={`url(#${clipId})`}>
-          <div style={surfaceStyle} />
-        </foreignObject>
+        <g clipPath={`url(#${clipId})`}>
+          {/* Fit backgrounds in authored coordinates before projecting into the normalized shape. */}
+          <foreignObject x="0" y="0" width={element.width} height={element.height} transform={`scale(${100 / element.width} ${100 / element.height})`}>
+            <div style={surfaceStyle} />
+          </foreignObject>
+        </g>
       )}
       {shape}
     </svg>

@@ -179,6 +179,8 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
       await saveCardForgeProjectPackageToDevice({
         fileName: `${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION}`,
         snapshot,
+        // Download creates a portable copy, not a file-system write grant.
+        pickerWindow: {},
       });
       trackExportCompleted('project', storedCards.length);
       toast({

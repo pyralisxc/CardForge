@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
 import { Save } from 'lucide-react';
 
+import { useEditorDraft, type EditorDraftState } from '@/components/ui/use-editor-draft';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -15,7 +15,8 @@ type OwnerBusinessIdentityPanelProps = {
   onSave: (
     businessIdentity: BusinessIdentityInput,
     expectedIdentityVersion: number,
-  ) => Promise<void>;
+  ) => Promise<BusinessIdentity>;
+  onEditorStateChange?: (state: EditorDraftState) => void;
 };
 
 type BusinessIdentityDraft = Omit<
@@ -58,14 +59,14 @@ function TextField({
 export function OwnerBusinessIdentityPanel({
   businessIdentity,
   onSave,
+  onEditorStateChange,
 }: OwnerBusinessIdentityPanelProps) {
   const { toast } = useToast();
-  const [draft, setDraft] = useState<BusinessIdentityDraft>(() => toDraft(businessIdentity));
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    setDraft(toDraft(businessIdentity));
-  }, [businessIdentity]);
+  const { baseline, draft: identityDraft, setDraft: setIdentityDraft, saving: isSaving, setSaving: setIsSaving, dirty, acceptPublished } = useEditorDraft(businessIdentity, onEditorStateChange);
+  const draft = toDraft(identityDraft);
+  const setDraft = (update: (current: BusinessIdentityDraft) => BusinessIdentityDraft) => {
+    setIdentityDraft((current) => ({ ...current, ...update(toDraft(current)) }));
+  };
 
   const setField = <Field extends keyof BusinessIdentityDraft>(
     field: Field,
@@ -73,9 +74,11 @@ export function OwnerBusinessIdentityPanel({
   ) => setDraft((current) => ({ ...current, [field]: value }));
 
   const save = async () => {
+    if (isSaving || !dirty) return;
     setIsSaving(true);
     try {
-      await onSave(draft, businessIdentity.identityVersion);
+      const current = await onSave(draft, baseline.identityVersion);
+      acceptPublished(current);
       toast({
         title: 'Business identity saved',
         description: 'Operator, jurisdiction, and public contact details are updated.',
@@ -101,7 +104,7 @@ export function OwnerBusinessIdentityPanel({
           </p>
         </div>
       </div>
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
+      <fieldset disabled={isSaving} className="mt-5 grid gap-3 md:grid-cols-2">
         <TextField label="Brand name" value={draft.brandName} onChange={(value) => setField('brandName', value)} />
         <TextField label="Legal operator name" value={draft.legalOperatorName} onChange={(value) => setField('legalOperatorName', value)} />
         <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
@@ -133,10 +136,10 @@ export function OwnerBusinessIdentityPanel({
         <TextField label="Website" type="url" value={draft.websiteUrl} onChange={(value) => setField('websiteUrl', value)} />
         <TextField label="Effective date" type="date" value={draft.effectiveDate} onChange={(value) => setField('effectiveDate', value)} />
         <TextField label="Copyright holder" value={draft.copyrightHolder} onChange={(value) => setField('copyrightHolder', value)} />
-      </div>
+      </fieldset>
       <Button
         className="mt-5 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]"
-        disabled={isSaving}
+        disabled={isSaving || !dirty}
         onClick={save}
       >
         <Save className="mr-2 h-4 w-4" />

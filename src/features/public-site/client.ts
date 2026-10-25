@@ -7,19 +7,40 @@ export {
   type SiteContentMap,
 } from './model/siteContent';
 export { PUBLIC_NAVIGATION } from './model/publicNavigation';
+export { isPublicSitePageSlug, type PublicSitePage } from './model/sitePages';
+export {
+  DEFAULT_HOMEPAGE_SHOWCASE_STAGES,
+  createLegacyHomepageShowcaseStages,
+  HOMEPAGE_SHOWCASE_SCREENSHOT_SLOTS,
+  MAX_HOMEPAGE_SHOWCASE_STAGES,
+  MAX_HOMEPAGE_STAGE_VIEWS,
+  type HomepageShowcaseStage,
+  type HomepageShowcaseView,
+} from './model/homepageShowcaseStages';
+export {
+  DEFAULT_HOMEPAGE_SECTION_DESIGN,
+  HOMEPAGE_COMPOSER_MEDIA_SLOTS,
+  MAX_HOMEPAGE_CUSTOM_SECTIONS,
+  MAX_HOMEPAGE_SECTION_BLOCKS,
+  isHomepageCustomSection,
+  type HomepageCustomSection,
+  type HomepageContentBlock,
+  type HomepageSectionDesign,
+} from './model/homepageComposition';
 export {
   DEFAULT_PUBLIC_SITE_CONFIGURATION,
   HOMEPAGE_SECTION_IDS,
   PRIMARY_NAVIGATION_IDS,
   type HomepageSectionId,
   type HomepageSectionSetting,
+  type HomepageLayoutSection,
   type PrimaryNavigationItem,
   type PublicSiteConfiguration,
 } from './model/siteConfiguration';
 export { PublicSiteHeader } from './components/PublicSiteHeader';
 export { PublicSiteFooter } from './components/PublicSiteFooter';
 export { PublicSiteShell } from './components/PublicSiteShell';
-export { PublicSiteOwnerLiveControls } from './components/PublicSiteOwnerLiveControls';
+export { PublicSiteOwnerLiveControls, OwnerPageEditorStateContext } from './components/PublicSiteOwnerLiveControls';
 export { LiveExampleGallery } from './components/LiveExampleGallery';
 export { OutcomeHero } from './components/OutcomeHero';
 export { StudioProductProof } from './components/StudioProductProof';
@@ -79,3 +100,10 @@ export {
   type SiteMediaSlot,
   type SiteMediaVersion,
 } from './model/siteMedia';
+
+export {
+  getOwnerPublicationPresentation,
+  type OwnerPublicationEnvironment,
+} from './model/ownerPublicationEnvironment';
+
+export { WebsiteEditionDraftContext } from './components/PublicSiteOwnerLiveControls';

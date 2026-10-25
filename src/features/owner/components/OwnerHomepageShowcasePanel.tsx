@@ -84,15 +84,42 @@ export function OwnerHomepageShowcasePanel({
   const selectFrontTemplate = (index: number, templateId: string) => {
     const template = templatesById.get(templateId);
     if (!template) {
-      updateExample(index, { frontTemplateId: templateId, frontTemplateName: undefined });
+      updateExample(index, {
+        frontTemplateId: templateId,
+        frontTemplateName: undefined,
+        frontTemplateRevision: null,
+        frontTemplateRevisionId: undefined,
+      });
       return;
     }
     updateExample(index, {
       frontTemplateId: templateId,
       frontTemplateName: template.name,
+      frontTemplateRevision: template.templateRevision ?? null,
+      frontTemplateRevisionId: template.templateRevisionId,
       rows: syncRowsToTemplate(examples[index]!.rows, template),
     });
   };
+
+  const adoptCurrentFrontRevision = (index: number, template: TCGCardTemplate) => {
+    updateExample(index, {
+      frontTemplateRevision: template.templateRevision ?? null,
+      frontTemplateRevisionId: template.templateRevisionId,
+      rows: syncRowsToTemplate(examples[index]!.rows, template),
+    });
+  };
+
+  const revisionMatches = (
+    template: TCGCardTemplate | undefined,
+    revision: number | null | undefined,
+    revisionId?: string,
+  ): boolean => Boolean(
+    template
+    && revision !== null
+    && revision !== undefined
+    && template.templateRevision === revision
+    && (!revisionId || template.templateRevisionId === revisionId)
+  );
 
   const addExample = () => {
     if (examples.length >= MAX_EXAMPLES) return;
@@ -107,6 +134,8 @@ export function OwnerHomepageShowcasePanel({
       visible: false,
       frontTemplateId: template?.id ?? fallbackTemplateId,
       frontTemplateName: template?.name,
+      frontTemplateRevision: template?.templateRevision ?? null,
+      frontTemplateRevisionId: template?.templateRevisionId,
       rows: initialRows,
       altText: ['New sample card. Update this description before making the set visible.'],
     }]);
@@ -155,7 +184,7 @@ export function OwnerHomepageShowcasePanel({
         <div>
           <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Homepage demonstration sets</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
-            Choose the published Templates and sample card data used by the landing page’s “Review the set” view. These cards use CardForge’s real bulk renderer; this panel only controls the marketing selection and sample values.
+            Choose the exact published Template revisions and sample card data used by the landing page’s “Review the set” view. A newer Pipeline publication never changes a live demonstration until you explicitly adopt that revision here.
           </p>
         </div>
         <Button type="button" variant="outline" disabled={examples.length >= MAX_EXAMPLES} onClick={addExample}>
@@ -168,6 +197,19 @@ export function OwnerHomepageShowcasePanel({
         {examples.map((example, index) => {
           const fields = fieldKeysFor(example);
           const selectedTemplate = templatesById.get(example.frontTemplateId);
+          const selectedBackTemplate = example.backTemplateId
+            ? templatesById.get(example.backTemplateId)
+            : undefined;
+          const frontRevisionCurrent = revisionMatches(
+            selectedTemplate,
+            example.frontTemplateRevision,
+            example.frontTemplateRevisionId,
+          );
+          const backRevisionCurrent = !example.backTemplateId || revisionMatches(
+            selectedBackTemplate,
+            example.backTemplateRevision,
+            example.backTemplateRevisionId,
+          );
           return (
             <section key={example.slug} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
               <div className="flex flex-wrap items-center gap-2">
@@ -190,6 +232,19 @@ export function OwnerHomepageShowcasePanel({
                     {!selectedTemplate ? <option value={example.frontTemplateId}>{example.frontTemplateName ?? example.frontTemplateId}</option> : null}
                     {templates.flatMap((template) => template.id ? [<option key={template.id} value={template.id}>{template.name}</option>] : [])}
                   </select>
+                  <span className={`text-xs ${frontRevisionCurrent ? 'text-[var(--cf-success)]' : 'text-[var(--cf-warning)]'}`}>
+                    {example.frontTemplateRevision == null
+                      ? 'Not pinned to a published revision.'
+                      : `Pinned to revision ${example.frontTemplateRevision}${example.frontTemplateRevisionId ? ` · ${example.frontTemplateRevisionId.slice(0, 8)}` : ''}.`}
+                    {selectedTemplate && !frontRevisionCurrent
+                      ? ` Current catalog revision is ${selectedTemplate.templateRevision ?? 'unknown'}; the live showcase will not follow it automatically.`
+                      : ''}
+                  </span>
+                  {selectedTemplate && !frontRevisionCurrent ? (
+                    <Button type="button" size="sm" variant="outline" className="w-fit" onClick={() => adoptCurrentFrontRevision(index, selectedTemplate)}>
+                      Adopt current revision
+                    </Button>
+                  ) : null}
                 </label>
                 <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">Shared back Template
                   <select
@@ -200,6 +255,8 @@ export function OwnerHomepageShowcasePanel({
                       updateExample(index, {
                         backTemplateId: template?.id ?? undefined,
                         backTemplateName: template?.name,
+                        backTemplateRevision: template?.templateRevision ?? undefined,
+                        backTemplateRevisionId: template?.templateRevisionId,
                       });
                     }}
                   >
@@ -207,6 +264,32 @@ export function OwnerHomepageShowcasePanel({
                     {example.backTemplateId && !templatesById.has(example.backTemplateId) ? <option value={example.backTemplateId}>{example.backTemplateName ?? example.backTemplateId}</option> : null}
                     {templates.flatMap((template) => template.id ? [<option key={template.id} value={template.id}>{template.name}</option>] : [])}
                   </select>
+                  {example.backTemplateId ? (
+                    <>
+                      <span className={`text-xs ${backRevisionCurrent ? 'text-[var(--cf-success)]' : 'text-[var(--cf-warning)]'}`}>
+                        {example.backTemplateRevision == null
+                          ? 'Back Template is not pinned to a published revision.'
+                          : `Pinned to revision ${example.backTemplateRevision}${example.backTemplateRevisionId ? ` · ${example.backTemplateRevisionId.slice(0, 8)}` : ''}.`}
+                        {selectedBackTemplate && !backRevisionCurrent
+                          ? ` Current catalog revision is ${selectedBackTemplate.templateRevision ?? 'unknown'}.`
+                          : ''}
+                      </span>
+                      {selectedBackTemplate && !backRevisionCurrent ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="w-fit"
+                          onClick={() => updateExample(index, {
+                            backTemplateRevision: selectedBackTemplate.templateRevision ?? null,
+                            backTemplateRevisionId: selectedBackTemplate.templateRevisionId,
+                          })}
+                        >
+                          Adopt current back revision
+                        </Button>
+                      ) : null}
+                    </>
+                  ) : null}
                 </label>
                 <div className="grid content-end gap-1 text-sm text-[var(--cf-text-muted)]">
                   <span>Stable demo id</span>

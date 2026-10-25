@@ -25,6 +25,8 @@ export interface FocusedArtifactSeed {
   position?: ArtifactPosition;
   /** Derived physical truth; never a second persistence owner. */
   physicalSizeMm?: { widthMm: number; heightMm: number };
+  /** Manual grouped views render a third caption row below the Template name. */
+  showGroupLabel?: boolean;
 }
 
 export interface FocusedArtifactGroup {
@@ -90,6 +92,14 @@ const PRESENTATIONS: Record<FocusedArtifactDensity, FocusedArtifactPresentation>
 
 const ARTIFACT_TILE_INLINE_CHROME = 6;
 const ARTIFACT_TILE_BLOCK_CHROME = 18;
+// Complete interactive footprint, not just the card face. These rounded bounds
+// include Desk.module.css button padding/borders and each visible caption row.
+// The rendered-bounds golden guards the model/CSS contract against future drift.
+const TILE_CHROME = {
+  comfortable: { inline: 18, block: 51 },
+  compact: { inline: 18, block: 48 },
+  dense: { inline: 18, block: 30 },
+} as const;
 
 const getArtifactPresentationExtent = (
   artifact: FocusedArtifactSeed,
@@ -97,21 +107,23 @@ const getArtifactPresentationExtent = (
 ) => {
   const widthMm = Number(artifact.physicalSizeMm?.widthMm);
   const heightMm = Number(artifact.physicalSizeMm?.heightMm);
+  const chrome = TILE_CHROME[presentation.density];
+  const blockChrome = chrome.block + (artifact.showGroupLabel ? 14 : 0);
   if (widthMm > 0 && heightMm > 0) {
     const contentWidth = widthMm;
     const contentHeight = heightMm;
     return {
       contentWidth,
       contentHeight,
-      width: contentWidth + ARTIFACT_TILE_INLINE_CHROME,
-      height: contentHeight + ARTIFACT_TILE_BLOCK_CHROME,
+      width: contentWidth + chrome.inline,
+      height: contentHeight + blockChrome,
     };
   }
   return {
     contentWidth: Math.max(1, presentation.width - ARTIFACT_TILE_INLINE_CHROME),
     contentHeight: Math.max(1, presentation.height - ARTIFACT_TILE_BLOCK_CHROME),
-    width: presentation.width,
-    height: presentation.height,
+    width: Math.max(1, presentation.width - ARTIFACT_TILE_INLINE_CHROME) + chrome.inline,
+    height: Math.max(1, presentation.height - ARTIFACT_TILE_BLOCK_CHROME) + blockChrome,
   };
 };
 

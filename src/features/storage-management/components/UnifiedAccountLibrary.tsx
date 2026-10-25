@@ -11,6 +11,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import type { DisplayCard } from '@/domain/rendering';
+import type { CardFace } from '@/domain/cards';
+import { createCardFaceExportRenderer, getExportProfile } from '@/features/card-generator/client/export';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import {
@@ -48,6 +50,20 @@ import {
 } from './LibraryObjectPresentation';
 import { DefaultWorkLocationControl, WorkLocationDialog } from './WorkLocationDialog';
 import styles from './UnifiedAccountLibrary.module.css';
+
+const renderPipelineTemplateSpecimen = async (
+  card: DisplayCard,
+  face: CardFace,
+  dpi: number,
+): Promise<Blob> => {
+  const profile = { ...getExportProfile('physical', dpi), canvasPixelRatio: 1 };
+  const renderer = createCardFaceExportRenderer(profile);
+  try {
+    return await renderer.renderToBlob(card, face);
+  } finally {
+    renderer.cleanup();
+  }
+};
 
 const PipelineContributionPanel = dynamic(() => import(
   '@/features/pipeline/client/contribution-panel'
@@ -397,6 +413,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     detailVisual={currentItem ? <LibraryDetailVisual key={currentItem.id} item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} /> : undefined}
     detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
+      isOwner={experience.owner}
+      onRevisionCreated={() => shared.refresh()}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
       canReview={experience.contributor.canReview}
       votingId={votingId}
@@ -441,9 +459,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       <nav className={styles.scopeTabs} aria-label="Library scopes">
         {scopeDefinitions.map((definition) => <button key={definition.id} type="button" aria-current={activeScope === definition.id ? 'page' : undefined} onClick={() => chooseScope(definition.id)}><span>{definition.label}</span><small>{definition.owner}</small></button>)}
       </nav>
-      {activeScope === 'pipeline' && experience.owner ? <details className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface-inset)]">
+      {activeScope === 'pipeline' && experience.owner ? <details data-owner-pipeline-operations className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface-inset)]">
         <summary className="cursor-pointer px-4 py-3 font-serif text-lg text-[var(--cf-text-strong)]">Owner Pipeline operations <span className="ml-2 font-sans text-xs text-[var(--cf-text-subtle)]">publication, quotas, routing, revisions</span></summary>
-        <div className="border-t border-[var(--cf-border-subtle)] p-4"><OwnerContributorProgramPanel /></div>
+        <div className="border-t border-[var(--cf-border-subtle)] p-4"><OwnerContributorProgramPanel renderTemplateSpecimen={renderPipelineTemplateSpecimen} /></div>
       </details> : null}
       {activeScope === 'pipeline' ? <PipelineContentHealthPanel catalog={shared.catalog} onClassified={shared.refresh} health={contentHealth} canRepair={experience.owner} onOpenObject={(objectId) => { const item = viewItems.find((candidate) => candidate.id === `pipeline:${objectId}` || candidate.id === objectId); if (item) openDetail(item); }} /> : null}
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}

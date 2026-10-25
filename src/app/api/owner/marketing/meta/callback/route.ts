@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual, createHmac } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
@@ -14,13 +14,16 @@ const safeStateMatch = (expected: string, received: string): boolean => {
   return left.length === right.length && timingSafeEqual(left, right);
 };
 
-const ownerRedirect = (status: string, message?: string) => {
-  const url = new URL('/account', getPublicAppUrl());
-  url.searchParams.set('section', 'library');
-  url.searchParams.set('scope', 'campaigns');
-  url.searchParams.set('meta', status);
+const ownerRedirect = (status: string, message?: string, destination?: URL) => {
+  const url = destination ?? new URL('/account', getPublicAppUrl());
+  if (!destination) {
+    url.searchParams.set('section', 'library');
+    url.searchParams.set('scope', 'campaigns');
+    url.searchParams.set('meta', status);
+  }
   if (message) url.searchParams.set('message', message.slice(0, 240));
   const response = NextResponse.redirect(url);
+  response.cookies.set('cardforge_meta_oauth_owner', '', { httpOnly:true, secure:process.env.NODE_ENV==='production', sameSite:'lax', path:'/api/owner/marketing/meta', maxAge:0 });
   response.cookies.set('cardforge_meta_oauth_state', '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -38,11 +41,19 @@ export async function GET(request: Request) {
   const code = url.searchParams.get('code') ?? '';
   const state = url.searchParams.get('state') ?? '';
   const expectedState = (await cookies()).get('cardforge_meta_oauth_state')?.value ?? '';
-  if (!code || !state || !expectedState || !safeStateMatch(expectedState, state)) {
+  const expectedOwner = (await cookies()).get('cardforge_meta_oauth_owner')?.value ?? '';
+  const actualOwner = expectedState && owner.userId ? createHmac('sha256',expectedState).update(owner.userId).digest('base64url') : '';
+  if (!code || !state || !expectedState || !safeStateMatch(expectedState, state)
+    || !expectedOwner || !safeStateMatch(expectedOwner,actualOwner)) {
     return ownerRedirect('error', 'The Meta connection expired or failed its security check.');
   }
   try {
     const result = await connectMetaAccounts(code, owner.userId);
+    if ('selectionId' in result && result.selectionId) {
+      const pending = new URL('/owner/marketing/meta/select', getPublicAppUrl());
+      pending.searchParams.set('selection', result.selectionId);
+      return ownerRedirect('select', undefined, pending);
+    }
     await recordOwnerActivity({
       actorUserId: owner.userId,
       actorEmail: owner.email,

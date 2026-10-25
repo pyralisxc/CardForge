@@ -26,6 +26,8 @@ export type {
   TemplateFieldContract,
   TemplateFieldContractType,
   TemplateSource,
+  TemplatePipelineContext,
+  TemplatePipelineExpectedBase,
   TemplateUsage,
 } from './types';
 export * from './elementCapabilities';

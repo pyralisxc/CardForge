@@ -26,6 +26,7 @@ function AllowanceEditor({ allowance, onSaved }: { allowance: McpAllowance; onSa
   const [ctaLabel, setCtaLabel] = useState(allowance.ctaLabel);
   const [priceLabel, setPriceLabel] = useState(allowance.priceLabel);
   const [priceNote, setPriceNote] = useState(allowance.priceNote);
+  const stripeOwnsMonetaryPrice = allowance.planKey === 'creator' || allowance.planKey === 'designer';
   const [isVisible, setIsVisible] = useState(allowance.isVisible);
   const [monthlyActionLimit, setMonthlyActionLimit] = useState<number | ''>(allowance.monthlyActionLimit);
   const [dailySafetyLimit, setDailySafetyLimit] = useState<number | ''>(allowance.dailySafetyLimit);
@@ -46,8 +47,7 @@ function AllowanceEditor({ allowance, onSaved }: { allowance: McpAllowance; onSa
           description,
           featureSummary,
           ctaLabel,
-          priceLabel,
-          priceNote,
+          ...(!stripeOwnsMonetaryPrice ? { priceLabel, priceNote } : {}),
           isVisible,
           monthlyActionLimit,
           dailySafetyLimit,
@@ -58,7 +58,12 @@ function AllowanceEditor({ allowance, onSaved }: { allowance: McpAllowance; onSa
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update allowance.'));
       const body = await response.json() as { dashboard: McpOwnerUsageDashboard };
       onSaved(body.dashboard);
-      toast({ title: `${allowance.displayName} plan updated`, description: 'Plan presentation is live on the next relevant page visit; numeric capacity remains observation-only.' });
+      toast({
+        title: `${allowance.displayName} plan updated`,
+        description: stripeOwnsMonetaryPrice
+          ? 'Plan presentation and capacity are updated; Stripe remains authoritative for the checkout price.'
+          : 'Plan presentation is live on the next relevant page visit; numeric capacity remains observation-only.',
+      });
     } catch (error) {
       toast({ title: 'Allowance update failed', description: error instanceof Error ? error.message : 'Unable to update allowance.', variant: 'destructive' });
     } finally {
@@ -74,10 +79,22 @@ function AllowanceEditor({ allowance, onSaved }: { allowance: McpAllowance; onSa
         <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Plan name<input className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface)] px-3 text-[var(--cf-text-strong)]" maxLength={80} value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
         <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Plan description<textarea className="min-h-24 resize-y border border-[var(--cf-border)] bg-[var(--cf-surface)] p-3 text-[var(--cf-text-strong)]" maxLength={600} value={description} onChange={(event) => setDescription(event.target.value)} /></label>
         <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Feature lines <span className="text-[var(--cf-text-subtle)]">One feature per line</span><textarea className="min-h-28 resize-y border border-[var(--cf-border)] bg-[var(--cf-surface)] p-3 text-[var(--cf-text-strong)]" maxLength={1200} value={featureSummary} onChange={(event) => setFeatureSummary(event.target.value)} /></label>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Price label<input className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface)] px-3 text-[var(--cf-text-strong)]" maxLength={40} value={priceLabel} onChange={(event) => setPriceLabel(event.target.value)} /></label>
-          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Price note<input className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface)] px-3 text-[var(--cf-text-strong)]" maxLength={80} value={priceNote} onChange={(event) => setPriceNote(event.target.value)} /></label>
-        </div>
+        {stripeOwnsMonetaryPrice ? (
+          <div className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Stripe checkout price · provider-owned</p>
+            <p className="mt-2 text-xl font-semibold text-[var(--cf-accent-text)]">{allowance.priceLabel}</p>
+            <p className="mt-1 text-xs text-[var(--cf-text-muted)]">{allowance.priceNote}</p>
+            <p className="mt-2 text-xs leading-5 text-[var(--cf-text-subtle)]">
+              Amount, currency, and recurrence come from the configured Stripe Price and cannot be edited here.
+              {allowance.priceAvailable === false ? ' Public plan surfaces show the price as unavailable until Stripe can be verified.' : ''}
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Price label<input className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface)] px-3 text-[var(--cf-text-strong)]" maxLength={40} value={priceLabel} onChange={(event) => setPriceLabel(event.target.value)} /></label>
+            <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Price note<input className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface)] px-3 text-[var(--cf-text-strong)]" maxLength={80} value={priceNote} onChange={(event) => setPriceNote(event.target.value)} /></label>
+          </div>
+        )}
         <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Action label<input className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface)] px-3 text-[var(--cf-text-strong)]" maxLength={80} value={ctaLabel} onChange={(event) => setCtaLabel(event.target.value)} /></label>
         <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3 text-sm text-[var(--cf-accent-text)]">Show this choice<input type="checkbox" checked={isVisible} onChange={(event) => setIsVisible(event.target.checked)} /></label>
         <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">ChatGPT plugin access is included for signed-in personal accounts. Action and private plugin workspace values below are observation targets, not enforced quotas.</p>
@@ -89,7 +106,20 @@ function AllowanceEditor({ allowance, onSaved }: { allowance: McpAllowance; onSa
         <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Active draft hours<input className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface)] px-3 text-[var(--cf-text-strong)]" type="number" min="1" max="8760" value={draftRetentionHours} onChange={(event) => setDraftRetentionHours(event.target.value === '' ? '' : event.target.valueAsNumber)} /></label>
       </div>
       <p className="mt-2 text-xs leading-5 text-[var(--cf-text-subtle)]">Opening or updating a draft resets this active window. Expired drafts remain recoverable for 24 hours before permanent cleanup.</p>
-      <Button type="button" size="sm" className="mt-4" disabled={saving || !displayName.trim() || !description.trim() || !featureSummary.trim() || !priceLabel.trim() || !priceNote.trim() || !ctaLabel.trim() || [monthlyActionLimit, dailySafetyLimit, storageMegabytes, draftRetentionHours].some((value) => typeof value !== 'number' || !Number.isFinite(value))} onClick={() => void save()}>{saving ? 'Saving…' : 'Save plan'}</Button>
+      <Button
+        type="button"
+        size="sm"
+        className="mt-4"
+        disabled={saving
+          || !displayName.trim()
+          || !description.trim()
+          || !featureSummary.trim()
+          || (!stripeOwnsMonetaryPrice && (!priceLabel.trim() || !priceNote.trim()))
+          || !ctaLabel.trim()
+          || [monthlyActionLimit, dailySafetyLimit, storageMegabytes, draftRetentionHours]
+            .some((value) => typeof value !== 'number' || !Number.isFinite(value))}
+        onClick={() => void save()}
+      >{saving ? 'Saving…' : 'Save plan'}</Button>
     </article>
   );
 }
@@ -127,7 +157,7 @@ export function OwnerMcpUsagePanel() {
     <section className="space-y-4" aria-labelledby="owner-mcp-usage-heading">
       <div className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent)]">MCP capacity</p><h3 id="owner-mcp-usage-heading" className="mt-1 font-serif text-2xl text-[var(--cf-text-strong)]">Plans, usage, and online storage</h3></div><span className="border border-[var(--cf-success-border)] px-2 py-1 text-xs text-[var(--cf-success)]">Signed-in access</span></div>
-        <p className="mt-3 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">This is the source of truth for plan names, prices, descriptions, visible choices, action labels, and capacity targets. CardForge records daily totals without prompts or card content in the usage table. ChatGPT plugin access follows account sign-in; capacity values remain measurement-only and create no overage charge.</p>
+        <p className="mt-3 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">This controls plan names, descriptions, visible choices, action labels, and capacity targets. Stripe is authoritative for Creator and Designer checkout amount, currency, and recurrence. CardForge records daily totals without prompts or card content in the usage table. ChatGPT plugin access follows account sign-in; capacity values remain measurement-only and create no overage charge.</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{metrics.map(([label, value]) => <div key={label} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3"><span className="block text-[10px] uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">{label}</span><strong className="mt-1 block text-xl text-[var(--cf-accent-text)]">{value}</strong></div>)}</div>
       </div>
       <div className="grid gap-3 xl:grid-cols-2">{dashboard.allowances.map((allowance) => <AllowanceEditor key={allowance.planKey} allowance={allowance} onSaved={setDashboard} />)}</div>

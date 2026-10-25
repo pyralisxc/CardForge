@@ -1,3 +1,4 @@
+import { assertPortableSvg } from './portableSvg';
 import {
   BlobReader,
   TextWriter,
@@ -7,6 +8,7 @@ import {
 } from '@zip.js/zip.js';
 
 import { createCardArtifact, getCardFromArtifact } from '@/domain/artifacts';
+import { getAuthoredTemplatePayload } from '@/domain/templates';
 
 import {
   CARDFORGE_PROJECT_MANIFEST_FILE,
@@ -128,6 +130,7 @@ const externalizeProjectAssets = async (
       if (!(verificationBytes instanceof Uint8Array) || verificationBytes.byteLength !== declaredSize) {
         throw new ProjectPackageError('One portable project asset changed while its package manifest was being prepared.');
       }
+      if (resolved.mimeType === 'image/svg+xml') assertPortableSvg(verificationBytes);
       const id = await hashBytes(verificationBytes);
       if (!assets.has(id)) {
         if (assets.size >= MAX_PROJECT_PACKAGE_ASSETS) {
@@ -222,6 +225,7 @@ const toPortableProjectDocument = (document: ProjectDocumentV1): PortableProject
   const { storedCards, ...project } = document;
   return {
     ...project,
+    userTemplates: project.userTemplates.map(getAuthoredTemplatePayload),
     version: 2,
     artifacts: storedCards.map(createCardArtifact),
   };

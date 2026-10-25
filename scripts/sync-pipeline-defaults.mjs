@@ -4,6 +4,12 @@ import path from 'path';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
+import {
+  assertPreviewFontPublicationTarget,
+  createVerifiedFontLicenseSidecar,
+  gitBlobSha,
+  verifyReviewedFontSources,
+} from './lib/verifiedFontSources.mjs';
 
 const configuredOwnerEmail = (value) => {
   const emails = [...new Set((value || '')
@@ -19,6 +25,7 @@ const configuredOwnerEmail = (value) => {
 let OWNER_EMAIL = null;
 const ASSET_BUCKET = process.env.CARDFORGE_CONTRIBUTOR_ASSET_BUCKET || 'cardforge-contributor-assets';
 const BOOTSTRAP_ROOT = path.join('data', 'pipeline-bootstrap');
+const VERIFIED_FONTS_MANIFEST = path.join('data', 'pipeline-bootstrap', 'fonts', 'candidates.json');
 const BOOTSTRAP_MEDIA_PREFIX = 'bootstrap-media://';
 const SITE_FALLBACK_PREFIX = 'site-fallback://';
 const LEGACY_PUBLIC_MEDIA_PREFIX = '/card-assets/';
@@ -661,7 +668,163 @@ const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
   return items;
 };
 
+
+/**
+ * Optional Owner-reviewed first-party Font import into the existing Pipeline.
+ * Normal default sync never touches these sources or uploads these fonts.
+ * Every source and original OFL is authenticated by byte-hash before writing.
+ */
+const publishReviewedFirstPartyFonts = async ({
+  supabase, ownerProfile, verified, existingRegistryByAssetId, tombstonedAssetIds,
+}) => {
+  // Preflight every identity against existing Owner decisions before uploads.
+  for (const { candidate } of verified.items) {
+    if (tombstonedAssetIds.has(candidate.assetId)) {
+      throw new Error('Refusing to republish a retired/tombstoned Font: ' + candidate.assetId);
+    }
+    const present = existingRegistryByAssetId.get(candidate.assetId);
+    if (present && (present.metadata?.sourceGitBlobSha !== candidate.gitBlobSha
+      || present.metadata?.sourceKind !== 'reviewed-first-party-original'
+      || present.library_source !== 'official'
+      || present.storage_bucket !== ASSET_BUCKET)) {
+      throw new Error('Existing Font identity differs from reviewed source. Resolve before publishing: ' + candidate.assetId);
+    }
+  }
+
+  let published = 0;
+  let preserved = 0;
+  for (const { candidate, bytes, sourceUrl, fontWeightRange, glyphCount, licenseBytes } of verified.items) {
+    if (existingRegistryByAssetId.has(candidate.assetId)) {
+      preserved++;
+      continue; // Never override a subsequent human Owner access/retirement decision.
+    }
+    const objectPath = 'owner-defaults/fonts/' + candidate.assetId + '/' + candidate.gitBlobSha + '.ttf';
+    const bucket = supabase.storage.from(ASSET_BUCKET);
+
+    // The public Storage bucket allows JSON documents, but not text/plain.
+    // Bundle the *entire original* OFL text as a deterministic JSON sidecar.
+    const licenseObjectPath = 'owner-defaults/fonts/' + candidate.assetId
+      + '/' + candidate.licenseGitBlobSha + '-OFL.json';
+    const licenseContents = createVerifiedFontLicenseSidecar({
+      candidate, licenseBytes, sourceRevision: verified.sourceRevision,
+    });
+    const noticeUpload = await bucket.upload(licenseObjectPath, licenseContents, {
+      contentType: 'application/json',
+      cacheControl: '31536000',
+      upsert: false,
+    });
+    if (noticeUpload.error) {
+      // An incomplete prior attempt may leave an immutable sidecar; trust it
+      // only when its *complete* bytes are identical to this reviewed notice.
+      const existingNotice = await bucket.download(licenseObjectPath);
+      if (existingNotice.error || !existingNotice.data
+        || !Buffer.from(await existingNotice.data.arrayBuffer()).equals(licenseContents)) {
+        throw new Error('The full original OFL notice could not be preserved for ' + candidate.assetId);
+      }
+    }
+    const licensePublicUrl = bucket.getPublicUrl(licenseObjectPath).data.publicUrl;
+    const upload = await bucket.upload(objectPath, bytes, {
+      contentType: 'font/ttf',
+      upsert: false,
+      cacheControl: '31536000',
+    });
+    if (upload.error) {
+      // An interrupted earlier attempt may have stored the identical immutable
+      // bytes without publishing the registry row. Verify before reusing.
+      const existing = await bucket.download(objectPath);
+      if (existing.error || !existing.data
+        || gitBlobSha(Buffer.from(await existing.data.arrayBuffer())) !== candidate.gitBlobSha) {
+        throw new Error('Managed font storage upload is unavailable for ' + candidate.assetId);
+      }
+    }
+    const publicUrl = bucket.getPublicUrl(objectPath).data.publicUrl;
+    const metadata = {
+      sourceKind: 'reviewed-first-party-original',
+      sourceRepository: 'https://github.com/google/fonts',
+      sourceRevision: verified.sourceRevision,
+      sourceFile: candidate.sourceDirectory + '/' + candidate.sourceFile,
+      sourceUrl,
+      sourceGitBlobSha: candidate.gitBlobSha,
+      license: 'OFL-1.1',
+      licenseGitBlobSha: candidate.licenseGitBlobSha,
+      licenseUrl: 'https://raw.githubusercontent.com/google/fonts/'
+        + verified.sourceRevision + '/ofl/' + candidate.sourceDirectory + '/OFL.txt',
+      licensePublicUrl,
+      originalFontUnmodified: true,
+      family: candidate.family,
+      category: candidate.category,
+      fallback: candidate.fallback,
+      fontWeightRange,
+      fontStyle: 'normal',
+      glyphCount,
+      intendedRole: candidate.intendedRole,
+      specimenMinimumSuggestedPt: candidate.minimumSuggestedPt,
+      semanticRole: 'font',
+      studioDefaultDestination: 'typography.font',
+      bootstrapAccessTier: 'free',
+      reviewedBatchDigest: verified.manifestDigest,
+    };
+    await upsertRegistryItem(supabase, {
+      asset_id: candidate.assetId,
+      name: candidate.family,
+      registry_asset_type: 'font',
+      contributor_asset_type: 'fonts',
+      url: publicUrl,
+      preview_url: '',
+      description: candidate.description,
+      file_size_bytes: candidate.sizeBytes,
+      source_mime_type: 'font/ttf',
+      storage_bucket: ASSET_BUCKET,
+      storage_path: objectPath,
+      metadata,
+    }, { ...ownerProfile, email: OWNER_EMAIL });
+    const { data: readback, error: readbackError } = await supabase
+      .from('cardforge_asset_registry')
+      .select('asset_id,asset_type,status,library_source,url,storage_path,metadata')
+      .eq('asset_id', candidate.assetId)
+      .maybeSingle();
+    if (readbackError || readback?.status !== 'published' || readback?.asset_type !== 'font'
+      || readback.library_source !== 'official'
+      || readback.storage_path !== objectPath || readback.url !== publicUrl
+      || readback.metadata?.sourceGitBlobSha !== candidate.gitBlobSha
+      || readback.metadata?.licensePublicUrl !== licensePublicUrl) {
+      throw new Error('Font publication may have committed but readback is unavailable for '
+        + candidate.assetId + '. Inspect the canonical Pipeline registry before retrying.');
+    }
+    published++;
+    console.log('Published verified original Font through Pipeline: ' + candidate.family);
+  }
+  console.log('Native Pipeline Font result: ' + published + ' new; ' + preserved + ' existing decisions preserved.');
+};
+
 const main = async () => {
+  const verifyOnly = process.argv.includes('--verify-reviewed-fonts');
+  const providerPreflight = process.argv.includes('--preflight-reviewed-fonts');
+  const publishFonts = process.argv.includes('--publish-reviewed-fonts');
+  if (Number(verifyOnly) + Number(providerPreflight) + Number(publishFonts) > 1) {
+    throw new Error('Choose one reviewed Font operation: source verification, provider preflight, or publication.');
+  }
+  const verified = verifyOnly || providerPreflight || publishFonts
+    ? await verifyReviewedFontSources({ manifestPath: path.join(projectRoot, VERIFIED_FONTS_MANIFEST) })
+    : null;
+  if (verifyOnly && verified) {
+    for (const item of verified.items) {
+      console.log(item.family + ': ' + item.glyphCount + ' glyphs; font-weight ' + item.fontWeightRange
+        + '; source and OFL exactly verified');
+    }
+    console.log('All reviewed Font sources verified. Candidate batch SHA-256: ' + verified.manifestDigest);
+    if (process.argv.includes('--specimens')) {
+      const { renderReviewedFontSpecimens } = await import('./lib/renderReviewedFontSpecimens.mjs');
+      await renderReviewedFontSpecimens({ items: verified.items, outputDirectory: path.join(projectRoot, 'artifacts', 'font-review') });
+    }
+    return;
+  }
+  if (publishFonts) {
+    if (!verified || process.env.CARDFORGE_FONT_BATCH_APPROVAL !== verified.manifestDigest) {
+      throw new Error('Explicit reviewed candidate batch SHA-256 approval is required before Pipeline publication.');
+    }
+  }
+
   const envFile = await parseEnvFile();
   OWNER_EMAIL = configuredOwnerEmail(
     process.env.CARDFORGE_OWNER_ACCOUNT_EMAILS
@@ -677,6 +840,11 @@ const main = async () => {
     || envFile.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseSecretKey) {
     throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required.');
+  }
+  if (providerPreflight || publishFonts) {
+    // Production URL (or any other project) is forbidden for this reviewed
+    // Preview-only font batch, even if its credentials would otherwise work.
+    assertPreviewFontPublicationTarget(supabaseUrl);
   }
 
   const supabase = createClient(supabaseUrl, supabaseSecretKey, {
@@ -701,7 +869,7 @@ const main = async () => {
 
   const { data: existingRegistry, error: registryError } = await supabase
     .from('cardforge_asset_registry')
-    .select('asset_id,url,storage_bucket,storage_path,file_size_bytes,metadata');
+    .select('asset_id,url,storage_bucket,storage_path,file_size_bytes,library_source,metadata');
   if (registryError) throw registryError;
   const { data: tombstones, error: tombstoneError } = await supabase
     .from('cardforge_pipeline_asset_tombstones')
@@ -712,6 +880,43 @@ const main = async () => {
     (existingRegistry || []).map((entry) => [entry.asset_id, entry]),
   );
   const tombstonedAssetIds = new Set((tombstones || []).map((entry) => entry.asset_id));
+
+  if ((providerPreflight || publishFonts) && verified) {
+    // Use the exact same credentials and native Storage provider that would
+    // perform a real upload, but make no writes during preflight.
+    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+    const selectedBucket = (buckets || []).find((bucket) => bucket.id === ASSET_BUCKET);
+    if (bucketError || !selectedBucket || !selectedBucket.public) {
+      throw new Error('Staging Pipeline public asset bucket cannot be verified with the configured key.');
+    }
+    for (const { candidate } of verified.items) {
+      if (tombstonedAssetIds.has(candidate.assetId)) {
+        throw new Error('A reviewed Font candidate is retired/tombstoned: ' + candidate.assetId);
+      }
+      const existing = existingRegistryByAssetId.get(candidate.assetId);
+      if (existing && (existing.metadata?.sourceGitBlobSha !== candidate.gitBlobSha
+        || existing.metadata?.sourceKind !== 'reviewed-first-party-original'
+        || existing.library_source !== 'official'
+        || existing.storage_bucket !== ASSET_BUCKET)) {
+        throw new Error('Existing reviewed Font identity conflicts with current Pipeline state: ' + candidate.assetId);
+      }
+    }
+    if (providerPreflight) {
+      console.log('Card Forge Staging target verified, one active Owner profile selected, public Pipeline bucket accessible.');
+      console.log('All ' + verified.items.length + ' candidate identities are clear or match the same pinned source.');
+      console.log('Read-only preflight passed. No Storage objects or Pipeline rows changed.');
+      return;
+    }
+  }
+
+  if (publishFonts && verified) {
+    await publishReviewedFirstPartyFonts({
+      supabase, ownerProfile, verified, existingRegistryByAssetId,
+      tombstonedAssetIds,
+    });
+    return; // No unrelated starter/source synchronization during this opt-in.
+  }
+
   const referencedAssetPaths = await collectReferencedAssetPaths();
   (existingRegistry || []).forEach((entry) => collectPipelineAssetPaths(entry.metadata, referencedAssetPaths));
   const staticCatalog = await collectStaticAssetItems(

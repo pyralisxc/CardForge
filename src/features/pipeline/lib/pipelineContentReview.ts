@@ -1,18 +1,28 @@
 import { resolveTemplateCardFormat } from '@/domain/card-formats';
-import { hasRequiredPipelineClassification, normalizeSpecialtyTags, normalizeUseCaseTags } from './contentTaxonomy';
+import {
+  hasRequiredPipelineClassification,
+  hasRequiredPipelineSemanticClassification,
+  normalizeSpecialtyTags,
+  normalizeUseCaseTags,
+} from './contentTaxonomy';
 import type { PipelineProgramView } from './pipelineProgram';
+import { getPipelineLibrarySubmissions } from './pipelineLibrary';
 import { isRepositoryTemplate } from './registryContentValidation';
 
 /** Read-only proposals over loaded revisions; publication remains owned by Pipeline. */
 export const buildPipelineContentReview = (program: PipelineProgramView | null) => ({
   mode: 'dry-run' as const,
   coverage: {
-    loadedSubmissions: program?.submissions.length ?? 0,
+    loadedSubmissions: getPipelineLibrarySubmissions(program).length,
+    loadedOwnSubmissions: program?.submissions.length ?? 0,
     totalSubmissions: program?.totalSubmissionCount ?? null,
-    complete: program !== null && program.submissions.length >= program.totalSubmissionCount,
+    loadedReviewSubmissions: program?.votingQueue.length ?? 0,
+    totalReviewSubmissions: program?.votingPage.total ?? null,
+    // The aggregate total is global; own/review queues can overlap or be paged.
+    complete: program !== null && getPipelineLibrarySubmissions(program).length >= program.totalSubmissionCount,
   },
   publicationPolicy: 'Review classification and lineage; publish approved changes through native Pipeline revisions. Do not rewrite published payloads or installed copies.',
-  entries: (program?.submissions ?? []).filter((submission) => submission.status === 'published').map((submission) => {
+  entries: getPipelineLibrarySubmissions(program).filter((submission) => submission.status === 'published').map((submission) => {
     const template = isRepositoryTemplate(submission.sourcePayload) ? submission.sourcePayload : null;
     const format = template ? resolveTemplateCardFormat(template) : null;
     const formatInferred = Boolean(template && (!template.formatId || !template.trimWidthMm || !template.trimHeightMm));
@@ -31,8 +41,17 @@ export const buildPipelineContentReview = (program: PipelineProgramView | null) 
       previewUrl: submission.previewUrl,
       sourceNotes: submission.sourceNotes,
       destination: submission.requestedStudioDestination,
-      classification: { specialtyTags, useCaseTags },
-      classificationNeedsReview: !hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, submission.useCaseTags),
+      classification: {
+        specialtyTags,
+        useCaseTags,
+        semanticRole: submission.semanticRole,
+        visualFamily: submission.visualFamily,
+        variantKind: submission.variantKind,
+        variantLabel: submission.variantLabel,
+        compatibilityTags: submission.compatibilityTags,
+      },
+      classificationNeedsReview: !hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, submission.useCaseTags)
+        || !hasRequiredPipelineSemanticClassification(submission.assetType, submission.semanticRole),
       revisionNeedsReview: submission.revisionNumber === null,
       template: template && format ? {
         id: template.id,

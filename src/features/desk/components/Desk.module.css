@@ -372,13 +372,12 @@
     width: 13rem;
   }
 
-  .deskFilterRow {
-    flex-wrap: nowrap;
-  }
+  /* Keep filter wrapping enabled. Selected-work actions and saved views can
+     exceed the remaining laptop width; nowrap lets their hit targets overlap
+     the camera controls even when the document itself has no overflow. */
 
   /* The active view is already named by the view trigger. Suppress the
-     duplicate prose at laptop widths so the complete camera strip stays on
-     the same overlay row. */
+     duplicate prose at laptop widths to leave room for the controls. */
   .deskRestrictionLabel {
     display: none;
   }
@@ -394,6 +393,16 @@
   overflow: hidden;
   overscroll-behavior: contain;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Preserve native selection and editing in controls inside the spatial Desk. */
+.workGrid :is(input, textarea, [contenteditable="true"]) {
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
 }
 
 .workGrid[data-grid="true"] {
@@ -549,6 +558,8 @@
   display: none;
 }
 
+
+
 .workTile[data-featured="true"] {
   z-index: 4;
 }
@@ -598,7 +609,7 @@
   overflow: visible;
 }
 
-.workTile[data-featured="true"] .workVisual {
+.workTile[data-featured="true"]:not([data-positioned="true"]) .workVisual {
   min-height: 14rem;
 }
 
@@ -641,10 +652,12 @@
 }
 
 .sourceStatusNotice {
-  position: absolute;
+  /* Source recovery belongs above the camera, not over focused Set controls. */
+  position: relative;
   z-index: 11;
-  top: 4.4rem;
-  right: 0.65rem;
+  flex: 0 0 auto;
+  align-self: flex-end;
+  margin: 0.35rem 0.65rem;
   max-width: min(24rem, calc(100% - 1.3rem));
   border: 1px solid color-mix(in srgb, var(--cf-warning) 36%, var(--cf-border));
   border-radius: 0.7rem;
@@ -763,8 +776,7 @@
 }
 
 .workTile:hover .tileActions,
-.workTile:focus-within .tileActions,
-.workTile[data-pinned="true"] .tileActions {
+.workTile:focus-within .tileActions {
   opacity: 1;
 }
 
@@ -1580,15 +1592,16 @@
 }
 
 .cameraControls {
-  position: absolute;
+  position: relative;
   z-index: 8;
-  right: 0.55rem;
-  bottom: 0.55rem;
+  right: auto;
+  bottom: auto;
   display: flex;
   min-height: 2.5rem;
   max-width: calc(100% - 1.1rem);
   flex-wrap: nowrap;
   align-items: center;
+  align-self: flex-end;
   gap: 0.35rem;
   margin: 0;
   padding: 0.22rem;
@@ -1964,9 +1977,8 @@
   }
 
   .sourceStatusNotice {
-    top: 4rem;
-    right: 0.5rem;
-    left: 0.5rem;
+    align-self: stretch;
+    margin-inline: 0.5rem;
     max-width: none;
   }
 

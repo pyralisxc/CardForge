@@ -3,35 +3,24 @@ import {
   getOwnerIntegrationStatus,
   getOwnerSiteOperationsPayload,
   getOwnerSiteControlPayload,
-  recordOwnerActivity,
 } from '@/features/owner/server';
 import {
   BusinessIdentityStoreError,
-  revalidatePublicIdentityCache,
-  updateBusinessIdentity,
 } from '@/features/business-identity/server';
 import {
   FounderProfileStoreError,
   PublicSiteStoreError,
-  revalidateFounderProfile,
-  revalidateSiteContentCache,
-  updateFounderProfile,
-  updateSiteContentBlock,
 } from '@/features/public-site/server';
-import { revalidatePath } from 'next/cache';
 import {
   LegalDocumentStoreError,
-  publishLegalDocument,
-  revalidateLegalDocumentCache,
 } from '@/features/legal/server';
 import {
   RoadmapStoreError,
-  updateRoadmapAdminItemStatus,
-  updateRoadmapSettings,
 } from '@/features/roadmap/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
+import { publishOwnerSiteContentBlock, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus } from '@/features/owner/server/ownerSiteCommands';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,8 +82,9 @@ export async function PUT(request: Request) {
       kind?: unknown;
       businessIdentity?: Record<string, unknown>;
       expectedIdentityVersion?: unknown;
+      expectedUpdatedAt?: unknown;
       siteMechanics?: Record<string, unknown>;
-      siteContentBlock?: { slug?: unknown; body?: unknown };
+      siteContentBlock?: { slug?: unknown; body?: unknown; updatedAt?: unknown };
       founderProfile?: Record<string, unknown>;
       legalDocument?: {
         slug?: unknown;
@@ -102,58 +92,49 @@ export async function PUT(request: Request) {
         body?: unknown;
         effectiveDate?: unknown;
         expectedBusinessIdentityVersion?: unknown;
+        expectedVersion?: unknown;
       };
-      roadmapItem?: { itemId?: unknown; status?: unknown };
+      roadmapItem?: { itemId?: unknown; status?: unknown; expectedUpdatedAt?: unknown };
     };
-    const respond = async ({ action, targetType, targetId, summary }: { action: string; targetType: string; targetId?: string | null; summary: string }) => {
-      const activityRecorded = await recordOwnerActivity({
-        actorUserId: owner.access.userId ?? 'owner',
-        actorEmail: owner.access.email,
-        action,
-        targetType,
-        targetId,
-        summary,
-      });
-      return createNoStoreJsonResponse({ operations: await getOwnerSiteOperationsPayload(), activityRecorded });
+    const respondPublication = async (publication: { value: unknown; receipt: import('@/features/owner/server/ownerSiteCommands').OwnerCommittedMutationReceipt }) => {
+      try { return createNoStoreJsonResponse({ publication, operations: await getOwnerSiteOperationsPayload() }); }
+      catch (error) {
+        console.error('Owner publication committed; combined view unavailable:', error);
+        return createNoStoreJsonResponse({ publication, operations: null });
+      }
     };
-
+    const actor = { userId: owner.access.userId ?? 'owner', email: owner.access.email };
     if (body.kind === 'businessIdentity') {
-      await updateBusinessIdentity(body.businessIdentity ?? {}, body.expectedIdentityVersion);
-      revalidatePublicIdentityCache();
-      return respond({ action: 'identity.update', targetType: 'business_identity', targetId: 'cardforge', summary: 'Updated public business identity and legal operator details.' });
+      return respondPublication(await publishOwnerBusinessIdentity({ actor, input: body.businessIdentity ?? {},
+        expectedIdentityVersion: body.expectedIdentityVersion as number }));
     }
 
-    if (body.kind === 'siteMechanics') {
-      await updateRoadmapSettings(body.siteMechanics ?? {});
-      return respond({ action: 'roadmap.settings.update', targetType: 'roadmap', targetId: 'settings', summary: 'Updated roadmap economics, limits, or presentation rules.' });
-    }
+    if (body.kind === 'siteMechanics') return respondPublication(await publishOwnerRoadmapSettings({ actor, input: body.siteMechanics ?? {} }));
 
     if (body.kind === 'siteContent') {
-      await updateSiteContentBlock(body.siteContentBlock ?? {});
-      revalidateSiteContentCache();
-      revalidatePath('/', 'layout');
-      return respond({ action: 'site.copy.publish', targetType: 'site_content', targetId: typeof body.siteContentBlock?.slug === 'string' ? body.siteContentBlock.slug : null, summary: 'Published an owner-authored public site copy block.' });
+      const publication = await publishOwnerSiteContentBlock({
+        actor: {
+          userId: owner.access.userId ?? 'owner',
+          email: owner.access.email,
+        },
+        input: body.siteContentBlock
+          ? {
+              slug: body.siteContentBlock.slug,
+              body: body.siteContentBlock.body,
+              expectedUpdatedAt: body.siteContentBlock.updatedAt,
+            }
+          : {},
+      });
+      return createNoStoreJsonResponse(publication);
     }
 
     if (body.kind === 'founderProfile') {
-      await updateFounderProfile(body.founderProfile ?? {});
-      revalidateFounderProfile();
-      revalidatePath('/cameron');
-      revalidatePath('/', 'layout');
-      return respond({ action: 'founder.profile.update', targetType: 'founder_profile', targetId: 'cameron', summary: 'Updated the public founder profile, priorities, or social destinations.' });
+      return respondPublication(await publishOwnerFounderProfile({ actor, input: body.founderProfile ?? {},
+        expectedUpdatedAt: body.expectedUpdatedAt as string | null }));
     }
 
-    if (body.kind === 'legal') {
-      const legalDocuments = await publishLegalDocument(body.legalDocument ?? {});
-      const publishedDocument = legalDocuments.find(({ slug }) => slug === body.legalDocument?.slug);
-      if (publishedDocument) revalidateLegalDocumentCache(publishedDocument.slug);
-      return respond({ action: 'legal.publish', targetType: 'legal_document', targetId: typeof body.legalDocument?.slug === 'string' ? body.legalDocument.slug : null, summary: 'Published a new version of a CardForge legal document.' });
-    }
-
-    if (body.kind === 'roadmapStatus') {
-      await updateRoadmapAdminItemStatus(body.roadmapItem ?? {});
-      return respond({ action: 'roadmap.item.status.update', targetType: 'roadmap_item', targetId: typeof body.roadmapItem?.itemId === 'string' ? body.roadmapItem.itemId : null, summary: 'Updated an owner-controlled roadmap item status.' });
-    }
+    if (body.kind === 'legal') return respondPublication(await publishOwnerLegalDocument({ actor, input: body.legalDocument ?? {} }));
+    if (body.kind === 'roadmapStatus') return respondPublication(await publishOwnerRoadmapStatus({ actor, input: body.roadmapItem ?? {} }));
 
     return createApiErrorResponse(400, 'owner_request_invalid', 'Unknown owner operations update.');
   } catch (error) {

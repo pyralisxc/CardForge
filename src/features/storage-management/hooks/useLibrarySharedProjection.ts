@@ -29,6 +29,7 @@ import { shouldLoadLibraryPipelineProgram, type LibraryScope } from '../model/li
 
 export interface PublishedLibraryObject {
   id: string;
+  publicAiDisclosure?: string | null;
   name: string;
   kind: CardAssetOption['kind'] | 'font' | 'set';
   kindLabel: string;
@@ -45,6 +46,11 @@ export interface PublishedLibraryObject {
   description: string;
   specialtyTags: string[];
   useCaseTags: string[];
+  semanticRole?: string | null;
+  visualFamily?: string | null;
+  variantKind?: string | null;
+  variantLabel?: string | null;
+  compatibilityTags?: string[];
   studioDestinations: StudioAssetDestination[];
 }
 
@@ -130,8 +136,14 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     revision: null,
     lineageId: pipelineByAssetId.get(asset.id)?.lineageId ?? null,
     description: pipelineByAssetId.get(asset.id)?.description ?? '',
+    publicAiDisclosure: pipelineByAssetId.get(asset.id)?.publicAiDisclosure ?? null,
     specialtyTags: pipelineByAssetId.get(asset.id)?.specialtyTags ?? [],
     useCaseTags: pipelineByAssetId.get(asset.id)?.useCaseTags ?? [],
+    semanticRole: pipelineByAssetId.get(asset.id)?.semanticRole ?? null,
+    visualFamily: pipelineByAssetId.get(asset.id)?.visualFamily ?? null,
+    variantKind: pipelineByAssetId.get(asset.id)?.variantKind ?? null,
+    variantLabel: pipelineByAssetId.get(asset.id)?.variantLabel ?? null,
+    compatibilityTags: pipelineByAssetId.get(asset.id)?.compatibilityTags ?? [],
     studioDestinations: asset.studioDestinations ?? getDefaultStudioAssetDestinations({
       kind: asset.kind === 'border' || asset.kind === 'frame' ? 'image' : asset.kind,
       metadata: asset.style ? { payload: { kind: asset.style.kind } } : undefined,
@@ -153,8 +165,14 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     revision: null,
     lineageId: pipelineByAssetId.get(font.value)?.lineageId ?? null,
     description: pipelineByAssetId.get(font.value)?.description ?? '',
+    publicAiDisclosure: pipelineByAssetId.get(font.value)?.publicAiDisclosure ?? null,
     specialtyTags: pipelineByAssetId.get(font.value)?.specialtyTags ?? [],
     useCaseTags: pipelineByAssetId.get(font.value)?.useCaseTags ?? [],
+    semanticRole: pipelineByAssetId.get(font.value)?.semanticRole ?? null,
+    visualFamily: pipelineByAssetId.get(font.value)?.visualFamily ?? null,
+    variantKind: pipelineByAssetId.get(font.value)?.variantKind ?? null,
+    variantLabel: pipelineByAssetId.get(font.value)?.variantLabel ?? null,
+    compatibilityTags: pipelineByAssetId.get(font.value)?.compatibilityTags ?? [],
     studioDestinations: ['typography.font'],
   }));
   const sets = (catalog.sets?.items ?? []).map((set): PublishedLibraryObject => ({
@@ -173,8 +191,14 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     revision: set.revision,
     lineageId: pipelineByAssetId.get(set.id)?.lineageId ?? null,
     description: set.description,
+    publicAiDisclosure: pipelineByAssetId.get(set.id)?.publicAiDisclosure ?? null,
     specialtyTags: set.specialtyTags,
     useCaseTags: set.useCaseTags,
+    semanticRole: set.semanticRole ?? pipelineByAssetId.get(set.id)?.semanticRole ?? null,
+    visualFamily: set.visualFamily ?? pipelineByAssetId.get(set.id)?.visualFamily ?? null,
+    variantKind: set.variantKind ?? pipelineByAssetId.get(set.id)?.variantKind ?? null,
+    variantLabel: set.variantLabel ?? pipelineByAssetId.get(set.id)?.variantLabel ?? null,
+    compatibilityTags: set.compatibilityTags ?? pipelineByAssetId.get(set.id)?.compatibilityTags ?? [],
     studioDestinations: [],
   }));
   return [...sets, ...assets, ...fonts].toSorted((left, right) => left.name.localeCompare(right.name));

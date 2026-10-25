@@ -50,8 +50,12 @@ export function ResponsiveSiteMediaImage({
   return (
     <Image
       {...imageProps}
+      // The optimizer does not forward the Owner session/preview cookies.
+      // Let the browser request private edition bytes through the authenticated route.
+      unoptimized={Boolean(imageProps.unoptimized || media.storagePath?.startsWith('website-drafts/'))}
       src={src}
       alt={media.alt}
+      data-site-media-slot={media.slot}
       data-preview-viewport={previewViewport}
       className={`site-media-responsive-image ${media.presentation.fit === 'cover' ? 'object-cover' : 'object-contain'} ${className}`}
       style={{ ...presentationStyle, ...style }}

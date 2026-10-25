@@ -29,8 +29,12 @@ export interface HomepageShowcaseExample {
   visible: boolean;
   frontTemplateId: string;
   frontTemplateName?: string;
+  frontTemplateRevision: number | null;
+  frontTemplateRevisionId?: string;
   backTemplateId?: string;
   backTemplateName?: string;
+  backTemplateRevision?: number | null;
+  backTemplateRevisionId?: string;
   rows: Record<string, string>[];
   altText: string[];
 }
@@ -239,8 +243,10 @@ export const createDefaultHomepageShowcaseExamples = (): HomepageShowcaseExample
     visible: true,
     frontTemplateId: example.frontTemplateId,
     frontTemplateName: example.frontTemplateName,
+    frontTemplateRevision: 1,
     backTemplateId: example.backTemplateId,
     backTemplateName: example.backTemplateName,
+    ...(example.backTemplateId ? { backTemplateRevision: 1 } : {}),
     rows: example.rows.map((row) => ({ ...row })),
     altText: [...example.altText.rows],
   }))

@@ -1,16 +1,38 @@
 import {
+  isHomepageCustomSection,
+  parseHomepageCustomSection,
+  validateHomepageCustomSections,
+  type HomepageCustomSection,
+} from './homepageComposition';
+import {
+  normalizeHomepageShowcaseStages,
+  validateHomepageShowcaseStagesInput,
+  type HomepageShowcaseStage,
+} from './homepageShowcaseStages';
+import {
   createDefaultHomepageShowcaseExamples,
   type HomepageShowcaseExample,
 } from './examples';
+import { hydratePublicSitePages, isPublicSitePageId, validatePublicSitePages, type PublicSitePage } from './sitePages';
 
 export const PRIMARY_NAVIGATION_IDS = ['about', 'plans', 'roadmap', 'account'] as const;
-export const HOMEPAGE_SECTION_IDS = ['showcase', 'workflow', 'access', 'founder', 'final_cta'] as const;
+export const HOMEPAGE_SECTION_IDS = ['hero', 'showcase', 'workflow', 'access', 'founder', 'final_cta'] as const;
 
 export const MAX_HOMEPAGE_SHOWCASE_EXAMPLES = 6;
 export const MAX_HOMEPAGE_SHOWCASE_ROWS = 12;
 export const MAX_HOMEPAGE_SHOWCASE_FIELDS = 24;
+// Keep canonical readback/revision growth below the native 256 KiB Owner request limit.
+export const MAX_SITE_CONFIGURATION_BYTES = 240 * 1024;
+export const assertSiteConfigurationBudget = (value: Record<string, unknown>): void => {
+  // A database-generated revision is metadata, not authored content. Reserving
+  // it here keeps the same content editable after a canonical readback.
+  if (new TextEncoder().encode(JSON.stringify({ ...value, updatedAt: null })).length > MAX_SITE_CONFIGURATION_BYTES) {
+    throw new Error('Website settings exceed the 240 KiB editable-content budget. Shorten content or remove unused sections before saving.');
+  }
+};
 
-export type PrimaryNavigationId = typeof PRIMARY_NAVIGATION_IDS[number];
+type BuiltinNavigationId = typeof PRIMARY_NAVIGATION_IDS[number];
+export type PrimaryNavigationId = BuiltinNavigationId | PublicSitePage['id'];
 export type HomepageSectionId = typeof HOMEPAGE_SECTION_IDS[number];
 
 export interface PrimaryNavigationItem {
@@ -24,9 +46,16 @@ export interface HomepageSectionSetting {
   id: HomepageSectionId;
   visible: boolean;
   showcaseExamples?: HomepageShowcaseExample[];
+  /** Optional until the Owner publishes a walkthrough; omission preserves legacy stage copy and behavior. */
+  showcaseStages?: HomepageShowcaseStage[];
 }
 
+export type HomepageLayoutSection = (HomepageSectionSetting | HomepageCustomSection)
+  & Partial<Pick<HomepageSectionSetting, 'showcaseExamples' | 'showcaseStages'>>;
+
 export interface PublicSiteConfiguration {
+  /** Canonical database publication revision; never directly editable. */
+  updatedAt?: string | null;
   announcementEnabled: boolean;
   announcementMessage: string;
   primaryCtaLabel: string;
@@ -39,17 +68,18 @@ export interface PublicSiteConfiguration {
   watermarkShareOpacity: number;
   watermarkWidthPercent: number;
   primaryNavigation: PrimaryNavigationItem[];
-  homepageSections: HomepageSectionSetting[];
+  homepageSections: HomepageLayoutSection[];
+  pages?: PublicSitePage[];
 }
 
-const NAVIGATION_ROUTES: Record<PrimaryNavigationId, string> = {
+const NAVIGATION_ROUTES: Record<BuiltinNavigationId, string> = {
   about: '/about',
   plans: '/plans',
   roadmap: '/roadmap',
   account: '/account',
 };
 
-const DEFAULT_NAVIGATION_LABELS: Record<PrimaryNavigationId, string> = {
+const DEFAULT_NAVIGATION_LABELS: Record<BuiltinNavigationId, string> = {
   about: 'How it works',
   plans: 'Plans',
   roadmap: 'Roadmap',
@@ -63,6 +93,7 @@ const defaultHomepageSection = (id: HomepageSectionId): HomepageSectionSetting =
 });
 
 export const DEFAULT_PUBLIC_SITE_CONFIGURATION: PublicSiteConfiguration = {
+  updatedAt: null,
   announcementEnabled: false,
   announcementMessage: '',
   primaryCtaLabel: 'Open your Desk',
@@ -90,6 +121,7 @@ export const DEFAULT_PUBLIC_SITE_CONFIGURATION: PublicSiteConfiguration = {
     visible: true,
   })),
   homepageSections: HOMEPAGE_SECTION_IDS.map(defaultHomepageSection),
+  pages: [],
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
@@ -124,6 +156,15 @@ const normalizeOptionalShowcaseText = (value: unknown, maxLength: number): strin
   const normalized = value.trim();
   return normalized && normalized.length <= maxLength ? normalized : undefined;
 };
+
+const normalizeShowcaseRevision = (value: unknown): number | null => (
+  typeof value === 'number'
+    && Number.isInteger(value)
+    && value >= 0
+    && value <= 2_147_483_647
+    ? value
+    : null
+);
 
 const parseHomepageShowcaseExample = (value: unknown): HomepageShowcaseExample | null => {
   if (!isRecord(value)) return null;
@@ -170,8 +211,16 @@ const parseHomepageShowcaseExample = (value: unknown): HomepageShowcaseExample |
     visible: value.visible !== false,
     frontTemplateId,
     frontTemplateName,
+    frontTemplateRevision: normalizeShowcaseRevision(value.frontTemplateRevision),
+    frontTemplateRevisionId: normalizeOptionalShowcaseText(value.frontTemplateRevisionId, 160),
     backTemplateId,
     backTemplateName,
+    backTemplateRevision: backTemplateId
+      ? normalizeShowcaseRevision(value.backTemplateRevision)
+      : undefined,
+    backTemplateRevisionId: backTemplateId
+      ? normalizeOptionalShowcaseText(value.backTemplateRevisionId, 160)
+      : undefined,
     rows,
     altText,
   };
@@ -191,25 +240,40 @@ export const normalizeHomepageShowcaseExamples = (value: unknown): HomepageShowc
 );
 
 const validateHomepageShowcaseExamplesInput = (value: unknown): void => {
-  if (!parseHomepageShowcaseExamples(value)) {
+  const parsed = parseHomepageShowcaseExamples(value);
+  if (!parsed) {
     throw new Error(`Homepage demonstration sets must contain 1-${MAX_HOMEPAGE_SHOWCASE_EXAMPLES} unique sets, at least one visible set, 1-${MAX_HOMEPAGE_SHOWCASE_ROWS} cards per set, and complete alt text for every sample card.`);
+  }
+  const unpinned = parsed.find((example) => (
+    example.visible
+    && (
+      example.frontTemplateRevision === null
+      || (example.backTemplateId && example.backTemplateRevision == null)
+    )
+  ));
+  if (unpinned) {
+    throw new Error(
+      `Visible homepage demonstration “${unpinned.name}” must pin the exact published Template revision. Adopt the current revision before publishing site settings.`,
+    );
   }
 };
 
 const isSafeInternalPath = (value: string): boolean => /^\/(?!\/)[A-Za-z0-9/_-]*$/.test(value);
 
-const normalizeNavigation = (value: unknown): PrimaryNavigationItem[] => {
+const normalizeNavigation = (value: unknown, pages: PublicSitePage[] = []): PrimaryNavigationItem[] => {
   const rows = Array.isArray(value) ? value : [];
   const used = new Set<PrimaryNavigationId>();
   const normalized = rows.flatMap((row) => {
-    if (!isRecord(row) || !PRIMARY_NAVIGATION_IDS.includes(row.id as PrimaryNavigationId)) return [];
+    if (!isRecord(row)) return [];
+    const page = pages.find((item) => item.id === row.id);
+    if (!PRIMARY_NAVIGATION_IDS.includes(row.id as BuiltinNavigationId) && !page) return [];
     const id = row.id as PrimaryNavigationId;
     if (used.has(id)) return [];
     used.add(id);
     return [{
       id,
-      href: NAVIGATION_ROUTES[id],
-      label: normalizeText(row.label, DEFAULT_NAVIGATION_LABELS[id], 40),
+      href: page ? '/' + page.slug : NAVIGATION_ROUTES[id as BuiltinNavigationId],
+      label: normalizeText(row.label, page?.title ?? DEFAULT_NAVIGATION_LABELS[id as BuiltinNavigationId], 40),
       visible: row.visible !== false,
     }];
   });
@@ -224,23 +288,35 @@ const normalizeNavigation = (value: unknown): PrimaryNavigationItem[] => {
   ];
 };
 
-const normalizeHomepageSections = (value: unknown): HomepageSectionSetting[] => {
+const normalizeHomepageSections = (value: unknown): HomepageLayoutSection[] => {
   const rows = Array.isArray(value) ? value : [];
-  const used = new Set<HomepageSectionId>();
-  const normalized = rows.flatMap((row) => {
-    if (!isRecord(row) || !HOMEPAGE_SECTION_IDS.includes(row.id as HomepageSectionId)) return [];
-    const id = row.id as HomepageSectionId;
-    if (used.has(id)) return [];
-    used.add(id);
-    return [{
-      id,
-      visible: row.visible !== false,
-      ...(id === 'showcase' ? { showcaseExamples: normalizeHomepageShowcaseExamples(row.showcaseExamples) } : {}),
-    }];
-  });
+  const used = new Set<string>();
+  const normalized: HomepageLayoutSection[] = [];
+  for (const row of rows) {
+    if (!isRecord(row) || typeof row.id !== 'string' || used.has(row.id)) continue;
+    if (HOMEPAGE_SECTION_IDS.includes(row.id as HomepageSectionId)) {
+      const id = row.id as HomepageSectionId;
+      used.add(id);
+      normalized.push({
+        id, visible: row.visible !== false,
+        ...(id === 'showcase' ? {
+          showcaseExamples: normalizeHomepageShowcaseExamples(row.showcaseExamples),
+          ...(normalizeHomepageShowcaseStages(row.showcaseStages)
+            ? { showcaseStages: normalizeHomepageShowcaseStages(row.showcaseStages) } : {}),
+        } : {}),
+      });
+    } else if (isHomepageCustomSection({ id: row.id })) {
+      const custom = parseHomepageCustomSection(row);
+      if (custom && normalized.filter((section) => isHomepageCustomSection(section)).length < 12) {
+        used.add(custom.id);
+        normalized.push(custom);
+      }
+    }
+  }
   return [
+    ...(!used.has('hero') ? [defaultHomepageSection('hero')] : []),
     ...normalized,
-    ...HOMEPAGE_SECTION_IDS.filter((id) => !used.has(id)).map(defaultHomepageSection),
+    ...HOMEPAGE_SECTION_IDS.filter((id) => id !== 'hero' && !used.has(id)).map(defaultHomepageSection),
   ];
 };
 
@@ -248,13 +324,15 @@ export const completePublicSiteConfiguration = (
   configuration: PublicSiteConfiguration,
 ): PublicSiteConfiguration => ({
   ...configuration,
-  primaryNavigation: normalizeNavigation(configuration.primaryNavigation),
+  primaryNavigation: normalizeNavigation(configuration.primaryNavigation, configuration.pages),
   homepageSections: normalizeHomepageSections(configuration.homepageSections),
+  pages: hydratePublicSitePages(configuration.pages),
 });
 
 export const hydratePublicSiteConfiguration = (
   row: Record<string, unknown> | null | undefined,
 ): PublicSiteConfiguration => ({
+  updatedAt: typeof row?.updated_at === 'string' ? row.updated_at : null,
   announcementEnabled: row?.announcement_enabled === true,
   announcementMessage: normalizeText(row?.announcement_message, '', 240),
   primaryCtaLabel: normalizeText(row?.primary_cta_label, DEFAULT_PUBLIC_SITE_CONFIGURATION.primaryCtaLabel, 80),
@@ -268,17 +346,43 @@ export const hydratePublicSiteConfiguration = (
   watermarkPreviewOpacity: normalizeInteger(row?.watermark_preview_opacity, DEFAULT_PUBLIC_SITE_CONFIGURATION.watermarkPreviewOpacity, 5, 80),
   watermarkShareOpacity: normalizeInteger(row?.watermark_share_opacity, DEFAULT_PUBLIC_SITE_CONFIGURATION.watermarkShareOpacity, 5, 80),
   watermarkWidthPercent: normalizeInteger(row?.watermark_width_percent, DEFAULT_PUBLIC_SITE_CONFIGURATION.watermarkWidthPercent, 20, 90),
-  primaryNavigation: normalizeNavigation(row?.primary_navigation),
+  primaryNavigation: normalizeNavigation(row?.primary_navigation, hydratePublicSitePages(row?.site_pages)),
   homepageSections: normalizeHomepageSections(row?.homepage_sections),
+  pages: hydratePublicSitePages(row?.site_pages),
 });
 
 export const normalizePublicSiteConfigurationInput = (
   input: Record<string, unknown>,
 ): PublicSiteConfiguration => {
+  // Match the native Owner HTTP boundary for MCP callers as well.
+  assertSiteConfigurationBudget(input);
+  const pages = validatePublicSitePages(input.pages === undefined ? [] : input.pages);
+  if (Array.isArray(input.primaryNavigation)) {
+    const ids = new Set<string>();
+    for (const item of input.primaryNavigation) {
+      if (!isRecord(item) || typeof item.id !== 'string' || ids.has(item.id)
+        || (!PRIMARY_NAVIGATION_IDS.includes(item.id as BuiltinNavigationId) && !isPublicSitePageId(item.id))
+        || (isPublicSitePageId(item.id) && !pages.some((page) => page.id === item.id))
+        || typeof item.label !== 'string' || !item.label.trim() || item.label.trim().length > 40) {
+        throw new Error('Navigation needs unique supported destinations and labels of 1–40 characters. Remove links to deleted pages.');
+      }
+      ids.add(item.id);
+    }
+  }
   if (Array.isArray(input.homepageSections)) {
+    if (input.homepageSections.length > HOMEPAGE_SECTION_IDS.length + 12) {
+      throw new Error('Homepage has too many editable sections.');
+    }
+    const customCandidates = input.homepageSections.filter((row) => (
+      isRecord(row) && typeof row.id === 'string' && row.id.startsWith('custom-')
+    ));
+    validateHomepageCustomSections(customCandidates);
     const showcase = input.homepageSections.find((row) => isRecord(row) && row.id === 'showcase');
     if (isRecord(showcase) && Object.hasOwn(showcase, 'showcaseExamples')) {
       validateHomepageShowcaseExamplesInput(showcase.showcaseExamples);
+    }
+    if (isRecord(showcase) && Object.hasOwn(showcase, 'showcaseStages')) {
+      validateHomepageShowcaseStagesInput(showcase.showcaseStages);
     }
   }
 
@@ -296,6 +400,7 @@ export const normalizePublicSiteConfigurationInput = (
     watermark_width_percent: input.watermarkWidthPercent,
     primary_navigation: input.primaryNavigation,
     homepage_sections: input.homepageSections,
+    site_pages: pages,
   });
 
   if (typeof input.announcementMessage !== 'string' || input.announcementMessage.trim().length > 240) {
@@ -329,8 +434,32 @@ export const normalizePublicSiteConfigurationInput = (
   if (typeof input.watermarkWidthPercent !== 'number' || !Number.isInteger(input.watermarkWidthPercent) || input.watermarkWidthPercent < 20 || input.watermarkWidthPercent > 90) {
     throw new Error('Watermark width must be between 20 and 90 percent.');
   }
+  assertSiteConfigurationBudget({ ...configuration });
   return configuration;
 };
+
+export const getPublicHeaderPresentation = (
+  configuration: PublicSiteConfiguration,
+): {
+  primaryCtaLabel: string;
+  primaryCtaHref: string;
+  visibleNavigation: PrimaryNavigationItem[];
+} => ({
+  primaryCtaLabel: configuration.primaryCtaLabel,
+  primaryCtaHref: configuration.primaryCtaHref,
+  visibleNavigation: configuration.primaryNavigation.filter((item) => (
+    item.visible && item.href !== configuration.primaryCtaHref
+      && (!isPublicSitePageId(item.id) || configuration.pages?.some((page) => page.id === item.id && page.published))
+  )),
+});
+
+/** Public client props must never contain an unpublished page's authored content. */
+export const projectPublicSiteConfiguration = (configuration: PublicSiteConfiguration): PublicSiteConfiguration => ({
+  ...configuration,
+  pages: (configuration.pages ?? []).filter((page) => page.published),
+  primaryNavigation: configuration.primaryNavigation.filter((item) => !isPublicSitePageId(item.id)
+    || configuration.pages?.some((page) => page.id === item.id && page.published)),
+});
 
 export const isHomepageSectionVisible = (
   configuration: PublicSiteConfiguration,

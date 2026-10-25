@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { Copy, Info, MoreHorizontal, Pencil, Pin, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
+import { Copy, Info, MoreHorizontal, Pencil, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useArtifactFaces } from '@/features/card-rendering/client';
+import { useArtifactFaces, useCaptureArtifactStackOrigins } from '@/features/card-rendering/client';
 import type { CardFace } from '@/domain/cards';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
@@ -20,7 +20,6 @@ interface DeskWorkObjectProps {
   selected: boolean;
   arrangeMode: boolean;
   obscured: boolean;
-  pinned: boolean;
   position?: DeskPosition;
   presentationSize?: { width: number; height: number; visualHeight: number; physical: boolean };
   canUseProjectFiles: boolean;
@@ -35,7 +34,6 @@ interface DeskWorkObjectProps {
   shouldSuppressActivation: (itemId: string) => boolean;
   onSelect: (item: AccountLibraryItem, options?: { additive?: boolean; range?: boolean }) => void;
   onFocus: (item: AccountLibraryItem) => void;
-  onTogglePin: (itemId: string) => void;
   onOpenLane: (item: AccountLibraryItem, lane: 'open' | 'generate' | 'export') => void;
   onOpenLocation: (item: AccountLibraryItem) => void;
   onOpenPipeline: (setId: string) => void;
@@ -49,10 +47,15 @@ const tileActionClassName = 'min-h-11 min-w-11 md:min-h-9 md:min-w-9';
 
 export function DeskWorkObject(props: DeskWorkObjectProps) {
   const [faces, setFace] = useArtifactFaces();
+  const captureStackOrigins = useCaptureArtifactStackOrigins();
   const face = faces[props.artifactIds[0]] ?? 'front';
   const lastPointerTypeRef = useRef('mouse');
   const suppressTouchSelectionClickRef = useRef(false);
-  const openSet = () => props.onFocus(props.item);
+  const openSet = () => {
+    const setId = props.item.references.localSetId;
+    if (setId && captureStackOrigins) captureStackOrigins(setId, () => props.onFocus(props.item));
+    else props.onFocus(props.item);
+  };
   const presentationMeta = getDeskWorkPresentationMeta(props.item);
   const positionStyle = props.position
     ? ({
@@ -84,7 +87,6 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     data-physical-footprint={props.presentationSize?.physical || undefined}
     data-active={props.active}
     data-selected={props.selected}
-    data-pinned={props.pinned}
     aria-hidden={props.obscured || undefined}
   >
     <button
@@ -102,10 +104,10 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         lastPointerTypeRef.current = event.pointerType;
         event.currentTarget.style.cursor = 'grabbing';
         const modified = event.metaKey || event.ctrlKey || event.shiftKey;
-        const touchArrangeSelection = event.pointerType === 'touch' && props.arrangeMode && !props.selected && !modified;
-        if (!props.selected && !modified && !touchArrangeSelection) props.onSelect(props.item, { additive: touchArrangeSelection });
-        if (touchArrangeSelection) suppressTouchSelectionClickRef.current = true;
-        if (!modified) props.beginDrag(props.item.id, event, { additive: touchArrangeSelection });
+        const additiveModeSelection = props.arrangeMode && !props.selected && !modified;
+        if (!props.selected && !modified && !additiveModeSelection) props.onSelect(props.item);
+        if (additiveModeSelection) suppressTouchSelectionClickRef.current = true;
+        if (!modified) props.beginDrag(props.item.id, event, { additive: additiveModeSelection });
       }}
       onPointerMove={props.moveDrag}
       onPointerUp={(event) => { event.currentTarget.style.cursor = 'grab'; props.endDrag(event); }}
@@ -114,15 +116,15 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         if (props.shouldSuppressActivation(props.item.id)) return;
         if (suppressTouchSelectionClickRef.current) { suppressTouchSelectionClickRef.current = false; return; }
         props.onSelect(props.item, {
-          additive: event.metaKey || event.ctrlKey || (props.arrangeMode && lastPointerTypeRef.current === 'touch'),
+          additive: event.metaKey || event.ctrlKey || props.arrangeMode,
           range: event.shiftKey,
         });
       }}
-      onDoubleClick={openSet}
+      onDoubleClick={props.arrangeMode ? undefined : openSet}
       onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
         const intent = getDeskWorkKeyboardIntent(event.key, event.shiftKey || event.metaKey || event.ctrlKey);
         if (intent === 'open') { event.preventDefault(); openSet(); }
-        else if (intent === 'select' || intent === 'select-additive') { event.preventDefault(); props.onSelect(props.item, { additive: intent === 'select-additive' }); }
+        else if (intent === 'select' || intent === 'select-additive') { event.preventDefault(); props.onSelect(props.item, { additive: props.arrangeMode || intent === 'select-additive' }); }
       }}
       aria-label={`${props.selected ? 'Selected' : 'Select'} ${props.item.name}. Drag to move; press Enter to open.`}
     >
@@ -136,7 +138,6 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     {props.focused ? props.focusedSurface : <>
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => props.artifactIds.forEach((id) => setFace(id, face === 'front' ? 'back' : 'front'))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}
       <div className={styles.tileActions}>
-        <button type="button" className={`${styles.iconButton} ${tileActionClassName}`} data-active={props.pinned} onClick={() => props.onTogglePin(props.item.id)} aria-label={`${props.pinned ? 'Unpin' : 'Pin'} ${props.item.name}`} title={props.pinned ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={`${styles.iconButton} ${tileActionClassName}`} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">

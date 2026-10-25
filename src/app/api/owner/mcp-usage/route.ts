@@ -1,9 +1,12 @@
 import {
+  applyProductAccessPricePresentation,
   getOwnerMcpUsageDashboard,
   isMcpUsagePlanKey,
   McpUsageStoreError,
   updateMcpAllowance,
+  type McpOwnerUsageDashboard,
 } from '@/features/mcp-usage/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server/productAccessPricePresentation';
 import { getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
@@ -14,12 +17,22 @@ const requireOwner = async () => {
   return access.isOwner ? access : null;
 };
 
+const projectCurrentPlanPrices = async (
+  dashboard: McpOwnerUsageDashboard,
+): Promise<McpOwnerUsageDashboard> => ({
+  ...dashboard,
+  allowances: applyProductAccessPricePresentation(
+    dashboard.allowances,
+    await getCurrentProductAccessPricePresentation(),
+  ),
+});
+
 export async function GET() {
   try {
     if (!await requireOwner()) {
       return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required.');
     }
-    return createNoStoreJsonResponse(await getOwnerMcpUsageDashboard());
+    return createNoStoreJsonResponse(await projectCurrentPlanPrices(await getOwnerMcpUsageDashboard()));
   } catch (error) {
     if (error instanceof McpUsageStoreError) {
       return createApiErrorResponse(error.status, 'mcp_usage_unavailable', error.message);
@@ -41,6 +54,9 @@ export async function PUT(request: Request) {
     if (!isMcpUsagePlanKey(values.planKey)) {
       return createApiErrorResponse(400, 'mcp_allowance_invalid', 'Choose a valid CardForge plan.');
     }
+    const stripeOwnsMonetaryPrice = values.planKey === 'creator' || values.planKey === 'designer';
+    const includesMonetaryFields = Object.prototype.hasOwnProperty.call(values, 'priceLabel')
+      || Object.prototype.hasOwnProperty.call(values, 'priceNote');
     if (typeof values.monthlyActionLimit !== 'number'
       || typeof values.dailySafetyLimit !== 'number'
       || typeof values.onlineStorageLimitBytes !== 'number'
@@ -49,10 +65,16 @@ export async function PUT(request: Request) {
       || typeof values.description !== 'string'
       || typeof values.featureSummary !== 'string'
       || typeof values.ctaLabel !== 'string'
-      || typeof values.priceLabel !== 'string'
-      || typeof values.priceNote !== 'string'
-      || typeof values.isVisible !== 'boolean') {
-      return createApiErrorResponse(400, 'mcp_allowance_invalid', 'Plan settings contain invalid values.');
+      || typeof values.isVisible !== 'boolean'
+      || (stripeOwnsMonetaryPrice && includesMonetaryFields)
+      || (!stripeOwnsMonetaryPrice && (typeof values.priceLabel !== 'string' || typeof values.priceNote !== 'string'))) {
+      return createApiErrorResponse(
+        400,
+        'mcp_allowance_invalid',
+        stripeOwnsMonetaryPrice && includesMonetaryFields
+          ? 'Creator and Designer amount, currency, and billing interval are owned by Stripe.'
+          : 'Plan settings contain invalid values.',
+      );
     }
     const monthlyActionLimit = values.monthlyActionLimit;
     const dailySafetyLimit = values.dailySafetyLimit;
@@ -64,8 +86,10 @@ export async function PUT(request: Request) {
       description: values.description,
       featureSummary: values.featureSummary,
       ctaLabel: values.ctaLabel,
-      priceLabel: values.priceLabel,
-      priceNote: values.priceNote,
+      ...(!stripeOwnsMonetaryPrice ? {
+        priceLabel: values.priceLabel as string,
+        priceNote: values.priceNote as string,
+      } : {}),
       isVisible: values.isVisible,
       monthlyActionLimit,
       dailySafetyLimit,
@@ -73,8 +97,10 @@ export async function PUT(request: Request) {
       draftRetentionHours,
     });
     revalidatePath('/');
+    revalidatePath('/plans');
     revalidatePath('/cameron');
     revalidatePath('/sign-up');
+    revalidatePath('/account');
     const activityRecorded = await recordOwnerActivity({
       actorUserId: owner.userId ?? 'owner',
       actorEmail: owner.email,
@@ -84,7 +110,8 @@ export async function PUT(request: Request) {
       summary: `Updated plan presentation and capacity targets for ${values.planKey}.`,
       metadata: {
         displayName: values.displayName,
-        priceLabel: values.priceLabel,
+        monetaryPriceAuthority: stripeOwnsMonetaryPrice ? 'stripe' : 'owner',
+        ...(!stripeOwnsMonetaryPrice ? { priceLabel: values.priceLabel } : {}),
         isVisible: values.isVisible,
         monthlyActionLimit,
         dailySafetyLimit,
@@ -92,7 +119,10 @@ export async function PUT(request: Request) {
         draftRetentionHours,
       },
     });
-    return createNoStoreJsonResponse({ dashboard, activityRecorded });
+    return createNoStoreJsonResponse({
+      dashboard: await projectCurrentPlanPrices(dashboard),
+      activityRecorded,
+    });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');

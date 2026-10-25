@@ -16,6 +16,8 @@ export interface McpAllowance {
   dailySafetyLimit: number;
   onlineStorageLimitBytes: number;
   draftRetentionHours: number;
+  priceAuthority?: 'fixed' | 'stripe' | 'inquiry';
+  priceAvailable?: boolean;
 }
 
 export interface McpAccountUsageSummary {
@@ -72,6 +74,40 @@ export const DEFAULT_MCP_ALLOWANCES: McpAllowance[] = [
   { planKey: 'designer', displayName: 'Designer Pass', priceLabel: '$19.99', priceNote: 'per month', description: 'For high-volume creators and approved contributors who want the highest current beta Studio capacity target.', featureSummary: 'Everything in Creator\n1,000 current beta ChatGPT actions target\n10 GB current beta private-workspace target\nContributor tools when approved', ctaLabel: 'Choose Designer', isVisible: true, monthlyActionLimit: 1_000, dailySafetyLimit: 150, onlineStorageLimitBytes: gibibytes(10), draftRetentionHours: 48 },
   { planKey: 'enterprise', displayName: 'Business Solutions', priceLabel: 'Custom', priceNote: 'Built around your team', description: 'For teams that need a tailored CardForge Studio workflow, integration, capacity, and support.', featureSummary: 'Custom CardForge-operated Studio capacity\nTeam workflow consultation\nIntegration planning\nDirect business support', ctaLabel: 'Talk with CardForge', isVisible: true, monthlyActionLimit: 10_000, dailySafetyLimit: 1_000, onlineStorageLimitBytes: gibibytes(100), draftRetentionHours: 168 },
 ];
+
+export interface ProductAccessPriceProjection {
+  available: boolean;
+  priceLabel: string;
+  priceNote: string;
+}
+
+export const applyProductAccessPricePresentation = (
+  allowances: McpAllowance[],
+  prices: Partial<Record<'creator' | 'designer', ProductAccessPriceProjection>>,
+): McpAllowance[] => allowances.map((allowance) => {
+  if (allowance.planKey === 'free') {
+    return {
+      ...allowance,
+      priceAuthority: 'fixed',
+      priceAvailable: true,
+    };
+  }
+  if (allowance.planKey === 'enterprise') {
+    return {
+      ...allowance,
+      priceAuthority: 'inquiry',
+      priceAvailable: true,
+    };
+  }
+  const providerPrice = prices[allowance.planKey];
+  return {
+    ...allowance,
+    priceLabel: providerPrice?.priceLabel ?? 'Unavailable',
+    priceNote: providerPrice?.priceNote ?? 'Stripe price temporarily unavailable',
+    priceAuthority: 'stripe',
+    priceAvailable: providerPrice?.available === true,
+  };
+});
 
 export const isMcpUsagePlanKey = (value: unknown): value is McpUsagePlanKey => (
   typeof value === 'string' && (MCP_USAGE_PLAN_KEYS as readonly string[]).includes(value)

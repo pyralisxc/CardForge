@@ -86,17 +86,21 @@ export const getPipelineImagePreviewUrl = (
   return /\.(?:avif|gif|jpe?g|png|svg|webp)(?:[?#]|$)/iu.test(url) ? url : null;
 };
 
+/** One deduplicated view of the already-authorized own and review projections. */
+export const getPipelineLibrarySubmissions = (
+  program: Pick<PipelineProgramView, 'submissions' | 'votingQueue'> | null,
+): PipelineSubmission[] => {
+  const byId = new Map<string, PipelineSubmission>();
+  if (program) [...program.submissions, ...program.votingQueue].forEach((submission) => byId.set(submission.id, submission));
+  return [...byId.values()];
+};
+
 export const projectPipelineLibrary = (
   program: Pick<PipelineProgramView, 'submissions' | 'votingQueue' | 'currentContributorIds' | 'settings'>,
   publishedSubmissionByLineage: ReadonlyMap<string, string> = new Map(),
 ): PipelineLibraryItem[] => {
-  const submissionById = new Map<string, PipelineSubmission>();
-  [...program.submissions, ...program.votingQueue].forEach((submission) => {
-    submissionById.set(submission.id, submission);
-  });
-
   const lineages = new Map<string, PipelineSubmission[]>();
-  submissionById.forEach((submission) => {
+  getPipelineLibrarySubmissions(program).forEach((submission) => {
     const lineageId = getPipelineLineageId(submission);
     lineages.set(lineageId, [...(lineages.get(lineageId) ?? []), submission]);
   });
@@ -118,7 +122,8 @@ export const projectPipelineLibrary = (
     const submission = currentPublishedSubmission
       ?? revisions.toSorted(compareStrongestCandidate)[0];
     const editableSubmission = revisions.find((revision) => (
-      contributorIds.has(revision.contributorId)
+      !revision.mediaPresentation
+      && contributorIds.has(revision.contributorId)
       && (revision.status === 'draft'
         || revision.status === 'submitted'
         || revision.status === 'voting'

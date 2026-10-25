@@ -21,6 +21,7 @@ describe('Supabase server reads', () => {
     expect(response.status).toBe(200);
     expect(request).toHaveBeenCalledTimes(2);
     expect(request.mock.calls[1]?.[1]).toMatchObject({ cache: 'no-store' });
+    expect(request.mock.calls[1]?.[1]?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('tolerates repeated future-issued JWT responses across the bounded clock-skew window', async () => {
@@ -67,6 +68,26 @@ describe('Supabase server reads', () => {
 
     request.mockResolvedValue(new Response(JSON.stringify({ code: 'PGRST303', message: 'JWT issued at future' }), { status: 401 }));
     expect((await fetchSupabaseServerRead('https://example.test/rest/v1/settings', { method: 'POST' })).status).toBe(401);
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['options', 'request'] as const)('preserves cancellation from the caller %s on retry', async (source) => {
+    const controller = new AbortController();
+    const reason = new Error('Caller cancelled the read');
+    const input = source === 'request'
+      ? new Request('https://example.test/rest/v1/settings', { signal: controller.signal })
+      : 'https://example.test/rest/v1/settings';
+    const init = source === 'options' ? { signal: controller.signal } : undefined;
+    const request = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'PGRST303', message: 'JWT issued at future' }), { status: 401 }))
+      .mockImplementationOnce(async (_input, options) => {
+        controller.abort(reason);
+        options?.signal?.throwIfAborted();
+        throw new Error('Retry lost the caller cancellation signal');
+      });
+    globalThis.fetch = request;
+
+    await expect(fetchSupabaseServerRead(input, init)).rejects.toBe(reason);
     expect(request).toHaveBeenCalledTimes(2);
   });
 });

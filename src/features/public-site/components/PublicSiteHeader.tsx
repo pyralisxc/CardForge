@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Menu } from 'lucide-react';
@@ -14,7 +14,11 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import type { BusinessIdentity } from '@/features/business-identity/client';
-import { DEFAULT_PUBLIC_SITE_CONFIGURATION, type PublicSiteConfiguration } from '../model/siteConfiguration';
+import {
+  DEFAULT_PUBLIC_SITE_CONFIGURATION,
+  getPublicHeaderPresentation,
+  type PublicSiteConfiguration,
+} from '../model/siteConfiguration';
 import { PUBLIC_NAVIGATION } from '../model/publicNavigation';
 import { FounderSocialLinks } from './FounderSocialLinks';
 import { useSiteContent } from './PublicSitePresentationContext';
@@ -26,6 +30,7 @@ export interface PublicSiteHeaderProps {
   businessIdentity: Pick<BusinessIdentity, 'brandName'>;
   currentPath?: string;
   siteConfiguration?: PublicSiteConfiguration;
+  portalContainer?: HTMLElement | null;
 }
 
 const linkClassName = (active: boolean) => [
@@ -38,16 +43,19 @@ export function PublicSiteHeader({
   businessIdentity,
   currentPath,
   siteConfiguration = DEFAULT_PUBLIC_SITE_CONFIGURATION,
+  portalContainer,
 }: PublicSiteHeaderProps) {
   const founderProfile = useFounderProfile();
   const brand = useBrandPresentation();
   const siteContent = useSiteContent();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const visibleNavigation = siteConfiguration.primaryNavigation.filter((item) => (
-    item.visible && item.href !== '/account'
-  ));
-  const primaryCtaHref = '/account';
-  const primaryCtaLabel = 'Open Desk';
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuContentRef = useRef<HTMLDivElement>(null);
+  const {
+    visibleNavigation,
+    primaryCtaHref,
+    primaryCtaLabel,
+  } = getPublicHeaderPresentation(siteConfiguration);
 
   return (
     <header className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] text-[var(--public-ivory)]">
@@ -61,6 +69,7 @@ export function PublicSiteHeader({
             <Image
               src={brand.markUrl}
               alt=""
+              data-site-media-slot="brand.mark"
               fill
               priority
               unoptimized
@@ -73,9 +82,10 @@ export function PublicSiteHeader({
         </Link>
 
         <nav aria-label="Primary navigation" className="ml-auto hidden items-center gap-5 xl:flex">
-          {visibleNavigation.map((item) => (
+          {visibleNavigation.slice(0, 4).map((item) => (
             <Link
               key={item.href}
+              data-site-navigation-id={item.id}
               href={item.href}
               prefetch={false}
               aria-current={currentPath === item.href ? 'page' : undefined}
@@ -91,6 +101,7 @@ export function PublicSiteHeader({
         </div>
 
         <Link
+          data-site-configuration-field="primaryCtaLabel"
           href={primaryCtaHref}
           prefetch={false}
           className="ml-auto hidden min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-5 text-base font-bold text-[var(--public-charcoal)] shadow-[var(--public-shadow)] transition-colors hover:bg-[#e4bd68] xl:inline-flex"
@@ -105,19 +116,52 @@ export function PublicSiteHeader({
           </div>
         ) : null}
 
-        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        {/* Radix's modal focus scope owns the main document. In an iframe canvas,
+            its supported non-modal mode plus document-local focus callbacks keep
+            the enclosing Owner sheet untouched. The live site stays modal. */}
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} modal={!portalContainer}>
           <SheetTrigger asChild>
             <button
+              ref={menuTriggerRef}
               type="button"
               aria-label="Open menu"
               aria-expanded={mobileMenuOpen}
               aria-controls="public-mobile-navigation"
-              className="ml-auto inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--public-radius)] border border-[var(--public-border)] text-[var(--public-ivory)] transition-colors hover:border-[var(--public-brass)] hover:text-[var(--public-brass)] xl:hidden"
+              className={'ml-auto inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--public-radius)] border border-[var(--public-border)] text-[var(--public-ivory)] transition-colors hover:border-[var(--public-brass)] hover:text-[var(--public-brass)]' + (visibleNavigation.length > 4 ? '' : ' xl:hidden')}
             >
               <Menu className="h-6 w-6" aria-hidden="true" />
             </button>
           </SheetTrigger>
           <SheetContent
+            ref={menuContentRef}
+            portalContainer={portalContainer}
+            onOpenAutoFocus={(event) => {
+              const firstNavigationLink = Array.from(
+                menuContentRef.current?.querySelectorAll<HTMLAnchorElement>('nav[aria-label="Mobile navigation"] a[href]') ?? [],
+              ).find((link) =>
+                link.getClientRects().length > 0
+                && link.getAttribute('aria-disabled') !== 'true'
+                && !link.hasAttribute('inert')
+                && link.tabIndex >= 0
+              );
+              if (firstNavigationLink) {
+                event.preventDefault();
+                firstNavigationLink.focus();
+              }
+            }}
+            onCloseAutoFocus={portalContainer ? (event) => {
+              event.preventDefault(); menuTriggerRef.current?.focus();
+            } : undefined}
+            onKeyDown={portalContainer ? (event) => {
+              event.stopPropagation();
+              if (event.key !== 'Tab') return;
+              const targets = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex="0"]'))
+                .filter((node) => node.getClientRects().length > 0);
+              const first = targets[0]; const last = targets.at(-1);
+              const active = event.currentTarget.ownerDocument.activeElement;
+              if (event.shiftKey && active === first) { event.preventDefault(); last?.focus(); }
+              else if (!event.shiftKey && active === last) { event.preventDefault(); first?.focus(); }
+            } : undefined}
             side="right"
             id="public-mobile-navigation"
             overlayClassName="cardforge-public-tokens"
@@ -135,6 +179,7 @@ export function PublicSiteHeader({
               {visibleNavigation.map((item) => (
                 <SheetClose key={item.href} asChild>
                   <Link
+                    data-site-navigation-id={item.id}
                     href={item.href}
                     prefetch={false}
                     aria-current={currentPath === item.href ? 'page' : undefined}
@@ -146,6 +191,7 @@ export function PublicSiteHeader({
               ))}
               <SheetClose asChild>
                 <Link
+                  data-site-configuration-field="primaryCtaLabel"
                   href={primaryCtaHref}
                   prefetch={false}
                   className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-5 text-base font-bold text-[var(--public-charcoal)]"

@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({}));
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/client';

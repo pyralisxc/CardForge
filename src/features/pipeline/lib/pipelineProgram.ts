@@ -1,3 +1,5 @@
+import { getPublicAiDisclosure, getSourceReviewVersion } from './sourceReviewEvidence';
+import { parsePipelineMediaPresentation, type PipelineMediaPresentation } from './pipelineMediaPresentation';
 import {
   DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   isContributorAssetAccessTier,
@@ -17,7 +19,22 @@ import {
 } from './pipelineItems';
 import { isStudioAssetDestination, type StudioAssetDestination } from '@/domain/templates';
 import { getPipelineStudioDestinationOptions } from './pipelineAssetTaxonomy';
-import { hasRequiredPipelineClassification, normalizeSpecialtyTags, normalizeUseCaseTags } from './contentTaxonomy';
+import {
+  getDefaultSemanticRole,
+  hasRequiredPipelineClassification,
+  isPipelineCompatibilityTag,
+  isPipelineVariantKind,
+  normalizeCompatibilityTags,
+  normalizeSemanticRole,
+  normalizeSpecialtyTags,
+  normalizeUseCaseTags,
+  normalizeVariantKind,
+  normalizeVariantLabel,
+  normalizeVisualFamily,
+  type PipelineCompatibilityTag,
+  type PipelineSemanticRole,
+  type PipelineVariantKind,
+} from './contentTaxonomy';
 
 const hasUnsupportedUseCaseSelection = (value: unknown): boolean => {
   const supplied = Array.isArray(value) ? value.length > 0 : typeof value === 'string' ? value.trim().length > 0 : value != null;
@@ -25,7 +42,7 @@ const hasUnsupportedUseCaseSelection = (value: unknown): boolean => {
 };
 
 export type PipelineSubmissionInputResult =
-  | { ok: true; value: Pick<PipelineSubmission, 'assetType' | 'requestedStudioDestination' | 'specialtyTags' | 'useCaseTags' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
+  | { ok: true; value: Pick<PipelineSubmission, 'assetType' | 'requestedStudioDestination' | 'specialtyTags' | 'useCaseTags' | 'semanticRole' | 'visualFamily' | 'variantKind' | 'variantLabel' | 'compatibilityTags' | 'name' | 'description' | 'sourceNotes' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
   | { ok: false; message: string };
 
 export type PipelineSubmissionEditInputResult =
@@ -36,9 +53,24 @@ export type PipelineSubmissionEditInputResult =
       sourceNotes?: string;
       specialtyTags?: string[];
       useCaseTags?: string[];
+      semanticRole?: PipelineSemanticRole;
+      visualFamily?: string | null;
+      variantKind?: PipelineVariantKind;
+      variantLabel?: string | null;
+      compatibilityTags?: PipelineCompatibilityTag[];
       requestedStudioDestination?: StudioAssetDestination;
     } }
   | { ok: false; message: string };
+
+export type PipelineEditorialReviewStatus = 'pending' | 'approved' | 'revise' | 'quarantine' | 'retire';
+
+export const isPipelineEditorialReviewStatus = (value: unknown): value is PipelineEditorialReviewStatus => (
+  value === 'pending'
+  || value === 'approved'
+  || value === 'revise'
+  || value === 'quarantine'
+  || value === 'retire'
+);
 
 export interface PipelineSubmission {
   id: string;
@@ -52,7 +84,19 @@ export interface PipelineSubmission {
   requestedStudioDestination: StudioAssetDestination | null;
   specialtyTags: string[];
   useCaseTags: string[];
+  semanticRole: PipelineSemanticRole;
+  visualFamily: string | null;
+  variantKind: PipelineVariantKind;
+  variantLabel: string | null;
+  compatibilityTags: PipelineCompatibilityTag[];
   sourceNotes: string;
+  isCorrectionRevision?: boolean;
+  sourceReviewEvidenceVersion?: number | null;
+  publicAiDisclosure?: string | null;
+  editorialReviewStatus?: PipelineEditorialReviewStatus;
+  editorialReviewNote?: string;
+  editorialReviewedBy?: string | null;
+  editorialReviewedAt?: string | null;
   name: string;
   description: string;
   previewUrl: string;
@@ -76,6 +120,7 @@ export interface PipelineSubmission {
   positiveVotes: number;
   negativeVotes: number;
   currentUserVote: PipelineVoteValue | null;
+  mediaPresentation?: PipelineMediaPresentation | null;
   sourcePayload: unknown | null;
   targetRegistryAssetId: string | null;
   baseRevisionNumber: number | null;
@@ -175,7 +220,18 @@ export interface PipelineSubmissionRow {
   requested_studio_destination: unknown;
   specialty_tags?: unknown;
   use_case_tags?: unknown;
+  semantic_role?: unknown;
+  visual_family?: string | null;
+  variant_kind?: unknown;
+  variant_label?: string | null;
+  compatibility_tags?: unknown;
   source_notes?: string | null;
+  source_review_evidence?: unknown;
+  template_review_context?: unknown;
+  editorial_review_status?: unknown;
+  editorial_review_note?: string | null;
+  editorial_reviewed_by?: string | null;
+  editorial_reviewed_at?: string | null;
   name: string;
   description: string | null;
   preview_url: string | null;
@@ -198,6 +254,7 @@ export interface PipelineSubmissionRow {
   decision_reason: string | null;
   positive_votes: number | null;
   negative_votes: number | null;
+  media_presentation?: unknown;
   source_payload: unknown | null;
   target_registry_asset_id: string | null;
   base_revision_number: number | null;
@@ -275,8 +332,14 @@ export const normalizePipelineSubmissionInput = (value: {
   studioDestination?: unknown;
   specialtyTags?: unknown;
   useCaseTags?: unknown;
+  semanticRole?: unknown;
+  visualFamily?: unknown;
+  variantKind?: unknown;
+  variantLabel?: unknown;
+  compatibilityTags?: unknown;
   name?: unknown;
   description?: unknown;
+  sourceNotes?: unknown;
   previewUrl?: unknown;
   sourceUrl?: unknown;
   sourceFileSizeBytes?: unknown;
@@ -302,6 +365,27 @@ export const normalizePipelineSubmissionInput = (value: {
   if (!specialtyTags.length) return { ok: false, message: 'Choose at least one supported CardForge specialty.' };
   const useCaseTags = normalizeUseCaseTags(value.useCaseTags);
   if (hasUnsupportedUseCaseSelection(value.useCaseTags) || !hasRequiredPipelineClassification(value.assetType, specialtyTags, useCaseTags)) return { ok: false, message: 'Choose at least one supported CardForge use case.' };
+
+  const semanticRole = value.semanticRole === undefined || value.semanticRole === null || value.semanticRole === ''
+    ? getDefaultSemanticRole(value.assetType, requestedStudioDestination)
+    : normalizeSemanticRole(value.semanticRole, value.assetType);
+  if (!semanticRole) return { ok: false, message: 'Choose a semantic role compatible with this asset type.' };
+
+  if (value.variantKind !== undefined && value.variantKind !== null && value.variantKind !== '' && !isPipelineVariantKind(value.variantKind)) {
+    return { ok: false, message: 'Choose a supported visual-family variant kind.' };
+  }
+  const variantKind = normalizeVariantKind(value.variantKind) ?? 'base';
+  const visualFamily = normalizeVisualFamily(value.visualFamily);
+  const variantLabel = normalizeVariantLabel(value.variantLabel);
+  const rawCompatibilityTags = Array.isArray(value.compatibilityTags)
+    ? value.compatibilityTags
+    : typeof value.compatibilityTags === 'string'
+      ? value.compatibilityTags.split(',')
+      : [];
+  if (rawCompatibilityTags.some((tag) => !isPipelineCompatibilityTag(tag))) {
+    return { ok: false, message: 'Choose only supported compatibility tags.' };
+  }
+  const compatibilityTags = normalizeCompatibilityTags(rawCompatibilityTags);
   const name = normalizePipelineShortText(value.name, 96);
   if (!name) return { ok: false, message: 'Asset name is required.' };
   const previewUrl = normalizeUrl(value.previewUrl);
@@ -315,8 +399,14 @@ export const normalizePipelineSubmissionInput = (value: {
       requestedStudioDestination,
       specialtyTags,
       useCaseTags,
+      semanticRole,
+      visualFamily,
+      variantKind,
+      variantLabel,
+      compatibilityTags,
       name,
       description: normalizePipelineLongText(value.description, 280),
+      sourceNotes: normalizePipelineLongText(value.sourceNotes, 600),
       previewUrl: previewUrl || sourceUrl,
       sourceUrl,
       sourceFileSizeBytes: normalizeOptionalInteger(value.sourceFileSizeBytes, 1, 50 * 1024 * 1024),
@@ -335,6 +425,11 @@ export const normalizePipelineSubmissionEditInput = (value: {
   sourceNotes?: unknown;
   specialtyTags?: unknown;
   useCaseTags?: unknown;
+  semanticRole?: unknown;
+  visualFamily?: unknown;
+  variantKind?: unknown;
+  variantLabel?: unknown;
+  compatibilityTags?: unknown;
   requestedStudioDestination?: unknown;
 }): PipelineSubmissionEditInputResult => {
   const name = normalizePipelineShortText(value.name, 96);
@@ -354,6 +449,26 @@ export const normalizePipelineSubmissionEditInput = (value: {
     }
     requestedStudioDestination = value.requestedStudioDestination;
   }
+  const semanticRole = value.semanticRole !== undefined
+    ? normalizeSemanticRole(value.semanticRole, value.assetType)
+    : undefined;
+  if (value.semanticRole !== undefined && !semanticRole) {
+    return { ok: false, message: 'Choose a semantic role compatible with this asset type.' };
+  }
+  const variantKind = value.variantKind !== undefined ? normalizeVariantKind(value.variantKind) : undefined;
+  if (value.variantKind !== undefined && !variantKind) {
+    return { ok: false, message: 'Choose a supported visual-family variant kind.' };
+  }
+  const rawCompatibilityTags = value.compatibilityTags !== undefined
+    ? Array.isArray(value.compatibilityTags)
+      ? value.compatibilityTags
+      : typeof value.compatibilityTags === 'string'
+        ? value.compatibilityTags.split(',')
+        : []
+    : undefined;
+  if (rawCompatibilityTags?.some((tag) => !isPipelineCompatibilityTag(tag))) {
+    return { ok: false, message: 'Choose only supported compatibility tags.' };
+  }
   return {
     ok: true,
     value: {
@@ -369,6 +484,11 @@ export const normalizePipelineSubmissionEditInput = (value: {
       ...(value.useCaseTags !== undefined
         ? { useCaseTags: normalizeUseCaseTags(value.useCaseTags) }
         : {}),
+      ...(semanticRole ? { semanticRole } : {}),
+      ...(value.visualFamily !== undefined ? { visualFamily: normalizeVisualFamily(value.visualFamily) } : {}),
+      ...(variantKind ? { variantKind } : {}),
+      ...(value.variantLabel !== undefined ? { variantLabel: normalizeVariantLabel(value.variantLabel) } : {}),
+      ...(rawCompatibilityTags !== undefined ? { compatibilityTags: normalizeCompatibilityTags(rawCompatibilityTags) } : {}),
       ...(requestedStudioDestination ? { requestedStudioDestination } : {}),
     },
   };
@@ -417,7 +537,22 @@ export const mapPipelineSubmissionRow = (
     : null,
   specialtyTags: normalizeSpecialtyTags(row.specialty_tags),
   useCaseTags: normalizeUseCaseTags(row.use_case_tags),
+  semanticRole: normalizeSemanticRole(row.semantic_role, row.asset_type)
+    ?? getDefaultSemanticRole(isContributorAssetType(row.asset_type) ? row.asset_type : 'imageAssets', isStudioAssetDestination(row.requested_studio_destination) ? row.requested_studio_destination : null),
+  visualFamily: normalizeVisualFamily(row.visual_family),
+  variantKind: normalizeVariantKind(row.variant_kind) ?? 'base',
+  variantLabel: normalizeVariantLabel(row.variant_label),
+  compatibilityTags: normalizeCompatibilityTags(row.compatibility_tags),
   sourceNotes: row.source_notes ?? '',
+  isCorrectionRevision: row.media_presentation != null || row.template_review_context != null,
+  sourceReviewEvidenceVersion: getSourceReviewVersion(row.source_review_evidence),
+  publicAiDisclosure: row.published_at ? getPublicAiDisclosure(row.source_review_evidence) : null,
+  editorialReviewStatus: isPipelineEditorialReviewStatus(row.editorial_review_status)
+    ? row.editorial_review_status
+    : 'pending',
+  editorialReviewNote: row.editorial_review_note ?? '',
+  editorialReviewedBy: row.editorial_reviewed_by ?? null,
+  editorialReviewedAt: row.editorial_reviewed_at ?? null,
   name: row.name,
   description: row.description ?? '',
   previewUrl: row.preview_url ?? '',
@@ -447,6 +582,7 @@ export const mapPipelineSubmissionRow = (
   positiveVotes: row.positive_votes ?? 0,
   negativeVotes: row.negative_votes ?? 0,
   currentUserVote: currentUserVotes[row.id] ?? null,
+  mediaPresentation: parsePipelineMediaPresentation(row.media_presentation),
   sourcePayload: resolvePipelineSourcePayload(row.source_payload, registrySourcePayload),
   targetRegistryAssetId: row.target_registry_asset_id,
   baseRevisionNumber: row.base_revision_number,

@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { vi } from 'vitest';
+vi.mock('@/features/public-site/server/websitePresentationResolver', () => ({}));
+import { describe, expect, it } from 'vitest';
 
 import {
   getLegalDocuments,
@@ -79,7 +81,7 @@ describe('legal document store', () => {
       title: ' Privacy v3 ',
       body: ' Updated privacy body ',
       effectiveDate: '2026-07-18',
-      expectedBusinessIdentityVersion: 3,
+      expectedBusinessIdentityVersion: 3, expectedVersion: 2,
     }, { configured: true, client: mocks.client });
 
     expect(mocks.rpc).toHaveBeenCalledWith('publish_cardforge_legal_document', {
@@ -88,8 +90,9 @@ describe('legal document store', () => {
       p_body: 'Updated privacy body',
       p_effective_date: '2026-07-18',
       p_expected_identity_version: 3,
+      p_expected_document_version: 2,
     });
-    expect(documents.find(({ slug }) => slug === 'privacy')?.version).toBe(3);
+    expect(documents.version).toBe(3);
   });
 
   it('maps stale identity and unavailable-schema failures without leaking provider details', async () => {
@@ -97,12 +100,12 @@ describe('legal document store', () => {
       rpcError: { code: 'P0001', message: 'cardforge_business_identity_version_conflict' },
     });
     await expect(publishLegalDocument({
-      slug: 'terms', title: 'Terms', body: 'Terms body', effectiveDate: '2026-07-18', expectedBusinessIdentityVersion: 2,
+      slug: 'terms', title: 'Terms', body: 'Terms body', effectiveDate: '2026-07-18', expectedBusinessIdentityVersion: 2, expectedVersion: 2,
     }, { configured: true, client: stale.client })).rejects.toMatchObject({ status: 409 });
 
     const missing = createClient({ rpcError: { code: 'PGRST202', message: 'function details' } });
     await expect(publishLegalDocument({
-      slug: 'terms', title: 'Terms', body: 'Terms body', effectiveDate: '2026-07-18', expectedBusinessIdentityVersion: 2,
+      slug: 'terms', title: 'Terms', body: 'Terms body', effectiveDate: '2026-07-18', expectedBusinessIdentityVersion: 2, expectedVersion: 2,
     }, { configured: true, client: missing.client })).rejects.toMatchObject({
       status: 503,
       message: 'Legal publication storage is not ready. Apply the prepared database migration first.',
@@ -110,16 +113,22 @@ describe('legal document store', () => {
 
     const provider = createClient({ rpcError: { code: 'XX000', message: 'secret provider details' } });
     await expect(publishLegalDocument({
-      slug: 'terms', title: 'Terms', body: 'Terms body', effectiveDate: '2026-07-18', expectedBusinessIdentityVersion: 2,
+      slug: 'terms', title: 'Terms', body: 'Terms body', effectiveDate: '2026-07-18', expectedBusinessIdentityVersion: 2, expectedVersion: 2,
     }, { configured: true, client: provider.client })).rejects.toEqual(
       new LegalDocumentStoreError('Unable to publish legal document.'),
     );
   });
 
+  it('rejects another author’s legal revision without publishing', async () => {
+    const stale = createClient({ rpcError: { code: 'P0001', message: 'cardforge_legal_document_version_conflict' } });
+    await expect(publishLegalDocument({ slug: 'terms', title: 'Terms', body: 'Terms body', effectiveDate: '2026-07-18', expectedBusinessIdentityVersion: 2, expectedVersion: 2 }, { configured: true, client: stale.client })).rejects.toMatchObject({ status: 409 });
+    expect(stale.rpc).toHaveBeenCalledTimes(1);
+  });
+
   it('validates writes before calling the provider', async () => {
     const mocks = createClient();
     await expect(publishLegalDocument({
-      slug: 'terms', title: '', body: 'Terms body', effectiveDate: '2026-07-18', expectedBusinessIdentityVersion: 2,
+      slug: 'terms', title: '', body: 'Terms body', effectiveDate: '2026-07-18', expectedBusinessIdentityVersion: 2, expectedVersion: 2,
     }, { configured: true, client: mocks.client })).rejects.toMatchObject({ status: 400 });
     expect(mocks.rpc).not.toHaveBeenCalled();
   });

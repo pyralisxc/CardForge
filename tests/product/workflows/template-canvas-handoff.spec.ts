@@ -14,7 +14,7 @@ for (const mobile of [false, true]) {
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
       await page.getByRole('button', { name: /^Templates ·/ }).click();
-      await page.getByRole('button', { name: 'Design back template Scale Fixture Back, used by 100 cards in this Set', exact: true }).click();
+      await page.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true }).click();
       const canvas = page.getByRole('region', { name: 'Template canvas', exact: true });
       await expect(canvas).toBeVisible();
       await expect(canvas.getByText('Scale Fixture Back', { exact: true })).toBeVisible();
@@ -70,7 +70,7 @@ for (const mobile of [false, true]) {
       await page.getByRole('button', { name: 'Create your first Set', exact: true }).click();
       await page.getByRole('button', { name: /^Standard 52-card deck A complete editable/ }).click();
       await page.getByRole('button', { name: /^Templates ·/ }).click();
-      const templateButton = page.getByRole('button', { name: 'Design template Standard 52-card deck Template, used by 52 cards in this Set', exact: true });
+      const templateButton = page.getByRole('button', { name: 'Design Template Standard 52-card deck Template, used by 52 Artifacts', exact: true });
       await expect(templateButton).toBeVisible();
       let releaseChunks!: () => void;
       const chunksReady = new Promise<void>((resolve) => { releaseChunks = resolve; });

@@ -167,6 +167,8 @@ export function CreatorWorkbench({
   const firstRunGuideDismissedRef = useRef(false);
   const requestedTemplateHandledRef = useRef(false);
   const requestedToolHandledRef = useRef(false);
+  const appliedContextTemplateRef = useRef<{ setId: string | null; templateId: string } | null>(null);
+  const appliedArtifactDesignIntentRef = useRef<DesignToolIntent | null>(null);
   const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [openStudioSheet, setOpenStudioSheet] = useState<StudioContextTool>(null);
   const [saveMoveOpen, setSaveMoveOpen] = useState(false);
@@ -186,6 +188,8 @@ export function CreatorWorkbench({
     handleSaveAppearanceStyle,
     handleSaveTemplate: saveTemplateToLibrary,
     handleSubmitTemplateRevision,
+    handlePrepareTemplateReview,
+    handleSubmitTemplateReview,
     handleContinueNewTemplateInPipeline,
     pendingTemplateSaveImpact,
     setPendingTemplateSaveVariantName,
@@ -246,7 +250,7 @@ export function CreatorWorkbench({
     userTemplates: userTemplatesFromStore,
   });
 
-  const { handleExportAllAsZip, handleExportTabletopSimulatorSpritesheets, isZipExporting, zipExportKind, zipProgress } = useCardZipExportActions({
+  const { handleExportAllAsZip, handleExportPrintPngSet, handleExportPressCandidate, handleExportTabletopSimulatorSpritesheets, isZipExporting, zipExportKind, zipProgress } = useCardZipExportActions({
     canExportClean: projectCapabilities.canExportClean,
     exportDpi,
     exportMode,
@@ -328,14 +332,18 @@ export function CreatorWorkbench({
   }, []);
 
   useEffect(() => {
-    if (!contextTemplateId || isLoadingTemplates) return;
-    if (!templatesFromStore.some((template) => template.id === contextTemplateId)) return;
-    if (templateEditorSelectedTemplateId === contextTemplateId && studioView === 'template') return;
+    if (!contextTemplateId) { appliedContextTemplateRef.current = null; return; }
+    if (isLoadingTemplates || !templatesFromStore.some((template) => template.id === contextTemplateId)) return;
+    const applied = appliedContextTemplateRef.current;
+    if (applied?.templateId === contextTemplateId && applied.setId === contextSetId) return;
+    // Entry context is one command, not ongoing selection authority. Saving a
+    // personal copy or deliberately choosing another Template must stay there.
+    appliedContextTemplateRef.current = { setId: contextSetId, templateId: contextTemplateId };
     if (templateEditorSelectedTemplateId !== contextTemplateId) {
       setTemplateEditorSelectedTemplateIdAction(contextTemplateId);
     }
     if (studioView !== 'template') setStudioViewAction('template');
-  }, [contextTemplateId, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, studioView, templateEditorSelectedTemplateId, templatesFromStore]);
+  }, [contextSetId, contextTemplateId, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, studioView, templateEditorSelectedTemplateId, templatesFromStore]);
 
   const isStudioReady = !isLoadingTemplates;
   useStudioDocumentHandoff({
@@ -351,9 +359,10 @@ export function CreatorWorkbench({
   const showTemplateTool = useCallback(() => { handleStudioViewChange('template'); setOpenStudioSheet(null); focusStudioRegion('[data-testid="layout-studio-panel"]'); }, [focusStudioRegion, handleStudioViewChange]);
 
   useEffect(() => {
-    if (!designIntent || isLoadingTemplates || designIntent.kind !== 'artifact-design') return;
-    if (!templatesFromStore.some((template) => template.id === designIntent.templateId)) return;
-    if (templateEditorSelectedTemplateId === designIntent.templateId && studioView === 'template') return;
+    if (!designIntent || designIntent.kind !== 'artifact-design') { appliedArtifactDesignIntentRef.current = null; return; }
+    if (isLoadingTemplates || !templatesFromStore.some((template) => template.id === designIntent.templateId)) return;
+    if (appliedArtifactDesignIntentRef.current === designIntent) return;
+    appliedArtifactDesignIntentRef.current = designIntent;
     if (templateEditorSelectedTemplateId !== designIntent.templateId) {
       setTemplateEditorSelectedTemplateIdAction(designIntent.templateId);
     }
@@ -390,6 +399,8 @@ export function CreatorWorkbench({
             isActive={studioView === 'template'}
             onSaveTemplate={handleSaveTemplate}
             onSubmitTemplateRevision={handleSubmitTemplateRevision}
+            onPrepareTemplateReview={handlePrepareTemplateReview}
+            onSubmitTemplateReview={handleSubmitTemplateReview}
             onContinueNewTemplateInPipeline={handleContinueNewTemplateInPipeline}
             templates={templatesFromStore}
             defaultTemplates={standardDefaultTemplates}
@@ -430,7 +441,7 @@ export function CreatorWorkbench({
         canSubmitToPipeline={canSubmitTemplateRevisions}
         saveMoveOpen={saveMoveOpen}
         onSaveMoveOpenChange={setSaveMoveOpen}
-        outputPanelProps={{ canExportClean: projectCapabilities.canExportClean, isEntitlementPending, exportDpi, exportEntitlementLabel, exportEntitlementMessage, exportGateMessage, exportMode, generatedDisplayCards, isCheckoutStarting, isZipExporting, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, richTextHighlightColor, selectedPaperSize, zipExportKind, zipProgress, onExportAllAsZip: handleExportAllAsZip, onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets, onSelectPaperSize: setSelectedPaperSizeAction, onSetExportDpi: setExportDpiAction, onSetExportMode: setExportModeAction, onSetPdfOptions: setPdfOptionsAction, onStartCheckout: handleStartCheckout }}
+        outputPanelProps={{ canExportClean: projectCapabilities.canExportClean, isEntitlementPending, exportDpi, exportEntitlementLabel, exportEntitlementMessage, exportGateMessage, exportMode, generatedDisplayCards, isCheckoutStarting, isZipExporting, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, richTextHighlightColor, selectedPaperSize, zipExportKind, zipProgress, onExportAllAsZip: handleExportAllAsZip, onExportPrintPngSet: handleExportPrintPngSet, onExportPressCandidate: handleExportPressCandidate, onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets, onSelectPaperSize: setSelectedPaperSizeAction, onSetExportDpi: setExportDpiAction, onSetExportMode: setExportModeAction, onSetPdfOptions: setPdfOptionsAction, onStartCheckout: handleStartCheckout }}
         saveMoveDialogProps={{ isSignedIn: accountEntitlement.isSignedIn, canUseProjectFiles: projectCapabilities.canUseProjectFiles, setId: activeCardSet.id, setName: activeCardSet.name }}
       /> : null}
       </>}

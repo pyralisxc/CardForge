@@ -11,6 +11,7 @@ export type PresentationCorners = typeof PRESENTATION_CORNERS[number];
 export type PresentationContrast = typeof PRESENTATION_CONTRASTS[number];
 
 export interface ExperienceSettings {
+  updatedAt?: string | null;
   analyticsConsentPresentation: AnalyticsConsentPresentation;
   presentationPalette: PresentationPalette;
   presentationAccent: PresentationAccent;
@@ -55,6 +56,7 @@ const normalizeOptionalTemplateId = (value: unknown): string | null => {
 export const hydrateExperienceSettings = (
   row: Record<string, unknown> | null | undefined,
 ): ExperienceSettings => ({
+  ...(typeof row?.updated_at === 'string' ? { updatedAt: row.updated_at } : {}),
   analyticsConsentPresentation: isAnalyticsConsentPresentation(row?.analytics_consent_presentation)
     ? row.analytics_consent_presentation
     : DEFAULT_EXPERIENCE_SETTINGS.analyticsConsentPresentation,

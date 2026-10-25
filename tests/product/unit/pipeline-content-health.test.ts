@@ -2,25 +2,42 @@ import { describe, expect, it } from 'vitest';
 
 import { buildPipelineContentHealth } from '@/features/pipeline/lib/pipelineContentHealth';
 import { buildPipelineContentReview } from '@/features/pipeline/lib/pipelineContentReview';
+import { getDefaultSemanticRole } from '@/features/pipeline/lib/contentTaxonomy';
 import { resolveTemplateCardFormat } from '@/domain/card-formats';
-import type { PipelineProgramView, PipelineSubmission } from '@/features/pipeline/lib/pipelineProgram';
+import { buildPipelineProgramView, type PipelineProgramView, type PipelineSubmission } from '@/features/pipeline/lib/pipelineProgram';
+import { DEFAULT_PIPELINE_PROGRAM_SETTINGS } from '@/features/pipeline/lib/pipelineItems';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PipelineContentHealthPanel } from '@/features/pipeline/components/PipelineContentHealthPanel';
 import type { CardForgeCatalogManifest } from '@/features/pipeline/lib/catalogManifest';
 
-const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgramView => ({
-  submissions: [{
-    id: 'revision-id', lineageId: 'lineage-id', registryAssetId: 'registry-id',
-    name: 'Published object', status: 'published', assetType: 'sets',
-    requestedStudioDestination: null, specialtyTags: ['games'], useCaseTags: ['playing-cards'],
-    sourceUrl: 'https://example.com/set.cardforge', sourcePayload: null,
-    sourceNotes: 'Original artwork', previewUrl: 'https://example.com/preview.webp',
-    revisionNumber: 1, baseRevisionNumber: null, updatedAt: '2026-09-01T00:00:00Z',
-    ...overrides,
-  }],
-  totalSubmissionCount: 1,
-} as PipelineProgramView);
+const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgramView => {
+  const assetType = overrides.assetType ?? 'sets';
+  const requestedStudioDestination = overrides.requestedStudioDestination ?? null;
+  return buildPipelineProgramView({
+    configured: true,
+    settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
+    currentUserId: 'contributor-1',
+    submissions: [{
+      id: 'revision-id', lineageId: 'lineage-id', registryAssetId: 'registry-id',
+      contributorId: 'contributor-1', submittedAt: '2026-09-01T00:00:00Z',
+      name: 'Published object', status: 'published', assetType,
+      requestedStudioDestination, specialtyTags: ['games'], useCaseTags: ['playing-cards'],
+      semanticRole: getDefaultSemanticRole(assetType, requestedStudioDestination),
+      visualFamily: null,
+      variantKind: 'base',
+      variantLabel: null,
+      compatibilityTags: [],
+      sourceUrl: 'https://example.com/set.cardforge', sourcePayload: null,
+      sourceNotes: 'Original artwork', previewUrl: 'https://example.com/preview.webp',
+      editorialReviewStatus: 'pending', editorialReviewNote: '', editorialReviewedBy: null, editorialReviewedAt: null,
+      revisionNumber: 1, baseRevisionNumber: null, updatedAt: '2026-09-01T00:00:00Z',
+      ...overrides,
+    } as PipelineSubmission],
+    votingQueue: [],
+    votingPage: { total: 0, page: 1, pageSize: 50 },
+  });
+};
 
 describe('Pipeline content health', () => {
   it.each(['textures', 'dividers', 'icons', 'imageAssets', 'elementPresets', 'fonts', 'templates', 'sets'] as const)('uses the same General resource policy in health and review for %s', (assetType) => {
@@ -29,6 +46,60 @@ describe('Pipeline content health', () => {
     expect(buildPipelineContentHealth({ catalog: null, program }).issues.some((issue) => issue.code === 'missing-taxonomy')).toBe(requiresUseCase);
     expect(buildPipelineContentReview(program).entries[0]?.classificationNeedsReview).toBe(requiresUseCase);
   });
+  it('keeps technical health distinct from exact-revision editorial readiness', () => {
+    const health = buildPipelineContentHealth({
+      catalog: null,
+      program: programWith({ editorialReviewStatus: 'pending' }),
+    });
+
+    expect(health.errors).toBe(0);
+    expect(health.warnings).toBe(0);
+    expect(health.editorial).toMatchObject({
+      checkedCount: 1,
+      approvedCount: 0,
+      pendingCount: 1,
+      missingEvidenceCount: 0,
+    });
+
+    const markup = renderToStaticMarkup(createElement(PipelineContentHealthPanel, {
+      health,
+      canRepair: true,
+      onOpenObject: () => undefined,
+    }));
+    expect(markup).toContain('Technical health');
+    expect(markup).toContain('Editorial readiness');
+    expect(markup).toContain('0 errors · 0 warnings');
+    expect(markup).toContain('0 approved · 1 pending');
+  });
+
+  it('treats an invalid semantic role as editorial classification debt without inventing a replacement', () => {
+    const program = programWith({
+      semanticRole: 'font' as PipelineSubmission['semanticRole'],
+    });
+    const health = buildPipelineContentHealth({ catalog: null, program });
+    const review = buildPipelineContentReview(program);
+
+    expect(health.errors).toBe(0);
+    expect(health.editorial.missingEvidenceCount).toBe(1);
+    expect(review.entries[0]?.classification.semanticRole).toBe('font');
+    expect(review.entries[0]?.classificationNeedsReview).toBe(true);
+  });
+
+  it('recognizes approved live revisions without hiding technical findings', () => {
+    const health = buildPipelineContentHealth({
+      catalog: null,
+      program: programWith({
+        editorialReviewStatus: 'approved',
+        editorialReviewNote: 'Original first-party set reviewed at intended size.',
+        editorialReviewedBy: 'owner-1',
+        editorialReviewedAt: '2026-10-08T00:00:00Z',
+      }),
+    });
+
+    expect(health.editorial.approvedCount).toBe(1);
+    expect(health.editorial.pendingCount).toBe(0);
+  });
+
   it('accepts destination-free Sets but checks routes for routed asset kinds', () => {
     expect(buildPipelineContentHealth({ catalog: null, program: programWith() }).errors).toBe(0);
     expect(buildPipelineContentHealth({ catalog: null, program: programWith({ assetType: 'templates' }) }).issues)
@@ -128,12 +199,58 @@ describe('Pipeline content health', () => {
     expect(JSON.stringify(program)).toBe(before);
   });
 
+  it('includes shared review revisions once, retaining exact live pins and honest review coverage', () => {
+    const program = programWith({ id: 'own-live' });
+    const sharedLive = {
+      ...program.submissions[0]!,
+      id: 'shared-live', lineageId: 'shared-lineage', registryAssetId: 'shared-registry', contributorId: 'other-contributor',
+      revisionNumber: 2, editorialReviewStatus: 'approved' as const,
+    };
+    program.submissions.push({
+      ...sharedLive, id: 'shared-history', revisionNumber: 1,
+      sourceUrl: 'https://example.supabase.co/storage/v1/object/public/cardforge-developer-assets/retired.webp',
+    });
+    program.totalSubmissionCount = 3;
+    program.votingQueue = [program.submissions[0]!, sharedLive];
+    program.votingPage = { total: 2, page: 1, pageSize: 50 };
+    const catalog = {
+      pipeline: { items: [{
+        id: 'shared-registry', submissionId: 'shared-live', lineageId: 'shared-lineage',
+        name: 'Shared live', assetType: 'set', previewUrl: 'https://example.com/preview.webp',
+      }] },
+      sets: { items: [] },
+    } as unknown as CardForgeCatalogManifest;
+    const before = JSON.stringify(program);
+    const health = buildPipelineContentHealth({ catalog, program });
+    expect(health.editorial).toMatchObject({ checkedCount: 1, approvedCount: 1, pendingCount: 0 });
+    expect(health.issues.some((issue) => issue.code === 'retired-source')).toBe(false);
+    const review = buildPipelineContentReview(program);
+    expect(review.entries.map((entry) => entry.submissionId)).toEqual(['own-live', 'shared-history', 'shared-live']);
+    expect(review.coverage).toMatchObject({
+      loadedSubmissions: 3, loadedOwnSubmissions: 2, totalSubmissions: 3,
+      loadedReviewSubmissions: 2, totalReviewSubmissions: 2, complete: true,
+    });
+    expect(JSON.stringify(program)).toBe(before);
+    program.votingPage.total = 3;
+    expect(buildPipelineContentReview(program).coverage.complete).toBe(true);
+    program.totalSubmissionCount = 4;
+    expect(buildPipelineContentReview(program).coverage.complete).toBe(false);
+  });
+
   it('does not guess classifications or claim full coverage of paged revisions', () => {
     const program = programWith({ specialtyTags: [], useCaseTags: [] });
     program.totalSubmissionCount = 80;
     const review = buildPipelineContentReview(program);
     expect(review.coverage.complete).toBe(false);
-    expect(review.entries[0]?.classification).toEqual({ specialtyTags: [], useCaseTags: [] });
+    expect(review.entries[0]?.classification).toEqual({
+      specialtyTags: [],
+      useCaseTags: [],
+      semanticRole: 'set',
+      visualFamily: null,
+      variantKind: 'base',
+      variantLabel: null,
+      compatibilityTags: [],
+    });
     expect(review.entries[0]?.classificationNeedsReview).toBe(true);
     expect(buildPipelineContentReview(null).coverage.complete).toBe(false);
   });

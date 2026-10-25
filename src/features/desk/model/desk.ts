@@ -47,7 +47,6 @@ export interface DeskAccountStatus {
 // Values stay unchanged so existing browser-local Desk layouts migrate without loss.
 // These persisted keys predate the Desk noun cut. Keep the strings as narrow
 // compatibility reads so existing browser work retains its pins and tab order.
-export const DESK_PINS_KEY = 'home-desk-pins';
 export const DESK_ORDER_KEY = 'home-desk-order';
 export const visibleWorkKinds = new Set<AccountLibraryItem['kind']>(['set', 'working-draft', 'campaign', 'published-resource']);
 export interface DeskSourceFacet {
@@ -213,7 +212,6 @@ export const zoneAction = (
 
 export const getWorkActions = (
   item: AccountLibraryItem,
-  pinned: boolean,
   canDelete: boolean,
   canContribute = false,
   canUseProjectFiles = false,
@@ -229,12 +227,6 @@ export const getWorkActions = (
       supportedObjectKinds: [item.kind], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'primary', availability: { kind: 'available' }, commitment: item.references.driveFileId ? 'permission' : 'none',
       automation: openAutomation, result: item.references.campaignId || item.references.pipelineLineageId ? 'tool-opened' : 'navigation',
-    },
-    {
-      id: 'desk.pin-set', label: pinned ? 'Unpin from desk' : 'Pin to desk', ownerFeature: 'project',
-      supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: 'guest',
-      scope: 'object', hierarchy: 'supporting', availability: { kind: 'available' }, commitment: 'none',
-      automation: { kind: 'human-only', owner: 'cardforge' }, result: 'mutation',
     },
     {
       id: 'desk.generate-set', label: 'Generate cards', ownerFeature: 'card-generator',

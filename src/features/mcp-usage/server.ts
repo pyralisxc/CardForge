@@ -6,6 +6,7 @@ export {
 } from './server/mcpWorkflowTelemetry';
 export type { McpWorkflowObservation } from './server/mcpWorkflowTelemetry';
 export {
+  applyProductAccessPricePresentation,
   isMcpAvailableForAccount,
   isMcpUsagePlanKey,
   resolveMcpUsagePlanKey,

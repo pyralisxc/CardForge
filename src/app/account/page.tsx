@@ -10,6 +10,7 @@ import {
   resolveAccountSection,
 } from '@/features/account/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server/productAccessPricePresentation';
 import { DEFAULT_BUSINESS_IDENTITY, getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
   EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE,
@@ -17,7 +18,10 @@ import {
   hasContributionScope,
 } from '@/features/contributor-access/server';
 import { Desk } from '@/features/desk/client';
-import { getMcpAllowances } from '@/features/mcp-usage/server';
+import {
+  applyProductAccessPricePresentation,
+  getMcpAllowances,
+} from '@/features/mcp-usage/server';
 import { AccountProjectWorkspaceBoundary } from '@/features/project/client';
 import { createProjectPersistenceScope } from '@/features/project/server';
 import { SiteContentProvider } from '@/features/public-site/client';
@@ -79,7 +83,7 @@ export default async function AccountPage({
   const needsPlans = activeSection === 'profile';
   const needsAccountContent = activeSection === 'library';
   const needsBusinessIdentity = activeSection === 'desk' || activeSection === 'library';
-  const [entitlementResult, plans, accountContentBlocks, businessIdentity] = await Promise.all([
+  const [entitlementResult, basePlans, productAccessPrices, accountContentBlocks, businessIdentity] = await Promise.all([
     getCurrentCardforgeEntitlement().then((entitlement) => ({ entitlement, unavailable: false })).catch((error) => {
       console.error('Unable to verify account access during page render:', error);
       return {
@@ -88,9 +92,13 @@ export default async function AccountPage({
       };
     }),
     needsPlans ? getMcpAllowances() : Promise.resolve([]),
+    needsPlans ? getCurrentProductAccessPricePresentation() : Promise.resolve(null),
     needsAccountContent ? getCachedSiteContentBlocks('account') : Promise.resolve([]),
     needsBusinessIdentity ? getCachedBusinessIdentity() : Promise.resolve(DEFAULT_BUSINESS_IDENTITY),
   ]);
+  const plans = productAccessPrices
+    ? applyProductAccessPricePresentation(basePlans, productAccessPrices)
+    : basePlans;
   const { entitlement, unavailable: entitlementUnavailable } = entitlementResult;
   const authConfigured = entitlement.authConfigured;
   const persistenceScope = createProjectPersistenceScope({

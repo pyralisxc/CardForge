@@ -306,12 +306,18 @@ test('@golden desktop uses the full viewport and zoom leaves card positions stab
   await page.getByRole('button', { name: 'Whole Set', exact: true }).click();
   await expect(stage).toHaveAttribute('data-camera-mode', 'whole');
   const secondTile = page.locator('button[data-artifact-id="scale-card-11"]').locator('..');
-  const secondPosition = await secondTile.getAttribute('style');
+  const secondPosition = await secondTile.evaluate((node) => ({
+    left: (node as HTMLElement).style.left, top: (node as HTMLElement).style.top,
+  }));
   const first = (await card.boundingBox())!;
   await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2);
   await page.mouse.down();
   await page.mouse.move(first.x + first.width / 2 + 40, first.y + first.height / 2 + 32, { steps: 5 });
   await page.mouse.up();
   await expect(stage).toHaveAttribute('data-arrangement', 'manual');
-  await expect(secondTile).toHaveAttribute('style', secondPosition!);
+  // Switching to manual grouping adds its visible group caption, but must not
+  // move another authored card. Compare coordinates, not unrelated chrome.
+  await expect.poll(() => secondTile.evaluate((node) => ({
+    left: (node as HTMLElement).style.left, top: (node as HTMLElement).style.top,
+  }))).toEqual(secondPosition);
 });

@@ -14,11 +14,11 @@ import {
   TCG_ASPECT_RATIO,
 } from '@/domain/rendering';
 import { isDividerElement, resolveCanvasElementsForRender } from '@/domain/templates';
-import { useProjectBinaryAssetUrl, useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
+import { useProjectBinaryAssetResolution, useProjectBinaryAssetUrl, useProjectBinaryAssetValue, useProjectBinaryAssetValueResolution } from '@/features/project/client/useProjectBinaryAssetUrl';
 import { useMemo, type ReactNode } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/domain/templates';
-import { appearanceToStyle } from '../model/appearance';
+import { appearanceToStyle, authoredCardFoundationStyle } from '../model/appearance';
 import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '../model/elementStyles';
 import { buildTextElementStyle, DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR } from './RichTextContent';
 import { CardTextContent } from './CardTextContent';
@@ -33,6 +33,8 @@ interface CardPreviewProps {
   isPrintMode?: boolean;
   showSizeInfo?: boolean;
   isEditorPreview?: boolean;
+  /** Export-only projections of the authored background or outer clipping coverage. */
+  productionLayer?: 'background' | 'mask';
   interactionOverlay?: ReactNode;
   highlightColor?: string;
   onSelect?: (card: DisplayCard) => void;
@@ -59,15 +61,16 @@ function ProjectBinaryImage({
   alt,
   ...props
 }: Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt'> & { source: string; alt: string }) {
-  const resolvedSource = useProjectBinaryAssetUrl(source);
-  return <img {...props} src={resolvedSource} alt={alt} />;
+  const resolved = useProjectBinaryAssetResolution(source);
+  return <img {...props} src={resolved?.url} data-source-mime-type={resolved?.mimeType || undefined} alt={alt} />;
 }
 
 function ProjectBinaryFrame({
   style,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
-  const backgroundImage = useProjectBinaryAssetValue(typeof style?.backgroundImage === 'string' ? style.backgroundImage : undefined);
+  const background = useProjectBinaryAssetValueResolution(typeof style?.backgroundImage === 'string' ? style.backgroundImage : undefined);
+  const backgroundImage = background?.value;
   const borderImageSource = useProjectBinaryAssetValue(typeof style?.borderImageSource === 'string' ? style.borderImageSource : undefined);
   const maskSource = typeof style?.maskImage === 'string'
     ? style.maskImage
@@ -75,7 +78,7 @@ function ProjectBinaryFrame({
       ? style.WebkitMaskImage
       : undefined;
   const resolvedMask = useProjectBinaryAssetValue(maskSource);
-  return <div {...props} style={{
+  return <div {...props} data-vector-background-urls={background?.vectorUrls.length ? JSON.stringify(background.vectorUrls) : undefined} data-export-assets-pending={Boolean((style?.backgroundImage && !backgroundImage) || (style?.borderImageSource && !borderImageSource) || (maskSource && !resolvedMask)) || undefined} style={{
     ...style,
     backgroundImage,
     borderImageSource,
@@ -91,12 +94,14 @@ export function CardPreview({
   isPrintMode = false,
   showSizeInfo = false,
   isEditorPreview = false,
+  productionLayer,
   interactionOverlay,
   highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
   onSelect,
   onEdit,
   targetWidthPx,
 }: CardPreviewProps) {
+  const isProductionBackground = productionLayer === 'background';
   const templateToRender = getCardFaceTemplate(card, face);
   const dataToRender = getCardFaceData(card, face);
   const canvasToRender = getCardFaceCanvas(card, face);
@@ -119,9 +124,11 @@ export function CardPreview({
 
   const resolvedCardContentBgUrl = tb.cardBackgroundImageUrl ? replacePlaceholdersLocal(tb.cardBackgroundImageUrl, dataToRender, isEditorPreview) : undefined;
   const resolvedCardBorderImageSource = tb.cardBorderImageSource ? replacePlaceholdersLocal(tb.cardBorderImageSource, dataToRender, isEditorPreview) : undefined;
-  const resolvedCardContentBinaryUrl = useProjectBinaryAssetUrl(resolvedCardContentBgUrl);
+  const resolvedCardContent = useProjectBinaryAssetResolution(resolvedCardContentBgUrl);
+  const resolvedCardContentBinaryUrl = resolvedCardContent?.url;
   const resolvedCardBorderBinaryUrl = useProjectBinaryAssetUrl(resolvedCardBorderImageSource);
-  const resolvedTemplateAppearanceBackground = useProjectBinaryAssetValue(templateAppearanceStyle.backgroundImage);
+  const templateBackground = useProjectBinaryAssetValueResolution(templateAppearanceStyle.backgroundImage);
+  const resolvedTemplateAppearanceBackground = templateBackground?.value;
   const resolvedCardContentBackground = toRenderableBackground(resolvedCardContentBinaryUrl);
   const resolvedBorderVisual = toRenderableBackground(resolvedCardBorderBinaryUrl);
   const borderVisualIsGradient = Boolean(
@@ -164,6 +171,7 @@ export function CardPreview({
     backgroundRepeat: resolvedCardContentBackground ? 'no-repeat' : templateAppearanceStyle.backgroundRepeat || undefined,
     backgroundPosition: resolvedCardContentBackground ? 'center' : templateAppearanceStyle.backgroundPosition || undefined,
     backgroundBlendMode: templateAppearanceStyle.backgroundBlendMode || undefined,
+    ...authoredCardFoundationStyle(tb, resolvedCardContentBackground, { ...templateAppearanceStyle, backgroundImage: resolvedTemplateAppearanceBackground }),
     boxShadow: templateAppearanceStyle.boxShadow || undefined,
   };
 
@@ -181,6 +189,20 @@ export function CardPreview({
   } else {
     cardContainerStyle.borderWidth = 0;
     cardContainerStyle.borderStyle = 'none';
+  }
+
+  if (productionLayer) {
+    // Keep background placement/border-box geometry. Only the rectangular
+    // background drops the digital mask; neither projection paints a border.
+    if (isProductionBackground) cardContainerStyle.borderRadius = 0;
+    else {
+      // White represents coverage only, never authored/output paper color.
+      cardContainerStyle.backgroundColor = '#fff';
+      cardContainerStyle.backgroundImage = 'none';
+    }
+    cardContainerStyle.boxShadow = 'none';
+    cardContainerStyle.borderColor = 'transparent';
+    cardContainerStyle.borderImageSource = 'none';
   }
 
   const borderOverlayStyle: React.CSSProperties | null = borderOverlayBackground ? {
@@ -249,7 +271,7 @@ export function CardPreview({
   }, [dataToRender]);
 
   const freeformElements = useMemo(() => {
-    if (!canvasToRender) return null;
+    if (productionLayer || !canvasToRender) return null;
     const canvas = canvasToRender;
     const scaleX = renderWidthPx / Math.max(1, canvas.width);
     const scaleY = cardPixelHeight / Math.max(1, canvas.height);
@@ -458,7 +480,7 @@ export function CardPreview({
           </ProjectBinaryFrame>
         );
       });
-  }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, highlightColor, renderWidthPx, isEditorPreview, templateToRender]);
+  }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, highlightColor, renderWidthPx, isEditorPreview, productionLayer, templateToRender]);
 
   const isInteractive = !isEditorPreview && (onSelect || onEdit);
 
@@ -507,6 +529,8 @@ export function CardPreview({
             transform: visualScale === 1 ? cardContainerStyle.transform : `scale(${visualScale})`,
             transformOrigin: 'top left',
           }}
+          data-vector-background-urls={JSON.stringify([...(templateBackground?.vectorUrls ?? []), ...(resolvedCardContent?.mimeType === 'image/svg+xml' ? [resolvedCardContent.url] : [])])}
+          data-export-assets-pending={Boolean((resolvedCardContentBgUrl && !resolvedCardContentBinaryUrl) || (resolvedCardBorderImageSource && !resolvedCardBorderBinaryUrl) || (templateAppearanceStyle.backgroundImage && !resolvedTemplateAppearanceBackground)) || undefined}
           data-ai-hint="tcg card custom"
           onClick={handleCardClick}
           onDoubleClick={handleCardDoubleClick}
@@ -516,8 +540,8 @@ export function CardPreview({
           aria-label={isInteractive ? 'Select generated output. Double-click to edit.' : undefined}
         >
           {freeformElements}
-          {borderOverlayStyle ? <div aria-hidden="true" data-card-border-overlay style={borderOverlayStyle} /> : null}
-          {interactionOverlay}
+          {!productionLayer && borderOverlayStyle ? <div aria-hidden="true" data-card-border-overlay style={borderOverlayStyle} /> : null}
+          {!productionLayer && interactionOverlay}
         </div>
       </div>
       {showSizeInfo && !isPrintMode && (

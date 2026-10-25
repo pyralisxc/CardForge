@@ -223,7 +223,7 @@ export const completeSignUpIntent = (userCreatedAt?: Date | string | number | nu
 export const trackCardCreated = (creationMethod: 'single' | 'bulk', cardCount: number) =>
   trackCardForgeEvent('card_created', { creation_method: creationMethod, card_count: cardCount });
 
-export type AnalyticsExportKind = 'image' | 'png_set' | 'pdf' | 'tabletop_simulator' | 'project' | 'social_image';
+export type AnalyticsExportKind = 'image' | 'png_set' | 'print_png_set' | 'pdf' | 'tabletop_simulator' | 'project' | 'social_image';
 
 export const trackExportStarted = (exportKind: AnalyticsExportKind, cardCount?: number) =>
   trackCardForgeEvent('export_started', {

@@ -11,6 +11,7 @@ import { FieldHelp } from '@/features/pipeline/components/PipelineContributionUi
 import {
   OwnerAssetLibraryPanel,
   type OwnerAssetOverrideInput,
+  type OwnerEditorialReviewInput,
 } from '@/features/pipeline/components/OwnerAssetLibraryPanel';
 import { OwnerContributorProgramOverview } from '@/features/pipeline/components/OwnerContributorProgramOverview';
 import { OwnerStudioRoutingPanel } from '@/features/pipeline/components/OwnerStudioRoutingPanel';
@@ -29,6 +30,7 @@ import {
   type PipelineType,
 } from '@/features/pipeline/lib/pipelineItems';
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
+import type { PipelineTemplateSpecimenRenderer } from './PipelineContributionModel';
 import { getPipelineTypeLabel } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -38,8 +40,10 @@ interface PipelineItemsResponse {
 
 export function OwnerContributorProgramPanel({
   initialStatusFilter = 'all',
+  renderTemplateSpecimen,
 }: {
   initialStatusFilter?: PipelineStatus | 'all';
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
 }) {
   const { toast } = useToast();
   const [program, setProgram] = useState<PipelineProgramView | null>(null);
@@ -146,6 +150,51 @@ export function OwnerContributorProgramPanel({
     }
   };
 
+  const updateEditorialReview = async (
+    submissionId: string,
+    input: OwnerEditorialReviewInput,
+  ): Promise<boolean> => {
+    setUpdatingSubmissionId(submissionId);
+    try {
+      const response = await fetch(`/api/pipeline/${submissionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save editorial review.'));
+      await response.json() as PipelineItemsResponse;
+      await loadProgram();
+      setLastSavedAt(new Date().toISOString());
+      toast({ title: 'Editorial review saved', description: 'The exact revision now carries the recorded publication-quality decision.' });
+      return true;
+    } catch (error) {
+      toast({
+        title: 'Editorial review not saved',
+        description: error instanceof Error ? error.message : 'Unable to save editorial review.',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setUpdatingSubmissionId(null);
+    }
+  };
+
+  const deleteRevisionNow = async (submissionId:string,confirmationName:string,storagePath:string|null) => {
+    setUpdatingSubmissionId(submissionId);
+    try{
+      const response=await fetch(`/api/pipeline/${submissionId}/delete-revision`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({confirmationName,storagePath})
+      });
+      if(!response.ok)throw new Error(await readApiErrorMessage(response,'Unable to delete selected revision.'));
+      await loadProgram();
+      toast({title:'Revision deleted',description:'One selected trashed revision was permanently removed.'});
+    }catch(error){
+      toast({title:'Revision not confirmed deleted',
+        description:error instanceof Error?error.message:'Deletion incomplete',variant:'destructive'});
+    }finally{setUpdatingSubmissionId(null);}
+  };
+
   const deletePermanently = async (submissionId: string, confirmationName: string) => {
     setUpdatingSubmissionId(submissionId);
     try {
@@ -224,7 +273,9 @@ export function OwnerContributorProgramPanel({
         </TabsList>
         <TabsContent value="library" className="mt-0">
           <OwnerAssetLibraryPanel
+            onRevisionCreated={loadProgram}
             program={program}
+            renderTemplateSpecimen={renderTemplateSpecimen}
             query={libraryQuery}
             assetTypeFilter={libraryAssetType}
             statusFilter={libraryStatus}
@@ -235,7 +286,9 @@ export function OwnerContributorProgramPanel({
             onPageChange={setLibraryPage}
             updatingSubmissionId={updatingSubmissionId}
             onUpdateOverride={updateOverride}
+            onUpdateEditorialReview={updateEditorialReview}
             onDeletePermanently={deletePermanently}
+            onDeleteRevisionNow={deleteRevisionNow}
           />
         </TabsContent>
         <TabsContent value="studio-map" className="mt-0">

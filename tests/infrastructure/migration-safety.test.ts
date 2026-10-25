@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 
 import {
   findRetiredPostCutoverReferences,
+  findUnapprovedOwnerPresentationWrites,
   findUnsafeMigrationChanges,
   isApprovedBootstrapRepair,
   parseMigrationChanges,
@@ -41,6 +42,20 @@ describe('migration safety guard', () => {
     expect(isApprovedBootstrapRepair(process.cwd(), unrelated)).toBe(false);
   });
 
+  it('allows only the exact never-applied Staging font GRANT correction', () => {
+    const correction = parseMigrationChanges(
+      'M\tsupabase/migrations/20261010030000_first_party_font_registry_source.sql',
+    )[0]!;
+    expect(isApprovedBootstrapRepair(process.cwd(), correction)).toBe(true);
+    const sql = readFileSync(resolve(process.cwd(),
+      'supabase/migrations/20261010030000_first_party_font_registry_source.sql'), 'utf8');
+    const signature = '  text, text, text, text, text, text, text, text, text, bigint, text, text, text, jsonb';
+    expect(sql.split(signature)).toHaveLength(4);
+    expect(sql).not.toContain('text, text, text, text, text, text, text, text, text, text, bigint');
+    expect(sql).toContain("and p_metadata ->> 'reviewedBatchDigest' ~ '^[a-f0-9]{64}$'");
+    expect(sql).toContain("case when reviewed_first_party_font then 'official' else 'contributor' end");
+  });
+
   it('rejects retired Developer tables in post-cutover migrations', () => {
     expect(findRetiredPostCutoverReferences(
       'supabase/migrations/20260923175630_expand_pipeline_catalog_capacity.sql',
@@ -53,6 +68,40 @@ describe('migration safety guard', () => {
     expect(findRetiredPostCutoverReferences(
       'supabase/migrations/20260824000100_legacy_grants.sql',
       'grant all on public.cardforge_developer_program_settings to service_role;',
+    )).toEqual([]);
+  });
+
+  it('blocks post-cutover migrations from silently editing Owner-controlled presentation state', () => {
+    expect(findUnapprovedOwnerPresentationWrites(
+      'supabase/migrations/20261009000100_bad_content_update.sql',
+      "update public.cardforge_site_content_blocks set body = 'new copy' where slug = 'landing.hero.headline';",
+    )).toEqual(['cardforge_site_content_blocks']);
+
+    expect(findUnapprovedOwnerPresentationWrites(
+      'supabase/migrations/20261009000200_bad_plan_update.sql',
+      "insert into public.cardforge_mcp_allowance_settings (plan_key, display_name) values ('creator', 'Creator');",
+    )).toEqual(['cardforge_mcp_allowance_settings']);
+  });
+
+  it('allows schema-only Owner migrations and requires an explicit rationale for exceptional state writes', () => {
+    expect(findUnapprovedOwnerPresentationWrites(
+      'supabase/migrations/20261009000300_schema_only.sql',
+      'alter table public.cardforge_owner_settings add column if not exists example_flag boolean;',
+    )).toEqual([]);
+
+    expect(findUnapprovedOwnerPresentationWrites(
+      'supabase/migrations/20261009000400_explicit_transition.sql',
+      [
+        '-- CARDFORGE_OWNER_STATE_WRITE: seed the new presentation row only when it does not exist',
+        "insert into public.cardforge_site_content_blocks (slug, body) values ('new.slug', 'Seed') on conflict do nothing;",
+      ].join('\n'),
+    )).toEqual([]);
+  });
+
+  it('keeps historical pre-cutover presentation migrations readable without retroactively invalidating them', () => {
+    expect(findUnapprovedOwnerPresentationWrites(
+      'supabase/migrations/20260902214500_complete_public_desk_truth.sql',
+      "update public.cardforge_mcp_allowance_settings set description = 'legacy transition';",
     )).toEqual([]);
   });
 
@@ -69,5 +118,52 @@ describe('migration safety guard', () => {
     expect(migration).toContain('where id = p_submission_id\n    and purge_state is null;');
     expect(migration).toContain("where submission.status in ('archived', 'rejected')");
     expect(migration).toContain("and registry.status = 'published'");
+  });
+  it('keeps official source for verified first-party fonts in the native Pipeline function', () => {
+    const sql = readFileSync(resolve(process.cwd(), 'supabase/migrations/20261010030000_first_party_font_registry_source.sql'), 'utf8');
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.cardforge_upsert_pipeline_registry_asset');
+    expect(sql).toContain("p_registry_asset_type = 'font'");
+    expect(sql).toContain("p_metadata ->> 'sourceKind' = 'reviewed-first-party-original'");
+    expect(sql).toContain("p_storage_bucket = 'cardforge-contributor-assets'");
+    expect(sql).toContain("case when reviewed_first_party_font then 'official' else 'contributor' end");
+    expect(sql).toContain("and p_metadata ->> 'reviewedBatchDigest' ~ '^[a-f0-9]{64}$';");
+    expect(sql).toContain("and p_metadata ->> 'sourceGitBlobSha' ~ '^[a-f0-9]{40}$'");
+    expect(sql).toContain('on conflict (asset_id) do update');
+    expect(sql).not.toContain('library_source = excluded.library_source');
+    expect(sql).toContain('to service_role;');
+    expect(sql).not.toMatch(/update public\\.cardforge_asset_registry\\s+set/iu);
+  });
+
+
+  it('adds JPEG to the social media bucket without weakening visibility, size, or WebP invariants', () => {
+    const migration = readFileSync(
+      resolve(process.cwd(), 'supabase/migrations/20261022052800_allow_jpeg_social_media_derivatives.sql'),
+      'utf8',
+    );
+    expect(migration.trimStart().startsWith('begin;')).toBe(true);
+    expect(migration.trimEnd().endsWith('commit;')).toBe(true);
+    expect(migration).toMatch(/where id = 'cardforge-social-media'\s+for update/iu);
+    expect(migration).toContain('social_bucket.public is distinct from true');
+    expect(migration).toContain('social_bucket.file_size_limit is distinct from 12582912');
+    expect(migration).toContain("'image/webp' = any(social_bucket.allowed_mime_types)");
+    expect(migration).toContain("array['image/jpeg']::text[]");
+    expect(migration).toContain('array_agg(distinct mime_type order by mime_type)');
+    expect(migration).toContain("and public is true");
+    expect(migration).toContain('and file_size_limit = 12582912');
+    expect(migration).toContain("'image/webp' = any(allowed_mime_types)");
+    expect(migration).toContain("'image/jpeg' = any(allowed_mime_types)");
+    expect(migration).not.toContain('cardforge-social-sources');
+    expect(migration).toContain('cardforge_social_media_bucket_missing');
+    expect(migration).toContain('cardforge_social_media_bucket_visibility_mismatch');
+    expect(migration).toContain('cardforge_social_media_bucket_size_limit_mismatch');
+    expect(migration).toContain('cardforge_social_media_bucket_webp_contract_mismatch');
+    expect(migration).toContain('cardforge_social_media_bucket_jpeg_contract_failed');
+
+    const update = migration.match(
+      /update storage\.buckets([\s\S]*?)where id = 'cardforge-social-media';/iu,
+    )?.[1];
+    expect(update).toBeDefined();
+    expect(update).toMatch(/set allowed_mime_types\s*=/iu);
+    expect(update).not.toMatch(/\b(public|file_size_limit|name)\s*=/iu);
   });
 });

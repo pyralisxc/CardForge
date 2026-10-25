@@ -9,6 +9,26 @@ import { loadCardForgeCatalog } from '@/features/pipeline/client/catalog';
 import type { HomepageShowcaseExample } from '../model/examples';
 import { useSiteContent } from './PublicSitePresentationContext';
 
+export const matchesHomepageShowcaseTemplatePin = (
+  template: TCGCardTemplate | undefined,
+  {
+    templateId,
+    revision,
+    revisionId,
+  }: {
+    templateId: string;
+    revision: number | null | undefined;
+    revisionId?: string;
+  },
+): boolean => Boolean(
+  template
+  && template.id === templateId
+  && revision !== null
+  && revision !== undefined
+  && template.templateRevision === revision
+  && (!revisionId || template.templateRevisionId === revisionId)
+);
+
 const buildRows = (example: HomepageShowcaseExample): string[][] => {
   const headers = Array.from(new Set(example.rows.flatMap((row) => Object.keys(row))));
   return [headers, ...example.rows.map((row) => headers.map((header) => row[header] ?? ''))];
@@ -34,16 +54,35 @@ export function FinishedSetShowcase({ example }: { example: HomepageShowcaseExam
     return () => controller.abort();
   }, []);
 
-  const frontTemplate = templates?.find((template) => template.id === example.frontTemplateId)
-    ?? (example.frontTemplateName
-      ? templates?.find((template) => template.name === example.frontTemplateName)
-      : undefined);
-  const backTemplate = example.backTemplateId
-    ? templates?.find((template) => template.id === example.backTemplateId)
-      ?? (example.backTemplateName
-        ? templates?.find((template) => template.name === example.backTemplateName)
-        : undefined)
+  const currentFrontTemplate = templates?.find((template) => template.id === example.frontTemplateId);
+  const frontTemplate = matchesHomepageShowcaseTemplatePin(currentFrontTemplate, {
+    templateId: example.frontTemplateId,
+    revision: example.frontTemplateRevision,
+    revisionId: example.frontTemplateRevisionId,
+  })
+    ? currentFrontTemplate
     : undefined;
+  const currentBackTemplate = example.backTemplateId
+    ? templates?.find((template) => template.id === example.backTemplateId)
+    : undefined;
+  const backTemplate = example.backTemplateId
+    ? matchesHomepageShowcaseTemplatePin(currentBackTemplate, {
+        templateId: example.backTemplateId,
+        revision: example.backTemplateRevision,
+        revisionId: example.backTemplateRevisionId,
+      })
+      ? currentBackTemplate
+      : undefined
+    : undefined;
+  const frontRevisionChanged = Boolean(
+    currentFrontTemplate
+    && !frontTemplate
+  );
+  const backRevisionChanged = Boolean(
+    example.backTemplateId
+    && currentBackTemplate
+    && !backTemplate
+  );
   const cards = useMemo(() => {
     if (!frontTemplate) return [];
     const rows = buildRows(example);
@@ -74,10 +113,12 @@ export function FinishedSetShowcase({ example }: { example: HomepageShowcaseExam
     );
   }
 
-  if (!frontTemplate) {
+  if (!frontTemplate || backRevisionChanged) {
     return (
       <div role="status" className="grid min-h-[25rem] place-items-center text-center text-base text-[var(--public-muted-text)]">
-        This example is temporarily unavailable because its published Pipeline template could not be found.
+        {frontRevisionChanged || backRevisionChanged
+          ? 'This demonstration is pinned to an approved Template revision. A newer Pipeline revision is available, but the live showcase will not change until the Owner explicitly adopts it.'
+          : 'This demonstration is temporarily unavailable because its exact published Pipeline Template revision could not be verified.'}
       </div>
     );
   }

@@ -1,6 +1,10 @@
-import { hasRequiredPipelineClassification } from './contentTaxonomy';
+import {
+  hasRequiredPipelineClassification,
+  hasRequiredPipelineSemanticClassification,
+} from './contentTaxonomy';
 import type { CardForgeCatalogManifest } from './catalogManifest';
 import type { PipelineProgramView } from './pipelineProgram';
+import { getPipelineLibrarySubmissions } from './pipelineLibrary';
 import { getPipelineStudioDestinationOptions } from './pipelineAssetTaxonomy';
 import { buildPipelineContentReview, type PipelineContentReview } from './pipelineContentReview';
 
@@ -15,11 +19,23 @@ export interface PipelineContentHealthIssue {
   repair: string;
 }
 
+export interface PipelineEditorialReadiness {
+  checkedCount: number;
+  approvedCount: number;
+  pendingCount: number;
+  reviseCount: number;
+  quarantineCount: number;
+  retireCount: number;
+  missingEvidenceCount: number;
+  coverageComplete: boolean;
+}
+
 export interface PipelineContentHealth {
   checkedCount: number;
   errors: number;
   warnings: number;
   issues: PipelineContentHealthIssue[];
+  editorial: PipelineEditorialReadiness;
   review: PipelineContentReview;
 }
 
@@ -52,10 +68,26 @@ export const buildPipelineContentHealth = ({
     if (!validPackage) issues.push({ code: 'invalid-package', severity: 'error', objectId: set.id, objectName: set.name, message: 'Published Set does not have a valid HTTPS package source.', repair: 'Publish a verified portable Set package revision.' });
     if (!hasRequiredPipelineClassification('sets', set.specialtyTags, set.useCaseTags)) issues.push({ code: 'missing-taxonomy', severity: 'warning', objectId: set.id, objectName: set.name, message: 'Published Set classification is incomplete.', repair: 'Choose this published Set in Content Health and save its specialty and use-case tags.' });
   });
-  const activePublishedSubmissions = (program?.submissions ?? []).filter((submission) => (
+  const activePublishedSubmissions = getPipelineLibrarySubmissions(program).filter((submission) => (
     submission.status === 'published'
     && (!hasExactPublishedPointers || activePublishedSubmissionIds.has(submission.id))
   ));
+  const editorialMissingEvidence = activePublishedSubmissions.filter((submission) => (
+    !submission.sourceNotes.trim()
+    || !submission.previewUrl.trim()
+    || !hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, submission.useCaseTags)
+    || !hasRequiredPipelineSemanticClassification(submission.assetType, submission.semanticRole)
+  ));
+  const editorial: PipelineEditorialReadiness = {
+    checkedCount: activePublishedSubmissions.length,
+    approvedCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'approved').length,
+    pendingCount: activePublishedSubmissions.filter((submission) => (submission.editorialReviewStatus ?? 'pending') === 'pending').length,
+    reviseCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'revise').length,
+    quarantineCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'quarantine').length,
+    retireCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'retire').length,
+    missingEvidenceCount: editorialMissingEvidence.length,
+    coverageComplete: review.coverage.complete,
+  };
   activePublishedSubmissions.forEach((submission) => {
     const objectId = submission.lineageId ?? submission.id;
     const destinations = getPipelineStudioDestinationOptions(submission.assetType);
@@ -95,6 +127,7 @@ export const buildPipelineContentHealth = ({
     errors: issues.filter((issue) => issue.severity === 'error').length,
     warnings: issues.filter((issue) => issue.severity === 'warning').length,
     issues,
+    editorial,
     review,
   };
 };

@@ -19,6 +19,7 @@ import {
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/shared/classNames';
 import { useEditorPreferences } from '@/features/editor-preferences/client';
+import { initializeCardDataFromTemplate } from '@/features/card-generator/client';
 import { useToast } from '@/components/ui/use-toast';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
@@ -44,6 +45,8 @@ interface CardTemplateMakerProps {
   showCardWatermark: boolean;
   onSaveTemplate: (template: TCGCardTemplate) => Promise<string>;
   onSubmitTemplateRevision: (template: TCGCardTemplate) => Promise<void>;
+  onPrepareTemplateReview?: (template: TCGCardTemplate, isStillCurrent: () => boolean) => Promise<TCGCardTemplate>;
+  onSubmitTemplateReview?: (template: TCGCardTemplate) => Promise<void>;
   onContinueNewTemplateInPipeline: (template: TCGCardTemplate) => Promise<string>;
   templates: TCGCardTemplate[];
   defaultTemplates: TCGCardTemplate[];
@@ -77,6 +80,8 @@ export function CardTemplateMaker({
   showCardWatermark,
   onSaveTemplate,
   onSubmitTemplateRevision,
+  onPrepareTemplateReview,
+  onSubmitTemplateReview,
   onContinueNewTemplateInPipeline,
   templates,
   defaultTemplates,
@@ -130,7 +135,11 @@ export function CardTemplateMaker({
     setSelectedElementId,
     undo,
   } = controller;
+  const latestEditorRef = useRef({ template: currentTemplate, isDirty });
+  latestEditorRef.current = { template: currentTemplate, isDirty };
   const isSharedTemplate = currentTemplate.templateSource === 'default';
+  const isReviewDraft = Boolean(currentTemplate.templatePipelineContext);
+  const [isPreparingReview, setIsPreparingReview] = useState(false);
   const isSharedLineageDraft = currentTemplate.templateSource === 'user'
     && currentTemplate.templateRegistryStatus === 'draft'
     && Boolean(currentTemplate.templateLineageId)
@@ -235,13 +244,30 @@ export function CardTemplateMaker({
     finally { setIsCreatingPipelineDraft(false); }
   }, [commands, currentTemplate, isCreatingPipelineDraft, onContinueNewTemplateInPipeline, toast]);
   const handleSubmitSharedRevision = useCallback(async () => {
-    if (!canSubmitExistingRevision || isSubmittingSharedRevision) return;
+    if (!canSubmitExistingRevision || isSubmittingSharedRevision || isReviewDraft) return;
     if (isDirty && !await commands.saveTemplate()) return;
     setIsSubmittingSharedRevision(true);
     try { await onSubmitTemplateRevision(currentTemplate); }
     catch (error) { toast({ title: canPublishSharedLibrary ? 'Template revision not published' : 'Template revision not submitted', description: error instanceof Error ? error.message : 'Unable to send this Template revision to the Pipeline.', variant: 'destructive' }); }
     finally { setIsSubmittingSharedRevision(false); }
-  }, [canPublishSharedLibrary, canSubmitExistingRevision, commands, currentTemplate, isDirty, isSubmittingSharedRevision, onSubmitTemplateRevision, toast]);
+  }, [canPublishSharedLibrary, canSubmitExistingRevision, commands, currentTemplate, isDirty, isReviewDraft, isSubmittingSharedRevision, onSubmitTemplateRevision, toast]);
+
+  const handlePrepareReview = useCallback(async () => {
+    if (!onPrepareTemplateReview || isPreparingReview || isDirty || !(isSharedTemplate || isSharedLineageDraft) || isReviewDraft) return;
+    setIsPreparingReview(true);
+    const baseline = JSON.stringify(currentTemplate);
+    try { beginDraft(await onPrepareTemplateReview(currentTemplate, () => !latestEditorRef.current.isDirty && JSON.stringify(latestEditorRef.current.template) === baseline)); }
+    catch (error) { toast({ title: 'Review draft not prepared', description: error instanceof Error ? error.message : 'Your existing work is unchanged.', variant: 'destructive' }); }
+    finally { setIsPreparingReview(false); }
+  }, [beginDraft, currentTemplate, isDirty, isPreparingReview, isReviewDraft, isSharedLineageDraft, isSharedTemplate, onPrepareTemplateReview, toast]);
+  const handleSubmitReview = useCallback(async () => {
+    if (!onSubmitTemplateReview || !isReviewDraft || isSubmittingSharedRevision) return;
+    if (isDirty && !await commands.saveTemplate()) return;
+    setIsSubmittingSharedRevision(true);
+    try { await onSubmitTemplateReview(currentTemplate); }
+    catch (error) { toast({ title: 'Review submission not confirmed', description: error instanceof Error ? error.message : 'Retry the same saved snapshot. Your browser draft is preserved.', variant: 'destructive' }); }
+    finally { setIsSubmittingSharedRevision(false); }
+  }, [commands, currentTemplate, isDirty, isReviewDraft, isSubmittingSharedRevision, onSubmitTemplateReview, toast]);
 
   const savePresentation = isSharedTemplate && !canSubmitSharedTemplateRevision
     ? { label: 'Save a personal Template copy', shortLabel: isSavingTemplate ? 'Saving…' : 'Save copy', description: 'Save your changes as a personal browser Template. The CardForge Library original stays unchanged. (Ctrl+S)' }
@@ -270,7 +296,7 @@ export function CardTemplateMaker({
     savePresentation,
   });
   const saveAction = editorActions.find((action) => action.id === 'save');
-  const livePreviewData = useMemo(() => currentTemplate.templatePreviewData ?? {}, [currentTemplate.templatePreviewData]);
+  const livePreviewData = useMemo(() => initializeCardDataFromTemplate(currentTemplate, currentTemplate.templatePreviewData ?? {})[1], [currentTemplate]);
   const renderEditableElement = useCallback((element: FreeformCardElement) => {
     const worldElement = resolveCanvasElementWorldGeometry(element, canvas.elements);
     return <TemplateEditableElement
@@ -298,11 +324,29 @@ export function CardTemplateMaker({
             <div className="flex min-w-0 items-start gap-2">
               {canSubmitExistingRevision ? <GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" /> : <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />}
               <div>
-                <p className="cardforge-template-status-title font-medium text-[var(--cf-accent-text)]">{canSubmitExistingRevision ? `Shared Template · revision ${Number(currentTemplate.templateRevision ?? 0)} is the base` : 'CardForge Library Template'}</p>
-                <p className="cardforge-template-status-description mt-0.5 leading-5">{canSubmitExistingRevision ? `Save commits your browser draft. ${canPublishSharedLibrary ? 'Publish revision' : 'Submit revision'} ${nextTemplateRevision} is a separate Pipeline action, so saving never changes shared truth by itself.` : 'You can edit this Template freely. Saving creates a personal browser copy and keeps the shared original unchanged.'}</p>
+                <p className="cardforge-template-status-title font-medium text-[var(--cf-accent-text)]">{isReviewDraft ? `Review draft · published revision ${currentTemplate.templatePipelineContext!.expectedBase.baseRevisionNumber} is the base` : canSubmitExistingRevision ? `Shared Template · revision ${Number(currentTemplate.templateRevision ?? 0)} is the base` : 'CardForge Library Template'}</p>
+                <p className="cardforge-template-status-description mt-0.5 leading-5">{isReviewDraft ? 'Save keeps your browser work. Submit for review creates an unpublished same-lineage revision; editorial approval and publication remain separate.' : canSubmitExistingRevision ? `Save commits your browser draft. ${canPublishSharedLibrary ? 'Publish revision' : 'Submit revision'} ${nextTemplateRevision} is a separate Pipeline action, so saving never changes shared truth by itself.` : 'You can edit this Template freely. Saving creates a personal browser copy and keeps the shared original unchanged.'}</p>
               </div>
             </div>
-            {canSubmitExistingRevision ? <div className="flex shrink-0 flex-wrap items-center gap-2"><Button type="button" size="sm" disabled={isSavingTemplate || isSubmittingSharedRevision} onClick={() => void handleSubmitSharedRevision()}>{isSubmittingSharedRevision ? canPublishSharedLibrary ? 'Publishing…' : 'Submitting…' : canPublishSharedLibrary ? `Publish revision ${nextTemplateRevision}` : `Submit revision ${nextTemplateRevision}`}</Button><Link href={canPublishSharedLibrary ? '/owner?workspace=library&pipelineStatus=submitted' : '/account?section=library&scope=pipeline'} className="cardforge-template-status-action font-medium text-[var(--cf-accent-strong)] underline decoration-[#7f6225] underline-offset-4 hover:text-[var(--cf-accent-text)]">{canPublishSharedLibrary ? 'Review revisions' : 'Open Forge Review'}</Link></div> : null}
+            {canSubmitExistingRevision ? (
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {isReviewDraft ? (
+                  <Button type="button" size="sm" disabled={!canPublishSharedLibrary || !onSubmitTemplateReview || isSavingTemplate || isSubmittingSharedRevision} onClick={() => void handleSubmitReview()}>
+                    {isSubmittingSharedRevision ? 'Submitting…' : 'Submit for review'}
+                  </Button>
+                ) : <>
+                  <Button type="button" size="sm" disabled={isSavingTemplate || isSubmittingSharedRevision || isPreparingReview} onClick={() => void handleSubmitSharedRevision()}>
+                    {isSubmittingSharedRevision ? canPublishSharedLibrary ? 'Publishing…' : 'Submitting…' : canPublishSharedLibrary ? `Publish revision ${nextTemplateRevision}` : `Submit revision ${nextTemplateRevision}`}
+                  </Button>
+                  {canPublishSharedLibrary && (isSharedTemplate || isSharedLineageDraft) && onPrepareTemplateReview ? (
+                    <Button type="button" size="sm" variant="outline" disabled={isDirty || isSavingTemplate || isSubmittingSharedRevision || isPreparingReview} onClick={() => void handlePrepareReview()} title={isDirty ? 'Preserve these edits first. Prepare a review from an unchanged published Template.' : 'Start an unpublished correction from the exact published source.'}>
+                      {isPreparingReview ? 'Preparing…' : 'Prepare review draft'}
+                    </Button>
+                  ) : null}
+                </>}
+                <Link href={canPublishSharedLibrary ? '/owner?workspace=library&pipelineStatus=submitted' : '/account?section=library&scope=pipeline'} className="cardforge-template-status-action font-medium text-[var(--cf-accent-strong)] underline decoration-[#7f6225] underline-offset-4 hover:text-[var(--cf-accent-text)]">{canPublishSharedLibrary ? 'Review revisions' : 'Open Forge Review'}</Link>
+              </div>
+            ) : null}
           </div>
         ) : canSubmitNewTemplate ? (
           <div className="cardforge-template-status flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">

@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "https://github.com/google/fonts",
+  "sourceRevision": "51303ca9e8ac9dcea7b12d307ba568fd0e6fcfca",
+  "license": "OFL-1.1",
+  "families": [
+    {
+      "family": "Alegreya",
+      "localDirectory": "alegreya",
+      "upstreamDirectory": "ofl/alegreya",
+      "licenseGitBlobSha": "1a25b6d8a7f84147962200321d2ffa75b960b9af",
+      "files": [
+        {
+          "localName": "Alegreya-wght.ttf",
+          "upstreamName": "Alegreya[wght].ttf",
+          "gitBlobSha": "af2b22024311daaa15ec4ab879bd67f790abb9f1",
+          "sizeBytes": 425288
+        }
+      ]
+    },
+    {
+      "family": "Barlow Condensed",
+      "localDirectory": "barlow-condensed",
+      "upstreamDirectory": "ofl/barlowcondensed",
+      "licenseGitBlobSha": "2f22ba6ca4dbc12145ae40b14c3368f387cba0e2",
+      "files": [
+        {
+          "localName": "BarlowCondensed-Bold.ttf",
+          "upstreamName": "BarlowCondensed-Bold.ttf",
+          "gitBlobSha": "9e480f467d703009e3abfce290b2ec2b7d24e188",
+          "sizeBytes": 109912
+        },
+        {
+          "localName": "BarlowCondensed-Regular.ttf",
+          "upstreamName": "BarlowCondensed-Regular.ttf",
+          "gitBlobSha": "ecbe0cc84118decc6a16216ad53d83d39888b175",
+          "sizeBytes": 102480
+        },
+        {
+          "localName": "BarlowCondensed-SemiBold.ttf",
+          "upstreamName": "BarlowCondensed-SemiBold.ttf",
+          "gitBlobSha": "9df66576492bee4bd0559066825472808fa98adc",
+          "sizeBytes": 109428
+        }
+      ]
+    },
+    {
+      "family": "Cinzel",
+      "localDirectory": "cinzel",
+      "upstreamDirectory": "ofl/cinzel",
+      "licenseGitBlobSha": "afdfd1412be934fe7cc40a5a2c5e06e354c44dcf",
+      "files": [
+        {
+          "localName": "Cinzel-wght.ttf",
+          "upstreamName": "Cinzel[wght].ttf",
+          "gitBlobSha": "d218a0b9c8879fd5a708872cc0ef357e507b35ca",
+          "sizeBytes": 125468
+        }
+      ]
+    },
+    {
+      "family": "Cormorant Garamond",
+      "localDirectory": "cormorant-garamond",
+      "upstreamDirectory": "ofl/cormorantgaramond",
+      "licenseGitBlobSha": "507d70f4565352dbfcf2dfc9b42eb092b57c0be8",
+      "files": [
+        {
+          "localName": "CormorantGaramond-wght.ttf",
+          "upstreamName": "CormorantGaramond[wght].ttf",
+          "gitBlobSha": "d992a83ce525c330fad3a19087746bcb2dc038ee",
+          "sizeBytes": 1195560
+        }
+      ]
+    },
+    {
+      "family": "EB Garamond",
+      "localDirectory": "eb-garamond",
+      "upstreamDirectory": "ofl/ebgaramond",
+      "licenseGitBlobSha": "c1ec5e1818415eab6f8fca95a230af477d64eb61",
+      "files": [
+        {
+          "localName": "EBGaramond-wght.ttf",
+          "upstreamName": "EBGaramond[wght].ttf",
+          "gitBlobSha": "52d34b86ec20977f222ce37e8158e6b3002c0a31",
+          "sizeBytes": 851176
+        }
+      ]
+    },
+    {
+      "family": "Lato",
+      "localDirectory": "lato",
+      "upstreamDirectory": "ofl/lato",
+      "licenseGitBlobSha": "98383e3d835a5c5aea988a74b569193a30dcbcec",
+      "files": [
+        {
+          "localName": "Lato-Black.ttf",
+          "upstreamName": "Lato-Black.ttf",
+          "gitBlobSha": "53a31ac8f56e9e3f67d35844f2b41ef9ade0e156",
+          "sizeBytes": 664748
+        },
+        {
+          "localName": "Lato-Bold.ttf",
+          "upstreamName": "Lato-Bold.ttf",
+          "gitBlobSha": "1d23c7066e095b5bff2c373d4064dc4f33659783",
+          "sizeBytes": 656544
+        },
+        {
+          "localName": "Lato-Regular.ttf",
+          "upstreamName": "Lato-Regular.ttf",
+          "gitBlobSha": "0f3d0f837d24834b9b5b0a6b735459c56f5e75c3",
+          "sizeBytes": 656568
+        }
+      ]
+    },
+    {
+      "family": "Orbitron",
+      "localDirectory": "orbitron",
+      "upstreamDirectory": "ofl/orbitron",
+      "licenseGitBlobSha": "91ede459e18c22d3f2ba7c27d925b49cc945abe4",
+      "files": [
+        {
+          "localName": "Orbitron-wght.ttf",
+          "upstreamName": "Orbitron[wght].ttf",
+          "gitBlobSha": "1fc54ce7116a6ec549f37358466bcc92f9a72c33",
+          "sizeBytes": 38576
+        }
+      ]
+    },
+    {
+      "family": "Rajdhani",
+      "localDirectory": "rajdhani",
+      "upstreamDirectory": "ofl/rajdhani",
+      "licenseGitBlobSha": "6dd809659a8ccace7ccee108d024d33cd4f936da",
+      "files": [
+        {
+          "localName": "Rajdhani-Bold.ttf",
+          "upstreamName": "Rajdhani-Bold.ttf",
+          "gitBlobSha": "47af15713b45605a5d98241b8211a3409f522b34",
+          "sizeBytes": 400680
+        },
+        {
+          "localName": "Rajdhani-Regular.ttf",
+          "upstreamName": "Rajdhani-Regular.ttf",
+          "gitBlobSha": "d25bd37233b672ef565e01d998a9412d761d7b00",
+          "sizeBytes": 377860
+        },
+        {
+          "localName": "Rajdhani-SemiBold.ttf",
+          "upstreamName": "Rajdhani-SemiBold.ttf",
+          "gitBlobSha": "d43750bd05c130d36c8e7fbeb06ecd7c5d3c3b17",
+          "sizeBytes": 390340
+        }
+      ]
+    },
+    {
+      "family": "Spectral",
+      "localDirectory": "spectral",
+      "upstreamDirectory": "ofl/spectral",
+      "licenseGitBlobSha": "163d3a50c1666a69aac8b9f78dfc7142fb319a27",
+      "files": [
+        {
+          "localName": "Spectral-Bold.ttf",
+          "upstreamName": "Spectral-Bold.ttf",
+          "gitBlobSha": "5019e0802e726cebe021b007e661ec763c63e54f",
+          "sizeBytes": 273220
+        },
+        {
+          "localName": "Spectral-Regular.ttf",
+          "upstreamName": "Spectral-Regular.ttf",
+          "gitBlobSha": "25a6c47f8050e4ea3c9713a02a4843a8d6c503d5",
+          "sizeBytes": 261088
+        }
+      ]
+    },
+    {
+      "family": "Uncial Antiqua",
+      "localDirectory": "uncial-antiqua",
+      "upstreamDirectory": "ofl/uncialantiqua",
+      "licenseGitBlobSha": "4171fd7daad5cc50d032d6a11ec2503917561e36",
+      "files": [
+        {
+          "localName": "UncialAntiqua-Regular.ttf",
+          "upstreamName": "UncialAntiqua-Regular.ttf",
+          "gitBlobSha": "4e801dc5faa225e11cab23ebe99c7daa47e0a76d",
+          "sizeBytes": 63404
+        }
+      ]
+    }
+  ]
+}

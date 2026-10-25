@@ -2,13 +2,15 @@
 
 import { Database, Rocket } from 'lucide-react';
 
+import type { EditorDraftState } from '@/components/ui/use-editor-draft';
 import { Button } from '@/components/ui/button';
 import {
   OwnerBusinessIdentityPanel,
   type BusinessIdentityInput,
+  type BusinessIdentity,
 } from '@/features/business-identity/client';
 import type { OwnerOperationsPayload } from '@/features/owner/lib/ownerOperations';
-import { updateOwnerOperations } from '@/features/owner/model/ownerOperationsClient';
+import { publishOwnerPresentation } from '@/features/owner/model/ownerOperationsClient';
 import { formatOwnerBytes, OwnerFieldHelp, OwnerMetricTile } from './OwnerPanelPrimitives';
 
 type OwnerReadinessPayload = Pick<OwnerOperationsPayload, 'businessIdentity' | 'roadmapItems' | 'databaseMetrics'>;
@@ -27,23 +29,26 @@ export function OwnerReadinessPanel({
   view = 'all',
   compactRoadmap = false,
   onOpenRoadmap,
+  onIdentityEditorStateChange,
 }: {
   operationsPayload: OwnerReadinessPayload;
   onOperationsChange?: (payload: OwnerOperationsPayload) => void;
   view?: 'all' | 'identity' | 'health' | 'roadmap';
   compactRoadmap?: boolean;
   onOpenRoadmap?: () => void;
+  onIdentityEditorStateChange?: (state: EditorDraftState) => void;
 }) {
   const saveBusinessIdentity = async (
     businessIdentity: BusinessIdentityInput,
     expectedIdentityVersion: number,
   ) => {
-    const next = await updateOwnerOperations({
+    const next = await publishOwnerPresentation<BusinessIdentity>({
       kind: 'businessIdentity',
       businessIdentity,
       expectedIdentityVersion,
     }, 'Unable to save business identity.');
-    onOperationsChange?.(next);
+    if (next.operations) onOperationsChange?.(next.operations);
+    return next.value;
   };
 
   const metrics = operationsPayload.databaseMetrics;
@@ -65,6 +70,7 @@ export function OwnerReadinessPanel({
       {view === 'all' || view === 'identity' ? <OwnerBusinessIdentityPanel
         businessIdentity={operationsPayload.businessIdentity}
         onSave={saveBusinessIdentity}
+        onEditorStateChange={onIdentityEditorStateChange}
       /> : null}
 
       {view === 'all' || view === 'health' ? <section className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-6">

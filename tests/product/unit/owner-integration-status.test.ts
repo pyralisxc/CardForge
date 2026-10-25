@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('server-only', () => ({}));
+
 import { getOwnerIntegrationStatus } from '@/features/owner/server';
 
 describe('owner integration status', () => {
@@ -76,6 +78,18 @@ describe('owner integration status', () => {
 
     vi.stubEnv('CARDFORGE_OWNER_ACCOUNT_EMAILS', 'pyraliscameron@gmail.com');
     expect(getOwnerIntegrationStatus().canonicalOwnerConfigured).toBe(true);
+  });
+
+  it('reports configured Preview providers without hard-coded Production identities', () => {
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://preview.example.test');
+    vi.stubEnv('SUPABASE_URL', 'https://mjdugheniazuiqoefnnb.supabase.co');
+    const snapshot = getOwnerIntegrationStatus();
+    expect(snapshot.publicationEnvironment).toBe('preview');
+    const services = snapshot.connectedServices;
+    expect(services.find((service) => service.id === 'vercel')?.statusLabel).toBe('Public URL configured');
+    expect(services.find((service) => service.id === 'supabase')).toMatchObject({ identifier: 'mjdugheniazuiqoefnnb', dashboardUrl: 'https://supabase.com/dashboard/project/mjdugheniazuiqoefnnb' });
+    expect(services.find((service) => service.id === 'clerk')?.identifier).not.toContain('production');
   });
 
   it('keeps provider ownership and destructive-impact links visible to the owner', () => {

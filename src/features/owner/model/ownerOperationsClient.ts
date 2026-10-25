@@ -15,6 +15,7 @@ export interface OwnerOperationsResponse {
     userId: string | null;
   };
   integrationStatus: {
+    publicationEnvironment?: 'production' | 'preview' | 'development';
     site: {
       publicAppUrl: string;
       configuredPublicAppUrl: string | null;
@@ -107,4 +108,14 @@ export const updateOwnerOperations = async (
   });
   if (!response.ok) throw new Error(await readApiErrorMessage(response, fallback));
   return ((await response.json()) as { operations: OwnerOperationsPayload }).operations;
+};
+
+export const publishOwnerPresentation = async <T>(body: Record<string, unknown>, fallback: string): Promise<{
+  value: T; receipt: import('@/features/owner/server/ownerSiteCommands').OwnerCommittedMutationReceipt; operations: OwnerOperationsPayload | null;
+}> => {
+  const response = await fetch('/api/owner/operations', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!response.ok) throw new Error(await readApiErrorMessage(response, fallback));
+  const result = await response.json();
+  if (result.publication?.receipt?.committed !== true || !result.publication.value) throw new Error('Publication outcome is unknown. Reload and verify current state before another change.');
+  return { ...result.publication, operations: result.operations ?? null };
 };

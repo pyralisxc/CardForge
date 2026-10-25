@@ -1,12 +1,16 @@
 "use client";
+import { SourceReviewEvidence } from './SourceReviewEvidence';
 
 import { useState } from 'react';
 import { Archive, CheckCircle2, ChevronLeft, ChevronRight, Eye, Pencil, Search, Settings2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { MediaPresentationRevision } from './MediaPresentationRevision';
 import { AssetRow } from './PipelineSubmissionRows';
+import { ContentQualityGuidance } from './ContentQualityGuidance';
+import { CONTENT_QUALITY_STANDARD_VERSION, parseContentQualityReviewNote } from '../lib/contentQualityStandard';
 import { usePipelineTemplatePreviews } from './usePipelineTemplatePreviews';
-import { getTemplatePreviewId } from './PipelineContributionModel';
+import { getTemplatePreviewId, type PipelineTemplateSpecimenRenderer } from './PipelineContributionModel';
 import {
   estimatePipelineCatalogCapacityBytes,
   PIPELINE_ASSET_STORAGE_BUDGET_BYTES,
@@ -17,7 +21,7 @@ import {
   type PipelineStatus,
   type PipelineType,
 } from '../lib/pipelineItems';
-import type { PipelineProgramView } from '../lib/pipelineProgram';
+import type { PipelineEditorialReviewStatus, PipelineProgramView } from '../lib/pipelineProgram';
 import {
   getPipelineStatusLabel,
   getPipelineTierLabel,
@@ -30,8 +34,15 @@ export interface OwnerAssetOverrideInput {
   ownerNote: string;
 }
 
+export interface OwnerEditorialReviewInput {
+  editorialReviewStatus: PipelineEditorialReviewStatus;
+  editorialReviewNote: string;
+  expectedEvidenceVersion?: number | null;
+}
+
 interface OwnerAssetLibraryPanelProps {
   program: PipelineProgramView;
+  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
   query: string;
   assetTypeFilter: PipelineType | 'all';
   statusFilter: PipelineStatus | 'all';
@@ -46,7 +57,13 @@ interface OwnerAssetLibraryPanelProps {
     input: OwnerAssetOverrideInput,
     success?: { title: string; description: string },
   ) => Promise<boolean>;
+  onUpdateEditorialReview: (
+    submissionId: string,
+    input: OwnerEditorialReviewInput,
+  ) => Promise<boolean>;
+  onRevisionCreated?: () => Promise<void> | void;
   onDeletePermanently: (submissionId: string, confirmationName: string) => Promise<void>;
+  onDeleteRevisionNow: (submissionId:string,confirmationName:string,storagePath:string|null)=>Promise<void>;
 }
 
 const statusOptions: PipelineStatus[] = [
@@ -59,6 +76,7 @@ const statusOptions: PipelineStatus[] = [
 
 export function OwnerAssetLibraryPanel({
   program,
+  renderTemplateSpecimen,
   query,
   assetTypeFilter,
   statusFilter,
@@ -69,13 +87,20 @@ export function OwnerAssetLibraryPanel({
   onPageChange,
   updatingSubmissionId,
   onUpdateOverride,
+  onUpdateEditorialReview,
   onDeletePermanently,
+  onDeleteRevisionNow,
+  onRevisionCreated,
 }: OwnerAssetLibraryPanelProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [managingId, setManagingId] = useState<string | null>(null);
   const [statusOverride, setStatusOverride] = useState<PipelineStatus | 'automatic'>('automatic');
   const [tierOverride, setTierOverride] = useState<PipelineAccessTierOverride | 'automatic'>('automatic');
   const [ownerNote, setOwnerNote] = useState('');
+  const [editorialReviewStatus, setEditorialReviewStatus] = useState<PipelineEditorialReviewStatus>('pending');
+  const [editorialReviewNote, setEditorialReviewNote] = useState('');
+  const [editorialEvidenceVersion, setEditorialEvidenceVersion] = useState<number | null>(null);
+  const [qualityCriteriaReviewed, setQualityCriteriaReviewed] = useState(false);
   const templatePreviews = usePipelineTemplatePreviews(program.submissions);
   const totalPages = Math.max(1, Math.ceil(program.submissionPage.total / program.submissionPage.pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -95,6 +120,10 @@ export function OwnerAssetLibraryPanel({
     setStatusOverride(submission.ownerStatusOverride ?? 'automatic');
     setTierOverride(submission.ownerAccessTierOverride ?? 'automatic');
     setOwnerNote(submission.ownerNote ?? '');
+    setEditorialReviewStatus(submission.editorialReviewStatus ?? 'pending');
+    setEditorialEvidenceVersion(submission.sourceReviewEvidenceVersion ?? null);
+    setEditorialReviewNote(parseContentQualityReviewNote(submission.editorialReviewNote).reason);
+    setQualityCriteriaReviewed(false);
   };
 
   const saveOverride = async (submissionId: string) => {
@@ -103,10 +132,31 @@ export function OwnerAssetLibraryPanel({
       (nextStatus === 'archived' || nextStatus === 'rejected')
       && !window.confirm(`Confirm ${nextStatus === 'rejected' ? 'closing' : 'retiring'} this asset. Its history will be preserved.`)
     ) return;
+    if (nextStatus === 'published' && !ownerNote.trim()) {
+      window.alert('Add an Owner decision note before publishing this exact revision.');
+      return;
+    }
     const saved = await onUpdateOverride(submissionId, {
       ownerStatusOverride: nextStatus,
       ownerAccessTierOverride: tierOverride === 'automatic' ? null : tierOverride,
       ownerNote,
+    });
+    if (saved) setManagingId(null);
+  };
+
+  const saveEditorialReview = async (submissionId: string) => {
+    if (editorialReviewStatus === 'approved' && !qualityCriteriaReviewed) {
+      window.alert('Inspect the exact artwork and confirm the content quality criteria before approving.');
+      return;
+    }
+    if (editorialReviewStatus !== 'pending' && !editorialReviewNote.trim()) {
+      window.alert('Add a concise editorial reason before recording this decision.');
+      return;
+    }
+    const saved = await onUpdateEditorialReview(submissionId, {
+      editorialReviewStatus,
+      editorialReviewNote,
+      expectedEvidenceVersion: editorialEvidenceVersion,
     });
     if (saved) setManagingId(null);
   };
@@ -144,6 +194,16 @@ export function OwnerAssetLibraryPanel({
     setManagingId(null);
   };
 
+  const deleteRevisionNow = async (submission: PipelineProgramView['submissions'][number]) => {
+    if (submission.status !== 'archived' || !submission.trashedAt ||
+        submission.publishedAt || submission.retentionHold) return;
+    const name = window.prompt(
+      `Delete ONLY this trashed revision permanently? This removes its managed Storage file and submission row, not sibling revisions.\n\nRevision: ${submission.revisionNumber ?? 'unknown'}\nName: ${submission.name}\nStorage: ${submission.sourceStoragePath}\n\nType the exact name to confirm:`
+    );
+    if (name !== submission.name) return;
+    await onDeleteRevisionNow(submission.id,name,submission.sourceStoragePath);
+  };
+
   const deletePermanently = async (submission: PipelineProgramView['submissions'][number]) => {
     const confirmationName = window.prompt(
       `This permanently deletes the asset, its registry entry, revisions, votes, and managed files. Type the exact asset name to continue:\n\n${submission.name}`,
@@ -165,7 +225,7 @@ export function OwnerAssetLibraryPanel({
           <div>
             <p className="font-serif text-lg text-[var(--cf-accent-text)]">Owner review queue</p>
             <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">
-              {program.submissionStatusCounts.submitted} submitted Template contribution{program.submissionStatusCounts.submitted === 1 ? '' : 's'} waiting for a publication decision.
+              {program.submissionStatusCounts.submitted} submitted contribution{program.submissionStatusCounts.submitted === 1 ? '' : 's'} waiting for a publication decision.
             </p>
           </div>
           <Button
@@ -173,7 +233,7 @@ export function OwnerAssetLibraryPanel({
             className="rounded-none bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]"
             onClick={() => onStatusFilterChange('submitted')}
           >
-            Show pending Templates
+            Show pending contributions
           </Button>
         </div>
       ) : null}
@@ -233,7 +293,9 @@ export function OwnerAssetLibraryPanel({
         ) : program.submissions.map((submission) => {
           const isPendingTemplateRevision = submission.assetType === 'templates'
             && submission.revisionNumber != null
-            && submission.status === 'submitted';
+            && (submission.status === 'submitted' || submission.status === 'publish_candidate'
+              || (submission.status === 'voting' && submission.editorialReviewStatus === 'approved'
+                && submission.baseRevisionNumber != null && submission.baseRevisionNumber > 0));
           const isNewTemplateSubmission = isPendingTemplateRevision && submission.baseRevisionNumber === 0;
           const editTemplateId = getTemplatePreviewId(submission);
           return (
@@ -241,10 +303,70 @@ export function OwnerAssetLibraryPanel({
             key={submission.id}
             submission={submission}
             program={program}
+            renderTemplateSpecimen={renderTemplateSpecimen}
             templatePreviews={templatePreviews}
             expanded={expandedId === submission.id}
             editForm={managingId === submission.id ? (
               <div className="mt-4 grid gap-3 border border-[#6f4f28] bg-[var(--cf-surface)] p-4">
+                {submission.status === 'published' && submission.assetType === 'textures' && submission.registryAssetId ? <MediaPresentationRevision assetId={submission.registryAssetId} onCreated={onRevisionCreated ?? (() => undefined)} /> : null}
+                <section className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Editorial readiness</p>
+                    <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">
+                      This is an exact-revision quality decision. Technical validity and community voting remain separate signals.
+                    </p>
+                  </div>
+                  <ContentQualityGuidance role={submission.semanticRole} />
+                  {submission.isCorrectionRevision ? <SourceReviewEvidence key={submission.id} submissionId={submission.id} onRecorded={onRevisionCreated} onVersionChange={(version) => {
+                    if (editorialEvidenceVersion !== version) {
+                      setEditorialEvidenceVersion(version); setEditorialReviewStatus('pending'); setQualityCriteriaReviewed(false);
+                    }
+                  }} /> : null}
+                  <label className="flex items-start gap-2 text-xs leading-5 text-[var(--cf-text-muted)]">
+                    <input type="checkbox" className="mt-1" checked={qualityCriteriaReviewed} onChange={(event) => setQualityCriteriaReviewed(event.target.checked)} />
+                    I reviewed this exact revision against {CONTENT_QUALITY_STANDARD_VERSION}, including real-size visual proof, sources/rights and AI-use evidence.
+                  </label>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+                      Review outcome
+                      <select
+                        className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+                        value={editorialReviewStatus}
+                        onChange={(event) => setEditorialReviewStatus(event.target.value as PipelineEditorialReviewStatus)}
+                      >
+                        <option value="pending">Pending review</option>
+                        <option value="approved">Approved</option>
+                        {submission.status !== 'published' ? <option value="revise">Needs revision</option> : null}
+                        <option value="quarantine">Quarantine</option>
+                        <option value="retire">Retire</option>
+                      </select>
+                    </label>
+                    <div className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-xs leading-5 text-[var(--cf-text-muted)]">
+                      <p><span className="font-semibold text-[var(--cf-accent-text)]">Current:</span> {submission.editorialReviewStatus ?? 'pending'}</p>
+                      <p>{submission.editorialReviewedAt ? `Reviewed ${new Date(submission.editorialReviewedAt).toLocaleString()}` : 'No recorded exact-revision editorial review yet.'}</p>
+                      <p>Guidance: {parseContentQualityReviewNote(submission.editorialReviewNote).version ?? 'Legacy / not recorded'}</p>
+                    </div>
+                  </div>
+                  <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+                    Editorial reason
+                    <textarea
+                      className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+                      value={editorialReviewNote}
+                      maxLength={600 - CONTENT_QUALITY_STANDARD_VERSION.length - 3}
+                      onChange={(event) => setEditorialReviewNote(event.target.value)}
+                    />
+                  </label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={updatingSubmissionId === submission.id || editorialReviewStatus === 'approved' && submission.isCorrectionRevision && editorialEvidenceVersion === null}
+                    className="w-fit rounded-none"
+                    onClick={() => void saveEditorialReview(submission.id)}
+                  >
+                    {updatingSubmissionId === submission.id ? 'Saving review…' : 'Save editorial review'}
+                  </Button>
+                </section>
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
                     Status control
@@ -287,6 +409,13 @@ export function OwnerAssetLibraryPanel({
                     >
                       <Archive className="mr-1 h-4 w-4" /> Retire
                     </Button>
+                    {submission.status === 'archived' && submission.trashedAt && !submission.publishedAt &&
+                      !submission.retentionHold ? (
+                      <Button size="sm" variant="outline" disabled={updatingSubmissionId === submission.id}
+                        onClick={() => void deleteRevisionNow(submission)}>
+                        <Trash2 className="mr-1 h-4 w-4" /> Delete now (one revision)
+                      </Button>
+                    ) : null}
                     <Button
                       size="sm"
                       variant="outline"
@@ -316,7 +445,7 @@ export function OwnerAssetLibraryPanel({
                     : `Approve & publish revision ${submission.revisionNumber}`}
               </Button>
             ) : null}
-            {editTemplateId && templatePreviews[editTemplateId] ? (
+            {editTemplateId && templatePreviews[editTemplateId] && !isPendingTemplateRevision ? (
               <Button asChild size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]">
                 <a href={`/account?${new URLSearchParams({ section: 'library', scope: 'pipeline', tool: 'design', artifact: editTemplateId, editTemplate: editTemplateId })}`}>
                   <Pencil className="mr-1 h-4 w-4" /> Edit Template

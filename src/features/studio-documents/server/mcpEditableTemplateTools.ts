@@ -36,6 +36,7 @@ import {
   studioLibrarySearchOutputSchema,
 } from './mcpToolOutputSchemas';
 import {
+  editableTemplateListStructuredContent,
   editableTemplateSummaryForMcp,
   omitEmbeddedMediaForMcp,
 } from './mcpTemplateToolResults';
@@ -340,7 +341,7 @@ export const registerEditableTemplateTools = ({
               ? `Returned the first ${page.documents.length} private Studio documents. More documents exist beyond this result boundary.`
               : `Found ${page.documents.length} private Studio document${page.documents.length === 1 ? '' : 's'}.`,
           }],
-          structuredContent: page,
+          structuredContent: editableTemplateListStructuredContent(page),
         };
       },
     }),

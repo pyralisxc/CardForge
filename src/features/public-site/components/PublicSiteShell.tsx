@@ -12,6 +12,7 @@ export interface PublicSiteShellProps {
   currentPath?: string;
   mainClassName?: string;
   siteConfiguration: PublicSiteConfiguration;
+  portalContainer?: HTMLElement | null;
 }
 
 export function PublicSiteShell({
@@ -21,6 +22,7 @@ export function PublicSiteShell({
   currentPath,
   mainClassName,
   siteConfiguration,
+  portalContainer,
 }: PublicSiteShellProps) {
   return (
     <div className="cardforge-public min-h-screen">
@@ -29,10 +31,11 @@ export function PublicSiteShell({
       </a>
       {siteConfiguration.announcementEnabled ? (
         <div role="status" className="border-b border-[var(--public-brass)] bg-[var(--cf-surface-hover)] px-5 py-2 text-center text-sm font-semibold text-[var(--public-ivory)]">
-          {siteConfiguration.announcementMessage}
+          <span data-site-configuration-field="announcementMessage">{siteConfiguration.announcementMessage}</span>
         </div>
       ) : null}
       <PublicSiteHeader
+        portalContainer={portalContainer}
         accountSlot={accountSlot}
         businessIdentity={businessIdentity}
         currentPath={currentPath}

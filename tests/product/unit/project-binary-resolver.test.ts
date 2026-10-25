@@ -19,6 +19,7 @@ describe('Project binary asset resolver', () => {
     const second = await resolver.acquire(reference);
 
     expect(first.url).toBe('blob:cardforge/asset-1');
+    expect(first.mimeType).toBe('image/png');
     expect(second.url).toBe(first.url);
     expect(loadBlob).toHaveBeenCalledOnce();
     first.release();

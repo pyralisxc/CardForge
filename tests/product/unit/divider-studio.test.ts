@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DividerStudioPanel } from '@/features/template-editor/components/DividerStudioPanel';
 import type { TemplateAssetLibraryPicker } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
 import { appearanceToStyle } from '@/features/card-rendering/model/appearance';
+import { VectorShapeElement } from '@/features/card-rendering/components/VectorShapeElement';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import type { FreeformAppearance, FreeformCardElement } from '@/domain/templates';
 
@@ -31,7 +32,7 @@ describe('Divider Studio source selection', () => {
     expect(props).toMatchObject({ kind: 'divider', assets: [asset], personalRoles: ['divider'], providerRole: 'divider', target: { kind: 'template-element', ids: ['selected-divider'] } });
     props.onApply(asset);
     expect(appearance).toMatchObject({ dividerAsset: asset.url, assetKind: 'divider', assetRenderMode: 'original', shapeRole: 'divider', textureOpacity: 85, tileMode: 'stretch', material: { baseColor: 'transparent', textColor: '#123456' }, border: { kind: 'none', width: 0 } });
-    expect(appearanceToStyle(appearance).backgroundImage).toBe(`url(${asset.url})`);
+    expect(appearanceToStyle(appearance).backgroundImage).toBe(`url("${asset.url}#svgView(preserveAspectRatio(none))")`);
     expect(element).toEqual(before);
     expect(updateElement).not.toHaveBeenCalled();
   });
@@ -46,8 +47,108 @@ describe('Divider Studio source selection', () => {
     });
 
     expect(style.backgroundImage).toBeUndefined();
+    expect(style.backgroundSize).toBeUndefined();
+    expect(style.backgroundRepeat).toBeUndefined();
+    expect(style.backgroundPosition).toBeUndefined();
     expect(style.backgroundColor).toBe('#d5ad54');
-    expect(style.maskImage).toBe('url(https://cdn.example.test/divider.svg?revision=2)');
+    expect(style.maskImage).toBe('url("https://cdn.example.test/divider.svg?revision=2#svgView(preserveAspectRatio(none))")');
     expect(style.maskSize).toBe('100% 100%');
+  });
+});
+
+describe('appearance background fit', () => {
+  const source = 'https://cdn.example.test/finite-surface.svg';
+
+  it.each([
+    ['contain', 'contain', 'no-repeat', 'center'],
+    ['stretch', '100% 100%', 'no-repeat', undefined],
+    ['repeat', '96px 96px', 'repeat', undefined],
+  ] as const)('honors %s for both material URL textures and top-level assets', (tileMode, size, repeat, position) => {
+    const appearances: FreeformAppearance[] = [
+      { material: { texture: { kind: 'uploaded', assetSource: source, tileMode, textureScale: 96 } } },
+      { material: { texture: { kind: 'uploaded', imageSource: source, tileMode, textureScale: 96 } } },
+      { assetSource: source, tileMode, textureScale: 96 },
+    ];
+    for (const appearance of appearances) {
+      const style = appearanceToStyle(appearance);
+      expect(style.backgroundImage).toBe(tileMode === 'stretch'
+        ? `url("${source}#svgView(preserveAspectRatio(none))")`
+        : `url(${source})`);
+      expect(style.backgroundSize).toBe(size);
+      expect(style.backgroundRepeat).toBe(repeat);
+      expect(style.backgroundPosition).toBe(position);
+    }
+  });
+
+  it('preserves legacy fit when no tile mode is authored', () => {
+    expect(appearanceToStyle({ material: { texture: { kind: 'uploaded', assetSource: source } } })).toMatchObject({
+      backgroundSize: '160px 160px', backgroundRepeat: 'repeat',
+    });
+    expect(appearanceToStyle({ material: { texture: { kind: 'uploaded', imageSource: source, textureScale: 72 } } })).toMatchObject({
+      backgroundSize: '72px 72px', backgroundRepeat: 'repeat',
+    });
+    expect(appearanceToStyle({ assetSource: source })).toMatchObject({
+      backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat',
+    });
+  });
+
+  it('keeps each asset, texture, gradient and raw CSS layer aligned with its own fit', () => {
+    const style = appearanceToStyle({
+      assetSource: 'https://cdn.example.test/frame.svg', tileMode: 'contain',
+      material: {
+        texture: { kind: 'uploaded', assetSource: source, tileMode: 'repeat', textureScale: 72 },
+        gradient: { type: 'linear', stops: [{ id: 'start', color: '#000000', position: 0 }, { id: 'end', color: '#ffffff', position: 100 }] },
+      },
+      rawCss: { backgroundImage: 'linear-gradient(90deg, red, blue), url("https://cdn.example.test/raw,(2).png"), url("data:image/svg+xml,%3Csvg%3E%3C/svg%3E")' },
+    });
+    expect(style.backgroundImage).toBe(`url(https://cdn.example.test/frame.svg), url(${source}), linear-gradient(135deg, #000000 0%, #ffffff 100%), linear-gradient(90deg, red, blue), url("https://cdn.example.test/raw,(2).png"), url("data:image/svg+xml,%3Csvg%3E%3C/svg%3E")`);
+    expect(style.backgroundSize).toBe('contain, 72px 72px, auto, auto, auto, auto');
+    expect(style.backgroundRepeat).toBe('no-repeat, repeat, repeat, repeat, repeat, repeat');
+    expect(style.backgroundPosition).toBe('center, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%');
+  });
+
+  it('accounts for multi-gradient procedural textures without fitting the following raw layer', () => {
+    const style = appearanceToStyle({
+      material: { texture: { kind: 'parchment', textureScale: 48 } },
+      rawCss: { backgroundImage: 'linear-gradient(red, blue)' },
+    });
+    expect(style.backgroundSize).toBe('48px 48px, 48px 48px, auto');
+  });
+
+  it('does not include a tinted asset in the background layer fit list', () => {
+    const style = appearanceToStyle({
+      assetSource: 'https://cdn.example.test/frame.svg', assetRenderMode: 'tint', tileMode: 'stretch',
+      material: { texture: { kind: 'uploaded', assetSource: source, tileMode: 'contain' } },
+      rawCss: { backgroundImage: 'linear-gradient(red, blue)' },
+    });
+    expect(style.backgroundImage).toBe(`url(${source}), linear-gradient(red, blue)`);
+    expect(style.backgroundSize).toBe('contain, auto');
+    expect(style.backgroundRepeat).toBe('no-repeat, repeat');
+    expect(style.backgroundPosition).toBe('center, 0% 0%');
+    expect(style.maskSize).toBe('100% 100%');
+  });
+});
+
+describe('vector shape background coordinates', () => {
+  it.each([
+    ['contain', 'contain', 'no-repeat'],
+    ['stretch', '100% 100%', 'no-repeat'],
+    ['repeat', '110px 110px', 'repeat'],
+  ] as const)('lays out %s backgrounds in the authored rectangular surface before shape projection', (tileMode, size, repeat) => {
+    const element: FreeformCardElement = {
+      id: `shape-${tileMode}`, name: 'Rectangular texture', type: 'shape', shapeKind: 'rectangle',
+      x: 0, y: 0, width: 500, height: 150, zIndex: 1, strokeWidth: 0,
+      appearance: {
+        material: { texture: { kind: 'uploaded', assetSource: 'https://cdn.example.test/finite-surface.svg', tileMode, textureScale: 110 } },
+        border: { kind: 'none', width: 0 },
+      },
+    };
+    const html = renderToStaticMarkup(createElement(VectorShapeElement, { element, style: appearanceToStyle(element.appearance) }));
+
+    expect(html).toContain('viewBox="0 0 100 100" preserveAspectRatio="none"');
+    expect(html).toContain('width="500" height="150" transform="scale(0.2 0.6666666666666666)"');
+    expect(html).toMatch(/<g clip-path="url\(#[^)]+\)"><foreignObject /);
+    expect(html).toContain(`background-size:${size}`);
+    expect(html).toContain(`background-repeat:${repeat}`);
   });
 });

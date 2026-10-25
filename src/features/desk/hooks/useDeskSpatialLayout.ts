@@ -49,6 +49,7 @@ type DeskDragState = {
 
 type DeskMarqueeState = {
   pointerId: number;
+  latestClient: ClientPoint | null;
   startX: number;
   startY: number;
   additiveIds: string[];
@@ -86,6 +87,7 @@ export function useDeskSpatialLayout({
   const edgePanFrameRef = useRef<number | null>(null);
   const edgePanLastTimeRef = useRef<number | null>(null);
   const cameraApiRef = useRef<ReturnType<typeof useDeskCamera> | null>(null);
+  const emptyHoldRef = useRef<((point: { clientX: number; clientY: number }, pointerId: number, viewport: HTMLDivElement) => void) | null>(null);
   const [storedPositions, setStoredPositions] = useState<Record<string, DeskWorldPosition>>({});
   const [positionsWritable, setPositionsWritable] = useState(false);
   const [positionsResolved, setPositionsResolved] = useState(false);
@@ -162,8 +164,15 @@ export function useDeskSpatialLayout({
     selectionBounds,
     viewportRef: workGridRef,
     onPinchStart: cancelPointerGesture,
+    onEmptySpaceHold: (point, pointerId, viewport) => emptyHoldRef.current?.(point, pointerId, viewport),
   });
   cameraApiRef.current = camera;
+  emptyHoldRef.current = (point, pointerId, viewport) => {
+    const world = camera.projectClientPoint(point);
+    camera.enterCustom();
+    marqueeRef.current = { pointerId, startX: world.x, startY: world.y, additiveIds: [], latestClient: null };
+    viewport.setPointerCapture(pointerId);
+  };
 
   const itemKey = itemIds.join('\u0000');
   const visibleItemKey = visibleItemIds.join('\u0000');
@@ -265,18 +274,25 @@ export function useDeskSpatialLayout({
       edgePanFrameRef.current = null;
       const drag = dragRef.current;
       const cameraApi = cameraApiRef.current;
-      if (!drag || !drag.moved || !cameraApi) {
+      const marqueeState = marqueeRef.current;
+      if ((!drag || !drag.moved) && !marqueeState?.latestClient || !cameraApi) {
         edgePanLastTimeRef.current = null;
         return;
       }
       const previous = edgePanLastTimeRef.current ?? time;
       edgePanLastTimeRef.current = time;
-      const panned = cameraApi.edgePan(drag.latestClient, Math.max(0, time - previous));
+      const pointer = drag?.moved ? drag.latestClient : marqueeState?.latestClient;
+      if (!pointer) return;
+      const panned = cameraApi.edgePan(pointer, Math.max(0, time - previous));
       if (!panned) {
         edgePanLastTimeRef.current = null;
         return;
       }
-      processDragPointer(drag, drag.latestClient);
+      if (drag?.moved) processDragPointer(drag, drag.latestClient);
+      else if (marqueeState) {
+        const projected = cameraApi.projectClientPoint(pointer);
+        setMarquee(rectFromPoints(marqueeState.startX, marqueeState.startY, projected.x, projected.y));
+      }
       edgePanFrameRef.current = requestAnimationFrame(tick);
     };
     edgePanFrameRef.current = requestAnimationFrame(tick);
@@ -360,6 +376,7 @@ export function useDeskSpatialLayout({
     const point = camera.projectClientPoint(event);
     marqueeRef.current = {
       pointerId: event.pointerId,
+      latestClient: null,
       startX: point.x,
       startY: point.y,
       additiveIds: event.metaKey || event.ctrlKey || event.shiftKey ? [...selectedIds] : [],
@@ -370,21 +387,31 @@ export function useDeskSpatialLayout({
   const moveMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const state = marqueeRef.current;
     if (!state || state.pointerId !== event.pointerId) return;
+    state.latestClient = { clientX: event.clientX, clientY: event.clientY };
     const point = camera.projectClientPoint(event);
     setMarquee(rectFromPoints(state.startX, state.startY, point.x, point.y));
-  }, [camera]);
+    ensureEdgePanLoop();
+  }, [camera, ensureEdgePanLoop]);
 
   const endMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const state = marqueeRef.current;
     if (!state || state.pointerId !== event.pointerId) return;
+    stopEdgePan();
     const point = camera.projectClientPoint(event);
     const selectedRect = rectFromPoints(state.startX, state.startY, point.x, point.y);
+    // A long hold released without drawing a rectangle is not a selection
+    // command; preserve the creator's existing selection.
+    if (Math.hypot(point.x - state.startX, point.y - state.startY) < 6 / camera.zoom) {
+      marqueeRef.current = null;
+      setMarquee(null);
+      return;
+    }
     const hits = getDeskMarqueeSelection(collectWorldItems(), selectedRect);
     const next = Array.from(new Set([...state.additiveIds, ...hits]));
     onSelectionChange(next, hits.at(-1) ?? state.additiveIds.at(-1) ?? null);
     marqueeRef.current = null;
     setMarquee(null);
-  }, [camera, collectWorldItems, onSelectionChange]);
+  }, [camera, collectWorldItems, onSelectionChange, stopEdgePan]);
 
   const shouldSuppressActivation = useCallback((itemId: string) => {
     if (suppressedActivationRef.current !== itemId) return false;

@@ -88,21 +88,34 @@ export const getFounderProfile = async (): Promise<FounderProfile> => {
   return { ...normalized.value, updatedAt: data.updated_at };
 };
 
-export const updateFounderProfile = async (value: unknown): Promise<FounderProfile> => {
+export const updateFounderProfile = async (value: unknown, expectedUpdatedAt: unknown): Promise<FounderProfile> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new FounderProfileStoreError('Founder profile database is not configured yet.', 503);
 
   const normalized = normalizeFounderProfileInput(value);
   if (!normalized.ok) throw new FounderProfileStoreError(normalized.message, 400);
+  if (expectedUpdatedAt !== null && (typeof expectedUpdatedAt !== 'string' || !Number.isFinite(Date.parse(expectedUpdatedAt)))) {
+    throw new FounderProfileStoreError('Reload the current founder profile before publishing.', 409);
+  }
 
   const row = inputToRow(normalized.value);
-  const { error } = await supabase
-    .from('cardforge_founder_profile')
-    .upsert(row, { onConflict: 'id' });
+  let query = supabase.from('cardforge_founder_profile').update(row).eq('id', FOUNDER_PROFILE_ID);
+  query = expectedUpdatedAt === null ? query.is('updated_at', null) : query.eq('updated_at', expectedUpdatedAt);
+  let { data, error } = await query.select('updated_at').maybeSingle();
+  // A default-backed missing profile can be created once; INSERT never replaces
+  // a concurrently created/updated profile as UPSERT did.
+  if (!error && !data && expectedUpdatedAt === null) {
+    const created = await supabase.from('cardforge_founder_profile').insert(row).select('updated_at').maybeSingle();
+    data = created.data;
+    error = created.error;
+  }
+  if (error?.code === '23505' || (!error && !data)) {
+    throw new FounderProfileStoreError('Founder profile changed in another session. Reload and review before publishing.', 409);
+  }
   if (error) {
     console.error('Failed to update founder profile:', error);
     throw new FounderProfileStoreError('Unable to update the founder profile.');
   }
 
-  return { ...normalized.value, updatedAt: row.updated_at };
+  return { ...normalized.value, updatedAt: data!.updated_at };
 };
