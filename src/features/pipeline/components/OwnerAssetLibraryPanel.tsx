@@ -63,7 +63,7 @@ interface OwnerAssetLibraryPanelProps {
   ) => Promise<boolean>;
   onRevisionCreated?: () => Promise<void> | void;
   onDeletePermanently: (submissionId: string, confirmationName: string) => Promise<void>;
-  onDeleteRevisionNow: (submissionId:string,confirmationName:string,storagePath:string)=>Promise<void>;
+  onDeleteRevisionNow: (submissionId:string,confirmationName:string,storagePath:string|null)=>Promise<void>;
 }
 
 const statusOptions: PipelineStatus[] = [
@@ -410,7 +410,7 @@ export function OwnerAssetLibraryPanel({
                       <Archive className="mr-1 h-4 w-4" /> Retire
                     </Button>
                     {submission.status === 'archived' && submission.trashedAt && !submission.publishedAt &&
-                      !submission.retentionHold && true ? (
+                      !submission.retentionHold ? (
                       <Button size="sm" variant="outline" disabled={updatingSubmissionId === submission.id}
                         onClick={() => void deleteRevisionNow(submission)}>
                         <Trash2 className="mr-1 h-4 w-4" /> Delete now (one revision)

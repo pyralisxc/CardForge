@@ -179,7 +179,7 @@ export function OwnerContributorProgramPanel({
     }
   };
 
-  const deleteRevisionNow = async (submissionId:string,confirmationName:string,storagePath:string) => {
+  const deleteRevisionNow = async (submissionId:string,confirmationName:string,storagePath:string|null) => {
     setUpdatingSubmissionId(submissionId);
     try{
       const response=await fetch(`/api/pipeline/${submissionId}/delete-revision`,{
