@@ -19,7 +19,7 @@ export async function processRevisionPurge(
     return {purged:true,failed:false};
   }catch(error){
     console.error('Pipeline revision purge incomplete', {submissionId:claim.submission_id,error});
-    await client.rpc('cardforge_release_pipeline_revision_purge',{p_submission_id:claim.submission_id});
+    await client.rpc('cardforge_release_pipeline_revision_purge',{p_submission_id:claim.submission_id,p_claim_token:claim.claim_token});
     return {purged:false,failed:true};
   }
 }
