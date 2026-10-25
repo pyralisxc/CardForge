@@ -88,6 +88,17 @@ export function PublicSiteOwnerLiveControls({
     manifest: WebsitePresentationManifest;
   } | null;
 }) {
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const [controlsHeight, setControlsHeight] = useState(96);
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const measure = () => setControlsHeight(Math.ceil(controls.getBoundingClientRect().height));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(controls);
+    return () => observer.disconnect();
+  }, []);
   const { toast } = useToast();
   const router = useRouter();
   const publicationPresentation = useMemo(
@@ -754,11 +765,12 @@ export function PublicSiteOwnerLiveControls({
   );
 
   return <>
-    <div className={inlineSlug ? 'h-36 sm:h-28' : 'h-24'} aria-hidden="true" data-owner-live-controls-reserve />
-    <div className="fixed bottom-5 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] items-center gap-2 rounded-full border border-[var(--public-brass)] bg-[var(--cf-surface)] p-2 shadow-2xl" data-owner-live-controls>
+    <div style={{ height: controlsHeight + 40 }} aria-hidden="true" data-owner-live-controls-reserve />
+    <div ref={controlsRef} className="fixed bottom-5 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] flex-col-reverse items-end gap-2" data-owner-live-controls-stack>
+    <div className="flex max-w-full flex-wrap items-center gap-2 rounded-2xl lg:rounded-full border border-[var(--public-brass)] bg-[var(--cf-surface)] p-2 shadow-2xl" data-owner-live-controls>
       <span className="hidden pl-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)] sm:inline">{publicationPresentation.badgeLabel}</span>
       {manifest && editionId ? <>
-        <span className="flex min-w-0 max-w-64 items-center gap-1 text-xs text-[var(--cf-text-muted)]" role="status" title={editionLabel ? `${editionLabel.name} · ${editionLabel.ordinal === null ? 'New draft' : 'Revision '+editionLabel.ordinal}` : `Edition ${editionId}`}>
+        <span className="flex min-w-0 basis-full items-center gap-1 text-xs lg:max-w-64 lg:basis-auto text-[var(--cf-text-muted)]" role="status" title={editionLabel ? `${editionLabel.name} · ${editionLabel.ordinal === null ? 'New draft' : 'Revision '+editionLabel.ordinal}` : `Edition ${editionId}`}>
           <span className="min-w-0 truncate">{editionLabel?.name ?? 'Loading edition…'}</span>
           {editionLabel ? <span className="shrink-0 whitespace-nowrap">· {editionLabel.ordinal === null ? 'New draft' : `Revision ${editionLabel.ordinal}`}</span> : null}
           {editionDirty ? <span className="shrink-0 whitespace-nowrap">· Unsaved</span> : null}
@@ -780,10 +792,10 @@ export function PublicSiteOwnerLiveControls({
         <Settings2 className="mr-2 h-4 w-4" />Site settings
       </Button> : null}
     </div>
-    {editMode && !inlineSlug && !drawer ? <div className="fixed bottom-20 right-5 z-40 max-w-[calc(100vw-2.5rem)] border border-[var(--public-brass)] bg-[var(--cf-surface)] px-3 py-2 text-xs text-[var(--cf-text-muted)] shadow-xl" role="status">
+    {editMode && !inlineSlug && !drawer ? <div className="max-w-full border border-[var(--public-brass)] bg-[var(--cf-surface)] px-3 py-2 text-xs text-[var(--cf-text-muted)] shadow-xl" role="status">
       Select copy, images, or a composed content block to edit it. Add new sections in Site settings.
     </div> : null}
-    {inlineSlug ? <div className="fixed bottom-20 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] flex-wrap items-center gap-2 border border-[var(--public-brass)] bg-[var(--cf-surface)] p-3 shadow-2xl" role="toolbar" aria-label="Inline site copy editor">
+    {inlineSlug ? <div className="flex max-w-full flex-wrap items-center gap-2 border border-[var(--public-brass)] bg-[var(--cf-surface)] p-3 shadow-2xl" role="toolbar" aria-label="Inline site copy editor">
       <span className="mr-2 text-sm text-[var(--cf-text-muted)]">{manifest ? 'Edit the field and stage it, or cancel.' : 'Edit the field and publish, or cancel.'}</span>
       {recoveryControl}
       {inlineSlug && needsReadback === null ? <span className="text-xs">Current published value: {blocks.find((block) => block.slug === inlineSlug)?.body}</span> : null}
@@ -794,6 +806,7 @@ export function PublicSiteOwnerLiveControls({
         <X className="mr-2 h-4 w-4" />Cancel
       </Button>
     </div> : null}
+    </div>
     <Sheet open={drawer !== null} onOpenChange={closeDrawer}>
       <SheetContent data-owner-site-editor-panel side="right" overlayClassName="bg-black/40" className="h-dvh w-[min(100vw,42rem)] max-w-[42rem] overflow-y-auto border-[var(--cf-border-strong)] bg-[var(--cf-canvas)] px-3 pb-10 pt-14 text-[var(--cf-text)] sm:max-w-[42rem] sm:px-5">
         <SheetHeader>

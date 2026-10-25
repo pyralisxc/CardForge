@@ -97,14 +97,14 @@ export function WebsiteEditionsPanel({
     {!editionId && editions.length===0 ?
       <Button type="button" disabled={loading} onClick={initialize}>Adopt Current Website as revision 1</Button> : null}
     <label className="grid gap-1 text-sm">Edition
-      <select className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-2" value={selected}
+      <select className="min-h-11 min-w-0 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-2" value={selected}
         onChange={(event)=>setSelected(event.target.value)}>
         <option value="">Choose an edition</option>
         {editions.map((edition)=><option key={edition.id} value={edition.id}>{edition.name}{edition.archivedAt?' (archived)':''}</option>)}
       </select>
     </label>
     <div className="flex flex-wrap gap-2">
-      <input className="min-h-11 flex-1 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-2" aria-label="New edition name"
+      <input className="min-h-11 min-w-0 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-2" aria-label="New edition name"
         placeholder="New edition name" value={name} maxLength={100} onChange={(event)=>setName(event.target.value)}/>
       <Button type="button" disabled={loading||!name.trim()||!editionId} onClick={create}>New edition from this design</Button>
       <Button type="button" variant="outline" disabled={loading} onClick={closePreview}>View live website</Button>
