@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
 import { parsePipelineRetentionRequest, routePipelineRetentionClaims } from "./targeting.ts";
+import { processRevisionPurge } from "./processor.ts";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 type PurgeClaim = { submission_id: string; storage_bucket: string | null; storage_path: string | null };
@@ -41,26 +42,9 @@ Deno.serve(async (request: Request) => {
   let purged = 0;
   let failed = 0;
   for (const claim of claims) {
-    try {
-      if (claim.storage_bucket && claim.storage_path) {
-        const { error: removeError } = await supabase.storage
-          .from(claim.storage_bucket)
-          .remove([claim.storage_path]);
-        if (removeError) throw removeError;
-      }
-      const { data: finalized, error: finalizeError } = await supabase.rpc(
-        "cardforge_finalize_pipeline_revision_purge",
-        { p_submission_id: claim.submission_id },
-      );
-      if (finalizeError) throw finalizeError;
-      if (finalized) purged += 1;
-    } catch (error) {
-      failed += 1;
-      console.error("Pipeline revision purge will be retried:", { submissionId: claim.submission_id, error });
-      await supabase.rpc("cardforge_release_pipeline_revision_purge", {
-        p_submission_id: claim.submission_id,
-      });
-    }
+    const result=await processRevisionPurge(supabase,claim);
+    if(result.purged)purged++;
+    if(result.failed)failed++;
   }
   return respond(failed ? 207 : 200, { expired: expired ?? 0, claimed: claims.length, purged, failed });
 });
