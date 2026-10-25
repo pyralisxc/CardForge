@@ -125,6 +125,42 @@ for (const width of [320, 390, 768, 1440]) test(`@golden saved Edition controls 
   await measure('saved');
   await bar.getByRole('button',{name:'Edit page',exact:true}).click();
   await measure('editing');
+  if (width !== 768) {
+    const field = page.locator('[data-site-content-slug="landing.hero.headline"]');
+    const original = await field.textContent();
+    const reserve = page.locator('[data-owner-live-controls-reserve]');
+    const stack = page.locator('[data-owner-live-controls-stack]');
+    const before = (await reserve.boundingBox())!.height;
+    await field.click();
+    const editor = page.getByRole('toolbar', {name:'Inline site copy editor'});
+    await expect(editor).toBeVisible();
+    await expect(field).toBeFocused();
+    await field.fill('Unstaged synthetic change to cancel');
+    await expect.poll(async () => (await reserve.boundingBox())!.height).not.toBe(before);
+    const editorRect = (await editor.boundingBox())!;
+    const barRect = (await bar.boundingBox())!;
+    expect(editorRect.y).toBeGreaterThanOrEqual(0);
+    expect(editorRect.y + editorRect.height).toBeLessThanOrEqual(barRect.y);
+    expect(editorRect.x).toBeGreaterThanOrEqual(0);
+    expect(editorRect.x + editorRect.width).toBeLessThanOrEqual(width);
+    for (const action of await editor.getByRole('button').all()) {
+      const rect = (await action.boundingBox())!;
+      expect(rect.x).toBeGreaterThanOrEqual(editorRect.x);
+      expect(rect.x + rect.width).toBeLessThanOrEqual(editorRect.x + editorRect.width);
+      expect(rect.y + rect.height).toBeLessThanOrEqual(editorRect.y + editorRect.height);
+    }
+    console.log('INLINE_GEOMETRY', JSON.stringify({width, before, reserve:(await reserve.boundingBox())!.height, stack:await stack.boundingBox(), editor:editorRect, bar:barRect}));
+    await testInfo.attach('inline-editor', {body:await page.screenshot(),contentType:'image/png'});
+    await editor.getByRole('button', {name:'Cancel',exact:true}).click();
+    await expect(editor).toHaveCount(0);
+    await expect(field).toHaveText(original!);
+    await expect(field).not.toHaveAttribute('contenteditable');
+    await expect.poll(async () => (await reserve.boundingBox())!.height).toBe(before);
+    await expect(bar.getByRole('button',{name:'Save revision',exact:true})).toBeDisabled();
+    console.log('INLINE_CANCEL_FOCUS', await page.evaluate(() => ({tag:document.activeElement?.tagName,slug:(document.activeElement as HTMLElement)?.dataset.siteContentSlug})));
+    await expect(field).toBeFocused();
+  }
+
   await bar.getByRole('button',{name:'Site settings',exact:true}).click();
   const panel=page.locator('[data-owner-site-editor-panel]');await expect(panel).toBeVisible();
   await panel.evaluate(async node => { await Promise.all(node.getAnimations().map(animation => animation.finished)); });

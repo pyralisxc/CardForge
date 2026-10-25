@@ -128,6 +128,7 @@ export function PublicSiteOwnerLiveControls({
   const [supplementalMedia, setSupplementalMedia] = useState<MediaSlot | ''>('');
   const inlineElementRef = useRef<HTMLElement | null>(null);
   const originalBodyRef = useRef('');
+  const cancelledInlineFocusRef = useRef<HTMLElement | null>(null);
   const [blocks, setBlocks] = useState(initialBlocks);
   const [media, setMedia] = useState(initialMedia);
   const [siteConfiguration, setSiteConfiguration] = useState(initialSiteConfiguration);
@@ -432,6 +433,12 @@ export function PublicSiteOwnerLiveControls({
               : navId ? 'Navigation ' + navId : editableBlock ? 'Website content block' : element.dataset.ownerSectionId ? 'Website section' : element.dataset.ownerPageId ? 'Page title and SEO' : undefined;
       if (label && !element.hasAttribute('aria-label')) element.setAttribute('aria-label', `Edit ${label}`);
     }
+
+    // Cancellation removes the inline toolbar; restore focus only after this
+    // lifecycle has reinstated the page field's normal keyboard target.
+    const cancelledField = cancelledInlineFocusRef.current;
+    cancelledInlineFocusRef.current = null;
+    if (cancelledField?.isConnected) cancelledField.focus({ preventScroll: true });
 
     const selectField = (event: MouseEvent) => {
       const target = event.target;
@@ -802,7 +809,11 @@ export function PublicSiteOwnerLiveControls({
       <Button size="sm" type="button" disabled={copySaving || checkingPublication || needsReadback !== null} onClick={() => void saveInlineEdit()}>
         <Check className="mr-2 h-4 w-4" />{copySaving ? publicationPresentation.publishingActionLabel : publicationPresentation.publishActionLabel}
       </Button>
-      <Button size="sm" type="button" variant="outline" disabled={copySaving || checkingPublication} onClick={() => { finishInlineEdit(true); setNeedsReadback(null); }}>
+      <Button size="sm" type="button" variant="outline" disabled={copySaving || checkingPublication} onClick={() => {
+        cancelledInlineFocusRef.current = inlineElementRef.current;
+        finishInlineEdit(true);
+        setNeedsReadback(null);
+      }}>
         <X className="mr-2 h-4 w-4" />Cancel
       </Button>
     </div> : null}

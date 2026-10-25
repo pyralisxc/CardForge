@@ -1,3 +1,4 @@
+import { DEFAULT_SITE_CONTENT_BLOCKS } from '@/features/public-site/model/siteContent';
 import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { PublicSiteOwnerLiveControls } from '@/features/public-site/components/PublicSiteOwnerLiveControls';
 import { PublicSiteShell } from '@/features/public-site/components/PublicSiteShell';
@@ -21,13 +22,15 @@ document.body.appendChild(target);
 const unavailable = () => { throw new Error('Navigation/publication is outside this presentation fixture'); };
 const router: AppRouterInstance = { back: unavailable, forward: unavailable, refresh: unavailable,
   push: unavailable, replace: unavailable, prefetch: () => {}, bfcacheId: 'owner-controls-proof' };
+const inlineCopy = { ...DEFAULT_SITE_CONTENT_BLOCKS.find(block => block.slug === 'landing.hero.headline')!, body: 'Synthetic headline for local inline cancellation.' };
 const controls = <AppRouterContext.Provider value={router}>
   <PublicSiteShell businessIdentity={DEFAULT_BUSINESS_IDENTITY} siteConfiguration={DEFAULT_PUBLIC_SITE_CONFIGURATION} currentPath="/">
     <h1>Isolated saved edition controls</h1>
-    <PublicSiteOwnerLiveControls currentPath="/" publicationEnvironment="preview" initialBlocks={[]} initialMedia={[]}
+    <p data-site-content-slug={inlineCopy.slug}>{inlineCopy.body}</p>
+    <PublicSiteOwnerLiveControls currentPath="/" publicationEnvironment="preview" initialBlocks={[inlineCopy]} initialMedia={[]}
       initialSiteConfiguration={DEFAULT_PUBLIC_SITE_CONFIGURATION}
       editionSession={{ editionId: 'edition-proof', revisionId: 'revision-proof-2', liveGeneration: 1,
-        manifest: { schemaVersion: 1, configuration: DEFAULT_PUBLIC_SITE_CONFIGURATION, content: [], media: [] } }} />
+        manifest: { schemaVersion: 1, configuration: DEFAULT_PUBLIC_SITE_CONFIGURATION, content: [{ slug: inlineCopy.slug, body: inlineCopy.body }], media: [] } }} />
   </PublicSiteShell>
 </AppRouterContext.Provider>;
 createRoot(target).render(window.location.pathname === '/__owner-controls-proof' ? controls : <Sheet defaultOpen><SheetContent className="w-[min(100vw,42rem)] max-w-[42rem] overflow-auto sm:max-w-[42rem]" aria-describedby="owner-preview-proof-description">
