@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
+import JSZip from 'jszip';
 import { buildPluginArchive } from '../../../scripts/plugin-package-core.mjs';
 import { admitBuiltRelease, readRetainedRelease, listRetainedReleases, type ReleaseStore, type RetainedRelease } from '@/features/plugin-distribution/server/retainedReleaseCommands';
 
@@ -58,6 +60,32 @@ describe('retained plugin release admission (in-memory provider only)', () => {
     const s=memoryStore(); await admitBuiltRelease(s.store,trusted,args);
     await expect(admitBuiltRelease(s.store,{...trusted,sourceSha:'b'.repeat(40)},args)).rejects.toThrow('Release version conflict');
     await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...await built(),endpoint:'https://wrong.invalid/mcp'})},args)).rejects.toThrow('Release manifest/endpoint mismatch');
+  });
+  it('rejects both malformed legacy manifests and disallowed MCP transport/header variants',async()=>{
+    for (const file of ['.codex-plugin/plugin.json','.mcp.json']) {
+      const z=await JSZip.loadAsync((await built()).bytes);
+      z.file(file,'not json');
+      const bytes=await z.generateAsync({type:'nodebuffer',compression:'DEFLATE'});
+      const modified={...await built(),bytes,checksum:createHash('sha256').update(bytes).digest('hex')};
+      await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>modified},args)).rejects.toThrow();
+    }
+    for (const file of ['mcp.json','.mcp.json']) {
+      const z=await JSZip.loadAsync((await built()).bytes);
+      const m=JSON.parse(await z.file(file)!.async('string'));
+      const key=Object.keys(m.mcpServers)[0];
+      m.mcpServers[key]={...m.mcpServers[key],headers:{Authorization:'secret'},type:'wrong'};
+      z.file(file,JSON.stringify(m));
+      const bytes=await z.generateAsync({type:'nodebuffer',compression:'DEFLATE'});
+      await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...await built(),bytes,checksum:require('node:crypto').createHash('sha256').update(bytes).digest('hex')})},args)).rejects.toThrow();
+    }
+  });
+  it('rejects invalid builder endpoints and authoritative metadata mutation',async()=>{
+    await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...await built(),endpoint:'https://wrong.invalid/mcp'})},args)).rejects.toThrow();
+    for (const mismatch of [{sourceSha:'f'.repeat(40)},{byteLength:1},{storagePath:'wrong/path.zip'}]) {
+      const s=memoryStore();const original=s.store.find;
+      s.store.find=async(p,e,v)=>{const row=await original(p,e,v); return row ? {...row,...mismatch}:null;};
+      await expect(admitBuiltRelease(s.store,trusted,args)).rejects.toThrow();
+    }
   });
   it('rejects invalid source identity before provider operations',async()=>{
     const s=memoryStore();
