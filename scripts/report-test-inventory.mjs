@@ -42,6 +42,7 @@ const sourceReaderContracts = [
   ['tests/product/unit/cardforge-plugin.test.ts', 'published plugin and submission artifacts'],
   ['tests/product/unit/cardforge-owner-plugin.test.ts', 'published Owner plugin package, endpoint separation, and manifest artifacts'],
   ['tests/product/unit/cardforge-preview-plugin.test.ts', 'derived private plugin artifacts, endpoint/credential isolation, deterministic archives and production immutability'],
+  ['tests/product/unit/plugin-download-page.test.ts', 'public download page landmark, protected plugin presentation, and safe authentication-return contract'],
   ['tests/product/unit/clerk-config.test.ts', 'Clerk middleware security configuration'],
   ['tests/product/unit/element-recipe-catalog.test.ts', 'published recipe catalog artifacts'],
   ['tests/product/unit/mcp-product-hygiene.test.ts', 'published MCP tool, schema, annotation, and skill contract'],
