@@ -1,4 +1,5 @@
 "use client";
+import { CatalogTrashControls } from './CatalogTrashControls';
 import { SourceReviewEvidence } from './SourceReviewEvidence';
 
 import { useState } from 'react';
@@ -395,6 +396,7 @@ export function OwnerAssetLibraryPanel({
                   </Button>
                   <Button variant="outline" className="rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" onClick={() => setManagingId(null)}>Cancel</Button>
                 </div>
+                <CatalogTrashControls key={submission.id} submissionId={submission.id} />
                 <div className="border-t border-[var(--cf-border-subtle)] pt-3">
                   <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
                     Retire hides an asset and preserves its votes and publication history. Permanent deletion removes the complete shared asset lineage and cannot be undone.

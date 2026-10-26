@@ -21,3 +21,6 @@ export { classifyPublishedPipelineAsset, readPublishedPipelineClassification } f
 export { readMediaPresentationRevision, createMediaPresentationRevision } from './server/mediaPresentationRevision';
 export { readTemplateReviewBase, readTemplateReviewReceipt, createTemplateReviewRevision } from './server/templateReviewRevision';
 export { readSourceReviewEvidence, recordSourceReviewEvidence } from './server/sourceReviewEvidence';
+
+export { readCatalogTrash, changeCatalogTrash } from './server/catalogTrash';
+export type { CatalogTrashCommand, CatalogTrashSnapshot } from './lib/catalogTrashContract';
