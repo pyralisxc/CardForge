@@ -16,6 +16,7 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
   const [results, setResults] = useState<Record<string, Release | null>>({});
   const [errors, setErrors] = useState<Record<string, { status: number; message: string }>>({});
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadErrors, setDownloadErrors] = useState<Record<string, {status:number;message:string}>>({});
   const [history, setHistory] = useState<Record<string, Retained[]>>({});
   const [historyErrors, setHistoryErrors] = useState<Record<string, {status: number; message: string}>>({});
   const [admitting, setAdmitting] = useState<string | null>(null);
@@ -60,13 +61,13 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
   }
   async function download(environment: 'production' | 'preview', release: Release | Retained, retained = false) {
     setDownloading(environment);
-    setErrors(current => { const next = { ...current }; delete next[environment]; return next; });
+    setDownloadErrors(current => { const next = { ...current }; delete next[environment]; return next; });
     try {
       const query = new URLSearchParams({ product: scope, environment, download: '1', sha256: release.checksum });
       if (retained) query.set('releaseVersion', release.version);
       const response = await fetch('/api/plugin-downloads?' + query.toString(), { cache: 'no-store' });
       if (!response.ok) {
-        setErrors(current => ({ ...current, [environment]: { status: response.status, message: errorText(response.status, scope, environment) } }));
+        setDownloadErrors(current => ({ ...current, [environment]: { status: response.status, message: errorText(response.status, scope, environment) } }));
         return;
       }
       if (response.headers.get('Content-Type')?.split(';')[0] !== 'application/zip' || response.headers.get('X-Checksum-SHA256') !== release.checksum) {
@@ -83,7 +84,7 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
         link.remove();
       } finally { URL.revokeObjectURL(url); }
     } catch {
-      setErrors(current => ({ ...current, [environment]: { status: 503, message: errorText(503, scope, environment) } }));
+      setDownloadErrors(current => ({ ...current, [environment]: { status: 503, message: errorText(503, scope, environment) } }));
     } finally { setDownloading(null); }
   }
   return <section aria-label={scope === 'studio' ? 'CardForge Studio downloads' : 'CardForge Owner downloads'} className="grid gap-4">
@@ -93,6 +94,7 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
       const release = results[environment];
       const failure = errors[environment];
       const historyFailure = historyErrors[environment];
+      const downloadFailure = downloadErrors[environment];
       return <div key={environment} className="rounded border border-current p-4">
         <h3 className="font-semibold">{environment === 'production' ? 'Production' : 'Preview'}</h3>
         {release ? <>
@@ -107,6 +109,7 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
           {allowOwnerAdmission && (release.admissionAvailable
             ? <button type="button" className="ml-4 underline disabled:opacity-50" disabled={admitting !== null || !release.appSha} onClick={() => void admit(environment,release)}>{admitting === environment ? 'Admitting…' : 'Retain verified Preview release'}</button>
             : <p className="text-xs">Release admission is available only on a verified Preview deployment.</p>)}
+          {downloadFailure && <p role="alert">{downloadFailure.message}</p>}
           {failure && <p role="alert">{failure.message} {failure.status === 401 && <Link className="underline" href={createAuthRouteHref('/sign-in', scope === 'owner' ? '/?ownerSite=editions' : '/downloads')}>Sign in</Link>}</p>}
           <div className="mt-3"><button type="button" className="underline" onClick={() => void loadHistory(environment)}>View retained versions</button>
             {historyFailure && <p role="alert">{historyFailure.message}</p>}
@@ -116,6 +119,7 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
           {admissionNotice[environment] && <p role="status">{admissionNotice[environment]}</p>}
         </> : <p>{failure?.message || 'Checking available release…'} {failure?.status === 401 && <Link className="underline" href={createAuthRouteHref('/sign-in', scope === 'owner' ? '/?ownerSite=editions' : '/downloads')}>Sign in</Link>}</p>}
         {!release && <div className="mt-3"><button type="button" className="underline" onClick={() => void loadHistory(environment)}>View retained versions</button>{historyFailure && <p role="alert">{historyFailure.message}</p>}{history[environment]?.length === 0 && <p>No verified retained releases yet.</p>}{history[environment]?.map(item => <div key={item.version + item.checksum} className="mt-2 text-sm"><span>{item.version} · {item.releasedAt} · SHA-256 {item.checksum}</span> <button type="button" className="underline" disabled={downloading !== null} onClick={() => void download(environment,item,true)}>Download retained ZIP</button></div>)}</div>}
+        {!release && downloadFailure && <p role="alert">{downloadFailure.message}</p>}
         {!release && admissionNotice[environment] && <p role="status">{admissionNotice[environment]}</p>}
       </div>;
     })}
