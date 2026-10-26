@@ -1,6 +1,6 @@
 {
   "name": "cardforge-owner",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Inspect and operate CardForge's Owner-controlled public property and operational state.",
   "author": {
     "name": "Cameron Locke",
@@ -35,5 +35,6 @@
       "What Owner changes have happened recently?"
     ],
     "brandColor": "#8A5A2B"
-  }
+  },
+  "skills": "./skills/"
 }

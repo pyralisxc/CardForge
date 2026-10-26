@@ -30,10 +30,11 @@ export function FounderStrip({ founderName }: { founderName: string }) {
           <p data-site-content-slug="landing.founder.body" className="mt-3 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">
             {siteContent['landing.founder.body']}
           </p>
-          <div className="mt-6">
+          <div className="mt-6 flex flex-wrap gap-6">
             <Link href="/cameron" prefetch={false} className="inline-flex min-h-11 items-center gap-2 text-base font-bold text-[var(--public-brass)] hover:text-[var(--public-ivory)]">
               {siteContent['landing.founder.action']} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
+            <Link href="/downloads" prefetch={false} className="inline-flex min-h-11 items-center gap-2 text-base font-bold text-[var(--public-brass)] hover:text-[var(--public-ivory)]">Download Studio plugin <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
           </div>
         </div>
       </div>

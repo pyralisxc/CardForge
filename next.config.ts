@@ -17,6 +17,15 @@ const nextConfig: NextConfig = {
     }];
   },
   outputFileTracingIncludes: {
+    '/api/plugin-downloads': [
+      'plugins/cardforge-studio/.codex-plugin/plugin.json',
+      'plugins/cardforge-studio/.mcp.json',
+      'plugins/cardforge-studio/skills/*/SKILL.md',
+      'plugins/cardforge-owner/.codex-plugin/plugin.json',
+      'plugins/cardforge-owner/.mcp.json',
+      'plugins/cardforge-owner/skills/*/SKILL.md',
+      'public/brand/cardforge-studio/favicon.svg',
+    ],
     '/mcp': [
       'plugins/cardforge-studio/skills/*/SKILL.md',
       'node_modules/@sparticuz/chromium/bin/**/*',

@@ -40,6 +40,9 @@ describe('CardForge Studio plugin', () => {
       expect(files).toEqual([
         '.codex-plugin/plugin.json',
         '.mcp.json',
+        'icon.svg',
+        'mcp.json',
+        'plugin.json',
         'skills/create-cards-and-sets/SKILL.md',
         'skills/create-editable-template/SKILL.md',
       ]);
@@ -81,7 +84,7 @@ describe('CardForge Studio plugin', () => {
 
     expect(manifest).toMatchObject({
       name: 'cardforge-studio',
-      version: '1.0.2',
+      version: '1.0.3',
       author: { name: 'Cameron Locke' },
       mcpServers: './.mcp.json',
       skills: './skills/',
