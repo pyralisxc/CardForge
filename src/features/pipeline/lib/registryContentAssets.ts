@@ -231,7 +231,7 @@ export const getPublishedRegistryRows = async (
   const { data, error } = await resolveWithTimeout(
     Promise.resolve(
       supabase
-        .from('cardforge_asset_registry')
+        .from('cardforge_discoverable_asset_registry')
         .select('asset_id,contributor_submission_id,name,asset_type,url,preview_url,status,access_tier,library_source,file_size_bytes,metadata,updated_at,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
         .eq('status', 'published')
         .in('access_tier', visibleTiers)

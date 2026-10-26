@@ -8,6 +8,11 @@ import {
 } from '@/shared/boundaryFailure';
 
 export type ApiErrorCode =
+  | 'catalog_trash_invalid'
+  | 'catalog_trash_conflict'
+  | 'catalog_trash_unavailable'
+  | 'catalog_trash_not_found'
+  | 'catalog_trash_not_permitted'
   | 'account_auth_unconfigured'
   | 'account_entitlement_unavailable'
   | 'account_tool_not_permitted'
