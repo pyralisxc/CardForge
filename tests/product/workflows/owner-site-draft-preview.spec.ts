@@ -218,6 +218,8 @@ test('@golden stages private Edition Site settings without a live publication re
   await panel.getByRole('textbox',{name:'Page title'}).fill('A private staged heading');
   await settings.getByRole('button',{name:'Stage changes'}).click();
   await expect(settings).toContainText('No unstaged private Edition changes');
+  await panel.getByRole('button',{name:'Close',exact:true}).click();
+  await expect(panel).toHaveCount(0);
   await expect(bar.getByRole('button',{name:'Save revision'})).toBeEnabled();
   await expect(bar.getByRole('button',{name:'Activate saved'})).toBeDisabled();
   expect(writes).toEqual([]);
