@@ -820,7 +820,8 @@ const migrateStaticCatalogStorage = async (supabase, staticCatalog) => {
 };
 
 /** Backfill existing registry references only; no Owner identity or publication. */
-export const backfillPipelineRegistryMedia = async (supabase, { deferHistoricalPreviewPlaceholders = false } = {}) => {
+export const backfillPipelineRegistryMedia = async (supabase, { deferHistoricalPreviewPlaceholders = false, onProgress = () => {} } = {}) => {
+  onProgress('reading-prefix');
   const { data: registry, error: registryError } = await supabase.from('cardforge_asset_registry')
     .select('asset_id,url,storage_bucket,storage_path,file_size_bytes,metadata');
   if (registryError) throw registryError;
@@ -832,11 +833,13 @@ export const backfillPipelineRegistryMedia = async (supabase, { deferHistoricalP
   const references = new Set();
   for (const entry of registry) collectPipelineAssetPaths(entry.metadata, references);
   for (const entry of submissions) collectPipelineAssetPaths(entry.source_payload, references);
+  onProgress('materializing-media');
   const catalog = await collectStaticAssetItems(supabase,
     new Map(registry.map(entry => [entry.asset_id, entry])),
     new Set(tombstones.map(entry => entry.asset_id)), references, { referencedOnly: true });
   // Check every dependency before applying a native row change. Missing bytes or
   // aliases are not permission to replace authored content with an empty value.
+  onProgress('validating-dependencies');
   const preflightPayloads = submissions.map(row => {
     const payload = row.source_payload;
     // Only the exact sample fields removed by the pending September cutover.
@@ -855,6 +858,7 @@ export const backfillPipelineRegistryMedia = async (supabase, { deferHistoricalP
     }
   }
   // Verify actual local bytes against Storage before rewriting references.
+  onProgress('verifying-storage-bytes');
   for (const item of catalog.items) {
     const local = await fs.readFile(path.join(projectRoot, item.metadata.sourcePath));
     const { data, error } = await supabase.storage.from(item.storage_bucket).download(item.storage_path);
@@ -862,7 +866,9 @@ export const backfillPipelineRegistryMedia = async (supabase, { deferHistoricalP
     const stored = Buffer.from(await data.arrayBuffer());
     if (!local.equals(stored)) throw new Error(`Pipeline media readback differs: ${item.asset_id}`);
   }
+  onProgress('migrating-existing-storage');
   await migrateStaticCatalogStorage(supabase, catalog);
+  onProgress('rewriting-existing-metadata');
   for (const entry of registry) {
     if (!containsRepositoryAssetUrl(entry.metadata)) continue;
     const { error } = await supabase.rpc('cardforge_migrate_pipeline_registry_metadata_urls', {
