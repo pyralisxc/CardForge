@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type SetStateAction } from 'react';
-import { PluginDownloadLinks } from '@/features/plugin-distribution/components/PluginDownloadLinks';
+import { PluginDownloadLinks } from '@/features/plugin-distribution/client';
 import { ArrowDown, ArrowUp, Megaphone, Save, Search, Settings2 } from 'lucide-react';
 
 import { useEditorDraft } from '@/components/ui/use-editor-draft';

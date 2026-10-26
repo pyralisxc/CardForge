@@ -1,23 +1,9 @@
-import { getCurrentOwnerAccess } from '@/features/owner/server';
-import { getCurrentContributorAccess } from '@/features/contributor-access/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { buildCurrentPlugin, type PluginEnvironment, type PluginProduct } from '@/features/plugin-distribution/server/pluginReleases';
-import { mayDownloadPlugin } from '@/features/plugin-distribution/model/downloadPolicy';
+import { buildCurrentPlugin, pluginDownloadAccess, type PluginEnvironment, type PluginProduct } from '@/features/plugin-distribution/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-async function authorized(product: PluginProduct, environment: PluginEnvironment) {
-  if (mayDownloadPlugin(product, environment, false, false)) return true;
-  const owner = await getCurrentOwnerAccess();
-  if (mayDownloadPlugin(product, environment, Boolean(owner.isOwner && owner.userId), false)) return true;
-  if (product === 'owner') return false;
-  try { await getCurrentContributorAccess(); return mayDownloadPlugin(product, environment, false, true); }
-  catch (error) {
-    if (error && typeof error === 'object' && 'status' in error && (error.status === 401 || error.status === 403)) return false;
-    throw error;
-  }
-}
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const product = url.searchParams.get('product');
@@ -25,7 +11,8 @@ export async function GET(request: Request) {
   if ((product !== 'studio' && product !== 'owner') || (environment !== 'preview' && environment !== 'production'))
     return createApiErrorResponse(400, 'plugin_download_invalid', 'Select a supported plugin and environment.');
   try {
-    if (!await authorized(product, environment)) return createApiErrorResponse(403, 'plugin_download_forbidden', 'Your account cannot access this package.');
+    const access = await pluginDownloadAccess(product, environment);
+    if (access !== 200) return createApiErrorResponse(access, access === 401 ? 'sign_in_required' : 'plugin_download_forbidden', access === 401 ? 'Sign in to access this package.' : 'Your account cannot access this package.');
     const release = await buildCurrentPlugin(product, environment);
     const { bytes, ...detail } = release;
     const wantsBytes = url.searchParams.get('download') === '1';

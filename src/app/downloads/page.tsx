@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { PluginDownloadLinks } from '@/features/plugin-distribution/components/PluginDownloadLinks';
+import { PluginDownloadLinks } from '@/features/plugin-distribution/client';
 
 export const metadata: Metadata = { title: 'CardForge Studio plugin download', description: 'Download the latest CardForge Studio plugin for Production or authorized Preview testing.' };
 export default function DownloadsPage() {
