@@ -91,10 +91,11 @@ begin
   if not (public.cardforge_read_catalog_trash(current_id)->'entryReasons' ? 'studio_identity_consumer_requires_resolution') then
     raise exception 'independent_studio_consumer_missed'; end if;
   delete from public.cardforge_studio_documents where id=document_id;
-  -- An invalid object payload still takes the external JSON fallback. The URL
-  -- is deliberately inaccessible and must never be fetched as negative proof.
+  -- A registry entry without a canonical submission payload takes the external
+  -- JSON fallback. Never clone a Template payload into registry metadata. The
+  -- inaccessible URL must not be fetched as negative proof.
   insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source,metadata)
-    values(opaque_id,'Opaque fixture','template','https://example.invalid/inaccessible.json','published','free','contributor','{"template":{}}');
+    values(opaque_id,'Opaque fixture','template','https://example.invalid/inaccessible.json','published','free','contributor','{}');
   if not (public.cardforge_read_catalog_trash(current_id)->'entryReasons' ? 'json_consumer_inventory_unverified') then
     raise exception 'opaque_external_consumer_missed'; end if;
   delete from public.cardforge_asset_registry where asset_id=opaque_id;

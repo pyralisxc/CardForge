@@ -9,6 +9,7 @@ root=$(git rev-parse --show-toplevel)
 proof="$root/test-results/native-catalog-trash"
 mkdir -p "$proof"
 git rev-parse HEAD HEAD^{tree} > "$proof/source-identity.txt"
+cat "$proof/source-identity.txt"
 supabase start --help > "$proof/start-help.txt"
 supabase db reset --help > "$proof/reset-help.txt"
 supabase stop --help > "$proof/stop-help.txt"
