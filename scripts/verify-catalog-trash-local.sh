@@ -23,6 +23,8 @@ container="supabase_db_${project}"
 mkdir -p "$work/supabase"
 cp "$root/supabase/config.toml" "$work/supabase/config.toml"
 cp -R "$root/supabase/migrations" "$work/supabase/migrations"
+# The unchanged config references these local function entrypoints at startup.
+cp -R "$root/supabase/functions" "$work/supabase/functions"
 python3 - "$work/supabase/config.toml" "$project" <<'PY'
 import pathlib, sys, tomllib
 p=pathlib.Path(sys.argv[1]); text=p.read_text(); config=tomllib.loads(text)
