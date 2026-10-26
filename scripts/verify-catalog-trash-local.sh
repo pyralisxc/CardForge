@@ -5,6 +5,15 @@ set -euo pipefail
 [[ -z ${DOCKER_HOST:-} && -z ${SUPABASE_ACCESS_TOKEN:-} && -z ${SUPABASE_DB_PASSWORD:-} ]] || { echo 'Remote Docker/provider configuration is not allowed'; exit 1; }
 case "$(docker context inspect --format '{{.Endpoints.docker.Host}}')" in unix://*) ;; *) echo 'Requires a local Unix Docker daemon'; exit 1;; esac
 [[ $(supabase --version) == 2.122.0 ]] || { echo 'Expected official Supabase CLI 2.122.0'; exit 1; }
+# Generate the forward migration name with the pinned CLI, then continue all
+# existing native verification. Removed after capturing the generated name.
+generation=$(mktemp -d /tmp/cardforge-migration-generation.XXXXXXXX)
+mkdir -p "$generation/supabase"
+cp supabase/config.toml "$generation/supabase/config.toml"
+supabase migration new --help
+supabase migration new pipeline_parent_version_operational_fields --workdir "$generation"
+find "$generation/supabase/migrations" -maxdepth 1 -type f -name '*.sql' -printf '%f\n'
+rm -rf -- "$generation"
 root=$(git rev-parse --show-toplevel)
 proof="$root/test-results/native-catalog-trash"
 mkdir -p "$proof"
