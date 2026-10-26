@@ -44,3 +44,15 @@ it('rejects replaced base content, publication and newer candidate high-water', 
     expect(() => verifyExactCandidatePublishedBase(expected, { ...live, ...delta })).toThrow('candidate_base_changed');
   }
 });
+
+it.each(['submitted', 'voting', 'publish_candidate'])('reviews exact unpublished %s corrections without weakening guards', status => {
+  expect(read({ ...submission, status }).template).toEqual(template);
+  for (const delta of [
+    { published_at: '2026-10-23T00:00:00Z' }, { trashed_at: '2026-10-23T00:00:00Z' },
+    { purge_state: 'pending' }, { revision_number: 3 }, { lineage_id: 'different' },
+    { source_payload: { ...template, name: 'Changed' } }, { template_review_context: null },
+  ]) expect(() => read({ ...submission, status, ...delta })).toThrow();
+});
+it.each(['draft', 'published', 'archived', 'rejected', 'deleted', 'unknown'])('rejects non-review lifecycle %s even with otherwise matching pins', status => {
+  expect(() => read({ ...submission, status })).toThrow('candidate_not_pending');
+});

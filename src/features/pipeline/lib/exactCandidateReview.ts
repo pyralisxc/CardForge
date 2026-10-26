@@ -32,7 +32,7 @@ export function verifyExactCandidateSnapshot(input: {
     || s.target_registry_asset_id !== expected.assetId
     || s.revision_number !== expected.revisionNumber
     || s.base_revision_number !== expected.baseRevisionNumber) throw new Error('candidate_identity_changed');
-  if (s.asset_type !== 'templates' || s.status !== 'submitted' || s.published_at !== null
+  if (s.asset_type !== 'templates' || !['submitted', 'voting', 'publish_candidate'].includes(s.status) || s.published_at !== null
     || s.purge_state !== null || s.trashed_at !== null) throw new Error('candidate_not_pending');
   if (!isRepositoryTemplate(s.source_payload) || s.source_payload.id !== expected.assetId)
     throw new Error('candidate_payload_unavailable');
