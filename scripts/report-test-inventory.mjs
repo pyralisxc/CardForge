@@ -34,6 +34,7 @@ const productDomains = [
 // legal, security, or repository contract under test. This explicit inventory keeps
 // ordinary component/helper composition pins from quietly returning.
 const sourceReaderContracts = [
+  ['tests/product/unit/website-edition-private-stage-labels.test.ts', 'published Owner control labels and private Edition staging action contract'],
   ['tests/infrastructure/agent-efficiency.test.ts', 'repository command and routing contract'],
   ['tests/infrastructure/legacy-server-table-grants.test.ts', 'cross-migration least-privilege contract'],
   ['tests/infrastructure/pipeline-retention-batch-selection.test.ts', 'native SQL bounded-selection safety and liveness deployment contract; not database runtime proof'],
@@ -47,7 +48,6 @@ const sourceReaderContracts = [
   ['tests/product/unit/clerk-config.test.ts', 'Clerk middleware security configuration'],
   ['tests/product/unit/element-recipe-catalog.test.ts', 'published recipe catalog artifacts'],
   ['tests/product/unit/mcp-product-hygiene.test.ts', 'published MCP tool, schema, annotation, and skill contract'],
-  ['tests/product/unit/website-edition-private-stage-labels.test.ts', 'published Owner control labels and private Edition staging action contract'],
   ['tests/product/unit/showcase-templates.test.ts', 'published showcase Template artifacts'],
   ['tests/product/unit/catalog-modernization.test.ts', 'published bootstrap classification, Template and portable Set artifacts'],
   ['tests/product/unit/pipeline-upload-submission.test.ts', 'binary font fixtures for behavioral upload validation; no implementation source reads'],
@@ -55,6 +55,7 @@ const sourceReaderContracts = [
   ['tests/product/unit/press-pdf-candidate.test.ts', 'unchanged ICC binaries and complete redistribution notices, plus constructed PDF/pixel contracts; no implementation source reads'],
   ['tests/product/unit/verified-font-candidates.test.ts', 'original local font/OFL fixtures for source verifier behavior; no implementation source reads'],
   ['tests/product/workflows/template-canvas-handoff.spec.ts', 'published official starter Set and Template assets used by the native package builder and browser installation flow'],
+  ['tests/product/workflows/exact-candidate-review.spec.ts', 'actual browser-downloaded exact-candidate PDF bytes; no implementation source reads'],
   ['tests/product/workflows/output-artifacts.spec.ts', 'actual browser-downloaded PNG, ZIP, PDF and Tabletop output bytes; no implementation source reads'],
   ['tests/product/workflows/browser-workspace-recovery.spec.ts', 'native browser recovery downloads and verified package artwork; no implementation source reads'],
 ];
