@@ -1,6 +1,8 @@
 import { DEFAULT_SITE_CONTENT_BLOCKS } from '@/features/public-site/model/siteContent';
 import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
-import { PublicSiteOwnerLiveControls } from '@/features/public-site/components/PublicSiteOwnerLiveControls';
+import { PublicSiteOwnerLiveControls, WebsiteEditionDraftContext } from '@/features/public-site/components/PublicSiteOwnerLiveControls';
+import { OwnerSiteConfigurationPanel } from '@/features/owner/components/OwnerSiteConfigurationPanel';
+import { useContext } from 'react';
 import { PublicSiteShell } from '@/features/public-site/components/PublicSiteShell';
 import { createRoot } from 'react-dom/client';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
@@ -23,6 +25,12 @@ const unavailable = () => { throw new Error('Navigation/publication is outside t
 const router: AppRouterInstance = { back: unavailable, forward: unavailable, refresh: unavailable,
   push: unavailable, replace: unavailable, prefetch: () => {}, bfcacheId: 'owner-controls-proof' };
 const inlineCopy = { ...DEFAULT_SITE_CONTENT_BLOCKS.find(block => block.slug === 'landing.hero.headline')!, body: 'Synthetic headline for local inline cancellation.' };
+const FixtureSettings = () => {
+  const edition = useContext(WebsiteEditionDraftContext);
+  return <OwnerSiteConfigurationPanel settings={edition?.configuration ?? DEFAULT_PUBLIC_SITE_CONFIGURATION}
+    onSettingsChange={() => {}} onStage={edition?.stageConfiguration}
+    publicationEnvironment="preview" />;
+};
 const controls = <AppRouterContext.Provider value={router}>
   <PublicSiteShell businessIdentity={DEFAULT_BUSINESS_IDENTITY} siteConfiguration={DEFAULT_PUBLIC_SITE_CONFIGURATION} currentPath="/">
     <h1>Isolated saved edition controls</h1>
@@ -30,7 +38,7 @@ const controls = <AppRouterContext.Provider value={router}>
     <PublicSiteOwnerLiveControls currentPath="/" publicationEnvironment="preview" initialBlocks={[inlineCopy]} initialMedia={[]}
       initialSiteConfiguration={DEFAULT_PUBLIC_SITE_CONFIGURATION}
       editionSession={{ editionId: 'edition-proof', revisionId: 'revision-proof-2', liveGeneration: 1,
-        manifest: { schemaVersion: 1, configuration: DEFAULT_PUBLIC_SITE_CONFIGURATION, content: [{ slug: inlineCopy.slug, body: inlineCopy.body }], media: [] } }} />
+        manifest: { schemaVersion: 1, configuration: DEFAULT_PUBLIC_SITE_CONFIGURATION, content: [{ slug: inlineCopy.slug, body: inlineCopy.body }], media: [] } }} siteOperationsEditor={<FixtureSettings />} />
   </PublicSiteShell>
 </AppRouterContext.Provider>;
 createRoot(target).render(window.location.pathname === '/__owner-controls-proof' ? controls : <Sheet defaultOpen><SheetContent className="w-[min(100vw,42rem)] max-w-[42rem] overflow-auto sm:max-w-[42rem]" aria-describedby="owner-preview-proof-description">

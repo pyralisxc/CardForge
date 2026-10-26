@@ -185,3 +185,40 @@ for (const width of [320, 390, 768, 1440]) test(`@golden saved Edition controls 
   await bar.getByRole('button',{name:'Done editing',exact:true}).click();
   expect(writes).toEqual([]);
 });
+
+test('@golden stages private Edition Site settings without a live publication request', async ({ page }) => {
+  test.setTimeout(60_000);
+  const writes: string[] = [];
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  const presentation = await page.evaluate(() => ({
+    styles: Array.from(document.head.querySelectorAll('style,link[rel="stylesheet"]')).map(node => node.outerHTML).join('\n'),
+    htmlClass: document.documentElement.className, bodyClass: document.body.className,
+  }));
+  await page.route('**/__owner-controls-proof', route => route.fulfill({
+    contentType:'text/html',
+    body:`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1">${presentation.styles}</head><body></body></html>`,
+  }));
+  await page.route('**/api/**', route => {
+    const request = route.request();
+    if (request.method() !== 'GET') { writes.push(request.method() + ' ' + request.url()); return route.abort(); }
+    if (request.url().includes('/api/owner/website-editions')) return route.fulfill({json:{editions:[{id:'edition-proof',name:'Private proof'}]}});
+    if (request.url().includes('/api/owner/website-revisions')) return route.fulfill({json:{revisions:[{id:'revision-proof-2',ordinal:2}]}});
+    return route.abort();
+  });
+  await page.goto('/__owner-controls-proof');
+  await page.evaluate(({htmlClass,bodyClass}) => {document.documentElement.className=htmlClass;document.body.className=bodyClass;},presentation);
+  for (const f of fixture.outputFiles.filter(f => f.path.endsWith('.css'))) await page.addStyleTag({content:f.text});
+  await page.addScriptTag({content:fixture.outputFiles.find(f => f.path.endsWith('.js'))!.text});
+  const bar = page.locator('[data-owner-live-controls]');
+  await bar.getByRole('button',{name:'Edit page'}).click();
+  await bar.getByRole('button',{name:'Site settings'}).click();
+  const panel = page.locator('[data-owner-site-editor-panel]');
+  const settings = panel.getByRole('group',{name:'Private edition staging'});
+  await expect(settings.getByRole('button',{name:'Stage changes'})).toBeDisabled();
+  await panel.getByRole('textbox',{name:'Page title'}).fill('A private staged heading');
+  await settings.getByRole('button',{name:'Stage changes'}).click();
+  await expect(settings).toContainText('No unstaged private Edition changes');
+  await expect(bar.getByRole('button',{name:'Save revision'})).toBeEnabled();
+  await expect(bar.getByRole('button',{name:'Activate saved'})).toBeDisabled();
+  expect(writes).toEqual([]);
+});
