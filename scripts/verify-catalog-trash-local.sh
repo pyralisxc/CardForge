@@ -66,7 +66,7 @@ cleanup() {
   local status=$?
   trap - EXIT
   if [[ $status != 0 ]]; then
-    for log in "$proof/fixture.log" "$proof/contention.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
+    for log in "$proof/fixture.log" "$proof/contention.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log" "$proof/plugin-table-conflict.log" "$proof/plugin-bucket-conflict.log" "$proof/plugin-retention.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
   fi
   run_cli stop stop --workdir "$work" --no-backup || status=1
   rm -rf -- "$work"
@@ -93,7 +93,22 @@ CARDFORGE_LOCAL_DB_CONTAINER="$cid" node "$root/scripts/backfill-local-pipeline-
 cat "$proof/media-backfill.log"
 cp "$work/pending/"*.sql "$work/supabase/migrations/"
 (cd "$work/supabase/migrations" && sha256sum --check "$proof/migration-hashes.txt") > "$proof/migration-hash-check.log"
+# Exercise the exact unapplied proposal against incompatible preexisting state.
+# Both cases retain the sentinel only inside an outer rollback transaction.
+plugin_migration="$root/supabase/migrations/20261026220000_private_plugin_release_artifacts.sql"
+for conflict in table bucket; do
+  table_conflict=false; [[ $conflict != table ]] || table_conflict=true
+  psql_local -v plugin_migration="$plugin_migration" -v table_conflict="$table_conflict" \
+    -f "$root/supabase/tests/plugin_release_migration_conflicts.sql" > "$proof/plugin-$conflict-conflict.log" 2>&1
+  expected=plugin_release_bucket_contract_conflict
+  [[ $conflict != table ]] || expected=plugin_release_existing_table_requires_review
+  grep -q "ERROR:  $expected" "$proof/plugin-$conflict-conflict.log"
+  cat "$proof/plugin-$conflict-conflict.log"
+done
 run_cli remaining migration up --workdir "$work" --local
+psql_local -c "BEGIN; SET LOCAL cardforge.fixture_disposable = 'plugin-releases';" \
+  -f "$root/supabase/tests/plugin_release_retention.sql" -c 'ROLLBACK;' > "$proof/plugin-retention.log" 2>&1
+cat "$proof/plugin-retention.log"
 # Reset with --no-seed still executes migration-owned INSERTs. Only this fresh,
 # container-bound ephemeral CI stack is cleared. The SQL fixture itself keeps
 # its strict refusal of an existing catalog; never copy this into a migration
