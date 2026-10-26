@@ -605,6 +605,7 @@ export function PublicSiteOwnerLiveControls({
       onDirtyChange={setDrawerDirty}
       onPublish={publishCopy}
       publicationEnvironment={publicationEnvironment}
+      stageOnly={Boolean(manifest && editionId)}
     />
   );
   const selectedConfigurationLabel = drawer?.kind === 'config-label'
@@ -805,9 +806,9 @@ export function PublicSiteOwnerLiveControls({
     {inlineSlug ? <div className="flex max-w-full flex-wrap items-center gap-2 border border-[var(--public-brass)] bg-[var(--cf-surface)] p-3 shadow-2xl" role="toolbar" aria-label="Inline site copy editor">
       <span className="mr-2 text-sm text-[var(--cf-text-muted)]">{manifest ? 'Edit the field and stage it, or cancel.' : 'Edit the field and publish, or cancel.'}</span>
       {recoveryControl}
-      {inlineSlug && needsReadback === null ? <span className="text-xs">Current published value: {blocks.find((block) => block.slug === inlineSlug)?.body}</span> : null}
+      {inlineSlug && needsReadback === null ? <span className="text-xs">{manifest && editionId ? 'Current draft value' : 'Current published value'}: {blocks.find((block) => block.slug === inlineSlug)?.body}</span> : null}
       <Button size="sm" type="button" disabled={copySaving || checkingPublication || needsReadback !== null} onClick={() => void saveInlineEdit()}>
-        <Check className="mr-2 h-4 w-4" />{copySaving ? publicationPresentation.publishingActionLabel : publicationPresentation.publishActionLabel}
+        <Check className="mr-2 h-4 w-4" />{manifest && editionId ? 'Stage changes' : copySaving ? publicationPresentation.publishingActionLabel : publicationPresentation.publishActionLabel}
       </Button>
       <Button size="sm" type="button" variant="outline" disabled={copySaving || checkingPublication} onClick={() => {
         cancelledInlineFocusRef.current = inlineElementRef.current;
@@ -844,6 +845,7 @@ export function PublicSiteOwnerLiveControls({
             onPublish={publishSelectedLabel}
             onDirtyChange={setDrawerDirty}
             publicationEnvironment={publicationEnvironment}
+            stageOnly={Boolean(manifest && editionId)}
             help={manifest ? 'Stages only this label in your private website draft.' : 'Publishes only the selected label without changing other settings.'}
           /> : null}
           {drawer?.kind === 'media' && selectedMedia ? renderedMediaEditor(selectedMedia) : null}
