@@ -58,8 +58,8 @@ describe('retained plugin release admission (in-memory provider only)', () => {
   });
   it('rejects mismatched manifest and duplicate version with different source',async()=>{
     const s=memoryStore(); await admitBuiltRelease(s.store,trusted,args);
-    await expect(admitBuiltRelease(s.store,{...trusted,sourceSha:'b'.repeat(40)},args)).rejects.toThrow('Release version conflict');
-    await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...await built(),endpoint:'https://wrong.invalid/mcp'})},args)).rejects.toThrow('Release manifest/endpoint mismatch');
+    await expect(admitBuiltRelease(s.store,{...trusted,sourceSha:'b'.repeat(40)},args)).rejects.toThrow('Release admission readback mismatch');
+    await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...await built(),endpoint:'https://wrong.invalid/mcp'})},args)).rejects.toThrow('Release endpoint violates environment policy');
   });
   it('rejects both malformed legacy manifests and disallowed MCP transport/header variants',async()=>{
     for (const file of ['.codex-plugin/plugin.json','.mcp.json']) {
@@ -76,7 +76,7 @@ describe('retained plugin release admission (in-memory provider only)', () => {
       m.mcpServers[key]={...m.mcpServers[key],headers:{Authorization:'secret'},type:'wrong'};
       z.file(file,JSON.stringify(m));
       const bytes=await z.generateAsync({type:'nodebuffer',compression:'DEFLATE'});
-      await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...await built(),bytes,checksum:require('node:crypto').createHash('sha256').update(bytes).digest('hex')})},args)).rejects.toThrow();
+      await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...await built(),bytes,checksum:createHash('sha256').update(bytes).digest('hex')})},args)).rejects.toThrow();
     }
   });
   it('rejects extra MCP servers and raw traversal ZIP entries',async()=>{
