@@ -1,15 +1,9 @@
 import { z } from 'zod';
 import { getAccountToolAccessForUserId } from '@/features/account/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { catalogTrashCommandSchema, catalogTrashExpectedStateSchema } from '../lib/catalogTrashContract';
+import { catalogTrashCommandSchema, catalogTrashSnapshotSchema } from '../lib/catalogTrashContract';
 import { PipelineRegistryCommandError } from '../lib/pipelineRegistryCommandsError';
 
-const snapshotSchema = z.object({
-  name: z.string().min(1),
-  state: catalogTrashExpectedStateSchema,
-  retentionDays: z.number().int().positive(),
-  reasons: z.array(z.string().min(1)),
-}).strict();
 
 async function ownerDatabase(actorUserId: string) {
   // actorUserId must come from the HTTP/Studio OAuth session, never request JSON.
@@ -38,7 +32,7 @@ export async function readCatalogTrash(actorUserId: string, submissionId: string
   }
   const {data, error} = await db.rpc('cardforge_read_catalog_trash', {p_submission_id:submissionId});
   if (error) throw nativeError(error);
-  const result = snapshotSchema.safeParse(data);
+  const result = catalogTrashSnapshotSchema.safeParse(data);
   if (!result.success || result.data.state.identity.submissionId !== submissionId) {
     throw new PipelineRegistryCommandError('Catalog recovery state is unavailable.', 503, 'catalog_trash_unavailable');
   }
@@ -57,7 +51,7 @@ export async function changeCatalogTrash(actorUserId: string, input: unknown) {
     p_held:action === 'hold' ? command.data.held : null,
   });
   if (error) throw nativeError(error);
-  const receipt = snapshotSchema.safeParse(data);
+  const receipt = catalogTrashSnapshotSchema.safeParse(data);
   const identity = receipt.success ? receipt.data.state.identity : null;
   if (!receipt.success || !identity ||
     Object.keys(expected.identity).some(key => identity[key as keyof typeof identity] !== expected.identity[key as keyof typeof identity]) ||

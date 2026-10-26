@@ -1,5 +1,6 @@
 import { createMcpHandler } from 'mcp-handler';
 
+import { registerCatalogTrashTools } from './mcpCatalogTrashTools';
 import { registerAgentTemplateTools } from './mcpAgentTemplateTools';
 import { CARDFORGE_MCP_CONTRACT_VERSION } from './mcpContractVersion';
 import { registerEditableTemplateTools } from './mcpEditableTemplateTools';
@@ -21,6 +22,7 @@ export const cardForgeMcpHandler = createMcpHandler(
       toolError: createMcpToolError,
     };
     registerAgentTemplateTools(options);
+    registerCatalogTrashTools(options);
     registerEditableTemplateTools(options);
   },
   {

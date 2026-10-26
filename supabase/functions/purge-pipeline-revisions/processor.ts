@@ -9,6 +9,9 @@ export async function processRevisionPurge(
   client:RevisionPurgeClient,claim:RevisionPurgeClaim,
 ):Promise<{purged:boolean;failed:boolean}>{
   try {
+    if ((claim.storage_bucket === null) !== (claim.storage_path === null)) {
+      throw new Error('revision_storage_identity_incomplete');
+    }
     if(claim.storage_bucket && claim.storage_path){
       const {error}=await client.storage.from(claim.storage_bucket).remove([claim.storage_path]);
       if(error)throw error;
@@ -19,7 +22,9 @@ export async function processRevisionPurge(
     return {purged:true,failed:false};
   }catch(error){
     console.error('Pipeline revision purge incomplete', {submissionId:claim.submission_id,error});
-    await client.rpc('cardforge_release_pipeline_revision_purge',{p_submission_id:claim.submission_id,p_claim_token:claim.claim_token});
+    // Storage may already have acted, including when its response was lost.
+    // Keep the committed claim for reconciliation; neither an error nor lease
+    // expiry revokes an old worker's ability to delete bytes. Never release it.
     return {purged:false,failed:true};
   }
 }

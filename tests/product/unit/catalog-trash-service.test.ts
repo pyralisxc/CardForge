@@ -6,7 +6,7 @@ import { changeCatalogTrash, readCatalogTrash } from '@/features/pipeline/server
 const identity = {lineageId:'00000000-0000-4000-8000-000000000001',submissionId:'00000000-0000-4000-8000-000000000002',registrySubmissionId:'00000000-0000-4000-8000-000000000002',revisionHighWater:3};
 const active = {identity,trashedAt:null,purgeAfter:null,held:false};
 const trashed = {...active,trashedAt:'2026-10-26T00:00:00Z',purgeAfter:'2026-11-25T00:00:00Z'};
-const receipt = (state = trashed) => ({name:'Native catalog',state,retentionDays:30,reasons:[]});
+const receipt = (state = trashed) => ({name:'Native catalog',state,retentionDays:30,reasons:[],entryReasons:[]});
 beforeEach(() => {vi.resetAllMocks();access.mockResolvedValue({isOwner:true});database.mockReturnValue({rpc});rpc.mockResolvedValue({data:receipt(),error:null});});
 describe('canonical catalog recovery service', () => {
   it('rechecks Owner authority before read or mutation', async () => {

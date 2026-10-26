@@ -12,19 +12,19 @@ describe('shared Pipeline revision deletion processor',()=>{
   expect(remove).toHaveBeenCalledWith(['disposable/test.png']);
   expect(rpc).toHaveBeenCalledWith('cardforge_finalize_pipeline_revision_purge',{p_submission_id:claim.submission_id,p_claim_token:claim.claim_token});
  });
- it('does not finalize when Storage removal fails; releases exact claim',async()=>{
+ it('retains the committed claim when Storage removal fails',async()=>{
   const remove=vi.fn(async()=>({error:new Error('storage failed')}));
   const rpc=vi.fn(async()=>({data:true,error:null}));
   expect(await processRevisionPurge({storage:{from:()=>({remove})},rpc},claim)).toEqual({purged:false,failed:true});
-  expect(rpc).toHaveBeenCalledTimes(1);
-  expect(rpc).toHaveBeenCalledWith('cardforge_release_pipeline_revision_purge',{p_submission_id:claim.submission_id,p_claim_token:claim.claim_token});
+  expect(rpc).not.toHaveBeenCalled();
  });
- it('releases claim if finalization cannot confirm deletion',async()=>{
+ it('retains the committed claim after Storage success and finalizer failure',async()=>{
   const rpc=vi.fn(async(name:string)=>name==='cardforge_finalize_pipeline_revision_purge'
    ?{data:false,error:null}:{data:true,error:null});
   const remove=vi.fn(async()=>({error:null}));
   expect(await processRevisionPurge({storage:{from:()=>({remove})},rpc},claim)).toEqual({purged:false,failed:true});
-  expect(rpc).toHaveBeenNthCalledWith(2,'cardforge_release_pipeline_revision_purge',{p_submission_id:claim.submission_id,p_claim_token:claim.claim_token});
+  expect(remove).toHaveBeenCalledOnce();
+  expect(rpc).toHaveBeenCalledExactlyOnceWith('cardforge_finalize_pipeline_revision_purge',{p_submission_id:claim.submission_id,p_claim_token:claim.claim_token});
  });
 });
 
@@ -39,12 +39,12 @@ describe('revision-only processing without attached Storage',()=>{
     p_submission_id:claim.submission_id,p_claim_token:claim.claim_token,
   });
  });
- it('uses the old claim token on interrupted attempts, never an ID-only release',async()=>{
+ it('does not erase an interrupted row-only claim',async()=>{
   const rpc=vi.fn(async(name:string)=>({data:name!=='cardforge_finalize_pipeline_revision_purge',error:null}));
   const from=vi.fn();
   expect(await processRevisionPurge({storage:{from},rpc},{...claim,storage_bucket:null,storage_path:null}))
    .toEqual({purged:false,failed:true});
-  expect(rpc).toHaveBeenNthCalledWith(2,'cardforge_release_pipeline_revision_purge',{
+  expect(rpc).toHaveBeenCalledExactlyOnceWith('cardforge_finalize_pipeline_revision_purge',{
     p_submission_id:claim.submission_id,p_claim_token:claim.claim_token,
   });
  });

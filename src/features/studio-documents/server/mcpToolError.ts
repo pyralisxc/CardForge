@@ -1,4 +1,5 @@
 import 'server-only';
+import { PipelineRegistryCommandError } from '@/features/pipeline/server';
 
 import { AccountToolAccessError } from '@/features/account/server';
 import { ContributorAccessError } from '@/features/contributor-access/server';
@@ -13,7 +14,8 @@ import {
 import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
 
 const isSafeMcpError = (error: unknown): error is Error => (
-  error instanceof AccountToolAccessError
+  error instanceof PipelineRegistryCommandError
+  || error instanceof AccountToolAccessError
   || error instanceof ContributorAccessError
   || error instanceof StudioDocumentStoreError
   || error instanceof RateLimitExceededError

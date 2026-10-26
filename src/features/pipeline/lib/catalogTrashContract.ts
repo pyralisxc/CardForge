@@ -43,3 +43,12 @@ export const catalogTrashCommandSchema = z.discriminatedUnion('action', [
 
 export type CatalogTrashCommand = z.infer<typeof catalogTrashCommandSchema>;
 export type CatalogTrashExpectedState = z.infer<typeof catalogTrashExpectedStateSchema>;
+
+export const catalogTrashSnapshotSchema = z.object({
+  name: z.string().min(1),
+  state: catalogTrashExpectedStateSchema,
+  retentionDays: z.number().int().positive(),
+  reasons: z.array(z.string().min(1)),
+  entryReasons: z.array(z.string().min(1)),
+}).strict();
+export type CatalogTrashSnapshot = z.infer<typeof catalogTrashSnapshotSchema>;
