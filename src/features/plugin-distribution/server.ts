@@ -2,10 +2,10 @@ import 'server-only';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { getCurrentContributorAccess, ContributorAccessError } from '@/features/contributor-access/server';
 import { AccountToolAccessError } from '@/features/account/server';
-import { mayDownloadPlugin } from '../model/downloadPolicy';
-import { buildCurrentPlugin } from './pluginReleases';
-import type { PluginProduct, PluginEnvironment } from './pluginReleases';
-export type { PluginProduct, PluginEnvironment } from './pluginReleases';
+import { mayDownloadPlugin } from './model/downloadPolicy';
+import { buildCurrentPlugin } from './server/pluginReleases';
+import type { PluginProduct, PluginEnvironment } from './server/pluginReleases';
+export type { PluginProduct, PluginEnvironment } from './server/pluginReleases';
 export { buildCurrentPlugin };
 export async function pluginDownloadAccess(product: PluginProduct, environment: PluginEnvironment): Promise<200 | 401 | 403> {
   if (mayDownloadPlugin(product, environment, false, false)) return 200;
