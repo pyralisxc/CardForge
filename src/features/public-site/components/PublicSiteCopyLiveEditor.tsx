@@ -76,6 +76,7 @@ export function PublicSiteFocusedTextEditor({
   onPublish,
   onDirtyChange,
   publicationEnvironment,
+  stageOnly = false,
   help = 'Changes here affect only this selected field.',
 }: {
   label: string;
@@ -88,6 +89,7 @@ export function PublicSiteFocusedTextEditor({
   onPublish: (value: string) => Promise<boolean>;
   onDirtyChange: (dirty: boolean) => void;
   publicationEnvironment: OwnerPublicationEnvironment;
+  stageOnly?: boolean;
   help?: string;
 }) {
   const [body, setBody] = useState(value);
@@ -111,9 +113,9 @@ export function PublicSiteFocusedTextEditor({
         : <input className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)]" maxLength={maxLength} disabled={busy || publicationBlocked} value={body} onChange={(event) => setBody(event.target.value)} />}
     </label>
     <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">{help}</p>
-    {dirty ? <p className="text-xs text-[var(--cf-text-subtle)]">Current published value: {value || '(empty)'}</p> : null}
+    {dirty ? <p className="text-xs text-[var(--cf-text-subtle)]">{stageOnly ? 'Current draft value' : 'Current published value'}: {value || '(empty)'}</p> : null}
     <Button type="button" size="sm" className="w-fit" disabled={busy || publicationBlocked || !dirty || (!allowEmpty && !body.trim())} onClick={() => void onPublish(body)}>
-      <Check className="mr-2 h-4 w-4" />{busy ? publication.publishingActionLabel : publication.publishActionLabel}
+      <Check className="mr-2 h-4 w-4" />{stageOnly ? (busy ? 'Staging…' : 'Stage changes') : (busy ? publication.publishingActionLabel : publication.publishActionLabel)}
     </Button>
   </section>;
 }
@@ -126,6 +128,7 @@ export function PublicSiteCopyLiveEditor({
   onPublish,
   onDirtyChange,
   publicationEnvironment,
+  stageOnly = false,
 }: {
   block: SiteContentBlock;
   busy: boolean;
@@ -133,6 +136,7 @@ export function PublicSiteCopyLiveEditor({
   onPublish: (block: SiteContentBlock, body: string) => Promise<boolean>;
   onDirtyChange: (dirty: boolean) => void;
   publicationEnvironment: OwnerPublicationEnvironment;
+  stageOnly?: boolean;
 }) {
   return <PublicSiteFocusedTextEditor
     label={block.label}
@@ -144,6 +148,7 @@ export function PublicSiteCopyLiveEditor({
     onPublish={(body) => onPublish(block, body)}
     onDirtyChange={onDirtyChange}
     publicationEnvironment={publicationEnvironment}
+    stageOnly={stageOnly}
     help="This changes the original Owner copy block. The surrounding page markup and links remain intact."
   />;
 }

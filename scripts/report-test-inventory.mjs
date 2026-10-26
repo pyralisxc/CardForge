@@ -34,6 +34,7 @@ const productDomains = [
 // legal, security, or repository contract under test. This explicit inventory keeps
 // ordinary component/helper composition pins from quietly returning.
 const sourceReaderContracts = [
+  ['tests/product/unit/website-edition-private-stage-labels.test.ts', 'published Owner control labels and private Edition staging action contract'],
   ['tests/infrastructure/agent-efficiency.test.ts', 'repository command and routing contract'],
   ['tests/infrastructure/legacy-server-table-grants.test.ts', 'cross-migration least-privilege contract'],
   ['tests/infrastructure/pipeline-retention-batch-selection.test.ts', 'native SQL bounded-selection safety and liveness deployment contract; not database runtime proof'],
