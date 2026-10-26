@@ -40,6 +40,7 @@ try {
   // Provider errors can contain request headers. Keep the failure opaque here;
   // native local replay logs and read-only prerequisite queries own diagnosis.
   console.error(`Local Pipeline media preparation failed at ${stage}; no migration continuation permitted.`);
+  if (error?.code === 'PIPELINE_DEPENDENCY_MISSING') console.error(`Unresolved repository paths: ${JSON.stringify(error.dependencies)}`);
   if (error?.code === 'LOCAL_GUARD') console.error(error.message);
   if (/^[A-Za-z0-9_]{1,40}$/.test(error?.name ?? '')) console.error(`Error kind: ${error.name}`);
   if (/^[0-9]{3}$/.test(String(error?.statusCode ?? ''))) console.error(`HTTP status: ${error.statusCode}`);

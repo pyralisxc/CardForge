@@ -854,7 +854,11 @@ export const backfillPipelineRegistryMedia = async (supabase, { deferHistoricalP
   });
   for (const entry of [...registry.map(row => row.metadata), ...preflightPayloads]) {
     if (containsRepositoryAssetUrl(rewritePipelineAssetUrls(entry, catalog.publicUrlByLocalPath))) {
-      throw new Error('Historical Pipeline dependency is missing or tombstoned');
+      const error = new Error('Historical Pipeline dependency is missing or tombstoned');
+      error.code = 'PIPELINE_DEPENDENCY_MISSING';
+      error.dependencies = [...collectPipelineAssetPaths(rewritePipelineAssetUrls(entry, catalog.publicUrlByLocalPath))]
+        .filter(value => /^[A-Za-z0-9_./-]{1,180}$/.test(value));
+      throw error;
     }
   }
   // Verify actual local bytes against Storage before rewriting references.
