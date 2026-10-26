@@ -17,6 +17,7 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
   const [errors, setErrors] = useState<Record<string, { status: number; message: string }>>({});
   const [downloading, setDownloading] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, Retained[]>>({});
+  const [historyErrors, setHistoryErrors] = useState<Record<string, {status: number; message: string}>>({});
   const [admitting, setAdmitting] = useState<string | null>(null);
   const [admissionNotice, setAdmissionNotice] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -41,10 +42,10 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
       if (!response.ok) throw { status: response.status };
       const result = await response.json() as {previous:Retained[]};
       setHistory(current=>({...current,[environment]:result.previous}));
-      setErrors(current => { const next = {...current}; delete next[environment]; return next; });
+      setHistoryErrors(current => { const next = {...current}; delete next[environment]; return next; });
     } catch (error) {
       const status = typeof error === 'object' && error !== null && 'status' in error && typeof error.status === 'number' ? error.status : 503;
-      setErrors(current=>({...current,[environment]:{status,message:errorText(status,scope,environment)}}));
+      setHistoryErrors(current=>({...current,[environment]:{status,message:errorText(status,scope,environment)}}));
     }
   }
   async function admit(environment: 'production' | 'preview', release: Release) {
@@ -91,6 +92,7 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
     {(['production', 'preview'] as const).map(environment => {
       const release = results[environment];
       const failure = errors[environment];
+      const historyFailure = historyErrors[environment];
       return <div key={environment} className="rounded border border-current p-4">
         <h3 className="font-semibold">{environment === 'production' ? 'Production' : 'Preview'}</h3>
         {release ? <>
@@ -107,12 +109,13 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
             : <p className="text-xs">Release admission is available only on a verified Preview deployment.</p>)}
           {failure && <p role="alert">{failure.message} {failure.status === 401 && <Link className="underline" href={createAuthRouteHref('/sign-in', scope === 'owner' ? '/?ownerSite=editions' : '/downloads')}>Sign in</Link>}</p>}
           <div className="mt-3"><button type="button" className="underline" onClick={() => void loadHistory(environment)}>View retained versions</button>
+            {historyFailure && <p role="alert">{historyFailure.message}</p>}
             {history[environment]?.length === 0 && <p>No verified retained releases yet.</p>}
             {history[environment]?.map(item => <div key={item.version + item.checksum} className="mt-2 text-sm"><span>{item.version} · {item.releasedAt} · SHA-256 {item.checksum}</span> <button className="underline" type="button" disabled={downloading !== null} onClick={() => void download(environment,item,true)}>Download retained ZIP</button></div>)}
           </div>
           {admissionNotice[environment] && <p role="status">{admissionNotice[environment]}</p>}
         </> : <p>{failure?.message || 'Checking available release…'} {failure?.status === 401 && <Link className="underline" href={createAuthRouteHref('/sign-in', scope === 'owner' ? '/?ownerSite=editions' : '/downloads')}>Sign in</Link>}</p>}
-        {!release && <div className="mt-3"><button type="button" className="underline" onClick={() => void loadHistory(environment)}>View retained versions</button>{history[environment]?.length === 0 && <p>No verified retained releases yet.</p>}{history[environment]?.map(item => <div key={item.version + item.checksum} className="mt-2 text-sm"><span>{item.version} · {item.releasedAt} · SHA-256 {item.checksum}</span> <button type="button" className="underline" disabled={downloading !== null} onClick={() => void download(environment,item,true)}>Download retained ZIP</button></div>)}</div>}
+        {!release && <div className="mt-3"><button type="button" className="underline" onClick={() => void loadHistory(environment)}>View retained versions</button>{historyFailure && <p role="alert">{historyFailure.message}</p>}{history[environment]?.length === 0 && <p>No verified retained releases yet.</p>}{history[environment]?.map(item => <div key={item.version + item.checksum} className="mt-2 text-sm"><span>{item.version} · {item.releasedAt} · SHA-256 {item.checksum}</span> <button type="button" className="underline" disabled={downloading !== null} onClick={() => void download(environment,item,true)}>Download retained ZIP</button></div>)}</div>}
         {!release && admissionNotice[environment] && <p role="status">{admissionNotice[environment]}</p>}
       </div>;
     })}
