@@ -1,12 +1,13 @@
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { readExactCandidateReview } from '@/features/pipeline/server';
-import { exactCandidateIdentitySchema } from '@/features/pipeline/lib/exactCandidateReview';
+import { exactCandidateIdentitySchema } from '@/features/pipeline/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
 export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   const owner = await getCurrentOwnerAccess();
-  if (!owner.isOwner || !owner.userId) return createApiErrorResponse(403, 'owner_access_required', 'Owner review access required.');
+  if (!owner.userId) return createApiErrorResponse(401, 'sign_in_required', 'Sign in for Owner review.');
+  if (!owner.isOwner) return createApiErrorResponse(403, 'owner_access_required', 'Owner review access required.');
   let body: unknown;
   try { body = await request.json(); }
   catch { return createApiErrorResponse(400, 'candidate_invalid', 'Provide an exact candidate identity.'); }

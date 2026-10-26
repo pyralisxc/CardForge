@@ -54,6 +54,7 @@ const sourceReaderContracts = [
   ['tests/product/unit/press-pdf-candidate.test.ts', 'unchanged ICC binaries and complete redistribution notices, plus constructed PDF/pixel contracts; no implementation source reads'],
   ['tests/product/unit/verified-font-candidates.test.ts', 'original local font/OFL fixtures for source verifier behavior; no implementation source reads'],
   ['tests/product/workflows/template-canvas-handoff.spec.ts', 'published official starter Set and Template assets used by the native package builder and browser installation flow'],
+  ['tests/product/workflows/exact-candidate-review.spec.ts', 'actual browser-downloaded exact-candidate PDF bytes; no implementation source reads'],
   ['tests/product/workflows/output-artifacts.spec.ts', 'actual browser-downloaded PNG, ZIP, PDF and Tabletop output bytes; no implementation source reads'],
   ['tests/product/workflows/browser-workspace-recovery.spec.ts', 'native browser recovery downloads and verified package artwork; no implementation source reads'],
 ];

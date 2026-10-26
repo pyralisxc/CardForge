@@ -47,6 +47,7 @@ interface SaveAsPdfButtonProps {
   canExportClean: boolean;
   disabled?: boolean;
   templateName?: string;
+  beforeExport?: () => Promise<void>;
 }
 
 export function SaveAsPdfButton({
@@ -63,6 +64,7 @@ export function SaveAsPdfButton({
   canExportClean,
   disabled = false,
   templateName,
+  beforeExport,
 }: SaveAsPdfButtonProps) {
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const { toast } = useToast();
@@ -151,6 +153,7 @@ export function SaveAsPdfButton({
 
     trackExportStarted('pdf', generatedDisplayCards.length);
     try {
+      await beforeExport?.();
       for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
         const chunkStart = chunkIndex * MAX_PDF_CARDS_PER_FILE;
         const chunkEnd = Math.min(chunkStart + MAX_PDF_CARDS_PER_FILE, generatedDisplayCards.length);
@@ -257,6 +260,7 @@ export function SaveAsPdfButton({
         }
 
         const chunkSuffix = totalChunks > 1 ? `-part-${chunkIndex + 1}-of-${totalChunks}` : '';
+        await beforeExport?.(); // Revalidate externally pinned specimens after rendering, before delivery.
         pdf.save(`${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}${chunkSuffix}.pdf`);
 
         // Yield to the browser between chunk downloads to reduce UI stalls.

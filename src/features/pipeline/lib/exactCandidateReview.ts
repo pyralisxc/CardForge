@@ -9,6 +9,7 @@ export const exactCandidateIdentitySchema = z.object({
   assetId: z.string().trim().min(1).max(200),
   revisionNumber: z.number().int().positive(),
   baseRevisionNumber: z.number().int().positive(),
+  publishedBase: templateReviewBaseSchema,
   sourceSha256: z.string().regex(/^[a-f0-9]{64}$/u),
 }).strict();
 export type ExactCandidateIdentity = z.infer<typeof exactCandidateIdentitySchema>;
@@ -42,7 +43,16 @@ export function verifyExactCandidateSnapshot(input: {
   if (!base.success || base.data.assetId !== expected.assetId || base.data.lineageId !== expected.lineageId
     || base.data.baseRevisionNumber !== expected.baseRevisionNumber
     || expected.revisionNumber <= base.data.revisionHighWater) throw new Error('candidate_base_conflict');
+  if (JSON.stringify(base.data) !== JSON.stringify(templateReviewBaseSchema.parse(expected.publishedBase))) throw new Error('candidate_base_conflict');
   const digest = createHash('sha256').update(JSON.stringify(s.source_payload)).digest('hex');
   if (digest !== expected.sourceSha256) throw new Error('candidate_payload_changed');
   return { identity: expected, expectedBase: base.data, template: s.source_payload };
 }
+
+export function verifyExactCandidatePublishedBase(expected: ExactCandidateIdentity, current: unknown) {
+  const live = templateReviewBaseSchema.parse(current);
+  if (JSON.stringify({ ...live, revisionHighWater: expected.publishedBase.revisionHighWater }) !== JSON.stringify(templateReviewBaseSchema.parse(expected.publishedBase))
+    || live.revisionHighWater !== expected.revisionNumber) throw new Error('candidate_base_changed');
+}
+
+export type ExactCandidateSpecimen = ReturnType<typeof verifyExactCandidateSnapshot> & { hydratedSha256: string };

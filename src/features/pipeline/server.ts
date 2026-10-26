@@ -26,3 +26,5 @@ export { readCatalogTrash, changeCatalogTrash } from './server/catalogTrash';
 export type { CatalogTrashCommand, CatalogTrashSnapshot } from './lib/catalogTrashContract';
 
 export { readExactCandidateReview } from './server/exactCandidateReview';
+
+export { exactCandidateIdentitySchema } from './lib/exactCandidateReview';

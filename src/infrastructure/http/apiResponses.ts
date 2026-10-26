@@ -9,6 +9,10 @@ import {
 
 export type ApiErrorCode =
   | 'catalog_trash_invalid'
+  | 'candidate_invalid'
+  | 'candidate_not_found'
+  | 'candidate_conflict'
+  | 'candidate_unavailable'
   | 'catalog_trash_conflict'
   | 'catalog_trash_unavailable'
   | 'catalog_trash_not_found'
