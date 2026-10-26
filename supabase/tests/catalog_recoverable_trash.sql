@@ -1,4 +1,6 @@
--- Requires the normal migrated, seed-disabled disposable Supabase database.
+-- Requires the normal migrated disposable Supabase database after the guarded
+-- CI-only setup in scripts/verify-catalog-trash-local.sh. --no-seed alone does
+-- NOT remove catalog INSERTs executed inside historical migrations.
 -- Deliberately refuses an existing catalog: do not erase production/shared
 -- Staging consumers to make a positive admission fixture pass. No Storage I/O.
 -- Single-session guard tests do NOT prove lock races; additionally use two
@@ -18,6 +20,49 @@ begin
   end if;
 end $$;
 
+
+-- A full protected prefix must not starve a later eligible revision. Each
+-- group fills p_limit=2 by itself: catalog Trash, whole-lineage pending, and
+-- uncertain prior revision claims. IDs guarantee that all six sort first.
+-- These are rollback-only state fixtures, not claims of successful Move entry.
+do $$
+declare
+  lineage uuid; submission uuid; eligible uuid; claimed uuid[]; i integer;
+  protected_ids uuid[]:='{}';
+begin
+  for i in 1..7 loop
+    lineage:=((case when i=7 then 'ffffffff' else '0000000'||i::text end)||substr(gen_random_uuid()::text,9))::uuid;
+    submission:=gen_random_uuid();
+    insert into public.cardforge_pipeline_asset_lineages(id) values(lineage);
+    insert into public.cardforge_contributor_asset_submissions
+      (id,lineage_id,contributor_id,asset_type,name,status,calculated_access_tier,
+        trashed_at,purge_after,trash_reason,purge_claim_token,purge_claimed_at)
+      values(submission,lineage,'isolated-batch-proof','icons','Bounded expiry fixture','archived','hidden',
+        now()-interval '32 days',now()-interval '2 days','expired',
+        case when i in (5,6) then gen_random_uuid() else null end,
+        case when i in (5,6) then now()-interval '1 day' else null end);
+    if i in (1,2) then
+      update public.cardforge_pipeline_asset_lineages
+        set catalog_trashed_at=now(),catalog_purge_after=now()+interval '30 days' where id=lineage;
+    elsif i in (3,4) then
+      update public.cardforge_pipeline_asset_lineages set purge_state='pending' where id=lineage;
+    end if;
+    if i=7 then eligible:=submission; else protected_ids:=array_append(protected_ids,submission); end if;
+  end loop;
+  select array_agg(submission_id) into claimed from public.cardforge_claim_pipeline_revision_purges(2);
+  if claimed is distinct from array[eligible] then
+    raise exception 'blocked_prefix_starved_eligible_revision: %',claimed;
+  end if;
+  if exists(select 1 from public.cardforge_contributor_asset_submissions
+    where id=any(protected_ids) and purge_state is not null) then
+    raise exception 'batch_claimed_a_protected_revision';
+  end if;
+  if (select count(*) from public.cardforge_contributor_asset_submissions
+    where id=any(protected_ids) and purge_claim_token is not null and purge_claimed_at<now()-interval '15 minutes')<>2 then
+    raise exception 'batch_erased_or_recycled_prior_claim_uncertainty';
+  end if;
+end $$;
+
 do $$
 declare
   lineage uuid:=gen_random_uuid(); current_id uuid:=gen_random_uuid(); old_id uuid:=gen_random_uuid();
@@ -30,11 +75,11 @@ begin
     values(asset,expected_name,'icon','https://example.invalid/retained.svg','published','free','contributor');
   insert into public.cardforge_contributor_asset_submissions
     (id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status,calculated_access_tier,
-      registry_asset_id,target_registry_asset_id,revision_number,published_at,source_url,trashed_at,purge_after)
+      registry_asset_id,target_registry_asset_id,revision_number,published_at,source_url,trashed_at,purge_after,trash_reason)
     values(current_id,lineage,'isolated-trash-proof','icons',expected_name,'published','approved','free',asset,asset,2,now(),
-      'https://example.invalid/retained.svg',null,null),
+      'https://example.invalid/retained.svg',null,null,null),
     (old_id,lineage,'isolated-trash-proof','icons',expected_name,'archived','approved','hidden',asset,asset,1,null,
-      'https://example.invalid/old.svg',now()-interval '31 days',now()-interval '1 day');
+      'https://example.invalid/old.svg',now()-interval '31 days',now()-interval '1 day','expired');
   update public.cardforge_asset_registry set contributor_submission_id=current_id where asset_id=asset;
   initial:=public.cardforge_read_catalog_trash(current_id);
   if initial->'entryReasons'<>'[]'::jsonb then raise exception 'fresh_direct_media_fixture_not_eligible: %',initial; end if;
@@ -99,9 +144,9 @@ begin
   -- forbids rewriting an active claim's timestamp just to simulate expiry.
   insert into public.cardforge_contributor_asset_submissions
     (id,lineage_id,contributor_id,asset_type,name,status,calculated_access_tier,registry_asset_id,target_registry_asset_id,
-      revision_number,trashed_at,purge_after,purge_state,purge_claimed_at,purge_claim_token)
+      revision_number,trashed_at,purge_after,trash_reason,purge_state,purge_claimed_at,purge_claim_token)
     values(stale_id,lineage,'isolated-trash-proof','icons','Stale worker','archived','hidden',asset,asset,3,
-      now()-interval '32 days',now()-interval '2 days','pending',now()-interval '1 day',gen_random_uuid());
+      now()-interval '32 days',now()-interval '2 days','expired','pending',now()-interval '1 day',gen_random_uuid());
   if exists(select 1 from public.cardforge_claim_pipeline_revision_purge_target(stale_id)) then raise exception 'expired_lease_recycled'; end if;
   if public.cardforge_finalize_pipeline_revision_purge(old_id,gen_random_uuid()) then raise exception 'wrong_worker_finalized'; end if;
   if not exists(select 1 from public.cardforge_contributor_asset_submissions where id=old_id and purge_claim_token=token) then

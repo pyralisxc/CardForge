@@ -77,3 +77,12 @@ Tests that pin a component path, internal helper name, one-time migration shape,
 `npm run test:inventory` also lists every test file that reads repository source or artifacts. Each remaining reader must be classified there as a literal security, legal, published-artifact, or repository-tooling contract. An unclassified reader fails the inventory report; ordinary component/helper composition belongs in behavioral tests instead.
 
 Test count is not a quality metric. CardForge should prefer fewer tests with broad, stable value over many tests that freeze implementation details.
+
+
+### Native catalog Trash proof
+
+The existing CI workflow's `native-catalog-trash` job uses official `supabase/setup-cli` v1.7.3 pinned to its commit, CLI 2.122.0 and the repository's PostgreSQL17 configuration. It validates CLI help, starts a fresh uniquely named local Docker stack, and runs `supabase db reset --local --no-seed` with no hosted link or provider credentials. A replay failure stops the job; failed migrations are never skipped.
+
+`--no-seed` disables seed files, not INSERTs inside migrations. `scripts/verify-catalog-trash-local.sh` therefore allows fixture cleanup only on the newly created GitHub-hosted runner stack, after verifying the local Unix Docker daemon, unique container identity, official versioned PostgreSQL17 image and port54322 binding. It has no caller-supplied database target. It then uses plain `psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres` for `supabase/tests/catalog_recoverable_trash.sql`, followed by two native psql sessions in `scripts/test-catalog-trash-contention.py`. The SQL fixture retains its refusal of an existing catalog. Never turn the CI-only cleanup into a hosted/Staging procedure.
+
+The native artifact retains sanitized migration replay, exact database image/container identity, SQL fixture and contention results. The two-session cases cover the table/row lock inversion, Move versus an irreversible revision claim, and Hold/Restore versus a competing expiry transaction and later commitment. They do not delete Storage objects or establish hosted/physical acceptance. The same scope's deterministic source tests only protect migration selection/locking clauses; they are not substitutes for native execution.
