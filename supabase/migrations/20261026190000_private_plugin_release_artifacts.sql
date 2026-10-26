@@ -44,14 +44,14 @@ alter table public.cardforge_plugin_releases enable row level security;
 revoke all privileges on public.cardforge_plugin_releases from public, anon, authenticated, service_role;
 grant select, insert on public.cardforge_plugin_releases to service_role;
 -- Owner/superuser DDL and external membership grants remain separately privileged.
-do $
+do $$
 begin
   if has_table_privilege('service_role','public.cardforge_plugin_releases','UPDATE')
     or has_table_privilege('service_role','public.cardforge_plugin_releases','DELETE')
     or has_table_privilege('service_role','public.cardforge_plugin_releases','TRUNCATE') then
     raise exception 'plugin_release_mutation_grant_conflict';
   end if;
-end $;
+end $$;
 
 -- No automatic deletion, expiry, archival, or replacement is authorized.
 create or replace function public.cardforge_reject_plugin_release_mutation()
