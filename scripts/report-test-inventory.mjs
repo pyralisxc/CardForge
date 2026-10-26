@@ -47,6 +47,7 @@ const sourceReaderContracts = [
   ['tests/product/unit/clerk-config.test.ts', 'Clerk middleware security configuration'],
   ['tests/product/unit/element-recipe-catalog.test.ts', 'published recipe catalog artifacts'],
   ['tests/product/unit/mcp-product-hygiene.test.ts', 'published MCP tool, schema, annotation, and skill contract'],
+  ['tests/product/unit/website-edition-private-stage-labels.test.ts', 'published Owner control labels and private Edition staging action contract'],
   ['tests/product/unit/showcase-templates.test.ts', 'published showcase Template artifacts'],
   ['tests/product/unit/catalog-modernization.test.ts', 'published bootstrap classification, Template and portable Set artifacts'],
   ['tests/product/unit/pipeline-upload-submission.test.ts', 'binary font fixtures for behavioral upload validation; no implementation source reads'],
