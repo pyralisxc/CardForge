@@ -5,15 +5,6 @@ set -euo pipefail
 [[ -z ${DOCKER_HOST:-} && -z ${SUPABASE_ACCESS_TOKEN:-} && -z ${SUPABASE_DB_PASSWORD:-} ]] || { echo 'Remote Docker/provider configuration is not allowed'; exit 1; }
 case "$(docker context inspect --format '{{.Endpoints.docker.Host}}')" in unix://*) ;; *) echo 'Requires a local Unix Docker daemon'; exit 1;; esac
 [[ $(supabase --version) == 2.122.0 ]] || { echo 'Expected official Supabase CLI 2.122.0'; exit 1; }
-# Generate the forward migration name with the pinned CLI, then continue all
-# existing native verification. Removed after capturing the generated name.
-generation=$(mktemp -d /tmp/cardforge-migration-generation.XXXXXXXX)
-mkdir -p "$generation/supabase"
-cp supabase/config.toml "$generation/supabase/config.toml"
-supabase migration new --help
-supabase migration new pipeline_parent_version_operational_fields --workdir "$generation"
-find "$generation/supabase/migrations" -maxdepth 1 -type f -name '*.sql' -printf '%f\n'
-rm -rf -- "$generation"
 root=$(git rev-parse --show-toplevel)
 proof="$root/test-results/native-catalog-trash"
 mkdir -p "$proof"
@@ -75,7 +66,7 @@ cleanup() {
   local status=$?
   trap - EXIT
   if [[ $status != 0 ]]; then
-    for log in "$proof/fixture.log" "$proof/contention.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log" "$proof/plugin-table-conflict.log" "$proof/plugin-bucket-conflict.log" "$proof/plugin-retention.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
+    for log in "$proof/fixture.log" "$proof/contention.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log" "$proof/plugin-table-conflict.log" "$proof/plugin-bucket-conflict.log" "$proof/plugin-retention.log" "$proof/parent-content-version.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
   fi
   run_cli stop stop --workdir "$work" --no-backup || status=1
   rm -rf -- "$work"
@@ -118,6 +109,9 @@ run_cli remaining migration up --workdir "$work" --local
 psql_local -c "BEGIN; SET LOCAL cardforge.fixture_disposable = 'plugin-releases';" \
   -f "$root/supabase/tests/plugin_release_retention.sql" -c 'ROLLBACK;' > "$proof/plugin-retention.log" 2>&1
 cat "$proof/plugin-retention.log"
+psql_local -c "SET cardforge.fixture_disposable = 'parent-content-version';" \
+  -f "$root/supabase/tests/pipeline_parent_content_version.sql" > "$proof/parent-content-version.log" 2>&1
+cat "$proof/parent-content-version.log"
 # Reset with --no-seed still executes migration-owned INSERTs. Only this fresh,
 # container-bound ephemeral CI stack is cleared. The SQL fixture itself keeps
 # its strict refusal of an existing catalog; never copy this into a migration
