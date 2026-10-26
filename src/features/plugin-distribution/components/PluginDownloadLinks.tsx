@@ -14,6 +14,7 @@ const errorText = (status: number, scope: 'studio' | 'owner', environment: strin
 export function PluginDownloadLinks({ scope }: { scope: 'studio' | 'owner' }) {
   const [results, setResults] = useState<Record<string, Release | null>>({});
   const [errors, setErrors] = useState<Record<string, { status: number; message: string }>>({});
+  const [downloading, setDownloading] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
     for (const environment of ['production', 'preview']) {
@@ -24,11 +25,38 @@ export function PluginDownloadLinks({ scope }: { scope: 'studio' | 'owner' }) {
         })
         .then(({ latest }) => { if (active) setResults(current => ({ ...current, [environment]: latest })); })
         .catch((error: { status?: number; message?: string }) => {
-          if (active) setErrors(current => ({ ...current, [environment]: { status: error.status ?? 503, message: error.message ?? errorText(503, scope, environment) } }));
+          if (active) setErrors(current => ({ ...current, [environment]: { status: error.status ?? 503, message: error.status ? (error.message ?? errorText(error.status, scope, environment)) : errorText(503, scope, environment) } }));
         });
     }
     return () => { active = false; };
   }, [scope]);
+  async function download(environment: 'production' | 'preview', release: Release) {
+    setDownloading(environment);
+    setErrors(current => { const next = { ...current }; delete next[environment]; return next; });
+    try {
+      const query = new URLSearchParams({ product: scope, environment, download: '1', sha256: release.checksum });
+      const response = await fetch('/api/plugin-downloads?' + query.toString(), { cache: 'no-store' });
+      if (!response.ok) {
+        setErrors(current => ({ ...current, [environment]: { status: response.status, message: errorText(response.status, scope, environment) } }));
+        return;
+      }
+      if (response.headers.get('Content-Type')?.split(';')[0] !== 'application/zip' || response.headers.get('X-Checksum-SHA256') !== release.checksum) {
+        throw new Error('Download verification unavailable. Refresh and try again.');
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      try {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = release.filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } finally { URL.revokeObjectURL(url); }
+    } catch {
+      setErrors(current => ({ ...current, [environment]: { status: 503, message: errorText(503, scope, environment) } }));
+    } finally { setDownloading(null); }
+  }
   return <section aria-label={scope === 'studio' ? 'CardForge Studio downloads' : 'CardForge Owner downloads'} className="grid gap-4">
     <h2 className="text-xl font-semibold">{scope === 'studio' ? 'Studio plugin downloads' : 'Owner plugin downloads'}</h2>
     <p>Download a complete plugin package for your host. Installation does not sign you in or grant CardForge permissions. Previous releases appear only when original verified bytes are retained.</p>
@@ -45,8 +73,9 @@ export function PluginDownloadLinks({ scope }: { scope: 'studio' | 'owner' }) {
           <p className="break-all text-xs">Endpoint: {release.endpoint}</p>
           <p className="break-all text-xs">SHA-256: {release.checksum}</p>
           <p className="break-all text-xs">App SHA: {release.appSha || 'Unavailable'}</p>
-          <a className="inline-block underline" href={'/api/plugin-downloads?product=' + scope + '&environment=' + environment + '&download=1&sha256=' + release.checksum}>Download latest ZIP</a>
-        </> : <p>{failure?.message || 'Checking available release…'} {failure?.status === 401 && <Link className="underline" href={createAuthRouteHref('/sign-in', '/downloads')}>Sign in</Link>}</p>}
+          <button type="button" className="inline-block underline disabled:opacity-50" disabled={downloading !== null} onClick={() => void download(environment, release)}>{downloading === environment ? 'Preparing ZIP…' : 'Download latest ZIP'}</button>
+          {failure && <p role="alert">{failure.message} {failure.status === 401 && <Link className="underline" href={createAuthRouteHref('/sign-in', scope === 'owner' ? '/?ownerSite=editions' : '/downloads')}>Sign in</Link>}</p>}
+        </> : <p>{failure?.message || 'Checking available release…'} {failure?.status === 401 && <Link className="underline" href={createAuthRouteHref('/sign-in', scope === 'owner' ? '/?ownerSite=editions' : '/downloads')}>Sign in</Link>}</p>}
       </div>;
     })}
   </section>;

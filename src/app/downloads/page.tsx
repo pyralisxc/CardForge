@@ -18,7 +18,7 @@ export default async function DownloadsPage() {
   return <CardForgeAppProviders>
     <ConfiguredPublicSiteShell businessIdentity={identity} currentPath="/downloads"
       accountSlot={isClerkServerConfigPresent() ? <ContributorPublicAuthSlot /> : undefined}>
-      <main className="border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-12 text-[var(--public-ivory)] md:px-8">
+      <section className="border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-12 text-[var(--public-ivory)] md:px-8">
         <div className="mx-auto max-w-5xl space-y-6">
           <p className="font-semibold text-[var(--public-brass)]">CardForge Studio</p>
           <h1 className="font-[var(--public-font-display)] text-4xl font-semibold">Plugin downloads</h1>
@@ -29,7 +29,7 @@ export default async function DownloadsPage() {
           </nav>
           <PluginDownloadLinks scope="studio" />
         </div>
-      </main>
+      </section>
     </ConfiguredPublicSiteShell>
   </CardForgeAppProviders>;
 }
