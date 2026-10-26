@@ -25,7 +25,7 @@ begin
   if not found or l.registry_asset_id is distinct from e.asset_id or l.purge_state is not null
     or coalesce((to_jsonb(l)->>'revision_high_water')::int,0)>1
     or r.status is distinct from 'published' or s.status is distinct from 'published' or r.asset_type is distinct from e.kind
-    or s.asset_type is distinct from case e.kind when 'texture' then 'textures' when 'divider' then 'dividers' when 'icon' then 'icons' when 'image' then 'imageAssets' when 'elementPreset' then 'elementPresets' end
+    or s.asset_type is distinct from (case e.kind when 'texture' then 'textures' when 'divider' then 'dividers' when 'icon' then 'icons' when 'image' then 'imageAssets' when 'elementPreset' then 'elementPresets' end)
     or r.name is distinct from e.name or s.name is distinct from e.name or r.url is distinct from e.url or s.source_url is distinct from e.url
     or s.description is distinct from e.description or s.contributor_id is distinct from 'cardforge-official' or s.contributor_email is not null
     or s.registry_asset_id is distinct from e.asset_id or s.source_payload is not null
