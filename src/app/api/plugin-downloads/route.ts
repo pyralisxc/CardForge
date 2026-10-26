@@ -2,16 +2,17 @@ import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { getCurrentContributorAccess } from '@/features/contributor-access/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { buildCurrentPlugin, type PluginEnvironment, type PluginProduct } from '@/features/plugin-distribution/server/pluginReleases';
+import { mayDownloadPlugin } from '@/features/plugin-distribution/model/downloadPolicy';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 async function authorized(product: PluginProduct, environment: PluginEnvironment) {
-  if (product === 'studio' && environment === 'production') return true;
+  if (mayDownloadPlugin(product, environment, false, false)) return true;
   const owner = await getCurrentOwnerAccess();
-  if (owner.isOwner && owner.userId) return true;
+  if (mayDownloadPlugin(product, environment, Boolean(owner.isOwner && owner.userId), false)) return true;
   if (product === 'owner') return false;
-  try { await getCurrentContributorAccess(); return true; }
+  try { await getCurrentContributorAccess(); return mayDownloadPlugin(product, environment, false, true); }
   catch (error) {
     if (error && typeof error === 'object' && 'status' in error && (error.status === 401 || error.status === 403)) return false;
     throw error;
