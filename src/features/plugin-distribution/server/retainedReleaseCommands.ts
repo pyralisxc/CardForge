@@ -61,6 +61,12 @@ async function validatePackage(bytes: Uint8Array, product: ReleaseCandidate['pro
     || originals.some(n => !paths.includes(n) || n.includes('..') || n.includes('\\\\') || n.startsWith('/'))) throw new Error('Unexpected raw ZIP entry');
   const zip = await JSZip.loadAsync(bytes, { checkCRC32: true });
   if (Object.keys(zip.files).length !== paths.length || paths.some(p => !zip.file(p))) throw new Error('Unexpected ZIP entries');
+  // JSZip preserves the local-header filename before sanitization here.
+  // Require local and central identities to agree with the canonical path.
+  for (const path of paths) {
+    const entry = zip.file(path);
+    if (!entry || entry.unsafeOriginalName !== path) throw new Error('Unsafe or mismatched local ZIP name');
+  }
   const parse = async (p: string) => JSON.parse(await zip.file(prefix+p)!.async('string')) as Record<string, unknown>;
   const manifest = await parse('plugin.json');
   const legacy = await parse('.codex-plugin/plugin.json');

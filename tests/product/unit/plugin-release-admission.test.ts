@@ -93,6 +93,20 @@ describe('retained plugin release admission (in-memory provider only)', () => {
     const unsafe=await traversal.generateAsync({type:'nodebuffer'});
     await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...canonical,bytes:unsafe,checksum:createHash('sha256').update(unsafe).digest('hex')})},args)).rejects.toThrow();
   });
+  it('rejects divergent local and central ZIP entry names', async()=>{
+    const canonical=await built();
+    const bytes=Buffer.from(canonical.bytes);
+    // Change only the LOCAL filename for plugin.json, preserving its byte count
+    // and its central-directory entry. JSZip sees unsafeOriginalName.
+    const local=bytes.indexOf(Buffer.from([0x50,0x4b,0x03,0x04]));
+    expect(local).toBeGreaterThanOrEqual(0);
+    const nameOffset=local+30;
+    expect(bytes.subarray(nameOffset,nameOffset+11).toString()).toBe('plugin.json');
+    Buffer.from('junk/../xxx').copy(bytes,nameOffset);
+    await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({
+      ...canonical,bytes,checksum:createHash('sha256').update(bytes).digest('hex'),
+    })},args)).rejects.toThrow();
+  });
   it('rejects invalid builder endpoints and authoritative metadata mutation',async()=>{
     await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...await built(),endpoint:'https://wrong.invalid/mcp'})},args)).rejects.toThrow();
     for (const mismatch of [{sourceSha:'f'.repeat(40)},{byteLength:1},{storagePath:'wrong/path.zip'}]) {
