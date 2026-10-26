@@ -4,3 +4,5 @@ export {
   type WorkbenchBusinessIdentity,
 } from './components/CreatorWorkbench';
 export type { DesignToolIntent } from './model/designToolIntent';
+
+export { ExactCandidateReview } from './components/ExactCandidateReview';
