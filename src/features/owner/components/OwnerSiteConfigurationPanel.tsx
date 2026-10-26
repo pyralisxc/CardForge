@@ -236,7 +236,9 @@ export function OwnerSiteConfigurationPanel({
           <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">These fields own the homepage title and search description. The default social-share image is managed beside the other brand media.</p>
           <label className="mt-4 grid gap-2 text-sm text-[var(--cf-text-muted)]">Page title<input className={inputClassName} maxLength={80} value={draft.homepageTitle} onChange={(event) => setDraft((current) => ({ ...current, homepageTitle: event.target.value }))} /></label>
           <label className="mt-3 grid gap-2 text-sm text-[var(--cf-text-muted)]">Search description<textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" maxLength={200} value={draft.homepageDescription} onChange={(event) => setDraft((current) => ({ ...current, homepageDescription: event.target.value }))} /></label>
-          <label className="mt-3 grid gap-2 text-sm text-[var(--cf-text-muted)]">Search phrases (one per line)<textarea className="min-h-32 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" value={draft.searchKeywords.join('\n')} onChange={(event) => setDraft((current) => ({ ...current, searchKeywords: event.target.value.split('\n').map((keyword) => keyword.trim()).filter(Boolean) }))} /></label>
+          <label className="mt-3 grid gap-2 text-sm text-[var(--cf-text-muted)]">Search phrases (one per line)<textarea className="min-h-32 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" value={draft.searchKeywords.join('
+')} onChange={(event) => setDraft((current) => ({ ...current, searchKeywords: event.target.value.split('
+').map((keyword) => keyword.trim()).filter(Boolean) }))} /></label>
         </article>
       </div>
 
@@ -294,7 +296,8 @@ export function OwnerSiteConfigurationPanel({
       </div>
 
       </fieldset>
-      <div className="mt-8"><PluginDownloadLinks scope="studio" allowOwnerAdmission />\n          <PluginDownloadLinks scope="owner" allowOwnerAdmission /></div>
+      <div className="mt-8"><PluginDownloadLinks scope="studio" allowOwnerAdmission />
+          <PluginDownloadLinks scope="owner" allowOwnerAdmission /></div>
     </section>
   );
 }
