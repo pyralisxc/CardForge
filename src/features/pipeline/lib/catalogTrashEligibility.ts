@@ -28,6 +28,10 @@ export function decideCatalogTrash(
   now: Date,
 ): CatalogTrashDecision {
   const reasons: string[] = [];
+  const nowTime = now.getTime();
+  if (!Number.isFinite(nowTime)) reasons.push('invalid_current_time');
+  const deadlineTime = observed.trashDeadline === null ? null : Date.parse(observed.trashDeadline);
+  if (observed.trashDeadline !== null && !Number.isFinite(deadlineTime)) reasons.push('invalid_catalog_deadline');
   if (expected.lineageId !== observed.lineageId ||
       expected.submissionId !== observed.submissionId ||
       expected.registrySubmissionId !== observed.registrySubmissionId ||
@@ -42,13 +46,13 @@ export function decideCatalogTrash(
     if (!observed.trashDeadline) reasons.push('catalog_not_in_trash');
     if (action === 'expire') {
       if (observed.held) reasons.push('catalog_retention_hold');
-      if (observed.trashDeadline && new Date(observed.trashDeadline).getTime() > now.getTime())
+      if (observed.trashDeadline && Number.isFinite(deadlineTime) && deadlineTime! > nowTime)
         reasons.push('catalog_recovery_window_open');
       if (observed.liveManagedReferences.length)
         reasons.push(...observed.liveManagedReferences.map(id => 'live_managed_dependency:' + id));
     }
     if (action === 'restore' && observed.trashDeadline &&
-      new Date(observed.trashDeadline).getTime() <= now.getTime())
+      Number.isFinite(deadlineTime) && deadlineTime! <= nowTime)
       reasons.push('recovery_deadline_elapsed_recheck_native_claim');
   }
   return { eligible: reasons.length === 0, reasons };

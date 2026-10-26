@@ -26,4 +26,8 @@ describe('whole-catalog Trash preflight (database must recheck under lock)', () 
     expect(decideCatalogTrash('expire',identity,{...observed,trashDeadline:'2026-10-27T00:00:00Z'},now).eligible).toBe(false);
     expect(decideCatalogTrash('expire',identity,{...observed,trashDeadline:'2026-10-25T00:00:00Z'},now).eligible).toBe(true);
   });
+  it('fails closed for invalid expiry deadline and invalid current time', () => {
+    expect(decideCatalogTrash('expire',identity,{...observed,trashDeadline:'not-a-date'},now).reasons).toContain('invalid_catalog_deadline');
+    expect(decideCatalogTrash('expire',identity,{...observed,trashDeadline:'2026-10-25T00:00:00Z'},new Date(NaN)).reasons).toContain('invalid_current_time');
+  });
 });
