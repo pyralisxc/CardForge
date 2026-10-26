@@ -15,7 +15,7 @@ begin
   ) then raise exception 'plugin_release_bucket_contract_conflict'; end if;
 end $$;
 
-create table if not exists public.cardforge_plugin_releases (
+-- A forward-only migration must not silently accept an existing incompatible table.\n-- Refuse every preexisting relation for manual schema reconciliation.\ndo $\nbegin\n if to_regclass('public.cardforge_plugin_releases') is not null then\n   raise exception 'plugin_release_existing_table_requires_review';\n end if;\nend $;\n\ncreate table public.cardforge_plugin_releases (
   id uuid primary key default gen_random_uuid(),
   product text not null check (product in ('studio','owner')),
   environment text not null check (environment in ('production','preview')),

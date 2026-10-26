@@ -25,7 +25,7 @@ export function releaseArtifactPath(candidate: ReleaseCandidate): string {
   return `${candidate.product}/${candidate.environment}/${candidate.packageVersion}/${candidate.checksumSha256}.zip`;
 }
 
-/** Before admission compare bytes *downloaded from private storage*, not merely upload acknowledgment. */
+/** Digest/length comparison only, not ZIP/manifest/product/environment/version/\n * trusted source provenance validation, nor evidence of a Storage readback.\n * A future server writer must obtain bytes from private Storage after upload,\n * validate complete ZIP structure and canonical manifest/endpoint/pins, and\n * establish a source/build receipt BEFORE admitting metadata. Concurrent\n * same-version uploads that disagree in checksum must fail closed; orphaned\n * bytes are retained for manual reconciliation, never automatically deleted.\n */
 export function verifyRetainedArtifact(candidate: ReleaseCandidate, downloadedBytes: Uint8Array): string {
   const key = releaseArtifactPath(candidate);
   if (downloadedBytes.byteLength !== candidate.byteLength
