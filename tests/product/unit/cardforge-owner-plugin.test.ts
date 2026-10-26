@@ -36,6 +36,9 @@ describe('CardForge Owner plugin', () => {
       expect(files).toEqual([
         '.codex-plugin/plugin.json',
         '.mcp.json',
+        'icon.svg',
+        'mcp.json',
+        'plugin.json',
         'skills/operate-cardforge-site/SKILL.md',
       ]);
       expect(files.some((file) => file.includes('cardforge-studio') || file.startsWith('src/') || file.startsWith('tests/'))).toBe(false);

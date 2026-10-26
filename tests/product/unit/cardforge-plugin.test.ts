@@ -40,6 +40,9 @@ describe('CardForge Studio plugin', () => {
       expect(files).toEqual([
         '.codex-plugin/plugin.json',
         '.mcp.json',
+        'icon.svg',
+        'mcp.json',
+        'plugin.json',
         'skills/create-cards-and-sets/SKILL.md',
         'skills/create-editable-template/SKILL.md',
       ]);
