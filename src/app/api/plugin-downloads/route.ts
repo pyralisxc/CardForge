@@ -1,5 +1,5 @@
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { buildCurrentPlugin, pluginDownloadAccess, type PluginEnvironment, type PluginProduct } from '@/features/plugin-distribution/server';
+import { buildCurrentPlugin, pluginDownloadAccess } from '@/features/plugin-distribution/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
