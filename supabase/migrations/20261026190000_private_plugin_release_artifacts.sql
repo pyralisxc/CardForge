@@ -15,7 +15,15 @@ begin
   ) then raise exception 'plugin_release_bucket_contract_conflict'; end if;
 end $$;
 
--- A forward-only migration must not silently accept an existing incompatible table.\n-- Refuse every preexisting relation for manual schema reconciliation.\ndo $\nbegin\n if to_regclass('public.cardforge_plugin_releases') is not null then\n   raise exception 'plugin_release_existing_table_requires_review';\n end if;\nend $;\n\ncreate table public.cardforge_plugin_releases (
+-- A forward-only migration refuses an existing relation until independently reconciled.
+do $$
+begin
+  if to_regclass('public.cardforge_plugin_releases') is not null then
+    raise exception 'plugin_release_existing_table_requires_review';
+  end if;
+end $$;
+
+create table public.cardforge_plugin_releases (
   id uuid primary key default gen_random_uuid(),
   product text not null check (product in ('studio','owner')),
   environment text not null check (environment in ('production','preview')),
@@ -33,8 +41,17 @@ end $$;
 );
 
 alter table public.cardforge_plugin_releases enable row level security;
-revoke all on public.cardforge_plugin_releases from public, anon, authenticated;
+revoke all privileges on public.cardforge_plugin_releases from public, anon, authenticated, service_role;
 grant select, insert on public.cardforge_plugin_releases to service_role;
+-- Owner/superuser DDL and external membership grants remain separately privileged.
+do $
+begin
+  if has_table_privilege('service_role','public.cardforge_plugin_releases','UPDATE')
+    or has_table_privilege('service_role','public.cardforge_plugin_releases','DELETE')
+    or has_table_privilege('service_role','public.cardforge_plugin_releases','TRUNCATE') then
+    raise exception 'plugin_release_mutation_grant_conflict';
+  end if;
+end $;
 
 -- No automatic deletion, expiry, archival, or replacement is authorized.
 create or replace function public.cardforge_reject_plugin_release_mutation()
@@ -43,8 +60,19 @@ begin raise exception 'plugin_release_immutable'; end $$;
 create trigger cardforge_plugin_releases_no_mutation
 before update or delete on public.cardforge_plugin_releases
 for each row execute function public.cardforge_reject_plugin_release_mutation();
+create trigger cardforge_plugin_releases_no_truncate
+before truncate on public.cardforge_plugin_releases
+for each statement execute function public.cardforge_reject_plugin_release_mutation();
 revoke all on function public.cardforge_reject_plugin_release_mutation() from public, anon, authenticated;
 
--- Storage objects must be written by the existing server service authority,
--- with upsert:false and SHA-256 readback before inserting a release row.
--- Do not grant anon/authenticated access or create signed/public download URLs.
+-- NOT end-to-end byte immutability: trusted Storage service authority can still
+-- overwrite/delete objects. No constrained admission writer exists yet.
+-- Required disposable proof before provider application: run migration in a
+-- fresh isolated Postgres/Supabase fixture, assert bucket/table shape and RLS,
+-- effective role grants, refused UPDATE/DELETE/TRUNCATE and incompatible
+-- preexisting bucket/table, without writing real Staging or Production.
+-- Future admission must use upsert:false, download/readback original stored
+-- bytes, verify ZIP layout/manifest/source/sha/size, and then insert metadata.
+-- Conflict/lost response: reconcile exact object; do not delete orphan bytes
+-- or advance release pointer. Historical downloads must reverify digest/size.
+-- No public/signed URL, automatic cleanup, expiry, or previous-release rebuild.
