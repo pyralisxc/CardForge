@@ -35,5 +35,6 @@
       "What Owner changes have happened recently?"
     ],
     "brandColor": "#8A5A2B"
-  }
+  },
+  "skills": "./skills/"
 }

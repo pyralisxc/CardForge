@@ -12,7 +12,7 @@ const products = [
     'skills/create-editable-template/SKILL.md',
     'skills/create-cards-and-sets/SKILL.md',
   ] },
-  { name: 'cardforge-owner', label: 'CardForge Owner', endpoint: '/mcp/owner', skills: [] },
+  { name: 'cardforge-owner', label: 'CardForge Owner', endpoint: '/mcp/owner', skills: ['skills/operate-cardforge-site/SKILL.md'] },
 ];
 
 // Only fixed canonical inputs are admitted. No endpoint/header/env override is supported.

@@ -10,6 +10,7 @@ const MANIFEST_PATH = '.codex-plugin/plugin.json';
 const PACKAGE_FILES = [
   MANIFEST_PATH,
   '.mcp.json',
+  'skills/operate-cardforge-site/SKILL.md',
 ].sort();
 const DETERMINISTIC_DATE = new Date('1980-01-01T00:00:00.000Z');
 
@@ -28,7 +29,7 @@ const manifest = JSON.parse(await readFile(path.join(PLUGIN_ROOT, MANIFEST_PATH)
 if (manifest.name !== 'cardforge-owner' || typeof manifest.version !== 'string' || !/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/u.test(manifest.version)) {
   throw new Error('CardForge Owner plugin manifest must contain a valid name and semantic version.');
 }
-if (manifest.mcpServers !== './.mcp.json') {
+if (manifest.mcpServers !== './.mcp.json' || manifest.skills !== './skills/') {
   throw new Error('CardForge Owner plugin manifest must keep its package-local MCP reference.');
 }
 
