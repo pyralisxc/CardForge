@@ -1,12 +1,12 @@
 -- #407 local-only rollback fixture. Run on a disposable Supabase CLI database.
--- Required sequence: supabase start; supabase db reset --local (never --linked);
+-- Required sequence: the guarded verify-catalog-trash-local.sh native replay;
 -- psql against the LOCAL CLI database only, with:
 -- BEGIN; SET LOCAL cardforge.fixture_disposable = 'plugin-releases';
 -- \i supabase/tests/plugin_release_retention.sql
 -- ROLLBACK;
 -- The orchestrating PR551 runner must enforce local connection identity and
 -- migration freshness before invocation; DO NOT execute against hosted projects.
--- The migration is applied by local db reset; this file NEVER applies it.
+-- The migration is applied by local CLI replay; this file NEVER applies it.
 do $$
 declare
   v_path text;
@@ -76,12 +76,6 @@ begin
   if (select count(*) from public.cardforge_plugin_releases where id=v_id) <> 1
     then raise exception 'plugin_fixture_row_lost'; end if;
 end $$;
--- Source-only proposal: separate fresh-local-cluster negative cases MUST run in
--- outer transactions, verify failure and ROLLBACK independently:
--- 1. Precreate public.cardforge_plugin_releases with incompatible columns,
---    then execute exact migration: expect existing_table_requires_review.
--- 2. Precreate conflicting storage.buckets identity (public=true or wrong MIME)
---    then execute migration: expect bucket_contract_conflict.
--- 3. Assert aborted transactions preserve no bucket/table afterward.
--- This file cannot execute a second migration under one already-applied schema.
+-- Incompatible preexisting state and failed-migration rollback are exercised by
+-- plugin_release_migration_conflicts.sql BEFORE ordinary CLI migration up.
 -- No Storage object upload/readback or durable release-admission writer is tested.
