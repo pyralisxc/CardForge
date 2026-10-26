@@ -171,11 +171,10 @@ describe('CardForge MCP and plugin product hygiene', () => {
     // Breaking server contract revisions must still be reflected in the package's major version.
     expect(CARDFORGE_MCP_CONTRACT_VERSION).toBe('1.0.2');
     expect(plugin.version).toBe('1.0.3');
-    const packageParts = plugin.version.split('.').map(Number);
-    const contractParts = CARDFORGE_MCP_CONTRACT_VERSION.split('.').map(Number);
-    expect(packageParts[0]).toBe(contractParts[0]);
-    expect(packageParts[1]).toBe(contractParts[1]);
-    expect(packageParts[2]).toBeGreaterThanOrEqual(contractParts[2]);
+    // Exact reviewed pairing: packaging-only release; unchanged MCP tools and skills.
+    expect({ package: plugin.version, mcpContract: CARDFORGE_MCP_CONTRACT_VERSION }).toEqual({
+      package: '1.0.3', mcpContract: '1.0.2',
+    });
   });
 
   it('presents CardForge as a card-making product rather than a contributor Template utility', () => {

@@ -1,5 +1,5 @@
 import 'server-only';
-import { getCurrentOwnerAccess } from '@/features/owner/server';
+import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { getCurrentContributorAccess, ContributorAccessError } from '@/features/contributor-access/server';
 import { AccountToolAccessError } from '@/features/account/server';
 import { mayDownloadPlugin } from './model/downloadPolicy';
@@ -10,8 +10,9 @@ export { buildCurrentPlugin };
 export async function pluginDownloadAccess(product: PluginProduct, environment: PluginEnvironment): Promise<200 | 401 | 403> {
   if (mayDownloadPlugin(product, environment, false, false)) return 200;
   try {
-    const owner = await getCurrentOwnerAccess();
-    if (owner.isOwner && owner.userId) return 200;
+    const account = await getCurrentCardforgeUserAccess();
+    if (account.ownerAccess.isOwner && account.ownerAccess.userId) return 200;
+    if (!account.user) return 401;
   } catch (error) {
     if (!(error instanceof AccountToolAccessError)) throw error;
   }
