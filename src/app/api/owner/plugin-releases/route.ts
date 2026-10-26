@@ -1,7 +1,7 @@
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { parseJsonBodyWithLimit } from '@/infrastructure/http/apiValidation';
-import { admitCurrentDeployedRelease } from '@/features/plugin-distribution/server/retainedReleaseAdmission';
+import { StalePreviewReleaseSelectionError, admitCurrentDeployedRelease } from '@/features/plugin-distribution/server/retainedReleaseAdmission';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 /** Explicit Owner action only. Never called by a deploy or an ordinary download. */
@@ -25,7 +25,8 @@ export async function POST(request: Request) {
     return createNoStoreJsonResponse({ admitted: true, product: release.product,
       environment: release.environment, version: release.packageVersion,
       sha256: release.checksumSha256, sourceSha: release.sourceSha });
-  } catch {
+  } catch (error) {
+    if (error instanceof StalePreviewReleaseSelectionError) return createApiErrorResponse(409,'owner_operations_conflict','Preview deployment changed. Refresh exact release information.');
     return createApiErrorResponse(503,'service_unavailable','Verified release admission unavailable; inspect state before retry.');
   }
 }
