@@ -1,5 +1,6 @@
 // Disposable CI prerequisite, not a hosted maintenance command.
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 
 const assert = (condition, message) => { if (!condition) { const error = new Error(message); error.code = 'LOCAL_GUARD'; throw error; } };
@@ -35,11 +36,22 @@ try {
   });
   stage = 'canonical-import';
   const { backfillPipelineRegistryMedia } = await import('./sync-pipeline-defaults.mjs');
-  console.log(JSON.stringify(await backfillPipelineRegistryMedia(supabase, { deferHistoricalPreviewPlaceholders: true, onProgress: value => { stage = value; console.log(`Preparation stage: ${stage}`); } })));
+  const initializeShowcase = async descriptor => {
+    const script = readFileSync(new URL('../supabase/tests/catalog_replay_showcase.sql', import.meta.url), 'utf8');
+    // Only the canonical descriptor is passed; no credential enters arguments or files.
+    const output = execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-h', '127.0.0.1', '-p', '54322', '-U', 'postgres', '-d', 'postgres',
+      '-v', `replay_project=cf-trash-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}`, '-v', `descriptor=${JSON.stringify(descriptor)}`],
+    { input: script, encoding: 'utf8', env: { PATH: process.env.PATH, PGPASSWORD: 'postgres' }, stdio: ['pipe', 'pipe', 'pipe'] });
+    console.log(output);
+  };
+  console.log(JSON.stringify(await backfillPipelineRegistryMedia(supabase, { initializeShowcase, deferHistoricalPreviewPlaceholders: true, onProgress: value => { stage = value; console.log(`Preparation stage: ${stage}`); } })));
 } catch (error) {
   // Provider errors can contain request headers. Keep the failure opaque here;
   // native local replay logs and read-only prerequisite queries own diagnosis.
   console.error(`Local Pipeline media preparation failed at ${stage}; no migration continuation permitted.`);
+  if (error?.stderr) {
+    for (const match of String(error.stderr).matchAll(/ERROR:\s+(fresh_showcase_[a-z_]+|showcase_[a-z_]+)/g)) console.error(match[1]);
+  }
   if (error?.code === 'PIPELINE_DEPENDENCY_MISSING') console.error(`Unresolved repository paths: ${JSON.stringify(error.dependencies)}`);
   if (error?.code === 'LOCAL_GUARD') console.error(error.message);
   if (/^[A-Za-z0-9_]{1,40}$/.test(error?.name ?? '')) console.error(`Error kind: ${error.name}`);

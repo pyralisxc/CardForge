@@ -378,6 +378,7 @@ const collectStaticAssetItems = async (
   const catalogFolders = new Set(Object.keys(registryTypeByFolder));
   const sourceFiles = [...availableFiles, ...fallbackFiles].filter((file) => (
     catalogFolders.has(file.split('/')[0]) || referencedAssetPaths.has(file)
+      || (file.startsWith('site-fallbacks/') && referencedAssetPaths.has(file.slice('site-fallbacks/'.length)))
   ));
   const uploadedByRelativePath = new Map();
   const storageMigrationRelativePaths = new Set();
@@ -389,7 +390,7 @@ const collectStaticAssetItems = async (
       ? await readMetadata(descriptor.kindFolder, descriptor.metadataRelativePath)
       : {};
     const aliases = normalizeRepositoryPathAliases(sidecar.repositoryPathAliases);
-    if (referencedOnly && ![relativePath, ...aliases].some(value => referencedAssetPaths.has(value))) continue;
+    if (referencedOnly && ![relativePath, descriptor.catalogPath, ...aliases].some(value => referencedAssetPaths.has(value))) continue;
     sidecarByRelativePath.set(relativePath, sidecar);
     const assetId = typeof sidecar.id === 'string' && sidecar.id.trim()
       ? sidecar.id.trim()
@@ -819,8 +820,21 @@ const migrateStaticCatalogStorage = async (supabase, staticCatalog) => {
 
 };
 
-/** Backfill existing registry references only; no Owner identity or publication. */
-export const backfillPipelineRegistryMedia = async (supabase, { deferHistoricalPreviewPlaceholders = false, onProgress = () => {} } = {}) => {
+export const verifyReplayShowcaseBytes = (bytes) => {
+  if (createHash('sha256').update(bytes).digest('hex') !== '768e3823961f337d635b48ce6c4cc05b5af48e2c9bbc967bcf83d702ddb91225'
+    || gitBlobSha(bytes) !== '1d01eb24ac770f8602882c040ecf41bb6629d798') {
+    throw new Error('Historical showcase bytes do not match the reviewed source');
+  }
+};
+
+/**
+ * Backfill existing registry references; the optional local callback owns only
+ * the explicitly authorized fresh-seed showcase creation.
+ * @param {object} supabase
+ * @param {{deferHistoricalPreviewPlaceholders?: boolean, onProgress?: (stage: string) => void, initializeShowcase?: (item: {asset_id: string, [key: string]: unknown}) => Promise<void>}} [options]
+ */
+export const backfillPipelineRegistryMedia = async (supabase, { deferHistoricalPreviewPlaceholders = false, onProgress = () => {}, initializeShowcase } = {}) => {
+  if (initializeShowcase) verifyReplayShowcaseBytes(await fs.readFile(path.join(projectRoot, 'public/site-fallbacks/showcase/playing-cards/ace-of-spades.webp')));
   onProgress('reading-prefix');
   const { data: registry, error: registryError } = await supabase.from('cardforge_asset_registry')
     .select('asset_id,url,storage_bucket,storage_path,file_size_bytes,metadata');
@@ -852,14 +866,21 @@ export const backfillPipelineRegistryMedia = async (supabase, { deferHistoricalP
       || payload?.templatePreviewData?.[placeholder[0]] !== placeholder[1]) return payload;
     return { ...payload, templatePreviewData: { ...payload.templatePreviewData, [placeholder[0]]: null } };
   });
-  for (const entry of [...registry.map(row => row.metadata), ...preflightPayloads]) {
-    if (containsRepositoryAssetUrl(rewritePipelineAssetUrls(entry, catalog.publicUrlByLocalPath))) {
-      const error = new Error('Historical Pipeline dependency is missing or tombstoned');
-      error.code = 'PIPELINE_DEPENDENCY_MISSING';
-      error.dependencies = [...collectPipelineAssetPaths(rewritePipelineAssetUrls(entry, catalog.publicUrlByLocalPath))]
-        .filter(value => /^[A-Za-z0-9_./-]{1,180}$/.test(value));
-      throw error;
-    }
+  const unresolved = [
+    ...registry.map(row => ({ identity: row.asset_id, owner: 'registry-metadata', value: row.metadata })),
+    ...preflightPayloads.map((value, index) => ({ identity: submissions[index].source_payload?.id ?? 'unknown-template', owner: 'submission-payload', value })),
+  ].flatMap(({ identity, owner, value }) => {
+    const rewritten = rewritePipelineAssetUrls(value, catalog.publicUrlByLocalPath);
+    if (!containsRepositoryAssetUrl(rewritten)) return [];
+    return [{ identity: /^[A-Za-z0-9_-]{1,180}$/.test(identity) ? identity : 'unreported-identity', owner,
+      paths: [...collectPipelineAssetPaths(rewritten)].filter(path => /^[A-Za-z0-9_./-]{1,180}$/.test(path)),
+    }];
+  });
+  if (unresolved.length) {
+    const error = new Error('Historical Pipeline dependency is missing or tombstoned');
+    error.code = 'PIPELINE_DEPENDENCY_MISSING';
+    error.dependencies = unresolved;
+    throw error;
   }
   // Verify actual local bytes against Storage before rewriting references.
   onProgress('verifying-storage-bytes');
@@ -869,6 +890,12 @@ export const backfillPipelineRegistryMedia = async (supabase, { deferHistoricalP
     if (error) throw error;
     const stored = Buffer.from(await data.arrayBuffer());
     if (!local.equals(stored)) throw new Error(`Pipeline media readback differs: ${item.asset_id}`);
+  }
+  if (initializeShowcase) {
+    const showcase = catalog.items.find(item => item.asset_id === 'showcase-playing-cards-ace-of-spades');
+    if (!showcase) throw new Error('Required historical showcase dependency missing');
+    onProgress('initializing-showcase-identity');
+    await initializeShowcase(showcase);
   }
   onProgress('migrating-existing-storage');
   await migrateStaticCatalogStorage(supabase, catalog);

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildDeterministicStarterSetPackage, backfillPipelineRegistryMedia } from '../../../scripts/sync-pipeline-defaults.mjs';
+import { buildDeterministicStarterSetPackage, backfillPipelineRegistryMedia, verifyReplayShowcaseBytes } from '../../../scripts/sync-pipeline-defaults.mjs';
 
 describe('Pipeline default synchronization', () => {
   it('builds byte-identical starter packages independently of execution time', async () => {
@@ -60,6 +60,20 @@ describe('existing Pipeline media backfill', () => {
     ]);
     expect(JSON.stringify(rpc.mock.calls[1])).not.toContain('/card-assets/');
   });
+  it('resolves the historical showcase alias to real fallback bytes without importing a registry identity', async () => {
+    const { client, rpc, upload } = fixture('/card-assets/showcase/playing-cards/ace-of-spades.webp');
+    const initializeShowcase = vi.fn(async (_item: { asset_id: string }) => {});
+    const proof = await backfillPipelineRegistryMedia(client, { initializeShowcase });
+    expect(initializeShowcase).toHaveBeenCalledTimes(1);
+    expect(initializeShowcase.mock.calls[0][0].asset_id).toBe('showcase-playing-cards-ace-of-spades');
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(proof.verifiedMedia[0].path).toBe('owner-defaults/site-fallbacks/showcase/playing-cards/ace-of-spades.webp');
+    expect(proof.verifiedMedia[0].bytes).toBeGreaterThan(0);
+    expect(rpc.mock.calls.map(call => call[0])).toEqual(['cardforge_migrate_pipeline_registry_metadata_urls']);
+  });
+  it('rejects hash-mismatched historical showcase bytes', () => {
+    expect(() => verifyReplayShowcaseBytes(Buffer.from('different media'))).toThrow('do not match');
+  });
   it('defers only the known native-removal sample field without rewriting its payload', async () => {
     const { client, rpc } = fixture('/card-assets/textures/arcane-forge/frame-creature-premium.webp', false, true);
     await expect(backfillPipelineRegistryMedia(client)).rejects.toThrow('dependency is missing');
@@ -71,7 +85,13 @@ describe('existing Pipeline media backfill', () => {
   });
   it('refuses missing dependencies before changing any row', async () => {
     const { client, rpc } = fixture('/card-assets/textures/missing-replay-resource.svg');
-    await expect(backfillPipelineRegistryMedia(client)).rejects.toThrow('dependency is missing');
+    await expect(backfillPipelineRegistryMedia(client)).rejects.toMatchObject({
+      code: 'PIPELINE_DEPENDENCY_MISSING',
+      dependencies: [
+        { identity: 'existing-recipe', owner: 'registry-metadata', paths: ['textures/missing-replay-resource.svg'] },
+        { identity: 'unknown-template', owner: 'submission-payload', paths: ['textures/missing-replay-resource.svg'] },
+      ],
+    });
     expect(rpc).not.toHaveBeenCalled();
   });
   it('refuses a Storage byte mismatch before changing any row', async () => {

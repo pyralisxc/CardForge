@@ -65,7 +65,7 @@ cleanup() {
   local status=$?
   trap - EXIT
   if [[ $status != 0 ]]; then
-    for log in "$proof/fixture.log" "$proof/contention.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
+    for log in "$proof/fixture.log" "$proof/contention.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
   fi
   run_cli stop stop --workdir "$work" --no-backup || status=1
   rm -rf -- "$work"
@@ -85,6 +85,9 @@ psql_local() { env -i PATH="$PATH" PGPASSWORD=postgres psql -X -v ON_ERROR_STOP=
 psql_local -c "do \$\$ begin if current_setting('server_version_num')::int not between 170000 and 179999 then raise exception 'PostgreSQL17 required'; end if; end \$\$;" > "$proof/version.log"
 # Capture the real prefix contract before any preparation; never infer history.
 psql_local -c "select r.asset_id,s.revision_number,r.metadata->>'revisionNumber' as registry_revision,s.specialty_tags,s.use_case_tags from public.cardforge_asset_registry r join public.cardforge_contributor_asset_submissions s on s.id=r.contributor_submission_id where s.status='published' order by r.asset_id;" > "$proof/prefix-prerequisites.log"
+# These immutable seed sources define the only37 eligible initial rows.
+printf '%s\n' '16e2b2d2fb028af10d0febe394200643bb3645f16738371ecbcb0ba7805a7c05  supabase/migrations/202605230002_asset_registry.sql' 'fa33f564a6627bea67224b0b8de854c98a2e3205d548d1a570fb918a020e9e1f  supabase/migrations/202605240002_official_layout_registry_content.sql' | sha256sum --check > "$proof/seed-source-hashes.log"
+psql_local -v replay_project="$project" -f "$root/supabase/tests/catalog_replay_initialization.sql" > "$proof/initial-revisions.log" 2>&1
 CARDFORGE_LOCAL_DB_CONTAINER="$cid" node "$root/scripts/backfill-local-pipeline-media.mjs" "$work" > "$proof/media-backfill.log" 2>&1
 cat "$proof/media-backfill.log"
 cp "$work/pending/"*.sql "$work/supabase/migrations/"
