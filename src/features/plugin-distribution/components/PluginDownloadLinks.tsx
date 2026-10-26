@@ -111,7 +111,7 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
             {history[environment]?.map(item => <div key={item.version + item.checksum} className="mt-2 text-sm"><span>{item.version} · {item.releasedAt} · SHA-256 {item.checksum}</span> <button className="underline" type="button" disabled={downloading !== null} onClick={() => void download(environment,item,true)}>Download retained ZIP</button></div>)}
           </div>
           {admissionNotice[environment] && <p role="status">{admissionNotice[environment]}</p>}
-        </> : <p>{failure?.message || 'Current build unavailable.'} {failure?.status === 401 && <Link className="underline" href={createAuthRouteHref('/sign-in', scope === 'owner' ? '/?ownerSite=editions' : '/downloads')}>Sign in</Link>}</p>}
+        </> : <p>{failure?.message || 'Checking available release…'} {failure?.status === 401 && <Link className="underline" href={createAuthRouteHref('/sign-in', scope === 'owner' ? '/?ownerSite=editions' : '/downloads')}>Sign in</Link>}</p>}
         {!release && <div className="mt-3"><button type="button" className="underline" onClick={() => void loadHistory(environment)}>View retained versions</button>{history[environment]?.length === 0 && <p>No verified retained releases yet.</p>}{history[environment]?.map(item => <div key={item.version + item.checksum} className="mt-2 text-sm"><span>{item.version} · {item.releasedAt} · SHA-256 {item.checksum}</span> <button type="button" className="underline" disabled={downloading !== null} onClick={() => void download(environment,item,true)}>Download retained ZIP</button></div>)}</div>}
         {!release && admissionNotice[environment] && <p role="status">{admissionNotice[environment]}</p>}
       </div>;
