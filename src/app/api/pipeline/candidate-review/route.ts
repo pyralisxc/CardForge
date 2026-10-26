@@ -17,8 +17,8 @@ export async function POST(request: Request) {
   catch (error) {
     const status = error && typeof error === 'object' && 'status' in error
       ? Number(error.status) : 503;
-    return createApiErrorResponse(status === 404 || status === 409 ? status : 503,
-      status === 404 ? 'candidate_not_found' : status === 409 ? 'candidate_conflict' : 'candidate_unavailable',
-      status === 409 ? 'The exact candidate changed. Refresh its identity before rendering.' : 'Candidate review is unavailable.');
+    return createApiErrorResponse(status === 400 || status === 404 || status === 409 ? status : 503,
+      status === 400 ? 'candidate_invalid' : status === 404 ? 'candidate_not_found' : status === 409 ? 'candidate_conflict' : 'candidate_unavailable',
+      status === 400 ? 'Candidate content is unsupported for exact export. Resolve its dependencies before rendering.' : status === 409 ? 'The exact candidate changed. Refresh its identity before rendering.' : 'Candidate review is unavailable.');
   }
 }

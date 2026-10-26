@@ -34,3 +34,18 @@ it('does not interpret a texture source as an image-element field alias', async 
   const t = { ...template(), templatePreviewData: { 'art/frame': 'data:image/png;base64,YQ==' }, appearance: { material: { texture: { kind:'uploaded', imageSource:'art/frame' } } } };
   await expect(embedExactCandidateAssets(t as unknown as Parameters<typeof embedExactCandidateAssets>[0], vi.fn())).rejects.toThrow('candidate_dependency_unsupported');
 });
+
+it.each(['linear-gradient(135deg, rgba(255,248,222,0.96), rgba(214,174,92,0.25))', 'radial-gradient(circle, #fff, transparent)'])('preserves source-contained native background %s', async backgroundImageUrl => {
+  const t = { ...getFreshDefaultTemplateObject('candidate'), templatePreviewData: {} };
+  t.freeformCanvas!.elements = t.freeformCanvas!.elements.filter(e => e.type === 'text').slice(0,1);
+  t.freeformCanvas!.elements[0].backgroundImageUrl = backgroundImageUrl;
+  const download = vi.fn();
+  expect((await embedExactCandidateAssets(t, download)).freeformCanvas!.elements[0].backgroundImageUrl).toBe(backgroundImageUrl);
+  expect(download).not.toHaveBeenCalled();
+});
+it.each(['linear-gradient(red, blue), url(https://example.invalid/a)', 'linear-gradient(red, blue), image-set("art/frame" 1x)', 'linear-gradient(https://example.invalid/a, blue)'])('rejects gradient-associated dependencies %s', async backgroundImageUrl => {
+  const t = getFreshDefaultTemplateObject('candidate');
+  t.freeformCanvas!.elements = t.freeformCanvas!.elements.filter(e => e.type === 'text').slice(0,1);
+  t.freeformCanvas!.elements[0].backgroundImageUrl = backgroundImageUrl;
+  await expect(embedExactCandidateAssets(t, vi.fn())).rejects.toThrow('candidate_dependency_unsupported');
+});

@@ -17,7 +17,9 @@ export async function embedExactCandidateAssets(template: TCGCardTemplate, downl
   async function visit(value: unknown, depth = 0, key = '', imageAlias = false): Promise<unknown> {
     if (depth > 80) throw new Error('candidate_content_unsupported');
     if (typeof value === 'string') {
-      if ((/(?:url|src|imageSource|assetSource|dividerAsset)$/iu.test(key) || imageKeys.has(key)) && !bound(value) && !(imageAlias && typeof data[value] === 'string' && bound(String(data[value])))) throw new Error('candidate_dependency_unsupported');
+      // Match the native review-revision gradient exemption; dependency checks below still apply.
+      const gradient = key === 'backgroundImageUrl' && /^\s*(?:linear|radial)-gradient\(/u.test(value) && !/url\s*\(|[a-z][a-z0-9+.-]*:\/\//iu.test(value);
+      if ((/(?:url|src|imageSource|assetSource|dividerAsset)$/iu.test(key) || imageKeys.has(key)) && !bound(value) && !gradient && !(imageAlias && typeof data[value] === 'string' && bound(String(data[value])))) throw new Error('candidate_dependency_unsupported');
       const match = /^cardforge-pipeline-asset:\/\/([a-f0-9]{64})$/u.exec(value);
       if (match) {
         if (!cache.has(match[1])) {

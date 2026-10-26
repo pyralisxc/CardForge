@@ -35,6 +35,7 @@ for (const failure of ['none','stale','altered','missing'] as const) test(`@gold
   if (failure === 'missing') { await expect(page.getByRole('alert')).toBeVisible(); await expect(page.getByRole('button',{ name:/PDF/ })).toHaveCount(0); return; }
   await expect(page.getByAltText('Exact pending candidate specimen')).toBeVisible();
   await page.screenshot({ path:info.outputPath('specimen.png'), fullPage:true });
+  await info.attach('Exact candidate specimen', { path:info.outputPath('specimen.png'), contentType:'image/png' });
   const downloads: string[] = []; page.on('download', d=>downloads.push(d.suggestedFilename()));
   if (failure === 'stale') {
     await page.getByRole('button',{ name:/PDF/ }).click();
@@ -46,6 +47,7 @@ for (const failure of ['none','stale','altered','missing'] as const) test(`@gold
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toContain(`${identity.submissionId}-r2-${hash}`);
   const path = info.outputPath('exact-candidate.pdf'); await download.saveAs(path);
+  await info.attach('Exact candidate PDF', { path, contentType:'application/pdf' });
   const pdf = await readFile(path);
   expect(pdf.subarray(0,5).toString()).toBe('%PDF-');
   expect(pdf.toString('latin1')).toContain('/Subtype /Image');
