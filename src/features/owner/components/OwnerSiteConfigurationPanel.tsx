@@ -294,7 +294,8 @@ export function OwnerSiteConfigurationPanel({
       </div>
 
       </fieldset>
-      <div className="mt-8"><PluginDownloadLinks scope="owner" /></div>
+      <div className="mt-8"><PluginDownloadLinks scope="studio" allowOwnerAdmission />
+          <PluginDownloadLinks scope="owner" allowOwnerAdmission /></div>
     </section>
   );
 }

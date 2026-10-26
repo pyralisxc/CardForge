@@ -13,6 +13,12 @@ export async function GET(request: Request) {
   try {
     const access = await pluginDownloadAccess(product, environment);
     if (access !== 200) return createApiErrorResponse(access, access === 401 ? 'sign_in_required' : 'account_tool_not_permitted', access === 401 ? 'Sign in to access this package.' : 'Your account cannot access this package.');
+    if (url.searchParams.get('history') === '1' || url.searchParams.has('releaseVersion')) {
+      // Optional retained-release path: checked by the same product/environment
+      // role gate above. No upload, publication or historical reconstruction.
+      const { handleRetainedReleaseRequest } = await import('@/features/plugin-distribution/server/retainedReleaseHttp');
+      return await handleRetainedReleaseRequest(url, product, environment);
+    }
     const release = await buildCurrentPlugin(product, environment);
     const { bytes, ...detail } = release;
     const wantsBytes = url.searchParams.get('download') === '1';
