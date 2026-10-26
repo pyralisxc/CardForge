@@ -98,10 +98,16 @@ describe('retained plugin release admission (in-memory provider only)', () => {
     const bytes=Buffer.from(canonical.bytes);
     // Change only the LOCAL filename for plugin.json, preserving its byte count
     // and its central-directory entry. JSZip sees unsafeOriginalName.
-    const local=bytes.indexOf(Buffer.from([0x50,0x4b,0x03,0x04]));
-    expect(local).toBeGreaterThanOrEqual(0);
-    const nameOffset=local+30;
-    expect(bytes.subarray(nameOffset,nameOffset+11).toString()).toBe('plugin.json');
+    let nameOffset = -1;
+    const signature = Buffer.from([0x50,0x4b,0x03,0x04]);
+    for (let local = bytes.indexOf(signature); local >= 0; local = bytes.indexOf(signature, local + 4)) {
+      const offset = local + 30;
+      if (bytes.subarray(offset, offset + 11).toString() === 'plugin.json') {
+        nameOffset = offset;
+        break;
+      }
+    }
+    expect(nameOffset).toBeGreaterThanOrEqual(0);
     Buffer.from('junk/../xxx').copy(bytes,nameOffset);
     await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({
       ...canonical,bytes,checksum:createHash('sha256').update(bytes).digest('hex'),
