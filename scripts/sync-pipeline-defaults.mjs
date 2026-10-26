@@ -366,6 +366,7 @@ const collectStaticAssetItems = async (
   existingRegistryByAssetId,
   tombstonedAssetIds,
   referencedAssetPaths,
+  { referencedOnly = false } = {},
 ) => {
   const publicUrlByLocalPath = new Map();
   const rootDirectory = path.join(projectRoot, BOOTSTRAP_ROOT, 'media');
@@ -387,6 +388,8 @@ const collectStaticAssetItems = async (
     const sidecar = descriptor.kindFolder
       ? await readMetadata(descriptor.kindFolder, descriptor.metadataRelativePath)
       : {};
+    const aliases = normalizeRepositoryPathAliases(sidecar.repositoryPathAliases);
+    if (referencedOnly && ![relativePath, ...aliases].some(value => referencedAssetPaths.has(value))) continue;
     sidecarByRelativePath.set(relativePath, sidecar);
     const assetId = typeof sidecar.id === 'string' && sidecar.id.trim()
       ? sidecar.id.trim()
@@ -431,6 +434,7 @@ const collectStaticAssetItems = async (
   const items = [];
   for (const relativePath of sourceFiles) {
     const descriptor = getStaticAssetDescriptor(relativePath);
+    if (referencedOnly && !sidecarByRelativePath.has(relativePath)) continue;
     const sidecar = sidecarByRelativePath.get(relativePath) || {};
     const assetId = typeof sidecar.id === 'string' && sidecar.id.trim()
       ? sidecar.id.trim()
@@ -797,6 +801,79 @@ const publishReviewedFirstPartyFonts = async ({
   console.log('Native Pipeline Font result: ' + published + ' new; ' + preserved + ' existing decisions preserved.');
 };
 
+// Shared native migration phase: publication remains owned by main below.
+const migrateStaticCatalogStorage = async (supabase, staticCatalog) => {
+  for (const item of staticCatalog.items.filter((entry) => entry.requires_storage_migration)) {
+    const { error } = await supabase.rpc('cardforge_migrate_pipeline_registry_storage', {
+      p_asset_id: item.asset_id,
+      p_expected_url: item.expected_repository_url,
+      p_url: item.url,
+      p_storage_bucket: item.storage_bucket,
+      p_storage_path: item.storage_path,
+      p_file_size_bytes: item.file_size_bytes,
+      p_source_mime_type: item.source_mime_type,
+    });
+    if (error) throw error;
+    console.log(`Moved ${item.registry_asset_type} into managed Pipeline storage: ${item.name}`);
+  }
+
+};
+
+/** Backfill existing registry references only; no Owner identity or publication. */
+export const backfillPipelineRegistryMedia = async (supabase, { deferHistoricalPreviewPlaceholders = false } = {}) => {
+  const { data: registry, error: registryError } = await supabase.from('cardforge_asset_registry')
+    .select('asset_id,url,storage_bucket,storage_path,file_size_bytes,metadata');
+  if (registryError) throw registryError;
+  const { data: submissions, error: submissionError } = await supabase.from('cardforge_contributor_asset_submissions')
+    .select('source_payload').eq('status', 'published');
+  if (submissionError) throw submissionError;
+  const { data: tombstones, error: tombstoneError } = await supabase.from('cardforge_pipeline_asset_tombstones').select('asset_id');
+  if (tombstoneError) throw tombstoneError;
+  const references = new Set();
+  for (const entry of registry) collectPipelineAssetPaths(entry.metadata, references);
+  for (const entry of submissions) collectPipelineAssetPaths(entry.source_payload, references);
+  const catalog = await collectStaticAssetItems(supabase,
+    new Map(registry.map(entry => [entry.asset_id, entry])),
+    new Set(tombstones.map(entry => entry.asset_id)), references, { referencedOnly: true });
+  // Check every dependency before applying a native row change. Missing bytes or
+  // aliases are not permission to replace authored content with an empty value.
+  const preflightPayloads = submissions.map(row => {
+    const payload = row.source_payload;
+    // Only the exact sample fields removed by the pending September cutover.
+    // This is a validation projection, never a persisted payload rewrite.
+    const placeholder = {
+      'default-name-card-theme': ['CompanyLogo', '/card-assets/images/default-company-logo.svg'],
+      'default-event-badge-theme': ['EventLogo', '/card-assets/images/default-event-logo.svg'],
+    }[payload?.id];
+    if (!deferHistoricalPreviewPlaceholders || !placeholder
+      || payload?.templatePreviewData?.[placeholder[0]] !== placeholder[1]) return payload;
+    return { ...payload, templatePreviewData: { ...payload.templatePreviewData, [placeholder[0]]: null } };
+  });
+  for (const entry of [...registry.map(row => row.metadata), ...preflightPayloads]) {
+    if (containsRepositoryAssetUrl(rewritePipelineAssetUrls(entry, catalog.publicUrlByLocalPath))) {
+      throw new Error('Historical Pipeline dependency is missing or tombstoned');
+    }
+  }
+  // Verify actual local bytes against Storage before rewriting references.
+  for (const item of catalog.items) {
+    const local = await fs.readFile(path.join(projectRoot, item.metadata.sourcePath));
+    const { data, error } = await supabase.storage.from(item.storage_bucket).download(item.storage_path);
+    if (error) throw error;
+    const stored = Buffer.from(await data.arrayBuffer());
+    if (!local.equals(stored)) throw new Error(`Pipeline media readback differs: ${item.asset_id}`);
+  }
+  await migrateStaticCatalogStorage(supabase, catalog);
+  for (const entry of registry) {
+    if (!containsRepositoryAssetUrl(entry.metadata)) continue;
+    const { error } = await supabase.rpc('cardforge_migrate_pipeline_registry_metadata_urls', {
+      p_asset_id: entry.asset_id,
+      p_metadata: rewritePipelineAssetUrls(entry.metadata, catalog.publicUrlByLocalPath),
+    });
+    if (error) throw error;
+  }
+  return { verifiedMedia: catalog.items.map(item => ({ assetId: item.asset_id, path: item.storage_path, bytes: item.file_size_bytes })) };
+};
+
 const main = async () => {
   const verifyOnly = process.argv.includes('--verify-reviewed-fonts');
   const providerPreflight = process.argv.includes('--preflight-reviewed-fonts');
@@ -933,19 +1010,7 @@ const main = async () => {
   const starterSets = await collectStarterSetItems(supabase, staticCatalog.publicUrlByLocalPath);
   const canonicalItemByAssetId = new Map(items.map((item) => [item.asset_id, item]));
 
-  for (const item of staticCatalog.items.filter((entry) => entry.requires_storage_migration)) {
-    const { error } = await supabase.rpc('cardforge_migrate_pipeline_registry_storage', {
-      p_asset_id: item.asset_id,
-      p_expected_url: item.expected_repository_url,
-      p_url: item.url,
-      p_storage_bucket: item.storage_bucket,
-      p_storage_path: item.storage_path,
-      p_file_size_bytes: item.file_size_bytes,
-      p_source_mime_type: item.source_mime_type,
-    });
-    if (error) throw error;
-    console.log(`Moved ${item.registry_asset_type} into managed Pipeline storage: ${item.name}`);
-  }
+  await migrateStaticCatalogStorage(supabase, staticCatalog);
 
   for (const entry of existingRegistry || []) {
     if (tombstonedAssetIds.has(entry.asset_id)) continue;

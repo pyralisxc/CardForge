@@ -92,9 +92,17 @@ jobs:
         id: native
         shell: bash
         run: |
-          if git diff --name-only "$CARDFORGE_VERIFY_BASE" HEAD | grep -Eq '^(supabase/(migrations|tests)/|scripts/(verify-catalog-trash-local.sh|test-catalog-trash-contention.py)|.github/workflows/ci.yml)'; then
+          if git diff --name-only "$CARDFORGE_VERIFY_BASE" HEAD | grep -Eq '^(supabase/(migrations|tests)/|scripts/(verify-catalog-trash-local.sh|test-catalog-trash-contention.py|backfill-local-pipeline-media.mjs|sync-pipeline-defaults.mjs)|.github/workflows/ci.yml)'; then
             echo 'required=true' >> "$GITHUB_OUTPUT"
           fi
+      - if: steps.native.outputs.required == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - if: steps.native.outputs.required == 'true'
+        name: Install canonical importer dependencies
+        run: npm ci
       - if: steps.native.outputs.required == 'true'
         uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # official v1.7.3
         with:
