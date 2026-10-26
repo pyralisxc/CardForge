@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 
 type Retained = { version: string; checksum: string; releasedAt: string; sourceSha: string; changes: string; environment: string };
-type Release = { name: string; version: string; checksum: string; environment: string; endpoint: string; appSha: string | null; releaseDate: string | null; changes: string; compatibility: string[]; filename: string };
+type Release = { name: string; version: string; checksum: string; environment: string; endpoint: string; appSha: string | null; releaseDate: string | null; changes: string; compatibility: string[]; filename: string; admissionAvailable: boolean };
 const errorText = (status: number, scope: 'studio' | 'owner', environment: string): string => {
   if (status === 401) return 'Sign in to CardForge to access this download.';
   if (status === 403) return scope === 'owner' ? 'CardForge Owner access is required.' : environment === 'preview' ? 'Active Contributor or Owner access is required.' : 'Access is not permitted.';
@@ -38,13 +38,17 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
     try {
       const query = new URLSearchParams({product:scope,environment,history:'1'});
       const response = await fetch('/api/plugin-downloads?' + query, {cache:'no-store'});
-      if (!response.ok) throw new Error('History unavailable');
+      if (!response.ok) throw { status: response.status };
       const result = await response.json() as {previous:Retained[]};
       setHistory(current=>({...current,[environment]:result.previous}));
-    } catch { setErrors(current=>({...current,[environment]:{status:503,message:'Retained release history is unavailable.'}})); }
+      setErrors(current => { const next = {...current}; delete next[environment]; return next; });
+    } catch (error) {
+      const status = typeof error === 'object' && error !== null && 'status' in error && typeof error.status === 'number' ? error.status : 503;
+      setErrors(current=>({...current,[environment]:{status,message:errorText(status,scope,environment)}}));
+    }
   }
   async function admit(environment: 'production' | 'preview', release: Release) {
-    if (!allowOwnerAdmission || !release.appSha || !window.confirm('Retain the exact verified Preview deployment package? This does not install or activate a plugin.')) return;
+    if (!allowOwnerAdmission || !release.admissionAvailable || !release.appSha || !window.confirm('Retain the exact verified Preview deployment package? This does not install or activate a plugin.')) return;
     setAdmitting(environment); setAdmissionNotice(null);
     try {
       const response=await fetch('/api/owner/plugin-releases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product:scope,environment,expectedSourceSha:release.appSha})});
@@ -98,7 +102,9 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
           <p className="break-all text-xs">SHA-256: {release.checksum}</p>
           <p className="break-all text-xs">App SHA: {release.appSha || 'Unavailable'}</p>
           <button type="button" className="inline-block underline disabled:opacity-50" disabled={downloading !== null} onClick={() => void download(environment, release)}>{downloading === environment ? 'Preparing ZIP…' : 'Download latest ZIP'}</button>
-          {allowOwnerAdmission && <button type="button" className="ml-4 underline disabled:opacity-50" disabled={admitting !== null || !release.appSha} onClick={() => void admit(environment,release)}>{admitting === environment ? 'Admitting…' : 'Retain verified Preview release'}</button>}
+          {allowOwnerAdmission && (release.admissionAvailable
+            ? <button type="button" className="ml-4 underline disabled:opacity-50" disabled={admitting !== null || !release.appSha} onClick={() => void admit(environment,release)}>{admitting === environment ? 'Admitting…' : 'Retain verified Preview release'}</button>
+            : <p className="text-xs">Release admission is available only on a verified Preview deployment.</p>)}
           {failure && <p role="alert">{failure.message} {failure.status === 401 && <Link className="underline" href={createAuthRouteHref('/sign-in', scope === 'owner' ? '/?ownerSite=editions' : '/downloads')}>Sign in</Link>}</p>}
           <div className="mt-3"><button type="button" className="underline" onClick={() => void loadHistory(environment)}>View retained versions</button>
             {history[environment]?.length === 0 && <p>No verified retained releases yet.</p>}
