@@ -79,6 +79,20 @@ describe('retained plugin release admission (in-memory provider only)', () => {
       await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...await built(),bytes,checksum:require('node:crypto').createHash('sha256').update(bytes).digest('hex')})},args)).rejects.toThrow();
     }
   });
+  it('rejects extra MCP servers and raw traversal ZIP entries',async()=>{
+    const canonical=await built();
+    const extra=await JSZip.loadAsync(canonical.bytes);
+    const mcp=JSON.parse(await extra.file('mcp.json')!.async('string'));
+    mcp.mcpServers.unapproved={type:'streamable-http',url:'https://wrong.invalid/mcp'};
+    extra.file('mcp.json',JSON.stringify(mcp));
+    const extraBytes=await extra.generateAsync({type:'nodebuffer'});
+    await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...canonical,bytes:extraBytes,checksum:createHash('sha256').update(extraBytes).digest('hex')})},args)).rejects.toThrow();
+
+    const traversal=await JSZip.loadAsync(canonical.bytes);
+    traversal.file('../plugin.json',await traversal.file('plugin.json')!.async('string'),{createFolders:false});
+    const unsafe=await traversal.generateAsync({type:'nodebuffer'});
+    await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...canonical,bytes:unsafe,checksum:createHash('sha256').update(unsafe).digest('hex')})},args)).rejects.toThrow();
+  });
   it('rejects invalid builder endpoints and authoritative metadata mutation',async()=>{
     await expect(admitBuiltRelease(memoryStore().store,{...trusted,build:async()=>({...await built(),endpoint:'https://wrong.invalid/mcp'})},args)).rejects.toThrow();
     for (const mismatch of [{sourceSha:'f'.repeat(40)},{byteLength:1},{storagePath:'wrong/path.zip'}]) {
