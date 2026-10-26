@@ -36,6 +36,7 @@ describe('CardForge Owner plugin', () => {
       expect(files).toEqual([
         '.codex-plugin/plugin.json',
         '.mcp.json',
+        'skills/operate-cardforge-site/SKILL.md',
       ]);
       expect(files.some((file) => file.includes('cardforge-studio') || file.startsWith('src/') || file.startsWith('tests/'))).toBe(false);
 
@@ -53,7 +54,8 @@ describe('CardForge Owner plugin', () => {
           capabilities: ['Read', 'Write'],
         },
       });
-      expect(packagedManifest).not.toHaveProperty('skills');
+      expect(packagedManifest).toHaveProperty('skills', './skills/');
+      expect((await zip.file('skills/operate-cardforge-site/SKILL.md')!.async('string'))).toContain('Website Editions');
       expect(packagedMcp.mcpServers['cardforge-owner']).toEqual({
         type: 'http',
         url: 'https://cardforges.com/mcp/owner',
