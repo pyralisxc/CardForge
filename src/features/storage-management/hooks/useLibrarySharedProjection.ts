@@ -132,7 +132,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     template: asset.kind === 'template'
       ? templateByIdentity.get(asset.id) ?? templateByIdentity.get(asset.name) ?? null
       : null,
-    style: asset.style ?? null,
+    style: asset.kind === 'elementPreset' ? asset.style ?? catalog.styles.styles.find((style) => style.id === asset.id) ?? null : null,
     packageUrl: null,
     revision: null,
     lineageId: pipelineByAssetId.get(asset.id)?.lineageId ?? null,
@@ -222,18 +222,6 @@ const EMPTY_CATALOG_VISUAL: CatalogLibraryVisual = {
   style: null,
 };
 
-const catalogNameKey = (name: string): string => `name:${name.trim().toLocaleLowerCase()}`;
-
-const registerCatalogVisual = (
-  visuals: Map<string, CatalogLibraryVisual>,
-  identity: string,
-  name: string,
-  visual: CatalogLibraryVisual,
-) => {
-  visuals.set(identity, visual);
-  visuals.set(catalogNameKey(name), visual);
-};
-
 const catalogLibraryVisuals = (catalog: CardForgeCatalogManifest | null): Map<string, CatalogLibraryVisual> => {
   const visuals = new Map<string, CatalogLibraryVisual>();
   if (!catalog) return visuals;
@@ -246,7 +234,6 @@ const catalogLibraryVisuals = (catalog: CardForgeCatalogManifest | null): Map<st
   const styleByIdentity = new Map<string, AppearanceStylePreset>();
   catalog.styles.styles.forEach((style) => {
     styleByIdentity.set(style.id, style);
-    styleByIdentity.set(style.name, style);
   });
 
   [
@@ -259,20 +246,20 @@ const catalogLibraryVisuals = (catalog: CardForgeCatalogManifest | null): Map<st
   ].forEach((asset) => {
     const previewUrl = asset.previewUrl
       || (asset.kind === 'image' || asset.kind === 'texture' || asset.kind === 'divider' || asset.kind === 'icon' ? asset.url : null);
-    registerCatalogVisual(visuals, asset.id, asset.name, {
+    visuals.set(asset.id, {
       previewUrl,
       fontFamily: null,
       template: asset.kind === 'template' ? templateByIdentity.get(asset.id) ?? templateByIdentity.get(asset.name) ?? null : null,
-      style: asset.style ?? styleByIdentity.get(asset.id) ?? styleByIdentity.get(asset.name) ?? null,
+      style: asset.kind === 'elementPreset' ? asset.style ?? styleByIdentity.get(asset.id) ?? null : null,
     });
   });
-  catalog.fonts.fonts.forEach((font) => registerCatalogVisual(visuals, font.value, font.name, {
+  catalog.fonts.fonts.forEach((font) => visuals.set(font.value, {
     previewUrl: null,
     fontFamily: font.cssFamily,
     template: null,
     style: null,
   }));
-  catalog.sets.items.forEach((set) => registerCatalogVisual(visuals, set.id, set.name, {
+  catalog.sets.items.forEach((set) => visuals.set(set.id, {
     previewUrl: set.previewUrl,
     fontFamily: null,
     template: null,
@@ -294,10 +281,14 @@ export const projectPipelineLibraryObjects = (
   return (
   projectPipelineLibrary(program, publishedSubmissionByLineage).map((item): PipelineLibraryObject => {
     const sourcePayload = item.submission.sourcePayload;
-    const lineageVisual = [item.submission.targetRegistryAssetId, item.submission.registryAssetId, catalogNameKey(item.submission.name)]
-      .flatMap((identity) => identity ? [visuals.get(identity)] : [])
-      .find((visual): visual is CatalogLibraryVisual => Boolean(visual))
-      ?? EMPTY_CATALOG_VISUAL;
+    // Catalog hydration belongs only to the explicitly linked live publication.
+    // Names are labels, not identity; historical/candidate rows keep their source.
+    const publication = catalog?.pipeline?.items.find((entry) => (
+      entry.submissionId === item.submission.id
+      && (entry.id === item.submission.targetRegistryAssetId || entry.id === item.submission.registryAssetId)
+      && (!item.submission.lineageId || entry.lineageId === item.submission.lineageId)
+    ));
+    const lineageVisual = publication ? visuals.get(publication.id) ?? EMPTY_CATALOG_VISUAL : EMPTY_CATALOG_VISUAL;
     return {
       packageUrl: catalog?.sets.items.find((set) => (
         set.id === item.currentPublishedSubmission?.registryAssetId
@@ -320,10 +311,12 @@ export const projectPipelineLibraryObjects = (
       // immutable authored payload, which may still contain pre-publication
       // asset references. Candidates have no registry pointer yet and must use
       // their own exact hydrated source payload.
-      template: item.currentPublishedSubmission?.id === item.submission.id && lineageVisual.template
-        ? lineageVisual.template
-        : isRepositoryTemplate(sourcePayload) ? sourcePayload : lineageVisual.template,
-      style: isRepositoryStyle(sourcePayload) ? sourcePayload : lineageVisual.style,
+      template: item.submission.assetType === 'templates'
+        ? lineageVisual.template ?? (isRepositoryTemplate(sourcePayload) ? sourcePayload : null)
+        : null,
+      style: item.submission.assetType === 'elementPresets'
+        ? lineageVisual.style ?? (isRepositoryStyle(sourcePayload) ? sourcePayload : null)
+        : null,
     };
   })
   );
