@@ -66,7 +66,7 @@ cleanup() {
   local status=$?
   trap - EXIT
   if [[ $status != 0 ]]; then
-    for log in "$proof/fixture.log" "$proof/typed-consumers.log" "$proof/contention.log" "$proof/typed-migration-generation.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log" "$proof/plugin-table-conflict.log" "$proof/plugin-bucket-conflict.log" "$proof/plugin-retention.log" "$proof/parent-content-version.log" "$proof/style-review.log" "$proof/editorial-review.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
+    for log in "$proof/fixture.log" "$proof/typed-consumers.log" "$proof/contention.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log" "$proof/plugin-table-conflict.log" "$proof/plugin-bucket-conflict.log" "$proof/plugin-retention.log" "$proof/parent-content-version.log" "$proof/style-review.log" "$proof/editorial-review.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
   fi
   run_cli stop stop --workdir "$work" --no-backup || status=1
   rm -rf -- "$work"
@@ -105,15 +105,6 @@ for conflict in table bucket; do
   grep -q "ERROR:  $expected" "$proof/plugin-$conflict-conflict.log"
   cat "$proof/plugin-$conflict-conflict.log"
 done
-# Temporary source preparation: the local executor has no CLI. Generate the
-# prospective forward migration with this existing pinned native CLI, preserving
-# its exact body. Promote the logged generated filename before final review.
-supabase migration new catalog_typed_consumer_admission --workdir "$work" > "$proof/typed-migration-generation.log" 2>&1
-typed_migration=$(find "$work/supabase/migrations" -name '*_catalog_typed_consumer_admission.sql')
-[[ -n "$typed_migration" && $(wc -l <<< "$typed_migration") == 1 ]]
-cp "$root/supabase/tests/catalog_typed_consumer_migration.sql" "$typed_migration"
-basename "$typed_migration" | tee "$proof/typed-migration-name.txt"
-sha256sum "$typed_migration"
 run_cli remaining migration up --workdir "$work" --local
 psql_local -c "BEGIN; SET LOCAL cardforge.fixture_disposable = 'plugin-releases';" \
   -f "$root/supabase/tests/plugin_release_retention.sql" -c 'ROLLBACK;' > "$proof/plugin-retention.log" 2>&1

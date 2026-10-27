@@ -66,6 +66,28 @@ begin
  update public.cardforge_asset_registry set metadata='{}' where asset_id=style_id;
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then raise exception 'external_fallback_cleared'; end if;
  update public.cardforge_asset_registry set metadata=jsonb_build_object('style',style) where asset_id=style_id;
+ -- Runtime whitespace validity must not let native scan skip a real fallback.
+ update public.cardforge_asset_registry set metadata=jsonb_build_object(
+   'style',style||jsonb_build_object('id',E'\t'),
+   'elementPreset',style||jsonb_build_object('appearance',jsonb_build_object('assetSource',asset))) where asset_id=style_id;
+ if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then raise exception 'whitespace_alias_false_negative'; end if;
+ update public.cardforge_contributor_asset_submissions set source_payload=style||jsonb_build_object('id',E'\t') where id=legacy;
+ update public.cardforge_asset_registry set metadata=jsonb_build_object('style',style||jsonb_build_object('appearance',jsonb_build_object('assetSource',asset))) where asset_id=style_id;
+ if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then raise exception 'whitespace_source_false_negative'; end if;
+
+ for payload in select value from jsonb_array_elements(jsonb_build_array(
+   style||jsonb_build_object('name',E'\n'),
+   style||jsonb_build_object('id',chr(160)),
+   style||jsonb_build_object('appearance',jsonb_build_object('material',jsonb_build_object('gradient',
+     jsonb_build_object('type','linear','stops',jsonb_build_array(jsonb_build_object('id',E'\t','color','#fff','position',0))))))
+ )) loop
+   update public.cardforge_contributor_asset_submissions set source_payload=payload where id=legacy;
+   if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then
+     raise exception 'runtime_invalid_identity_or_stop_cleared_dependent_fallback'; end if;
+ end loop;
+ update public.cardforge_contributor_asset_submissions set source_payload=null where id=legacy;
+ update public.cardforge_asset_registry set metadata=jsonb_build_object('style',style) where asset_id=style_id;
+
  insert into public.cardforge_contributor_asset_submissions(id,contributor_id,asset_type,name,status,calculated_access_tier,source_payload)
    values(gen_random_uuid(),'typed-proof','templates','Unrelated native template','submitted','hidden',template);
  if public.cardforge_read_catalog_trash(target)->'entryReasons'<>'[]'::jsonb then raise exception 'unrelated_template_blocked'; end if;
