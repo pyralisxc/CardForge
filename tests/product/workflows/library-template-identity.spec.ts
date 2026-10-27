@@ -74,7 +74,7 @@ for (const width of [390, 1440]) {
       await page.getByRole('button', { name: 'Open Details', exact: true }).click();
       await expect(detail.getByText('Author A', { exact: true })).toBeVisible();
       await expect(detail.getByText(viewer === 'C' ? 'Shared Pipeline' : 'You contributed to this lineage', { exact: true })).toBeVisible();
-      await info.attach(`viewer-${viewer}`, { body: await page.screenshot({ path: info.outputPath(`viewer-${viewer}.png`) }), contentType: 'image/png' });
+      await info.attach(`viewer-${viewer}`, { body: await page.screenshot({ path: info.outputPath(`viewer-${viewer}.png`), animations: 'disabled' }), contentType: 'image/png' });
       await close();
     }
     expect(errors).toEqual([]);
