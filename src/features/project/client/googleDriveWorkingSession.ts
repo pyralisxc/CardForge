@@ -372,7 +372,11 @@ export function useGoogleDriveWorkingSession({
         clearTimer();
       }
       const latest = await readCurrentBinding(generation).catch(() => ({ valid: false, binding: null as GoogleDriveProjectBinding | null }));
-      if (!latest.valid || !isSameGoogleDriveTarget(startedWith, latest.binding)) return;
+      if (!latest.valid) {
+        if (generation === generationRef.current && !holdUnresolvedDriveSave(bindingRef.current)) setState(stateForError(error));
+        return;
+      }
+      if (startedWith && !isSameGoogleDriveTarget(startedWith, latest.binding)) return;
       if (!holdUnresolvedDriveSave(latest.binding)) setState(stateForError(error));
     }
   }, [canPublishForBinding, clearTimer, enabled, holdUnresolvedDriveSave, readCurrentBinding, scheduleSave, setId]);
@@ -406,7 +410,11 @@ export function useGoogleDriveWorkingSession({
         clearTimer();
       }
       const latest = await readCurrentBinding(generation).catch(() => ({ valid: false, binding: null as GoogleDriveProjectBinding | null }));
-      if (latest.valid && !holdUnresolvedDriveSave(latest.binding)) setState(stateForError(error));
+      if (!latest.valid) {
+        if (generation === generationRef.current && !holdUnresolvedDriveSave(bindingRef.current)) setState(stateForError(error));
+        return;
+      }
+      if (!holdUnresolvedDriveSave(latest.binding)) setState(stateForError(error));
     }
   }, [canPublishForBinding, clearTimer, enabled, holdUnresolvedDriveSave, readCurrentBinding, reconcile, setId]);
 
@@ -418,6 +426,8 @@ export function useGoogleDriveWorkingSession({
     setState({ phase: 'checking', message: 'Repairing the confirmed Drive link…', receipt });
     try {
       const repaired = await repairConfirmedGoogleDriveLink(receipt);
+      const latest = await getGoogleDriveWorkBinding(setId);
+      if (latest && !isSameGoogleDriveTarget(latest, repaired)) return;
       bindingRef.current = repaired;
       writableRef.current = true;
       queuedRef.current = false;

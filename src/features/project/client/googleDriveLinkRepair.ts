@@ -47,6 +47,12 @@ export const repairConfirmedGoogleDriveLink = async (
     throw new Error('The Drive file changed after the confirmed save. Linkage was not repaired; refresh or compare the newer Drive revision first.');
   }
 
+  // An explicit new independent copy F2 must never be relinked to an older F receipt.
+  const active = await getGoogleDriveWorkBinding(workId);
+  assertSameScope(scope);
+  if (active && active.fileId !== receipt.fileId) {
+    throw new Error('This Set now uses a different Drive file. The earlier confirmed receipt remains separate; no browser link was changed.');
+  }
   const accountId = current.accountId ?? receipt.accountId;
   const repaired: GoogleDriveProjectBinding = {
     ...receipt,

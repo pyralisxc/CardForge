@@ -112,4 +112,12 @@ describe('confirmed Google Drive linkage repair', () => {
     expect(mock.writes).toHaveLength(0);
     Object.defineProperty(mock, 'scope', { configurable: true, writable: true, value: 'account:creator-1' });
   });
+  it('will not relink a newly independent F2 Set using F’s older confirmed receipt', async () => {
+    mock.currentBinding = { ...receipt(), fileId: 'drive-file-independent-F2' };
+    await expect(repairConfirmedGoogleDriveLink(receipt())).rejects.toThrow(/different Drive file/i);
+    expect(mock.writes).toHaveLength(0);
+    expect(mock.clearBarrier).not.toHaveBeenCalled();
+    expect(mock.currentBinding.fileId).toBe('drive-file-independent-F2');
+  });
+
 });
