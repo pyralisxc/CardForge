@@ -447,11 +447,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
       isOwner={experience.owner}
-      onEditRevision={revision => {
+      onEditRevision={isSignedIn && experience.contributor.canSubmit ? revision => {
         if (!isSignedIn || !experience.contributor.canSubmit || currentItem.pipeline.ownership !== 'mine'
           || currentItem.pipeline.editableSubmission?.id !== revision.id) return;
         setEditingSubmission(revision); openTool('edit-contribution', [revision.id]);
-      }}
+      } : undefined}
       onReviewRevision={revision => { try { openReview(currentItem, revision); } catch (error) { toast({ title: 'Revision unavailable', description: error instanceof Error ? error.message : 'Refresh Library.', variant: 'destructive' }); } }}
       onRevisionCreated={() => shared.refresh()}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
