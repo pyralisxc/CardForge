@@ -66,7 +66,7 @@ cleanup() {
   local status=$?
   trap - EXIT
   if [[ $status != 0 ]]; then
-    for log in "$proof/fixture.log" "$proof/contention.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log" "$proof/plugin-table-conflict.log" "$proof/plugin-bucket-conflict.log" "$proof/plugin-retention.log" "$proof/parent-content-version.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
+    for log in "$proof/fixture.log" "$proof/contention.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log" "$proof/plugin-table-conflict.log" "$proof/plugin-bucket-conflict.log" "$proof/plugin-retention.log" "$proof/parent-content-version.log" "$proof/style-review.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
   fi
   run_cli stop stop --workdir "$work" --no-backup || status=1
   rm -rf -- "$work"
@@ -112,6 +112,9 @@ cat "$proof/plugin-retention.log"
 psql_local -c "SET cardforge.fixture_disposable = 'parent-content-version';" \
   -f "$root/supabase/tests/pipeline_parent_content_version.sql" > "$proof/parent-content-version.log" 2>&1
 cat "$proof/parent-content-version.log"
+psql_local -c "SET cardforge.fixture_disposable = 'style-review';" \
+  -f "$root/supabase/tests/pipeline_style_review.sql" > "$proof/style-review.log" 2>&1
+cat "$proof/style-review.log"
 # Reset with --no-seed still executes migration-owned INSERTs. Only this fresh,
 # container-bound ephemeral CI stack is cleared. The SQL fixture itself keeps
 # its strict refusal of an existing catalog; never copy this into a migration
