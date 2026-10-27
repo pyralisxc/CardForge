@@ -134,6 +134,15 @@ const throwIfPublicationBusy = (errorMessage?: string, errorCode?: string): void
 };
 
 const throwIfMediaRevisionFailure = (errorMessage?: string): void => {
+  if (errorMessage?.includes('style_review_required')) {
+    throw new PipelineRegistryCommandError('This style already exists. Create a same-lineage Owner review candidate instead of overwriting published content.', 409);
+  }
+  if (errorMessage?.includes('style_review_conflict') || errorMessage?.includes('template_review_conflict')) {
+    throw new PipelineRegistryCommandError('The exact published source or review history changed. Reload and review a new candidate.', 409);
+  }
+  if (errorMessage?.includes('template_review_editorial_required')) {
+    throw new PipelineRegistryCommandError('Approve this exact correction separately before publishing. Publication cannot approve it as a side effect.', 409);
+  }
   if (errorMessage?.includes('pipeline_media_editorial_review_required')) {
     throw new PipelineRegistryCommandError('Review and approve this exact media revision separately before publishing it. Publish cannot approve it as a side effect.', 409);
   }

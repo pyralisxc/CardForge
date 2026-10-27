@@ -28,3 +28,5 @@ export type { CatalogTrashCommand, CatalogTrashSnapshot } from './lib/catalogTra
 export { readExactCandidateReview } from './server/exactCandidateReview';
 
 export { exactCandidateIdentitySchema } from './lib/exactCandidateReview';
+
+export { createStyleReviewRevision, readStyleReviewBase, readStyleReviewReceipt } from './server/styleReviewRevision';
