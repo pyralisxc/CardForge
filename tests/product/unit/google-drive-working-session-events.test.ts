@@ -152,7 +152,7 @@ describe('Drive hook recovery barriers and independent copies', () => {
       ...harness.current,
       providerRevision: 'head:' + 'd'.repeat(64), projectRevision: 'd'.repeat(64),
     };
-    const failure = new GoogleDriveSaveLinkageError(confirmed);
+    const failure = new GoogleDriveSaveLinkageError(confirmed, new Error('local IndexedDB link failed'));
     harness.holds.set('drive-file-F', failure);
     await dispatchRefresh();
     expect(latest()).toMatchObject({ phase: 'recovery-required', receipt: confirmed });
