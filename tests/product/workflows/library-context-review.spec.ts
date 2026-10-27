@@ -108,3 +108,55 @@ for (const changed of [false, true]) test(`@golden Published Library checks regi
   }
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+for (const stale of [false, true]) test(`@golden Focused media revision compares selected base before adoption (stale=${stale})`, async ({ page }) => {
+  const evidence = await mount(page, `?media=1${stale ? '&mediaStale=1' : ''}`);
+  await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
+  await page.getByRole('button', { name: 'Manage', exact: true }).click();
+  await page.getByRole('button', { name: 'Prepare presentation revision' }).click();
+  const media = page.getByRole('region', { name: 'Media presentation revision' });
+  if (stale) {
+    await expect(media.getByRole('alert')).toContainText('no newer base was adopted');
+    await expect(page.getByLabel('Candidate tile mode')).toHaveCount(0);
+  } else await expect(page.getByLabel('Candidate tile mode')).toBeVisible();
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+for (const outcome of ['success', 'uncertain', 'uncertainRetry', 'busy']) test(`@golden Style revision synthetic ${outcome} retains attempt until receipt and guards close`, async ({ page }) => {
+  const evidence = await mount(page, `?submit=${outcome}`);
+  await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
+  await page.getByRole('button', { name: 'Revise existing', exact: true }).click();
+  await page.getByRole('button', { name: 'Color #ebd39f', exact: true }).click();
+  await page.getByTitle('Hex color value').fill('#123456');
+  await page.getByTitle('Hex color value').press('Tab'); await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Submit revision for review' }).click();
+  if (outcome !== 'success') {
+    if (outcome.startsWith('uncertain')) await expect(page.getByRole('alert')).toContainText('may have succeeded');
+    else await expect(page.getByRole('button', { name: 'Submitting…' })).toBeDisabled();
+    await page.getByRole('button', { name: 'Close Pipeline tool', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'pending or unconfirmed' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Discard changes', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Leave Library', exact: true }).evaluate((button: HTMLButtonElement) => button.click());
+    await expect(page.getByRole('button', { name: 'Discard and continue', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Revise selected published artifact' })).toBeVisible();
+    if (outcome.startsWith('uncertain')) {
+      await page.getByRole('button', { name: 'Check submission outcome' }).click();
+      if (outcome === 'uncertainRetry') {
+        await expect(page.getByRole('alert')).toContainText('does not prove');
+        await page.getByRole('button', { name: 'Close Pipeline tool', exact: true }).click();
+        await expect(page.getByRole('button', { name: 'Discard changes', exact: true })).toHaveCount(0);
+        await page.getByRole('button', { name: 'Confirm same submission attempt' }).click();
+      }
+    }
+    else await page.evaluate(() => (window as typeof window & { releaseStylePost: () => void }).releaseStylePost());
+  }
+  await expect(page.getByRole('status').filter({ hasText: 'Revision 2 submitted' })).toBeVisible();
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[] }).libraryRequests);
+  const posts = requests.filter(r => r.method === 'POST'); expect(posts).toHaveLength(outcome === 'uncertainRetry' ? 2 : 1);
+  if (outcome === 'uncertainRetry') expect(posts[1].body).toBe(posts[0].body);
+  const attempt = JSON.parse(posts[0].body!); expect(attempt.style.appearance.material.baseColor).toBe('#123456');
+  if (outcome.startsWith('uncertain')) expect(requests.some(r => r.method === 'GET' && r.url.includes(`submissionKey=${attempt.submissionKey}`))).toBe(true);
+  await page.getByRole('button', { name: 'Close Pipeline tool', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Review & manage', exact: true })).toBeFocused();
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});

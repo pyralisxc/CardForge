@@ -131,6 +131,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [discardToolRequested, setDiscardToolRequested] = useState(false);
   const [contributionTargetSetId, setContributionTargetSetId] = useState<string | null>(null);
   const [reviewTarget, setReviewTarget] = useState<PipelineReviewTarget | null>(null);
+  const [toolCloseBlocked, setToolCloseBlocked] = useState<string | null>(null);
   const [revisionKind, setRevisionKind] = useState<'templates' | 'elementPresets' | null>(null);
   const reviewReturn = useRef<{ focus: HTMLElement | null; scroll: number } | null>(null);
   const [editingSubmission, setEditingSubmission] = useState<PipelineSubmission | null>(null);
@@ -264,7 +265,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     setReviewTarget(target); setRevisionKind(null); openTool('review-manage', [target.assetId, target.lineageId, target.submissionId]);
   };
   const closeContextualTool = () => {
-    closeTool(); setReviewTarget(null); setRevisionKind(null);
+    closeTool(); setReviewTarget(null); setRevisionKind(null); setToolCloseBlocked(null);
     const restore = reviewReturn.current;
     requestAnimationFrame(() => { surfaceRef.current?.scrollTo({ top: restore?.scroll ?? selection.listOffset }); restore?.focus?.focus({ preventScroll: true }); });
   };
@@ -394,7 +395,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     }
     executeAction(action);
   };
+  const requestDirtyToolClose = () => {
+    if (toolCloseBlocked) { toast({ title: 'Keep the submission attempt open', description: toolCloseBlocked }); return; }
+    setDiscardToolRequested(true);
+  };
   const runAction: typeof executeAction = (action) => {
+    if (toolCloseBlocked && (action.id === 'library.close-tool' || action.id === 'library.close-locations')) { requestDirtyToolClose(); return; }
     if (toolDirty && (action.id === 'library.close-tool' || action.id === 'library.close-locations')) {
       setDiscardToolRequested(true);
       return;
@@ -441,6 +447,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
       isOwner={experience.owner}
+      onEditRevision={revision => {
+        if (!isSignedIn || !experience.contributor.canSubmit || currentItem.pipeline.ownership !== 'mine'
+          || currentItem.pipeline.editableSubmission?.id !== revision.id) return;
+        setEditingSubmission(revision); openTool('edit-contribution', [revision.id]);
+      }}
       onReviewRevision={revision => { try { openReview(currentItem, revision); } catch (error) { toast({ title: 'Revision unavailable', description: error instanceof Error ? error.message : 'Refresh Library.', variant: 'destructive' }); } }}
       onRevisionCreated={() => shared.refresh()}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
@@ -540,11 +551,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         <EnvironmentToolLayer id="library-pipeline-context" eyebrow="Library Pipeline tool"
           title={activeTool === 'pipeline-operations' ? 'Pipeline operations' : activeTool === 'revise-existing' ? 'Revise existing' : 'Review & manage'}
           summary={reviewTarget ? `Selected ${reviewTarget.assetId} · revision ${reviewTarget.revisionNumber ?? 'legacy'} · ${reviewTarget.status}` : 'Global queue, rules, quotas and routing.'}
-          closeLabel="Close Pipeline tool" onClose={() => runAction(actions[0]!)} dirty={toolDirty}
-          onDirtyCloseRequest={() => setDiscardToolRequested(true)} presentation={activeTool === 'pipeline-operations' ? 'inline' : activeToolSession?.presentation}>
+          closeLabel="Close Pipeline tool" onClose={() => runAction(actions[0]!)} dirty={toolDirty} closeBlocked={Boolean(toolCloseBlocked)}
+          onDirtyCloseRequest={requestDirtyToolClose} presentation={activeTool === 'pipeline-operations' ? 'inline' : activeToolSession?.presentation}>
           <div className="w-full min-w-0 overflow-auto">
           {!experience.owner || !isSignedIn ? <p>Owner access is required. Close this tool to return to Library.</p>
-            : activeTool === 'revise-existing' && reviewTarget && revisionKind ? <LibraryRevisionEntry key={reviewTarget.submissionId} target={reviewTarget} kind={revisionKind} onDirtyChange={setToolDirty}
+            : activeTool === 'revise-existing' && reviewTarget && revisionKind ? <LibraryRevisionEntry key={reviewTarget.submissionId} target={reviewTarget} kind={revisionKind} onDirtyChange={setToolDirty} onCloseBlockedChange={setToolCloseBlocked}
               onTemplateDraft={draft => {
                 const id = projectWorkspace.actions.installTemplate(draft, 'user');
                 if (id) { openTemplateDesign(id); setDesignReturnFocusId(selection.focusReturnId ?? null); openTool('design', [id]); }
@@ -590,7 +601,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           title={`Edit ${editingSubmission.name}`}
           summary="Update the current submission without leaving its Library context or changing the shared object behind your back."
           dirty={toolDirty}
-          onDirtyCloseRequest={() => setDiscardToolRequested(true)}
+          onDirtyCloseRequest={requestDirtyToolClose}
           closeLabel="Close submission editor"
           onClose={() => runAction(actions[0]!)}
           presentation={activeToolSession?.presentation}
@@ -616,7 +627,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           closeLabel="Close Design"
           onClose={() => runAction(actions[0]!)}
           dirty={toolDirty}
-          onDirtyCloseRequest={() => setDiscardToolRequested(true)}
+          onDirtyCloseRequest={requestDirtyToolClose}
           presentation={activeToolSession?.presentation}
         >
           <LibraryDesignWorkspace
@@ -633,11 +644,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     <AlertDialogContent>
       <AlertDialogHeader>
         <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
-        <AlertDialogDescription>Your saved Template remains unchanged. Keep editing to save this draft.</AlertDialogDescription>
+        <AlertDialogDescription>Discard the unsaved changes in this tool? Saved content remains unchanged.</AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>Keep editing</AlertDialogCancel>
-        <AlertDialogAction onClick={() => { setToolDirty(false); setDiscardToolRequested(false); closeOrExecute(actions[0]!); }}>Discard changes</AlertDialogAction>
+        <AlertDialogAction onClick={() => { if (toolCloseBlocked) { requestDirtyToolClose(); return; } setToolDirty(false); setDiscardToolRequested(false); closeOrExecute(actions[0]!); }}>Discard changes</AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>

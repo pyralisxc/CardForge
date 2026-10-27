@@ -206,7 +206,7 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
   };
 };
 
-export function PipelineDetailContent({ item, onVoteRevision, canReview, votingId, isSelfVoteBlocked, isOwner = false, onRevisionCreated, onReviewRevision }: {
+export function PipelineDetailContent({ item, onVoteRevision, canReview, votingId, isSelfVoteBlocked, isOwner = false, onRevisionCreated, onReviewRevision, onEditRevision }: {
   item: Extract<LibraryViewItem, { scope: 'pipeline' }>;
   onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
   canReview: boolean;
@@ -215,6 +215,7 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
   isOwner?: boolean;
   onRevisionCreated?: () => Promise<void> | void;
   onReviewRevision?: (submission: PipelineSubmission) => void;
+  onEditRevision?: (submission: PipelineSubmission) => void;
 }) {
   const submission = item.pipeline.submission;
   const published = item.pipeline.currentPublishedSubmission;
@@ -235,7 +236,7 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
               ? 'History'
               : getPipelineStatusLabel(revision.status);
       return <li key={revision.id}>
-        <div className={styles.revisionOpen}><span>{getPipelineRevisionLabel(revision)}</span><span>{revisionRole}</span>{isOwner && onReviewRevision ? <button type="button" onClick={() => onReviewRevision(revision)}>Review &amp; manage {getPipelineRevisionLabel(revision)}</button> : null}</div>
+        <div className={styles.revisionOpen}><span>{getPipelineRevisionLabel(revision)}</span><span>{revisionRole}</span>{isOwner && onReviewRevision ? <button type="button" onClick={() => onReviewRevision(revision)}>Review &amp; manage {getPipelineRevisionLabel(revision)}</button> : null}{item.pipeline.ownership === 'mine' && item.pipeline.editableSubmission?.id === revision.id && onEditRevision ? <button type="button" onClick={() => onEditRevision(revision)}>Edit {getPipelineRevisionLabel(revision)}</button> : null}</div>
         {revision.mediaPresentation ? <details><summary>Inspect exact presentation revision</summary>{revision.sourceUrl
           ? <MediaPresentationPreview sourceUrl={revision.sourceUrl} presentation={revision.mediaPresentation} />
           : <p>Exact source preview requires Owner or original contributor access.</p>}</details> : null}

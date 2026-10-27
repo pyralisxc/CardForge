@@ -1,4 +1,5 @@
 "use client";
+import { createPipelineReviewTarget } from '../lib/pipelineReviewTarget';
 import { CatalogTrashControls } from './CatalogTrashControls';
 import { SourceReviewEvidence } from './SourceReviewEvidence';
 
@@ -315,7 +316,7 @@ export function OwnerAssetLibraryPanel({
             expanded={expandedId === submission.id}
             editForm={managingId === submission.id ? (
               <div className="mt-4 grid gap-3 border border-[#6f4f28] bg-[var(--cf-surface)] p-4">
-                {submission.status === 'published' && submission.assetType === 'textures' && submission.registryAssetId ? <MediaPresentationRevision assetId={submission.registryAssetId} onCreated={onRevisionCreated ?? (() => undefined)} /> : null}
+                {submission.status === 'published' && submission.assetType === 'textures' && submission.registryAssetId ? <MediaPresentationRevision selectedTarget={focused ? createPipelineReviewTarget(submission) : undefined} assetId={submission.registryAssetId} onCreated={onRevisionCreated ?? (() => undefined)} /> : null}
                 <section className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Editorial readiness</p>

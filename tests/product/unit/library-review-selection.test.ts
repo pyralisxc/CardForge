@@ -1,7 +1,9 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { createPipelineReviewTarget, resolvePipelineReviewTarget, verifyReviewPublication } from '@/features/pipeline/lib/pipelineReviewTarget';
 import { libraryReviewSelection, canEditSelectedContribution } from '@/features/storage-management/lib/libraryReviewSelection';
-import { createLibraryReviewAction, getSharedLibraryActions } from '@/features/storage-management/components/LibraryObjectPresentation';
+import { PipelineDetailContent, createLibraryReviewAction, getSharedLibraryActions } from '@/features/storage-management/components/LibraryObjectPresentation';
 import { isActionApplicable } from '@/features/app-shell/environment/model';
 import type { PipelineSubmission } from '@/features/pipeline/client';
 import type { LibraryViewItem } from '@/features/storage-management/components/LibraryObjectPresentation';
@@ -62,4 +64,19 @@ describe('Published registry selection pin', () => {
     expect(() => verifyReviewPublication(target, [{ ...published, [field]: 'changed' }] as never)).toThrow('publication changed');
   });
   it('blocks missing registry publication', () => expect(() => verifyReviewPublication(target, [])).toThrow('unavailable'));
+});
+
+describe('own Contributor pending history entry', () => {
+  const published = { ...row, name: 'Published', specialtyTags: [], useCaseTags: [], sourceNotes: '', status: 'published' as const };
+  const candidate = { ...published, id: 'r2', revisionNumber: 2, status: 'draft' as const, publishedAt: null };
+  const item = (ownership: string) => ({ scope: 'pipeline', pipeline: { submission: published, currentPublishedSubmission: published,
+    revisions: [published, candidate], editableSubmission: candidate, ownership, reviewSubmission: null } }) as unknown as LibraryViewItem;
+  const markup = (ownership: string) => renderToStaticMarkup(createElement(PipelineDetailContent, { item: item(ownership) as never,
+    canReview: false, votingId: null, isSelfVoteBlocked: () => false, onVoteRevision: () => {}, onEditRevision: () => {} }));
+  it('keeps the displayed published identity and explicitly names the owned pending revision for editing', () => {
+    expect(getSharedLibraryActions(item('mine') as never).some(a => a.id === 'library.edit-pipeline')).toBe(false);
+    expect(markup('mine')).toContain('Edit Revision 2');
+    expect(markup('mine')).not.toContain('Edit Revision 1');
+  });
+  it('does not offer editing another Contributor history', () => expect(markup('other')).not.toContain('Edit Revision 2'));
 });

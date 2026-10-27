@@ -5,12 +5,13 @@ import { AppearanceStudioPanel, createSharedLineageDraft } from '@/features/temp
 import { appearanceToStyle } from '@/features/card-rendering/client';
 import { readReviewPublication, templateReviewBaseSchema, templateReviewReceiptSchema } from '@/features/pipeline/client';
 import type { PipelineReviewTarget } from '@/features/pipeline/client';
-import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { ApiClientError, readApiError, readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 type Base = ReturnType<typeof templateReviewBaseSchema.parse>;
-export function LibraryRevisionEntry({ target, kind, onDirtyChange, onTemplateDraft }: {
+export function LibraryRevisionEntry({ target, kind, onDirtyChange, onTemplateDraft, onCloseBlockedChange }: {
   target: PipelineReviewTarget; kind: 'templates' | 'elementPresets'; onDirtyChange: (dirty: boolean) => void;
+  onCloseBlockedChange?: (reason: string | null) => void;
   onTemplateDraft: (template: TCGCardTemplate) => void;
 }) {
   const [base, setBase] = useState<Base | null>(null);
@@ -18,6 +19,8 @@ export function LibraryRevisionEntry({ target, kind, onDirtyChange, onTemplateDr
   const [template, setTemplate] = useState<TCGCardTemplate | null>(null);
   const [error, setError] = useState(''); const [receipt, setReceipt] = useState('');
   const [busy, setBusy] = useState(false); const [changed, setChanged] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const uncertain = useRef(false);
   const attempt = useRef<{ submissionKey: string; expectedBase: Base; style: AppearanceStylePreset } | null>(null);
   const endpoint = `/api/owner/pipeline/${kind === 'templates' ? 'template' : 'style'}-revisions`;
   useEffect(() => {
@@ -45,18 +48,42 @@ export function LibraryRevisionEntry({ target, kind, onDirtyChange, onTemplateDr
     })();
     return () => controller.abort();
   }, [endpoint, kind, target]);
+  const blockClose = () => {
+    setLocked(true); onDirtyChange(true);
+    onCloseBlockedChange?.('This submission is pending or unconfirmed. Keep this tool open and check its outcome or retry the same saved attempt.');
+  };
+  const acceptReceipt = (value: unknown) => {
+    const saved = templateReviewReceiptSchema.parse(value);
+    if (saved.assetId !== target.assetId) throw new Error('The revision receipt does not match this artifact.');
+    setReceipt(`Revision ${saved.revisionNumber} submitted for review. Published content is unchanged.`);
+    uncertain.current = false; setLocked(false); onCloseBlockedChange?.(null); onDirtyChange(false);
+  };
+  const checkOutcome = async () => {
+    if (!attempt.current || busy) return;
+    setBusy(true); setError('');
+    try {
+      const response = await fetch(`${endpoint}?${new URLSearchParams({ assetId: target.assetId, submissionKey: attempt.current.submissionKey })}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'The submission receipt is unavailable. Keep this attempt.'));
+      const result = await response.json() as { receipt: unknown };
+      if (result.receipt) acceptReceipt(result.receipt);
+      else setError('No receipt is visible yet. This does not prove the pending attempt failed. Keep this tool open and retry the same saved attempt.');
+    } catch (failure) { setError(failure instanceof Error ? failure.message : 'The receipt is unavailable. Keep this attempt.'); }
+    finally { setBusy(false); }
+  };
   const submit = async () => {
     if (!base || !style || busy || receipt) return;
     attempt.current ??= { submissionKey: crypto.randomUUID(), expectedBase: base, style: structuredClone(style) };
-    setBusy(true); setError('');
+    blockClose(); setBusy(true); setError('');
     try {
       const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(attempt.current) });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'The outcome is unavailable. Retry this same saved attempt.'));
-      const saved = templateReviewReceiptSchema.parse(await response.json());
-      if (saved.assetId !== target.assetId) throw new Error('The revision receipt does not match this artifact.');
-      setReceipt(`Revision ${saved.revisionNumber} submitted for review. Published content is unchanged.`); onDirtyChange(false);
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'The outcome is unavailable. Retry this same saved attempt.'); }
-    finally { setBusy(false); }
+      if (!response.ok) throw await readApiError(response, 'The outcome is unavailable. Retry this same saved attempt.');
+      acceptReceipt(await response.json());
+    } catch (failure) {
+      const rejected = failure instanceof ApiClientError && (failure.status === 400 || failure.status === 409);
+      if (rejected && !uncertain.current) { setLocked(false); onCloseBlockedChange?.(null); }
+      else uncertain.current = true;
+      setError(failure instanceof Error ? failure.message : 'The outcome is unavailable. Retry this same saved attempt.');
+    } finally { setBusy(false); }
   };
   return <section className="grid gap-4" aria-label="Revise selected published artifact">
     <p>Base: {target.assetId} · revision {base?.baseRevisionNumber ?? target.revisionNumber ?? 'legacy'}. Submit creates a separate candidate; approval and publication are separate actions.</p>
@@ -76,6 +103,7 @@ export function LibraryRevisionEntry({ target, kind, onDirtyChange, onTemplateDr
           onApplyAppearancePreset={() => {}} onUpdateAppearance={update => { if (busy || attempt.current || receipt) return; setStyle(current => current ? { ...current, appearance: update(current.appearance) } : current); setChanged(true); onDirtyChange(true); }}
           personalItems={[]} onAddFromProvider={async () => { throw new Error('Provider imports are not part of this revision entry.'); }} onMaterializePersonal={async () => { throw new Error('Provider imports are not part of this revision entry.'); }} />
       </fieldset>
+      {locked && !busy ? <button type="button" onClick={() => void checkOutcome()}>Check submission outcome</button> : null}
       {receipt ? <p role="status">{receipt}</p> : <button type="button" disabled={busy || !changed} onClick={() => void submit()}>{busy ? 'Submitting…' : attempt.current ? 'Confirm same submission attempt' : 'Submit revision for review'}</button>}
     </TooltipProvider> : null}
   </section>;
