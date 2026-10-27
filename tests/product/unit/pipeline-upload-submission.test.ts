@@ -58,6 +58,10 @@ const taxonomy = {
 const VALID_PNG_BYTES = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVQImWP4z8DQAMIMMAYAOOgF/Q/eI6wAAAAASUVORK5CYII=', 'base64');
 const validPng = () => new Blob([VALID_PNG_BYTES], { type: 'image/png' });
 
+const SOURCE_ID = '11111111-1111-4111-8111-111111111111';
+const TOKEN = '22222222-2222-4222-8222-222222222222';
+const ownedPath = (extension = 'png') => `pipeline-owned-v1/${SOURCE_ID}/source.${extension}`;
+
 const setupStorage = (storedSize = VALID_PNG_BYTES.byteLength, submittedUpload = false) => {
   const createSignedUploadUrl = vi.fn().mockResolvedValue({
     data: { signedUrl: 'https://storage.example/upload/token' },
@@ -80,12 +84,28 @@ const setupStorage = (storedSize = VALID_PNG_BYTES.byteLength, submittedUpload =
   databaseQuery.select.mockReturnValue(databaseQuery);
   databaseQuery.eq.mockReturnValue(databaseQuery);
   const databaseFrom = vi.fn().mockReturnValue(databaseQuery);
-  mockedGetSupabaseServerClient.mockReturnValue({ storage: { from }, from: databaseFrom } as never);
-  return { createSignedUploadUrl, list, remove, download, update };
+  let state = submittedUpload ? 'owned' : 'pending';
+  const rpc = vi.fn().mockImplementation(async (command: string, args: Record<string, unknown>) => {
+    if (command === 'cardforge_reserve_pipeline_upload') return { data: { storagePath: ownedPath((args.p_descriptor as { transportExtension: string }).transportExtension) }, error: null };
+    if (command === 'cardforge_prepare_pipeline_upload_submission') {
+      if (state === 'owned') return { data: { state }, error: null };
+      if (state !== 'pending') return { data: null, error: { message: state === 'submitting' ? 'pipeline_upload_submission_uncertain' : 'pipeline_upload_cleanup_committed' } };
+      if (args.p_claim) state = 'submitting';
+      return { data: { state, token: args.p_claim ? TOKEN : undefined }, error: null };
+    }
+    if (command === 'cardforge_claim_pipeline_upload_cleanup') {
+      if (state !== 'pending') return { data: null, error: { message: 'pipeline_upload_cleanup_blocked' } };
+      state = 'cleanup_committed'; return { data: TOKEN, error: null };
+    }
+    if (command === 'cardforge_finalize_pipeline_upload_cleanup') { state = 'cleanup_completed'; return { data: true, error: null }; }
+    throw new Error(`Unexpected native command: ${command}`);
+  });
+  mockedGetSupabaseServerClient.mockReturnValue({ storage: { from }, from: databaseFrom, rpc } as never);
+  return { createSignedUploadUrl, list, remove, download, update, rpc, setOwned: () => { state = 'owned'; }, state: () => state };
 };
 
 const uploadedFile = {
-  storagePath: 'contributor-1/dividers/123-gold-divider-token.png',
+  storagePath: ownedPath(),
   fileName: 'gold-divider.png',
   fileSizeBytes: VALID_PNG_BYTES.byteLength,
   mimeType: 'image/png',
@@ -116,7 +136,7 @@ describe('contributor asset upload submission', () => {
       mimeType: 'image/svg+xml',
     });
 
-    expect(plan.storagePath).toMatch(/^contributor-1\/icons\/.+\.cfsvg$/u);
+    expect(plan.storagePath).toMatch(/^pipeline-owned-v1\/.+\/source\.cfsvg$/u);
     expect(plan.mimeType).toBe('image/svg+xml');
   });
 
@@ -138,7 +158,7 @@ describe('contributor asset upload submission', () => {
     const bytes = await createCardForgeProjectPackageBlob(await buildCardForgeProjectSnapshot({ document, name: 'Test Set' }));
     const storage = setupStorage(bytes.size);
     storage.download.mockResolvedValue({ data: bytes, error: null });
-    const upload = { storagePath: 'contributor-1/sets/test.cardforge', fileName: 'test.cardforge', fileSizeBytes: bytes.size, mimeType: 'application/vnd.cardforge.project+zip' };
+    const upload = { storagePath: ownedPath('cardforge'), fileName: 'test.cardforge', fileSizeBytes: bytes.size, mimeType: 'application/vnd.cardforge.project+zip' };
     const result = createUploadedPipelineSubmission({ contributorId: 'contributor-1', contributorEmail: 'contributor@example.com',
       maxFileSizeMb: 25, assetType: 'sets', studioDestination: null, ...taxonomy, name: 'Test Set', description: '', sourceNotes: 'Rights and sources: Original authored cards | AI assistance: None', previewUrl: '', uploadedFile: upload });
     if (hasCards) {
@@ -148,7 +168,7 @@ describe('contributor asset upload submission', () => {
     } else {
       await expect(result).rejects.toThrow('at least one card');
       expect(mockedCreatePipelineSubmission).not.toHaveBeenCalled();
-      expect(storage.remove).toHaveBeenCalledWith([upload.storagePath]);
+      expect(storage.remove).not.toHaveBeenCalled();
     }
   });
 
@@ -170,7 +190,7 @@ describe('contributor asset upload submission', () => {
       fileSizeBytes: 20 * 1024 * 1024,
       maxFileSizeBytes: 25 * 1024 * 1024,
     });
-    expect(plan.storagePath).toMatch(/^contributor-1\/dividers\//u);
+    expect(plan.storagePath).toMatch(/^pipeline-owned-v1\//u);
     expect(storage.createSignedUploadUrl).toHaveBeenCalledWith(plan.storagePath, { upsert: false });
   });
 
@@ -229,13 +249,13 @@ describe('contributor asset upload submission', () => {
       contributorId: 'contributor-1', contributorEmail: 'contributor@example.com', maxFileSizeMb: 25,
       assetType: 'icons', studioDestination: 'element.icon', ...taxonomy, name: 'Safe Vector', description: '', previewUrl: '',
       uploadedFile: {
-        storagePath: 'contributor-1/icons/safe-vector.cfsvg', fileName: 'safe-vector.svg',
+        storagePath: ownedPath('cfsvg'), fileName: 'safe-vector.svg',
         fileSizeBytes: sourceBlob.size, mimeType: 'image/svg+xml',
       },
     });
 
     expect(storage.update).toHaveBeenCalledWith(
-      'contributor-1/icons/safe-vector.cfsvg',
+      ownedPath('cfsvg'),
       expect.any(Buffer),
       { contentType: 'image/svg+xml', cacheControl: '31536000' },
     );
@@ -391,7 +411,7 @@ describe('contributor asset upload submission', () => {
     }, new Blob([Buffer.from('OTTOfont-payload')], { type: 'font/woff2' }))).rejects.toThrow('do not match');
   });
 
-  it('removes the uploaded object when submission persistence fails', async () => {
+  it('retains the uploaded object when submission persistence is uncertain', async () => {
     const storage = setupStorage();
     mockedCreatePipelineSubmission.mockRejectedValue(new Error('insert failed'));
 
@@ -408,7 +428,7 @@ describe('contributor asset upload submission', () => {
       uploadedFile,
     })).rejects.toThrow('insert failed');
 
-    expect(storage.remove).toHaveBeenCalledWith([uploadedFile.storagePath]);
+    expect(storage.remove).not.toHaveBeenCalled();
   });
 
   it('only removes unfinished uploads through the cleanup endpoint', async () => {
@@ -425,8 +445,99 @@ describe('contributor asset upload submission', () => {
       contributorId: 'contributor-1',
       assetType: 'dividers',
       storagePath: uploadedFile.storagePath,
-    })).rejects.toThrow('cannot be removed as an unfinished upload');
+    })).rejects.toThrow('cannot be reused or removed as unfinished');
     expect(submittedStorage.remove).not.toHaveBeenCalled();
+  });
+
+  const submissionInput = () => ({
+    contributorId: 'contributor-1', contributorEmail: 'contributor@example.com', maxFileSizeMb: 25,
+    assetType: 'dividers', studioDestination: 'element.divider', ...taxonomy,
+    name: 'Gold Divider', description: '', previewUrl: '', uploadedFile,
+  });
+  const cleanupInput = () => ({ contributorId: 'contributor-1', assetType: 'dividers', storagePath: uploadedFile.storagePath });
+
+  it('preserves committed bytes after lost insert response and confirms retry without another transfer', async () => {
+    const storage = setupStorage();
+    mockedCreatePipelineSubmission.mockImplementation(async () => { storage.setOwned(); throw new Error('response lost after commit'); });
+    await expect(createUploadedPipelineSubmission(submissionInput())).rejects.toThrow('response lost');
+    await expect(removePendingPipelineUpload(cleanupInput())).rejects.toMatchObject({ status: 409 });
+    await expect(createUploadedPipelineSubmission(submissionInput())).resolves.toBeUndefined();
+    expect(storage.remove).not.toHaveBeenCalled();
+    expect(storage.download).toHaveBeenCalledOnce();
+    expect(mockedCreatePipelineSubmission).toHaveBeenCalledOnce();
+  });
+
+  it('cleanup wins during read-only validation; submission cannot obtain later authority', async () => {
+    const storage = setupStorage();
+    let release!: (value: { data: Blob; error: null }) => void;
+    storage.download.mockImplementation(() => new Promise((resolve) => { release = resolve; }));
+    const pending = createUploadedPipelineSubmission(submissionInput());
+    await vi.waitFor(() => expect(storage.download).toHaveBeenCalledOnce());
+    await removePendingPipelineUpload(cleanupInput());
+    release({ data: validPng(), error: null });
+    await expect(pending).rejects.toMatchObject({ status: 409 });
+    expect(storage.remove).toHaveBeenCalledOnce();
+    expect(mockedCreatePipelineSubmission).not.toHaveBeenCalled();
+    expect(storage.update).not.toHaveBeenCalled();
+  });
+
+  it('submission commitment excludes cleanup and duplicate work while persistence is pending', async () => {
+    const storage = setupStorage();
+    let release!: () => void;
+    mockedCreatePipelineSubmission.mockImplementation(() => new Promise<void>((resolve) => { release = resolve; }));
+    const pending = createUploadedPipelineSubmission(submissionInput());
+    await vi.waitFor(() => expect(mockedCreatePipelineSubmission).toHaveBeenCalledOnce());
+    await expect(removePendingPipelineUpload(cleanupInput())).rejects.toMatchObject({ status: 409 });
+    await expect(createUploadedPipelineSubmission(submissionInput())).rejects.toMatchObject({ status: 503 });
+    expect(storage.download).toHaveBeenCalledOnce();
+    expect(storage.remove).not.toHaveBeenCalled();
+    release(); await pending;
+  });
+
+  it('holds exclusive submission authority through delayed SVG normalization', async () => {
+    const bytes = new Blob(['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>']);
+    const storage = setupStorage(bytes.size);
+    storage.download.mockResolvedValue({ data: bytes, error: null });
+    let release!: (value: { error: null }) => void;
+    storage.update.mockImplementation(() => new Promise((resolve) => { release = resolve; }));
+    const input = { ...submissionInput(), assetType: 'icons', studioDestination: 'element.icon',
+      uploadedFile: { storagePath: ownedPath('cfsvg'), fileName: 'proof.svg', mimeType: 'image/svg+xml', fileSizeBytes: bytes.size } };
+    const pending = createUploadedPipelineSubmission(input);
+    await vi.waitFor(() => expect(storage.update).toHaveBeenCalledOnce());
+    await expect(removePendingPipelineUpload({ ...cleanupInput(), storagePath: input.uploadedFile.storagePath })).rejects.toMatchObject({ status: 409 });
+    await expect(createUploadedPipelineSubmission(input)).rejects.toMatchObject({ status: 503 });
+    expect(storage.remove).not.toHaveBeenCalled();
+    release({ error: null }); await pending;
+    expect(storage.update).toHaveBeenCalledOnce();
+  });
+
+  it('does not delete on an unreadable cleanup claim receipt', async () => {
+    const storage = setupStorage();
+    storage.rpc.mockResolvedValue({ data: null, error: null });
+    await expect(removePendingPipelineUpload(cleanupInput())).rejects.toMatchObject({ status: 503 });
+    expect(storage.remove).not.toHaveBeenCalled();
+  });
+
+  it.each(['storage', 'finalizer'])('never reissues cleanup authority after uncertain %s outcome', async (failure) => {
+    const storage = setupStorage();
+    if (failure === 'storage') storage.remove.mockRejectedValue(new Error('response lost'));
+    else {
+      const native = storage.rpc.getMockImplementation()!;
+      storage.rpc.mockImplementation((command, args) => command === 'cardforge_finalize_pipeline_upload_cleanup'
+        ? Promise.reject(new Error('finalization unavailable')) : native(command, args));
+    }
+    await expect(removePendingPipelineUpload(cleanupInput())).rejects.toMatchObject({ status: 503 });
+    expect(storage.state()).toBe('cleanup_committed');
+    await expect(removePendingPipelineUpload(cleanupInput())).rejects.toMatchObject({ status: 409 });
+    await expect(createUploadedPipelineSubmission(submissionInput())).rejects.toMatchObject({ status: 409 });
+    expect(storage.remove).toHaveBeenCalledOnce();
+  });
+
+  it('rejects old unverified paths without deletion, even when bytes survive and no submission is found', async () => {
+    const storage = setupStorage();
+    await expect(removePendingPipelineUpload({ ...cleanupInput(), storagePath: 'contributor-1/dividers/legacy.png' })).rejects.toMatchObject({ status: 409 });
+    expect(storage.remove).not.toHaveBeenCalled();
+    expect(storage.rpc).not.toHaveBeenCalled();
   });
 
   it('routes Template revisions through Studio instead of the generic uploader', () => {

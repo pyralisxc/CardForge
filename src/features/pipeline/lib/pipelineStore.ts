@@ -1,3 +1,4 @@
+import { runPipelineUploadCommand, isPipelineUploadToken } from './pipelineUploadCommitments';
 import { stampContentQualityReviewNote } from '@/features/pipeline/lib/contentQualityStandard';
 import {
   DEFAULT_PIPELINE_PROGRAM_SETTINGS,
@@ -272,13 +273,55 @@ export const updatePipelineProgramSettings = async (
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 
+export const buildPipelineSubmissionRecord = ({ contributorId, contributorEmail, input }: {
+  contributorId: string; contributorEmail: string | null;
+  input: Parameters<typeof normalizePipelineSubmissionInput>[0];
+}) => {
+  const normalized = normalizePipelineSubmissionInput(input);
+  if (!normalized.ok) throw new PipelineStoreError(normalized.message, 400);
+  return {
+      contributor_id: contributorId,
+      contributor_email: contributorEmail,
+      asset_type: normalized.value.assetType,
+      requested_studio_destination: normalized.value.requestedStudioDestination,
+      specialty_tags: normalized.value.specialtyTags,
+      use_case_tags: normalized.value.useCaseTags,
+      semantic_role: normalized.value.semanticRole,
+      visual_family: normalized.value.visualFamily,
+      variant_kind: normalized.value.variantKind,
+      variant_label: normalized.value.variantLabel,
+      compatibility_tags: normalized.value.compatibilityTags,
+      name: normalized.value.name,
+      description: normalized.value.description,
+      source_notes: normalized.value.sourceNotes,
+      preview_url: normalized.value.previewUrl,
+      source_url: normalized.value.sourceUrl,
+      source_file_size_bytes: normalized.value.sourceFileSizeBytes,
+      source_mime_type: normalized.value.sourceMimeType,
+      source_storage_bucket: normalized.value.sourceStorageBucket,
+      source_storage_path: normalized.value.sourceStoragePath,
+      status: 'voting',
+      automated_status: 'voting',
+      owner_status_override: null,
+      calculated_access_tier: 'contributor',
+      automated_access_tier: 'contributor',
+      owner_access_tier_override: null,
+      quality_score: 0,
+      tier_decision_reason: 'needs_more_votes',
+      positive_votes: 0,
+      negative_votes: 0,
+  };
+};
+
 export const createPipelineSubmission = async ({
   contributorId,
   contributorEmail,
   input,
+  uploadToken,
 }: {
   contributorId: string;
   contributorEmail: string | null;
+  uploadToken?: string;
   input: {
     assetType?: unknown;
     studioDestination?: unknown;
@@ -321,43 +364,15 @@ export const createPipelineSubmission = async ({
     );
   }
 
-  const normalized = normalizePipelineSubmissionInput(input);
-  if (!normalized.ok) throw new PipelineStoreError(normalized.message, 400);
-
-  const { error } = await supabase
-    .from('cardforge_contributor_asset_submissions')
-    .insert({
-      contributor_id: contributorId,
-      contributor_email: contributorEmail,
-      asset_type: normalized.value.assetType,
-      requested_studio_destination: normalized.value.requestedStudioDestination,
-      specialty_tags: normalized.value.specialtyTags,
-      use_case_tags: normalized.value.useCaseTags,
-      semantic_role: normalized.value.semanticRole,
-      visual_family: normalized.value.visualFamily,
-      variant_kind: normalized.value.variantKind,
-      variant_label: normalized.value.variantLabel,
-      compatibility_tags: normalized.value.compatibilityTags,
-      name: normalized.value.name,
-      description: normalized.value.description,
-      source_notes: normalized.value.sourceNotes,
-      preview_url: normalized.value.previewUrl,
-      source_url: normalized.value.sourceUrl,
-      source_file_size_bytes: normalized.value.sourceFileSizeBytes,
-      source_mime_type: normalized.value.sourceMimeType,
-      source_storage_bucket: normalized.value.sourceStorageBucket,
-      source_storage_path: normalized.value.sourceStoragePath,
-      status: 'voting',
-      automated_status: 'voting',
-      owner_status_override: null,
-      calculated_access_tier: 'contributor',
-      automated_access_tier: 'contributor',
-      owner_access_tier_override: null,
-      quality_score: 0,
-      tier_decision_reason: 'needs_more_votes',
-      positive_votes: 0,
-      negative_votes: 0,
+  const record = buildPipelineSubmissionRecord({ contributorId, contributorEmail, input });
+  if (uploadToken) {
+    const receipt = await runPipelineUploadCommand('cardforge_commit_pipeline_upload_submission', {
+      p_path: record.source_storage_path, p_token: uploadToken, p_fields: record,
     });
+    if (!isPipelineUploadToken(receipt)) throw new PipelineStoreError('The submission receipt could not be confirmed. Keep this upload.', 503);
+    return;
+  }
+  const { error } = await supabase.from('cardforge_contributor_asset_submissions').insert(record);
 
   if (error) {
     console.error('Failed to create Pipeline submission:', error);

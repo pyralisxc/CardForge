@@ -144,6 +144,33 @@ try:
     a.run(f"delete from public.cardforge_asset_registry where asset_id='{consumer}';")
     print('PASS: concurrent registry consumer write blocks Move; committed target reference is observed')
 
+    # Exact-object upload authority spans Storage I/O, not a row lookup followed
+    # by deletion. These transactions exercise both winners under the same lock.
+    descriptor = {"assetType": "icons", "fileName": "proof.svg", "fileSizeBytes": 100,
+                  "mimeType": "image/svg+xml", "transportExtension": "cfsvg"}
+    descriptor_sql = json.dumps(descriptor)
+    def reserve_upload():
+        return json.loads(a.run("select public.cardforge_reserve_pipeline_upload('race-owner','" + descriptor_sql + "'::jsonb)::text;")[-1])['storagePath']
+    def prepare_upload(path):
+        request = {"contributor_id": "race-owner", "asset_type": "icons", "source_storage_bucket": "cardforge-contributor-assets", "source_storage_path": path}
+        return "public.cardforge_prepare_pipeline_upload_submission('race-owner','" + path + "','" + descriptor_sql + "'::jsonb,'" + json.dumps(request) + "'::jsonb,true)"
+    path = reserve_upload()
+    a.run('begin;')
+    a.run('select ' + prepare_upload(path) + ';')
+    cleanup = "public.cardforge_claim_pipeline_upload_cleanup('race-owner','" + path + "')"
+    expect_busy(b, cleanup)
+    a.run('commit;')
+    expect_conflict(b, cleanup, 'pipeline_upload_cleanup_blocked')
+    print('PASS: upload submission commitment wins; cleanup cannot obtain authority during or after transaction')
+    path = reserve_upload()
+    a.run('begin;')
+    a.run("select public.cardforge_claim_pipeline_upload_cleanup('race-owner','" + path + "');")
+    expect_busy(b, prepare_upload(path))
+    a.run('commit;')
+    expect_conflict(b, prepare_upload(path), 'pipeline_upload_cleanup_committed')
+    expect_conflict(b, "public.cardforge_claim_pipeline_upload_cleanup('race-owner','" + path + "')", 'pipeline_upload_cleanup_blocked')
+    print('PASS: cleanup commitment wins; submission and duplicate cleanup remain excluded without any lease reset')
+
 finally:
     a.close()
     b.close()
