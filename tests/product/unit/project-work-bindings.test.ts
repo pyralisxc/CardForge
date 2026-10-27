@@ -64,6 +64,10 @@ const folder = (name: string) => {
 beforeEach(() => {
   resetDriveSaveOwnerForTests();
   vi.clearAllMocks();
+  mock.build.mockReset();
+  mock.build.mockImplementation(async ({ document, name }: { document: unknown; name: string }) => ({
+    document, manifest: { name, projectRevision: 'b'.repeat(64), savedAt: '2026-09-05' },
+  }));
   mock.values.clear();
   mock.namespace = 'test';
   mock.onWrite = undefined;

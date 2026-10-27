@@ -29,9 +29,14 @@ vi.mock('react', async (importOriginal) => {
     ...original,
     useCallback: (callback: unknown) => callback,
     useRef: (initial: unknown) => ({ current: initial }),
-    useState: (initial: unknown) => [initial, (next: unknown) => {
-      harness.states.push(next as { phase: string; receipt: unknown; message: string });
-    }],
+    useState: (initial: unknown) => {
+      // Simulate a rerendered callback reading the newest hook state.
+      const current = { ...(initial as Record<string, unknown>) };
+      return [current, (next: unknown) => {
+        Object.assign(current, next as Record<string, unknown>);
+        harness.states.push({ ...current } as { phase: string; receipt: unknown; message: string });
+      }];
+    },
     useEffect: (effect: () => (() => void) | undefined) => {
       harness.cleanups.push(effect());
     },
