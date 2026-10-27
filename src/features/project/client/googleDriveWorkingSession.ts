@@ -12,6 +12,8 @@ import {
   GoogleDriveSaveLinkageError,
   GoogleDriveUnknownCommitError,
   getGoogleDriveSaveBarrier,
+  isSameGoogleDriveTarget,
+  waitForGoogleDriveTargetSave,
   getGoogleDriveWorkBinding,
   hasGoogleDriveWorkingChanges,
   probeGoogleDriveProject,
@@ -56,6 +58,12 @@ const initialState: GoogleDriveWorkingSessionState = {
 
 const canWriteProject = (project: GoogleDriveProjectSummary | null) => (
   !project?.capabilities || (project.capabilities.canEdit && project.capabilities.canModifyContent)
+);
+
+const isSameDriveCheckpoint = (left: GoogleDriveProjectBinding | null, right: GoogleDriveProjectBinding | null) => (
+  isSameGoogleDriveTarget(left, right)
+  && left?.providerRevision === right?.providerRevision
+  && left?.projectRevision === right?.projectRevision
 );
 
 export const shouldApplyGoogleDriveRemoteProbe = (
@@ -154,11 +162,24 @@ export function useGoogleDriveWorkingSession({
   const queuedRef = useRef(false);
   const generationRef = useRef(0);
   const saveNowRef = useRef<() => Promise<void>>(async () => undefined);
+  const reconcileRef = useRef<() => Promise<void>>(async () => undefined);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
   }, []);
+
+  /** Persisted per-Set location wins over a cached hook binding. */
+  const readCurrentBinding = useCallback(async (generation: number) => {
+    if (!setId) return { valid: false, binding: null as GoogleDriveProjectBinding | null };
+    const binding = await getGoogleDriveWorkBinding(setId);
+    if (generation !== generationRef.current) return { valid: false, binding: null as GoogleDriveProjectBinding | null };
+    if (!isSameGoogleDriveTarget(bindingRef.current, binding)) {
+      bindingRef.current = binding;
+      writableRef.current = null;
+    }
+    return { valid: true, binding };
+  }, [setId]);
 
   const holdUnresolvedDriveSave = useCallback((binding: GoogleDriveProjectBinding | null) => {
     const barrier = getGoogleDriveSaveBarrier(binding);
@@ -170,29 +191,51 @@ export function useGoogleDriveWorkingSession({
     return true;
   }, [clearTimer]);
 
+  /** Any asynchronous dirty/probe result must still belong to the current file and receipt. */
+  const canPublishForBinding = useCallback(async (binding: GoogleDriveProjectBinding | null, generation: number) => {
+    const first = await readCurrentBinding(generation);
+    if (!first.valid || !isSameDriveCheckpoint(first.binding, binding)) return false;
+    await waitForGoogleDriveTargetSave(first.binding);
+    const latest = await readCurrentBinding(generation);
+    if (!latest.valid || !isSameDriveCheckpoint(latest.binding, binding)) return false;
+    return !holdUnresolvedDriveSave(latest.binding);
+  }, [holdUnresolvedDriveSave, readCurrentBinding]);
+
   const saveNow = useCallback(async () => {
-    if (!enabled || !setId || writableRef.current === false) return;
+    if (!enabled || !setId) return;
+    const generation = generationRef.current;
+    const previousTarget = bindingRef.current;
+    const resolved = await readCurrentBinding(generation);
+    if (!resolved.valid) return;
+    if (!isSameGoogleDriveTarget(previousTarget, resolved.binding)) {
+      // Explicit Save as F2 replaced F: validate new source authority before autosaving.
+      await reconcileRef.current();
+      return;
+    }
+    if (writableRef.current === false) return;
     if (inFlightRef.current) {
       queuedRef.current = true;
       await inFlightRef.current;
       return;
     }
-    const generation = generationRef.current;
     const run = (async () => {
-      const binding = bindingRef.current ?? await getGoogleDriveWorkBinding(setId);
-      bindingRef.current = binding;
+      const current = await readCurrentBinding(generation);
+      if (!current.valid) return;
+      const binding = current.binding;
       if (!binding) {
         setState({ phase: 'unlinked', message: 'Browser work', receipt: null });
         return;
       }
-      if (holdUnresolvedDriveSave(binding)) return;
+      await waitForGoogleDriveTargetSave(binding);
+      if (!await canPublishForBinding(binding, generation)) return;
       let dirty: boolean;
       try {
         dirty = await hasGoogleDriveWorkingChanges(binding);
       } catch (error) {
-        if (generation === generationRef.current) setState(stateForError(error));
+        if (await canPublishForBinding(binding, generation)) setState(stateForError(error));
         return;
       }
+      if (!await canPublishForBinding(binding, generation)) return;
       if (!dirty) {
         if (generation === generationRef.current) setState({ phase: 'clean', message: 'Saved to Drive', receipt: binding });
         return;
@@ -208,15 +251,20 @@ export function useGoogleDriveWorkingSession({
       if (generation === generationRef.current) setState({ phase: 'saving', message: 'Saving to Drive…', receipt: binding });
       try {
         const saved = await saveCardSetToGoogleDrive({ setId, name });
-        bindingRef.current = saved;
-        if (generation === generationRef.current) setState({ phase: 'clean', message: 'Saved to Drive', receipt: saved });
+        if (await canPublishForBinding(saved, generation)) {
+          bindingRef.current = saved;
+          setState({ phase: 'clean', message: 'Saved to Drive', receipt: saved });
+        }
       } catch (error) {
         if (shouldPauseGoogleDriveAutosaveForError(error)) {
           writableRef.current = false;
           queuedRef.current = false;
           clearTimer();
         }
-        if (generation === generationRef.current) setState(stateForError(error));
+        const latest = await readCurrentBinding(generation);
+        if (latest.valid && isSameGoogleDriveTarget(latest.binding, binding)) {
+          if (!holdUnresolvedDriveSave(latest.binding)) setState(stateForError(error));
+        }
       }
     })();
     inFlightRef.current = run;
@@ -230,7 +278,7 @@ export function useGoogleDriveWorkingSession({
         timerRef.current = setTimeout(() => { void saveNowRef.current(); }, DRIVE_AUTOSAVE_DELAY_MS);
       }
     }
-  }, [clearTimer, enabled, holdUnresolvedDriveSave, name, setId]);
+  }, [canPublishForBinding, clearTimer, enabled, holdUnresolvedDriveSave, name, readCurrentBinding, setId]);
   saveNowRef.current = saveNow;
 
   const scheduleSave = useCallback(() => {
@@ -248,15 +296,28 @@ export function useGoogleDriveWorkingSession({
   const reconcile = useCallback(async (knownCheck?: GoogleDriveBindingCheck) => {
     if (!enabled || !setId) return;
     const generation = generationRef.current;
+    let startedWith: GoogleDriveProjectBinding | null = null;
     try {
       if (inFlightRef.current) await inFlightRef.current;
       if (generation !== generationRef.current) return;
-      const priorBinding = knownCheck?.binding ?? bindingRef.current ?? await getGoogleDriveWorkBinding(setId);
-      if (holdUnresolvedDriveSave(priorBinding)) return;
-      const check = knownCheck ?? await revalidateGoogleDriveWorkBinding(setId);
-      if (generation !== generationRef.current) return;
-      if (holdUnresolvedDriveSave(check.binding)) return;
-      bindingRef.current = check.binding;
+      let latest = await readCurrentBinding(generation);
+      if (!latest.valid) return;
+      startedWith = latest.binding;
+      await waitForGoogleDriveTargetSave(latest.binding);
+      latest = await readCurrentBinding(generation);
+      if (!latest.valid || holdUnresolvedDriveSave(latest.binding)) return;
+      // A poll's checked F is stale if an explicit Save as F2 replaced its binding.
+      let check = knownCheck && isSameDriveCheckpoint(knownCheck.binding, latest.binding)
+        ? knownCheck : await revalidateGoogleDriveWorkBinding(setId);
+      latest = await readCurrentBinding(generation);
+      if (!latest.valid) return;
+      if (!isSameDriveCheckpoint(check.binding, latest.binding)) {
+        check = await revalidateGoogleDriveWorkBinding(setId);
+        latest = await readCurrentBinding(generation);
+        if (!latest.valid || !isSameDriveCheckpoint(check.binding, latest.binding)) return;
+      }
+      if (holdUnresolvedDriveSave(latest.binding)) return;
+      bindingRef.current = latest.binding;
       if (check.kind === 'unlinked') {
         writableRef.current = null;
         setState({ phase: 'unlinked', message: 'Browser work', receipt: null });
@@ -272,8 +333,7 @@ export function useGoogleDriveWorkingSession({
       writableRef.current = canWriteProject(check.project);
       if (check.kind === 'changed' && check.binding) {
         const dirty = await hasGoogleDriveWorkingChanges(check.binding);
-        if (generation !== generationRef.current) return;
-        if (holdUnresolvedDriveSave(check.binding)) return;
+        if (!await canPublishForBinding(check.binding, generation)) return;
         if (shouldPauseGoogleDriveAutosaveAfterRevalidation(check.kind, dirty)) {
           writableRef.current = false;
           queuedRef.current = false;
@@ -283,8 +343,7 @@ export function useGoogleDriveWorkingSession({
         }
         setState({ phase: 'checking', message: 'Refreshing newer Drive revision…', receipt: check.binding });
         const refreshed = await refreshGoogleDriveProject(check.binding);
-        if (generation === generationRef.current) {
-          if (holdUnresolvedDriveSave(refreshed)) return;
+        if (await canPublishForBinding(refreshed, generation)) {
           bindingRef.current = refreshed;
           setState(writableRef.current === false
             ? { phase: 'read-only', message: 'Updated from Drive · read-only', receipt: refreshed }
@@ -300,8 +359,7 @@ export function useGoogleDriveWorkingSession({
       }
       if (check.binding) {
         const dirty = await hasGoogleDriveWorkingChanges(check.binding);
-        if (generation !== generationRef.current) return;
-        if (holdUnresolvedDriveSave(check.binding)) return;
+        if (!await canPublishForBinding(check.binding, generation)) return;
         setState(dirty
           ? { phase: 'dirty', message: 'Drive save pending', receipt: check.binding }
           : { phase: 'clean', message: 'Saved to Drive', receipt: check.binding });
@@ -313,9 +371,12 @@ export function useGoogleDriveWorkingSession({
         queuedRef.current = false;
         clearTimer();
       }
-      if (generation === generationRef.current) setState(stateForError(error));
+      const latest = await readCurrentBinding(generation).catch(() => ({ valid: false, binding: null as GoogleDriveProjectBinding | null }));
+      if (!latest.valid || !isSameGoogleDriveTarget(startedWith, latest.binding)) return;
+      if (!holdUnresolvedDriveSave(latest.binding)) setState(stateForError(error));
     }
-  }, [clearTimer, enabled, holdUnresolvedDriveSave, scheduleSave, setId]);
+  }, [canPublishForBinding, clearTimer, enabled, holdUnresolvedDriveSave, readCurrentBinding, scheduleSave, setId]);
+  reconcileRef.current = () => reconcile();
 
   const pollRemote = useCallback(async () => {
     if (!enabled || !setId || document.visibilityState !== 'visible') return;
@@ -323,11 +384,17 @@ export function useGoogleDriveWorkingSession({
     try {
       if (inFlightRef.current) await inFlightRef.current;
       if (generation !== generationRef.current) return;
-      const priorBinding = bindingRef.current ?? await getGoogleDriveWorkBinding(setId);
-      if (holdUnresolvedDriveSave(priorBinding)) return;
+      let latest = await readCurrentBinding(generation);
+      if (!latest.valid) return;
+      await waitForGoogleDriveTargetSave(latest.binding);
+      latest = await readCurrentBinding(generation);
+      if (!latest.valid || holdUnresolvedDriveSave(latest.binding)) return;
       const check = await revalidateGoogleDriveWorkBinding(setId);
-      if (generation !== generationRef.current) return;
-      if (holdUnresolvedDriveSave(check.binding)) return;
+      if (!await canPublishForBinding(check.binding, generation)) {
+        const active = await readCurrentBinding(generation);
+        if (active.valid && !isSameGoogleDriveTarget(active.binding, check.binding)) await reconcile();
+        return;
+      }
       const nextWritable = canWriteProject(check.project);
       if (shouldApplyGoogleDriveRemoteProbe(check.kind, writableRef.current, nextWritable)) {
         await reconcile(check);
@@ -338,13 +405,16 @@ export function useGoogleDriveWorkingSession({
         queuedRef.current = false;
         clearTimer();
       }
-      if (generation === generationRef.current) setState(stateForError(error));
+      const latest = await readCurrentBinding(generation).catch(() => ({ valid: false, binding: null as GoogleDriveProjectBinding | null }));
+      if (latest.valid && !holdUnresolvedDriveSave(latest.binding)) setState(stateForError(error));
     }
-  }, [clearTimer, enabled, holdUnresolvedDriveSave, reconcile, setId]);
+  }, [canPublishForBinding, clearTimer, enabled, holdUnresolvedDriveSave, readCurrentBinding, reconcile, setId]);
 
   const repairLink = useCallback(async () => {
     const receipt = state.receipt;
-    if (!receipt || state.phase !== 'recovery-required') return;
+    if (!receipt || state.phase !== 'recovery-required' || !setId) return;
+    const current = await getGoogleDriveWorkBinding(setId);
+    if (current && !isSameGoogleDriveTarget(current, receipt)) return;
     setState({ phase: 'checking', message: 'Repairing the confirmed Drive link…', receipt });
     try {
       const repaired = await repairConfirmedGoogleDriveLink(receipt);
@@ -360,7 +430,7 @@ export function useGoogleDriveWorkingSession({
         receipt,
       });
     }
-  }, [state.phase, state.receipt]);
+  }, [setId, state.phase, state.receipt]);
 
   useEffect(() => {
     generationRef.current += 1;

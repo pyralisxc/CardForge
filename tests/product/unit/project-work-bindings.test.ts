@@ -46,7 +46,7 @@ vi.mock('@/features/project/store/workspaceStore', () => {
   return { useProjectStore: { getState: () => state } };
 });
 
-import { GoogleDriveSaveLinkageError, copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
+import { resetGoogleDriveTargetSaveStateForTests, GoogleDriveSaveLinkageError, copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
 import { disconnectLocalProjectFolder, getLocalProjectFolderStatus, saveCardSetToAttachedFolder, saveProjectToAttachedFolder } from '@/features/project/client/localProjectFolder';
 
 const driveBinding = { fileId: 'drive-file-12345', name: 'C', providerRevision: '1', projectRevision: 'a'.repeat(64), workId: 'set-c' };
@@ -61,8 +61,13 @@ const folder = (name: string) => {
 };
 
 beforeEach(() => {
+  resetGoogleDriveTargetSaveStateForTests();
   vi.clearAllMocks();
   mock.values.clear();
+  mock.build.mockReset();
+  mock.build.mockImplementation(async ({ document, name }: { document: unknown; name: string }) => ({
+    document, manifest: { name, projectRevision: 'b'.repeat(64), savedAt: '2026-09-05' },
+  }));
   mock.namespace = 'test';
   mock.onWrite = undefined;
   mock.failWriteKey = null;

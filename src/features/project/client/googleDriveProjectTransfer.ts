@@ -125,6 +125,27 @@ export const getGoogleDriveSaveBarrier = (
   return key ? unresolvedDriveTargetSaves.get(key) ?? null : null;
 };
 
+/** A manual Save and autosave share the same browser target until the prior receipt settles. */
+export const waitForGoogleDriveTargetSave = async (
+  binding: Pick<GoogleDriveProjectBinding, 'fileId'> | null,
+  namespace = getScopedProjectStorageNamespace('project-assets'),
+): Promise<void> => {
+  const key = driveTargetKey(namespace, binding);
+  if (key) await activeDriveTargetSaves.get(key);
+};
+
+/** Binding changes (F → independent F2) must not inherit the old file's hold. */
+export const isSameGoogleDriveTarget = (
+  left: Pick<GoogleDriveProjectBinding, 'fileId' | 'accountId'> | null,
+  right: Pick<GoogleDriveProjectBinding, 'fileId' | 'accountId'> | null,
+): boolean => left?.fileId === right?.fileId && left?.accountId === right?.accountId;
+
+/** Test isolation only; never clears a real browser's unresolved provider outcome. */
+export const resetGoogleDriveTargetSaveStateForTests = () => {
+  activeDriveTargetSaves.clear();
+  unresolvedDriveTargetSaves.clear();
+};
+
 /** Clear only a provider-confirmed receipt whose exact browser linkage was repaired. */
 export const clearConfirmedGoogleDriveLinkBarrier = (
   repaired: GoogleDriveProjectBinding,
