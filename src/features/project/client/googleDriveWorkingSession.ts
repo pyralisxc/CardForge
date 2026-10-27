@@ -11,6 +11,7 @@ import { hasProjectDocumentStateChanged } from './projectWorkspaceDocument';
 import {
   GoogleDriveSaveLinkageError,
   GoogleDriveUnknownCommitError,
+  getGoogleDriveSaveBarrier,
   getGoogleDriveWorkBinding,
   hasGoogleDriveWorkingChanges,
   probeGoogleDriveProject,
@@ -159,6 +160,16 @@ export function useGoogleDriveWorkingSession({
     timerRef.current = null;
   }, []);
 
+  const holdUnresolvedDriveSave = useCallback((binding: GoogleDriveProjectBinding | null) => {
+    const barrier = getGoogleDriveSaveBarrier(binding);
+    if (!barrier) return false;
+    writableRef.current = false;
+    queuedRef.current = false;
+    clearTimer();
+    setState(stateForError(barrier));
+    return true;
+  }, [clearTimer]);
+
   const saveNow = useCallback(async () => {
     if (!enabled || !setId || writableRef.current === false) return;
     if (inFlightRef.current) {
@@ -174,6 +185,7 @@ export function useGoogleDriveWorkingSession({
         setState({ phase: 'unlinked', message: 'Browser work', receipt: null });
         return;
       }
+      if (holdUnresolvedDriveSave(binding)) return;
       let dirty: boolean;
       try {
         dirty = await hasGoogleDriveWorkingChanges(binding);
@@ -218,7 +230,7 @@ export function useGoogleDriveWorkingSession({
         timerRef.current = setTimeout(() => { void saveNowRef.current(); }, DRIVE_AUTOSAVE_DELAY_MS);
       }
     }
-  }, [clearTimer, enabled, name, setId]);
+  }, [clearTimer, enabled, holdUnresolvedDriveSave, name, setId]);
   saveNowRef.current = saveNow;
 
   const scheduleSave = useCallback(() => {
@@ -239,8 +251,11 @@ export function useGoogleDriveWorkingSession({
     try {
       if (inFlightRef.current) await inFlightRef.current;
       if (generation !== generationRef.current) return;
+      const priorBinding = knownCheck?.binding ?? bindingRef.current ?? await getGoogleDriveWorkBinding(setId);
+      if (holdUnresolvedDriveSave(priorBinding)) return;
       const check = knownCheck ?? await revalidateGoogleDriveWorkBinding(setId);
       if (generation !== generationRef.current) return;
+      if (holdUnresolvedDriveSave(check.binding)) return;
       bindingRef.current = check.binding;
       if (check.kind === 'unlinked') {
         writableRef.current = null;
@@ -297,7 +312,7 @@ export function useGoogleDriveWorkingSession({
       }
       if (generation === generationRef.current) setState(stateForError(error));
     }
-  }, [clearTimer, enabled, scheduleSave, setId]);
+  }, [clearTimer, enabled, holdUnresolvedDriveSave, scheduleSave, setId]);
 
   const pollRemote = useCallback(async () => {
     if (!enabled || !setId || document.visibilityState !== 'visible') return;
@@ -305,8 +320,11 @@ export function useGoogleDriveWorkingSession({
     try {
       if (inFlightRef.current) await inFlightRef.current;
       if (generation !== generationRef.current) return;
+      const priorBinding = bindingRef.current ?? await getGoogleDriveWorkBinding(setId);
+      if (holdUnresolvedDriveSave(priorBinding)) return;
       const check = await revalidateGoogleDriveWorkBinding(setId);
       if (generation !== generationRef.current) return;
+      if (holdUnresolvedDriveSave(check.binding)) return;
       const nextWritable = canWriteProject(check.project);
       if (shouldApplyGoogleDriveRemoteProbe(check.kind, writableRef.current, nextWritable)) {
         await reconcile(check);
@@ -319,7 +337,7 @@ export function useGoogleDriveWorkingSession({
       }
       if (generation === generationRef.current) setState(stateForError(error));
     }
-  }, [clearTimer, enabled, reconcile, setId]);
+  }, [clearTimer, enabled, holdUnresolvedDriveSave, reconcile, setId]);
 
   const repairLink = useCallback(async () => {
     const receipt = state.receipt;

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mock = vi.hoisted(() => ({
+  clearBarrier: vi.fn(),
   scope: 'account:creator-1' as string,
   cardSets: [{ id: 'set-1' }],
   writes: [] as Array<{ key: string; value: unknown }>,
@@ -25,6 +26,7 @@ vi.mock('@/features/project/store/workspaceStore', () => ({
 }));
 
 vi.mock('@/features/project/client/googleDriveProjectTransfer', () => ({
+  clearConfirmedGoogleDriveLinkBarrier: mock.clearBarrier,
   getGoogleDriveWorkBinding: vi.fn(async () => mock.currentBinding),
   loadGoogleDriveProjectLibrary: vi.fn(async () => ({ projects: mock.projects })),
 }));
@@ -61,6 +63,7 @@ describe('confirmed Google Drive linkage repair', () => {
     mock.scope = 'account:creator-1';
     mock.cardSets = [{ id: 'set-1' }];
     mock.writes = [];
+    mock.clearBarrier.mockClear();
     mock.currentBinding = null;
     mock.projects = [currentProject()];
   });
@@ -72,6 +75,8 @@ describe('confirmed Google Drive linkage repair', () => {
       accountId: 'google-user-1',
       projectRevision: 'b'.repeat(64),
     });
+    expect(mock.clearBarrier).toHaveBeenCalledOnce();
+    expect(mock.clearBarrier).toHaveBeenCalledWith(expect.objectContaining({ fileId: 'drive-file-12345', workId: 'set-1' }), 'project-assets:account:creator-1');
     expect(mock.writes).toEqual([
       {
         key: 'project-assets:account:creator-1:google-drive-work-binding:set-1',

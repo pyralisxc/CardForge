@@ -4,6 +4,7 @@ import { writeStructuredBrowserValue } from '../persistence/structuredBrowserSto
 import { getProjectPersistenceScope, getScopedProjectStorageNamespace } from '../persistence/projectPersistenceScope';
 import { useProjectStore } from '../store/workspaceStore';
 import {
+  clearConfirmedGoogleDriveLinkBarrier,
   getGoogleDriveWorkBinding,
   loadGoogleDriveProjectLibrary,
   type GoogleDriveProjectBinding,
@@ -72,5 +73,7 @@ export const repairConfirmedGoogleDriveLink = async (
     || persisted.accountId !== repaired.accountId) {
     throw new Error('Drive was not changed, but CardForge could not verify the repaired browser link. Keep the receipt and retry linkage repair later.');
   }
+  // Only provider-exact readback and verified local linkage release this barrier.
+  clearConfirmedGoogleDriveLinkBarrier(persisted, namespace);
   return persisted;
 };

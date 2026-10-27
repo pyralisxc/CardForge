@@ -110,6 +110,73 @@ export class GoogleDriveSaveLinkageError extends ProjectPackageError {
   }
 }
 
+/** Browser-only serialization by scoped Drive file identity, shared by autosave and manual Save. */
+const activeDriveTargetSaves = new Map<string, Promise<void>>();
+const unresolvedDriveTargetSaves = new Map<string, GoogleDriveUnknownCommitError | GoogleDriveSaveLinkageError>();
+const driveTargetKey = (namespace: string, binding: Pick<GoogleDriveProjectBinding, 'fileId'> | null) => (
+  binding ? `${namespace}:drive-file:${binding.fileId}` : null
+);
+
+export const getGoogleDriveSaveBarrier = (
+  binding: Pick<GoogleDriveProjectBinding, 'fileId'> | null,
+  namespace = getScopedProjectStorageNamespace('project-assets'),
+): GoogleDriveUnknownCommitError | GoogleDriveSaveLinkageError | null => {
+  const key = driveTargetKey(namespace, binding);
+  return key ? unresolvedDriveTargetSaves.get(key) ?? null : null;
+};
+
+/** Clear only a provider-confirmed receipt whose exact browser linkage was repaired. */
+export const clearConfirmedGoogleDriveLinkBarrier = (
+  repaired: GoogleDriveProjectBinding,
+  namespace = getScopedProjectStorageNamespace('project-assets'),
+): void => {
+  const key = driveTargetKey(namespace, repaired);
+  if (!key) return;
+  const blocked = unresolvedDriveTargetSaves.get(key);
+  if (blocked instanceof GoogleDriveSaveLinkageError
+    && blocked.sourceReceipt.fileId === repaired.fileId
+    && blocked.sourceReceipt.providerRevision === repaired.providerRevision
+    && blocked.sourceReceipt.projectRevision === repaired.projectRevision
+    && blocked.sourceReceipt.accountId === repaired.accountId
+    && blocked.sourceReceipt.workId === repaired.workId) {
+    unresolvedDriveTargetSaves.delete(key);
+  }
+};
+
+export const serializeGoogleDriveTargetSave = async <T>(
+  namespace: string,
+  binding: Pick<GoogleDriveProjectBinding, 'fileId'> | null,
+  save: () => Promise<T>,
+): Promise<T> => {
+  const key = driveTargetKey(namespace, binding);
+  if (!key) {
+    assertBindingScope(namespace);
+    return save(); // A new independent file has no shared target yet.
+  }
+  const previous = activeDriveTargetSaves.get(key);
+  const attempt = (async () => {
+    if (previous) await previous;
+    assertBindingScope(namespace);
+    const blocked = unresolvedDriveTargetSaves.get(key);
+    if (blocked) throw blocked; // Never turn a lost receipt into a second PUT.
+    try {
+      return await save();
+    } catch (error) {
+      if (error instanceof GoogleDriveUnknownCommitError || error instanceof GoogleDriveSaveLinkageError) {
+        unresolvedDriveTargetSaves.set(key, error);
+      }
+      throw error;
+    }
+  })();
+  const settled = attempt.then(() => undefined, () => undefined);
+  activeDriveTargetSaves.set(key, settled);
+  try {
+    return await attempt;
+  } finally {
+    if (activeDriveTargetSaves.get(key) === settled) activeDriveTargetSaves.delete(key);
+  }
+};
+
 /** Only used after uploadPackage returned a usable provider receipt. Never retries or deletes source work. */
 const persistSavedDriveBinding = async (binding: GoogleDriveProjectBinding, namespace: string): Promise<void> => {
   try {
@@ -404,9 +471,15 @@ export const saveCurrentProjectToGoogleDrive = async ({
   renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
 }): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
-  const existing = asNew ? null : await getGoogleDriveProjectBinding();
+  const initial = asNew ? null : await getGoogleDriveProjectBinding();
   assertBindingScope(namespace);
-  if (existing?.workId) return await saveCardSetToGoogleDrive({ setId: existing.workId, name, renderThumbnail });
+  if (initial?.workId) return saveCardSetToGoogleDrive({ setId: initial.workId, name, renderThumbnail });
+  return serializeGoogleDriveTargetSave(namespace, initial, async () => {
+    const existing = asNew ? null : await getGoogleDriveProjectBinding();
+    assertBindingScope(namespace);
+    if (initial && existing?.fileId !== initial.fileId) {
+      throw new ProjectPackageError('The Drive target changed while another save completed. Reopen the current file before saving.');
+    }
   if (existing && existing.packageScope !== 'workspace') {
     throw new ProjectPackageError('Reopen this Drive file before saving so CardForge can verify whether it contains one Set or a workspace backup. Existing files were left unchanged.');
   }
@@ -434,6 +507,7 @@ export const saveCurrentProjectToGoogleDrive = async ({
   });
   await persistSavedDriveBinding(binding, namespace);
   return binding;
+  });
 };
 
 export const saveCardSetToGoogleDrive = async ({
@@ -448,7 +522,14 @@ export const saveCardSetToGoogleDrive = async ({
   renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
 }): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
-  const existing = asNew ? null : await getGoogleDriveWorkBinding(setId);
+  const initial = asNew ? null : await getGoogleDriveWorkBinding(setId);
+  assertBindingScope(namespace);
+  return serializeGoogleDriveTargetSave(namespace, initial, async () => {
+    const existing = asNew ? null : await getGoogleDriveWorkBinding(setId);
+    assertBindingScope(namespace);
+    if (initial && existing?.fileId !== initial.fileId) {
+      throw new ProjectPackageError('The Set’s Drive target changed while another save completed. Reopen the current file before saving.');
+    }
   if (existing?.packageScope === 'workspace') {
     throw new ProjectPackageError('This Set came from a multi-Set workspace file. Use Save as new to create its own Drive document; the workspace file was left unchanged.');
   }
@@ -483,6 +564,7 @@ export const saveCardSetToGoogleDrive = async ({
   });
   await persistSavedDriveBinding(binding, namespace);
   return binding;
+  });
 };
 
 const downloadGoogleDriveProject = async (
