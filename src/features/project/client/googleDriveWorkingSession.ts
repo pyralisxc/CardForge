@@ -273,6 +273,7 @@ export function useGoogleDriveWorkingSession({
       if (check.kind === 'changed' && check.binding) {
         const dirty = await hasGoogleDriveWorkingChanges(check.binding);
         if (generation !== generationRef.current) return;
+        if (holdUnresolvedDriveSave(check.binding)) return;
         if (shouldPauseGoogleDriveAutosaveAfterRevalidation(check.kind, dirty)) {
           writableRef.current = false;
           queuedRef.current = false;
@@ -283,6 +284,7 @@ export function useGoogleDriveWorkingSession({
         setState({ phase: 'checking', message: 'Refreshing newer Drive revision…', receipt: check.binding });
         const refreshed = await refreshGoogleDriveProject(check.binding);
         if (generation === generationRef.current) {
+          if (holdUnresolvedDriveSave(refreshed)) return;
           bindingRef.current = refreshed;
           setState(writableRef.current === false
             ? { phase: 'read-only', message: 'Updated from Drive · read-only', receipt: refreshed }
@@ -299,6 +301,7 @@ export function useGoogleDriveWorkingSession({
       if (check.binding) {
         const dirty = await hasGoogleDriveWorkingChanges(check.binding);
         if (generation !== generationRef.current) return;
+        if (holdUnresolvedDriveSave(check.binding)) return;
         setState(dirty
           ? { phase: 'dirty', message: 'Drive save pending', receipt: check.binding }
           : { phase: 'clean', message: 'Saved to Drive', receipt: check.binding });
