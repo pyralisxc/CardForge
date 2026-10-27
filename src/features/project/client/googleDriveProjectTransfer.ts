@@ -35,6 +35,7 @@ import {
 import type { ProjectDocumentV1 } from '../model/projectDocument';
 import { mapProjectDocumentIdentity, type ProjectDocumentIdentityMap } from '../model/projectDocumentIdentity';
 import { primeProjectBinaryAssetUrls } from './useProjectBinaryAssetUrl';
+import { clearDriveSaveHold, withDriveSaveOwner } from './googleDriveSaveOwner';
 
 const GOOGLE_DRIVE_BINDING_KEY = 'google-drive-project-binding';
 const GOOGLE_DRIVE_WORK_BINDING_KEY = 'google-drive-work-binding';
@@ -395,52 +396,49 @@ const toBinding = async ({
 });
 
 export const saveCurrentProjectToGoogleDrive = async ({
-  name,
-  asNew = false,
-  renderThumbnail,
+  name, asNew = false, renderThumbnail,
 }: {
   name: string;
   asNew?: boolean;
   renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
 }): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
-  const existing = asNew ? null : await getGoogleDriveProjectBinding();
+  const starting = asNew ? null : await getGoogleDriveProjectBinding();
   assertBindingScope(namespace);
-  if (existing?.workId) return await saveCardSetToGoogleDrive({ setId: existing.workId, name, renderThumbnail });
-  if (existing && existing.packageScope !== 'workspace') {
-    throw new ProjectPackageError('Reopen this Drive file before saving so CardForge can verify whether it contains one Set or a workspace backup. Existing files were left unchanged.');
-  }
-  if (existing?.runtimeSetIds) {
-    throw new ProjectPackageError('This file contains multiple Sets. Save a new workspace backup or save each Set separately; the original Drive file was left unchanged.');
-  }
-  const { document, snapshot, blob } = await createProjectPackage(name);
-  const thumbnail = await renderThumbnail?.(document) ?? null;
-  assertBindingScope(namespace);
-  const plan = await prepareUpload({
-    name: snapshot.manifest.name,
-    size: blob.size,
-    projectRevision: snapshot.manifest.projectRevision,
-    binding: existing,
-    workId: null,
-    thumbnail,
-  });
-  assertBindingScope(namespace);
-  const completed = await uploadPackage(plan, blob);
-  const binding = await toBinding({
-    completed,
-    projectRevision: snapshot.manifest.projectRevision,
-    fallbackName: plan.name,
-    workId: null,
-  });
-  await persistSavedDriveBinding(binding, namespace);
-  return binding;
+  if (starting?.workId) return saveCardSetToGoogleDrive({ setId: starting.workId, name, renderThumbnail });
+  return withDriveSaveOwner(namespace, 'workspace', starting, async () => {
+    const existing = asNew ? null : await getGoogleDriveProjectBinding();
+    assertBindingScope(namespace);
+    if (starting && (!existing || existing.fileId !== starting.fileId || (starting.accountId && existing.accountId !== starting.accountId))) {
+      throw new ProjectPackageError('The attached Drive document changed while a save waited. Reload the current location before saving.');
+    }
+    if (existing?.workId || (existing && existing.packageScope !== 'workspace')) {
+      throw new ProjectPackageError('Reopen this Drive file before saving so CardForge can verify whether it contains one Set or a workspace backup. Existing files were left unchanged.');
+    }
+    if (existing?.runtimeSetIds) {
+      throw new ProjectPackageError('This file contains multiple Sets. Save a new workspace backup or save each Set separately; the original Drive file was left unchanged.');
+    }
+    const { document, snapshot, blob } = await createProjectPackage(name);
+    assertBindingScope(namespace);
+    if (existing && existing.projectRevision === snapshot.manifest.projectRevision && existing.name === snapshot.manifest.name) return existing;
+    const thumbnail = await renderThumbnail?.(document) ?? null;
+    assertBindingScope(namespace);
+    const plan = await prepareUpload({
+      name: snapshot.manifest.name, size: blob.size, projectRevision: snapshot.manifest.projectRevision,
+      binding: existing, workId: null, thumbnail,
+    });
+    assertBindingScope(namespace);
+    const completed = await uploadPackage(plan, blob);
+    const binding = await toBinding({
+      completed, projectRevision: snapshot.manifest.projectRevision, fallbackName: plan.name, workId: null,
+    });
+    await persistSavedDriveBinding(binding, namespace);
+    return binding;
+  }, asNew);
 };
 
 export const saveCardSetToGoogleDrive = async ({
-  setId,
-  name,
-  asNew = false,
-  renderThumbnail,
+  setId, name, asNew = false, renderThumbnail,
 }: {
   setId: string;
   name: string;
@@ -448,41 +446,42 @@ export const saveCardSetToGoogleDrive = async ({
   renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
 }): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
-  const existing = asNew ? null : await getGoogleDriveWorkBinding(setId);
-  if (existing?.packageScope === 'workspace') {
-    throw new ProjectPackageError('This Set came from a multi-Set workspace file. Use Save as new to create its own Drive document; the workspace file was left unchanged.');
-  }
-  // A first save keeps the existing local IDs as portable IDs. Record that
-  // identity map while encoding so the saved document can refresh in place.
-  const identities = structuredClone(existing?.identities ?? {});
-  const { document, snapshot, blob, localProjectRevision } = await createProjectPackage(name, setId, identities);
-  const thumbnail = await renderThumbnail?.(document) ?? null;
+  // An independent copy can proceed even when the old attachment is unreadable.
+  const starting = asNew ? null : await getGoogleDriveWorkBinding(setId);
   assertBindingScope(namespace);
-  const plan = await prepareUpload({
-    name: snapshot.manifest.name,
-    size: blob.size,
-    projectRevision: snapshot.manifest.projectRevision,
-    binding: existing,
-    workId: existing?.portableWorkId ?? setId,
-    thumbnail,
-  });
-  assertBindingScope(namespace);
-  const completed = await uploadPackage(plan, blob);
-  const binding = await toBinding({
-    completed,
-    projectRevision: snapshot.manifest.projectRevision,
-    fallbackName: plan.name,
-    workId: setId,
-  });
-  Object.assign(binding, {
-    accountId: plan.accountId ?? existing?.accountId,
-    portableWorkId: existing?.portableWorkId ?? setId,
-    identities,
-    runtimeSetIds: [setId],
-    localProjectRevision,
-  });
-  await persistSavedDriveBinding(binding, namespace);
-  return binding;
+  return withDriveSaveOwner(namespace, setId, starting, async () => {
+    // Re-read the real binding and capture the *current* checkpoint after ownership.
+    const existing = asNew ? null : await getGoogleDriveWorkBinding(setId);
+    assertBindingScope(namespace);
+    if (starting && (!existing || starting.fileId !== existing.fileId || (starting.accountId && starting.accountId !== existing.accountId))) {
+      throw new ProjectPackageError('The attached Drive file/account changed while a save waited. Reopen its current location before saving.');
+    }
+    if (existing?.packageScope === 'workspace') {
+      throw new ProjectPackageError('This Set came from a multi-Set workspace file. Use Save as new to create its own Drive document; the workspace file was left unchanged.');
+    }
+    const identities = structuredClone(existing?.identities ?? {});
+    const { document, snapshot, blob, localProjectRevision } = await createProjectPackage(name, setId, identities);
+    assertBindingScope(namespace);
+    if (existing && existing.localProjectRevision === localProjectRevision && existing.name === snapshot.manifest.name) return existing;
+    const thumbnail = await renderThumbnail?.(document) ?? null;
+    assertBindingScope(namespace);
+    const plan = await prepareUpload({
+      name: snapshot.manifest.name, size: blob.size, projectRevision: snapshot.manifest.projectRevision,
+      binding: existing, workId: existing?.portableWorkId ?? setId, thumbnail,
+    });
+    assertBindingScope(namespace);
+    const completed = await uploadPackage(plan, blob);
+    const binding = await toBinding({
+      completed, projectRevision: snapshot.manifest.projectRevision, fallbackName: plan.name, workId: setId,
+    });
+    Object.assign(binding, {
+      accountId: plan.accountId ?? existing?.accountId,
+      portableWorkId: existing?.portableWorkId ?? setId,
+      identities, runtimeSetIds: [setId], localProjectRevision,
+    });
+    await persistSavedDriveBinding(binding, namespace);
+    return binding;
+  }, asNew);
 };
 
 const downloadGoogleDriveProject = async (
@@ -623,6 +622,7 @@ export const refreshGoogleDriveProject = async (binding: GoogleDriveProjectBindi
   assertBindingScope(namespace);
   await persistWorkBinding(binding.workId, next, namespace);
   await persistBinding(next, namespace);
+  clearDriveSaveHold(namespace, binding.workId, binding);
   return next;
 };
 

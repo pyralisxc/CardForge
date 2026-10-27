@@ -3,6 +3,7 @@
 import { writeStructuredBrowserValue } from '../persistence/structuredBrowserStorage';
 import { getProjectPersistenceScope, getScopedProjectStorageNamespace } from '../persistence/projectPersistenceScope';
 import { useProjectStore } from '../store/workspaceStore';
+import { clearDriveSaveHold } from './googleDriveSaveOwner';
 import {
   getGoogleDriveWorkBinding,
   loadGoogleDriveProjectLibrary,
@@ -72,5 +73,6 @@ export const repairConfirmedGoogleDriveLink = async (
     || persisted.accountId !== repaired.accountId) {
     throw new Error('Drive was not changed, but CardForge could not verify the repaired browser link. Keep the receipt and retry linkage repair later.');
   }
+  clearDriveSaveHold(namespace, workId, receipt); // no Drive upload: verified local linkage only
   return persisted;
 };

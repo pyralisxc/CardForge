@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiClientError } from '@/infrastructure/http/clientResponses';
 
 import type { GoogleDriveProjectSummary } from '../model/googleDriveProject';
+import { getScopedProjectStorageNamespace } from '../persistence/projectPersistenceScope';
+import { getDriveSaveHold, holdDriveSaveForRecovery, type DriveSaveHold } from './googleDriveSaveOwner';
 import { useProjectStore } from '../store/workspaceStore';
 import { repairConfirmedGoogleDriveLink } from './googleDriveLinkRepair';
 import { hasProjectDocumentStateChanged } from './projectWorkspaceDocument';
@@ -148,6 +150,7 @@ export function useGoogleDriveWorkingSession({
   const [state, setState] = useState<GoogleDriveWorkingSessionState>(initialState);
   const bindingRef = useRef<GoogleDriveProjectBinding | null>(null);
   const writableRef = useRef<boolean | null>(null);
+  const recoveryRef = useRef<DriveSaveHold | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef<Promise<void> | null>(null);
   const queuedRef = useRef(false);
@@ -159,8 +162,21 @@ export function useGoogleDriveWorkingSession({
     timerRef.current = null;
   }, []);
 
+  const preserveRecovery = useCallback((held: DriveSaveHold) => {
+    recoveryRef.current = held;
+    writableRef.current = false;
+    queuedRef.current = false;
+    clearTimer();
+    const failure = stateForError(held.cause);
+    setState(held.reason === 'remote-dirty'
+      ? { phase: 'remote-changed', message: held.cause.message, receipt: held.binding }
+      : { ...failure, receipt: failure.receipt ?? held.binding });
+  }, [clearTimer]);
+
   const saveNow = useCallback(async () => {
     if (!enabled || !setId || writableRef.current === false) return;
+    const hold = getDriveSaveHold(getScopedProjectStorageNamespace('project-assets'), setId, bindingRef.current);
+    if (hold) { preserveRecovery(hold); return; }
     if (inFlightRef.current) {
       queuedRef.current = true;
       await inFlightRef.current;
@@ -181,6 +197,8 @@ export function useGoogleDriveWorkingSession({
         if (generation === generationRef.current) setState(stateForError(error));
         return;
       }
+      const observedHold = getDriveSaveHold(getScopedProjectStorageNamespace('project-assets'), setId, binding);
+      if (observedHold) { preserveRecovery(observedHold); return; }
       if (!dirty) {
         if (generation === generationRef.current) setState({ phase: 'clean', message: 'Saved to Drive', receipt: binding });
         return;
@@ -204,7 +222,11 @@ export function useGoogleDriveWorkingSession({
           queuedRef.current = false;
           clearTimer();
         }
-        if (generation === generationRef.current) setState(stateForError(error));
+        if (generation === generationRef.current) {
+          const held = getDriveSaveHold(getScopedProjectStorageNamespace('project-assets'), setId, bindingRef.current);
+          if (held) preserveRecovery(held);
+          else setState(stateForError(error));
+        }
       }
     })();
     inFlightRef.current = run;
@@ -218,7 +240,7 @@ export function useGoogleDriveWorkingSession({
         timerRef.current = setTimeout(() => { void saveNowRef.current(); }, DRIVE_AUTOSAVE_DELAY_MS);
       }
     }
-  }, [clearTimer, enabled, name, setId]);
+  }, [clearTimer, enabled, name, preserveRecovery, setId]);
   saveNowRef.current = saveNow;
 
   const scheduleSave = useCallback(() => {
@@ -226,6 +248,7 @@ export function useGoogleDriveWorkingSession({
     // Never turn that ordinary browser work into a false Drive-pending state;
     // reconcile() will schedule the save if it finds a real linked document.
     if (!enabled || !setId || writableRef.current === false || !bindingRef.current) return;
+    if (getDriveSaveHold(getScopedProjectStorageNamespace('project-assets'), setId, bindingRef.current)) return;
     clearTimer();
     // Store subscriptions include camera, selection, and other UI-only changes.
     // Keep the visible receipt authoritative until saveNow compares the canonical
@@ -239,8 +262,15 @@ export function useGoogleDriveWorkingSession({
     try {
       if (inFlightRef.current) await inFlightRef.current;
       if (generation !== generationRef.current) return;
+      const namespace = getScopedProjectStorageNamespace('project-assets');
+      const paused = getDriveSaveHold(namespace, setId, bindingRef.current);
+      if (paused) { preserveRecovery(paused); return; }
+      // Only native explicit refresh or verified receipt repair clears this hold.
+      recoveryRef.current = null;
       const check = knownCheck ?? await revalidateGoogleDriveWorkBinding(setId);
       if (generation !== generationRef.current) return;
+      const observed = getDriveSaveHold(namespace, setId, check.binding);
+      if (observed) { preserveRecovery(observed); return; }
       bindingRef.current = check.binding;
       if (check.kind === 'unlinked') {
         writableRef.current = null;
@@ -262,7 +292,11 @@ export function useGoogleDriveWorkingSession({
           writableRef.current = false;
           queuedRef.current = false;
           clearTimer();
-          setState({ phase: 'remote-changed', message: 'Drive changed while this browser also has edits. Use Save & move for an independent copy or return to Library to compare before saving.', receipt: check.binding });
+          preserveRecovery(holdDriveSaveForRecovery(
+            namespace, setId, check.binding,
+            new Error('Drive changed while this browser also has edits. Use Save & move for an independent copy or return to Library to compare before saving.'),
+            'remote-dirty',
+          ));
           return;
         }
         setState({ phase: 'checking', message: 'Refreshing newer Drive revision…', receipt: check.binding });
@@ -295,9 +329,13 @@ export function useGoogleDriveWorkingSession({
         queuedRef.current = false;
         clearTimer();
       }
-      if (generation === generationRef.current) setState(stateForError(error));
+      if (generation === generationRef.current) {
+        const held = getDriveSaveHold(getScopedProjectStorageNamespace('project-assets'), setId, bindingRef.current);
+        if (held) preserveRecovery(held);
+        else setState(stateForError(error));
+      }
     }
-  }, [clearTimer, enabled, scheduleSave, setId]);
+  }, [clearTimer, enabled, preserveRecovery, scheduleSave, setId]);
 
   const pollRemote = useCallback(async () => {
     if (!enabled || !setId || document.visibilityState !== 'visible') return;
@@ -305,6 +343,8 @@ export function useGoogleDriveWorkingSession({
     try {
       if (inFlightRef.current) await inFlightRef.current;
       if (generation !== generationRef.current) return;
+      const held = getDriveSaveHold(getScopedProjectStorageNamespace('project-assets'), setId, bindingRef.current);
+      if (held) { preserveRecovery(held); return; }
       const check = await revalidateGoogleDriveWorkBinding(setId);
       if (generation !== generationRef.current) return;
       const nextWritable = canWriteProject(check.project);
@@ -317,9 +357,13 @@ export function useGoogleDriveWorkingSession({
         queuedRef.current = false;
         clearTimer();
       }
-      if (generation === generationRef.current) setState(stateForError(error));
+      if (generation === generationRef.current) {
+        const held = getDriveSaveHold(getScopedProjectStorageNamespace('project-assets'), setId, bindingRef.current);
+        if (held) preserveRecovery(held);
+        else setState(stateForError(error));
+      }
     }
-  }, [clearTimer, enabled, reconcile, setId]);
+  }, [clearTimer, enabled, preserveRecovery, reconcile, setId]);
 
   const repairLink = useCallback(async () => {
     const receipt = state.receipt;
@@ -328,6 +372,7 @@ export function useGoogleDriveWorkingSession({
     try {
       const repaired = await repairConfirmedGoogleDriveLink(receipt);
       bindingRef.current = repaired;
+      recoveryRef.current = null;
       writableRef.current = true;
       queuedRef.current = false;
       setState({ phase: 'clean', message: 'Drive link repaired · revision already saved', receipt: repaired });
@@ -344,6 +389,7 @@ export function useGoogleDriveWorkingSession({
   useEffect(() => {
     generationRef.current += 1;
     bindingRef.current = null;
+    recoveryRef.current = null;
     writableRef.current = null;
     queuedRef.current = false;
     clearTimer();

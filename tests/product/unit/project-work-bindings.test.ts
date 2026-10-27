@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 const headToken = (version: string) => 'head:' + createHash('sha256').update('native-' + version).digest('hex');
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getDriveSaveHold, resetDriveSaveOwnerForTests, withDriveSaveOwner } from '@/features/project/client/googleDriveSaveOwner';
 
 const mock = vi.hoisted(() => ({
   namespace: 'test',
@@ -61,6 +62,7 @@ const folder = (name: string) => {
 };
 
 beforeEach(() => {
+  resetDriveSaveOwnerForTests();
   vi.clearAllMocks();
   mock.values.clear();
   mock.namespace = 'test';
@@ -139,11 +141,13 @@ describe('one authoritative Set location across save entry points', () => {
     expect(mock.captureSet).toHaveBeenCalledTimes(3);
     expect(renderThumbnail).toHaveBeenCalledWith(expect.objectContaining({ cardSets: [{ id: 'set-c', name: 'C' }] }));
     expect(prepare[0]).toMatchObject({ thumbnail: 'canonical-preview' });
+    // Once the first save owns the same local checkpoint, later entries do not
+    // start another resumable upload for identical bytes.
     expect(prepare.map((value) => [value.fileId, value.workId, value.expectedProviderRevision])).toEqual([
-      [driveBinding.fileId, 'set-c', '1'], [driveBinding.fileId, 'set-c', headToken('2')], [driveBinding.fileId, 'set-c', headToken('3')],
+      [driveBinding.fileId, 'set-c', '1'],
     ]);
     expect(mock.values.get('test:google-drive-project-binding')).toEqual({ workId: 'set-c' });
-    expect(await getGoogleDriveProjectBinding()).toMatchObject({ providerRevision: headToken('4') });
+    expect(await getGoogleDriveProjectBinding()).toMatchObject({ providerRevision: headToken('2') });
   });
 
   it('saves a folder attachment using its canonical Set revision and scope', async () => {
@@ -412,5 +416,113 @@ describe('confirmed Drive save receipts survive browser-link failures', () => {
     expect([...mock.values.keys()].every((key) => key.startsWith('test:'))).toBe(true);
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(mock.apply).not.toHaveBeenCalled();
+  });
+});
+
+describe('same-target browser save ownership (real transfer entry points)', () => {
+  const binding = { ...driveBinding, accountId: 'account-a', localProjectRevision: 'a'.repeat(64) };
+  const deferred = <T>() => {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((done) => { resolve = done; });
+    return { promise, resolve };
+  };
+  it('serializes autosave and manual attached save, without preparing the same checkpoint twice', async () => {
+    mock.values.set('test:google-drive-work-binding:set-c', binding);
+    mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
+    const started = deferred<void>();
+    const complete = deferred<Response>();
+    let posts = 0;
+    const fetch = vi.fn(async (_url: string, options: RequestInit) => {
+      if (options.method === 'POST') { posts++; started.resolve(); return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C', accountId: 'account-a' }); }
+      return complete.promise;
+    });
+    vi.stubGlobal('fetch', fetch);
+    const auto = saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' });
+    await started.promise;
+    const manual = saveCurrentProjectToGoogleDrive({ name: 'C' });
+    expect(posts).toBe(1);
+    complete.resolve(Response.json({ id: binding.fileId, name: 'C', headRevisionId: 'native-2' }));
+    const [saved, redundant] = await Promise.all([auto, manual]);
+    expect(saved.providerRevision).toBe(headToken('2'));
+    expect(redundant.providerRevision).toBe(saved.providerRevision);
+    expect(posts).toBe(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('captures the newest authored checkpoint when a manual save waits for an autosave', async () => {
+    mock.values.set('test:google-drive-work-binding:set-c', binding);
+    mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
+    const started = deferred<void>();
+    const release = deferred<Response>();
+    let revision = 'b';
+    mock.build.mockImplementation(async ({ document, name }: { document: unknown; name: string }) => ({
+      document, manifest: { name, projectRevision: revision.repeat(64), savedAt: '2026-10-26' },
+    }));
+    const prepares: { projectRevision: string; expectedProviderRevision: string }[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, options: RequestInit) => {
+      if (options.method === 'POST') {
+        prepares.push(JSON.parse(options.body as string));
+        if (prepares.length === 1) started.resolve();
+        return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C', accountId: 'account-a' });
+      }
+      if (prepares.length === 1) return release.promise;
+      return Response.json({ id: binding.fileId, name: 'C', headRevisionId: 'native-3' });
+    }));
+    const auto = saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' });
+    await started.promise;
+    const manual = saveCurrentProjectToGoogleDrive({ name: 'C' });
+    revision = 'c';
+    release.resolve(Response.json({ id: binding.fileId, name: 'C', headRevisionId: 'native-2' }));
+    await Promise.all([auto, manual]);
+    expect(prepares).toHaveLength(2);
+    expect(prepares[0]).toMatchObject({ projectRevision: 'b'.repeat(64), expectedProviderRevision: '1' });
+    expect(prepares[1]).toMatchObject({ projectRevision: 'c'.repeat(64), expectedProviderRevision: headToken('2') });
+    expect(await getGoogleDriveProjectBinding()).toMatchObject({ projectRevision: 'c'.repeat(64) });
+  });
+
+  it('does not block unrelated Drive file identities in the same account', async () => {
+    const release = deferred<void>();
+    const started = deferred<void>();
+    const a = withDriveSaveOwner('test', 'set-a', { ...binding, fileId: 'drive-file-A' }, async () => {
+      started.resolve(); await release.promise; return 'a';
+    });
+    await started.promise;
+    const b = withDriveSaveOwner('test', 'set-b', { ...binding, fileId: 'drive-file-B' }, async () => 'b');
+    expect(await b).toBe('b');
+    release.resolve();
+    expect(await a).toBe('a');
+  });
+
+  it('retains an unknown-commit attempt across subsequent manual entry points without another preparation', async () => {
+    mock.values.set('test:google-drive-work-binding:set-c', binding);
+    mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' }))
+      .mockResolvedValueOnce(Response.json(null))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' })).rejects.toMatchObject({ code: 'source_commit_unknown' });
+    const hold = getDriveSaveHold('test', 'set-c', binding);
+    expect(hold).toMatchObject({ reason: 'unknown-commit', workId: 'set-c', attemptId: expect.any(Number) });
+    await expect(saveCurrentProjectToGoogleDrive({ name: 'C' })).rejects.toMatchObject({ code: 'source_commit_unknown' });
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(getDriveSaveHold('test', 'set-c', binding)?.attemptId).toBe(hold?.attemptId);
+  });
+
+  it('preserves a confirmed receipt after local linkage failure; no queued or manual upload repeats it', async () => {
+    mock.values.set('test:google-drive-work-binding:set-c', binding);
+    mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
+    mock.failWriteKey = 'test:google-drive-work-binding:set-c';
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C', accountId: 'account-a' }))
+      .mockResolvedValueOnce(Response.json({ id: binding.fileId, name: 'C', headRevisionId: 'native-2' }));
+    vi.stubGlobal('fetch', fetch);
+    const failed = await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' }).catch((error: unknown) => error);
+    expect(failed).toBeInstanceOf(GoogleDriveSaveLinkageError);
+    const hold = getDriveSaveHold('test', 'set-c', binding);
+    expect(hold?.reason).toBe('confirmed-receipt');
+    expect(hold?.cause).toBe(failed);
+    await expect(saveCurrentProjectToGoogleDrive({ name: 'C' })).rejects.toBe(failed);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
