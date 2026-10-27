@@ -129,6 +129,21 @@ try:
     expect_conflict(a, command('restore', held), 'catalog_trash_state_changed')
     expect_conflict(a, command('hold', held, 'true'), 'catalog_trash_state_changed')
     print('PASS: Move wins against expiry; Hold/Restore fail fast on contention; stale recovery cannot cross a later commitment')
+    # An in-flight authoritative consumer write cannot race a negative scan.
+    lineage, current, old, state = fixture(a)
+    consumer = 'concurrent-style-' + uuid.uuid4().hex
+    a.run("begin;")
+    a.run(f"""insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source,metadata)
+      values('{consumer}','Concurrent Style','elementPreset','https://example.invalid/style.json','published','free','official',
+       '{{"style":{{"id":"{consumer}","name":"Concurrent Style","kind":"material","targets":["shape"],"appearance":{{"assetSource":"contention-{lineage}"}}}}}}');""")
+    expect_busy(b, command('trash', state))
+    a.run('commit;')
+    reasons = json.loads(b.run(f"select public.cardforge_read_catalog_trash('{current}')::text;")[-1])['entryReasons']
+    assert 'pipeline_identity_consumer_requires_resolution' in reasons
+    expect_conflict(b, command('trash', state), 'catalog_trash_dependency_blocked')
+    a.run(f"delete from public.cardforge_asset_registry where asset_id='{consumer}';")
+    print('PASS: concurrent registry consumer write blocks Move; committed target reference is observed')
+
 finally:
     a.close()
     b.close()

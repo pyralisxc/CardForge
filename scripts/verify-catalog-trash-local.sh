@@ -66,7 +66,7 @@ cleanup() {
   local status=$?
   trap - EXIT
   if [[ $status != 0 ]]; then
-    for log in "$proof/fixture.log" "$proof/contention.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log" "$proof/plugin-table-conflict.log" "$proof/plugin-bucket-conflict.log" "$proof/plugin-retention.log" "$proof/parent-content-version.log" "$proof/style-review.log" "$proof/editorial-review.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
+    for log in "$proof/fixture.log" "$proof/typed-consumers.log" "$proof/contention.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log" "$proof/plugin-table-conflict.log" "$proof/plugin-bucket-conflict.log" "$proof/plugin-retention.log" "$proof/parent-content-version.log" "$proof/style-review.log" "$proof/editorial-review.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
   fi
   run_cli stop stop --workdir "$work" --no-backup || status=1
   rm -rf -- "$work"
@@ -124,5 +124,7 @@ cat "$proof/style-review.log"
 [[ $(docker inspect --format '{{.Id}}' "$container") == "$cid" ]]
 psql_local -c 'TRUNCATE public.cardforge_asset_registry, public.cardforge_contributor_asset_submissions, public.cardforge_pipeline_asset_lineages, public.cardforge_studio_documents CASCADE;' > "$proof/disposable-fixture-setup.log" 2>&1
 psql_local -f "$root/supabase/tests/catalog_recoverable_trash.sql" > "$proof/fixture.log" 2>&1
+psql_local -f "$root/supabase/tests/catalog_typed_consumers.sql" > "$proof/typed-consumers.log" 2>&1
+cat "$proof/typed-consumers.log"
 CARDFORGE_LOCAL_DB_CONTAINER="$cid" python3 "$root/scripts/test-catalog-trash-contention.py" > "$proof/contention.log" 2>&1
 cat "$proof/fixture.log" "$proof/contention.log"
