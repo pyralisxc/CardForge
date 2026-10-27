@@ -34,7 +34,7 @@ import type { PipelineTemplateSpecimenRenderer } from './PipelineContributionMod
 import { getPipelineTypeLabel } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-import { resolvePipelineReviewTarget, type PipelineReviewTarget } from '../lib/pipelineReviewTarget';
+import { readReviewPublication, resolvePipelineReviewTarget, type PipelineReviewTarget } from '../lib/pipelineReviewTarget';
 
 interface PipelineItemsResponse {
   program: PipelineProgramView;
@@ -74,6 +74,7 @@ export function OwnerContributorProgramPanel({
     if (!hasLoadedRef.current) setIsLoading(true);
     setLoadError(null);
     try {
+      if (target) await readReviewPublication(target);
       const params = new URLSearchParams({
         query: target ? '' : libraryQuery,
         assetType: libraryAssetType,

@@ -19,4 +19,4 @@ export { templateReviewBaseSchema, templateReviewReceiptSchema, templateReviewPa
 
 export type { ExactCandidateSpecimen } from './lib/exactCandidateReview';
 
-export { createPipelineReviewTarget, resolvePipelineReviewTarget, type PipelineReviewTarget } from './lib/pipelineReviewTarget';
+export { createPipelineReviewTarget, resolvePipelineReviewTarget, readReviewPublication, type PipelineReviewTarget } from './lib/pipelineReviewTarget';

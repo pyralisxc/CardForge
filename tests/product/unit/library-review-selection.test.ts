@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createPipelineReviewTarget, resolvePipelineReviewTarget } from '@/features/pipeline/lib/pipelineReviewTarget';
+import { createPipelineReviewTarget, resolvePipelineReviewTarget, verifyReviewPublication } from '@/features/pipeline/lib/pipelineReviewTarget';
 import { libraryReviewSelection, canEditSelectedContribution } from '@/features/storage-management/lib/libraryReviewSelection';
 import { createLibraryReviewAction, getSharedLibraryActions } from '@/features/storage-management/components/LibraryObjectPresentation';
 import { isActionApplicable } from '@/features/app-shell/environment/model';
@@ -49,4 +49,17 @@ describe('contextual review action uses native applicability', () => {
     expect(getSharedLibraryActions(pipeline(row, true, { ...row, id: 'other' }) as never).some(a => a.id === 'library.edit-pipeline')).toBe(false);
     expect(getSharedLibraryActions(pipeline() as never).some(a => a.id === 'library.edit-pipeline')).toBe(true);
   });
+});
+
+describe('Published registry selection pin', () => {
+  const target = { ...createPipelineReviewTarget(row)!, catalogPublication: { submissionId: row.id, updatedAt: 'registry-epoch' } };
+  const published = { id: 'material', lineageId: 'lineage', submissionId: row.id, updatedAt: 'registry-epoch' };
+  it('accepts the same explicit registry publication and submission', () => {
+    expect(() => verifyReviewPublication(target, [published] as never)).not.toThrow();
+    expect(resolvePipelineReviewTarget(target, [row])).toBe(row);
+  });
+  it.each(['submissionId', 'lineageId', 'updatedAt'])('blocks changed registry %s', field => {
+    expect(() => verifyReviewPublication(target, [{ ...published, [field]: 'changed' }] as never)).toThrow('publication changed');
+  });
+  it('blocks missing registry publication', () => expect(() => verifyReviewPublication(target, [])).toThrow('unavailable'));
 });

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 import { AppearanceStudioPanel, createSharedLineageDraft } from '@/features/template-editor/client';
 import { appearanceToStyle } from '@/features/card-rendering/client';
-import { templateReviewBaseSchema, templateReviewReceiptSchema } from '@/features/pipeline/client';
+import { readReviewPublication, templateReviewBaseSchema, templateReviewReceiptSchema } from '@/features/pipeline/client';
 import type { PipelineReviewTarget } from '@/features/pipeline/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -24,6 +24,7 @@ export function LibraryRevisionEntry({ target, kind, onDirtyChange, onTemplateDr
     const controller = new AbortController();
     void (async () => {
       try {
+        await readReviewPublication(target, controller.signal);
         const response = await fetch(`${endpoint}?assetId=${encodeURIComponent(target.assetId)}`, { cache: 'no-store', signal: controller.signal });
         if (!response.ok) throw new Error(await readApiErrorMessage(response, 'The selected published base is unavailable.'));
         const value = await response.json(); const pins = templateReviewBaseSchema.parse(value.expectedBase);

@@ -94,3 +94,17 @@ test('@golden Library Template revision prepares only a separate local draft wit
   expect(draft.templateRegistryStatus).toBe('draft');
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+for (const changed of [false, true]) test(`@golden Published Library checks registry publication epoch (changed=${changed})`, async ({ page }) => {
+  const evidence = await mount(page, `?published=1${changed ? '&publicationChanged=1' : ''}`);
+  await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
+  if (changed) {
+    await expect(page.getByText(/selected catalog publication changed/)).toBeVisible();
+    await expect(page.getByLabel('Exact revision governance')).toHaveCount(0);
+  } else {
+    await expect(page.getByLabel('Exact revision governance')).toBeVisible();
+    await page.getByRole('button', { name: 'Revise existing', exact: true }).click();
+    await expect(page.getByLabel('Revision appearance preview')).toBeVisible();
+  }
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});

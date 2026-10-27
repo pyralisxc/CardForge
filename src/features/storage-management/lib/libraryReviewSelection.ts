@@ -10,7 +10,8 @@ export function libraryReviewSelection(item: LibraryViewItem, submissions: reado
   const exact = submissions.find(row => row.id === identity.submissionId && row.lineageId === item.published.lineageId
     && row.registryAssetId === identity.assetId && row.status === 'published'
     && (item.published.revision === null || row.revisionNumber === item.published.revision));
-  return exact ? createPipelineReviewTarget(exact) : null;
+  const target = exact ? createPipelineReviewTarget(exact) : null;
+  return target ? { ...target, catalogPublication: { submissionId: identity.submissionId, updatedAt: identity.updatedAt } } : null;
 }
 export function canEditSelectedContribution(item: LibraryViewItem) {
   return item.scope === 'pipeline' && item.pipeline.ownership === 'mine'

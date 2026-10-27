@@ -22,6 +22,7 @@ const row = { id: '10000000-0000-4000-8000-000000000001', lineageId: '20000000-0
   editorialReviewStatus: 'approved', publishedAt: '2026-01-01T00:00:00Z', submittedAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', purgeState: null,
 } as PipelineSubmission;
 const target = createPipelineReviewTarget(row)!;
+if (params.has('published')) target.catalogPublication = { submissionId: row.id, updatedAt: 'registry-epoch' };
 const newer = { ...row, id: '10000000-0000-4000-8000-000000000002', name: 'Newer revision must not replace selection', revisionNumber: 2 };
 const rows = params.has('missing') ? [newer] : [newer, params.has('stale') ? { ...row, updatedAt: '2026-02-01T00:00:00Z' } : row];
 const program = { configured: true, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS, submissions: rows, votingQueue: [],
@@ -34,6 +35,7 @@ const program = { configured: true, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  if ((!init?.method || init.method === 'GET') && url === '/api/catalog') return Response.json({ pipeline: { items: [{ id: row.registryAssetId, lineageId: row.lineageId, submissionId: row.id, updatedAt: params.has('publicationChanged') ? 'new-registry-epoch' : 'registry-epoch' }] } });
   if ((!init?.method || init.method === 'GET') && url.startsWith('/api/pipeline?')) return Response.json({ program });
   if ((!init?.method || init.method === 'GET') && (url.startsWith('/api/owner/pipeline/style-revisions?') || url.startsWith('/api/owner/pipeline/template-revisions?'))) return Response.json({
     expectedBase: { assetId: row.registryAssetId, lineageId: row.lineageId, parentSubmissionId: params.has('historical') ? newer.id : row.id,
