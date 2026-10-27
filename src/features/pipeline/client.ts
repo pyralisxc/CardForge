@@ -18,3 +18,5 @@ export { OwnPublishedDeskWorkspace } from './components/OwnPublishedDeskWorkspac
 export { templateReviewBaseSchema, templateReviewReceiptSchema, templateReviewPayload, templateReviewRequestText } from './lib/templateReview';
 
 export type { ExactCandidateSpecimen } from './lib/exactCandidateReview';
+
+export { createPipelineReviewTarget, resolvePipelineReviewTarget, type PipelineReviewTarget } from './lib/pipelineReviewTarget';

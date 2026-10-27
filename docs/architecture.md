@@ -20,6 +20,8 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 
 ## Storage lanes
 
+Library composes selected Pipeline governance through its existing action system and `EnvironmentToolLayer`; `OwnerContributorProgramPanel` / `OwnerAssetLibraryPanel` still own governance. Ephemeral selection pins include asset, lineage, submission, revision and publication state; a changed or missing exact submission blocks rather than substituting latest. Published selection uses the catalog's explicit submission link. Template/style revision entry verifies the selected current base through existing Owner endpoints, then uses the existing local Template draft or appearance editor; opening is read-only. Global Pipeline operations remain a separate tool. Contributor editing stays on the selected owned editable revision.
+
 CardForge has four deliberate storage lanes.
 
 ### Browser workspace

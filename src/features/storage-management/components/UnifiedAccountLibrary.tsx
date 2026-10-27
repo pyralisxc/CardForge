@@ -50,6 +50,9 @@ import {
 } from './LibraryObjectPresentation';
 import { DefaultWorkLocationControl, WorkLocationDialog } from './WorkLocationDialog';
 import styles from './UnifiedAccountLibrary.module.css';
+import { createPipelineReviewTarget, type PipelineReviewTarget } from '@/features/pipeline/client';
+import { libraryReviewSelection } from '../lib/libraryReviewSelection';
+const LibraryRevisionEntry = dynamic(() => import('./LibraryRevisionEntry').then(module => module.LibraryRevisionEntry));
 
 const renderPipelineTemplateSpecimen = async (
   card: DisplayCard,
@@ -78,7 +81,7 @@ const LibraryDesignWorkspace = dynamic(() => import(
   '@/features/creator-workbench/client'
 ).then((module) => module.CreatorWorkbench), { ssr: false });
 
-type LibraryToolId = 'locations' | 'contribute' | 'edit-contribution' | 'design';
+type LibraryToolId = 'review-manage' | 'pipeline-operations' | 'revise-existing' | 'locations' | 'contribute' | 'edit-contribution' | 'design';
 
 const createLibraryToolSession = (
   toolId: LibraryToolId,
@@ -127,6 +130,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [designReturnFocusId, setDesignReturnFocusId] = useState<string | null>(null);
   const [discardToolRequested, setDiscardToolRequested] = useState(false);
   const [contributionTargetSetId, setContributionTargetSetId] = useState<string | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<PipelineReviewTarget | null>(null);
+  const [revisionKind, setRevisionKind] = useState<'templates' | 'elementPresets' | null>(null);
+  const reviewReturn = useRef<{ focus: HTMLElement | null; scroll: number } | null>(null);
   const [editingSubmission, setEditingSubmission] = useState<PipelineSubmission | null>(null);
   const [requestedSubmissionId, setRequestedSubmissionId] = useState<string | null>(null);
   const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
@@ -249,6 +255,25 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     setSharedType, sharedType, surfaceRef,
   });
 
+  const openReview = (item: LibraryViewItem, revision?: PipelineSubmission) => {
+    if (!experience.owner || !isSignedIn) throw new Error('Owner access is required for Review & manage.');
+    const rows = [...(shared.program?.submissions ?? []), ...(shared.program?.votingQueue ?? [])];
+    const target = revision ? createPipelineReviewTarget(revision) : libraryReviewSelection(item, rows);
+    if (!target) throw new Error('The exact selected revision could not be resolved. Refresh Library; no latest revision was substituted.');
+    reviewReturn.current = { focus: document.activeElement instanceof HTMLElement ? document.activeElement : null, scroll: surfaceRef.current?.scrollTop ?? 0 };
+    setReviewTarget(target); setRevisionKind(null); openTool('review-manage', [target.assetId, target.lineageId, target.submissionId]);
+  };
+  const closeContextualTool = () => {
+    closeTool(); setReviewTarget(null); setRevisionKind(null);
+    const restore = reviewReturn.current;
+    requestAnimationFrame(() => { surfaceRef.current?.scrollTo({ top: restore?.scroll ?? selection.listOffset }); restore?.focus?.focus({ preventScroll: true }); });
+  };
+  const reviseSelected = (submission: PipelineSubmission) => {
+    if (toolDirty) { toast({ title: 'Finish the current changes first', description: 'Save your management changes or close and discard them before preparing a revision.' }); return; }
+    if (!reviewTarget || submission.id !== reviewTarget.submissionId || submission.status !== 'published'
+      || !['templates', 'elementPresets'].includes(submission.assetType)) return;
+    setRevisionKind(submission.assetType as 'templates' | 'elementPresets'); openTool('revise-existing', [reviewTarget.submissionId]);
+  };
   const chooseScope = (nextScope: LibraryScope) => {
     setScope(nextScope); setSharedType('all'); setSelection(closeEnvironmentDetail); setToolStack([]);
     projection.router.replace(`/account?section=library&scope=${nextScope}`);
@@ -350,6 +375,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     editingSubmission,
     experience,
     openContributionTool,
+    openReview,
+    closeContextualTool,
     projection,
     refresh,
     closeTool,
@@ -414,6 +441,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
       isOwner={experience.owner}
+      onReviewRevision={revision => { try { openReview(currentItem, revision); } catch (error) { toast({ title: 'Revision unavailable', description: error instanceof Error ? error.message : 'Refresh Library.', variant: 'destructive' }); } }}
       onRevisionCreated={() => shared.refresh()}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
       canReview={experience.contributor.canReview}
@@ -457,12 +485,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         <div><p>Library</p><h1>Your materials and work</h1><span>Browse what you own, what CardForge publishes, and what is moving through review.</span></div>
       </header>
       <nav className={styles.scopeTabs} aria-label="Library scopes">
-        {scopeDefinitions.map((definition) => <button key={definition.id} type="button" aria-current={activeScope === definition.id ? 'page' : undefined} onClick={() => chooseScope(definition.id)}><span>{definition.label}</span><small>{definition.owner}</small></button>)}
+        {scopeDefinitions.map((definition) => <button key={definition.id} type="button" aria-current={activeScope === definition.id ? 'page' : undefined} disabled={Boolean(activeTool)} onClick={() => chooseScope(definition.id)}><span>{definition.label}</span><small>{definition.owner}</small></button>)}
       </nav>
-      {activeScope === 'pipeline' && experience.owner ? <details data-owner-pipeline-operations className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface-inset)]">
-        <summary className="cursor-pointer px-4 py-3 font-serif text-lg text-[var(--cf-text-strong)]">Owner Pipeline operations <span className="ml-2 font-sans text-xs text-[var(--cf-text-subtle)]">publication, quotas, routing, revisions</span></summary>
-        <div className="border-t border-[var(--cf-border-subtle)] p-4"><OwnerContributorProgramPanel renderTemplateSpecimen={renderPipelineTemplateSpecimen} /></div>
-      </details> : null}
+      {experience.owner ? <button id="library-pipeline-operations" type="button" disabled={Boolean(activeTool)} className="border px-3 py-2 text-sm" onClick={() => {
+        reviewReturn.current = { focus: document.activeElement as HTMLElement, scroll: surfaceRef.current?.scrollTop ?? 0 };
+        openTool('pipeline-operations');
+      }}>Pipeline operations</button> : null}
       {activeScope === 'pipeline' ? <PipelineContentHealthPanel catalog={shared.catalog} onClassified={shared.refresh} health={contentHealth} canRepair={experience.owner} onOpenObject={(objectId) => { const item = viewItems.find((candidate) => candidate.id === `pipeline:${objectId}` || candidate.id === objectId); if (item) openDetail(item); }} /> : null}
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
       <LibraryCollection
@@ -508,6 +536,26 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         viewItems={viewItems}
         votingId={votingId}
       />
+      {(activeTool === 'review-manage' || activeTool === 'pipeline-operations' || activeTool === 'revise-existing') ? (
+        <EnvironmentToolLayer id="library-pipeline-context" eyebrow="Library Pipeline tool"
+          title={activeTool === 'pipeline-operations' ? 'Pipeline operations' : activeTool === 'revise-existing' ? 'Revise existing' : 'Review & manage'}
+          summary={reviewTarget ? `Selected ${reviewTarget.assetId} · revision ${reviewTarget.revisionNumber ?? 'legacy'} · ${reviewTarget.status}` : 'Global queue, rules, quotas and routing.'}
+          closeLabel="Close Pipeline tool" onClose={() => runAction(actions[0]!)} dirty={toolDirty}
+          onDirtyCloseRequest={() => setDiscardToolRequested(true)} presentation={activeTool === 'pipeline-operations' ? 'inline' : activeToolSession?.presentation}>
+          <div className="w-full min-w-0 overflow-auto">
+          {!experience.owner || !isSignedIn ? <p>Owner access is required. Close this tool to return to Library.</p>
+            : activeTool === 'revise-existing' && reviewTarget && revisionKind ? <LibraryRevisionEntry key={reviewTarget.submissionId} target={reviewTarget} kind={revisionKind} onDirtyChange={setToolDirty}
+              onTemplateDraft={draft => {
+                const id = projectWorkspace.actions.installTemplate(draft, 'user');
+                if (id) { openTemplateDesign(id); setDesignReturnFocusId(selection.focusReturnId ?? null); openTool('design', [id]); }
+              }} />
+            : activeTool === 'review-manage' && !reviewTarget ? <p>The exact selection is unavailable. Close this tool and refresh Library.</p>
+            : <OwnerContributorProgramPanel key={activeTool === 'pipeline-operations' ? 'global' : reviewTarget?.submissionId}
+              target={activeTool === 'pipeline-operations' ? undefined : reviewTarget ?? undefined}
+              onDirtyChange={setToolDirty} onSelectionMutated={() => { closeContextualTool(); refresh(); }} onRevise={reviseSelected} renderTemplateSpecimen={renderPipelineTemplateSpecimen} />}
+          </div>
+        </EnvironmentToolLayer>
+      ) : null}
       {activeTool === 'locations' ? (
         <EnvironmentToolLayer
           id="library-locations-title"
@@ -541,16 +589,20 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           eyebrow="Pipeline tool"
           title={`Edit ${editingSubmission.name}`}
           summary="Update the current submission without leaving its Library context or changing the shared object behind your back."
+          dirty={toolDirty}
+          onDirtyCloseRequest={() => setDiscardToolRequested(true)}
           closeLabel="Close submission editor"
           onClose={() => runAction(actions[0]!)}
           presentation={activeToolSession?.presentation}
         >
           <PipelineSubmissionEditPanel
+            onDirtyChange={setToolDirty}
             submission={editingSubmission}
             onCancel={() => runAction(actions[0]!)}
             onUpdated={async () => {
+              setToolDirty(false);
               await shared.refresh();
-              runAction(actions[0]!);
+              closeOrExecute(actions[0]!);
             }}
           />
         </EnvironmentToolLayer>

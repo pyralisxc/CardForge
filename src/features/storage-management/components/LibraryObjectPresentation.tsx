@@ -206,7 +206,7 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
   };
 };
 
-export function PipelineDetailContent({ item, onVoteRevision, canReview, votingId, isSelfVoteBlocked, isOwner = false, onRevisionCreated }: {
+export function PipelineDetailContent({ item, onVoteRevision, canReview, votingId, isSelfVoteBlocked, isOwner = false, onRevisionCreated, onReviewRevision }: {
   item: Extract<LibraryViewItem, { scope: 'pipeline' }>;
   onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
   canReview: boolean;
@@ -214,6 +214,7 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
   isSelfVoteBlocked: (contributorId: string) => boolean;
   isOwner?: boolean;
   onRevisionCreated?: () => Promise<void> | void;
+  onReviewRevision?: (submission: PipelineSubmission) => void;
 }) {
   const submission = item.pipeline.submission;
   const published = item.pipeline.currentPublishedSubmission;
@@ -234,7 +235,7 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
               ? 'History'
               : getPipelineStatusLabel(revision.status);
       return <li key={revision.id}>
-        <div className={styles.revisionOpen}><span>{getPipelineRevisionLabel(revision)}</span><span>{revisionRole}</span></div>
+        <div className={styles.revisionOpen}><span>{getPipelineRevisionLabel(revision)}</span><span>{revisionRole}</span>{isOwner && onReviewRevision ? <button type="button" onClick={() => onReviewRevision(revision)}>Review &amp; manage {getPipelineRevisionLabel(revision)}</button> : null}</div>
         {revision.mediaPresentation ? <details><summary>Inspect exact presentation revision</summary>{revision.sourceUrl
           ? <MediaPresentationPreview sourceUrl={revision.sourceUrl} presentation={revision.mediaPresentation} />
           : <p>Exact source preview requires Owner or original contributor access.</p>}</details> : null}
@@ -272,6 +273,14 @@ export const createLibraryZoneAction = (id: 'library.refresh' | 'library.close-l
   commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: id === 'library.refresh' ? 'refresh-requested' : 'navigation',
 });
 
+export const createLibraryReviewAction = (): ActionDescriptor => ({
+  id: 'library.review-manage', label: 'Review & manage', ownerFeature: 'pipeline',
+  supportedObjectKinds: ['pipeline-asset', 'published-asset'], supportedSources: ['provider-native'],
+  revisionPolicy: 'none', requiredPermission: 'owner', scope: 'object', hierarchy: 'primary',
+  availability: { kind: 'available' }, commitment: 'none',
+  automation: { kind: 'human-only', owner: 'cardforge' }, result: 'tool-opened',
+});
+
 export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 'published' | 'pipeline' }>): ActionDescriptor[] => {
   if (item.scope === 'pipeline') return [
     ...(item.pipeline.packageUrl ? [{
@@ -279,7 +288,7 @@ export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 
       supportedSources: ['provider-native'] as const, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const, scope: 'object' as const, hierarchy: 'primary' as const,
       availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
     }] : []),
-    ...(item.pipeline.editableSubmission ? [{
+    ...(item.pipeline.editableSubmission?.id === item.pipeline.submission.id && item.pipeline.ownership === 'mine' ? [{
       id: 'library.edit-pipeline' as const, label: `Edit revision ${item.pipeline.editableSubmission.revisionNumber ?? 1}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
       supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'primary' as const,
       availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'tool-opened' as const,
@@ -289,7 +298,7 @@ export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 
       supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'primary' as const,
       availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
     }] : []),
-    ...(item.pipeline.editableSubmission ? [{
+    ...(item.pipeline.editableSubmission?.id === item.pipeline.submission.id && item.pipeline.ownership === 'mine' ? [{
       id: 'library.withdraw-pipeline' as const, label: `Withdraw revision ${item.pipeline.editableSubmission.revisionNumber ?? 1}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
       supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'overflow' as const,
       availability: { kind: 'available' as const }, commitment: 'destructive' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
