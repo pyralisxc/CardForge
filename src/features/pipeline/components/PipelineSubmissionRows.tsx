@@ -243,6 +243,7 @@ export function AssetRow({
   expanded = false,
   onToggleExpanded,
   editForm,
+  compact = false,
 }: {
   submission: PipelineSubmission;
   program: Pick<PipelineProgramView, 'settings'>;
@@ -252,6 +253,7 @@ export function AssetRow({
   expanded?: boolean;
   onToggleExpanded?: () => void;
   editForm?: ReactNode;
+  compact?: boolean;
 }) {
   const progressPercent = getReviewProgressPercent(
     submission,
@@ -267,7 +269,7 @@ export function AssetRow({
 
   return (
     <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3">
-      <div className="grid gap-3 sm:grid-cols-[4rem_1fr_auto] sm:items-center">
+      <div className={compact ? "grid gap-3" : "grid gap-3 sm:grid-cols-[4rem_1fr_auto] sm:items-center"}>
         <div className="grid h-16 w-16 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)] bg-[linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%),linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%)] bg-[length:16px_16px] bg-[position:0_0,8px_8px]">
           <AssetPreview submission={submission} templatePreviews={templatePreviews} renderTemplateSpecimen={renderTemplateSpecimen} />
         </div>
@@ -313,13 +315,13 @@ export function AssetRow({
         </div>
       </div>
       {expanded ? (
-        <div className="mt-3 grid gap-3 border-t border-[var(--cf-border-subtle)] pt-3 lg:grid-cols-[minmax(14rem,22rem)_1fr]">
+        <div className={`mt-3 grid gap-3 border-t border-[var(--cf-border-subtle)] pt-3 ${compact ? "" : "lg:grid-cols-[minmax(14rem,22rem)_1fr]"}`}>
           <div className="grid min-h-48 min-w-0 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)] bg-[linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%),linear-gradient(45deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_75%,rgba(255,255,255,0.04)_75%)] bg-[length:18px_18px] bg-[position:0_0,9px_9px]">
             <AssetPreview submission={submission} templatePreviews={templatePreviews} renderTemplateSpecimen={renderTemplateSpecimen} expanded />
           </div>
           <div className="text-sm leading-6 text-[var(--cf-text-muted)]">
             <p>{submission.description || 'No notes were provided for this asset.'}</p>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <div className={compact ? "mt-3 grid gap-3" : "mt-3 grid gap-3 md:grid-cols-3"}>
               <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                 <p className="text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Status meaning</p>
                 <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">{getPipelineStatusDescription(submission.status)}</p>

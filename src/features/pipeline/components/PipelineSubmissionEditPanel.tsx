@@ -22,9 +22,11 @@ export function PipelineSubmissionEditPanel({
   submission,
   onCancel,
   onUpdated,
+  onDirtyChange,
 }: {
   submission: PipelineSubmission;
   onCancel: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
   onUpdated: () => Promise<void> | void;
 }) {
   const { toast } = useToast();
@@ -104,18 +106,18 @@ export function PipelineSubmissionEditPanel({
     destinationOptions={destinationOptions}
     isDraft={submission.status === 'draft'}
     isSaving={isSaving}
-    onNameChange={setName}
-    onDescriptionChange={setDescription}
-    onPreviewUrlChange={setPreviewUrl}
-    onSourceNotesChange={setSourceNotes}
-    onSpecialtyTagsChange={setSpecialtyTags}
-    onUseCaseTagsChange={setUseCaseTags}
-    onSemanticRoleChange={setSemanticRole}
-    onVisualFamilyChange={setVisualFamily}
-    onVariantKindChange={setVariantKind}
-    onVariantLabelChange={setVariantLabel}
-    onCompatibilityTagsChange={setCompatibilityTags}
-    onRequestedStudioDestinationChange={setRequestedStudioDestination}
+    onNameChange={value => { setName(value); onDirtyChange?.(true); }}
+    onDescriptionChange={value => { setDescription(value); onDirtyChange?.(true); }}
+    onPreviewUrlChange={value => { setPreviewUrl(value); onDirtyChange?.(true); }}
+    onSourceNotesChange={value => { setSourceNotes(value); onDirtyChange?.(true); }}
+    onSpecialtyTagsChange={value => { setSpecialtyTags(value); onDirtyChange?.(true); }}
+    onUseCaseTagsChange={value => { setUseCaseTags(value); onDirtyChange?.(true); }}
+    onSemanticRoleChange={value => { setSemanticRole(value); onDirtyChange?.(true); }}
+    onVisualFamilyChange={value => { setVisualFamily(value); onDirtyChange?.(true); }}
+    onVariantKindChange={value => { setVariantKind(value); onDirtyChange?.(true); }}
+    onVariantLabelChange={value => { setVariantLabel(value); onDirtyChange?.(true); }}
+    onCompatibilityTagsChange={value => { setCompatibilityTags(value); onDirtyChange?.(true); }}
+    onRequestedStudioDestinationChange={value => { setRequestedStudioDestination(value); onDirtyChange?.(true); }}
     onCancel={onCancel}
     onSave={() => void save(false)}
     onSubmit={() => void save(true)}

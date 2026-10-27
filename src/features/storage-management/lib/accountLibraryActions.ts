@@ -15,6 +15,7 @@ export const createLibraryLocationsHref = (scope: LibraryScope): string => {
 type LibraryCommand = (input: ActionOperationInput) => ActionOperationResult | Promise<ActionOperationResult>;
 
 export interface AccountLibraryActionCommands {
+  reviewManage?: LibraryCommand;
   closeLocations: LibraryCommand;
   closeTool: LibraryCommand;
   continuePersonal: LibraryCommand;
@@ -54,6 +55,7 @@ const commandFor = (id: ActionDescriptor['id'], commands: AccountLibraryActionCo
     'library.retire-pipeline': commands.retirePipeline,
     'library.refresh': commands.refresh,
   };
+  if (id === 'library.review-manage') return commands.reviewManage ?? null;
   return commandMap[id] ?? null;
 };
 

@@ -36,7 +36,7 @@ interface AppearanceStudioPanelProps {
   buttonClassName: string;
   canUploadCustomAssets: boolean;
   onHandleAssetUpload: (event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider') => void;
-  onSaveStyle: () => void;
+  onSaveStyle?: () => void;
   onApplyAppearancePreset: (style: AppearanceStylePreset) => void;
   onUpdateAppearance: (updater: (appearance: FreeformAppearance) => FreeformAppearance, trackHistory?: boolean) => void;
   personalItems: readonly PersonalLibraryItem[];
@@ -140,9 +140,9 @@ export function AppearanceStudioPanel({
           <Label className="text-[11px] uppercase tracking-[0.14em] text-[#d5ad54]">Fill presets</Label>
           <p className="mt-1 text-[11px] leading-4 text-[#8f95a3]">Choose the element fill; borders stay in Border & Edge.</p>
         </div>
-        <Button type="button" variant="outline" size="sm" className={cn(buttonClassName, 'h-7 px-2 text-[10px]')} onClick={onSaveStyle}>
+        {onSaveStyle ? <Button type="button" variant="outline" size="sm" className={cn(buttonClassName, 'h-7 px-2 text-[10px]')} onClick={onSaveStyle}>
           <Save className="mr-1 h-3.5 w-3.5" /> Save Style
-        </Button>
+        </Button> : null}
       </div>
       {(elementStylePresets.length > 0 || compatibleAppearanceStyles.length > 0) && (
         <div className="relative">

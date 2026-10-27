@@ -77,7 +77,7 @@ const mutateShippedLibrary = async (path: '/api/styles' | '/api/templates' | '/a
   return await response.json() as Record<string, unknown>;
 };
 
-const createSharedLineageDraft = (template: TCGCardTemplate, source: TCGCardTemplate, createId: () => string): TCGCardTemplate => reconstructMinimalTemplateObject({
+export const createSharedLineageDraft = (template: TCGCardTemplate, source: TCGCardTemplate, createId: () => string): TCGCardTemplate => reconstructMinimalTemplateObject({
   ...template,
   id: source.id,
   templateSource: 'user',
