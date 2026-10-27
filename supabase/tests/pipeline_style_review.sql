@@ -26,10 +26,16 @@ begin
   parent:=public.cardforge_upsert_pipeline_registry_asset(asset,'Synthetic material','elementPresets','elementPreset',
     '/api/styles#'||asset,'/api/styles#'||asset,'Original authored description',actor,'',100,'application/json',null,null,
     jsonb_build_object('style',style,'unrelatedProvenance','preserve-me'));
+  if (select status from public.cardforge_contributor_asset_submissions where id=parent) is distinct from 'publish_candidate'
+  then raise exception 'synthetic_bootstrap_editorial_state_unexpected'; end if;
+  raise notice 'Synthetic bootstrap parent is publish_candidate before normal Owner publication';
   update public.cardforge_contributor_asset_submissions set
     revision_number=case when legacy then null else 1 end,
     specialty_tags=array['games'], semantic_role='material',source_notes='Synthetic original rights proof',published_at=now()
     where id=parent;
+  -- Current bootstrap inserts are correctly held by editorial readiness. Use
+  -- the native Owner command to establish this synthetic published parent.
+  perform public.cardforge_set_contributor_asset_owner_override(parent,true,'published',true,'free','Synthetic parent publication',actor);
   update public.cardforge_asset_registry set metadata=metadata||jsonb_build_object('revisionNumber',1,'revisionId',parent)
     where asset_id=asset;
   pins:=public.cardforge_read_style_review_base(asset)->'expectedBase';
@@ -45,10 +51,11 @@ begin
     raise exception 'stale_pin_accepted';
    exception when raise_exception then if sqlerrm<>'style_review_conflict' then raise; end if; end;
   end loop;
-  foreach field in array array['null-target','invalid-texture','invalid-border','invalid-effects'] loop
+  foreach field in array array['null-target','invalid-texture','invalid-border','invalid-effects','nonfinite-render-number'] loop
    bad:=case field when 'null-target' then jsonb_set(proposed,'{targets}','[null]')
      when 'invalid-texture' then jsonb_set(proposed,'{appearance,material,texture}','{"kind":"invented"}')
      when 'invalid-border' then jsonb_set(proposed,'{appearance,border}','{"kind":"solid","width":"wide"}')
+     when 'nonfinite-render-number' then jsonb_set(proposed,'{appearance,effects}','{"bevel":1e400}')
      else jsonb_set(proposed,'{appearance,effects}','{"bevel":"not-a-number"}') end;
    begin
     perform public.cardforge_create_style_review_revision(asset,pins,bad,actor,'invalid-'||replace(gen_random_uuid()::text,'-',''),repeat('a',64));
@@ -89,6 +96,18 @@ begin
   if (select metadata->'style' from public.cardforge_asset_registry where asset_id=asset) is distinct from style
    or (select contributor_submission_id from public.cardforge_asset_registry where asset_id=asset) is distinct from parent
   then raise exception 'rebalance_published_unapproved'; end if;
+  -- Preserve both legacy four-field evidence and explicit public-AI opt-in.
+  begin
+   evidence:=public.cardforge_record_source_review_evidence(candidate,
+     '{"technicalTrace":"Synthetic trace","creatorFacts":null,"rightsFacts":"Fixture rights","aiFacts":null}',
+     public.cardforge_media_parent_content_version(candidate),0,actor);
+   evidence:=public.cardforge_record_source_review_evidence(candidate,
+     '{"technicalTrace":"Synthetic trace","creatorFacts":null,"rightsFacts":"Fixture rights","aiFacts":"Synthetic AI disclosure","aiDisclosurePublic":true}',
+     public.cardforge_media_parent_content_version(candidate),1,actor);
+   if evidence->'evidence'->'facts'->'aiDisclosurePublic' is distinct from 'true'::jsonb
+   then raise exception 'public_ai_opt_in_lost'; end if;
+   raise exception 'rollback-evidence-compatibility-proof';
+  exception when raise_exception then if sqlerrm<>'rollback-evidence-compatibility-proof' then raise; end if; end;
   evidence:=public.cardforge_record_source_review_evidence(candidate,
     '{"technicalTrace":"Synthetic style proof","creatorFacts":"Fixture author","rightsFacts":"Fixture rights","aiFacts":null,"aiDisclosurePublic":false}'::jsonb,
     public.cardforge_media_parent_content_version(candidate),0,actor);

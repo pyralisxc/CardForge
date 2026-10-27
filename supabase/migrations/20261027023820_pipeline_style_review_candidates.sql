@@ -23,7 +23,7 @@ begin
    if a?k and jsonb_typeof(a->k) is distinct from 'string' then return false; end if;
  end loop;
  foreach k in array array['textureScale','textureOpacity'] loop
-   if a?k and jsonb_typeof(a->k) is distinct from 'number' then return false; end if;
+   if a?k and (jsonb_typeof(a->k) is distinct from 'number' or case when jsonb_typeof(a->k)='number' then abs((a->k#>>'{}')::numeric)>1.7976931348623157e308 else false end) then return false; end if;
  end loop;
  if a?'assetKind' and coalesce(a->>'assetKind','') not in ('texture','divider','border','frame') then return false; end if;
  if a?'tileMode' and coalesce(a->>'tileMode','') not in ('repeat','stretch','contain') then return false; end if;
@@ -36,19 +36,19 @@ begin
    if m?'gradient' then
      g:=m->'gradient';
      if jsonb_typeof(g) is distinct from 'object' or coalesce(g->>'type','') not in ('linear','radial','none')
-       or (g?'angle' and jsonb_typeof(g->'angle') is distinct from 'number') or jsonb_typeof(g->'stops') is distinct from 'array' then return false; end if;
+       or (g?'angle' and (jsonb_typeof(g->'angle') is distinct from 'number' or case when jsonb_typeof(g->'angle')='number' then abs((g->'angle'#>>'{}')::numeric)>1.7976931348623157e308 else false end)) or jsonb_typeof(g->'stops') is distinct from 'array' then return false; end if;
      for stop in select * from jsonb_array_elements(g->'stops') loop
        if jsonb_typeof(stop) is distinct from 'object' or jsonb_typeof(stop->'id') is distinct from 'string'
          or nullif(btrim(stop->>'id'),'') is null or jsonb_typeof(stop->'color') is distinct from 'string'
-         or jsonb_typeof(stop->'position') is distinct from 'number'
-         or (stop?'opacity' and jsonb_typeof(stop->'opacity') is distinct from 'number') then return false; end if;
+         or (jsonb_typeof(stop->'position') is distinct from 'number' or case when jsonb_typeof(stop->'position')='number' then abs((stop->'position'#>>'{}')::numeric)>1.7976931348623157e308 else false end)
+         or (stop?'opacity' and (jsonb_typeof(stop->'opacity') is distinct from 'number' or case when jsonb_typeof(stop->'opacity')='number' then abs((stop->'opacity'#>>'{}')::numeric)>1.7976931348623157e308 else false end)) then return false; end if;
      end loop;
    end if;
    if m?'texture' then
      t:=m->'texture';
      if jsonb_typeof(t) is distinct from 'object' or coalesce(t->>'kind','') not in ('none','parchment','foil','etched','grain','hatch','uploaded') then return false; end if;
      foreach k in array array['intensity','scale','textureScale','textureOpacity'] loop
-       if t?k and jsonb_typeof(t->k) is distinct from 'number' then return false; end if;
+       if t?k and (jsonb_typeof(t->k) is distinct from 'number' or case when jsonb_typeof(t->k)='number' then abs((t->k#>>'{}')::numeric)>1.7976931348623157e308 else false end) then return false; end if;
      end loop;
      foreach k in array array['imageSource','assetSource','blendMode'] loop
        if t?k and jsonb_typeof(t->k) is distinct from 'string' then return false; end if;
@@ -66,11 +66,11 @@ begin
          if obj?k and jsonb_typeof(obj->k) is distinct from 'string' then return false; end if;
        end loop;
        foreach k in array array['width','radius','innerWidth','outerWidth'] loop
-         if obj?k and jsonb_typeof(obj->k) is distinct from 'number' then return false; end if;
+         if obj?k and (jsonb_typeof(obj->k) is distinct from 'number' or case when jsonb_typeof(obj->k)='number' then abs((obj->k#>>'{}')::numeric)>1.7976931348623157e308 else false end) then return false; end if;
        end loop;
      elsif field='effects' then
        foreach k in array array['shadow','glow','bevel','innerHighlight','overlayOpacity'] loop
-         if obj?k and jsonb_typeof(obj->k) is distinct from 'number' then return false; end if;
+         if obj?k and (jsonb_typeof(obj->k) is distinct from 'number' or case when jsonb_typeof(obj->k)='number' then abs((obj->k#>>'{}')::numeric)>1.7976931348623157e308 else false end) then return false; end if;
        end loop;
      else
        foreach k in array array['backgroundImage','borderImageSource'] loop
@@ -562,7 +562,9 @@ declare s public.cardforge_contributor_asset_submissions%rowtype; target_asset_i
 begin
  if pg_catalog.jsonb_typeof(p_facts) is distinct from 'object' or nullif(pg_catalog.btrim(p_actor_id),'') is null
    or coalesce(p_expected_candidate_version,'') !~ '^[a-f0-9]{32}$' or p_expected_evidence_version is null or p_expected_evidence_version<0
-   or (select count(*) from pg_catalog.jsonb_object_keys(p_facts))<>4
+   or (select count(*) from pg_catalog.jsonb_object_keys(p_facts))<>(4 + case when p_facts ? 'aiDisclosurePublic' then 1 else 0 end)
+   or (p_facts ? 'aiDisclosurePublic' and pg_catalog.jsonb_typeof(p_facts->'aiDisclosurePublic') is distinct from 'boolean')
+   or (p_facts->'aiDisclosurePublic' = 'true'::jsonb and nullif(pg_catalog.btrim(p_facts->>'aiFacts'),'') is null)
    or nullif(pg_catalog.btrim(p_facts->>'technicalTrace'),'') is null
    or pg_catalog.length(p_facts->>'technicalTrace')>2400
  then raise exception 'source_evidence_invalid'; end if;
