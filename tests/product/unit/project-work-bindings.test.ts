@@ -46,7 +46,7 @@ vi.mock('@/features/project/store/workspaceStore', () => {
   return { useProjectStore: { getState: () => state } };
 });
 
-import { resetGoogleDriveTargetSaveStateForTests, GoogleDriveSaveLinkageError, copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
+import { resetGoogleDriveTargetSaveStateForTests, serializeGoogleDriveTargetSave, getGoogleDriveSaveBarrier, getGoogleDriveWorkBinding, GoogleDriveUnknownCommitError, GoogleDriveSaveLinkageError, copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
 import { disconnectLocalProjectFolder, getLocalProjectFolderStatus, saveCardSetToAttachedFolder, saveProjectToAttachedFolder } from '@/features/project/client/localProjectFolder';
 
 const driveBinding = { fileId: 'drive-file-12345', name: 'C', providerRevision: '1', projectRevision: 'a'.repeat(64), workId: 'set-c' };
@@ -417,5 +417,91 @@ describe('confirmed Drive save receipts survive browser-link failures', () => {
     expect([...mock.values.keys()].every((key) => key.startsWith('test:'))).toBe(true);
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(mock.apply).not.toHaveBeenCalled();
+  });
+});
+
+describe('same-target real transfer ordering and recovery', () => {
+  const binding = { ...driveBinding, accountId: 'account-a', localProjectRevision: 'a'.repeat(64) };
+  const deferred = <T>() => {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((done) => { resolve = done; });
+    return { promise, resolve };
+  };
+
+  it('serializes the autosave and manual entrypoints with an exact, updated provider revision', async () => {
+    mock.values.set('test:google-drive-work-binding:set-c', binding);
+    mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
+    const started = deferred<void>();
+    const completed = deferred<Response>();
+    const prepares: Array<{ expectedProviderRevision: string }> = [];
+    const fetch = vi.fn(async (_url: string, options: RequestInit) => {
+      if (options.method === 'POST') {
+        prepares.push(JSON.parse(options.body as string));
+        if (prepares.length === 1) started.resolve();
+        return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C', accountId: 'account-a' });
+      }
+      if (prepares.length === 1) return completed.promise;
+      return Response.json({ id: binding.fileId, name: 'C', headRevisionId: 'native-3' });
+    });
+    vi.stubGlobal('fetch', fetch);
+    const autosave = saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' });
+    await started.promise;
+    const manual = saveCurrentProjectToGoogleDrive({ name: 'C' });
+    expect(prepares).toHaveLength(1);
+    completed.resolve(Response.json({ id: binding.fileId, name: 'C', headRevisionId: 'native-2' }));
+    const [first, second] = await Promise.all([autosave, manual]);
+    expect(first.providerRevision).toBe(headToken('2'));
+    expect(second.providerRevision).toBe(headToken('3'));
+    expect(prepares.map((p) => p.expectedProviderRevision)).toEqual(['1', headToken('2')]);
+    expect(fetch).toHaveBeenCalledTimes(4);
+  });
+
+  it('rebuilds the newest authored checkpoint after the first upload has settled', async () => {
+    mock.values.set('test:google-drive-work-binding:set-c', binding);
+    mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
+    const started = deferred<void>();
+    const completed = deferred<Response>();
+    const prepares: Array<{ projectRevision: string; expectedProviderRevision: string }> = [];
+    let revision = 'b';
+    mock.build.mockImplementation(async ({ document, name }: { document: unknown; name: string }) => ({
+      document, manifest: { name, projectRevision: revision.repeat(64), savedAt: '2026-10-26' },
+    }));
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, options: RequestInit) => {
+      if (options.method === 'POST') {
+        prepares.push(JSON.parse(options.body as string));
+        if (prepares.length === 1) started.resolve();
+        return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C', accountId: 'account-a' });
+      }
+      if (prepares.length === 1) return completed.promise;
+      return Response.json({ id: binding.fileId, name: 'C', headRevisionId: 'native-3' });
+    }));
+    const autosave = saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' });
+    await started.promise;
+    const manual = saveCurrentProjectToGoogleDrive({ name: 'C' });
+    revision = 'c';
+    completed.resolve(Response.json({ id: binding.fileId, name: 'C', headRevisionId: 'native-2' }));
+    await Promise.all([autosave, manual]);
+    expect(prepares).toHaveLength(2);
+    expect(prepares[0]).toMatchObject({ projectRevision: 'b'.repeat(64), expectedProviderRevision: '1' });
+    expect(prepares[1]).toMatchObject({ projectRevision: 'c'.repeat(64), expectedProviderRevision: headToken('2') });
+    expect(await getGoogleDriveProjectBinding()).toMatchObject({ projectRevision: 'c'.repeat(64) });
+  });
+
+  it('permits an explicit independent F2 save while retaining F’s unknown outcome', async () => {
+    mock.values.set('test:google-drive-work-binding:set-c', binding);
+    mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
+    const unknown = new GoogleDriveUnknownCommitError();
+    await expect(serializeGoogleDriveTargetSave('test', binding, async () => { throw unknown; })).rejects.toBe(unknown);
+    const newFile = 'drive-file-independent-F2';
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'F2', accountId: 'account-a' }))
+      .mockResolvedValueOnce(Response.json({ id: newFile, name: 'F2', headRevisionId: 'native-5' }));
+    vi.stubGlobal('fetch', fetch);
+    const saved = await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'F2', asNew: true });
+    expect(saved.fileId).toBe(newFile);
+    expect(getGoogleDriveSaveBarrier(binding, 'test')).toBe(unknown);
+    expect(getGoogleDriveSaveBarrier(saved, 'test')).toBeNull();
+    expect((await getGoogleDriveWorkBinding('set-c'))?.fileId).toBe(newFile);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
