@@ -494,6 +494,30 @@ describe('contributor asset upload submission', () => {
     release(); await pending;
   });
 
+  it('holds exclusive submission authority through delayed SVG normalization', async () => {
+    const bytes = new Blob(['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>']);
+    const storage = setupStorage(bytes.size);
+    storage.download.mockResolvedValue({ data: bytes, error: null });
+    let release!: (value: { error: null }) => void;
+    storage.update.mockImplementation(() => new Promise((resolve) => { release = resolve; }));
+    const input = { ...submissionInput(), assetType: 'icons', studioDestination: 'element.icon',
+      uploadedFile: { storagePath: ownedPath('cfsvg'), fileName: 'proof.svg', mimeType: 'image/svg+xml', fileSizeBytes: bytes.size } };
+    const pending = createUploadedPipelineSubmission(input);
+    await vi.waitFor(() => expect(storage.update).toHaveBeenCalledOnce());
+    await expect(removePendingPipelineUpload({ ...cleanupInput(), storagePath: input.uploadedFile.storagePath })).rejects.toMatchObject({ status: 409 });
+    await expect(createUploadedPipelineSubmission(input)).rejects.toMatchObject({ status: 503 });
+    expect(storage.remove).not.toHaveBeenCalled();
+    release({ error: null }); await pending;
+    expect(storage.update).toHaveBeenCalledOnce();
+  });
+
+  it('does not delete on an unreadable cleanup claim receipt', async () => {
+    const storage = setupStorage();
+    storage.rpc.mockResolvedValue({ data: null, error: null });
+    await expect(removePendingPipelineUpload(cleanupInput())).rejects.toMatchObject({ status: 503 });
+    expect(storage.remove).not.toHaveBeenCalled();
+  });
+
   it.each(['storage', 'finalizer'])('never reissues cleanup authority after uncertain %s outcome', async (failure) => {
     const storage = setupStorage();
     if (failure === 'storage') storage.remove.mockRejectedValue(new Error('response lost'));

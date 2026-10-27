@@ -68,6 +68,15 @@ begin
  if snapshot->'reasons'='[]'::jsonb then raise exception 'upload_proof_enabled_expiry'; end if;
  perform public.cardforge_change_catalog_trash('upload-owner','restore',snapshot->'state');
 
+ -- SQL finalization proof only: this synthetic database has no Storage bytes.
+ -- Both automatic cleanup paths must retain the exact-source tombstone.
+ perform public.cardforge_prepare_contributor_asset_purge(receipt,'Native upload proof');
+ if not public.cardforge_finalize_contributor_asset_purge(receipt) then raise exception 'whole_lineage_finalizer_failed'; end if;
+ if exists(select 1 from public.cardforge_contributor_asset_submissions where lineage_id=line)
+   or exists(select 1 from public.cardforge_asset_registry where asset_id='native-upload-proof')
+   or not exists(select 1 from public.cardforge_pipeline_asset_lineages where id=line and upload_source_path=path
+     and catalog_destructive_uncertainty='lineage_purge_committed') then raise exception 'whole_lineage_source_history_lost'; end if;
+
  cleanup_path:=public.cardforge_reserve_pipeline_upload('upload-proof',descriptor)->>'storagePath';
  cleanup_token:=public.cardforge_claim_pipeline_upload_cleanup('upload-proof',cleanup_path);
  -- Deliberately omit finalization: response loss, Storage uncertainty and failed

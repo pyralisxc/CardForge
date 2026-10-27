@@ -66,7 +66,7 @@ cleanup() {
   local status=$?
   trap - EXIT
   if [[ $status != 0 ]]; then
-    for log in "$proof/fixture.log" "$proof/typed-consumers.log" "$proof/upload-commitments.log" "$proof/contention.log" "$proof/upload-generation.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log" "$proof/plugin-table-conflict.log" "$proof/plugin-bucket-conflict.log" "$proof/plugin-retention.log" "$proof/parent-content-version.log" "$proof/style-review.log" "$proof/editorial-review.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
+    for log in "$proof/fixture.log" "$proof/typed-consumers.log" "$proof/upload-commitments.log" "$proof/contention.log" "$proof/media-backfill.log" "$proof/prefix-prerequisites.log" "$proof/initial-revisions.log" "$proof/plugin-table-conflict.log" "$proof/plugin-bucket-conflict.log" "$proof/plugin-retention.log" "$proof/parent-content-version.log" "$proof/style-review.log" "$proof/editorial-review.log"; do [[ ! -f "$log" ]] || tail -n 100 "$log"; done
   fi
   run_cli stop stop --workdir "$work" --no-backup || status=1
   rm -rf -- "$work"
@@ -105,14 +105,6 @@ for conflict in table bucket; do
   grep -q "ERROR:  $expected" "$proof/plugin-$conflict-conflict.log"
   cat "$proof/plugin-$conflict-conflict.log"
 done
-# Generate this new forward file with the already pinned native CLI. The local
-# executor lacks that CLI; retain the generated name before final source review.
-supabase migration new pipeline_upload_commitments --workdir "$work" > "$proof/upload-generation.log" 2>&1
-upload_migration=$(find "$work/supabase/migrations" -name '*_pipeline_upload_commitments.sql')
-[[ -n "$upload_migration" && $(wc -l <<< "$upload_migration") == 1 ]]
-cp "$root/supabase/tests/pipeline_upload_commitments_migration.sql" "$upload_migration"
-basename "$upload_migration"
-sha256sum "$upload_migration"
 run_cli remaining migration up --workdir "$work" --local
 psql_local -c "BEGIN; SET LOCAL cardforge.fixture_disposable = 'plugin-releases';" \
   -f "$root/supabase/tests/plugin_release_retention.sql" -c 'ROLLBACK;' > "$proof/plugin-retention.log" 2>&1
