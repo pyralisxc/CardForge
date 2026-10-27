@@ -2,9 +2,14 @@ import { buildSync } from 'esbuild';
 import { expect, test } from '@playwright/test';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
+import postcss from 'postcss';
+import tailwindcss from 'tailwindcss';
+import tailwindConfig from '../../../tailwind.config';
 const bundle = buildSync({ entryPoints: ['tests/product/fixtures/libraryTemplateIdentity.tsx'], bundle: true,
   platform: 'browser', format: 'iife', write: false, outfile: join(tmpdir(), 'library-template-identity.js'),
   define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' } });
+const appCss = postcss([tailwindcss(tailwindConfig)]).process((readFileSync('src/app/cardforgePresentation.css', 'utf8') + readFileSync('src/app/globals.css', 'utf8')).replace(/@import ['"]([^'"]+)['"];?/g, (_, path: string) => readFileSync(join('src/app', path), 'utf8')), { from: 'src/app/globals.css' });
 for (const width of [390, 1440]) {
   test(`@golden exact Template pixels and revision attribution at ${width}px`, async ({ page }, info) => {
     const errors: string[] = [];
@@ -15,9 +20,15 @@ for (const width of [390, 1440]) {
       if (route.request().url().endsWith('/__library-template-proof') && route.request().method() === 'GET') return route.fulfill({
         contentType: 'text/html', body: '<html><head><style>*{box-sizing:border-box}body{margin:0;font-family:sans-serif}button{margin:3px}</style></head><body></body></html>',
       });
+      const url = new URL(route.request().url());
+      if (url.origin === 'http://localhost:9002' && route.request().method() === 'GET'
+        && ['/fonts/lato/Lato-Regular.ttf', '/fonts/lato/Lato-Bold.ttf', '/fonts/spectral/Spectral-Bold.ttf'].includes(url.pathname)) {
+        return route.fulfill({ contentType: 'font/ttf', body: readFileSync(join('public', url.pathname)) });
+      }
       requests.push(`${route.request().method()} ${route.request().url()}`); return route.abort();
     });
     await page.goto('/__library-template-proof');
+    await page.addStyleTag({ content: (await appCss).css });
     for (const file of bundle.outputFiles.filter(file => file.path.endsWith('.css'))) await page.addStyleTag({ content: file.text });
     await page.addScriptTag({ content: bundle.outputFiles.find(file => file.path.endsWith('.js'))!.text });
     const detail = width > 640 ? page.getByRole('complementary', { name: 'Details for Same name' }) : page.getByRole('dialog');
