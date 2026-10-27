@@ -25,7 +25,7 @@ vi.mock('@/features/project/persistence/structuredBrowserStorage', () => ({
   },
   removeStructuredBrowserValue: async (key: string) => { mock.values.delete(key); },
 }));
-vi.mock('@/features/project/persistence/projectPersistenceScope', () => ({ getScopedProjectStorageNamespace: () => mock.namespace }));
+vi.mock('@/features/project/persistence/projectPersistenceScope', () => ({ getScopedProjectStorageNamespace: () => mock.namespace, getProjectPersistenceScope: () => mock.namespace }));
 vi.mock('@/features/project/client/projectWorkspaceDocument', () => ({
   captureCardSetProjectDocument: mock.captureSet,
   captureCurrentProjectDocument: mock.captureWorkspace,
@@ -47,6 +47,7 @@ vi.mock('@/features/project/store/workspaceStore', () => {
 });
 
 import { resetGoogleDriveTargetSaveStateForTests, serializeGoogleDriveTargetSave, getGoogleDriveSaveBarrier, getGoogleDriveWorkBinding, GoogleDriveUnknownCommitError, GoogleDriveSaveLinkageError, copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
+import { repairConfirmedGoogleDriveLink } from '@/features/project/client/googleDriveLinkRepair';
 import { disconnectLocalProjectFolder, getLocalProjectFolderStatus, saveCardSetToAttachedFolder, saveProjectToAttachedFolder } from '@/features/project/client/localProjectFolder';
 
 const driveBinding = { fileId: 'drive-file-12345', name: 'C', providerRevision: '1', projectRevision: 'a'.repeat(64), workId: 'set-c' };
@@ -503,5 +504,120 @@ describe('same-target real transfer ordering and recovery', () => {
     expect(getGoogleDriveSaveBarrier(saved, 'test')).toBeNull();
     expect((await getGoogleDriveWorkBinding('set-c'))?.fileId).toBe(newFile);
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('first-save and destination commitment ordering', () => {
+  const settleTurn = async () => { for (let n = 0; n < 20; n++) await new Promise<void>(resolve => setImmediate(resolve)); };
+  it('queues concurrent first saves for the same Set', async () => {
+    let release!: (response: Response) => void;
+    const held = new Promise<Response>(resolve => { release = resolve; });
+    const prepares: Array<{ fileId: string | null }> = [];
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, options: RequestInit) => {
+      if (options.method === 'POST') {
+        prepares.push(JSON.parse(options.body as string));
+        return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' });
+      }
+      return held.then(response => response.clone());
+    }));
+    const first = saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' });
+    await vi.waitFor(() => expect(prepares).toHaveLength(1));
+    const second = saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' });
+    await settleTurn();
+    const beforeRelease = prepares.length;
+    release(Response.json({ id: driveBinding.fileId, headRevisionId: 'native-2', name: 'C' }));
+    await Promise.all([first, second]);
+    expect(beforeRelease).toBe(1);
+    expect(prepares[1].fileId).toBe(driveBinding.fileId);
+  });
+  it('retains an unknown first-save failure before another preparation', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' }))
+      .mockResolvedValueOnce(Response.json(null))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+    vi.stubGlobal('fetch', fetch);
+    const failure = await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' }).catch(error => error);
+    expect(failure).toBeInstanceOf(GoogleDriveUnknownCommitError);
+    const calls = fetch.mock.calls.length;
+    const retried = await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' }).catch(error => error);
+    expect(retried).toBe(failure);
+    expect(fetch.mock.calls.length).toBe(calls);
+  });
+  it('does not let late F overwrite a newer Save as new F2 binding', async () => {
+    mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
+    let release!: (response: Response) => void;
+    const held = new Promise<Response>(resolve => { release = resolve; });
+    let posts = 0;
+    vi.stubGlobal('fetch',vi.fn(async (url: string, options: RequestInit) => {
+      if (options.method === 'POST') {
+        const input = JSON.parse(options.body as string);
+        posts++;
+        return Response.json({ uploadSessionUrl: input.fileId ? 'https://upload.test/F' : 'https://upload.test/F2', name: 'C' });
+      }
+      if (url.endsWith('/F')) return held;
+      return Response.json({ id: 'drive-file-new-F2', headRevisionId: 'native-3', name: 'F2' });
+    }));
+    const first = saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' });
+    await vi.waitFor(() => expect(posts).toBe(1));
+    const second = saveCardSetToGoogleDrive({ setId: 'set-c', name: 'F2', asNew: true });
+    await settleTurn();
+    const beforeRelease = posts;
+    release(Response.json({ id: driveBinding.fileId, headRevisionId: 'native-2', name: 'C' }));
+    await Promise.all([first, second]);
+    expect(beforeRelease).toBe(1);
+    expect((await getGoogleDriveWorkBinding('set-c'))?.fileId).toBe('drive-file-new-F2');
+  });
+});
+
+
+describe('first-save recovery and independence', () => {
+  it.each(['test:google-drive-work-binding:set-c', 'test:google-drive-project-binding'])(
+    'retains the confirmed first receipt and repairs without PUT after %s fails', async (key) => {
+      mock.localSets = [{ id: 'set-c' }];
+      mock.failWriteKey = key;
+      const fetch = vi.fn()
+        .mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C', accountId: 'account-a' }))
+        .mockResolvedValueOnce(Response.json({ id: driveBinding.fileId, headRevisionId: 'native-2', name: 'C' }));
+      vi.stubGlobal('fetch', fetch);
+      const failure = await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' }).catch(error => error);
+      expect(failure).toBeInstanceOf(GoogleDriveSaveLinkageError);
+      await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' })).rejects.toBe(failure);
+      expect(fetch).toHaveBeenCalledTimes(2);
+      mock.failWriteKey = null;
+      const receipt = failure.sourceReceipt;
+      fetch.mockResolvedValueOnce(Response.json({ connection: { connected: true }, projects: [{
+        ...receipt, modifiedAt: receipt.lastSavedAt, size: 7,
+      }], nextPageToken: null }));
+      const repaired = await repairConfirmedGoogleDriveLink(receipt);
+      expect(repaired.fileId).toBe(receipt.fileId);
+      expect(getGoogleDriveSaveBarrier(null, 'test', 'set-c')).toBeNull();
+      expect(getGoogleDriveSaveBarrier(repaired, 'test', 'set-c')).toBeNull();
+      expect(fetch.mock.calls.slice(2)).toHaveLength(1);
+      expect(fetch.mock.calls[2][1]).toEqual({ cache: 'no-store' });
+    },
+  );
+
+  it('allows another Set to finish while the first unbound Set is uploading', async () => {
+    let release!: (response: Response) => void;
+    const held = new Promise<Response>(resolve => { release = resolve; });
+    const started = new Promise<void>(resolve => {
+      vi.stubGlobal('fetch', vi.fn(async (url: string, options: RequestInit) => {
+        if (options.method === 'POST') {
+          const input = JSON.parse(options.body as string);
+          return Response.json({ uploadSessionUrl: `https://upload.test/${input.workId}`, name: 'C' });
+        }
+        if (url.endsWith('/set-c')) { resolve(); return held; }
+        return Response.json({ id: 'drive-file-independent', headRevisionId: 'native-3', name: 'Other' });
+      }));
+    });
+    const first = saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' });
+    await started;
+    try {
+      const second = await saveCardSetToGoogleDrive({ setId: 'set-other', name: 'Other' });
+      expect(second.fileId).toBe('drive-file-independent');
+    } finally {
+      release(Response.json({ id: driveBinding.fileId, headRevisionId: 'native-2', name: 'C' }));
+      await first;
+    }
   });
 });

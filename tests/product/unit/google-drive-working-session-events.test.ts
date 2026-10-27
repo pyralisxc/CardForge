@@ -162,4 +162,21 @@ describe('Drive hook recovery barriers and independent copies', () => {
     expect(harness.holds.has('drive-file-F')).toBe(false);
     expect(harness.save).not.toHaveBeenCalled();
   });
+  it('reports initial binding read failure instead of staying Checking', async () => {
+    harness.lookup.mockRejectedValue(new Error('IndexedDB read unavailable'));
+    useGoogleDriveWorkingSession({setId:'set-c',name:'F'});
+    await flush();
+    expect(latest()?.phase).toBe('error');
+    expect(latest()?.message).toContain('IndexedDB read unavailable');
+  });
+  it('reports polling binding read failure instead of retaining Saved', async () => {
+    useGoogleDriveWorkingSession({setId:'set-c',name:'F'});
+    await flush();
+    expect(latest()?.phase).toBe('clean');
+    harness.lookup.mockRejectedValue(new Error('IndexedDB read unavailable'));
+    harness.poll?.();
+    await flush();
+    expect(latest()?.phase).toBe('error');
+  });
+
 });
