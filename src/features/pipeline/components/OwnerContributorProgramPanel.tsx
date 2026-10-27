@@ -34,20 +34,31 @@ import type { PipelineTemplateSpecimenRenderer } from './PipelineContributionMod
 import { getPipelineTypeLabel } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
+import { readReviewPublication, resolvePipelineReviewTarget, type PipelineReviewTarget } from '../lib/pipelineReviewTarget';
+
 interface PipelineItemsResponse {
   program: PipelineProgramView;
 }
 
 export function OwnerContributorProgramPanel({
   initialStatusFilter = 'all',
+  target,
+  onDirtyChange,
+  onRevise,
+  onSelectionMutated,
   renderTemplateSpecimen,
 }: {
   initialStatusFilter?: PipelineStatus | 'all';
+  target?: PipelineReviewTarget;
+  onDirtyChange?: (dirty: boolean) => void;
+  onSelectionMutated?: () => void;
+  onRevise?: (submission: PipelineProgramView['submissions'][number]) => void;
   renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
 }) {
   const { toast } = useToast();
   const [program, setProgram] = useState<PipelineProgramView | null>(null);
-  const [settings, setSettings] = useState<PipelineProgramSettings | null>(null);
+  const [settings, setSettingsState] = useState<PipelineProgramSettings | null>(null);
+  const setSettings: typeof setSettingsState = update => { onDirtyChange?.(true); setSettingsState(update); };
   const [updatingSubmissionId, setUpdatingSubmissionId] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -63,18 +74,34 @@ export function OwnerContributorProgramPanel({
     if (!hasLoadedRef.current) setIsLoading(true);
     setLoadError(null);
     try {
+      if (target) await readReviewPublication(target);
       const params = new URLSearchParams({
-        query: libraryQuery,
+        query: target ? '' : libraryQuery,
         assetType: libraryAssetType,
         status: libraryStatus,
         page: String(libraryPage),
-        pageSize: '12',
+        pageSize: target ? '50' : '12',
       });
       const response = await fetch(`/api/pipeline?${params.toString()}`, { cache: 'no-store' });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load the Contributor program.'));
       const body = await response.json() as PipelineItemsResponse;
-      setProgram(body.program);
-      setSettings(body.program.settings);
+      if (target) {
+        const total = body.program.submissionPage.total;
+        const count = Math.ceil(total / body.program.submissionPage.pageSize);
+        for (let next = 2; !body.program.submissions.some(row => row.id === target.submissionId) && next <= count; next += 1) {
+          params.set('page', String(next));
+          const more = await fetch(`/api/pipeline?${params.toString()}`, { cache: 'no-store' });
+          if (!more.ok) throw new Error(await readApiErrorMessage(more, 'The selected revision is unavailable.'));
+          const extra = await more.json() as PipelineItemsResponse;
+          if (extra.program.submissionPage.total !== total) throw new Error('The review inventory changed. Close and reopen this exact selection.');
+          body.program.submissions = extra.program.submissions;
+        }
+      }
+      if (target) {
+        const exact = resolvePipelineReviewTarget(target, body.program.submissions);
+        setProgram({ ...body.program, submissions: [exact], submissionPage: { ...body.program.submissionPage, page: 1, total: 1 } });
+      } else setProgram(body.program);
+      setSettingsState(body.program.settings);
       hasLoadedRef.current = true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to load the Contributor program.';
@@ -87,7 +114,7 @@ export function OwnerContributorProgramPanel({
     } finally {
       setIsLoading(false);
     }
-  }, [libraryAssetType, libraryPage, libraryQuery, libraryStatus, toast]);
+  }, [libraryAssetType, libraryPage, libraryQuery, libraryStatus, target, toast]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadProgram(), 250);
@@ -105,9 +132,10 @@ export function OwnerContributorProgramPanel({
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save the Contributor program.'));
       const body = await response.json() as PipelineItemsResponse;
-      setSettings(body.program.settings);
-      await loadProgram();
+      setSettingsState(body.program.settings);
+      if (target && onSelectionMutated) onSelectionMutated(); else await loadProgram();
       setLastSavedAt(new Date().toISOString());
+      onDirtyChange?.(false);
       toast({ title: 'Contributor program saved', description: 'Roster, voting, and publish rules are updated.' });
     } catch (error) {
       toast({
@@ -125,6 +153,7 @@ export function OwnerContributorProgramPanel({
     input: OwnerAssetOverrideInput,
     success?: { title: string; description: string },
   ): Promise<boolean> => {
+    if (target && submissionId !== target.submissionId) throw new Error('The action does not match the selected revision.');
     setUpdatingSubmissionId(submissionId);
     try {
       const response = await fetch(`/api/pipeline/${submissionId}`, {
@@ -134,8 +163,9 @@ export function OwnerContributorProgramPanel({
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update asset status.'));
       await response.json() as PipelineItemsResponse;
-      await loadProgram();
+      if (target && onSelectionMutated) onSelectionMutated(); else await loadProgram();
       setLastSavedAt(new Date().toISOString());
+      onDirtyChange?.(false);
       toast(success ?? { title: 'Asset control saved', description: 'The owner override and automatic recommendation are now synchronized.' });
       return true;
     } catch (error) {
@@ -154,6 +184,7 @@ export function OwnerContributorProgramPanel({
     submissionId: string,
     input: OwnerEditorialReviewInput,
   ): Promise<boolean> => {
+    if (target && submissionId !== target.submissionId) throw new Error('The action does not match the selected revision.');
     setUpdatingSubmissionId(submissionId);
     try {
       const response = await fetch(`/api/pipeline/${submissionId}`, {
@@ -163,8 +194,9 @@ export function OwnerContributorProgramPanel({
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save editorial review.'));
       await response.json() as PipelineItemsResponse;
-      await loadProgram();
+      if (target && onSelectionMutated) onSelectionMutated(); else await loadProgram();
       setLastSavedAt(new Date().toISOString());
+      onDirtyChange?.(false);
       toast({ title: 'Editorial review saved', description: 'The exact revision now carries the recorded publication-quality decision.' });
       return true;
     } catch (error) {
@@ -180,6 +212,7 @@ export function OwnerContributorProgramPanel({
   };
 
   const deleteRevisionNow = async (submissionId:string,confirmationName:string,storagePath:string|null) => {
+    if (target && submissionId !== target.submissionId) throw new Error('The action does not match the selected revision.');
     setUpdatingSubmissionId(submissionId);
     try{
       const response=await fetch(`/api/pipeline/${submissionId}/delete-revision`,{
@@ -187,7 +220,7 @@ export function OwnerContributorProgramPanel({
         body:JSON.stringify({confirmationName,storagePath})
       });
       if(!response.ok)throw new Error(await readApiErrorMessage(response,'Unable to delete selected revision.'));
-      await loadProgram();
+      if (target && onSelectionMutated) onSelectionMutated(); else await loadProgram();
       toast({title:'Revision deleted',description:'One selected trashed revision was permanently removed.'});
     }catch(error){
       toast({title:'Revision not confirmed deleted',
@@ -196,6 +229,7 @@ export function OwnerContributorProgramPanel({
   };
 
   const deletePermanently = async (submissionId: string, confirmationName: string) => {
+    if (target && submissionId !== target.submissionId) throw new Error('The action does not match the selected revision.');
     setUpdatingSubmissionId(submissionId);
     try {
       const response = await fetch(`/api/pipeline/${submissionId}`, {
@@ -205,8 +239,9 @@ export function OwnerContributorProgramPanel({
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to permanently delete this asset.'));
       await response.json() as PipelineItemsResponse;
-      await loadProgram();
+      if (target && onSelectionMutated) onSelectionMutated(); else await loadProgram();
       setLastSavedAt(new Date().toISOString());
+      onDirtyChange?.(false);
       toast({ title: 'Asset permanently deleted', description: 'The registry entry, revision lineage, votes, and managed storage were removed.' });
     } catch (error) {
       toast({
@@ -243,7 +278,7 @@ export function OwnerContributorProgramPanel({
           {loadError ?? 'Unable to load the Contributor program.'}
         </p>
         <p className="mt-3 text-sm leading-6 text-[#e7b3a8]">
-          Confirm the Contributor Pipeline Supabase migration has been applied, then refresh this page.
+          Retry when the source is available, or close and refresh Library to select the current exact revision.
         </p>
         <Button
           className="mt-5 border-[#ffb8a8] bg-transparent text-[#ffe1d8] hover:bg-[#2a120d]"
@@ -260,9 +295,19 @@ export function OwnerContributorProgramPanel({
     ? new Date(lastSavedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : 'No changes saved in this session';
 
+  if (target) return <TooltipProvider><section aria-label="Exact revision governance" onChangeCapture={() => onDirtyChange?.(true)}>
+    <p>Selected revision {target.revisionNumber ?? 'legacy'} · {target.status}</p>
+    <p className="break-all text-xs">{target.assetId} · {target.submissionId}</p>
+    <OwnerAssetLibraryPanel key={target.submissionId} focused program={program} renderTemplateSpecimen={renderTemplateSpecimen}
+      query="" assetTypeFilter="all" statusFilter="all" page={1} onQueryChange={() => {}} onAssetTypeFilterChange={() => {}}
+      onStatusFilterChange={() => {}} onPageChange={() => {}} updatingSubmissionId={updatingSubmissionId}
+      onUpdateOverride={updateOverride} onUpdateEditorialReview={updateEditorialReview} onDeletePermanently={deletePermanently}
+      onDeleteRevisionNow={deleteRevisionNow} onRevisionCreated={target && onSelectionMutated ? onSelectionMutated : loadProgram} onRevise={onRevise} />
+  </section></TooltipProvider>;
+
   return (
     <TooltipProvider>
-    <section className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface)] p-6">
+    <section onChangeCapture={() => onDirtyChange?.(true)} className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface)] p-6">
       <OwnerContributorProgramOverview program={program} settings={settings} lastSavedLabel={lastSavedLabel} />
 
       <Tabs defaultValue="library" className="mt-5 space-y-5">

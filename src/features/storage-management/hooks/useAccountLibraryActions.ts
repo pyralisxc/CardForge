@@ -25,11 +25,12 @@ import type { LibraryScope } from '../model/libraryScopes';
 import type { useAccountLibraryProjection } from './useAccountLibraryProjection';
 import {
   createLibraryZoneAction as zoneAction,
+  createLibraryReviewAction,
   getSharedLibraryActions as sharedActions,
   type LibraryViewItem,
 } from '../components/LibraryObjectPresentation';
 
-type LibraryTool = 'locations' | 'contribute' | 'edit-contribution' | 'design' | null;
+type LibraryTool = 'review-manage' | 'pipeline-operations' | 'revise-existing' | 'locations' | 'contribute' | 'edit-contribution' | 'design' | null;
 type LibraryToolId = Exclude<LibraryTool, null>;
 type AccountLibraryProjection = Pick<ReturnType<typeof useAccountLibraryProjection>, 'busyItemId' | 'openItem' | 'refresh' | 'router'>;
 type CommandTarget = LibraryViewItem | { scope: 'personal'; id: string; personal: AccountLibraryItem } | null;
@@ -48,6 +49,8 @@ interface UseAccountLibraryActionsOptions {
   projection: AccountLibraryProjection;
   refresh: () => void;
   closeTool: () => void;
+  openReview: (item: LibraryViewItem) => void;
+  closeContextualTool: () => void;
   openTool: (toolId: LibraryToolId, targetIds?: readonly string[]) => void;
   setDesignReturnFocusId: Dispatch<SetStateAction<string | null>>;
   setEditingSubmission: Dispatch<SetStateAction<PipelineSubmission | null>>;
@@ -69,6 +72,8 @@ export function useAccountLibraryActions({
   projection,
   refresh,
   closeTool,
+  openReview,
+  closeContextualTool,
   openTool,
   setDesignReturnFocusId,
   setEditingSubmission,
@@ -106,11 +111,16 @@ export function useAccountLibraryActions({
     return href;
   };
 
+  const contextualActions = (item: Extract<LibraryViewItem, { scope: 'published' | 'pipeline' }>) => [
+    ...sharedActions(item),
+    ...(experience.owner && experience.signedIn ? [createLibraryReviewAction()] : []),
+  ];
+
   const actions: ActionDescriptor[] = activeTool
     ? [zoneAction(activeTool === 'locations' ? 'library.close-locations' : 'library.close-tool', activeTool === 'locations' ? 'Close locations' : activeTool === 'edit-contribution' ? 'Close submission editor' : activeTool === 'design' ? 'Close Design' : 'Close contribution tool')]
     : currentItem?.scope === 'personal'
       ? personalActions(currentItem.personal)
-      : currentItem?.scope === 'published' || currentItem?.scope === 'pipeline' ? sharedActions(currentItem)
+      : currentItem?.scope === 'published' || currentItem?.scope === 'pipeline' ? contextualActions(currentItem)
         : [zoneAction('library.refresh', activeLoading ? 'Refreshing' : 'Refresh Library', activeLoading)];
 
   const openPersonalItem = async (item: AccountLibraryItem): Promise<ActionOperationResult> => {
@@ -158,6 +168,7 @@ export function useAccountLibraryActions({
   };
 
   const closeLibraryTool = (locations: boolean) => {
+    if (['review-manage', 'pipeline-operations', 'revise-existing'].includes(activeTool ?? '')) { closeContextualTool(); return `/account?section=library&scope=${activeScope}`; }
     const focusId = locations
       ? 'library-locations-trigger'
       : activeTool === 'edit-contribution' && editingSubmission
@@ -214,6 +225,7 @@ export function useAccountLibraryActions({
     const requirePublished = () => { if (!published) throw new Error('Choose a Published Library object first.'); return published; };
     const requirePipeline = () => { if (!pipeline) throw new Error('Choose a Pipeline revision first.'); return pipeline; };
     return {
+      reviewManage: () => { if (!experience.owner || !experience.signedIn || !target || target.scope === 'personal') throw new Error('Owner access and a selected shared artifact are required.'); openReview(target as LibraryViewItem); return { kind: 'tool-opened', toolId: 'review-manage' }; },
       closeLocations: () => ({ kind: 'navigation', href: closeLibraryTool(true) }),
       closeTool: () => ({ kind: 'navigation', href: closeLibraryTool(false) }),
       continuePersonal: () => openPersonalItem(requirePersonal()),
@@ -240,10 +252,9 @@ export function useAccountLibraryActions({
       copyPublishedTemplate: async () => runPublishedAction(requirePublished(), true),
       editPipeline: () => {
         const item = requirePipeline();
-        if (!item.pipeline.editableSubmission) throw new Error('This Pipeline lineage has no editable revision.');
+        if (!item.pipeline.editableSubmission || item.pipeline.editableSubmission.id !== item.pipeline.submission.id || item.pipeline.ownership !== 'mine') throw new Error('This selected revision is not your editable contribution.');
         setEditingSubmission(item.pipeline.editableSubmission);
         openTool('edit-contribution', [item.pipeline.editableSubmission.id]);
-        closeDetail();
         return { kind: 'tool-opened', toolId: 'edit-contribution' };
       },
       testPipeline: () => {
@@ -283,7 +294,7 @@ export function useAccountLibraryActions({
   };
 
   const runPublishedRowAction = (actionId: string, item: Extract<LibraryViewItem, { scope: 'published' }>) => {
-    const descriptors = sharedActions(item);
+    const descriptors = contextualActions(item);
     const action = descriptors.find((candidate) => candidate.id === actionId);
     if (action) executeAction(action, item, descriptors);
   };

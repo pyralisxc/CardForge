@@ -29,6 +29,7 @@ import { shouldLoadLibraryPipelineProgram, type LibraryScope } from '../model/li
 
 export interface PublishedLibraryObject {
   id: string;
+  publicationIdentity?: { assetId: string; submissionId: string; updatedAt: string | null } | null;
   publicAiDisclosure?: string | null;
   name: string;
   kind: CardAssetOption['kind'] | 'font' | 'set';
@@ -135,6 +136,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     packageUrl: null,
     revision: null,
     lineageId: pipelineByAssetId.get(asset.id)?.lineageId ?? null,
+    publicationIdentity: pipelineByAssetId.get(asset.id)?.submissionId ? { assetId: asset.id, submissionId: pipelineByAssetId.get(asset.id)!.submissionId!, updatedAt: pipelineByAssetId.get(asset.id)!.updatedAt } : null,
     description: pipelineByAssetId.get(asset.id)?.description ?? '',
     publicAiDisclosure: pipelineByAssetId.get(asset.id)?.publicAiDisclosure ?? null,
     specialtyTags: pipelineByAssetId.get(asset.id)?.specialtyTags ?? [],
@@ -164,6 +166,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     packageUrl: null,
     revision: null,
     lineageId: pipelineByAssetId.get(font.value)?.lineageId ?? null,
+    publicationIdentity: pipelineByAssetId.get(font.value)?.submissionId ? { assetId: font.value, submissionId: pipelineByAssetId.get(font.value)!.submissionId!, updatedAt: pipelineByAssetId.get(font.value)!.updatedAt } : null,
     description: pipelineByAssetId.get(font.value)?.description ?? '',
     publicAiDisclosure: pipelineByAssetId.get(font.value)?.publicAiDisclosure ?? null,
     specialtyTags: pipelineByAssetId.get(font.value)?.specialtyTags ?? [],
@@ -190,6 +193,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     packageUrl: set.packageUrl,
     revision: set.revision,
     lineageId: pipelineByAssetId.get(set.id)?.lineageId ?? null,
+    publicationIdentity: pipelineByAssetId.get(set.id)?.submissionId ? { assetId: set.id, submissionId: pipelineByAssetId.get(set.id)!.submissionId!, updatedAt: pipelineByAssetId.get(set.id)!.updatedAt } : null,
     description: set.description,
     publicAiDisclosure: pipelineByAssetId.get(set.id)?.publicAiDisclosure ?? null,
     specialtyTags: set.specialtyTags,
