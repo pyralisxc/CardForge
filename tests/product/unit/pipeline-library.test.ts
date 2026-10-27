@@ -9,7 +9,8 @@ import {
 } from '@/features/pipeline/lib/pipelineLibrary';
 import type { PipelineSubmission } from '@/features/pipeline/lib/pipelineProgram';
 import type { CardForgeCatalogManifest } from '@/features/pipeline/lib/catalogManifest';
-import { projectPipelineLibraryObjects } from '@/features/storage-management/hooks/useLibrarySharedProjection';
+import { identityCatalog, identityProgram, identitySubmission, identityTemplate } from '../fixtures/libraryTemplateIdentityData';
+import { projectPublishedLibraryObjects, projectPipelineLibraryObjects } from '@/features/storage-management/hooks/useLibrarySharedProjection';
 
 const submission = (
   id: string,
@@ -319,5 +320,25 @@ describe('Pipeline Library projection', () => {
     } as CardForgeCatalogManifest;
 
     expect(projectPipelineLibraryObjects(program([publishedImage]), catalog)[0].previewUrl).toBe('/card-assets/ember-art.png');
+  });
+});
+
+describe('exact Template Library identity', () => {
+  it('never borrows a same-name default when an asset ID is missing or mismatched', () => {
+    const catalog = identityCatalog();
+    expect(projectPublishedLibraryObjects(catalog).map(item => [item.id, item.template?.id ?? null])).toEqual([
+      ['published:template:A', 'A'], ['published:template:B', 'B'], ['published:template:missing', null],
+    ]);
+    catalog.templates.defaults = [identityTemplate('wrong-id', '#0000ff')];
+    expect(projectPublishedLibraryObjects(catalog).every(item => item.template === null)).toBe(true);
+  });
+  it.each(['missing-source', 'history', 'wrong-lineage', 'wrong-submission', 'missing-identity'])('keeps exact source or unavailable for %s', mode => {
+    const catalog = identityCatalog();
+    const row = identitySubmission(mode === 'wrong-lineage' ? 'A2' : 'A1', { name: 'Same name', status: 'published',
+      lineageId: mode === 'wrong-lineage' ? 'wrong-lineage' : 'lineage-A', targetRegistryAssetId: mode === 'missing-identity' ? null : 'A',
+      sourcePayload: mode === 'history' ? identityTemplate('original-A', '#00ff00') : null });
+    const [item] = projectPipelineLibraryObjects(identityProgram([row]), catalog);
+    expect(item.template).toEqual(mode === 'history' ? row.sourcePayload : null);
+    expect(item.previewUrl).toBeNull();
   });
 });
