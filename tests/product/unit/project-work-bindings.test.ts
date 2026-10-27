@@ -685,8 +685,8 @@ it('rejects Refresh with an old F checkpoint after a queued F2 destination commi
   expect((await getGoogleDriveWorkBinding('set-c'))?.fileId).toBe('drive-file-new-F2');
 });
 
-it('keeps the new F2 binding when deletion of old F finishes after Save as new', async () => {
-  mock.localSets = [{ id: 'set-c' }];
+it.each(['same Set', 'another Set'] as const)('keeps the new %s binding when deletion of old F finishes after Save as new', async (target) => {
+  mock.localSets = [{ id: 'set-c' }, { id: 'set-other' }];
   mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
   mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
   let release!: (response: Response) => void;
@@ -699,10 +699,12 @@ it('keeps the new F2 binding when deletion of old F finishes after Save as new',
   vi.stubGlobal('fetch', fetch);
   const deletion = deleteGoogleDriveProjectCopy(driveBinding);
   await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-  const saved = await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'F2', asNew: true });
+  const setId = target === 'same Set' ? 'set-c' : 'set-other';
+  const saved = await saveCardSetToGoogleDrive({ setId, name: 'F2', asNew: true });
   release(new Response(null, { status: 204 }));
   await deletion;
-  expect(await getGoogleDriveWorkBinding('set-c')).toEqual(saved);
+  expect(await getGoogleDriveWorkBinding(setId)).toEqual(saved);
+  if (target === 'another Set') expect(await getGoogleDriveWorkBinding('set-c')).toBeNull();
   expect(await getGoogleDriveProjectBinding()).toEqual(saved);
   expect(mock.apply).not.toHaveBeenCalled();
 });
@@ -727,5 +729,37 @@ it.each(['same Set', 'another Set'] as const)('keeps a new %s attachment when an
   release(new Response(null, { status: 204 }));
   await disconnect;
   expect(await getGoogleDriveWorkBinding(setId)).toEqual(saved);
+  expect(await getGoogleDriveProjectBinding()).toEqual(saved);
+});
+
+it('preserves active A at F2 when Trash removes old F from a legacy multi-Set member B', async () => {
+  const document = {
+    cardSets: [{ id: 'legacy-a', name: 'A' }, { id: 'legacy-b', name: 'B' }],
+    activeCardSetId: 'legacy-a', userTemplates: [], storedCards: [], appearanceStyles: [], customAssets: {},
+  };
+  mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document });
+  const fetch = vi.fn(async (_url: string, options: RequestInit) => {
+    if (options.method === 'DELETE') return new Response(null, { status: 204 });
+    if (options.method === 'POST') return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'F2', accountId: 'account-a' });
+    if (options.method === 'PUT') return Response.json({ id: 'drive-file-new-F2', headRevisionId: 'native-3', name: 'F2' });
+    return new Response('package', { headers: {
+      'X-CardForge-Provider-Revision': headToken('1'), 'X-CardForge-Project-Revision': 'b'.repeat(64),
+      'X-CardForge-Provider-Account': 'account-a',
+    } });
+  });
+  vi.stubGlobal('fetch', fetch);
+  const opened = await openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'Legacy workspace', accountId: 'account-a' });
+  const a = opened.workId!;
+  const b = opened.runtimeSetIds!.find(id => id !== a)!;
+  expect(b).toBeTruthy();
+  mock.localSets = opened.runtimeSetIds!.map(id => ({ id }));
+  // Observe the actual native Open projection, not a fabricated shared workId.
+  expect(await getGoogleDriveWorkBinding(a)).toMatchObject({ fileId: driveBinding.fileId, workId: a });
+  expect(await getGoogleDriveWorkBinding(b)).toMatchObject({ fileId: driveBinding.fileId, workId: b });
+  const saved = await saveCardSetToGoogleDrive({ setId: a, name: 'F2', asNew: true });
+  await deleteGoogleDriveProjectCopy({ fileId: driveBinding.fileId, providerRevision: headToken('1'), projectRevision: 'b'.repeat(64) });
+  expect(await getGoogleDriveWorkBinding(a)).toEqual(saved);
+  expect(await getGoogleDriveWorkBinding(b)).toBeNull();
+  expect(mock.values.get('test:google-drive-project-binding')).toEqual({ workId: a });
   expect(await getGoogleDriveProjectBinding()).toEqual(saved);
 });
