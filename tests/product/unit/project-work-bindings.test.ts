@@ -48,7 +48,7 @@ vi.mock('@/features/project/store/workspaceStore', () => {
   return { useProjectStore: { getState: () => state } };
 });
 
-import { resetGoogleDriveTargetSaveStateForTests, serializeGoogleDriveTargetSave, getGoogleDriveSaveBarrier, getGoogleDriveWorkBinding, GoogleDriveUnknownCommitError, GoogleDriveSaveLinkageError, copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
+import { resetGoogleDriveTargetSaveStateForTests, serializeGoogleDriveTargetSave, getGoogleDriveSaveBarrier, getGoogleDriveWorkBinding, GoogleDriveUnknownCommitError, GoogleDriveSaveLinkageError, disconnectGoogleDriveStorage, copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
 import { repairConfirmedGoogleDriveLink } from '@/features/project/client/googleDriveLinkRepair';
 import { disconnectLocalProjectFolder, getLocalProjectFolderStatus, saveCardSetToAttachedFolder, saveProjectToAttachedFolder } from '@/features/project/client/localProjectFolder';
 
@@ -683,4 +683,49 @@ it('rejects Refresh with an old F checkpoint after a queued F2 destination commi
   expect(fetch).toHaveBeenCalledTimes(2);
   expect(mock.apply).not.toHaveBeenCalled();
   expect((await getGoogleDriveWorkBinding('set-c'))?.fileId).toBe('drive-file-new-F2');
+});
+
+it('keeps the new F2 binding when deletion of old F finishes after Save as new', async () => {
+  mock.localSets = [{ id: 'set-c' }];
+  mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
+  mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
+  let release!: (response: Response) => void;
+  const held = new Promise<Response>(resolve => { release = resolve; });
+  const fetch = vi.fn(async (_url: string, options: RequestInit) => {
+    if (options.method === 'DELETE') return held;
+    if (options.method === 'POST') return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'F2' });
+    return Response.json({ id: 'drive-file-new-F2', headRevisionId: 'native-3', name: 'F2' });
+  });
+  vi.stubGlobal('fetch', fetch);
+  const deletion = deleteGoogleDriveProjectCopy(driveBinding);
+  await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  const saved = await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'F2', asNew: true });
+  release(new Response(null, { status: 204 }));
+  await deletion;
+  expect(await getGoogleDriveWorkBinding('set-c')).toEqual(saved);
+  expect(await getGoogleDriveProjectBinding()).toEqual(saved);
+  expect(mock.apply).not.toHaveBeenCalled();
+});
+
+
+it.each(['same Set', 'another Set'] as const)('keeps a new %s attachment when an earlier provider disconnect completes', async (target) => {
+  mock.localSets = [{ id: 'set-c' }, { id: 'set-other' }];
+  mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
+  mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
+  let release!: (response: Response) => void;
+  const held = new Promise<Response>(resolve => { release = resolve; });
+  const fetch = vi.fn(async (_url: string, options: RequestInit) => {
+    if (options.method === 'DELETE') return held;
+    if (options.method === 'POST') return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'F2' });
+    return Response.json({ id: 'drive-file-new-F2', headRevisionId: 'native-3', name: 'F2' });
+  });
+  vi.stubGlobal('fetch', fetch);
+  const disconnect = disconnectGoogleDriveStorage();
+  await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  const setId = target === 'same Set' ? 'set-c' : 'set-other';
+  const saved = await saveCardSetToGoogleDrive({ setId, name: 'F2', asNew: true });
+  release(new Response(null, { status: 204 }));
+  await disconnect;
+  expect(await getGoogleDriveWorkBinding(setId)).toEqual(saved);
+  expect(await getGoogleDriveProjectBinding()).toEqual(saved);
 });

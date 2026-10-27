@@ -27,6 +27,9 @@ vi.mock('@/features/project/store/workspaceStore', () => ({
 
 vi.mock('@/features/project/client/googleDriveProjectTransfer', () => ({
   clearConfirmedGoogleDriveLinkBarrier: mock.clearBarrier,
+  persistGoogleDriveProjectAttachment: async (binding: { workId: string }, namespace: string) => {
+    mock.writes.push({ key: `${namespace}:google-drive-project-binding`, value: { workId: binding.workId } });
+  },
   serializeGoogleDriveWorkCommitment: (_namespace: string, _workId: string, run: () => Promise<unknown>) => run(),
   getGoogleDriveWorkBinding: vi.fn(async () => mock.currentBinding),
   loadGoogleDriveProjectLibrary: vi.fn(async () => ({ projects: mock.projects })),

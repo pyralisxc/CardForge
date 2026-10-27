@@ -71,10 +71,27 @@ const getBindingStorageKey = (namespace = getScopedProjectStorageNamespace('proj
   `${namespace}:${GOOGLE_DRIVE_BINDING_KEY}`
 );
 
-const persistBinding = async (binding: GoogleDriveProjectBinding, namespace: string): Promise<void> => {
+// The attachment pointer is shared by independent Sets. Keep its tiny local
+// commits ordered too, without serializing their provider uploads.
+export const persistGoogleDriveProjectAttachment = (binding: GoogleDriveProjectBinding, namespace: string): Promise<void> => (
+  serializeDriveSave(namespace, `${namespace}:drive-attachment`, async () => {
+    assertBindingScope(namespace);
+    await writeStructuredBrowserValue(getBindingStorageKey(namespace), binding.workId ? { workId: binding.workId } : binding);
+  }, false)
+);
+
+const removeDriveAttachment = (
+  namespace: string,
+  matches: (value: GoogleDriveProjectBinding | { workId: string } | null) => boolean,
+): Promise<void> => serializeDriveSave(namespace, `${namespace}:drive-attachment`, async () => {
+  const value = await readStructuredBrowserValue<GoogleDriveProjectBinding | { workId: string }>(getBindingStorageKey(namespace));
   assertBindingScope(namespace);
-  await writeStructuredBrowserValue(getBindingStorageKey(namespace), binding.workId ? { workId: binding.workId } : binding);
-};
+  if (matches(value)) await removeStructuredBrowserValue(getBindingStorageKey(namespace));
+}, false);
+
+const attachmentMatches = (value: GoogleDriveProjectBinding | { workId: string } | null, binding: GoogleDriveProjectBinding) => (
+  value?.workId ? value.workId === binding.workId : (value as GoogleDriveProjectBinding | null)?.fileId === binding.fileId
+);
 
 const getWorkBindingStorageKey = (workId: string, namespace = getScopedProjectStorageNamespace('project-assets')) => (
   `${namespace}:${GOOGLE_DRIVE_WORK_BINDING_KEY}:${workId}`
@@ -220,7 +237,7 @@ export const serializeGoogleDriveWorkCommitment = <T>(namespace: string, workId:
 const persistSavedDriveBinding = async (binding: GoogleDriveProjectBinding, namespace: string): Promise<void> => {
   try {
     if (binding.workId) await persistWorkBinding(binding.workId, binding, namespace);
-    await persistBinding(binding, namespace);
+    await persistGoogleDriveProjectAttachment(binding, namespace);
     assertBindingScope(namespace);
   } catch (error) {
     throw new GoogleDriveSaveLinkageError(binding, error);
@@ -250,7 +267,7 @@ export const getGoogleDriveProjectBinding = async (): Promise<GoogleDriveProject
 };
 
 export const disconnectGoogleDriveProjectBinding = async (): Promise<void> => {
-  await removeStructuredBrowserValue(getBindingStorageKey());
+  await removeDriveAttachment(getScopedProjectStorageNamespace('project-assets'), () => true);
 };
 
 export const getGoogleDriveProjectSourceDescriptor = async (): Promise<ProjectSourceDescriptor> => {
@@ -710,7 +727,7 @@ export const openGoogleDriveProject = async (
       binding.localProjectRevision = (await createProjectPackage(binding.name, binding.workId)).localProjectRevision;
     }
     for (const set of document.cardSets) await persistWorkBinding(set.id, binding, namespace);
-    await persistBinding(binding, namespace);
+    await persistGoogleDriveProjectAttachment(binding, namespace);
     return binding;
   };
   const publish = [...document.cardSets].sort((a, b) => a.id.localeCompare(b.id))
@@ -766,7 +783,7 @@ export const refreshGoogleDriveProject = async (binding: GoogleDriveProjectBindi
       localProjectRevision: (await createProjectPackage(binding.name, workId)).localProjectRevision };
     assertBindingScope(namespace);
     await persistWorkBinding(workId, next, namespace);
-    await persistBinding(next, namespace);
+    await persistGoogleDriveProjectAttachment(next, namespace);
     return next;
   });
 };
@@ -817,10 +834,24 @@ const deleteGoogleDriveProjectRevision = async ({
     }),
   }));
   if (!response.ok) throw await readApiError(response, fallback);
+  assertBindingScope(namespace);
   for (const entry of bindings) {
-    if (entry.binding?.fileId === fileId) await removeStructuredBrowserValue(getWorkBindingStorageKey(entry.workId, namespace));
+    if (entry.binding?.fileId !== fileId) continue;
+    await serializeGoogleDriveWorkCommitment(namespace, entry.workId, async () => {
+      const current = await getGoogleDriveWorkBinding(entry.workId, namespace);
+      assertBindingScope(namespace);
+      if (!current || current.fileId !== fileId) return;
+      await removeDriveAttachment(namespace, value => attachmentMatches(value, current));
+      await removeStructuredBrowserValue(getWorkBindingStorageKey(entry.workId, namespace));
+    });
   }
-  if (attached?.fileId === fileId) await removeStructuredBrowserValue(getBindingStorageKey(namespace));
+  // Legacy workspace attachments have no per-Set row. Never clear a newer Set
+  // pointer (even if it was installed while the provider DELETE was pending).
+  if (attached && !attached.workId && attached.fileId === fileId) {
+    await serializeGoogleDriveWorkCommitment(namespace, 'workspace', () => (
+      removeDriveAttachment(namespace, value => !value?.workId && attachmentMatches(value, attached))
+    ));
+  }
 };
 
 export const deleteGoogleDriveProjectFromLibrary = async (
@@ -849,9 +880,20 @@ export const deleteGoogleDriveProjectCopy = async ({
 
 export const disconnectGoogleDriveStorage = async (): Promise<void> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
+  const attached = await getGoogleDriveProjectBinding();
+  assertBindingScope(namespace);
   const response = await observeProviderBoundaryResponse('google_drive', 'disconnect', () => (
     fetch('/api/project-sources/google-drive', { method: 'DELETE' })
   ));
   if (!response.ok) throw await readApiError(response, 'Unable to disconnect Google Drive.');
-  await removeStructuredBrowserValue(getBindingStorageKey(namespace));
+  assertBindingScope(namespace);
+  if (!attached) return;
+  await serializeGoogleDriveWorkCommitment(namespace, attached.workId ?? 'workspace', async () => {
+    if (attached.workId) {
+      const current = await getGoogleDriveWorkBinding(attached.workId, namespace);
+      assertBindingScope(namespace);
+      if (!isSameGoogleDriveTarget(current, attached)) return;
+    }
+    await removeDriveAttachment(namespace, value => attachmentMatches(value, attached));
+  });
 };

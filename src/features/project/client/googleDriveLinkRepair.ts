@@ -6,12 +6,12 @@ import { useProjectStore } from '../store/workspaceStore';
 import {
   clearConfirmedGoogleDriveLinkBarrier,
   serializeGoogleDriveWorkCommitment,
+  persistGoogleDriveProjectAttachment,
   getGoogleDriveWorkBinding,
   loadGoogleDriveProjectLibrary,
   type GoogleDriveProjectBinding,
 } from './googleDriveProjectTransfer';
 
-const GOOGLE_DRIVE_BINDING_KEY = 'google-drive-project-binding';
 const GOOGLE_DRIVE_WORK_BINDING_KEY = 'google-drive-work-binding';
 
 const assertSameScope = (scope: string) => {
@@ -71,7 +71,7 @@ export const repairConfirmedGoogleDriveLink = async (
     assertSameScope(scope);
     await writeStructuredBrowserValue(`${namespace}:${GOOGLE_DRIVE_WORK_BINDING_KEY}:${workId}`, repaired);
     assertSameScope(scope);
-    await writeStructuredBrowserValue(`${namespace}:${GOOGLE_DRIVE_BINDING_KEY}`, { workId });
+    await persistGoogleDriveProjectAttachment(repaired, namespace);
     assertSameScope(scope);
 
     const persisted = await getGoogleDriveWorkBinding(workId);
