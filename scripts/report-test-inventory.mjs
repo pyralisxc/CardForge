@@ -35,6 +35,7 @@ const productDomains = [
 // ordinary component/helper composition pins from quietly returning.
 const sourceReaderContracts = [
   ['tests/product/workflows/library-context-review.spec.ts', 'canonical application CSS compiled by existing PostCSS/Tailwind for real component visual proof; no source-text assertions'],
+  ['tests/product/workflows/library-template-identity.spec.ts', 'canonical application CSS compiled by existing PostCSS/Tailwind for real component visual proof; no source-text assertions'],
   ['tests/product/unit/website-edition-private-stage-labels.test.ts', 'published Owner control labels and private Edition staging action contract'],
   ['tests/infrastructure/agent-efficiency.test.ts', 'repository command and routing contract'],
   ['tests/infrastructure/legacy-server-table-grants.test.ts', 'cross-migration least-privilege contract'],
