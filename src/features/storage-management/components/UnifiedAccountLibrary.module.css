@@ -39,7 +39,7 @@
 .objectMenu:hover { border-color: var(--cf-border-strong); color: var(--cf-accent-text); }
 .objectFlip:hover { border-color: var(--cf-border-strong); color: var(--cf-accent-text); }
 .objectMenu svg, .objectFlip svg { width: 1rem; height: 1rem; }
-.detailVisual { display: grid; justify-items: center; gap: .65rem; }
+.detailVisual { display: grid; width: 100%; min-width: 0; justify-items: center; gap: .65rem; }
 .detailFlip { display: inline-flex; min-height: 2.5rem; align-items: center; gap: .4rem; border: 1px solid var(--cf-border-subtle); background: var(--cf-surface-raised); padding: .4rem .65rem; color: var(--cf-text-muted); font: inherit; font-size: .7rem; cursor: pointer; }
 .detailFlip:hover { border-color: var(--cf-border-strong); color: var(--cf-accent-text); }
 .detailFlip svg { width: .95rem; height: .95rem; }
