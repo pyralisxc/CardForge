@@ -166,7 +166,11 @@ begin
   end if;
   ids:=array_remove(array[r.asset_id,l.id::text],null);
   select coalesce(array_agg(distinct u) filter(where nullif(u,'') is not null),'{}') into sources
-    from (select r.url u union all select s.source_url from public.cardforge_contributor_asset_submissions s where s.lineage_id=l.id) x;
+    from (select r.url u union all select r.preview_url
+      union all select s.source_url from public.cardforge_contributor_asset_submissions s where s.lineage_id=l.id
+      union all select s.preview_url from public.cardforge_contributor_asset_submissions s where s.lineage_id=l.id) x;
+  -- Exact stored source/preview aliases only: never derive equivalence from a
+  -- display name, filename, URL rewrite, failed fetch or caller-provided scan.
 
   -- Respect readRegistryContentAsset precedence, but do not skip an invalid
   -- non-NULL candidate: native and JS validation may differ at their edges.

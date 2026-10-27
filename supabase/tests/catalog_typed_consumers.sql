@@ -63,6 +63,14 @@ begin
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'pipeline_identity_consumer_requires_resolution') then raise exception 'actual_identity_not_blocked'; end if;
  update public.cardforge_asset_registry set metadata=jsonb_build_object('style',style||'{"appearance":{"material":{"texture":{"kind":"uploaded","imageSource":"https://example.invalid/retained.svg"}}}}') where asset_id=style_id;
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'pipeline_identity_consumer_requires_resolution') then raise exception 'actual_source_not_blocked'; end if;
+
+ update public.cardforge_asset_registry set preview_url='https://example.invalid/registry-preview.svg' where asset_id=asset;
+ update public.cardforge_contributor_asset_submissions set preview_url='https://example.invalid/submission-preview.svg' where id=target;
+ foreach key in array array['https://example.invalid/registry-preview.svg','https://example.invalid/submission-preview.svg'] loop
+   update public.cardforge_asset_registry set metadata=jsonb_build_object('style',style||jsonb_build_object('updates',jsonb_build_object('imageSource',key))) where asset_id=style_id;
+   if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'pipeline_identity_consumer_requires_resolution') then
+     raise exception 'authoritative_preview_dependency_missed: %',key; end if;
+ end loop;
  update public.cardforge_asset_registry set metadata='{}' where asset_id=style_id;
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then raise exception 'external_fallback_cleared'; end if;
  update public.cardforge_asset_registry set metadata=jsonb_build_object('style',style) where asset_id=style_id;
