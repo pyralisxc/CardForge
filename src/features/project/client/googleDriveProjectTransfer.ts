@@ -212,7 +212,7 @@ export const serializeGoogleDriveTargetSave = <T>(
 
 // Always acquire work before file. Save as new changes the same work's binding,
 // even though it deliberately does not reuse the old provider destination.
-const serializeDriveWorkCommitment = <T>(namespace: string, workId: string, save: () => Promise<T>) => (
+export const serializeGoogleDriveWorkCommitment = <T>(namespace: string, workId: string, save: () => Promise<T>) => (
   serializeDriveSave(namespace, `${namespace}:drive-commitment:${workId}`, save, false)
 );
 
@@ -513,7 +513,7 @@ export const saveCurrentProjectToGoogleDrive = async ({
   const initial = asNew ? null : await getGoogleDriveProjectBinding();
   assertBindingScope(namespace);
   if (initial?.workId) return saveCardSetToGoogleDrive({ setId: initial.workId, name, renderThumbnail });
-  return serializeDriveWorkCommitment(namespace, 'workspace', async () => {
+  return serializeGoogleDriveWorkCommitment(namespace, 'workspace', async () => {
     const resolved = asNew ? null : await getGoogleDriveProjectBinding();
     return serializeGoogleDriveTargetSave(namespace, resolved, async () => {
       const existing = asNew ? null : await getGoogleDriveProjectBinding();
@@ -566,7 +566,7 @@ export const saveCardSetToGoogleDrive = async ({
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const initial = asNew ? null : await getGoogleDriveWorkBinding(setId);
   assertBindingScope(namespace);
-  return serializeDriveWorkCommitment(namespace, setId, async () => {
+  return serializeGoogleDriveWorkCommitment(namespace, setId, async () => {
     const resolved = asNew ? null : await getGoogleDriveWorkBinding(setId);
     return serializeGoogleDriveTargetSave(namespace, resolved, async () => {
       const existing = asNew ? null : await getGoogleDriveWorkBinding(setId);
@@ -697,20 +697,27 @@ export const openGoogleDriveProject = async (
     portableWorkId: decoded.document.cardSets.length === 1 ? decoded.document.cardSets[0]!.id : null,
     runtimeSetIds: document.cardSets.map((set) => set.id),
   });
-  // Store the source identity before publishing the imported Set. If a later
-  // binding update fails, reopening still finds the already materialized work.
-  for (const set of document.cardSets) await persistWorkBinding(set.id, binding, namespace);
-  assertBindingScope(namespace);
-  await primeProjectBinaryAssetUrls(document);
-  assertBindingScope(namespace);
-  await applyProjectDocumentToWorkspace(document, 'merge', { expectedState });
-  assertBindingScope(namespace);
-  if (binding.workId && document.cardSets.length === 1) {
-    binding.localProjectRevision = (await createProjectPackage(binding.name, binding.workId)).localProjectRevision;
-  }
-  for (const set of document.cardSets) await persistWorkBinding(set.id, binding, namespace);
-  await persistBinding(binding, namespace);
-  return binding;
+  const publishOpenedWork = async () => {
+    // Store the source identity before publishing the imported Set. If a later
+    // binding update fails, reopening still finds the already materialized work.
+    for (const set of document.cardSets) await persistWorkBinding(set.id, binding, namespace);
+    assertBindingScope(namespace);
+    await primeProjectBinaryAssetUrls(document);
+    assertBindingScope(namespace);
+    await applyProjectDocumentToWorkspace(document, 'merge', { expectedState });
+    assertBindingScope(namespace);
+    if (binding.workId && document.cardSets.length === 1) {
+      binding.localProjectRevision = (await createProjectPackage(binding.name, binding.workId)).localProjectRevision;
+    }
+    for (const set of document.cardSets) await persistWorkBinding(set.id, binding, namespace);
+    await persistBinding(binding, namespace);
+    return binding;
+  };
+  const publish = [...document.cardSets].sort((a, b) => a.id.localeCompare(b.id))
+    .reduceRight<() => Promise<GoogleDriveProjectBinding>>((next, set) => (
+      () => serializeGoogleDriveWorkCommitment(namespace, set.id, next)
+    ), publishOpenedWork);
+  return publish();
 };
 
 export const hasGoogleDriveWorkingChanges = async (binding: GoogleDriveProjectBinding): Promise<boolean> => {
@@ -721,36 +728,47 @@ export const hasGoogleDriveWorkingChanges = async (binding: GoogleDriveProjectBi
 /** Explicit refresh only; ordinary Open always resumes recoverable browser work. */
 export const refreshGoogleDriveProject = async (binding: GoogleDriveProjectBinding): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
-  const expectedState = useProjectStore.getState();
   if (!binding.workId || binding.packageScope !== 'set' || !binding.identities || !binding.accountId) {
     throw new ProjectPackageError('This source cannot be safely refreshed in place. Preserve the browser work and open an independent copy to compare.');
   }
-  if (await hasGoogleDriveWorkingChanges(binding)) {
-    throw new ProjectPackageError('This Set has browser changes not saved to Drive. Save or make an editable backup before refreshing; neither copy was changed.');
-  }
-  const ownedSets = new Set(binding.runtimeSetIds ?? [binding.workId]);
-  const sharedTemplates = new Set(Object.values(binding.identities.template ?? {}));
-  if (expectedState.storedCards.some((card) => !ownedSets.has(card.setId ?? '')
-    && (sharedTemplates.has(card.templateId) || Boolean(card.backingTemplateId && sharedTemplates.has(card.backingTemplateId))))) {
-    throw new ProjectPackageError('This document’s design is also used by another browser Set. Open an independent copy to compare before refreshing shared design.');
-  }
-  const { decoded, accountId, providerRevision, projectRevision, modifiedAt } = await downloadGoogleDriveProject(binding);
-  assertBindingScope(namespace);
-  if (accountId !== binding.accountId || decoded.document.cardSets.length !== 1
-    || decoded.document.cardSets[0]!.id !== binding.portableWorkId) {
-    throw new ProjectPackageError('The remote document identity changed. Open an independent copy to compare; browser work was left unchanged.');
-  }
-  const identities = structuredClone(binding.identities);
-  const document = mapProjectDocumentIdentity(decoded.document, identities, 'open');
-  await primeProjectBinaryAssetUrls(document);
-  assertBindingScope(namespace);
-  await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, replaceSetIds: binding.runtimeSetIds ?? [binding.workId] });
-  const next = { ...binding, identities, providerRevision, projectRevision, lastSavedAt: modifiedAt,
-    localProjectRevision: (await createProjectPackage(binding.name, binding.workId)).localProjectRevision };
-  assertBindingScope(namespace);
-  await persistWorkBinding(binding.workId, next, namespace);
-  await persistBinding(next, namespace);
-  return next;
+  const { workId, identities: sourceIdentities } = binding;
+  return serializeGoogleDriveWorkCommitment(namespace, workId, async () => {
+    const active = await getGoogleDriveWorkBinding(workId);
+    assertBindingScope(namespace);
+    if (active && (!isSameGoogleDriveTarget(active, binding)
+      || active.providerRevision !== binding.providerRevision || active.projectRevision !== binding.projectRevision)) {
+      throw new ProjectPackageError('The Set’s Drive target changed before refresh. Recheck its current location; browser work was left unchanged.');
+    }
+    const barrier = getGoogleDriveSaveBarrier(binding, namespace, workId);
+    if (barrier) throw barrier;
+    const expectedState = useProjectStore.getState();
+    if (await hasGoogleDriveWorkingChanges(binding)) {
+      throw new ProjectPackageError('This Set has browser changes not saved to Drive. Save or make an editable backup before refreshing; neither copy was changed.');
+    }
+    const ownedSets = new Set(binding.runtimeSetIds ?? [workId]);
+    const sharedTemplates = new Set(Object.values(sourceIdentities.template ?? {}));
+    if (expectedState.storedCards.some((card) => !ownedSets.has(card.setId ?? '')
+      && (sharedTemplates.has(card.templateId) || Boolean(card.backingTemplateId && sharedTemplates.has(card.backingTemplateId))))) {
+      throw new ProjectPackageError('This document’s design is also used by another browser Set. Open an independent copy to compare before refreshing shared design.');
+    }
+    const { decoded, accountId, providerRevision, projectRevision, modifiedAt } = await downloadGoogleDriveProject(binding);
+    assertBindingScope(namespace);
+    if (accountId !== binding.accountId || decoded.document.cardSets.length !== 1
+      || decoded.document.cardSets[0]!.id !== binding.portableWorkId) {
+      throw new ProjectPackageError('The remote document identity changed. Open an independent copy to compare; browser work was left unchanged.');
+    }
+    const identities = structuredClone(sourceIdentities);
+    const document = mapProjectDocumentIdentity(decoded.document, identities, 'open');
+    await primeProjectBinaryAssetUrls(document);
+    assertBindingScope(namespace);
+    await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, replaceSetIds: binding.runtimeSetIds ?? [workId] });
+    const next = { ...binding, identities, providerRevision, projectRevision, lastSavedAt: modifiedAt,
+      localProjectRevision: (await createProjectPackage(binding.name, workId)).localProjectRevision };
+    assertBindingScope(namespace);
+    await persistWorkBinding(workId, next, namespace);
+    await persistBinding(next, namespace);
+    return next;
+  });
 };
 
 export const copyGoogleDriveProjectToBrowser = async (

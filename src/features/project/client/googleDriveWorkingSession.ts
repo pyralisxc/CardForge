@@ -204,78 +204,89 @@ export function useGoogleDriveWorkingSession({
   const saveNow = useCallback(async () => {
     if (!enabled || !setId) return;
     const generation = generationRef.current;
-    const previousTarget = bindingRef.current;
-    const resolved = await readCurrentBinding(generation);
-    if (!resolved.valid) return;
-    if (!isSameGoogleDriveTarget(previousTarget, resolved.binding)) {
-      // Explicit Save as F2 replaced F: validate new source authority before autosaving.
-      await reconcileRef.current();
-      return;
-    }
-    if (writableRef.current === false) return;
-    if (inFlightRef.current) {
-      queuedRef.current = true;
-      await inFlightRef.current;
-      return;
-    }
-    const run = (async () => {
-      const current = await readCurrentBinding(generation);
-      if (!current.valid) return;
-      const binding = current.binding;
-      await waitForGoogleDriveTargetSave(binding, undefined, setId);
-      if (!await canPublishForBinding(binding, generation)) return;
-      if (!binding) {
-        setState({ phase: 'unlinked', message: 'Browser work', receipt: null });
+    try {
+      const previousTarget = bindingRef.current;
+      const resolved = await readCurrentBinding(generation);
+      if (!resolved.valid) return;
+      if (!isSameGoogleDriveTarget(previousTarget, resolved.binding)) {
+        // Explicit Save as F2 replaced F: validate new source authority before autosaving.
+        await reconcileRef.current();
         return;
       }
-      let dirty: boolean;
-      try {
-        dirty = await hasGoogleDriveWorkingChanges(binding);
-      } catch (error) {
-        if (await canPublishForBinding(binding, generation)) setState(stateForError(error));
+      if (writableRef.current === false) return;
+      if (inFlightRef.current) {
+        queuedRef.current = true;
+        await inFlightRef.current;
         return;
       }
-      if (!await canPublishForBinding(binding, generation)) return;
-      if (!dirty) {
-        if (generation === generationRef.current) setState({ phase: 'clean', message: 'Saved to Drive', receipt: binding });
-        return;
-      }
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        setState({ phase: 'offline', message: 'Offline · Drive save pending', receipt: binding });
-        // The `online` listener resumes a dirty linked Set. Retrying every idle
-        // interval while the browser remains offline only burns work and obscures
-        // the actionable offline state.
-        queuedRef.current = false;
-        return;
-      }
-      if (generation === generationRef.current) setState({ phase: 'saving', message: 'Saving to Drive…', receipt: binding });
-      try {
-        const saved = await saveCardSetToGoogleDrive({ setId, name });
-        if (await canPublishForBinding(saved, generation)) {
-          bindingRef.current = saved;
-          setState({ phase: 'clean', message: 'Saved to Drive', receipt: saved });
+      const run = (async () => {
+        const current = await readCurrentBinding(generation);
+        if (!current.valid) return;
+        const binding = current.binding;
+        await waitForGoogleDriveTargetSave(binding, undefined, setId);
+        if (!await canPublishForBinding(binding, generation)) return;
+        if (!binding) {
+          setState({ phase: 'unlinked', message: 'Browser work', receipt: null });
+          return;
         }
-      } catch (error) {
-        if (shouldPauseGoogleDriveAutosaveForError(error)) {
-          writableRef.current = false;
+        let dirty: boolean;
+        try {
+          dirty = await hasGoogleDriveWorkingChanges(binding);
+        } catch (error) {
+          if (await canPublishForBinding(binding, generation)) setState(stateForError(error));
+          return;
+        }
+        if (!await canPublishForBinding(binding, generation)) return;
+        if (!dirty) {
+          if (generation === generationRef.current) setState({ phase: 'clean', message: 'Saved to Drive', receipt: binding });
+          return;
+        }
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          setState({ phase: 'offline', message: 'Offline · Drive save pending', receipt: binding });
+          // The `online` listener resumes a dirty linked Set. Retrying every idle
+          // interval while the browser remains offline only burns work and obscures
+          // the actionable offline state.
+          queuedRef.current = false;
+          return;
+        }
+        if (generation === generationRef.current) setState({ phase: 'saving', message: 'Saving to Drive…', receipt: binding });
+        try {
+          const saved = await saveCardSetToGoogleDrive({ setId, name });
+          if (await canPublishForBinding(saved, generation)) {
+            bindingRef.current = saved;
+            setState({ phase: 'clean', message: 'Saved to Drive', receipt: saved });
+          }
+        } catch (error) {
+          if (shouldPauseGoogleDriveAutosaveForError(error)) {
+            writableRef.current = false;
+            queuedRef.current = false;
+            clearTimer();
+          }
+          const latest = await readCurrentBinding(generation);
+          if (latest.valid && isSameGoogleDriveTarget(latest.binding, binding)) {
+            if (!holdUnresolvedDriveSave(latest.binding)) setState(stateForError(error));
+          }
+        }
+      })();
+      inFlightRef.current = run;
+      try {
+        await run;
+      } finally {
+        if (inFlightRef.current === run) inFlightRef.current = null;
+        if (queuedRef.current && generation === generationRef.current) {
           queuedRef.current = false;
           clearTimer();
-        }
-        const latest = await readCurrentBinding(generation);
-        if (latest.valid && isSameGoogleDriveTarget(latest.binding, binding)) {
-          if (!holdUnresolvedDriveSave(latest.binding)) setState(stateForError(error));
+          timerRef.current = setTimeout(() => { void saveNowRef.current(); }, DRIVE_AUTOSAVE_DELAY_MS);
         }
       }
-    })();
-    inFlightRef.current = run;
-    try {
-      await run;
-    } finally {
-      if (inFlightRef.current === run) inFlightRef.current = null;
-      if (queuedRef.current && generation === generationRef.current) {
-        queuedRef.current = false;
-        clearTimer();
-        timerRef.current = setTimeout(() => { void saveNowRef.current(); }, DRIVE_AUTOSAVE_DELAY_MS);
+    } catch (error) {
+      // Includes scoped reads before the in-flight promise and reads in nested
+      // recovery paths. Idle callbacks must never leak an unhandled rejection.
+      if (generation !== generationRef.current) return;
+      queuedRef.current = false;
+      clearTimer();
+      if (!holdUnresolvedDriveSave(bindingRef.current)) {
+        setState(current => current.phase === 'recovery-required' ? current : stateForError(error));
       }
     }
   }, [canPublishForBinding, clearTimer, enabled, holdUnresolvedDriveSave, name, readCurrentBinding, setId]);
@@ -421,18 +432,21 @@ export function useGoogleDriveWorkingSession({
   const repairLink = useCallback(async () => {
     const receipt = state.receipt;
     if (!receipt || state.phase !== 'recovery-required' || !setId) return;
-    const current = await getGoogleDriveWorkBinding(setId);
-    if (current && !isSameGoogleDriveTarget(current, receipt)) return;
-    setState({ phase: 'checking', message: 'Repairing the confirmed Drive link…', receipt });
+    const generation = generationRef.current;
     try {
+      const current = await getGoogleDriveWorkBinding(setId);
+      if (current && !isSameGoogleDriveTarget(current, receipt)) return;
+      setState({ phase: 'checking', message: 'Repairing the confirmed Drive link…', receipt });
       const repaired = await repairConfirmedGoogleDriveLink(receipt);
       const latest = await getGoogleDriveWorkBinding(setId);
+      if (generation !== generationRef.current) return;
       if (latest && !isSameGoogleDriveTarget(latest, repaired)) return;
       bindingRef.current = repaired;
       writableRef.current = true;
       queuedRef.current = false;
       setState({ phase: 'clean', message: 'Drive link repaired · revision already saved', receipt: repaired });
     } catch (error) {
+      if (generation !== generationRef.current) return;
       writableRef.current = false;
       setState({
         phase: 'recovery-required',

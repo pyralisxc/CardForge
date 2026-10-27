@@ -24,7 +24,7 @@ vi.mock('react', async (importOriginal) => {
     useState: (initial: unknown) => {
       const value = { ...(initial as Record<string, unknown>) };
       return [value, (next: unknown) => {
-        Object.assign(value, next as Record<string, unknown>);
+        Object.assign(value, typeof next === 'function' ? next(value) : next as Record<string, unknown>);
         harness.states.push({ ...value } as { phase: string; receipt: unknown; message: string });
       }];
     },
@@ -177,6 +177,36 @@ describe('Drive hook recovery barriers and independent copies', () => {
     harness.poll?.();
     await flush();
     expect(latest()?.phase).toBe('error');
+  });
+
+  it.each(['direct', 'idle'] as const)('reports %s save binding-read rejection without an unhandled promise', async (entry) => {
+    vi.useFakeTimers();
+    try {
+      harness.dirty.mockResolvedValue(true);
+      const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F' });
+      await flush();
+      expect(latest()?.phase).toBe('dirty');
+      harness.lookup.mockRejectedValue(new Error('IndexedDB save read unavailable'));
+      if (entry === 'direct') await expect(session.saveNow()).resolves.toBeUndefined();
+      else await vi.advanceTimersByTimeAsync(4_000);
+      await flush();
+      expect(latest()?.phase).toBe('error');
+      expect(latest()?.message).toContain('IndexedDB save read unavailable');
+      expect(harness.save).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each(['save', 'repair'] as const)('keeps a confirmed recovery receipt if %s cannot read browser linkage', async (entry) => {
+    const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F' });
+    await flush();
+    const failure = new GoogleDriveSaveLinkageError(harness.current, new Error('local link failed'));
+    harness.holds.set('drive-file-F', failure);
+    await dispatchRefresh();
+    expect(latest()?.phase).toBe('recovery-required');
+    harness.lookup.mockRejectedValue(new Error('IndexedDB read unavailable'));
+    await expect(entry === 'save' ? session.saveNow() : session.repairLink()).resolves.toBeUndefined();
+    expect(latest()).toMatchObject({ phase: 'recovery-required', receipt: harness.current });
+    expect(harness.save).not.toHaveBeenCalled();
   });
 
 });

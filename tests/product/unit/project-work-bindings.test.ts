@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mock = vi.hoisted(() => ({
   namespace: 'test',
+  beforeWrite: undefined as ((key: string) => Promise<void>) | undefined,
   onWrite: undefined as (() => void) | undefined,
   failWriteKey: null as string | null,
   values: new Map<string, unknown>(),
@@ -19,6 +20,7 @@ const mock = vi.hoisted(() => ({
 vi.mock('@/features/project/persistence/structuredBrowserStorage', () => ({
   readStructuredBrowserValue: mock.read,
   writeStructuredBrowserValue: async (key: string, value: unknown) => {
+    await mock.beforeWrite?.(key);
     if (key === mock.failWriteKey) throw new Error('Browser storage rejected the binding');
     mock.values.set(key, value);
     mock.onWrite?.();
@@ -71,6 +73,7 @@ beforeEach(() => {
   }));
   mock.namespace = 'test';
   mock.onWrite = undefined;
+  mock.beforeWrite = undefined;
   mock.failWriteKey = null;
   mock.localSets = [];
   mock.read.mockImplementation(async (key: string) => mock.values.get(key) ?? null);
@@ -620,4 +623,64 @@ describe('first-save recovery and independence', () => {
       await first;
     }
   });
+});
+
+
+it('serializes exact local receipt repair with Save as new through its binding commit', async () => {
+  const receipt = { ...driveBinding, accountId: 'account-a', providerRevision: headToken('2'),
+    lastSavedAt: '2026-10-26T00:00:00Z', webViewLink: null, packageScope: 'set' as const };
+  mock.localSets = [{ id: 'set-c' }];
+  mock.values.set('test:google-drive-work-binding:set-c', receipt);
+  let release!: () => void;
+  let entered!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const started = new Promise<void>(resolve => { entered = resolve; });
+  mock.beforeWrite = async (key) => {
+    if (key === 'test:google-drive-work-binding:set-c') {
+      mock.beforeWrite = undefined;
+      entered();
+      await held;
+    }
+  };
+  const fetch = vi.fn(async (_url: string, options: RequestInit) => {
+    if (!options.method) return Response.json({ connection: { connected: true }, projects: [{
+      ...receipt, modifiedAt: receipt.lastSavedAt, size: 7,
+    }] });
+    if (options.method === 'POST') return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'F2' });
+    return Response.json({ id: 'drive-file-new-F2', headRevisionId: 'native-3', name: 'F2' });
+  });
+  vi.stubGlobal('fetch', fetch);
+  const repair = repairConfirmedGoogleDriveLink(receipt);
+  await started;
+  const save = saveCardSetToGoogleDrive({ setId: 'set-c', name: 'F2', asNew: true });
+  for (let n = 0; n < 20; n++) await new Promise<void>(resolve => setImmediate(resolve));
+  const writesBeforeRelease = fetch.mock.calls.filter(([, options]) => options.method === 'POST').length;
+  release();
+  await Promise.all([repair, save]);
+  expect((await getGoogleDriveWorkBinding('set-c'))?.fileId).toBe('drive-file-new-F2');
+  expect(writesBeforeRelease).toBe(0);
+  expect(fetch.mock.calls.filter(([, options]) => options.method === 'PUT')).toHaveLength(1);
+});
+
+
+it('rejects Refresh with an old F checkpoint after a queued F2 destination commits', async () => {
+  const binding = { ...driveBinding, accountId: 'account-a', identities: {}, packageScope: 'set' as const,
+    localProjectRevision: 'b'.repeat(64), lastSavedAt: '2026-10-26T00:00:00Z', webViewLink: null };
+  mock.values.set('test:google-drive-work-binding:set-c', binding);
+  let release!: (response: Response) => void;
+  const held = new Promise<Response>(resolve => { release = resolve; });
+  const fetch = vi.fn(async (_url: string, options: RequestInit) => {
+    if (options.method === 'POST') return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'F2' });
+    return held;
+  });
+  vi.stubGlobal('fetch', fetch);
+  const save = saveCardSetToGoogleDrive({ setId: 'set-c', name: 'F2', asNew: true });
+  await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  const refresh = refreshGoogleDriveProject(binding).catch(error => error);
+  release(Response.json({ id: 'drive-file-new-F2', headRevisionId: 'native-3', name: 'F2' }));
+  await save;
+  expect(await refresh).toMatchObject({ message: expect.stringContaining('target changed before refresh') });
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(mock.apply).not.toHaveBeenCalled();
+  expect((await getGoogleDriveWorkBinding('set-c'))?.fileId).toBe('drive-file-new-F2');
 });
