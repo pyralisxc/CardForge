@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 import { useUnifiedLibraryView } from '@/features/storage-management/hooks/useUnifiedLibraryView';
 import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
-import { projectPublishedLibraryObjects } from '@/features/storage-management/hooks/useLibrarySharedProjection';
+import { identityCatalog, identityProgram, mixedAuthorRows } from '../fixtures/libraryTemplateIdentityData';
+import { projectPipelineLibraryObjects, projectPublishedLibraryObjects } from '@/features/storage-management/hooks/useLibrarySharedProjection';
 import { createLibraryDetailRecord, getPipelineRevisionLabel, getSharedLibraryActions } from '@/features/storage-management/components/LibraryObjectPresentation';
 
 const localSet: AccountLibraryItem = {
@@ -162,5 +163,25 @@ describe('unified Library view', () => {
     expect(createLibraryDetailRecord(item).meta).toContainEqual(['Studio placement', 'Front foundations']);
     expect(createLibraryDetailRecord(item).meta).toContainEqual(['Design access', 'Available through contextual Design pickers']);
     expect(getSharedLibraryActions(item)).toEqual([]);
+  });
+});
+
+
+describe('displayed revision attribution versus lineage participation', () => {
+  it.each(['A', 'B', 'C'])('keeps author A on displayed revision 1 for viewer %s', viewer => {
+    const pipelineItems = projectPipelineLibraryObjects(identityProgram(mixedAuthorRows(), viewer), identityCatalog());
+    let result: ReturnType<typeof useUnifiedLibraryView>;
+    function Harness() {
+      result = useUnifiedLibraryView({ activeScope: 'pipeline', pipelineAccess: true, sharedType: 'all',
+        projection: { items: [], visibleItems: [], query: '', sort: 'name', failures: [], isLoading: false } as never,
+        shared: { pipelineItems, publishedItems: [] } as never }); return null;
+    }
+    renderToStaticMarkup(createElement(Harness));
+    const item = result!.viewItems[0];
+    expect(item.sourceLabel).toBe(viewer === 'A' ? 'Your revision' : 'Author A');
+    expect(createLibraryDetailRecord(item).meta).toContainEqual(['Lineage participation', viewer === 'C' ? 'Shared Pipeline' : 'You contributed to this lineage']);
+    expect(pipelineItems[0].ownership).toBe(viewer === 'C' ? 'other' : 'mine');
+    expect(pipelineItems[0].editableSubmission?.id ?? null).toBe(viewer === 'B' ? 'candidate-B' : null);
+    expect(pipelineItems[0].retirableSubmission?.id ?? null).toBe(viewer === 'A' ? 'A2' : null);
   });
 });
