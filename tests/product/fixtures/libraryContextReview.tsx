@@ -21,6 +21,8 @@ const row = { id: '10000000-0000-4000-8000-000000000001', lineageId: '20000000-0
   ownerAccessTierOverride: null, qualityScore: 100, tierDecisionReason: null, positiveVotes: 0, negativeVotes: 0, currentUserVote: null,
   editorialReviewStatus: 'approved', publishedAt: '2026-01-01T00:00:00Z', submittedAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', purgeState: null,
 } as PipelineSubmission;
+if (params.has('upload')) Object.assign(row, { registryAssetId: null, targetRegistryAssetId: null, revisionNumber: null,
+  assetType: 'dividers', status: 'voting', automatedStatus: 'voting', publishedAt: null, editorialReviewStatus: 'pending', name: 'Synthetic fresh SVG upload' });
 const target = createPipelineReviewTarget(row)!;
 if (params.has('published')) target.catalogPublication = { submissionId: row.id, updatedAt: 'registry-epoch' };
 const newer = { ...row, id: '10000000-0000-4000-8000-000000000002', name: 'Newer revision must not replace selection', revisionNumber: 2 };

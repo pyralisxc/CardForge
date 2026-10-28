@@ -27,6 +27,7 @@ export function LibraryRevisionEntry({ target, kind, onDirtyChange, onTemplateDr
     const controller = new AbortController();
     void (async () => {
       try {
+        if (!target.assetId || target.status !== 'published') throw new Error('Select a published catalog base before creating a revision.');
         await readReviewPublication(target, controller.signal);
         const response = await fetch(`${endpoint}?assetId=${encodeURIComponent(target.assetId)}`, { cache: 'no-store', signal: controller.signal });
         if (!response.ok) throw new Error(await readApiErrorMessage(response, 'The selected published base is unavailable.'));
@@ -59,7 +60,7 @@ export function LibraryRevisionEntry({ target, kind, onDirtyChange, onTemplateDr
     uncertain.current = false; setLocked(false); onCloseBlockedChange?.(null); onDirtyChange(false);
   };
   const checkOutcome = async () => {
-    if (!attempt.current || busy) return;
+    if (!attempt.current || busy || !target.assetId) return;
     setBusy(true); setError('');
     try {
       const response = await fetch(`${endpoint}?${new URLSearchParams({ assetId: target.assetId, submissionKey: attempt.current.submissionKey })}`, { cache: 'no-store' });

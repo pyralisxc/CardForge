@@ -262,7 +262,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     const target = revision ? createPipelineReviewTarget(revision) : libraryReviewSelection(item, rows);
     if (!target) throw new Error('The exact selected revision could not be resolved. Refresh Library; no latest revision was substituted.');
     reviewReturn.current = { focus: document.activeElement instanceof HTMLElement ? document.activeElement : null, scroll: surfaceRef.current?.scrollTop ?? 0 };
-    setReviewTarget(target); setRevisionKind(null); openTool('review-manage', [target.assetId, target.lineageId, target.submissionId]);
+    setReviewTarget(target); setRevisionKind(null); openTool('review-manage', [target.lineageId, target.submissionId]);
   };
   const closeContextualTool = () => {
     closeTool(); setReviewTarget(null); setRevisionKind(null); setToolCloseBlocked(null);
@@ -550,7 +550,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       {(activeTool === 'review-manage' || activeTool === 'pipeline-operations' || activeTool === 'revise-existing') ? (
         <EnvironmentToolLayer id="library-pipeline-context" eyebrow="Library Pipeline tool"
           title={activeTool === 'pipeline-operations' ? 'Pipeline operations' : activeTool === 'revise-existing' ? 'Revise existing' : 'Review & manage'}
-          summary={reviewTarget ? `Selected ${reviewTarget.assetId} · revision ${reviewTarget.revisionNumber ?? 'legacy'} · ${reviewTarget.status}` : 'Global queue, rules, quotas and routing.'}
+          summary={reviewTarget ? `Selected ${reviewTarget.assetId ?? reviewTarget.submissionId} · revision ${reviewTarget.revisionNumber ?? 'unassigned'} · ${reviewTarget.status}` : 'Global queue, rules, quotas and routing.'}
           closeLabel="Close Pipeline tool" onClose={() => runAction(actions[0]!)} dirty={toolDirty} closeBlocked={Boolean(toolCloseBlocked)}
           onDirtyCloseRequest={requestDirtyToolClose} presentation={activeTool === 'pipeline-operations' ? 'inline' : activeToolSession?.presentation}>
           <div className="w-full min-w-0 overflow-auto">
