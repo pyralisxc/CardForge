@@ -10,6 +10,15 @@ proof="$root/test-results/native-catalog-trash"
 mkdir -p "$proof"
 git rev-parse HEAD HEAD^{tree} > "$proof/source-identity.txt"
 cat "$proof/source-identity.txt"
+# PREPARATION ONLY: remove after committing the canonical CLI-generated file.
+# Uses the already-installed pinned CLI in this same disposable native job.
+supabase migration new studio_catalog_dependency_binding
+prepared=$(find "$root/supabase/migrations" -maxdepth 1 -name '*_studio_catalog_dependency_binding.sql' -print)
+[[ $(printf '%s\n' "$prepared" | wc -l) -eq 1 && -n $prepared ]]
+cp "$root/scripts/prepare-studio-catalog-dependencies.sql" "$prepared"
+cp "$prepared" "$proof/"
+printf 'CLI-generated migration: %s\n' "$(basename "$prepared")"
+sha256sum "$prepared"
 supabase start --help > "$proof/start-help.txt"
 supabase db reset --help > "$proof/reset-help.txt"
 supabase stop --help > "$proof/stop-help.txt"
@@ -124,6 +133,8 @@ cat "$proof/style-review.log"
 [[ $(docker inspect --format '{{.Id}}' "$container") == "$cid" ]]
 psql_local -c 'TRUNCATE public.cardforge_asset_registry, public.cardforge_contributor_asset_submissions, public.cardforge_pipeline_asset_lineages, public.cardforge_studio_documents CASCADE;' > "$proof/disposable-fixture-setup.log" 2>&1
 psql_local -f "$root/supabase/tests/catalog_recoverable_trash.sql" > "$proof/fixture.log" 2>&1
+psql_local -f "$root/supabase/tests/studio_catalog_dependencies.sql" > "$proof/studio-dependencies.log" 2>&1
+cat "$proof/studio-dependencies.log"
 psql_local -f "$root/supabase/tests/catalog_typed_consumers.sql" > "$proof/typed-consumers.log" 2>&1
 cat "$proof/typed-consumers.log"
 psql_local -f "$root/supabase/tests/pipeline_upload_commitments.sql" > "$proof/upload-commitments.log" 2>&1
