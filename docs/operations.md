@@ -309,3 +309,17 @@ Use only checks relevant to the release:
 - Search Console discovery after domain/metadata/route changes.
 
 Do not preserve completed deployment IDs, migration walkthroughs, or one-time cutover diaries in this document.
+
+
+### Studio dependency metadata reconciliation
+
+The Owner-authenticated `POST /api/owner/studio-dependencies` action accepts only
+`documentId` and `expectedRevision`. It reads the persisted author and raw payload,
+uses the canonical Studio interpreter, and calls the native exact-payload/revision
+CAS. It changes derived dependency metadata only; it does not advance the authored
+revision, remove content, or accept supplied dependency lists. Unknown content stays
+opaque. A stale revision returns conflict; an unavailable response is not a receipt
+of success. Inspect the native binding before retrying an uncertain operation.
+The returned receipt contains revision, contract version, completeness and reason
+codes, never another author's payload or identity. This source-owner repair does
+not certify Set packages or bypass catalog admission.

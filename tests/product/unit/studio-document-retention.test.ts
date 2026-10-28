@@ -36,7 +36,7 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
   getSupabaseServerClient: () => mocks.store,
 }));
 
-import { updateStudioDocument, reconcileStudioDocumentDependencies } from '@/features/studio-documents/server/studioDocumentStore';
+import { updateStudioDocument, reconcileStudioDocumentDependencies, reconcileOwnerStudioDocumentDependencies } from '@/features/studio-documents/server/studioDocumentStore';
 
 describe('Studio document revision asset retention', () => {
   beforeEach(() => {
@@ -93,6 +93,34 @@ describe('Studio document revision asset retention', () => {
     mocks.chain.maybeSingle.mockResolvedValue({data:{document_payload:{version:1,userTemplates:[]},revision:7},error:null});
     mocks.store.rpc.mockResolvedValue({data:false,error:null});
     await expect(reconcileStudioDocumentDependencies('account-1','document-1')).rejects.toMatchObject({status:409});
+    expect(mocks.store.rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses stored ownership and exact expected revision for Owner reconciliation', async () => {
+    const payload = {version:1,userTemplates:[],futureDependency:'unknown'};
+    mocks.chain.maybeSingle.mockResolvedValue({data:{owner_user_id:'actual-author',document_payload:payload,revision:7},error:null});
+    const receipt = await reconcileOwnerStudioDocumentDependencies('document-1',7);
+    expect(mocks.store.rpc).toHaveBeenCalledWith('cardforge_reconcile_studio_catalog_dependencies', expect.objectContaining({
+      p_owner_user_id:'actual-author',p_expected_payload:payload,p_expected_revision:7,
+    }));
+    expect(receipt).toEqual(expect.objectContaining({documentId:'document-1',revision:7,complete:false}));
+    expect(receipt).not.toHaveProperty('document_payload');
+    expect(receipt).not.toHaveProperty('owner_user_id');
+  });
+  it('does not reconcile a revision different from the one selected', async () => {
+    mocks.chain.maybeSingle.mockResolvedValue({data:{owner_user_id:'author',document_payload:{},revision:8},error:null});
+    await expect(reconcileOwnerStudioDocumentDependencies('document-1',7)).rejects.toMatchObject({status:409});
+    expect(mocks.store.rpc).not.toHaveBeenCalled();
+  });
+  it('reports unreadable sources as unavailable, not changed', async () => {
+    mocks.chain.maybeSingle.mockResolvedValue({data:null,error:{message:'fetch failed'}});
+    await expect(reconcileOwnerStudioDocumentDependencies('document-1',7)).rejects.toMatchObject({status:503});
+    expect(mocks.store.rpc).not.toHaveBeenCalled();
+  });
+  it('preserves uncertainty after an RPC error and does not retry', async () => {
+    mocks.chain.maybeSingle.mockResolvedValue({data:{owner_user_id:'author',document_payload:{version:1},revision:7},error:null});
+    mocks.store.rpc.mockResolvedValue({data:null,error:{message:'response lost'}});
+    await expect(reconcileOwnerStudioDocumentDependencies('document-1',7)).rejects.toMatchObject({status:503});
     expect(mocks.store.rpc).toHaveBeenCalledTimes(1);
   });
 
