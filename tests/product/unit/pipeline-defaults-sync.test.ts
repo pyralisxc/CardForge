@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildDeterministicStarterSetPackage, storeStarterSetPackage, backfillPipelineRegistryMedia, verifyReplayShowcaseBytes } from '../../../scripts/sync-pipeline-defaults.mjs';
+import { buildDeterministicStarterSetPackage, storeStarterSetPackage, publishStarterSetItem, collectStarterSetItems, backfillPipelineRegistryMedia, verifyReplayShowcaseBytes } from '../../../scripts/sync-pipeline-defaults.mjs';
 
 describe('Pipeline default synchronization', () => {
   it('builds byte-identical starter packages independently of execution time', async () => {
@@ -133,4 +133,52 @@ describe('starter Set exact package storage', () => {
     const b = await storeStarterSetPackage(fixture(changed).client, 'test-set', changed);
     expect(a.storagePath).not.toBe(b.storagePath);
   });
+});
+
+
+describe('native starter Set publication binding', () => {
+  const set = { id:'set-proof', name:'Proof', description:'Synthetic', packageUrl:'https://example.invalid/proof',
+    previewUrl:'', storagePath:'exact-path', fileSizeBytes:42, packageSha256:'a'.repeat(64), specialtyTags:['games'],useCaseTags:['playing-cards'],sourceNotes:'Synthetic',
+    packageInterpretation:{contractVersion:1,packageSha256:'a'.repeat(64),fileSizeBytes:42,complete:false,references:{identities:[],sources:[]},opaqueReasons:['external_or_unbound_source']} };
+  it('passes the verified exact source interpretation to the existing native publisher, including opacity', async () => {
+    const rpc=vi.fn(async () => ({error:null}));
+    await publishStarterSetItem({rpc},set,{clerk_user_id:'owner',email:'owner@example.invalid'});
+    expect(rpc).toHaveBeenCalledWith('cardforge_publish_official_starter_set',expect.objectContaining({
+      p_package_interpretation:set.packageInterpretation,p_package_sha256:set.packageSha256,p_storage_path:set.storagePath,p_file_size_bytes:42,
+    }));
+  });
+  it.each([{packageSha256:'b'.repeat(64)},{fileSizeBytes:41},{packageInterpretation:null}])('rejects a mismatched source/object receipt before publication', async change => {
+    const rpc=vi.fn();
+    await expect(publishStarterSetItem({rpc},{...set,...change},{clerk_user_id:'owner'})).rejects.toThrow('does not match');
+    expect(rpc).not.toHaveBeenCalled();
+  });
+  it('does not retry an uncertain native publication or delete its source', async () => {
+    const error=new Error('native response lost'); const rpc=vi.fn(async () => ({error}));
+    await expect(publishStarterSetItem({rpc},set,{clerk_user_id:'owner'})).rejects.toBe(error);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+it('runs the actual starter package compiler/readback/native publication seam with provider stubs', async () => {
+  const objects = new Map<string, Uint8Array>();
+  const bucket = {
+    upload: vi.fn(async (path: string, bytes: Uint8Array, options: {upsert:boolean}) => {
+      expect(options.upsert).toBe(false); objects.set(path,bytes); return {error:null};
+    }),
+    download: async (path: string) => ({data:new Blob([Uint8Array.from(objects.get(path)!)]),error:null}),
+    getPublicUrl: (path: string) => ({data:{publicUrl:`https://example.invalid/storage/v1/object/public/cardforge-contributor-assets/${path}`}}),
+  };
+  const rpc = vi.fn(async () => ({error:null}));
+  const client = {storage:{from:() => bucket},rpc};
+  const sets = await collectStarterSetItems(client,new Map());
+  expect(sets.length).toBeGreaterThan(0);
+  for (const set of sets) {
+    expect(set.packageInterpretation.packageSha256).toBe(set.packageSha256);
+    expect(set.packageInterpretation.fileSizeBytes).toBe(objects.get(set.storagePath)!.byteLength);
+    expect(set.packageInterpretation.sourceManifest.project.artifacts).toHaveLength(52);
+    await publishStarterSetItem(client,set,{clerk_user_id:'synthetic-owner',email:''});
+  }
+  expect(rpc).toHaveBeenCalledTimes(sets.length);
+  expect(rpc).toHaveBeenLastCalledWith('cardforge_publish_official_starter_set',expect.objectContaining({p_package_interpretation:sets.at(-1)!.packageInterpretation}));
 });

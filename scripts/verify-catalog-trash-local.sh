@@ -124,6 +124,8 @@ cat "$proof/style-review.log"
 [[ $(docker inspect --format '{{.Id}}' "$container") == "$cid" ]]
 psql_local -c 'TRUNCATE public.cardforge_asset_registry, public.cardforge_contributor_asset_submissions, public.cardforge_pipeline_asset_lineages, public.cardforge_studio_documents CASCADE;' > "$proof/disposable-fixture-setup.log" 2>&1
 psql_local -f "$root/supabase/tests/catalog_recoverable_trash.sql" > "$proof/fixture.log" 2>&1 || { cat "$proof/fixture.log"; exit 1; }
+psql_local -f "$root/supabase/tests/set_package_dependencies.sql" > "$proof/set-dependencies.log" 2>&1 || { cat "$proof/set-dependencies.log"; exit 1; }
+cat "$proof/set-dependencies.log"
 psql_local -f "$root/supabase/tests/studio_catalog_dependencies.sql" > "$proof/studio-dependencies.log" 2>&1 || { cat "$proof/studio-dependencies.log"; exit 1; }
 cat "$proof/studio-dependencies.log"
 psql_local -f "$root/supabase/tests/catalog_typed_consumers.sql" > "$proof/typed-consumers.log" 2>&1 || { cat "$proof/typed-consumers.log"; exit 1; }

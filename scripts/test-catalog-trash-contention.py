@@ -96,6 +96,91 @@ a, b = Session(), Session()
 try:
     a.run("set role service_role; set statement_timeout='5s';")
     b.run("set role service_role; set statement_timeout='2s';")
+    # Exact Set package interpretations share the existing catalog table locks.
+    # Native fixtures use synthetic trusted receipts; byte decoding/readback is
+    # covered through the real TypeScript/importer owners, never live Storage.
+    def set_insert(asset, submission, identities=None, preview=''):
+        digest = 'a' * 64
+        path = 'owner-defaults/sets/' + asset + '/' + digest + '.cardforge'
+        proof = {"contractVersion": 1, "packageSha256": digest, "fileSizeBytes": 42,
+                 "projectRevision": 'b' * 64, "sourceManifest": {"projectRevision": 'b' * 64, "project": {}},
+                 "complete": True, "references": {"identities": identities or [], "sources": []}, "opaqueReasons": []}
+        return ("insert into public.cardforge_contributor_asset_submissions(id,contributor_id,asset_type,name,status,revision_number,"
+                "target_registry_asset_id,source_url,source_storage_bucket,source_storage_path,source_file_size_bytes,source_payload,catalog_dependencies,preview_url) values("
+                f"'{submission}','isolated-contention','sets','Synthetic Set','submitted',1,'{asset}',"
+                f"'https://example.invalid/storage/v1/object/public/cardforge-contributor-assets/{path}',"
+                f"'cardforge-contributor-assets','{path}',42,'" + json.dumps({"packageSha256": digest, "portableProject": True}) + "'::jsonb,'"
+                + json.dumps(proof) + f"'::jsonb,'{preview}')")
+
+    lineage, current, old, state = fixture(a)
+    consumer = str(uuid.uuid4())
+    a.run('begin;')
+    a.run(set_insert('set-writer-' + consumer, consumer, ['contention-' + lineage]) + ';')
+    expect_busy(b, command('trash', state))
+    a.run('commit;')
+    expect_conflict(b, command('trash', state), 'catalog_trash_dependency_blocked')
+    a.run(f"delete from public.cardforge_contributor_asset_submissions where id='{consumer}';")
+    print('PASS: Set writer wins; committed typed identity blocks Trash')
+
+    backend_set_writer = int(b.run('select pg_backend_pid();')[-1])
+    for mode in ['insert', 'update']:
+        lineage, current, old, state = fixture(a)
+        target_url = 'https://example.invalid/' + lineage + '.svg'
+        a.run(f"update public.cardforge_contributor_asset_submissions set source_url='{target_url}' where id='{current}';")
+        a.run(f"update public.cardforge_asset_registry set url='{target_url}' where asset_id='contention-{lineage}';")
+        state = json.loads(a.run(f"select public.cardforge_read_catalog_trash('{current}')::text;")[-1])['state']
+        consumer = str(uuid.uuid4())
+        if mode == 'update':
+            a.run(set_insert('set-updated-' + consumer, consumer) + ';')
+            statement = f"update public.cardforge_contributor_asset_submissions set preview_url='{target_url}' where id='{consumer}'"
+        else:
+            statement = set_insert('set-queued-' + consumer, consumer, ['contention-' + lineage])
+        a.run('begin;')
+        a.run('select ' + command('trash', state) + ';')
+        result = queue.Queue()
+        def queued_set_write():
+            try:
+                result.put(b.run("do $$ begin begin " + statement + "; raise exception 'queued_set_admitted'; exception when raise_exception then if sqlerrm<>'set_catalog_reference_unavailable' then raise; end if; end; end $$;"))
+            except Exception as error:
+                result.put(error)
+        worker = threading.Thread(target=queued_set_write)
+        worker.start()
+        deadline = time.monotonic() + 1.5
+        while a.run(f"select cardinality(pg_blocking_pids({backend_set_writer}))>0;")[-1] != 't':
+            assert time.monotonic() < deadline, 'Set writer did not wait behind Trash'
+            time.sleep(0.01)
+        a.run('commit;')
+        worker.join(timeout=5)
+        assert not worker.is_alive(), 'Set writer did not finish after Trash COMMIT'
+        outcome = result.get(timeout=1)
+        if isinstance(outcome, Exception):
+            raise outcome
+        if mode == 'insert':
+            assert a.run(f"select count(*) from public.cardforge_contributor_asset_submissions where id='{consumer}';")[-1] == '0'
+        else:
+            assert a.run(f"select preview_url='' from public.cardforge_contributor_asset_submissions where id='{consumer}';")[-1] == 't'
+            a.run(f"delete from public.cardforge_contributor_asset_submissions where id='{consumer}';")
+        print('PASS: Trash COMMIT then queued Set ' + mode.upper() + ' rejects dependency')
+
+    # Kind-only changes must not use an unchanged URL/pointer fast path.
+    media = str(uuid.uuid4())
+    a.run(f"insert into public.cardforge_contributor_asset_submissions(id,contributor_id,asset_type,name,status,revision_number) values('{media}','isolated-contention','icons','Kind proof','submitted',1);")
+    a.run(f"do $$ begin begin update public.cardforge_contributor_asset_submissions set asset_type='sets' where id='{media}'; raise exception 'submission_kind_bypass'; exception when raise_exception then if sqlerrm<>'set_catalog_dependency_unverified' then raise; end if; end; end $$;")
+    a.run(f"delete from public.cardforge_contributor_asset_submissions where id='{media}';")
+    media_asset = 'kind-proof-' + media
+    a.run(f"insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source) values('{media_asset}','Kind proof','icon','https://example.invalid/unrelated.svg','published','free','contributor');")
+    a.run(f"do $$ begin begin update public.cardforge_asset_registry set asset_type='set' where asset_id='{media_asset}'; raise exception 'registry_kind_bypass'; exception when raise_exception then if sqlerrm<>'set_catalog_dependency_unverified' then raise; end if; end; end $$;")
+    a.run(f"delete from public.cardforge_asset_registry where asset_id='{media_asset}';")
+    print('PASS: kind-only transitions cannot bypass committed Trash inspection')
+
+    consumer = str(uuid.uuid4())
+    b.run('begin isolation level repeatable read;')
+    b.run('select count(*) from public.cardforge_pipeline_asset_lineages;')
+    statement = set_insert('set-old-snapshot-' + consumer, consumer)
+    b.run("do $$ begin begin " + statement + "; raise exception 'set_snapshot_admitted'; exception when raise_exception then if sqlerrm<>'set_catalog_isolation_unsupported' then raise; end if; end; end $$;")
+    b.run('rollback;')
+    print('PASS: Set write rejects unsupported repeatable snapshot')
+
     # Studio source-owned interpretation uses native digest/revision binding.
     # Run this group before creating unrelated destructive claims below.
     literal = {"version": 1, "userTemplates": [{"id": "literal", "name": "Literal", "aspectRatio": "2:3",

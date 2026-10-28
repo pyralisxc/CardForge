@@ -28,4 +28,15 @@ describe('canonical Set package dependency interpretation', () => {
     const proof=await interpretPipelineSetPackage(await make({cardSets:[{id:'local-set',name:'target-asset'}]}));
     expect(proof.references.identities).not.toContain('target-asset');
   });
+  it.each(['https://example.invalid/target.svg','relative-artwork.svg','data:image/svg+xml,<svg/>'])('retains and blocks unbound image source %s', async source => {
+    const proof=await interpretPipelineSetPackage(await make({userTemplates:[{id:'local',name:'Local',aspectRatio:'2:3',cardBackgroundImageUrl:source,
+      freeformCanvas:{width:300,height:450,elements:[]}}]}));
+    expect(proof.complete).toBe(false); expect(proof.references.sources).toContain(source);
+  });
+  it('retains typed catalog identities and refuses mutable external Template resolution', async () => {
+    const proof=await interpretPipelineSetPackage(await make({cardSets:[{id:'local',name:'Local',templateIds:['target-template']}]}));
+    expect(proof.references.identities).toContain('target-template');
+    expect(proof.complete).toBe(false); expect(proof.opaqueReasons).toContain('mutable_catalog_template_resolution');
+  });
+
 });
