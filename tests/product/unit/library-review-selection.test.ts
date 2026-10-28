@@ -21,6 +21,14 @@ describe('Library exact review selection', () => {
   it.each(['lineageId', 'revisionNumber', 'status', 'publishedAt', 'updatedAt', 'registryAssetId'] as const)('rejects changed %s rather than adopting latest', field => {
     expect(() => resolvePipelineReviewTarget(createPipelineReviewTarget(row)!, [{ ...row, [field]: 'changed' } as PipelineSubmission])).toThrow('changed');
   });
+  it('pins the exact current publication when selecting its Pipeline revision row', () => {
+    const item = pipeline();
+    if (item.scope !== 'pipeline') throw new Error('Expected Pipeline fixture');
+    item.pipeline.catalogPublication = { submissionId: row.id, updatedAt: 'registry-epoch' };
+    const target = libraryReviewSelection(item, [])!;
+    expect(target.catalogPublication).toEqual({ submissionId: 'r1', updatedAt: 'registry-epoch' });
+    expect(() => verifyReviewPublication(target, [{ id: 'material', lineageId: 'lineage', submissionId: 'r2', updatedAt: 'new-epoch' }] as never)).toThrow('changed');
+  });
   it('rejects missing exact identity', () => {
     expect(() => resolvePipelineReviewTarget(createPipelineReviewTarget(row)!, [{ ...row, id: 'other' }])).toThrow('unavailable');
     expect(createPipelineReviewTarget({ ...row, lineageId: undefined })).toBeNull();
