@@ -6,11 +6,11 @@ const document = { version:1,userTemplates:[template],storedCards:[],cardSets:[]
 describe('source-owned Studio dependency interpretation', () => {
  it('interprets a complete literal document without resolving catalog discovery', () => {
   const proof=interpretStudioDependencies(document);
-  expect(proof.opaqueReasons).toEqual([]); expect(proof.complete).toBe(true); expect(proof.references).toContain('local');
+  expect(proof.opaqueReasons).toEqual([]); expect(proof.complete).toBe(true); expect(proof.references.identities).toContain('local');
  });
  it('retains identities and sources even when an external dependency makes it opaque', () => {
   const proof=interpretStudioDependencies({...document,userTemplates:[{...template,cardBackgroundImageUrl:'https://example.invalid/target.svg'}]});
-  expect(proof.complete).toBe(false); expect(proof.references).toContain('https://example.invalid/target.svg');
+  expect(proof.complete).toBe(false); expect(proof.references.sources).toContain('https://example.invalid/target.svg');
  });
  it('includes canonical defaults introduced by normalization instead of certifying sparse input', () => {
   const proof=interpretStudioDependencies({...document,userTemplates:[{id:'sparse',name:'Sparse',aspectRatio:'2:3'}]});
@@ -22,7 +22,7 @@ describe('source-owned Studio dependency interpretation', () => {
  });
  it('accepts literal cards using included exact templates and retains card identities', () => {
   const proof=interpretStudioDependencies({...document,storedCards:[{uniqueId:'card',templateId:'local',data:{title:'Literal'}}]});
-  expect(proof.opaqueReasons).toEqual([]);expect(proof.references).toContain('card');
+  expect(proof.opaqueReasons).toEqual([]);expect(proof.references.identities).toContain('local');
  });
  it('rejects a relative dependency injected through a structured gradient color', () => {
   const appearance={material:{gradient:{type:'linear',stops:[{id:'a',position:0,color:"red), image-set('relative.png' 1x), linear-gradient(red"}]}}};
@@ -37,6 +37,18 @@ describe('source-owned Studio dependency interpretation', () => {
   ]) expect(interpretStudioDependencies({...document,userTemplates:[imageTemplate],storedCards:[card]}).opaqueReasons).toContain('external_or_unbound_source');
   expect(interpretStudioDependencies({...document,userTemplates:[{...imageTemplate,templatePreviewData:{image_image_img:'/relative-target.svg'}}]}).complete).toBe(false);
  });
+ it('categorizes identities and source aliases without treating prose as identity', () => {
+  const proof=interpretStudioDependencies({...document,userTemplates:[{...template,name:'target-id'}]});
+  expect(proof.references.identities).toContain('local');
+  expect(proof.references.identities).not.toContain('target-id');
+  expect(proof.references.sources).not.toContain('target-id');
+ });
+ it('keeps unsupported Style vocabulary and malformed auxiliary shapes opaque', () => {
+  for (const delta of [
+    {appearanceStyles:[{id:'s',name:'Style',kind:'future-kind',targets:['future-target'],appearance:{}}]},
+    {exportSettings:[]},{productionPlan:0},
+  ]) expect(interpretStudioDependencies({...document,...delta}).complete).toBe(false);
+ });
  it('does not certify custom inventories discarded by normalization', () => {
   expect(interpretStudioDependencies({...document,customAssets:{futureDependencies:[{sourceId:'future-id'}]}}).complete).toBe(false);
   expect(interpretStudioDependencies({...document,customFonts:[{brokenFont:'future-id'}]}).complete).toBe(false);
@@ -47,7 +59,7 @@ describe('source-owned Studio dependency interpretation', () => {
  it('retains relative image content as an opaque source', () => {
   const image={id:'image',name:'Image',type:'image',x:0,y:0,width:100,height:100,zIndex:0,content:'relative.png'};
   const proof=interpretStudioDependencies({...document,userTemplates:[{...template,freeformCanvas:{...template.freeformCanvas,elements:[image]}}]});
-  expect(proof.references).toContain('relative.png');expect(proof.opaqueReasons).toContain('external_or_unbound_source');
+  expect(proof.references.sources).toContain('relative.png');expect(proof.opaqueReasons).toContain('external_or_unbound_source');
  });
  it('does not mistake typed source none for absence', () => {
   const proof=interpretStudioDependencies({...document,userTemplates:[{...template,appearance:{assetSource:'none'}}]});

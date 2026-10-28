@@ -24,7 +24,7 @@ const persistedTemplate = templateDraftSchema.extend({
   freeformCanvas: templateDraftSchema.shape.freeformCanvas.extend({ hierarchyVersion: z.number().optional() }),
 });
 const style = z.object({
-  id: z.string().trim().min(1), name: z.string().trim().min(1), kind: z.string(), targets: z.array(z.string()),
+  id: z.string().trim().min(1), name: z.string().trim().min(1), kind: z.enum(['material','border','divider','icon','theme','shapeRole','frameKit','textFrame']), targets: z.array(z.enum(['element','text','image','icon','shape','divider','template'])),
   appearance: templateDraftAppearanceSchema, updates: z.record(z.string(), z.unknown()).optional(), templateUpdates: z.record(z.string(), z.unknown()).optional(),
   librarySource: z.string().optional(), accessTier: z.string().optional(), registryStatus: z.string().optional(), contributorName: z.string().optional(),
   studioDestinations: z.array(z.string()).optional(), studioOrder: z.number().optional(), studioFeatured: z.boolean().optional(), studioRoutingMode: z.string().optional(),
@@ -38,18 +38,25 @@ const set = z.object({ id: z.string(), name: z.string(), templateIds: z.array(z.
   metadata: z.object({ workflow: z.literal('card-set'), type:z.string().optional(), tags:z.array(z.string()) }).strict().optional() }).strict();
 const roots = new Set(['version','userTemplates','appearanceStyles','storedCards','cardSets','activeCardSetId','exportSettings','customAssets','customFonts','productionPlan','mcpOperationReceipts']);
 const sourceFields = new Set(['assetSource','dividerAsset','imageSource','iconImageSource','cardBackgroundImageUrl','cardBorderImageSource','backgroundImageUrl','url','previewUrl','assetUrl','dataUrl']);
+const identityFields = new Set(['assetId','registryAssetId','templateId','backingTemplateId','templateIds','templateLineageId','templateRevisionId','templateOriginLineageId','templateOriginRevisionId','styleId','presetId','lineageId','parentSubmissionId']);
 const cssFields = new Set(['backgroundImage','backgroundImageUrl','cardBackgroundImageUrl','cardBorderImageSource']);
 
 /** Trusted source interpretation; never resolves against mutable discovery/catalog views. */
 export function interpretStudioDependencies(payload: unknown) {
-  const references = new Set<string>(); const opaque = new Set<string>();
+  const identities = new Set<string>(); const sources = new Set<string>(); const opaque = new Set<string>();
   const raw = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload as Record<string,unknown> : null;
   const normalized = normalizeStudioDocumentPayload(payload);
   if (!raw || !normalized) opaque.add('invalid_project_document');
   if (raw && Object.keys(raw).some(key => !roots.has(key))) opaque.add('unsupported_project_field');
-  const visit = (value: unknown, key = '', parentType = '') => {
+  const visit = (value: unknown, key = '', parentType = '', container = '') => {
     if (typeof value === 'string') {
-      references.add(value); // Includes raw identities as well as source aliases; never names as an identity resolver.
+      if (identityFields.has(key) || (key === 'id' && ['userTemplates','appearanceStyles'].includes(container))) identities.add(value);
+      if (sourceFields.has(key) || key === 'backgroundImage' || key === 'borderImageSource'
+        || (['content','defaultValue','example'].includes(key) && parentType === 'image')) {
+        sources.add(value);
+        // Native sources can be exact managed identities as well as URLs.
+        identities.add(value);
+      }
       if (value.includes('{{')) opaque.add('dynamic_binding');
       // Structured gradient colors are interpolated into background-image.
       if (key === 'color' && !isSourceContainedCssImage(`linear-gradient(${value}, transparent)`)) opaque.add('unsupported_css_color');
@@ -60,8 +67,8 @@ export function interpretStudioDependencies(payload: unknown) {
         if (getStudioDocumentAssetIdFromReference(value) || getStudioDocumentFontIdFromReference(value)) return;
         opaque.add('external_or_unbound_source');
       } else if (/url\s*\(|(?:https?:|data:|blob:|cardforge-pipeline-asset:)/i.test(value)) opaque.add('external_or_unbound_source');
-    } else if (Array.isArray(value)) value.forEach(entry => visit(entry,key,parentType));
-    else if (value && typeof value === 'object') for (const [child,entry] of Object.entries(value)) visit(entry,child,String((value as Record<string, unknown>).type ?? ''));
+    } else if (Array.isArray(value)) value.forEach(entry => visit(entry,key,parentType,container));
+    else if (value && typeof value === 'object') for (const [child,entry] of Object.entries(value)) visit(entry,child,String((value as Record<string, unknown>).type ?? ''),key);
   };
   visit(payload); visit(normalized); // Normalization may introduce defaults: they are part of the dependency surface.
   // Validate the persisted shapes before normalization can discard unknown fields.
@@ -80,7 +87,8 @@ export function interpretStudioDependencies(payload: unknown) {
         || !Array.isArray(items) || items.length > 0))) opaque.add('custom_asset_or_font_inventory');
     if (raw.customFonts !== undefined && (!Array.isArray(raw.customFonts) || raw.customFonts.length > 0)) opaque.add('custom_asset_or_font_inventory');
     if (raw.mcpOperationReceipts !== undefined && (!Array.isArray(raw.mcpOperationReceipts) || raw.mcpOperationReceipts.length > 0)) opaque.add('unsupported_operation_receipts');
-    if (raw.productionPlan && !projectProductionPlanSchema.safeParse(raw.productionPlan).success) opaque.add('unsupported_raw_production_plan');
+    if (raw.exportSettings !== undefined && (!raw.exportSettings || typeof raw.exportSettings !== 'object' || Array.isArray(raw.exportSettings))) opaque.add('unsupported_export_settings');
+    if (raw.productionPlan !== undefined && !projectProductionPlanSchema.safeParse(raw.productionPlan).success) opaque.add('unsupported_raw_production_plan');
   }
   if (normalized) {
     for (const template of normalized.userTemplates) {
@@ -122,5 +130,5 @@ export function interpretStudioDependencies(payload: unknown) {
     if (Object.keys(normalized.exportSettings).some(key => !exportKeys.includes(key))) opaque.add('unsupported_export_settings');
   }
   return { contractVersion: STUDIO_DEPENDENCY_CONTRACT_VERSION, complete: opaque.size === 0,
-    references: [...references].sort(), opaqueReasons: [...opaque].sort() };
+    references: { identities: [...identities].sort(), sources: [...sources].sort() }, opaqueReasons: [...opaque].sort() };
 }

@@ -103,7 +103,7 @@ try:
     def studio_values(payload):
         # Synthetic trusted descriptor for a fully literal template; production
         # interpretation is covered separately through its TypeScript owner.
-        proof = {"contractVersion": 1, "complete": True, "references": [payload['userTemplates'][0]['id']],
+        proof = {"contractVersion": 1, "complete": True, "references": {"identities": [payload['userTemplates'][0]['id']], "sources": []},
                  "opaqueReasons": [], "sourcePayload": payload}
         return "'" + json.dumps(payload) + "'::jsonb", "'" + json.dumps(proof) + "'::jsonb"
     lineage, current, old, state = fixture(a)
@@ -161,6 +161,18 @@ try:
             assert a.run(f"select document_payload->'userTemplates'->0->>'id' from public.cardforge_studio_documents where id='{document}';")[-1] == 'literal'
             a.run(f"delete from public.cardforge_studio_documents where id='{document}';")
         print('PASS: Trash COMMIT then queued Studio ' + mode.upper() + ' rejects new dependency')
+
+    # A stale repeatable snapshot is not the supported server write boundary.
+    # Prove the explicit isolation fence after the other session commits Trash.
+    lineage, current, old, state = fixture(a)
+    document = str(uuid.uuid4())
+    payload, proof = studio_values(literal)
+    b.run('begin isolation level repeatable read;')
+    b.run('select count(*) from public.cardforge_pipeline_asset_lineages;')
+    a.run('select ' + command('trash', state) + ';')
+    b.run(f"do $$ begin begin insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies) values('{document}','isolated-contention','Stale snapshot',{payload},{proof}); raise exception 'stale_snapshot_writer_admitted'; exception when raise_exception then if sqlerrm<>'studio_catalog_isolation_unsupported' then raise; end if; end; end $$;")
+    b.run('rollback;')
+    print('PASS: repeatable snapshot cannot certify absence of committed Trash')
 
     lineage, current, old, state = fixture(a)
     # A owns the lineage before its submission UPDATE (the real claim order).

@@ -166,7 +166,7 @@ begin
  if not public.cardforge_catalog_consumer_inspectable(payload,'studio') then raise exception 'literal_studio_rejected'; end if;
  insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies)
    values(document_id,'typed-proof','Literal source-contained project',payload,
-     jsonb_build_object('contractVersion',1,'sourcePayload',payload,'complete',true,'references',jsonb_build_array('unrelated-template','unrelated-style'),'opaqueReasons','[]'::jsonb));
+     jsonb_build_object('contractVersion',1,'sourcePayload',payload,'complete',true,'references',jsonb_build_object('identities',jsonb_build_array('unrelated-template','unrelated-style'),'sources','[]'::jsonb),'opaqueReasons','[]'::jsonb));
  if public.cardforge_read_catalog_trash(target)->'entryReasons'<>'[]'::jsonb
    or public.cardforge_catalog_trash_inventory_details(l)<>'[]'::jsonb then raise exception 'unrelated_literal_studio_blocked'; end if;
  -- Known source/identity remains blocking even when the rest is unsupported.

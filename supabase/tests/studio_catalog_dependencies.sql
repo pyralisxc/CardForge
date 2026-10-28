@@ -12,12 +12,17 @@ begin
    'public.cardforge_studio_dependency_binding_valid(jsonb,integer,jsonb)',
    'public.cardforge_guard_studio_catalog_dependencies()',
    'public.cardforge_reconcile_studio_catalog_dependencies(text,uuid,integer,jsonb,jsonb)',
-   'public.cardforge_source_contained_css_image(text)'
+   'public.cardforge_source_contained_css_image(text)',
+   'public.cardforge_studio_dependencies_mention(jsonb,text[],text[])'
  ] loop
    if has_function_privilege('anon',signature,'EXECUTE') or has_function_privilege('authenticated',signature,'EXECUTE') then
      raise exception 'studio_dependency_browser_privilege: %',signature; end if;
  end loop;
- proof:=jsonb_build_object('contractVersion',1,'complete',true,'references','[]'::jsonb,'opaqueReasons','[]'::jsonb,'sourcePayload',payload);
+ if not public.cardforge_studio_dependencies_mention('{"identities":["target-id"],"sources":[]}',array['target-id'],'{}')
+   or not public.cardforge_studio_dependencies_mention('{"identities":[],"sources":["https://example.invalid/target.svg"]}','{}',array['https://example.invalid/target.svg'])
+   or public.cardforge_studio_dependencies_mention('{"identities":["unrelated-id"],"sources":[]}',array['target-id'],'{}') then
+   raise exception 'derived_identity_or_source_match_incorrect'; end if;
+ proof:=jsonb_build_object('contractVersion',1,'complete',true,'references','{"identities":[],"sources":[]}'::jsonb,'opaqueReasons','[]'::jsonb,'sourcePayload',payload);
  insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies)
  values(document_id,'source-proof','Literal',payload,proof);
  select catalog_dependencies into stored from public.cardforge_studio_documents where id=document_id;
