@@ -42,6 +42,7 @@ export function useUnifiedLibraryView({
   sharedType: string;
   revisionPage?: { items: ReturnType<typeof useLibrarySharedProjection>['pipelineItems']; total: number; loading: boolean; failure: ReturnType<typeof useLibrarySharedProjection>['pipelineFailure'] };
 }) {
+  const revisionItems = revisionPage?.items;
   const personalItems = useMemo<LibraryViewItem[]>(() => projection.visibleItems.map((item) => {
     const status = getPersonalLibraryStatus(item);
     return {
@@ -62,14 +63,14 @@ export function useUnifiedLibraryView({
     statusLabel: item.accessLabel, summary: item.description || `${item.kindLabel} from the current ${item.accessLabel}.`, updatedAt: null,
     sizeBytes: item.sizeBytes, previewUrl: item.previewUrl, fontFamily: item.fontFamily, published: item,
   })), [shared.publishedItems]);
-  const pipelineItems = useMemo<LibraryViewItem[]>(() => (revisionPage?.items ?? shared.pipelineItems).map((item) => ({
-    id: revisionPage ? `pipeline:submission:${item.submission.id}` : `pipeline:${item.submission.targetRegistryAssetId ?? item.submission.registryAssetId ?? item.submission.id}`,
+  const pipelineItems = useMemo<LibraryViewItem[]>(() => (revisionItems ?? shared.pipelineItems).map((item) => ({
+    id: revisionItems ? `pipeline:submission:${item.submission.id}` : `pipeline:${item.submission.targetRegistryAssetId ?? item.submission.registryAssetId ?? item.submission.id}`,
     scope: 'pipeline', name: item.submission.name, kindLabel: item.kindLabel,
     sourceLabel: item.displayedRevisionOwnership === 'mine' ? 'Your revision' : item.submission.contributorDisplayName ?? 'Shared Pipeline',
     statusLabel: item.statusLabel, summary: item.submission.description || `${item.kindLabel} in Forge Review.`,
     updatedAt: item.submission.updatedAt ?? item.submission.submittedAt, sizeBytes: item.submission.sourceFileSizeBytes,
     previewUrl: item.previewUrl, fontFamily: item.fontFamily, pipeline: item,
-  })), [shared.pipelineItems, revisionPage]);
+  })), [shared.pipelineItems, revisionItems]);
 
   const contributorPublishedItems = useMemo(() => pipelineItems.filter((item) => (
     item.scope === 'pipeline' && item.pipeline.ownership === 'mine' && item.pipeline.submission.status === 'published'
@@ -90,11 +91,11 @@ export function useUnifiedLibraryView({
       : activeScope === 'campaigns'
         ? []
         : pipelineAccess
-          ? revisionPage ? pipelineItems : contributorPipelineItems
+          ? revisionItems ? pipelineItems : contributorPipelineItems
           : publishedItems,
-  [activeScope, contributorPipelineItems, contributorPublishedItems, personalItems, pipelineAccess, publishedItems, revisionPage, pipelineItems]);
+  [activeScope, contributorPipelineItems, contributorPublishedItems, personalItems, pipelineAccess, publishedItems, revisionItems, pipelineItems]);
   const normalizedQuery = projection.query.trim().toLocaleLowerCase();
-  const viewItems = useMemo(() => revisionPage ? pipelineItems : scopeItems.filter((item) => {
+  const viewItems = useMemo(() => revisionItems ? pipelineItems : scopeItems.filter((item) => {
     if (activeScope !== 'personal' && sharedType !== 'all' && item.kindLabel !== sharedType && item.statusLabel !== sharedType && !semanticFacetLabels(item).includes(sharedType)) return false;
     const tags = item.scope === 'published'
       ? [
@@ -121,7 +122,7 @@ export function useUnifiedLibraryView({
     : projection.sort === 'kind'
       ? left.kindLabel.localeCompare(right.kindLabel) || left.name.localeCompare(right.name)
       : (Date.parse(right.updatedAt ?? '') || 0) - (Date.parse(left.updatedAt ?? '') || 0) || left.name.localeCompare(right.name)),
-  [activeScope, normalizedQuery, projection.sort, scopeItems, sharedType, revisionPage, pipelineItems]);
+  [activeScope, normalizedQuery, projection.sort, scopeItems, sharedType, revisionItems, pipelineItems]);
   const sharedTypes = useMemo(() => [...new Set(scopeItems.flatMap((item) => [
     item.kindLabel,
     ...(activeScope === 'pipeline' ? [item.statusLabel] : []),

@@ -57,6 +57,7 @@ export const describeLibraryBoundaryFailure = (failure: LibraryBoundaryFailure):
 
 interface LibraryCollectionProps {
   serverFiltered?: boolean;
+  interactionDisabled?: boolean;
   activeFailure: LibraryBoundaryFailure | null;
   activeLoading: boolean;
   activeScope: LibraryScope;
@@ -101,15 +102,15 @@ export function LibraryCollection({
   heartMetrics, heartMetricsFailed, heartMetricsLoading, heartingId, isSignedIn, isSelfVoteBlocked, onDensityChange, onOpenContribution, onOpenDetail, onPersonalAction,
   onPublishedAction, onRefresh, onSharedTypeChange, onToggleHeart, onVote, personalActions, publishedRevisionByLineage, projection,
   scopeDefinition, searchRef, selection, sharedType, sharedTypes, templateFor, unfilteredScopeItemCount, viewItems, votingId, isOwner,
-  serverFiltered = false,
+  serverFiltered = false, interactionDisabled = false,
 }: LibraryCollectionProps) {
   const [faces, setFaces] = useState<Record<string, CardFace>>({});
   return <section className={styles.collection} aria-labelledby="library-collection-heading">
-    <div className={styles.collectionHeading}><div><h2 id="library-collection-heading">{scopeDefinition.label}</h2><p>{scopeDefinition.description}</p></div>{activeScope === 'campaigns' ? null : <span>{viewItems.length} shown</span>}</div>
+    <div className={styles.collectionHeading}><div><h2 id="library-collection-heading">{scopeDefinition.label}</h2><p>{scopeDefinition.description}</p></div>{activeScope === 'campaigns' ? null : <span>{viewItems.length} {serverFiltered ? 'on this page' : 'shown'}</span>}</div>
     {activeScope === 'campaigns' ? isOwner
       ? <OwnerMarketingPanel initialNotice={campaignNotice} />
       : <CampaignLibraryWorkspace initialCampaignId={campaignTargetId} /> : <>
-      <div className={styles.toolbar} aria-label="Library toolbar">
+      <fieldset disabled={interactionDisabled} className={styles.toolbar} aria-label="Library toolbar">
         <label className={styles.searchField}><span className="sr-only">Search Library</span><Search aria-hidden="true" /><Input ref={searchRef} id="library-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} placeholder={`Search ${activeScope}`} /></label>
         {activeScope === 'personal' ? <>
           <MultiSelectionFilterMenu allLabel="All sources" ariaLabel="Filter Library by source" compactLabel="Source" className={styles.filterSelect} values={projection.sourceFilters} onChange={projection.setSourceFilters} options={LIBRARY_SOURCES.map((source) => ({ value: source, label: `${getAccountLibrarySourceLabel(source)} · ${projection.sourceCounts.get(source) ?? 0}` }))} />
@@ -121,7 +122,7 @@ export function LibraryCollection({
         {!serverFiltered ? <Select value={projection.sort} onValueChange={(value) => projection.setSort(value as 'recent' | 'name' | 'kind')}><SelectTrigger aria-label="Sort library" className={styles.sortSelect}><span>{projection.sort === 'name' ? 'Name' : projection.sort === 'kind' ? 'Type' : 'Recent'}</span></SelectTrigger><SelectContent><SelectItem value="recent">Recently updated</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="kind">Type</SelectItem></SelectContent></Select> : <span>Newest submissions first</span>}
         <div className={styles.densityControls} aria-label="Collection view"><button type="button" aria-label="Gallery view" aria-pressed={density === 'gallery'} onClick={() => onDensityChange('gallery')}><Grid2X2 aria-hidden="true" /></button><button type="button" aria-label="Compact list view" aria-pressed={density === 'list'} onClick={() => onDensityChange('list')}><LayoutList aria-hidden="true" /></button><button type="button" aria-label="Expanded view" aria-pressed={density === 'expanded'} onClick={() => onDensityChange('expanded')}><PanelRightOpen aria-hidden="true" /></button></div>
         {canSubmit && activeScope === 'published' ? <button id="library-contribute-trigger" type="button" className={styles.contributeButton} onClick={onOpenContribution}><UploadCloud size={16} aria-hidden="true" />Submit new</button> : null}
-      </div>
+      </fieldset>
       {activeFailure ? <EnvironmentBoundaryNotice
         title={unfilteredScopeItemCount ? 'Some sources are unavailable' : `${scopeDefinition.label} is unavailable`}
         message={describeLibraryBoundaryFailure(activeFailure)}

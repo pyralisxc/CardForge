@@ -7,7 +7,7 @@ import postcss from 'postcss';
 import tailwindcss from 'tailwindcss';
 import tailwindConfig from '../../../tailwind.config';
 const bundle = buildSync({ entryPoints: ['tests/product/fixtures/libraryContextReview.tsx'], bundle: true, platform: 'browser', format: 'iife', write: false,
-  outfile: join(tmpdir(), 'library-context-review.js'), define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' } });
+  outfile: join(tmpdir(), 'library-context-review.js'), define: { 'process.env.NODE_ENV': '"production"', 'process.env.NEXT_RUNTIME': '"browser"', 'process.env': '{}' } });
 const appCss = postcss([tailwindcss(tailwindConfig)]).process((readFileSync('src/app/cardforgePresentation.css', 'utf8') + readFileSync('src/app/globals.css', 'utf8')).replace(/@import ['"]([^'"]+)['"];?/g, (_, path: string) => readFileSync(join('src/app', path), 'utf8')), { from: 'src/app/globals.css' });
 async function mount(page: import('@playwright/test').Page, query = '') {
   const mutations: string[] = []; const errors: string[] = [];
@@ -186,7 +186,7 @@ for (const width of [390, 1440]) test(`@golden Library revision discovery and ex
   await expect(collection.locator('article')).toHaveCount(14);
   await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
   await expect(collection.locator('article')).toHaveCount(12);
-  await expect(page.getByRole('status')).toContainText('15 revisions');
+  await expect(page.getByRole('status')).toContainText('15 matching revisions');
   const firstIds = await collection.locator('button[id^="library-object-"]').evaluateAll(nodes => nodes.map(node => node.id));
   await page.getByRole('button', { name: 'Next revisions' }).click();
   await expect(collection.locator('article')).toHaveCount(3);
@@ -226,5 +226,56 @@ for (const role of ['contributor', 'signedOut']) test(`@golden Library revision 
   const evidence = await mount(page, `?queue=1&${role}=1`);
   await expect(page.getByLabel('Pipeline discovery mode')).toHaveCount(0);
   expect(await page.evaluate(() => (window as unknown as { libraryRequests: unknown[] }).libraryRequests)).toEqual([]);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+for (const condition of ['catalogMissing', 'catalogLoading', 'catalogFailure']) test(`@golden Library revision selection waits for publication identity: ${condition}`, async ({ page }) => {
+  const evidence = await mount(page, `?queueActual=1&scope=pipeline&${condition}=1`);
+  await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
+  await expect(page.getByLabel('pipeline Library objects')).toHaveCount(0);
+  if (condition === 'catalogFailure') await expect(page.getByText(/Catalog unavailable/)).toBeVisible();
+  else await expect(page.getByLabel('Pipeline discovery').getByRole('status')).toContainText('Loading revisions');
+  expect(await page.evaluate(() => (window as unknown as { libraryRequests: unknown[] }).libraryRequests)).toEqual([]);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+
+test('@golden actual Library keeps revision context through dirty close and clears changed-page detail', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const evidence = await mount(page, '?queueActual=1&scope=pipeline');
+  await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
+  const collection = page.getByLabel('pipeline Library objects');
+  await expect(collection.locator('article')).toHaveCount(12);
+  await page.getByRole('button', { name: 'Next revisions' }).click();
+  await expect(collection.locator('article')).toHaveCount(3);
+  const selected = page.locator('[id="library-object-pipeline:submission:10000000-0000-4000-8000-000000000015"]');
+  await selected.click();
+  await expect(page.getByLabel('Details for Material 15', { exact: true })).toBeVisible();
+  await page.getByLabel('Revision status').selectOption('publish_candidate');
+  await expect(page.getByLabel('Details for Material 15', { exact: true })).toHaveCount(0);
+  await expect(collection.locator('article')).toHaveCount(1);
+  await page.getByLabel('Revision status').selectOption('all');
+  await page.getByRole('button', { name: 'Next revisions' }).click();
+  await selected.click();
+  const review = page.getByRole('button', { name: 'Review & manage', exact: true }).first();
+  await review.click();
+  await expect(page.getByLabel('Exact revision governance')).toContainText('Material 15');
+  await page.getByRole('button', { name: 'Manage', exact: true }).click();
+  await page.getByLabel('Decision note', { exact: true }).fill('Local unsaved review note');
+  for (const name of ['Pipeline discovery mode', 'Revision status', 'Revision type']) await expect(page.getByLabel(name, { exact: true })).toBeDisabled();
+  await expect(page.locator('#library-global-search')).toBeDisabled();
+  await expect(page.locator('#library-search')).toBeDisabled();
+  await page.getByRole('button', { name: 'Close Pipeline tool', exact: true }).click();
+  await expect(page.getByRole('alertdialog')).toContainText('Discard unsaved changes?');
+  await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
+  await expect(page.getByLabel('Decision note', { exact: true })).toHaveValue('Local unsaved review note');
+  await page.getByRole('button', { name: 'Close Pipeline tool', exact: true }).click();
+  await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
+  await expect(page.getByLabel('Exact revision governance')).toHaveCount(0);
+  await expect(page.getByLabel('Pipeline discovery').getByRole('status')).toContainText('Page 2 of 2');
+  await expect(page.getByLabel('Revision status', { exact: true })).toHaveValue('all');
+  await expect(page.locator('#library-search')).toHaveValue('');
+  await expect(page.getByLabel('Details for Material 15', { exact: true })).toBeVisible();
+  await info.attach('actual-library-return-context', { body: await page.screenshot(), contentType: 'image/png' });
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });

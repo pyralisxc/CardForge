@@ -122,7 +122,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const shared = useLibrarySharedProjection({ pipelineEnabled: pipelineAccess, activeScope });
   const [revisionMode, setRevisionMode] = useState(false);
   const revisionsEnabled = activeScope === 'pipeline' && experience.owner && isSignedIn && revisionMode;
-  const revisionQueue = useLibraryRevisionQueue({ enabled: revisionsEnabled, query: projection.query, catalog: shared.catalog });
+  const revisionQueue = useLibraryRevisionQueue({ enabled: revisionsEnabled, query: projection.query, catalog: shared.catalog, catalogLoading: shared.catalogLoading, catalogFailure: shared.catalogFailure });
   const [density, setDensity] = useState<LibraryDensity>('gallery');
   const [sharedType, setSharedType] = useState('all');
   const [selection, setSelection] = useState<SelectionSession>(() => createSelectionSession());
@@ -228,6 +228,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     sharedType,
     revisionPage: revisionsEnabled ? revisionQueue : undefined,
   });
+  const revisionNavigationKey = JSON.stringify([revisionQueue.page, revisionQueue.status, revisionQueue.assetType, projection.query]);
+  const priorRevisionNavigation = useRef(revisionNavigationKey);
+  useEffect(() => {
+    if (!activeTool && revisionsEnabled && priorRevisionNavigation.current !== revisionNavigationKey) setSelection(closeEnvironmentDetail);
+    if (!activeTool) priorRevisionNavigation.current = revisionNavigationKey;
+  }, [activeTool, revisionsEnabled, revisionNavigationKey]);
   const currentItem = selection.objectId ? itemMap.get(selection.objectId) ?? null : null;
   const contentHealth = useMemo(() => buildPipelineContentHealth({ catalog: shared.catalog, program: shared.program }), [shared.catalog, shared.program]);
   const publishedRevisionByLineage = useMemo(() => new Map(
@@ -267,6 +273,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     const rows = [...(shared.program?.submissions ?? []), ...(shared.program?.votingQueue ?? [])];
     const target = revision ? createPipelineReviewTarget(revision) : libraryReviewSelection(item, rows);
     if (!target) throw new Error('The exact selected revision could not be resolved. Refresh Library; no latest revision was substituted.');
+    const publication = shared.catalog?.pipeline?.items.find(entry => entry.id === target.assetId
+      && entry.lineageId === target.lineageId && entry.submissionId === target.submissionId);
+    if (publication?.submissionId) target.catalogPublication = { submissionId: publication.submissionId, updatedAt: publication.updatedAt };
     reviewReturn.current = { focus: document.activeElement instanceof HTMLElement ? document.activeElement : null, scroll: surfaceRef.current?.scrollTop ?? 0 };
     setReviewTarget(target); setRevisionKind(null); openTool('review-manage', [target.lineageId, target.submissionId]);
   };
@@ -357,6 +366,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to record this vote.'));
       const { program } = await response.json() as { program: Parameters<typeof shared.acceptProgram>[0] };
       shared.acceptProgram(program);
+      if (revisionsEnabled) revisionQueue.refresh();
       toast({ title: 'Vote recorded', description: `${name} has been updated in Forge Review.` });
       await shared.refresh();
     } catch (error) {
@@ -484,7 +494,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     search={<label className="relative block min-w-0 w-[min(32rem,42vw)] max-w-full">
       <span className="sr-only">Search {activeScope}</span>
       <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--cf-text-subtle)]" aria-hidden="true" />
-      <Input ref={searchRef} id="library-global-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} className="h-10 w-full pl-9" placeholder={`Search ${activeScope}`} />
+      <Input disabled={Boolean(activeTool)} ref={searchRef} id="library-global-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} className="h-10 w-full pl-9" placeholder={`Search ${activeScope}`} />
     </label>}
     focusReturnId={selection.focusReturnId ?? undefined}
     surfaceRef={surfaceRef}
@@ -510,9 +520,10 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       }}>Pipeline operations</button> : null}
       {activeScope === 'pipeline' ? <PipelineContentHealthPanel catalog={shared.catalog} onClassified={shared.refresh} health={contentHealth} canRepair={experience.owner} onOpenObject={(objectId) => { const item = viewItems.find((candidate) => candidate.id === `pipeline:${objectId}` || candidate.id === objectId); if (item) openDetail(item); }} /> : null}
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
-      {activeScope === 'pipeline' && experience.owner && isSignedIn ? <LibraryRevisionQueueControls revisions={revisionsEnabled} queue={revisionQueue} onModeChange={value => { setRevisionMode(value); setSelection(closeEnvironmentDetail); }} /> : null}
+      {activeScope === 'pipeline' && experience.owner && isSignedIn ? <LibraryRevisionQueueControls disabled={Boolean(activeTool)} revisions={revisionsEnabled} queue={revisionQueue} onModeChange={value => { setRevisionMode(value); setSelection(closeEnvironmentDetail); }} /> : null}
       <LibraryCollection
         serverFiltered={revisionsEnabled}
+        interactionDisabled={Boolean(activeTool)}
         activeFailure={activeFailure}
         activeLoading={activeLoading}
         activeScope={activeScope}
@@ -620,6 +631,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
             onCancel={() => runAction(actions[0]!)}
             onUpdated={async () => {
               setToolDirty(false);
+              if (revisionsEnabled) revisionQueue.refresh();
               await shared.refresh();
               closeOrExecute(actions[0]!);
             }}

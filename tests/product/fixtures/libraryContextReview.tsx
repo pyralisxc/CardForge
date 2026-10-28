@@ -1,3 +1,7 @@
+import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import { UnifiedAccountLibrary } from '@/features/storage-management/components/UnifiedAccountLibrary';
+import type { AccountExperienceProjection } from '@/features/account/client/experience';
+import { identityCatalog } from './libraryTemplateIdentityData';
 import { LibraryCollection } from '@/features/storage-management/components/LibraryCollection';
 import { LibraryRevisionQueueControls } from '@/features/storage-management/components/LibraryRevisionQueueControls';
 import { useLibraryRevisionQueue } from '@/features/storage-management/hooks/useLibraryRevisionQueue';
@@ -46,9 +50,11 @@ const proof = window as typeof window & { libraryRequests: { url: string; method
 proof.libraryRequests = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
+const queueCatalog = identityCatalog();
 const queueRows = Array.from({ length: 15 }, (_, index) => ({ ...row,
   id: `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
   lineageId: index < 2 ? row.lineageId : `20000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+  registryAssetId: index < 2 ? row.registryAssetId : `synthetic-material-${index + 1}`, targetRegistryAssetId: index < 2 ? row.registryAssetId : `synthetic-material-${index + 1}`,
   name: index < 2 ? 'Shared material' : `Material ${index + 1}`,
   description: index === 1 ? 'Pending emerald correction' : 'Published gold specimen',
   contributorDisplayName: index === 1 ? 'Candidate Author' : 'Original Author',
@@ -58,6 +64,17 @@ const queueRows = Array.from({ length: 15 }, (_, index) => ({ ...row,
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  if (params.has('queueActual') && (!init?.method || init.method === 'GET')) {
+    if (url === '/api/catalog/studio-bootstrap') return Response.json({ ...queueCatalog, studioDefaults: { defaultTemplateId: null } });
+    if (url === '/api/catalog') {
+      if (params.has('catalogFailure')) return Response.json({ error: { code: 'catalog_unavailable', kind: 'unavailable', message: 'Catalog unavailable', retryable: true } }, { status: 503 });
+      if (params.has('catalogMissing') || params.has('catalogLoading')) return new Promise<Response>(() => {});
+      return Response.json(queueCatalog);
+    }
+    if (url === '/api/pipeline/library') return Response.json({ program: { ...program, submissions: queueRows } });
+    if (url.startsWith('/api/pipeline/hearts?')) return Response.json({ metrics: [] });
+    if (!url.startsWith('/api/pipeline?')) return Response.json({ error: { code: 'fixture_unavailable', kind: 'unavailable', message: 'Provider excluded from isolated Library proof', retryable: false } }, { status: 503 });
+  }
   if (params.has('submit') && url.startsWith('/api/owner/pipeline/style-revisions')) {
     proof.libraryRequests.push({ url, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : undefined });
     if (init?.method === 'POST') {
@@ -74,7 +91,7 @@ window.fetch = async (input, init) => {
   } });
   if ((!init?.method || init.method === 'GET') && url === '/api/catalog') return Response.json({ pipeline: { items: [{ id: row.registryAssetId, lineageId: row.lineageId, submissionId: row.id, updatedAt: params.has('publicationChanged') ? 'new-registry-epoch' : 'registry-epoch' }] } });
   if ((!init?.method || init.method === 'GET') && url.startsWith('/api/pipeline?')) {
-    if (params.has('queue')) {
+    if (params.has('queue') || params.has('queueActual')) {
       proof.libraryRequests.push({ url, method: 'GET' });
       const filters = new URL(url, location.origin).searchParams;
       const query = (filters.get('query') ?? '').toLowerCase();
@@ -122,7 +139,7 @@ function QueueProof() {
   const [dirty, setDirty] = useState(false); const [confirm, setConfirm] = useState(false);
   const trigger = useRef<HTMLElement | null>(null); const searchRef = useRef<HTMLInputElement>(null);
   const owner = !params.has('contributor') && !params.has('signedOut');
-  const queue = useLibraryRevisionQueue({ enabled: owner && revisions, query, catalog: null });
+  const queue = useLibraryRevisionQueue({ enabled: owner && revisions, query, catalog: params.has('catalogMissing') ? null : queueCatalog, catalogLoading: params.has('catalogLoading'), catalogFailure: params.has('catalogFailure') ? { message: 'Catalog unavailable', retryable: true, kind: 'unavailable', code: 'catalog_unavailable', correlationId: null } : null });
   const shared = { publishedItems: [], pipelineItems: projectPipelineLibraryObjects({ ...program, submissions: queueRows }, null), program };
   const projection = { query, setQuery, sort: 'recent', setSort: () => {}, items: [], visibleItems: [], failures: [], isLoading: false };
   const view = useUnifiedLibraryView({ activeScope: 'pipeline', pipelineAccess: true, projection: projection as never, shared: shared as never, sharedType: 'all', revisionPage: owner && revisions ? queue : undefined });
@@ -142,4 +159,8 @@ function QueueProof() {
     </EnvironmentToolLayer> : null}
   </main>;
 }
-const mount = document.createElement('div'); document.body.append(mount); createRoot(mount).render(params.has('queue') ? <QueueProof /> : <Proof />);
+const mount = document.createElement('div'); document.body.append(mount); const fixtureRouter = { bfcacheId: 'isolated-library', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: () => {}, replace: () => {}, prefetch: async () => {} };
+createRoot(mount).render(params.has('queueActual') ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
+  experience={{ signedIn: true, owner: true, plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: false } } as AccountExperienceProjection}
+  businessIdentity={{} as never} persistenceScope="account:isolated-library-fixture" />
+</AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />);
