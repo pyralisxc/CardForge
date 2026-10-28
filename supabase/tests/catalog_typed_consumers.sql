@@ -78,6 +78,10 @@ begin
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then raise exception 'external_fallback_cleared'; end if;
  if not exists(select 1 from jsonb_array_elements(public.cardforge_read_catalog_trash(target)->'inventoryDetails') d
  where d->>'recordId'=style_id and d->'conditions' ? 'missing_native_payload_external_fallback_possible') then raise exception 'external_fallback_diagnostic_missing'; end if;
+ update public.cardforge_asset_registry set metadata=jsonb_build_object('style',jsonb_build_array('invalid')) where asset_id=style_id;
+ if not exists(select 1 from jsonb_array_elements(public.cardforge_read_catalog_trash(target)->'inventoryDetails') d
+ where d->>'recordId'=style_id and d->'conditions' ? 'non_object_payload') then raise exception 'malformed_payload_diagnostic_missing'; end if;
+ if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then raise exception 'malformed_diagnostics_cleared_fence'; end if;
  update public.cardforge_asset_registry set metadata=jsonb_build_object('style',style) where asset_id=style_id;
  -- Runtime whitespace validity must not let native scan skip a real fallback.
  update public.cardforge_asset_registry set metadata=jsonb_build_object(
