@@ -63,7 +63,7 @@ export function useUnifiedLibraryView({
   const pipelineItems = useMemo<LibraryViewItem[]>(() => shared.pipelineItems.map((item) => ({
     id: `pipeline:${item.submission.targetRegistryAssetId ?? item.submission.registryAssetId ?? item.submission.id}`,
     scope: 'pipeline', name: item.submission.name, kindLabel: item.kindLabel,
-    sourceLabel: item.ownership === 'mine' ? 'Your contribution' : item.submission.contributorDisplayName ?? 'Shared Pipeline',
+    sourceLabel: item.displayedRevisionOwnership === 'mine' ? 'Your revision' : item.submission.contributorDisplayName ?? 'Shared Pipeline',
     statusLabel: item.statusLabel, summary: item.submission.description || `${item.kindLabel} in Forge Review.`,
     updatedAt: item.submission.updatedAt ?? item.submission.submittedAt, sizeBytes: item.submission.sourceFileSizeBytes,
     previewUrl: item.previewUrl, fontFamily: item.fontFamily, pipeline: item,

@@ -78,6 +78,9 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
     return <span className={styles.objectFallback} aria-label={`${item.name} complete Set`}><Boxes aria-hidden="true" /><small>Complete Set</small></span>;
   }
   if (template) return <AuthoredObjectPreview template={template} label={item.name} size="standard" />;
+  if ((item.scope === 'published' && item.published.kind === 'template') || (item.scope === 'pipeline' && item.pipeline.submission.assetType === 'templates')) {
+    return <span className={styles.objectFallback} aria-label={`${item.name} Template preview unavailable`}><SourceIcon item={item} /><small>Template preview unavailable</small></span>;
+  }
   if (style) return <span className={styles.stylePreview} style={appearanceToStyle(style.appearance)} aria-label={`${item.name} style preview`} />;
   if (item.scope === 'pipeline' && item.pipeline.submission.mediaPresentation) return item.pipeline.submission.sourceUrl
     ? <MediaPresentationPreview sourceUrl={item.pipeline.submission.sourceUrl} presentation={item.pipeline.submission.mediaPresentation} />
@@ -186,8 +189,8 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
     tone: item.pipeline.submission.status === 'rejected' ? 'danger' : item.pipeline.submission.status === 'published' ? 'success' : 'warning',
     actionSources: [{ id: `${item.id}:pipeline`, label: 'Forge Review', source: 'provider-native', currentRevisionAvailable: true }],
     meta: [
-      ['Contributor', item.pipeline.submission.contributorDisplayName ?? item.pipeline.submission.contributorEmail ?? 'CardForge contributor'],
-      ['Ownership', item.pipeline.ownership === 'mine' ? 'Your contribution' : 'Shared Pipeline'],
+      ['Displayed revision contributor', item.pipeline.submission.contributorDisplayName ?? item.pipeline.submission.contributorEmail ?? 'CardForge contributor'],
+      ['Lineage participation', item.pipeline.ownership === 'mine' ? 'You contributed to this lineage' : 'Shared Pipeline'],
       ['Lifecycle', item.statusLabel],
       ['Review', displayedRevision.trashedAt ? 'Unavailable in Trash' : isContributorPipelineVoteable(displayedRevision) ? 'Revision feedback available' : 'Voting begins after submission'],
       ['Displayed revision', getPipelineRevisionLabel(item.pipeline.submission)],

@@ -66,6 +66,7 @@ export interface PipelineLibraryObject {
   kindLabel: string;
   statusLabel: string;
   ownership: PipelineLibraryItem['ownership'];
+  displayedRevisionOwnership: PipelineLibraryItem['ownership'];
   reviewState: PipelineLibraryItem['reviewState'];
   previewUrl: string | null;
   fontFamily: string | null;
@@ -109,7 +110,6 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
   const templateByIdentity = new Map<string, TCGCardTemplate>();
   catalog.templates.defaults.forEach((template) => {
     if (template.id) templateByIdentity.set(template.id, template);
-    templateByIdentity.set(template.name, template);
   });
   const assets = [
     ...catalog.assets.templates,
@@ -130,7 +130,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     sizeBytes: asset.fileSizeBytes ?? null,
     fontFamily: null,
     template: asset.kind === 'template'
-      ? templateByIdentity.get(asset.id) ?? templateByIdentity.get(asset.name) ?? null
+      ? templateByIdentity.get(asset.id) ?? null
       : null,
     style: asset.kind === 'elementPreset' ? asset.style ?? catalog.styles.styles.find((style) => style.id === asset.id) ?? null : null,
     packageUrl: null,
@@ -229,7 +229,6 @@ const catalogLibraryVisuals = (catalog: CardForgeCatalogManifest | null): Map<st
   const templateByIdentity = new Map<string, TCGCardTemplate>();
   catalog.templates.defaults.forEach((template) => {
     if (template.id) templateByIdentity.set(template.id, template);
-    templateByIdentity.set(template.name, template);
   });
   const styleByIdentity = new Map<string, AppearanceStylePreset>();
   catalog.styles.styles.forEach((style) => {
@@ -249,7 +248,7 @@ const catalogLibraryVisuals = (catalog: CardForgeCatalogManifest | null): Map<st
     visuals.set(asset.id, {
       previewUrl,
       fontFamily: null,
-      template: asset.kind === 'template' ? templateByIdentity.get(asset.id) ?? templateByIdentity.get(asset.name) ?? null : null,
+      template: asset.kind === 'template' ? templateByIdentity.get(asset.id) ?? null : null,
       style: asset.kind === 'elementPreset' ? asset.style ?? styleByIdentity.get(asset.id) ?? null : null,
     });
   });
@@ -303,8 +302,10 @@ export const projectPipelineLibraryObjects = (
       kindLabel: getPipelineTypeLabel(item.submission.assetType, { plural: false }),
       statusLabel: getPipelineStatusLabel(item.submission.status),
       ownership: item.ownership,
+      displayedRevisionOwnership: program.currentContributorIds.includes(item.submission.contributorId) ? 'mine' : 'other',
       reviewState: item.reviewState,
-      previewUrl: getPipelineImagePreviewUrl(item.submission) ?? lineageVisual.previewUrl,
+      previewUrl: getPipelineImagePreviewUrl(item.submission)
+        ?? (item.submission.assetType === 'templates' ? null : lineageVisual.previewUrl),
       fontFamily: lineageVisual.fontFamily,
       // The registry catalog is the canonical, hydrated payload for the exact
       // live revision. Historical submission rows intentionally retain their
