@@ -296,8 +296,8 @@ export function OwnerContributorProgramPanel({
     : 'No changes saved in this session';
 
   if (target) return <TooltipProvider><section aria-label="Exact revision governance" onChangeCapture={() => onDirtyChange?.(true)}>
-    <p>Selected revision {target.revisionNumber ?? 'legacy'} · {target.status}</p>
-    <p className="break-all text-xs">{target.assetId} · {target.submissionId}</p>
+    <p>Selected revision {target.revisionNumber ?? 'unassigned'} · {target.status}</p>
+    <p className="break-all text-xs">{target.assetId ?? 'Not yet cataloged'} · {target.submissionId}</p>
     <OwnerAssetLibraryPanel key={target.submissionId} focused program={program} renderTemplateSpecimen={renderTemplateSpecimen}
       query="" assetTypeFilter="all" statusFilter="all" page={1} onQueryChange={() => {}} onAssetTypeFilterChange={() => {}}
       onStatusFilterChange={() => {}} onPageChange={() => {}} updatingSubmissionId={updatingSubmissionId}

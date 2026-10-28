@@ -5,7 +5,7 @@ import type { PipelineSubmission } from './pipelineProgram';
 /** Ephemeral selection pins, never a replacement for server authorization. */
 export interface PipelineReviewTarget {
   catalogPublication?: { submissionId: string; updatedAt: string | null };
-  assetId: string;
+  assetId: string | null;
   lineageId: string;
   submissionId: string;
   revisionNumber: number | null;
@@ -15,7 +15,7 @@ export interface PipelineReviewTarget {
 }
 export const createPipelineReviewTarget = (submission: PipelineSubmission): PipelineReviewTarget | null => {
   const assetId = submission.targetRegistryAssetId ?? submission.registryAssetId;
-  return assetId && submission.lineageId ? { assetId, lineageId: submission.lineageId, submissionId: submission.id,
+  return submission.lineageId && (assetId || (!submission.publishedAt && submission.status !== 'published')) ? { assetId, lineageId: submission.lineageId, submissionId: submission.id,
     revisionNumber: submission.revisionNumber, status: submission.status, publishedAt: submission.publishedAt, updatedAt: submission.updatedAt } : null;
 };
 export const resolvePipelineReviewTarget = (target: PipelineReviewTarget, submissions: readonly PipelineSubmission[]): PipelineSubmission => {

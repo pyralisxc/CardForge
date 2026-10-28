@@ -160,3 +160,22 @@ for (const outcome of ['success', 'uncertain', 'uncertainRetry', 'busy']) test(`
   await expect(page.getByRole('button', { name: 'Review & manage', exact: true })).toBeFocused();
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+for (const width of [390, 1440]) test(`@golden Library reviews an exact unpublished upload at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 900 });
+  const evidence = await mount(page, '?upload=1');
+  await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
+  const panel = page.getByLabel('Exact revision governance');
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText('Synthetic fresh SVG upload');
+  await expect(panel).toContainText('Not yet cataloged');
+  await expect(panel).toContainText('Selected revision unassigned');
+  await expect(panel).not.toContainText('Newer revision must not replace selection');
+  await expect(panel.getByRole('button', { name: 'Revise existing', exact: true })).toBeDisabled();
+  await expect(panel).toContainText('Revision editing starts from the current published base');
+  await page.screenshot({ path: info.outputPath('unpublished-upload.png'), animations: 'disabled' });
+  await info.attach('exact-unpublished-upload', { path: info.outputPath('unpublished-upload.png'), contentType: 'image/png' });
+  await page.getByRole('button', { name: 'Close Pipeline tool', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Review & manage', exact: true })).toBeFocused();
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
