@@ -147,8 +147,8 @@ export const getSubmissionNextStep = (
 
   if (submission.status === 'published') {
     return submission.ownerStatusOverride
-      ? 'Live in the shared library under an owner override. Voting still updates the automatic recommendation underneath.'
-      : 'Live in the shared library through automatic ranking. Votes and capacity changes can re-rank it.';
+      ? 'Published under an owner override. Current catalog availability depends on the active publication.'
+      : 'Published through automatic ranking. Current catalog availability depends on the active publication.';
   }
   if (submission.status === 'archived') {
     return submission.ownerStatusOverride

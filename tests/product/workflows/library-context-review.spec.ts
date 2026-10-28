@@ -324,6 +324,9 @@ for (const missing of [false, true]) test(`@golden historical Template keeps sou
   const review = page.getByLabel('Exact revision governance');
   await expect(review).toContainText('10000000-0000-4000-8000-000000000015');
   await expect(review.getByText('Current live catalog payload', { exact: false })).toHaveCount(0);
+  await expect(review.getByText('This submission has been published. Its status does not identify the current catalog revision.')).toBeVisible();
+  await expect(review.getByText('Published through automatic ranking. Current catalog availability depends on the active publication.')).toBeVisible();
+  await expect(review.getByText(/Live in the shared library|Currently available through/)).toHaveCount(0);
   if (missing) {
     await expect(review.getByText('Exact selected Template source is unavailable; no current revision was substituted.').first()).toBeVisible();
     await expect(review.getByRole('button', { name: 'Download exact submission PNG' })).toHaveCount(0);

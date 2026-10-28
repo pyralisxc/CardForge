@@ -281,6 +281,15 @@ describe('contributor asset program rules', () => {
     expect(getReviewProgressLabel({ positiveVotes: 5, negativeVotes: 1 }, 5)).toBe('6/5 votes ready');
   });
 
+  it('does not infer live availability from current or historical published status alone', () => {
+    for (const revisionNumber of [1, 2, null]) {
+      const message = getSubmissionNextStep({ ...baseSubmission, status: 'published', revisionNumber }, { settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS });
+      expect(message).toContain('Published through automatic ranking');
+      expect(message).toContain('depends on the active publication');
+      expect(message).not.toContain('Live in the shared library');
+    }
+  });
+
   it('explains automatic results and persistent owner overrides honestly', () => {
     expect(getSubmissionNextStep({ ...baseSubmission, positiveVotes: 1 }, { settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS }))
       .toContain('Needs more Contributor signal');

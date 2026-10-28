@@ -326,7 +326,7 @@ export function AssetRow({
             <div className={compact ? "mt-3 grid gap-3" : "mt-3 grid gap-3 md:grid-cols-3"}>
               <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                 <p className="text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Status meaning</p>
-                <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">{getPipelineStatusDescription(submission.status)}</p>
+                <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">{submission.status === 'published' ? 'This submission has been published. Its status does not identify the current catalog revision.' : getPipelineStatusDescription(submission.status)}</p>
               </div>
               <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                 <p className="text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Tier meaning</p>
