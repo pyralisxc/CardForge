@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildDeterministicStarterSetPackage, backfillPipelineRegistryMedia, verifyReplayShowcaseBytes } from '../../../scripts/sync-pipeline-defaults.mjs';
+import { buildDeterministicStarterSetPackage, storeStarterSetPackage, backfillPipelineRegistryMedia, verifyReplayShowcaseBytes } from '../../../scripts/sync-pipeline-defaults.mjs';
 
 describe('Pipeline default synchronization', () => {
   it('builds byte-identical starter packages independently of execution time', async () => {
@@ -98,5 +98,39 @@ describe('existing Pipeline media backfill', () => {
     const { client, rpc } = fixture('/card-assets/textures/arcane-forge/frame-creature-premium.webp', true);
     await expect(backfillPipelineRegistryMedia(client)).rejects.toThrow('readback differs');
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('starter Set exact package storage', () => {
+  const fixture = (stored: Uint8Array | null, uploadError: unknown = null) => {
+    const upload = vi.fn(async () => ({ error: uploadError }));
+    const download = vi.fn(async () => ({ data: stored && new Blob([Uint8Array.from(stored)]), error: null }));
+    const bucket = { upload, download, getPublicUrl: (path: string) => ({ data: { publicUrl: `https://example.invalid/${path}` } }) };
+    return { client: { storage: { from: () => bucket } }, upload, download };
+  };
+  const bytes = Buffer.from('synthetic exact package');
+  it.each([null, { message: 'Asset Already Exists' }, { message: 'response lost' }])('verifies exact bytes before returning a receipt (%j)', async (error) => {
+    const { client, upload, download } = fixture(bytes, error);
+    const result = await storeStarterSetPackage(client, 'test-set', bytes);
+    expect(result.storagePath).toBe(`owner-defaults/sets/test-set/${createHash('sha256').update(bytes).digest('hex')}.cardforge`);
+    expect(upload).toHaveBeenCalledWith(result.storagePath, bytes, { contentType: 'application/octet-stream', upsert: false });
+    expect(download).toHaveBeenCalledWith(result.storagePath);
+    expect(result.fileSizeBytes).toBe(bytes.length);
+  });
+  it.each([Buffer.from('different bytes'), Buffer.alloc(bytes.length, 1)])('rejects conflicting readback without overwriting it', async (wrong) => {
+    const { client, upload } = fixture(wrong);
+    await expect(storeStarterSetPackage(client, 'test-set', bytes)).rejects.toThrow('differs');
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+  it('does not turn an unavailable readback into publication proof', async () => {
+    const { client } = fixture(null, { message: 'unknown upload outcome' });
+    await expect(storeStarterSetPackage(client, 'test-set', bytes)).rejects.toThrow('readback unavailable');
+  });
+  it('separates changed bytes instead of replacing a version-named object', async () => {
+    const a = await storeStarterSetPackage(fixture(bytes).client, 'test-set', bytes);
+    const changed = Buffer.from('changed package');
+    const b = await storeStarterSetPackage(fixture(changed).client, 'test-set', changed);
+    expect(a.storagePath).not.toBe(b.storagePath);
   });
 });

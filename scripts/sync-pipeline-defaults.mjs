@@ -625,6 +625,34 @@ export const buildStarterSetProject = (definition, template) => {
   return project;
 };
 
+// This establishes byte identity only. Native consumer admission still requires
+// a publication-bound interpretation; a digest is not a negative dependency scan.
+export const storeStarterSetPackage = async (supabase, assetId, body) => {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(assetId) || !body.byteLength) {
+    throw new Error('Invalid starter Set package identity.');
+  }
+  const packageSha256 = createHash('sha256').update(body).digest('hex');
+  const storagePath = `owner-defaults/sets/${assetId}/${packageSha256}.cardforge`;
+  const bucket = supabase.storage.from(ASSET_BUCKET);
+  const { error: uploadError } = await bucket.upload(storagePath, body, {
+    contentType: 'application/octet-stream',
+    upsert: false,
+  });
+  // A lost response or duplicate is not publication proof. Read the exact object
+  // on both success and failure, and never overwrite/remove a conflicting object.
+  const { data, error } = await bucket.download(storagePath);
+  if (error || !data) {
+    throw new Error('Starter Set package readback unavailable.', { cause: error || uploadError });
+  }
+  const stored = Buffer.from(await data.arrayBuffer());
+  if (stored.byteLength !== body.byteLength
+    || createHash('sha256').update(stored).digest('hex') !== packageSha256) {
+    throw new Error('Starter Set package readback differs from exact source bytes.');
+  }
+  return { storagePath, packageSha256, fileSizeBytes: body.byteLength,
+    packageUrl: bucket.getPublicUrl(storagePath).data.publicUrl };
+};
+
 const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
   const directory = path.join(projectRoot, BOOTSTRAP_ROOT, 'sets');
   const files = (await walkFiles(directory)).filter((file) => file.endsWith('.json'));
@@ -650,24 +678,11 @@ const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
       assets,
     };
     const body = await buildDeterministicStarterSetPackage(manifest);
-    const packageSha256 = createHash('sha256').update(body).digest('hex');
-    const storagePath = `owner-defaults/sets/${definition.id}-v${definition.version}.cardforge`;
-    const { error } = await supabase.storage.from(ASSET_BUCKET).upload(storagePath, body, {
-      // The shared bucket intentionally exposes a narrow provider allowlist.
-      // The Pipeline row carries the exact CardForge package type; Storage uses
-      // its accepted generic binary transport type for the same bytes.
-      contentType: 'application/octet-stream',
-      upsert: true,
-    });
-    if (error) throw error;
-    const { data } = supabase.storage.from(ASSET_BUCKET).getPublicUrl(storagePath);
+    const stored = await storeStarterSetPackage(supabase, definition.id, body);
     items.push({
       ...definition,
-      packageUrl: data.publicUrl,
+      ...stored,
       previewUrl: publicUrlByLocalPath.get(definition.previewUrl) || '',
-      storagePath,
-      fileSizeBytes: body.byteLength,
-      packageSha256,
     });
   }
   return items;
