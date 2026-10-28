@@ -15,6 +15,8 @@ declare
 begin
  if exists(select 1 from public.cardforge_asset_registry) then raise exception 'typed_fixture_requires_isolated_empty_catalog'; end if;
  if has_function_privilege('anon','public.cardforge_catalog_consumer_inspectable(jsonb,text,integer)','EXECUTE')
+   or has_function_privilege('authenticated','public.cardforge_catalog_consumer_inspectable(jsonb,text,integer)','EXECUTE')
+   or has_function_privilege('anon','public.cardforge_catalog_consumer_mentions(jsonb,text[],text[],text,integer)','EXECUTE')
    or has_function_privilege('authenticated','public.cardforge_catalog_consumer_mentions(jsonb,text[],text[],text,integer)','EXECUTE') then
    raise exception 'typed_inspection_browser_privileges'; end if;
  if not public.cardforge_catalog_consumer_inspectable(style,'style') or not public.cardforge_catalog_consumer_inspectable(template,'template') then
@@ -44,6 +46,7 @@ begin
    raise exception 'native_zero_border_rejected'; end if;
  if public.cardforge_catalog_consumer_inspectable(style||'{"appearance":{"border":{"kind":"none","width":-1}}}', 'style')
    or public.cardforge_catalog_consumer_inspectable(template||'{"freeformCanvas":{"width":0,"height":450,"elements":[]}}','template')
+   or public.cardforge_catalog_consumer_inspectable('{"id":"shape","name":"Shape","type":"shape","x":0,"y":0,"width":0,"height":10,"zIndex":0}','element')
    or public.cardforge_catalog_consumer_inspectable(template-'freeformCanvas','template') then
    raise exception 'invalid_geometry_or_implicit_canvas_cleared'; end if;
  if public.cardforge_catalog_consumer_inspectable('{"id":"i","name":"Image","type":"image","x":0,"y":0,"width":10,"height":10,"zIndex":0}', 'element') then
@@ -163,7 +166,7 @@ begin
    update public.cardforge_studio_documents set document_payload=payload where id=document_id;
    if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then raise exception 'opaque_studio_admitted'; end if;
    if not exists(select 1 from jsonb_array_elements(public.cardforge_catalog_trash_inventory_details(l)) d
-     where d->>'recordId'=document_id::text and d->'conditions' ? 'outside_supported_native_studio_subset') then raise exception 'opaque_studio_diagnostic_missing'; end if;
+     where d->>'recordId'=document_id::text and d->'conditions' ? 'outside_supported_native_payload_subset') then raise exception 'opaque_studio_diagnostic_missing'; end if;
  end loop;
  delete from public.cardforge_studio_documents where id=document_id;
  insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload)
@@ -182,6 +185,6 @@ begin
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'upload_cleanup_commitment_unverified') then raise exception 'upload_worker_boundary_cleared'; end if;
  update public.cardforge_pipeline_asset_lineages set catalog_destructive_uncertainty='legacy_destructive_history_unverified' where id=l;
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'legacy_destructive_history_unverified') then raise exception 'legacy_uncertainty_cleared'; end if;
- raise notice 'PASS typed native consumers: unrelated Style/Template, legacy NULL, precedence, identity/source, opaque Set/extensions, Studio, CAS, expiry and worker uncertainty';
+ raise notice 'PASS typed native consumers: zero border/positive geometry, literal Studio, reference/opaque Studio, unrelated Style/Template, legacy NULL, precedence, identity/source, opaque Set/extensions, CAS, expiry and worker uncertainty';
 end $$;
 rollback;

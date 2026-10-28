@@ -108,16 +108,6 @@ jobs:
         with:
           version: 2.122.0
       - if: steps.native.outputs.required == 'true'
-        name: Generate source-contained inspection migration with pinned native CLI
-        run: |
-          supabase migration new --help
-          supabase migration new catalog_source_contained_consumers
-          file=$(find supabase/migrations -name '*_catalog_source_contained_consumers.sql')
-          test -n "$file"
-          cp supabase/tests/catalog_source_contained_consumers_migration.sql "$file"
-          echo "Generated migration: $file"
-          sha256sum "$file"
-      - if: steps.native.outputs.required == 'true'
         name: Replay native Supabase migrations and SQL contention fixtures
         run: bash scripts/verify-catalog-trash-local.sh
       - if: ${{ always() && steps.native.outputs.required == 'true' }}
