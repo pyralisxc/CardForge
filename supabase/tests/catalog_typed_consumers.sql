@@ -53,16 +53,34 @@ begin
    values(legacy,'typed-proof','elementPresets','Legacy NULL style','published','free',null);
  insert into public.cardforge_asset_registry(asset_id,contributor_submission_id,name,asset_type,url,status,access_tier,library_source,metadata)
    values(style_id,legacy,'Legacy NULL style','elementPreset','https://example.invalid/not-fetched.json','published','free','official',jsonb_build_object('style',style));
+ if has_function_privilege('anon','public.cardforge_catalog_trash_inventory_details(uuid)','EXECUTE')
+   or has_function_privilege('authenticated','public.cardforge_catalog_trash_inventory_details(uuid)','EXECUTE')
+   or not has_function_privilege('service_role','public.cardforge_catalog_trash_inventory_details(uuid)','EXECUTE') then
+   raise exception 'diagnostic_execute_privileges_regressed'; end if;
  snapshot:=public.cardforge_read_catalog_trash(target);
  if snapshot->'entryReasons'<>'[]'::jsonb then raise exception 'unrelated_legacy_style_blocked: %',snapshot; end if;
+ if snapshot->'inventoryDetails' is distinct from '[]'::jsonb then raise exception 'unrelated_consumer_diagnostic'; end if;
  if (select source_payload from public.cardforge_contributor_asset_submissions where id=legacy) is not null then raise exception 'legacy_history_invented'; end if;
  -- The first runtime-valid metadata owner wins; later aliases cannot replace it.
  update public.cardforge_asset_registry set metadata=jsonb_build_object('style',style,'elementPreset',style||jsonb_build_object('appearance',jsonb_build_object('assetSource',asset))) where asset_id=style_id;
  if public.cardforge_read_catalog_trash(target)->'entryReasons'<>'[]'::jsonb then raise exception 'unused_alias_substituted_for_style'; end if;
  update public.cardforge_asset_registry set metadata=jsonb_build_object('style',style||jsonb_build_object('appearance',jsonb_build_object('assetSource',asset))) where asset_id=style_id;
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'pipeline_identity_consumer_requires_resolution') then raise exception 'actual_identity_not_blocked'; end if;
+ if not exists(select 1 from jsonb_array_elements(public.cardforge_read_catalog_trash(target)->'inventoryDetails') d
+ where d->>'origin'='registry' and d->>'recordId'=style_id and d->'conditions' ? 'target_identity_or_source_reference') then raise exception 'referenced_identity_diagnostic_missing'; end if;
  update public.cardforge_asset_registry set metadata=jsonb_build_object('style',style||'{"appearance":{"material":{"texture":{"kind":"uploaded","imageSource":"https://example.invalid/retained.svg"}}}}') where asset_id=style_id;
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'pipeline_identity_consumer_requires_resolution') then raise exception 'actual_source_not_blocked'; end if;
+ -- Diagnostics disclose exact record identity and classifications, not payloads,
+ -- private document content, asset bodies, source/preview URLs or credentials.
+ if exists(select 1 from jsonb_array_elements(public.cardforge_catalog_trash_inventory_details(l)) d
+   where not (d ?& array['origin','recordId','payloadKind','conditions'])
+      or d-array['origin','recordId','payloadKind','conditions']<>'{}'::jsonb
+      or jsonb_typeof(d->'conditions')<>'array'
+      or jsonb_array_length(d->'conditions')=0) then raise exception 'diagnostic_output_keys_regressed'; end if;
+ if public.cardforge_catalog_trash_inventory_details(l)::text like '%https://example.invalid/%'
+   or public.cardforge_catalog_trash_inventory_details(l)::text like '%uploaded%'
+   then raise exception 'diagnostic_payload_or_url_leaked'; end if;
+
 
  update public.cardforge_asset_registry set preview_url='https://example.invalid/registry-preview.svg' where asset_id=asset;
  update public.cardforge_contributor_asset_submissions set preview_url='https://example.invalid/submission-preview.svg' where id=target;
@@ -73,6 +91,12 @@ begin
  end loop;
  update public.cardforge_asset_registry set metadata='{}' where asset_id=style_id;
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then raise exception 'external_fallback_cleared'; end if;
+ if not exists(select 1 from jsonb_array_elements(public.cardforge_read_catalog_trash(target)->'inventoryDetails') d
+ where d->>'recordId'=style_id and d->'conditions' ? 'missing_native_payload_external_fallback_possible') then raise exception 'external_fallback_diagnostic_missing'; end if;
+ update public.cardforge_asset_registry set metadata=jsonb_build_object('style',jsonb_build_array('invalid')) where asset_id=style_id;
+ if not exists(select 1 from jsonb_array_elements(public.cardforge_read_catalog_trash(target)->'inventoryDetails') d
+ where d->>'recordId'=style_id and d->'conditions' ? 'non_object_payload') then raise exception 'malformed_payload_diagnostic_missing'; end if;
+ if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then raise exception 'malformed_diagnostics_cleared_fence'; end if;
  update public.cardforge_asset_registry set metadata=jsonb_build_object('style',style) where asset_id=style_id;
  -- Runtime whitespace validity must not let native scan skip a real fallback.
  update public.cardforge_asset_registry set metadata=jsonb_build_object(

@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { access, rpc, database } = vi.hoisted(() => ({access:vi.fn(),rpc:vi.fn(),database:vi.fn()}));
 vi.mock('@/features/account/server', () => ({getAccountToolAccessForUserId:access}));
 vi.mock('@/infrastructure/database/supabaseServer', () => ({getSupabaseServerClient:database}));
+import type { CatalogTrashExpectedState } from '@/features/pipeline/lib/catalogTrashContract';
 import { changeCatalogTrash, readCatalogTrash } from '@/features/pipeline/server/catalogTrash';
 const identity = {lineageId:'00000000-0000-4000-8000-000000000001',submissionId:'00000000-0000-4000-8000-000000000002',registrySubmissionId:'00000000-0000-4000-8000-000000000002',revisionHighWater:3};
 const active = {identity,trashedAt:null,purgeAfter:null,held:false};
 const trashed = {...active,trashedAt:'2026-10-26T00:00:00Z',purgeAfter:'2026-11-25T00:00:00Z'};
-const receipt = (state = trashed) => ({name:'Native catalog',state,retentionDays:30,reasons:[],entryReasons:[]});
+const receipt = (state: CatalogTrashExpectedState = trashed) => ({name:'Native catalog',state,retentionDays:30,reasons:[],entryReasons:[]});
 beforeEach(() => {vi.resetAllMocks();access.mockResolvedValue({isOwner:true});database.mockReturnValue({rpc});rpc.mockResolvedValue({data:receipt(),error:null});});
 describe('canonical catalog recovery service', () => {
   it('rechecks Owner authority before read or mutation', async () => {
@@ -42,4 +43,19 @@ describe('canonical catalog recovery service', () => {
     await expect(changeCatalogTrash('owner',{action:'restore',expected:trashed})).rejects.toMatchObject({code:'catalog_trash_unconfirmed'});
     await expect(changeCatalogTrash('owner',{action:'hold',expected:trashed,held:true})).rejects.toMatchObject({code:'catalog_trash_unconfirmed'});
   });
+});
+
+it('returns native blocker identities without turning diagnostics into command proof', async () => {
+  const inventoryDetails = [{origin:'registry',recordId:'other-style',payloadKind:'elementPreset',conditions:['outside_supported_native_payload_subset']}];
+  const blocked = {...receipt(active),entryReasons:['json_consumer_inventory_unverified'],inventoryDetails};
+  rpc.mockResolvedValue({data:blocked,error:null});
+  await expect(readCatalogTrash('owner',identity.submissionId)).resolves.toEqual(blocked);
+  rpc.mockClear();
+  await expect(changeCatalogTrash('owner',{action:'trash',expected:active,inventoryDetails:[]})).rejects.toMatchObject({status:400});
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+it('rejects malformed native diagnostics rather than reporting an empty inventory', async () => {
+  rpc.mockResolvedValue({data:{...receipt(active),inventoryDetails:[{origin:'registry',recordId:'',payloadKind:'style',conditions:[]}]},error:null});
+  await expect(readCatalogTrash('owner',identity.submissionId)).rejects.toMatchObject({status:503});
 });

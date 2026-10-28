@@ -19,6 +19,17 @@ const reasonLabel = (reason: string) => ({
   physical_expiry_unavailable_complete_reference_and_worker_proof_required: 'Physical expiry is blocked until complete managed-reference and worker-safety proof exists. The deadline does not guarantee deletion.',
 }[reason] ?? reason);
 
+const inventoryConditionLabel = (condition: string) => ({
+  target_identity_or_source_reference: 'References this exact catalog identity or authoritative source.',
+  set_package_not_natively_decoded: 'Set package has no supported complete native dependency inspection.',
+  studio_wrapper_not_supported: 'Studio document wrapper has no supported complete native dependency inspection.',
+  missing_native_payload_external_fallback_possible: 'Native payload is missing; external fallback content cannot be ruled out.',
+  non_object_payload: 'Payload is not an object supported by native inspection.',
+  invalid_native_style_payload: 'Payload does not meet native Style validation.',
+  outside_supported_native_payload_subset: 'Payload fails the supported native field/type/content subset; further inspection is required.',
+  unsupported_payload_kind: 'This payload kind has no supported complete native dependency inspection.',
+}[condition] ?? condition);
+
 export function CatalogTrashControls({ submissionId }: { submissionId: string }) {
   const [snapshot, setSnapshot] = useState<CatalogTrashSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
@@ -53,6 +64,14 @@ export function CatalogTrashControls({ submissionId }: { submissionId: string })
     {snapshot ? <>
       <p role="status" className="text-sm">{snapshot.state.trashedAt ? `In Trash${snapshot.state.held ? ' · On hold' : ''}. Recovery deadline: ${new Date(snapshot.state.purgeAfter!).toLocaleString()}.` : `Not in Trash. Configured recovery period: ${snapshot.retentionDays} days.`}</p>
       <ul className="list-disc pl-5 text-xs">{[...(!snapshot.state.trashedAt ? snapshot.entryReasons : []), ...snapshot.reasons].map(reason => <li key={reason}>{reasonLabel(reason)}</li>)}</ul>
+      {snapshot.inventoryDetails?.length ? <details className="text-xs">
+        <summary>Consumer inventory blockers ({snapshot.inventoryDetails.length})</summary>
+        <p>Read-only diagnostic identities. These observations do not authorize Trash or clear any safety hold.</p>
+        <ul className="grid gap-2 break-words">{snapshot.inventoryDetails.map(detail => <li key={`${detail.origin}:${detail.recordId}`}>
+          <span>{detail.origin} · {detail.payloadKind} · {detail.recordId}</span>
+          <ul className="list-disc pl-5">{detail.conditions.map(condition => <li key={condition}>{inventoryConditionLabel(condition)}</li>)}</ul>
+        </li>)}</ul>
+      </details> : null}
       <div className="flex flex-wrap gap-2">
         {snapshot.state.trashedAt ? <>
           <Button size="sm" disabled={busy} onClick={() => void change({ action: 'restore', expected: snapshot.state })}>Restore</Button>
