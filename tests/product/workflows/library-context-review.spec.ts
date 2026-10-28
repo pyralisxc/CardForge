@@ -320,7 +320,7 @@ for (const missing of [false, true]) test(`@golden historical Template keeps sou
   const history = page.getByLabel('Pipeline review details');
   await expect(history.getByText('History', { exact: true })).toBeVisible();
   await expect(history.getByText('Live', { exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Review & manage', exact: true }).first().click();
+  await history.getByRole('button', { name: 'Review & manage Revision 1', exact: true }).click();
   const review = page.getByLabel('Exact revision governance');
   await expect(review).toContainText('10000000-0000-4000-8000-000000000015');
   await expect(review.getByText('Current live catalog payload', { exact: false })).toHaveCount(0);
