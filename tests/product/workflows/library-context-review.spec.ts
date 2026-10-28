@@ -261,6 +261,8 @@ test('@golden actual Library keeps revision context through dirty close and clea
   const surface = page.locator('[aria-label="CardForge Library"] main[data-scene-viewport]');
   const beforeScroll = await surface.evaluate(node => { node.scrollTop = Math.min(50, node.scrollHeight - node.clientHeight); return node.scrollTop; });
   const review = page.getByRole('button', { name: 'Review & manage', exact: true }).first();
+  const reviewTrigger = await review.elementHandle();
+  expect(reviewTrigger).not.toBeNull();
   await review.click();
   await expect(page.getByLabel('Exact revision governance')).toContainText('Material 15');
   await page.getByRole('button', { name: 'Manage', exact: true }).click();
@@ -286,7 +288,22 @@ test('@golden actual Library keeps revision context through dirty close and clea
   await expect(page.getByLabel('Pipeline discovery').getByRole('status')).toContainText('Page 2 of 2');
   await expect(page.getByLabel('Revision status', { exact: true })).toHaveValue('all');
   await expect(page.locator('#library-search')).toHaveValue('material');
-  await expect(selected).toBeFocused();
+  // The command-band trigger survives the tool transition. Restore that exact
+  // trigger, falling back to the selected row only if the opener was removed.
+  const selectedId = await selected.getAttribute('id');
+  await expect.poll(() => reviewTrigger!.evaluate((trigger, fallbackId) => {
+    const expected = trigger.isConnected ? trigger : document.getElementById(fallbackId!);
+    return expected !== null && document.activeElement === expected;
+  }, selectedId)).toBe(true);
+  const focusEvidence = await reviewTrigger!.evaluate(trigger => ({
+    openerConnected: trigger.isConnected,
+    activeId: document.activeElement?.id,
+    activeAction: document.activeElement?.getAttribute('data-environment-action'),
+    activeText: document.activeElement?.textContent,
+    restoredOriginalTrigger: document.activeElement === trigger,
+  }));
+  console.log('LIBRARY_RETURN_FOCUS', JSON.stringify(focusEvidence));
+  await info.attach('actual-library-return-focus', { body: JSON.stringify(focusEvidence), contentType: 'application/json' });
   await expect.poll(() => surface.evaluate(node => node.scrollTop)).toBe(beforeScroll);
   await expect(page.getByLabel('Details for Material 15', { exact: true })).toBeVisible();
   await info.attach('actual-library-return-context', { body: await page.screenshot(), contentType: 'image/png' });
