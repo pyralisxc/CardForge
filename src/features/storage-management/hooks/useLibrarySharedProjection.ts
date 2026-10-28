@@ -56,6 +56,7 @@ export interface PublishedLibraryObject {
 }
 
 export interface PipelineLibraryObject {
+  catalogPublication?: { submissionId: string; updatedAt: string | null };
   packageUrl?: string | null;
   submission: PipelineSubmission;
   reviewSubmission: PipelineSubmission | null;
@@ -74,7 +75,7 @@ export interface PipelineLibraryObject {
   style: AppearanceStylePreset | null;
 }
 
-interface LibrarySharedFailure {
+export interface LibrarySharedFailure {
   message: string;
   retryable: boolean;
   kind: BoundaryFailureKind;
@@ -83,7 +84,7 @@ interface LibrarySharedFailure {
   nextAction?: string;
 }
 
-const sharedFailure = (error: unknown, fallback: string): LibrarySharedFailure => {
+export const sharedFailure = (error: unknown, fallback: string): LibrarySharedFailure => {
   const boundary = describeAgentBoundaryFailure(error);
   if (error instanceof ApiClientError) {
     return {
@@ -293,6 +294,7 @@ export const projectPipelineLibraryObjects = (
         set.id === item.currentPublishedSubmission?.registryAssetId
         || set.id === item.currentPublishedSubmission?.targetRegistryAssetId
       ))?.packageUrl ?? null,
+      catalogPublication: publication?.submissionId ? { submissionId: publication.submissionId, updatedAt: publication.updatedAt } : undefined,
       submission: item.submission,
       reviewSubmission: item.reviewSubmission,
       editableSubmission: item.editableSubmission,

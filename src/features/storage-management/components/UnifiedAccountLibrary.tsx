@@ -39,6 +39,8 @@ import {
   getLibraryScopeDefinitions, resolveLibraryScopeForViewer,
   type LibraryDensity, type LibraryScope,
 } from '../model/libraryScopes';
+import { useLibraryRevisionQueue } from '../hooks/useLibraryRevisionQueue';
+import { LibraryRevisionQueueControls } from './LibraryRevisionQueueControls';
 import { LibraryCollection } from './LibraryCollection';
 import {
   LibraryDetailVisual,
@@ -118,6 +120,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const campaignAccess = experience.contributor.canDraftCampaigns || experience.owner;
   const activeScope = resolveLibraryScopeForViewer(scope, { contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
   const shared = useLibrarySharedProjection({ pipelineEnabled: pipelineAccess, activeScope });
+  const [revisionMode, setRevisionMode] = useState(false);
+  const revisionsEnabled = activeScope === 'pipeline' && experience.owner && isSignedIn && revisionMode;
+  const revisionQueue = useLibraryRevisionQueue({ enabled: revisionsEnabled, query: projection.query, catalog: shared.catalog });
   const [density, setDensity] = useState<LibraryDensity>('gallery');
   const [sharedType, setSharedType] = useState('all');
   const [selection, setSelection] = useState<SelectionSession>(() => createSelectionSession());
@@ -221,6 +226,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     projection,
     shared,
     sharedType,
+    revisionPage: revisionsEnabled ? revisionQueue : undefined,
   });
   const currentItem = selection.objectId ? itemMap.get(selection.objectId) ?? null : null;
   const contentHealth = useMemo(() => buildPipelineContentHealth({ catalog: shared.catalog, program: shared.program }), [shared.catalog, shared.program]);
@@ -300,7 +306,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       if (focusId) document.getElementById(focusId)?.focus();
     });
   };
-  const refresh = () => { projection.refresh(); void shared.refresh(); };
+  const refresh = () => { projection.refresh(); void shared.refresh(); if (revisionsEnabled) revisionQueue.refresh(); };
 
   useEffect(() => {
     const lineageIds = [...new Set(scopeItems.flatMap((item) => pipelineLineageFor(item) ? [pipelineLineageFor(item)!] : []))];
@@ -504,7 +510,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       }}>Pipeline operations</button> : null}
       {activeScope === 'pipeline' ? <PipelineContentHealthPanel catalog={shared.catalog} onClassified={shared.refresh} health={contentHealth} canRepair={experience.owner} onOpenObject={(objectId) => { const item = viewItems.find((candidate) => candidate.id === `pipeline:${objectId}` || candidate.id === objectId); if (item) openDetail(item); }} /> : null}
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
+      {activeScope === 'pipeline' && experience.owner && isSignedIn ? <LibraryRevisionQueueControls revisions={revisionsEnabled} queue={revisionQueue} onModeChange={value => { setRevisionMode(value); setSelection(closeEnvironmentDetail); }} /> : null}
       <LibraryCollection
+        serverFiltered={revisionsEnabled}
         activeFailure={activeFailure}
         activeLoading={activeLoading}
         activeScope={activeScope}

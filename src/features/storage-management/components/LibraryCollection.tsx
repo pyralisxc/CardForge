@@ -23,7 +23,7 @@ import type { useAccountLibraryProjection } from '../hooks/useAccountLibraryProj
 import { ACCOUNT_LIBRARY_KINDS, getAccountLibrarySourceLabel, type AccountLibraryItem, type AccountLibrarySource } from '../model/accountLibrary';
 import type { LibraryDensity, LibraryScope } from '../model/libraryScopes';
 import { accountLibraryKindLabels } from './AccountLibraryItemRow';
-import { LibraryVisual, getSharedLibraryActions, pipelineLineageFor, type LibraryViewItem } from './LibraryObjectPresentation';
+import { LibraryVisual, getPipelineRevisionLabel, getSharedLibraryActions, pipelineLineageFor, type LibraryViewItem } from './LibraryObjectPresentation';
 import styles from './UnifiedAccountLibrary.module.css';
 
 const CampaignLibraryWorkspace = dynamic(() => import(
@@ -56,6 +56,7 @@ export const describeLibraryBoundaryFailure = (failure: LibraryBoundaryFailure):
 };
 
 interface LibraryCollectionProps {
+  serverFiltered?: boolean;
   activeFailure: LibraryBoundaryFailure | null;
   activeLoading: boolean;
   activeScope: LibraryScope;
@@ -100,6 +101,7 @@ export function LibraryCollection({
   heartMetrics, heartMetricsFailed, heartMetricsLoading, heartingId, isSignedIn, isSelfVoteBlocked, onDensityChange, onOpenContribution, onOpenDetail, onPersonalAction,
   onPublishedAction, onRefresh, onSharedTypeChange, onToggleHeart, onVote, personalActions, publishedRevisionByLineage, projection,
   scopeDefinition, searchRef, selection, sharedType, sharedTypes, templateFor, unfilteredScopeItemCount, viewItems, votingId, isOwner,
+  serverFiltered = false,
 }: LibraryCollectionProps) {
   const [faces, setFaces] = useState<Record<string, CardFace>>({});
   return <section className={styles.collection} aria-labelledby="library-collection-heading">
@@ -115,8 +117,8 @@ export function LibraryCollection({
           {projection.typeFacets.length ? <MultiSelectionFilterMenu allLabel="All Set types" ariaLabel="Filter Library by descriptive type" compactLabel="Type" className={styles.filterSelect} values={projection.typeFilters} onChange={projection.setTypeFilters} options={projection.typeFacets.map((type) => ({ value: type.id, label: `${type.label} · ${type.count}` }))} /> : null}
           {projection.tagFacets.length ? <MultiSelectionFilterMenu allLabel="All tags" ariaLabel="Filter Library by tag" compactLabel="Tags" className={styles.filterSelect} values={projection.tagFilters} onChange={projection.setTagFilters} options={projection.tagFacets.map((tag) => ({ value: tag.id, label: `${tag.label} · ${tag.count}` }))} /> : null}
           {projection.tagFilters.length > 1 ? <SelectionFilterMenu allLabel="Any tag" ariaLabel="Choose Library tag matching" compactLabel="Tags" className={styles.filterSelect} value={projection.tagMatch} onChange={(value) => projection.setTagMatch(value === 'all' ? 'all' : 'any')} options={[{ value: 'any', label: 'Any tag' }, { value: 'all', label: 'All tags' }]} /> : null}
-        </> : <SelectionFilterMenu allLabel={activeScope === 'pipeline' ? 'All work' : 'All types'} ariaLabel={activeScope === 'pipeline' ? 'Filter Pipeline' : 'Filter by type'} className={styles.filterSelect} value={sharedType} onChange={onSharedTypeChange} options={sharedTypes.map((value) => ({ value, label: value }))} />}
-        <Select value={projection.sort} onValueChange={(value) => projection.setSort(value as 'recent' | 'name' | 'kind')}><SelectTrigger aria-label="Sort library" className={styles.sortSelect}><span>{projection.sort === 'name' ? 'Name' : projection.sort === 'kind' ? 'Type' : 'Recent'}</span></SelectTrigger><SelectContent><SelectItem value="recent">Recently updated</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="kind">Type</SelectItem></SelectContent></Select>
+        </> : serverFiltered ? null : <SelectionFilterMenu allLabel={activeScope === 'pipeline' ? 'All work' : 'All types'} ariaLabel={activeScope === 'pipeline' ? 'Filter Pipeline' : 'Filter by type'} className={styles.filterSelect} value={sharedType} onChange={onSharedTypeChange} options={sharedTypes.map((value) => ({ value, label: value }))} />}
+        {!serverFiltered ? <Select value={projection.sort} onValueChange={(value) => projection.setSort(value as 'recent' | 'name' | 'kind')}><SelectTrigger aria-label="Sort library" className={styles.sortSelect}><span>{projection.sort === 'name' ? 'Name' : projection.sort === 'kind' ? 'Type' : 'Recent'}</span></SelectTrigger><SelectContent><SelectItem value="recent">Recently updated</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="kind">Type</SelectItem></SelectContent></Select> : <span>Newest submissions first</span>}
         <div className={styles.densityControls} aria-label="Collection view"><button type="button" aria-label="Gallery view" aria-pressed={density === 'gallery'} onClick={() => onDensityChange('gallery')}><Grid2X2 aria-hidden="true" /></button><button type="button" aria-label="Compact list view" aria-pressed={density === 'list'} onClick={() => onDensityChange('list')}><LayoutList aria-hidden="true" /></button><button type="button" aria-label="Expanded view" aria-pressed={density === 'expanded'} onClick={() => onDensityChange('expanded')}><PanelRightOpen aria-hidden="true" /></button></div>
         {canSubmit && activeScope === 'published' ? <button id="library-contribute-trigger" type="button" className={styles.contributeButton} onClick={onOpenContribution}><UploadCloud size={16} aria-hidden="true" />Submit new</button> : null}
       </div>
@@ -138,7 +140,7 @@ export function LibraryCollection({
           const face = faces[item.id] ?? 'front';
           const canFlip = cards.some(hasCardBacking);
           return <article key={item.id} className={styles.objectTile} data-selected={selection.objectId === item.id}>
-            <button id={`library-object-${item.id}`} type="button" className={styles.objectButton} onClick={() => onOpenDetail(item)}><span className={styles.visualSlot} data-card-face={face}><LibraryVisual item={item} cards={cards} template={templateFor(item)} face={face} /></span><span className={styles.objectCopy}><span className={styles.objectTopline}><small>{item.kindLabel}</small><small>{item.statusLabel}</small></span><strong>{item.name}</strong><span>{item.sourceLabel}</span><p>{item.summary}</p></span></button>
+            <button id={`library-object-${item.id}`} type="button" className={styles.objectButton} onClick={() => onOpenDetail(item)}><span className={styles.visualSlot} data-card-face={face}><LibraryVisual item={item} cards={cards} template={templateFor(item)} face={face} /></span><span className={styles.objectCopy}><span className={styles.objectTopline}><small>{item.kindLabel}</small><small>{item.statusLabel}</small></span><strong>{item.name}</strong>{serverFiltered && displayedRevision ? <span>{getPipelineRevisionLabel(displayedRevision)}{pipelineItem?.pipeline.catalogPublication ? ' · Current publication' : ''}</span> : null}<span>{item.sourceLabel}</span><p>{item.summary}</p></span></button>
             {canFlip ? <button type="button" className={styles.objectFlip} onClick={() => setFaces((current) => ({ ...current, [item.id]: face === 'front' ? 'back' : 'front' }))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw aria-hidden="true" /></button> : null}
             {item.scope === 'personal' ? <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className={styles.objectMenu} aria-label={`Actions for ${item.name}`}><MoreHorizontal aria-hidden="true" /></button></DropdownMenuTrigger><DropdownMenuContent align="end">
               {personalActions(item.personal).map((action) => <Fragment key={action.id}>{action.commitment === 'destructive' ? <DropdownMenuSeparator /> : null}<DropdownMenuItem disabled={action.availability.kind === 'disabled'} title={action.availability.kind === 'disabled' ? action.availability.reason : undefined} className={action.commitment === 'destructive' ? 'text-destructive focus:text-destructive' : undefined} onSelect={() => onPersonalAction(action.id, item.personal)}>{action.id === 'library.send-pipeline' ? <UploadCloud aria-hidden="true" /> : action.id === 'library.duplicate' ? <Copy aria-hidden="true" /> : action.id === 'library.delete-copy' ? <Trash2 aria-hidden="true" /> : action.id === 'library.view-source' ? <ExternalLink aria-hidden="true" /> : null}{action.label}</DropdownMenuItem></Fragment>)}

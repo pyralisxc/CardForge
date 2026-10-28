@@ -179,3 +179,52 @@ for (const width of [390, 1440]) test(`@golden Library reviews an exact unpublis
   await expect(page.getByRole('button', { name: 'Review & manage', exact: true })).toBeFocused();
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+for (const width of [390, 1440]) test(`@golden Library revision discovery and exact page return at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 900 }); const evidence = await mount(page, '?queue=1');
+  const collection = page.getByLabel('pipeline Library objects');
+  await expect(collection.locator('article')).toHaveCount(14);
+  await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
+  await expect(collection.locator('article')).toHaveCount(12);
+  await expect(page.getByRole('status')).toContainText('15 revisions');
+  const firstIds = await collection.locator('button[id^="library-object-"]').evaluateAll(nodes => nodes.map(node => node.id));
+  await page.getByRole('button', { name: 'Next revisions' }).click();
+  await expect(collection.locator('article')).toHaveCount(3);
+  const secondIds = await collection.locator('button[id^="library-object-"]').evaluateAll(nodes => nodes.map(node => node.id));
+  expect(new Set([...firstIds, ...secondIds]).size).toBe(15);
+  const exact = page.locator('[id="library-object-pipeline:submission:10000000-0000-4000-8000-000000000015"]');
+  await exact.click();
+  await expect(page.getByLabel('Exact revision governance')).toContainText('Material 15');
+  await page.getByRole('button', { name: 'Close revision review' }).click();
+  await expect(exact).toBeFocused();
+  await expect(page.getByRole('status')).toContainText('Page 2 of 2');
+  for (const query of ['Shared material', 'emerald correction', 'Candidate Author', 'synthetic-material']) {
+    await page.getByRole('textbox', { name: 'Search Library' }).fill(query);
+    await expect(page.getByRole('status')).toContainText('Page 1');
+    await expect(collection.locator('article')).toHaveCount(query === 'Shared material' ? 2 : query === 'synthetic-material' ? 12 : 1);
+  }
+  await page.getByRole('textbox', { name: 'Search Library' }).fill('Shared material');
+  await page.getByLabel('Revision type').selectOption('elementPresets');
+  await page.getByLabel('Revision status').selectOption('publish_candidate');
+  await expect(collection.locator('article')).toHaveCount(1);
+  await expect(collection).toContainText('Revision 3');
+  await expect(collection).toContainText('Candidate Author');
+  const preview = collection.locator('[aria-label="Shared material style preview"]');
+  await expect(preview).toBeVisible();
+  const bounds = await preview.boundingBox(); expect(bounds!.width).toBeGreaterThan(20); expect(bounds!.height).toBeGreaterThan(20);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await info.attach('revision-queue-candidate', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  await page.getByLabel('Revision type').selectOption('icons');
+  await expect(collection).toHaveCount(0);
+  await page.getByLabel('Revision type').selectOption('elementPresets');
+  await expect(collection.locator('article')).toHaveCount(1);
+  await page.getByLabel('Revision status').selectOption('published');
+  await expect(collection).toContainText('Revision 2');
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+for (const role of ['contributor', 'signedOut']) test(`@golden Library revision inventory remains Owner-only for ${role}`, async ({ page }) => {
+  const evidence = await mount(page, `?queue=1&${role}=1`);
+  await expect(page.getByLabel('Pipeline discovery mode')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as unknown as { libraryRequests: unknown[] }).libraryRequests)).toEqual([]);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
