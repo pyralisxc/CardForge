@@ -53,6 +53,10 @@ begin
    values(legacy,'typed-proof','elementPresets','Legacy NULL style','published','free',null);
  insert into public.cardforge_asset_registry(asset_id,contributor_submission_id,name,asset_type,url,status,access_tier,library_source,metadata)
    values(style_id,legacy,'Legacy NULL style','elementPreset','https://example.invalid/not-fetched.json','published','free','official',jsonb_build_object('style',style));
+ if has_function_privilege('anon','public.cardforge_catalog_trash_inventory_details(uuid)','EXECUTE')
+   or has_function_privilege('authenticated','public.cardforge_catalog_trash_inventory_details(uuid)','EXECUTE')
+   or not has_function_privilege('service_role','public.cardforge_catalog_trash_inventory_details(uuid)','EXECUTE') then
+   raise exception 'diagnostic_execute_privileges_regressed'; end if;
  snapshot:=public.cardforge_read_catalog_trash(target);
  if snapshot->'entryReasons'<>'[]'::jsonb then raise exception 'unrelated_legacy_style_blocked: %',snapshot; end if;
  if snapshot->'inventoryDetails' is distinct from '[]'::jsonb then raise exception 'unrelated_consumer_diagnostic'; end if;
@@ -66,6 +70,17 @@ begin
  where d->>'origin'='registry' and d->>'recordId'=style_id and d->'conditions' ? 'target_identity_or_source_reference') then raise exception 'referenced_identity_diagnostic_missing'; end if;
  update public.cardforge_asset_registry set metadata=jsonb_build_object('style',style||'{"appearance":{"material":{"texture":{"kind":"uploaded","imageSource":"https://example.invalid/retained.svg"}}}}') where asset_id=style_id;
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'pipeline_identity_consumer_requires_resolution') then raise exception 'actual_source_not_blocked'; end if;
+ -- Diagnostics disclose exact record identity and classifications, not payloads,
+ -- private document content, asset bodies, source/preview URLs or credentials.
+ if exists(select 1 from jsonb_array_elements(public.cardforge_catalog_trash_inventory_details(l)) d
+   where not (d ?& array['origin','recordId','payloadKind','conditions'])
+      or d-array['origin','recordId','payloadKind','conditions']<>'{}'::jsonb
+      or jsonb_typeof(d->'conditions')<>'array'
+      or jsonb_array_length(d->'conditions')=0) then raise exception 'diagnostic_output_keys_regressed'; end if;
+ if public.cardforge_catalog_trash_inventory_details(l)::text like '%https://example.invalid/%'
+   or public.cardforge_catalog_trash_inventory_details(l)::text like '%uploaded%'
+   then raise exception 'diagnostic_payload_or_url_leaked'; end if;
+
 
  update public.cardforge_asset_registry set preview_url='https://example.invalid/registry-preview.svg' where asset_id=asset;
  update public.cardforge_contributor_asset_submissions set preview_url='https://example.invalid/submission-preview.svg' where id=target;
