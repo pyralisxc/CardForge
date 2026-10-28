@@ -123,10 +123,12 @@ cat "$proof/style-review.log"
 # or a hosted/Staging procedure. Destruction is confined to this runner's DB.
 [[ $(docker inspect --format '{{.Id}}' "$container") == "$cid" ]]
 psql_local -c 'TRUNCATE public.cardforge_asset_registry, public.cardforge_contributor_asset_submissions, public.cardforge_pipeline_asset_lineages, public.cardforge_studio_documents CASCADE;' > "$proof/disposable-fixture-setup.log" 2>&1
-psql_local -f "$root/supabase/tests/catalog_recoverable_trash.sql" > "$proof/fixture.log" 2>&1
-psql_local -f "$root/supabase/tests/catalog_typed_consumers.sql" > "$proof/typed-consumers.log" 2>&1
+psql_local -f "$root/supabase/tests/catalog_recoverable_trash.sql" > "$proof/fixture.log" 2>&1 || { cat "$proof/fixture.log"; exit 1; }
+psql_local -f "$root/supabase/tests/studio_catalog_dependencies.sql" > "$proof/studio-dependencies.log" 2>&1 || { cat "$proof/studio-dependencies.log"; exit 1; }
+cat "$proof/studio-dependencies.log"
+psql_local -f "$root/supabase/tests/catalog_typed_consumers.sql" > "$proof/typed-consumers.log" 2>&1 || { cat "$proof/typed-consumers.log"; exit 1; }
 cat "$proof/typed-consumers.log"
-psql_local -f "$root/supabase/tests/pipeline_upload_commitments.sql" > "$proof/upload-commitments.log" 2>&1
+psql_local -f "$root/supabase/tests/pipeline_upload_commitments.sql" > "$proof/upload-commitments.log" 2>&1 || { cat "$proof/upload-commitments.log"; exit 1; }
 cat "$proof/upload-commitments.log"
-CARDFORGE_LOCAL_DB_CONTAINER="$cid" python3 "$root/scripts/test-catalog-trash-contention.py" > "$proof/contention.log" 2>&1
+CARDFORGE_LOCAL_DB_CONTAINER="$cid" python3 "$root/scripts/test-catalog-trash-contention.py" > "$proof/contention.log" 2>&1 || { cat "$proof/contention.log"; exit 1; }
 cat "$proof/fixture.log" "$proof/contention.log"

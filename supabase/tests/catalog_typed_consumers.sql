@@ -164,8 +164,9 @@ begin
    'storedCards','[]'::jsonb,'cardSets','[]'::jsonb,'appearanceStyles',jsonb_build_array(style),
    'exportSettings','{}'::jsonb,'customAssets',jsonb_build_object('cardforge-maker-custom-images','[]'::jsonb));
  if not public.cardforge_catalog_consumer_inspectable(payload,'studio') then raise exception 'literal_studio_rejected'; end if;
- insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload)
-   values(document_id,'typed-proof','Literal source-contained project',payload);
+ insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies)
+   values(document_id,'typed-proof','Literal source-contained project',payload,
+     jsonb_build_object('contractVersion',1,'sourcePayload',payload,'complete',true,'references',jsonb_build_object('identities',jsonb_build_array('unrelated-template','unrelated-style'),'sources','[]'::jsonb),'opaqueReasons','[]'::jsonb));
  if public.cardforge_read_catalog_trash(target)->'entryReasons'<>'[]'::jsonb
    or public.cardforge_catalog_trash_inventory_details(l)<>'[]'::jsonb then raise exception 'unrelated_literal_studio_blocked'; end if;
  -- Known source/identity remains blocking even when the rest is unsupported.
@@ -185,7 +186,7 @@ begin
    update public.cardforge_studio_documents set document_payload=payload where id=document_id;
    if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then raise exception 'opaque_studio_admitted'; end if;
    if not exists(select 1 from jsonb_array_elements(public.cardforge_catalog_trash_inventory_details(l)) d
-     where d->>'recordId'=document_id::text and d->'conditions' ? 'outside_supported_native_payload_subset') then raise exception 'opaque_studio_diagnostic_missing'; end if;
+     where d->>'recordId'=document_id::text and d->'conditions' ? 'studio_interpretation_missing_or_stale') then raise exception 'opaque_studio_diagnostic_missing'; end if;
  end loop;
  delete from public.cardforge_studio_documents where id=document_id;
  insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload)
