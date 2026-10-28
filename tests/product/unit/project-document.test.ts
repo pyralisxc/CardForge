@@ -409,3 +409,26 @@ describe('project document serialization', () => {
     expect(isolated.userTemplates).toEqual([template]);
   });
 });
+
+// Native admission must inspect the same complete literal document that this
+// canonical decoder owns; it cannot treat omitted renderer state as empty.
+it('preserves source-contained Studio border-none geometry without inventing artwork', () => {
+  const literal = { version: 1, userTemplates: [{ ...template, appearance: { border: { kind: 'none', width: 0 } },
+    freeformCanvas: { width: 300, height: 450, elements: [{ id: 'literal-shape', name: 'Literal', type: 'shape',
+      x: 0, y: 0, width: 100, height: 100, zIndex: 0, appearance: { border: { kind: 'none', width: 0 } } }] } }],
+    storedCards: [], cardSets: [], appearanceStyles: [], exportSettings: {}, customAssets: {} };
+  const result = parseProjectDocumentFile(JSON.stringify(literal));
+  expect(result.success).toBe(true);
+  if (!result.success) throw new Error(result.error);
+  expect(result.document.userTemplates[0].appearance?.border).toEqual({ kind: 'none', width: 0 });
+  expect(result.document.userTemplates[0].freeformCanvas?.elements[0].appearance?.border).toEqual({ kind: 'none', width: 0 });
+  expect(result.document.userTemplates[0].freeformCanvas?.elements).toHaveLength(1);
+  expect(result.document.storedCards).toEqual([]);
+  expect(Object.values(result.document.customAssets).flat()).toEqual([]);
+});
+it('demonstrates why partial Studio Templates cannot establish a literal native negative scan', () => {
+  const result = parseProjectDocumentFile(JSON.stringify({ version: 1, userTemplates: [{ id: 'partial', name: 'Partial', aspectRatio: '63:88' }], storedCards: [] }));
+  expect(result.success).toBe(true);
+  if (!result.success) throw new Error(result.error);
+  expect(result.document.userTemplates[0].freeformCanvas?.elements.some(element => element.imageSource === 'artworkUrl')).toBe(true);
+});
