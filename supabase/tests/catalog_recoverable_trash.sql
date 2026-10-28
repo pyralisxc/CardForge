@@ -21,6 +21,8 @@ begin
 end $$;
 
 
+savepoint blocked_prefix_fixture;
+
 -- A full protected prefix must not starve a later eligible revision. Each
 -- group fills p_limit=2 by itself: catalog Trash, whole-lineage pending, and
 -- uncertain prior revision claims. IDs guarantee that all six sort first.
@@ -62,6 +64,11 @@ begin
     raise exception 'batch_erased_or_recycled_prior_claim_uncertainty';
   end if;
 end $$;
+-- These synthetic protected lineages have served their starvation assertions.
+-- Roll back only this fixture section before independently testing Studio
+-- admission; the production writer must reject opaque writes beside Trash.
+rollback to savepoint blocked_prefix_fixture;
+release savepoint blocked_prefix_fixture;
 
 do $$
 declare
