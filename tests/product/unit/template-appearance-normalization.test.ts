@@ -7,6 +7,17 @@ import {
 import { appearanceToStyle, authoredCardFoundationStyle, gradientToCss, textureToCss } from '@/features/card-rendering/model/appearance';
 
 describe('freeform appearance normalization', () => {
+  it('distinguishes typed source none URLs from raw CSS none for native inspection', () => {
+    expect(appearanceToStyle({ assetSource: 'none' }).backgroundImage).toBe('url(none)');
+    expect(appearanceToStyle({ dividerAsset: 'none' }).backgroundImage).toBe('url(none)');
+    expect(textureToCss({ kind: 'parchment', assetSource: 'none' })).toBe('url(none)');
+    expect(textureToCss({ kind: 'uploaded', imageSource: 'none' })).toBe('url(none)');
+    expect(appearanceToStyle({ rawCss: { backgroundImage: 'none' } }).backgroundImage).toBe('none');
+    // raw border CSS is not emitted by this owner; it stays outside the
+    // positively inspected source subset rather than inventing a mapping.
+    expect(appearanceToStyle({ rawCss: { borderImageSource: 'none' } }).borderImageSource).toBeUndefined();
+  });
+
   it('honors explicit SVG Stretch without changing source bytes or legacy/contain/repeat fits', () => {
     const source = 'https://example.test/surface.svg';
     const texture = { kind: 'uploaded' as const, imageSource: source };

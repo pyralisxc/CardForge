@@ -15,6 +15,8 @@ declare
 begin
  if exists(select 1 from public.cardforge_asset_registry) then raise exception 'typed_fixture_requires_isolated_empty_catalog'; end if;
  if has_function_privilege('anon','public.cardforge_catalog_consumer_inspectable(jsonb,text,integer)','EXECUTE')
+   or has_function_privilege('authenticated','public.cardforge_catalog_consumer_inspectable(jsonb,text,integer)','EXECUTE')
+   or has_function_privilege('anon','public.cardforge_catalog_consumer_mentions(jsonb,text[],text[],text,integer)','EXECUTE')
    or has_function_privilege('authenticated','public.cardforge_catalog_consumer_mentions(jsonb,text[],text[],text,integer)','EXECUTE') then
    raise exception 'typed_inspection_browser_privileges'; end if;
  if not public.cardforge_catalog_consumer_inspectable(style,'style') or not public.cardforge_catalog_consumer_inspectable(template,'template') then
@@ -38,6 +40,36 @@ begin
    if public.cardforge_catalog_consumer_inspectable(payload,case when payload?'targets' then 'style' else 'template' end) then
      raise exception 'opaque_or_malformed_payload_cleared: %',payload; end if;
  end loop;
+ -- Literal none is still a relative URL in typed source owners; CSS none is
+ -- reserved for raw CSS properties that the renderer applies without url().
+ for payload in select value from jsonb_array_elements(jsonb_build_array(
+   style||'{"appearance":{"assetSource":"none"}}',
+   style||'{"appearance":{"dividerAsset":"none"}}',
+   style||'{"appearance":{"material":{"texture":{"kind":"parchment","assetSource":"none"}}}}',
+   style||'{"appearance":{"material":{"texture":{"kind":"uploaded","imageSource":"none"}}}}',
+   style||'{"updates":{"imageSource":"none"}}',
+   style||'{"updates":{"iconImageSource":"none"}}',
+   style||'{"updates":{"backgroundImageUrl":"none"}}',
+   template||'{"cardBackgroundImageUrl":"none"}',
+   template||'{"cardBorderImageSource":"none"}',
+   style||'{"appearance":{"rawCss":{"borderImageSource":"none"}}}'
+ )) loop
+   if public.cardforge_catalog_consumer_inspectable(payload,case when payload?'targets' then 'style' else 'template' end)
+     or public.cardforge_catalog_consumer_inspectable(jsonb_build_object('version',1,'userTemplates','[]'::jsonb,
+       'appearanceStyles',jsonb_build_array(payload)),'studio') then raise exception 'typed_none_source_cleared'; end if;
+ end loop;
+ if not public.cardforge_catalog_consumer_inspectable(style||'{"appearance":{"rawCss":{"backgroundImage":"none"}}}','style') then raise exception 'raw_css_none_rejected'; end if;
+ -- Border thickness has different dimensional semantics from canvas/elements.
+ if not public.cardforge_catalog_consumer_inspectable(style||'{"appearance":{"border":{"kind":"none","width":0}}}', 'style')
+   or not public.cardforge_catalog_consumer_inspectable(template||'{"appearance":{"border":{"kind":"none","width":0}}}', 'template') then
+   raise exception 'native_zero_border_rejected'; end if;
+ if public.cardforge_catalog_consumer_inspectable(style||'{"appearance":{"border":{"kind":"none","width":-1}}}', 'style')
+   or public.cardforge_catalog_consumer_inspectable(template||'{"freeformCanvas":{"width":0,"height":450,"elements":[]}}','template')
+   or public.cardforge_catalog_consumer_inspectable('{"id":"shape","name":"Shape","type":"shape","x":0,"y":0,"width":0,"height":10,"zIndex":0}','element')
+   or public.cardforge_catalog_consumer_inspectable(template-'freeformCanvas','template') then
+   raise exception 'invalid_geometry_or_implicit_canvas_cleared'; end if;
+ if public.cardforge_catalog_consumer_inspectable('{"id":"i","name":"Image","type":"image","x":0,"y":0,"width":10,"height":10,"zIndex":0}', 'element') then
+   raise exception 'implicit_image_binding_cleared'; end if;
  if not public.cardforge_catalog_consumer_mentions('{"appearance":{"rawCss":{"backgroundImage":"url(https://example.invalid/retained.svg)"}}}',array[asset],array['https://example.invalid/retained.svg']) then
    raise exception 'css_reference_not_recognized'; end if;
  if public.cardforge_catalog_consumer_mentions(jsonb_build_object('name',asset,'description',asset),array[asset],'{}') then raise exception 'display_name_is_not_dependency'; end if;
@@ -127,6 +159,35 @@ begin
    values('opaque-set','Set','set','https://example.invalid/inaccessible.cardforge','published','free','contributor',jsonb_build_object('template',template));
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then raise exception 'set_summary_used_as_decoded_package'; end if;
  delete from public.cardforge_asset_registry where asset_id='opaque-set';
+ -- Exact source-contained Studio project; canonical parser requires version1.
+ payload:=jsonb_build_object('version',1,'userTemplates',jsonb_build_array(template||'{"appearance":{"border":{"kind":"none","width":0}}}'),
+   'storedCards','[]'::jsonb,'cardSets','[]'::jsonb,'appearanceStyles',jsonb_build_array(style),
+   'exportSettings','{}'::jsonb,'customAssets',jsonb_build_object('cardforge-maker-custom-images','[]'::jsonb));
+ if not public.cardforge_catalog_consumer_inspectable(payload,'studio') then raise exception 'literal_studio_rejected'; end if;
+ insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload)
+   values(document_id,'typed-proof','Literal source-contained project',payload);
+ if public.cardforge_read_catalog_trash(target)->'entryReasons'<>'[]'::jsonb
+   or public.cardforge_catalog_trash_inventory_details(l)<>'[]'::jsonb then raise exception 'unrelated_literal_studio_blocked'; end if;
+ -- Known source/identity remains blocking even when the rest is unsupported.
+ update public.cardforge_studio_documents set document_payload=jsonb_set(payload,'{userTemplates,0,cardBackgroundImageUrl}',to_jsonb('https://example.invalid/retained.svg'::text)) where id=document_id;
+ if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'studio_identity_consumer_requires_resolution') then raise exception 'studio_template_reference_missed'; end if;
+ for payload in select value from jsonb_array_elements(jsonb_build_array(
+   '{"version":1,"userTemplates":[],"unknownOwner":{}}'::jsonb,
+   '{"version":1,"userTemplates":[],"storedCards":[{"templateId":"unresolved","data":{}}]}'::jsonb,
+   '{"version":1,"userTemplates":[],"customAssets":{"cardforge-maker-custom-images":[{"url":"data:image/png;base64,AAAA"}]}}'::jsonb,
+   '{"version":1,"userTemplates":[],"productionPlan":{"assets":[{"assetId":"unresolved"}]}}'::jsonb,
+   jsonb_build_object('version',1,'userTemplates',jsonb_build_array(template-'freeformCanvas')),
+   jsonb_build_object('version',1,'userTemplates',jsonb_build_array(template||'{"cardBackgroundImageUrl":"https://example.invalid/unknown.svg"}')),
+   '{"version":1,"state":{"userTemplates":[]}}'::jsonb,
+   '{"version":1,"userTemplates":null}'::jsonb
+ )) loop
+   if public.cardforge_catalog_consumer_inspectable(payload,'studio') then raise exception 'unproved_studio_cleared: %',payload; end if;
+   update public.cardforge_studio_documents set document_payload=payload where id=document_id;
+   if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'json_consumer_inventory_unverified') then raise exception 'opaque_studio_admitted'; end if;
+   if not exists(select 1 from jsonb_array_elements(public.cardforge_catalog_trash_inventory_details(l)) d
+     where d->>'recordId'=document_id::text and d->'conditions' ? 'outside_supported_native_payload_subset') then raise exception 'opaque_studio_diagnostic_missing'; end if;
+ end loop;
+ delete from public.cardforge_studio_documents where id=document_id;
  insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload)
    values(document_id,'typed-proof','Independent',jsonb_build_object('assetId',asset));
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'studio_identity_consumer_requires_resolution') then raise exception 'independent_studio_reference_missed'; end if;
@@ -143,6 +204,6 @@ begin
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'upload_cleanup_commitment_unverified') then raise exception 'upload_worker_boundary_cleared'; end if;
  update public.cardforge_pipeline_asset_lineages set catalog_destructive_uncertainty='legacy_destructive_history_unverified' where id=l;
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'legacy_destructive_history_unverified') then raise exception 'legacy_uncertainty_cleared'; end if;
- raise notice 'PASS typed native consumers: unrelated Style/Template, legacy NULL, precedence, identity/source, opaque Set/extensions, Studio, CAS, expiry and worker uncertainty';
+ raise notice 'PASS typed native consumers: zero border/positive geometry, literal Studio, reference/opaque Studio, unrelated Style/Template, legacy NULL, precedence, identity/source, opaque Set/extensions, CAS, expiry and worker uncertainty';
 end $$;
 rollback;

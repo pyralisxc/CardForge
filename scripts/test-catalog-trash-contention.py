@@ -144,6 +144,28 @@ try:
     a.run(f"delete from public.cardforge_asset_registry where asset_id='{consumer}';")
     print('PASS: concurrent registry consumer write blocks Move; committed target reference is observed')
 
+    # Studio writers share the existing table exclusion with native admission.
+    lineage, current, old, state = fixture(a)
+    document = str(uuid.uuid4())
+    literal = {"version": 1, "userTemplates": [{"id": "literal", "name": "Literal", "aspectRatio": "2:3",
+        "freeformCanvas": {"width": 300, "height": 450, "elements": []}}], "storedCards": [], "cardSets": []}
+    a.run("insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload) values('" + document + "','isolated-contention','Literal','" + json.dumps(literal) + "'::jsonb);")
+    a.run('begin;')
+    a.run("update public.cardforge_studio_documents set document_payload=jsonb_set(document_payload,'{userTemplates,0,cardBackgroundImageUrl}',to_jsonb('https://example.invalid/retained.svg'::text)) where id='" + document + "';")
+    expect_busy(b, command('trash', state))
+    a.run('commit;')
+    reasons = json.loads(b.run(f"select public.cardforge_read_catalog_trash('{current}')::text;")[-1])['entryReasons']
+    assert 'studio_identity_consumer_requires_resolution' in reasons
+    expect_conflict(b, command('trash', state), 'catalog_trash_dependency_blocked')
+    a.run("delete from public.cardforge_studio_documents where id='" + document + "';")
+    # Reverse order: successful admission holds SHARE until transaction end;
+    # even a brand new Studio consumer cannot enter between scan and commit.
+    a.run('begin;')
+    a.run('select ' + command('trash', state) + ';')
+    b.run("set lock_timeout='250ms'; do $$ begin begin insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload) values('" + document + "','isolated-contention','Concurrent insert','" + json.dumps(literal) + "'::jsonb); raise exception 'studio_insert_crossed_share_lock'; exception when lock_not_available then null; end; end $$; set lock_timeout=0;")
+    a.run('rollback;')
+    print('PASS: concurrent Studio UPDATE blocks Move; reference observed; Move SHARE prevents Studio INSERT through commit boundary')
+
     # Exact-object upload authority spans Storage I/O, not a row lookup followed
     # by deletion. These transactions exercise both winners under the same lock.
     descriptor = {"assetType": "icons", "fileName": "proof.svg", "fileSizeBytes": 100,
