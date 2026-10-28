@@ -1,5 +1,9 @@
 import { buildSync } from 'esbuild';
 import { writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import postcss from 'postcss';
+import tailwindcss from 'tailwindcss';
+import tailwindConfig from '../../../tailwind.config';
 import { expect, test } from '@playwright/test';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -66,3 +70,66 @@ for (const width of [390, 1440]) {
     expect(unexpectedRequests).toEqual([]);
   });
 }
+
+const libraryCss = postcss([tailwindcss(tailwindConfig)]).process((readFileSync('src/app/cardforgePresentation.css', 'utf8') + readFileSync('src/app/globals.css', 'utf8')).replace(/@import ['"]([^'"]+)['"];?/g, (_, path: string) => readFileSync(join('src/app', path), 'utf8')), { from: 'src/app/globals.css' });
+for (const width of [390, 1440]) test(`@golden Library same-name Style and Divider retain distinct visuals and selection at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 900 });
+  const unexpected: string[] = [];
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (route.request().method() === 'GET') {
+      if (url.pathname === '/__library-style-proof') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><style>*{box-sizing:border-box}body{margin:0}</style></head><body></body></html>' });
+      if (['/synthetic-divider.svg', '/historical.svg'].includes(url.pathname)) return route.fulfill({ contentType: 'image/svg+xml', body: `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="60"><rect y="20" width="240" height="20" fill="${url.pathname === '/historical.svg' ? '#00aa44' : '#0066ff'}"/></svg>` });
+      if (['/fonts/spectral/Spectral-Bold.ttf', '/fonts/lato/Lato-Regular.ttf', '/fonts/lato/Lato-Bold.ttf'].includes(url.pathname)) return route.fulfill({ contentType: 'font/ttf', body: readFileSync(join('public', url.pathname)) });
+      if (url.pathname === '/missing.svg') return route.fulfill({ status: 404 });
+    }
+    unexpected.push(`${route.request().method()} ${url.pathname}`); return route.abort();
+  });
+  await page.goto('/__library-style-proof?collision=1');
+  await page.addStyleTag({ content: (await libraryCss).css });
+  for (const file of libraryFixture.outputFiles.filter(f => f.path.endsWith('.css'))) await page.addStyleTag({ content: file.text });
+  await page.addScriptTag({ content: libraryFixture.outputFiles.find(f => f.path.endsWith('.js'))!.text });
+  const tile = (id: string) => page.locator(`[id="library-object-pipeline:${id}"]`);
+  const detail = () => width > 640 ? page.getByRole('complementary', { name: 'Details for Gilded Filigree' }) : page.getByRole('dialog');
+  const settleDetail = async () => {
+    await detail().evaluate(async node => { await Promise.all(node.getAnimations({ subtree: true }).map(animation => animation.finished)); });
+    const visual = detail().locator('img, [aria-label$="style preview"]').first();
+    await visual.scrollIntoViewIfNeeded();
+    const bounds = await visual.boundingBox();
+    expect(bounds!.y).toBeGreaterThanOrEqual(0); expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(900);
+  };
+  const closeMobile = async () => { if (width <= 640) await detail().getByRole('button', { name: 'Close', exact: true }).click(); };
+  await expect(tile('svg-gilded').locator('img')).toBeVisible();
+  await expect(tile('style-gilded').locator('[aria-label="Gilded Filigree style preview"]')).toHaveCSS('background-color', 'rgb(255, 215, 0)');
+  await expect(tile('missing-svg')).toContainText('Preview unavailable');
+  await tile('svg-gilded').click();
+  await expect(page.getByTestId('selected-identity')).toHaveText('pipeline:svg-gilded');
+  const image = detail().locator('img'); await expect(image).toHaveAttribute('src', '/synthetic-divider.svg');
+  const pixels = await image.evaluate(async (node: HTMLImageElement) => {
+    await node.decode(); const canvas = document.createElement('canvas'); canvas.width = 240; canvas.height = 60;
+    const ctx = canvas.getContext('2d')!; ctx.drawImage(node, 0, 0);
+    return [...ctx.getImageData(120, 30, 1, 1).data];
+  });
+  expect(pixels).toEqual([0, 102, 255, 255]);
+  await settleDetail();
+  await page.screenshot({ path: info.outputPath('divider.png') }); await info.attach('same-name-divider', { path: info.outputPath('divider.png'), contentType: 'image/png' });
+  await closeMobile();
+  await tile('style-gilded').click();
+  await expect(page.getByTestId('selected-identity')).toHaveText('pipeline:style-gilded');
+  await expect(detail().locator('img')).toHaveCount(0);
+  const swatch = detail().locator('[aria-label="Gilded Filigree style preview"]');
+  await expect(swatch).toHaveCSS('background-color', 'rgb(255, 215, 0)');
+  expect((await swatch.boundingBox())!.width).toBeGreaterThan(100);
+  await settleDetail();
+  await page.screenshot({ path: info.outputPath('style.png') }); await info.attach('same-name-style', { path: info.outputPath('style.png'), contentType: 'image/png' });
+  await closeMobile();
+  await tile('missing-svg').click(); await expect(detail()).toContainText('Preview unavailable'); await expect(detail().locator('[aria-label$="style preview"]')).toHaveCount(0);
+  await closeMobile();
+  await page.getByRole('button', { name: 'Toggle historical-only projection' }).click();
+  await tile('svg-gilded').click();
+  await expect(detail().locator('img')).toHaveAttribute('src', '/historical.svg');
+  await expect(detail()).toContainText('Revision 1');
+  await settleDetail();
+  await page.screenshot({ path: info.outputPath('historical.png') }); await info.attach('historical-own-source', { path: info.outputPath('historical.png'), contentType: 'image/png' });
+  expect(unexpected).toEqual([]);
+});

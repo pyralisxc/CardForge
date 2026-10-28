@@ -71,7 +71,9 @@ function SourceIcon({ item }: { item: LibraryViewItem }) {
 function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; previewUrl: string | null }) {
   const [previewFailed, setPreviewFailed] = useState(false);
   const template = item.scope === 'published' ? item.published.template : item.scope === 'pipeline' ? item.pipeline.template : null;
-  const style = item.scope === 'published' ? item.published.style : item.scope === 'pipeline' ? item.pipeline.style : null;
+  const style = item.scope === 'published' && item.published.kind === 'elementPreset'
+    ? item.published.style
+    : item.scope === 'pipeline' && item.pipeline.submission.assetType === 'elementPresets' ? item.pipeline.style : null;
   if (item.scope === 'published' && item.published.kind === 'set') {
     return <span className={styles.objectFallback} aria-label={`${item.name} complete Set`}><Boxes aria-hidden="true" /><small>Complete Set</small></span>;
   }
@@ -84,6 +86,10 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
     ? <MediaPresentationPreview sourceUrl={item.pipeline.submission.sourceUrl} presentation={item.pipeline.submission.mediaPresentation} />
     : <span>Exact source preview requires Owner or original contributor access.</span>;
   if (previewUrl && !previewFailed) return <img src={previewUrl} alt="" className={styles.objectImage} onError={() => setPreviewFailed(true)} />;
+  const fileBacked = item.scope === 'published'
+    ? ['image', 'texture', 'divider', 'icon', 'border', 'frame'].includes(item.published.kind)
+    : item.scope === 'pipeline' && ['imageAssets', 'textures', 'dividers', 'icons'].includes(item.pipeline.submission.assetType);
+  if (fileBacked || (previewUrl && previewFailed)) return <span className={styles.objectFallback}>Preview unavailable</span>;
   if (item.fontFamily || (item.scope === 'pipeline' && item.pipeline.submission.assetType === 'fonts')) return <span className={styles.fontSample} style={{ fontFamily: item.fontFamily ?? undefined }}>Aa</span>;
   return <span className={styles.objectFallback}><SourceIcon item={item} /></span>;
 }
