@@ -264,14 +264,22 @@ test('@golden actual Library keeps revision context through dirty close and clea
   await review.click();
   await expect(page.getByLabel('Exact revision governance')).toContainText('Material 15');
   await page.getByRole('button', { name: 'Manage', exact: true }).click();
-  await page.getByLabel('Decision note', { exact: true }).fill('Local unsaved review note');
+  // React synchronizes textarea.defaultValue with its controlled value. The
+  // wrapping label's textContent then includes the note, so an exact getByLabel
+  // stops matching even while the same editor and value remain mounted.
+  const decisionNote = page.getByLabel('Exact revision governance').locator('label')
+    .filter({ hasText: /^\s*Decision note/ }).locator('textarea');
+  await expect(decisionNote).toHaveCount(1);
+  await decisionNote.fill('Local unsaved review note');
+  await expect(decisionNote).toHaveValue('Local unsaved review note');
   for (const name of ['Pipeline discovery mode', 'Revision status', 'Revision type']) await expect(page.getByLabel(name, { exact: true })).toBeDisabled();
   await expect(page.locator('#library-global-search')).toBeDisabled();
   await expect(page.locator('#library-search')).toBeDisabled();
   await page.getByRole('button', { name: 'Close Pipeline tool', exact: true }).click();
   await expect(page.getByRole('alertdialog')).toContainText('Discard unsaved changes?');
   await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
-  await expect(page.getByLabel('Decision note', { exact: true })).toHaveValue('Local unsaved review note');
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expect(decisionNote).toHaveValue('Local unsaved review note');
   await page.getByRole('button', { name: 'Close Pipeline tool', exact: true }).click();
   await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
   await expect(page.getByLabel('Exact revision governance')).toHaveCount(0);
