@@ -96,7 +96,7 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
 
 export const getPipelineRevisionLabel = (revision: Pick<PipelineSubmission, 'id' | 'revisionNumber'> & Partial<Pick<PipelineSubmission, 'status' | 'publishedAt'>>): string => (
   revision.revisionNumber == null
-    ? `${revision.status && revision.status !== 'published' && !revision.publishedAt ? 'Unnumbered submission' : 'Legacy revision'} · ${revision.id.slice(0, 8)}`
+    ? `${revision.status === 'published' || revision.publishedAt ? 'Unnumbered published submission' : 'Unnumbered submission'} · ${revision.id.slice(0, 8)}`
     : `Revision ${revision.revisionNumber}`
 );
 

@@ -147,8 +147,8 @@ export const getSubmissionNextStep = (
 
   if (submission.status === 'published') {
     return submission.ownerStatusOverride
-      ? 'Live in the shared library under an owner override. Voting still updates the automatic recommendation underneath.'
-      : 'Live in the shared library through automatic ranking. Votes and capacity changes can re-rank it.';
+      ? 'Published under an owner override. Current catalog availability depends on the active publication.'
+      : 'Published through automatic ranking. Current catalog availability depends on the active publication.';
   }
   if (submission.status === 'archived') {
     return submission.ownerStatusOverride
@@ -214,7 +214,12 @@ export const slugifyFileName = (value: string, fallback: string) => {
 };
 
 export const PIPELINE_TEMPLATE_SPECIMEN_DPI = 254;
-export type PipelineTemplateSpecimenSource = 'candidate' | 'live';
+export type PipelineTemplateSpecimenSource = 'candidate' | 'submission' | 'live';
+export interface PipelinePublishedTemplatePreview {
+  template: TCGCardTemplate;
+  submissionId: string;
+  lineageId: string;
+}
 
 export interface PipelineTemplateSpecimen {
   card: DisplayCard;
@@ -248,9 +253,12 @@ export const getPipelineSubmissionTemplate = (submission: PipelineSubmission): T
 export const buildPipelineTemplateSpecimen = (
   submission: PipelineSubmission,
   source: PipelineTemplateSpecimenSource,
-  liveTemplate?: TCGCardTemplate,
+  livePreview?: PipelinePublishedTemplatePreview,
 ): PipelineTemplateSpecimen | null => {
-  const template = source === 'candidate' ? getPipelineSubmissionTemplate(submission) : liveTemplate ?? null;
+  const template = source === 'live' ? livePreview?.template ?? null : getPipelineSubmissionTemplate(submission);
+  if (source === 'live' && (!livePreview || livePreview.lineageId !== submission.lineageId
+    || ![submission.registryAssetId, submission.targetRegistryAssetId].includes(template?.id ?? null))) return null;
+  const specimenSubmissionId = source === 'live' ? livePreview!.submissionId : submission.id;
   if (!template || submission.assetType !== 'templates') return null;
 
   const face: CardFace = template.templateUsage === 'back-preset' || submission.semanticRole === 'template-back' ? 'back' : 'front';
@@ -259,16 +267,14 @@ export const buildPipelineTemplateSpecimen = (
     data: template.templatePreviewData ?? {},
     uniqueId: `pipeline-review-${submission.id}-${source}`,
   };
-  const revisionNumber = source === 'candidate'
-    ? submission.revisionNumber
-    : template.templateRevision ?? submission.baseRevisionNumber;
+  const revisionNumber = source === 'live' ? template.templateRevision ?? null : submission.revisionNumber;
   const dimensions = getCardExportDimensionsPx(card, PIPELINE_TEMPLATE_SPECIMEN_DPI);
   const fileName = [
     slugifyFileName(submission.name, 'cardforge-template'),
     source,
     `r${revisionNumber ?? 'unknown'}`,
     `base-r${submission.baseRevisionNumber ?? 'unknown'}`,
-    `submission-${submission.id}`,
+    `submission-${specimenSubmissionId}`,
     face,
   ].join('-') + '.png';
 
@@ -278,7 +284,7 @@ export const buildPipelineTemplateSpecimen = (
     fileName,
     widthPx: dimensions.widthPx,
     heightPx: dimensions.heightPx,
-    submissionId: submission.id,
+    submissionId: specimenSubmissionId,
     lineageId: submission.lineageId ?? null,
     revisionNumber,
     baseRevisionNumber: submission.baseRevisionNumber,
