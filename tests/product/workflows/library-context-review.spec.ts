@@ -309,3 +309,32 @@ test('@golden actual Library keeps revision context through dirty close and clea
   await info.attach('actual-library-return-context', { body: await page.screenshot(), contentType: 'image/png' });
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+
+for (const missing of [false, true]) test(`@golden historical Template keeps source and publication labels (missing=${missing})`, async ({ page }, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const evidence = await mount(page, `?queueActual=1&scope=pipeline&historyTemplate=1${missing ? '&missingHistory=1' : ''}`);
+  await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
+  await page.getByRole('button', { name: 'Next revisions' }).click();
+  await page.locator('[id="library-object-pipeline:submission:10000000-0000-4000-8000-000000000015"]').click();
+  const history = page.getByLabel('Pipeline review details');
+  await expect(history.getByText('History', { exact: true })).toBeVisible();
+  await expect(history.getByText('Live', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Review & manage', exact: true }).first().click();
+  const review = page.getByLabel('Exact revision governance');
+  await expect(review).toContainText('10000000-0000-4000-8000-000000000015');
+  await expect(review.getByText('Current live catalog payload', { exact: false })).toHaveCount(0);
+  if (missing) {
+    await expect(review.getByText('Exact selected Template source is unavailable; no current revision was substituted.').first()).toBeVisible();
+    await expect(review.getByRole('button', { name: 'Download exact submission PNG' })).toHaveCount(0);
+  } else {
+    await expect(review.getByText('Selected historical revision 1', { exact: true })).toBeVisible();
+    await expect(review.getByText('Exact submitted payload', { exact: false })).toContainText('10000000-0000-4000-8000-000000000015');
+    await expect(review.getByRole('button', { name: 'Download exact submission PNG' })).toBeVisible();
+    const colorCount = await review.evaluate(node => Array.from(node.querySelectorAll('*')).filter(e => getComputedStyle(e).backgroundColor === 'rgb(0, 255, 0)').length);
+    expect(colorCount).toBeGreaterThan(0);
+    expect(await review.evaluate(node => Array.from(node.querySelectorAll('*')).some(e => getComputedStyle(e).backgroundColor === 'rgb(0, 0, 255)'))).toBe(false);
+  }
+  await info.attach('historical-template-source', { body: await page.screenshot(), contentType: 'image/png' });
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});

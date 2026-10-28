@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from 'react';
 
-import type { TCGCardTemplate } from '@/domain/templates';
 import { loadCardForgeCatalog } from '@/features/pipeline/client/catalog';
-import { getTemplatePreviewId } from './PipelineContributionModel';
+import { getTemplatePreviewId, type PipelinePublishedTemplatePreview } from './PipelineContributionModel';
 import type { PipelineSubmission } from '../lib/pipelineProgram';
 
 export const usePipelineTemplatePreviews = (
   submissions: PipelineSubmission[] | undefined,
-): Record<string, TCGCardTemplate> => {
-  const [templates, setTemplates] = useState<Record<string, TCGCardTemplate>>({});
+): Record<string, PipelinePublishedTemplatePreview> => {
+  const [templates, setTemplates] = useState<Record<string, PipelinePublishedTemplatePreview>>({});
 
   useEffect(() => {
     if (!submissions?.some((submission) => getTemplatePreviewId(submission))) {
@@ -20,12 +19,17 @@ export const usePipelineTemplatePreviews = (
     let isMounted = true;
     void (async () => {
       try {
-        const body = (await loadCardForgeCatalog()).templates;
+        const catalog = await loadCardForgeCatalog();
+        const body = catalog.templates;
         if (!isMounted) return;
         setTemplates(Object.fromEntries(
           [...body.defaults, ...body.userTemplates]
-            .filter((template): template is TCGCardTemplate & { id: string } => Boolean(template.id))
-            .map((template) => [template.id, template]),
+            .flatMap(template => {
+              const publication = catalog.pipeline?.items.find(item => item.id === template.id && item.submissionId && item.lineageId);
+              return publication?.submissionId && publication.lineageId && template.id
+                ? [[template.id, { template, submissionId: publication.submissionId, lineageId: publication.lineageId }] as const]
+                : [];
+            }),
         ));
       } catch {
         if (isMounted) setTemplates({});

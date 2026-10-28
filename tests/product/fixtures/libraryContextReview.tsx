@@ -1,7 +1,7 @@
 import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { UnifiedAccountLibrary } from '@/features/storage-management/components/UnifiedAccountLibrary';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
-import { identityCatalog } from './libraryTemplateIdentityData';
+import { identityCatalog, identityTemplate } from './libraryTemplateIdentityData';
 import { LibraryCollection } from '@/features/storage-management/components/LibraryCollection';
 import { LibraryRevisionQueueControls } from '@/features/storage-management/components/LibraryRevisionQueueControls';
 import { useLibraryRevisionQueue } from '@/features/storage-management/hooks/useLibraryRevisionQueue';
@@ -50,7 +50,7 @@ const proof = window as typeof window & { libraryRequests: { url: string; method
 proof.libraryRequests = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
-const queueCatalog = { ...identityCatalog(), pipeline: { items: [] } };
+const queueCatalog: ReturnType<typeof identityCatalog> = { ...identityCatalog(), pipeline: { items: [] } };
 const queueRows = Array.from({ length: 15 }, (_, index) => ({ ...row,
   id: `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
   lineageId: index < 2 ? row.lineageId : `20000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
@@ -61,6 +61,19 @@ const queueRows = Array.from({ length: 15 }, (_, index) => ({ ...row,
   status: index === 1 ? 'publish_candidate' : 'published', revisionNumber: index === 1 ? 3 : 2,
   sourcePayload: { id: row.registryAssetId, name: row.name, kind: 'material', targets: ['shape'], appearance: { material: { baseColor: index === 1 ? '#00cc88' : '#d5ad54' } } },
 } as PipelineSubmission));
+if (params.has('historyTemplate')) {
+  const current = { ...identityTemplate('synthetic-material', '#0000ff'), name: 'Current blue Template', templateRevision: 2 };
+  const historical = { ...identityTemplate('synthetic-material', '#00ff00'), name: 'Historical green Template', templateRevision: 1 };
+  Object.assign(queueRows[0], { assetType: 'templates', name: 'Current blue Template', revisionNumber: 2,
+    previewUrl: '/api/templates#synthetic-material', sourcePayload: current });
+  Object.assign(queueRows[14], { assetType: 'templates', name: 'Historical green Template', revisionNumber: 1,
+    lineageId: row.lineageId, registryAssetId: 'synthetic-material', targetRegistryAssetId: 'synthetic-material',
+    previewUrl: '/api/templates#synthetic-material', sourcePayload: params.has('missingHistory') ? null : historical });
+  queueCatalog.templates.defaults = [current];
+  queueCatalog.pipeline = { items: [{ id: 'synthetic-material', name: current.name, assetType: 'template',
+    submissionId: queueRows[0].id, lineageId: row.lineageId ?? null, updatedAt: 'registry-epoch',
+    previewUrl: null, access: 'free', source: 'official', fileSizeBytes: null }] };
+}
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;

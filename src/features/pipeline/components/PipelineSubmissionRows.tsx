@@ -26,6 +26,8 @@ import {
   getTemplatePreviewId,
   PIPELINE_TEMPLATE_SPECIMEN_DPI,
   type PipelineTemplateSpecimenRenderer,
+  type PipelinePublishedTemplatePreview,
+  type PipelineTemplateSpecimenSource,
   tierClasses,
   type PipelineSubmission,
 } from '@/features/pipeline/components/PipelineContributionModel';
@@ -247,7 +249,7 @@ export function AssetRow({
 }: {
   submission: PipelineSubmission;
   program: Pick<PipelineProgramView, 'settings'>;
-  templatePreviews: Record<string, TCGCardTemplate>;
+  templatePreviews: Record<string, PipelinePublishedTemplatePreview>;
   renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
   children?: ReactNode;
   expanded?: boolean;
@@ -366,13 +368,20 @@ function AssetPreview({
   expanded = false,
 }: {
   submission: PipelineSubmission;
-  templatePreviews: Record<string, TCGCardTemplate>;
+  templatePreviews: Record<string, PipelinePublishedTemplatePreview>;
   renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
   expanded?: boolean;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   const templateId = getTemplatePreviewId(submission);
-  const template = templateId ? templatePreviews[templateId] : undefined;
+  const publication = templateId ? templatePreviews[templateId] : undefined;
+  const matchingPublication = publication?.lineageId === submission.lineageId ? publication : undefined;
+  const selectedIsCurrent = matchingPublication?.submissionId === submission.id;
+  const pending = ['draft', 'submitted', 'voting', 'publish_candidate'].includes(submission.status);
+  // Current catalog bytes may compare a pending candidate, but must never
+  // stand in for an unavailable historical submission.
+  const livePreview = pending || selectedIsCurrent ? matchingPublication : undefined;
+  const template = livePreview?.template;
   const pipelineRecipe = isRepositoryStyle(submission.sourcePayload)
     ? submission.sourcePayload
     : null;
@@ -387,9 +396,9 @@ function AssetPreview({
   }
 
   if (proposedTemplate || template) {
-    const primaryTemplate = proposedTemplate ?? template!;
+    const primaryTemplate = selectedIsCurrent ? template! : proposedTemplate ?? template!;
     if (!expanded) return <TemplateThumbnail template={primaryTemplate} />;
-    if (proposedTemplate && template) {
+    if (pending && proposedTemplate && template) {
       return (
         <div className="grid min-w-0 gap-3 overflow-x-auto p-4">
           <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
@@ -400,20 +409,22 @@ function AssetPreview({
             {submission.targetRegistryAssetId ? <> {' · '}registry asset <span className="font-mono">{submission.targetRegistryAssetId}</span></> : null}
           </p>
           <div className="flex min-w-0 w-full flex-wrap items-start gap-4">
-            <TemplateComparisonPreview label="Current live" submission={submission} source="live" template={template} id={`live-${submission.id}`} renderTemplateSpecimen={renderTemplateSpecimen} />
+            <TemplateComparisonPreview label="Current live" submission={submission} source="live" livePreview={livePreview} template={template} id={`live-${submission.id}`} renderTemplateSpecimen={renderTemplateSpecimen} />
             <TemplateComparisonPreview label={`Proposed revision ${submission.revisionNumber ?? ''}`.trim()} submission={submission} source="candidate" template={proposedTemplate} id={`proposed-${submission.id}`} renderTemplateSpecimen={renderTemplateSpecimen} />
           </div>
         </div>
       );
     }
-    const specimen = buildPipelineTemplateSpecimen(submission, proposedTemplate ? 'candidate' : 'live', proposedTemplate ? undefined : primaryTemplate);
+    const source: PipelineTemplateSpecimenSource = selectedIsCurrent ? 'live' : pending ? 'candidate' : 'submission';
+    const specimen = buildPipelineTemplateSpecimen(submission, source, livePreview);
     if (specimen) {
       return (
         <div className="max-h-[30rem] w-full overflow-auto p-4">
           <TemplateComparisonPreview
-            label={proposedTemplate ? `Proposed revision ${submission.revisionNumber ?? ''}`.trim() : 'Current live'}
+            label={source === 'live' ? 'Current live' : source === 'candidate' ? `Proposed revision ${submission.revisionNumber ?? 'unassigned'}` : `Selected historical revision ${submission.revisionNumber ?? 'unassigned'}`}
             submission={submission}
-            source={proposedTemplate ? 'candidate' : 'live'}
+            source={source}
+            livePreview={livePreview}
             template={primaryTemplate}
             id={`single-${submission.id}`}
             renderTemplateSpecimen={renderTemplateSpecimen}
@@ -431,6 +442,8 @@ function AssetPreview({
       </div>
     );
   }
+
+  if (submission.assetType === 'templates') return <p>Exact selected Template source is unavailable; no current revision was substituted.</p>;
 
   if (submission.mediaPresentation) {
     return submission.sourceUrl
@@ -575,17 +588,19 @@ function TemplateComparisonPreview({
   template,
   id,
   renderTemplateSpecimen,
+  livePreview,
 }: {
   label: string;
   submission: PipelineSubmission;
-  source: 'candidate' | 'live';
+  source: PipelineTemplateSpecimenSource;
+  livePreview?: PipelinePublishedTemplatePreview;
   template: TCGCardTemplate;
   id: string;
   renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
 }) {
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
-  const specimen = buildPipelineTemplateSpecimen(submission, source, source === 'live' ? template : undefined);
+  const specimen = buildPipelineTemplateSpecimen(submission, source, livePreview);
   const renderedTemplate = specimen?.card.template ?? template;
 
   const exportSpecimen = async () => {
@@ -601,7 +616,7 @@ function TemplateComparisonPreview({
       link.click();
       URL.revokeObjectURL(url);
       toast({
-        title: source === 'candidate' ? 'Exact candidate specimen exported' : 'Current live specimen exported',
+        title: source === 'live' ? 'Current live specimen exported' : 'Exact submission specimen exported',
         description: `Source canvas ${specimen.widthPx} × ${specimen.heightPx}px (${PIPELINE_TEMPLATE_SPECIMEN_DPI} DPI). Submission ${specimen.submissionId}, revision ${specimen.revisionNumber ?? 'unknown'}, pinned base ${specimen.baseRevisionNumber ?? 'unknown'}.`,
       });
     } catch (error) {
@@ -627,13 +642,13 @@ function TemplateComparisonPreview({
       {specimen ? (
         <>
           <p className="max-w-[19rem] break-all text-center text-[10px] leading-4 text-[var(--cf-text-subtle)]">
-            {source === 'candidate' ? 'Exact submitted payload' : 'Current live catalog payload'}
+            {source === 'live' ? 'Current live catalog payload' : 'Exact submitted payload'}
             {' · '}{specimen.widthPx} × {specimen.heightPx}px
             {' · '}submission {specimen.submissionId}
           </p>
           <Button type="button" size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" disabled={isExporting} onClick={() => void exportSpecimen()}>
             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-            {isExporting ? 'Rendering specimen…' : source === 'candidate' ? 'Download exact candidate PNG' : 'Download current live PNG'}
+            {isExporting ? 'Rendering specimen…' : source === 'live' ? 'Download current live PNG' : source === 'candidate' ? 'Download exact candidate PNG' : 'Download exact submission PNG'}
           </Button>
         </>
       ) : null}
