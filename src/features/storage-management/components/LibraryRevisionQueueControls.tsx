@@ -6,7 +6,7 @@ import type { useLibraryRevisionQueue } from '../hooks/useLibraryRevisionQueue';
 export function LibraryRevisionQueueControls({ revisions, onModeChange, queue, disabled = false }: {
   disabled?: boolean; revisions: boolean; onModeChange: (value: boolean) => void; queue: ReturnType<typeof useLibraryRevisionQueue>;
 }) {
-  return <fieldset disabled={disabled} className="flex flex-wrap items-center gap-3 py-3" aria-label="Pipeline discovery">
+  return <fieldset disabled={disabled} className="flex min-w-0 flex-wrap items-center gap-3 py-3" aria-label="Pipeline discovery">
     <label>Show <select className="max-w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-2 text-sm text-[var(--cf-accent-text)]" aria-label="Pipeline discovery mode" value={revisions ? 'revisions' : 'lineages'} onChange={event => onModeChange(event.target.value === 'revisions')}>
       <option value="lineages">Lineages</option><option value="revisions">All revisions · Owner</option>
     </select></label>

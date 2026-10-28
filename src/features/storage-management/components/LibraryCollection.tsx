@@ -110,7 +110,7 @@ export function LibraryCollection({
     {activeScope === 'campaigns' ? isOwner
       ? <OwnerMarketingPanel initialNotice={campaignNotice} />
       : <CampaignLibraryWorkspace initialCampaignId={campaignTargetId} /> : <>
-      <fieldset disabled={interactionDisabled} className={styles.toolbar} aria-label="Library toolbar">
+      <fieldset disabled={interactionDisabled} className={`${styles.toolbar} min-w-0`} aria-label="Library toolbar">
         <label className={styles.searchField}><span className="sr-only">Search Library</span><Search aria-hidden="true" /><Input ref={searchRef} id="library-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} placeholder={`Search ${activeScope}`} /></label>
         {activeScope === 'personal' ? <>
           <MultiSelectionFilterMenu allLabel="All sources" ariaLabel="Filter Library by source" compactLabel="Source" className={styles.filterSelect} values={projection.sourceFilters} onChange={projection.setSourceFilters} options={LIBRARY_SOURCES.map((source) => ({ value: source, label: `${getAccountLibrarySourceLabel(source)} · ${projection.sourceCounts.get(source) ?? 0}` }))} />

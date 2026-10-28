@@ -11,7 +11,7 @@ const bundle = buildSync({ entryPoints: ['tests/product/fixtures/libraryContextR
 const appCss = postcss([tailwindcss(tailwindConfig)]).process((readFileSync('src/app/cardforgePresentation.css', 'utf8') + readFileSync('src/app/globals.css', 'utf8')).replace(/@import ['"]([^'"]+)['"];?/g, (_, path: string) => readFileSync(join('src/app', path), 'utf8')), { from: 'src/app/globals.css' });
 async function mount(page: import('@playwright/test').Page, query = '') {
   const mutations: string[] = []; const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', error => { errors.push(error.message); console.error('LIBRARY_FIXTURE_ERROR', error.message); });
   await page.route('**/*', route => {
     if (route.request().method() !== 'GET') mutations.push(`${route.request().method()} ${route.request().url()}`);
     if (route.request().url().includes('/__library-context-proof')) return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><style>*{box-sizing:border-box}body{margin:0;background:#111;color:#eee}button,input,select,textarea{font:inherit}</style></head><body></body></html>' });
@@ -244,6 +244,7 @@ test('@golden actual Library keeps revision context through dirty close and clea
   await page.setViewportSize({ width: 1440, height: 900 });
   const evidence = await mount(page, '?queueActual=1&scope=pipeline');
   await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
+  await page.locator('#library-search').fill('material');
   const collection = page.getByLabel('pipeline Library objects');
   await expect(collection.locator('article')).toHaveCount(12);
   await page.getByRole('button', { name: 'Next revisions' }).click();
@@ -257,6 +258,8 @@ test('@golden actual Library keeps revision context through dirty close and clea
   await page.getByLabel('Revision status').selectOption('all');
   await page.getByRole('button', { name: 'Next revisions' }).click();
   await selected.click();
+  const surface = page.locator('[aria-label="CardForge Library"] main[data-scene-viewport]');
+  const beforeScroll = await surface.evaluate(node => { node.scrollTop = Math.min(50, node.scrollHeight - node.clientHeight); return node.scrollTop; });
   const review = page.getByRole('button', { name: 'Review & manage', exact: true }).first();
   await review.click();
   await expect(page.getByLabel('Exact revision governance')).toContainText('Material 15');
@@ -274,7 +277,9 @@ test('@golden actual Library keeps revision context through dirty close and clea
   await expect(page.getByLabel('Exact revision governance')).toHaveCount(0);
   await expect(page.getByLabel('Pipeline discovery').getByRole('status')).toContainText('Page 2 of 2');
   await expect(page.getByLabel('Revision status', { exact: true })).toHaveValue('all');
-  await expect(page.locator('#library-search')).toHaveValue('');
+  await expect(page.locator('#library-search')).toHaveValue('material');
+  await expect(selected).toBeFocused();
+  await expect.poll(() => surface.evaluate(node => node.scrollTop)).toBe(beforeScroll);
   await expect(page.getByLabel('Details for Material 15', { exact: true })).toBeVisible();
   await info.attach('actual-library-return-context', { body: await page.screenshot(), contentType: 'image/png' });
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);

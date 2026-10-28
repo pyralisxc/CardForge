@@ -138,7 +138,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [reviewTarget, setReviewTarget] = useState<PipelineReviewTarget | null>(null);
   const [toolCloseBlocked, setToolCloseBlocked] = useState<string | null>(null);
   const [revisionKind, setRevisionKind] = useState<'templates' | 'elementPresets' | null>(null);
-  const reviewReturn = useRef<{ focus: HTMLElement | null; scroll: number } | null>(null);
+  const reviewReturn = useRef<{ focus: HTMLElement | null; focusId?: string | null; scroll: number } | null>(null);
   const [editingSubmission, setEditingSubmission] = useState<PipelineSubmission | null>(null);
   const [requestedSubmissionId, setRequestedSubmissionId] = useState<string | null>(null);
   const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
@@ -276,13 +276,17 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     const publication = shared.catalog?.pipeline?.items.find(entry => entry.id === target.assetId
       && entry.lineageId === target.lineageId && entry.submissionId === target.submissionId);
     if (publication?.submissionId) target.catalogPublication = { submissionId: publication.submissionId, updatedAt: publication.updatedAt };
-    reviewReturn.current = { focus: document.activeElement instanceof HTMLElement ? document.activeElement : null, scroll: surfaceRef.current?.scrollTop ?? 0 };
+    reviewReturn.current = { focus: document.activeElement instanceof HTMLElement ? document.activeElement : null, focusId: selection.focusReturnId ?? `library-object-${item.id}`, scroll: surfaceRef.current?.scrollTop ?? 0 };
     setReviewTarget(target); setRevisionKind(null); openTool('review-manage', [target.lineageId, target.submissionId]);
   };
   const closeContextualTool = () => {
     closeTool(); setReviewTarget(null); setRevisionKind(null); setToolCloseBlocked(null);
     const restore = reviewReturn.current;
-    requestAnimationFrame(() => { surfaceRef.current?.scrollTo({ top: restore?.scroll ?? selection.listOffset }); restore?.focus?.focus({ preventScroll: true }); });
+    requestAnimationFrame(() => {
+      const focus = restore?.focus?.isConnected ? restore.focus : restore?.focusId ? document.getElementById(restore.focusId) : null;
+      focus?.focus({ preventScroll: true });
+      surfaceRef.current?.scrollTo({ top: restore?.scroll ?? selection.listOffset });
+    });
   };
   const reviseSelected = (submission: PipelineSubmission) => {
     if (toolDirty) { toast({ title: 'Finish the current changes first', description: 'Save your management changes or close and discard them before preparing a revision.' }); return; }

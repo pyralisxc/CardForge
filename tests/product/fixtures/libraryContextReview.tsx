@@ -50,7 +50,7 @@ const proof = window as typeof window & { libraryRequests: { url: string; method
 proof.libraryRequests = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
-const queueCatalog = identityCatalog();
+const queueCatalog = { ...identityCatalog(), pipeline: { items: [] } };
 const queueRows = Array.from({ length: 15 }, (_, index) => ({ ...row,
   id: `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
   lineageId: index < 2 ? row.lineageId : `20000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,

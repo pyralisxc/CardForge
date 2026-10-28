@@ -15,6 +15,9 @@ export function useLibraryRevisionQueue({ enabled, query, catalog, catalogLoadin
   const filterKey = JSON.stringify([query, assetType, status]);
   const [position, setPosition] = useState({ key: filterKey, page: 1 });
   const page = position.key === filterKey ? position.page : 1;
+  useEffect(() => {
+    setPosition(current => current.key === filterKey ? current : { key: filterKey, page: 1 });
+  }, [filterKey]);
   const [revision, setRevision] = useState(0);
   const ready = enabled && Boolean(catalog) && !catalogLoading && !catalogFailure;
   const requestKey = JSON.stringify([ready, filterKey, page, revision]);
