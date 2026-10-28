@@ -380,3 +380,17 @@ describe('exact Template Library identity', () => {
     expect(item.previewUrl).toBeNull();
   });
 });
+
+
+describe('current publication outside a revision page', () => {
+  it('does not call a displayed historical publication live or retirable', () => {
+    const old = identitySubmission('A1', { lineageId: 'lineage-A', targetRegistryAssetId: 'A',
+      registryAssetId: 'A', status: 'published', publishedAt: '2026-01-01T00:00:00Z', revisionNumber: 1,
+      sourcePayload: identityTemplate('original-A', '#00ff00') });
+    const [item] = projectPipelineLibraryObjects(identityProgram([old], old.contributorId), identityCatalog());
+    expect(item.submission.id).toBe('A1');
+    expect(item.currentPublishedSubmission).toBeNull();
+    expect(item.retirableSubmission).toBeNull();
+    expect(item.template).toEqual(old.sourcePayload);
+  });
+});

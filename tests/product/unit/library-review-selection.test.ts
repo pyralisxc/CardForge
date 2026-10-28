@@ -110,5 +110,5 @@ describe('unpublished upload exact review', () => {
 
 it('labels an unnumbered pending upload without inventing revision one or legacy history', () => {
  expect(getPipelineRevisionLabel({ ...row, revisionNumber: null, publishedAt: null, status: 'voting' })).toBe('Unnumbered submission · r1');
- expect(getPipelineRevisionLabel({ ...row, revisionNumber: null })).toBe('Legacy revision · r1');
+ expect(getPipelineRevisionLabel({ ...row, revisionNumber: null })).toBe('Unnumbered published submission · r1');
 });

@@ -25,8 +25,8 @@ const localSet: AccountLibraryItem = {
 
 describe('unified Library view', () => {
   it('does not invent revision 1 for legacy rows and keeps their immutable ids distinguishable', () => {
-    expect(getPipelineRevisionLabel({ id: 'legacy-first-identity', revisionNumber: null })).toBe('Legacy revision · legacy-f');
-    expect(getPipelineRevisionLabel({ id: 'legacy-second-identity', revisionNumber: null })).toBe('Legacy revision · legacy-s');
+    expect(getPipelineRevisionLabel({ id: 'legacy-first-identity', revisionNumber: null })).toBe('Unnumbered submission · legacy-f');
+    expect(getPipelineRevisionLabel({ id: 'legacy-second-identity', revisionNumber: null })).toBe('Unnumbered submission · legacy-s');
     expect(getPipelineRevisionLabel({ id: 'known', revisionNumber: 3 })).toBe('Revision 3');
   });
 
