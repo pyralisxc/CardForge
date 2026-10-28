@@ -95,8 +95,12 @@ begin
        -- Aspect ratios are typed geometry, not reference strings.
        if k<>'aspectRatio' or value!~'^[0-9]+:[0-9]+$' then return false; end if;
      end if;
-     if k in ('assetSource','dividerAsset','imageSource','iconImageSource','backgroundImageUrl','cardBackgroundImageUrl','cardBorderImageSource','backgroundImage','borderImageSource')
-       and value not in ('','none') then return false; end if;
+     -- Typed sources are URLs, not CSS values: truthy 'none' can render as
+     -- url(none). Only raw CSS properties interpret CSS none as no image.
+     if k in ('assetSource','dividerAsset','imageSource','iconImageSource','backgroundImageUrl','cardBackgroundImageUrl','cardBorderImageSource')
+       and value<>'' then return false; end if;
+     if kind='rawCss' and k in ('backgroundImage','borderImageSource')
+       and value<>'' and not (k='backgroundImage' and value='none') then return false; end if;
      if k='content' and (kind='elementPatch' or p->>'type'='image') and value<>'' then return false; end if;
    elsif k=any(numbers) then
      if jsonb_typeof(v) is distinct from 'number' then return false; end if;

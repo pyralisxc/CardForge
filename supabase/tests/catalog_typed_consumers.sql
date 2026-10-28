@@ -40,6 +40,25 @@ begin
    if public.cardforge_catalog_consumer_inspectable(payload,case when payload?'targets' then 'style' else 'template' end) then
      raise exception 'opaque_or_malformed_payload_cleared: %',payload; end if;
  end loop;
+ -- Literal none is still a relative URL in typed source owners; CSS none is
+ -- reserved for raw CSS properties that the renderer applies without url().
+ for payload in select value from jsonb_array_elements(jsonb_build_array(
+   style||'{"appearance":{"assetSource":"none"}}',
+   style||'{"appearance":{"dividerAsset":"none"}}',
+   style||'{"appearance":{"material":{"texture":{"kind":"parchment","assetSource":"none"}}}}',
+   style||'{"appearance":{"material":{"texture":{"kind":"uploaded","imageSource":"none"}}}}',
+   style||'{"updates":{"imageSource":"none"}}',
+   style||'{"updates":{"iconImageSource":"none"}}',
+   style||'{"updates":{"backgroundImageUrl":"none"}}',
+   template||'{"cardBackgroundImageUrl":"none"}',
+   template||'{"cardBorderImageSource":"none"}',
+   style||'{"appearance":{"rawCss":{"borderImageSource":"none"}}}'
+ )) loop
+   if public.cardforge_catalog_consumer_inspectable(payload,case when payload?'targets' then 'style' else 'template' end)
+     or public.cardforge_catalog_consumer_inspectable(jsonb_build_object('version',1,'userTemplates','[]'::jsonb,
+       'appearanceStyles',jsonb_build_array(payload)),'studio') then raise exception 'typed_none_source_cleared'; end if;
+ end loop;
+ if not public.cardforge_catalog_consumer_inspectable(style||'{"appearance":{"rawCss":{"backgroundImage":"none"}}}','style') then raise exception 'raw_css_none_rejected'; end if;
  -- Border thickness has different dimensional semantics from canvas/elements.
  if not public.cardforge_catalog_consumer_inspectable(style||'{"appearance":{"border":{"kind":"none","width":0}}}', 'style')
    or not public.cardforge_catalog_consumer_inspectable(template||'{"appearance":{"border":{"kind":"none","width":0}}}', 'template') then
