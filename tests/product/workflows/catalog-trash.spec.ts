@@ -26,7 +26,8 @@ for (const width of [320, 1180]) test(`catalog recovery exposes guarded Move/Hol
       else throw new Error('Unexpected cleanup action');
     }
     return route.fulfill({ json: { name: 'Synthetic catalog icon', state, retentionDays: 30,
-      entryReasons: blocked ? ['legacy_destructive_history_unverified'] : [],
+      entryReasons: blocked ? ['legacy_destructive_history_unverified','json_consumer_inventory_unverified'] : [],
+      inventoryDetails: blocked ? [{origin:'registry',recordId:'standard-playing-card-deck',payloadKind:'set',conditions:['set_package_not_natively_decoded']}] : [],
       reasons: ['physical_expiry_unavailable_complete_reference_and_worker_proof_required'] } });
   });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
@@ -38,6 +39,12 @@ for (const width of [320, 1180]) test(`catalog recovery exposes guarded Move/Hol
   await page.getByRole('button', { name: 'Refresh recovery state' }).click();
   await expect(page.getByRole('button', { name: 'Move to Trash' })).toBeDisabled();
   await expect(page.getByText('Earlier deletion attempts need reconciliation', { exact: false })).toBeVisible();
+  await page.getByText('Consumer inventory blockers (1)').click();
+  await expect(page.getByText('registry · set · standard-playing-card-deck')).toBeVisible();
+  await expect(page.getByText('Set package has no supported complete native dependency inspection.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Move to Trash' })).toBeDisabled();
+  await page.screenshot({ path: testInfo.outputPath('inventory-blockers.png'), fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(commands).toHaveLength(0);
   blocked = false;
   await page.getByRole('button', { name: 'Refresh recovery state' }).click();
