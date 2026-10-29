@@ -54,6 +54,12 @@ export function IconInspectorPanel({
   const iconUploadInputRef = useRef<HTMLInputElement | null>(null);
   const iconAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
   const hasUploadedIconSource = Boolean(element.iconImageSource);
+  const refilledIcon = (iconImageSource: string): Partial<FreeformCardElement> => ({
+    iconImageSource,
+    // Only deliberate new artwork leaves the completed-deletion blank state.
+    ...(iconImageSource ? { iconName: undefined } : {}),
+    iconRenderMode: isSvgAssetSource(iconImageSource) ? 'original' : undefined,
+  });
   const hasVectorIconSource = isSvgAssetSource(element.iconImageSource);
 
   return (
@@ -64,7 +70,7 @@ export function IconInspectorPanel({
           className={controlClassName}
           placeholder="Uploaded icon URL or {{symbolUrl}}"
           value={element.iconImageSource || ''}
-          onChange={(event) => onUpdateElement({ iconImageSource: event.target.value, iconRenderMode: isSvgAssetSource(event.target.value) ? 'original' : undefined }, false)}
+          onChange={(event) => onUpdateElement(refilledIcon(event.target.value), false)}
         />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -76,13 +82,13 @@ export function IconInspectorPanel({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button type="button" variant="outline" size="icon" className={buttonClassName} onClick={() => onUpdateElement({ iconImageSource: undefined, iconRenderMode: undefined })}>
+            <Button type="button" variant="outline" size="icon" className={buttonClassName} onClick={() => onUpdateElement({ iconImageSource: undefined, iconName: undefined, iconRenderMode: undefined })}>
               <X className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>Clear custom icon</TooltipContent>
         </Tooltip>
-        <input ref={iconUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleFileUpload(event, (dataUri) => onUpdateElement({ iconImageSource: dataUri, iconRenderMode: isSvgAssetSource(dataUri) ? 'original' : undefined }))} />
+        <input ref={iconUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleFileUpload(event, (dataUri) => onUpdateElement(refilledIcon(dataUri)))} />
       </div>
 
       <div>
@@ -97,7 +103,7 @@ export function IconInspectorPanel({
             providerRole="icon"
             target={{ kind: 'template-element', ids: [element.id] }}
             onAddFromProvider={onAddFromProvider}
-            onApply={(asset) => onUpdateElement({ iconImageSource: asset.url, iconName: undefined, iconRenderMode: isSvgAssetSource(asset.url) ? 'original' : undefined })}
+            onApply={(asset) => onUpdateElement(refilledIcon(asset.url))}
             builtInOptions={iconOptions.map((icon) => ({ name: icon, value: icon }))}
             onApplyBuiltIn={(iconName) => onUpdateElement({ iconName, iconImageSource: undefined, iconRenderMode: undefined })}
             onMaterializePersonal={onMaterializePersonal}

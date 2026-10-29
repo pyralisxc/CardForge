@@ -57,9 +57,10 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
   const [pendingBackup, setPendingBackup] = useState<{ name: string; document: ProjectDocumentV1; scope: ReturnType<typeof getProjectPersistenceScope> } | null>(null);
 
   useEffect(() => {
-    const notify = () => toast({ title: 'Deleted artwork cleared', description: 'Content confirmed permanently deleted was blanked in its existing element and the local repair was saved. Your original file is unchanged.', duration: 10_000 });
+    const showCommittedNotice = () => toast({ title: 'Deleted artwork cleared', description: 'Content confirmed permanently deleted was blanked in its existing element and the local repair was saved. Your original file is unchanged.', duration: 10_000 });
+    const notify = () => { if (consumeCompletedDeletionCleanupNotice()) showCommittedNotice(); };
     window.addEventListener(COMPLETED_DELETION_CLEANUP_EVENT, notify);
-    if (consumeCompletedDeletionCleanupNotice()) notify();
+    notify();
     return () => window.removeEventListener(COMPLETED_DELETION_CLEANUP_EVENT, notify);
   }, [toast]);
 

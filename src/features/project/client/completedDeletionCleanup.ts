@@ -2,11 +2,13 @@ import type { ProjectDocumentV1 } from '../model/projectDocument';
 import { cleanCompletedDeletionReferences, collectProjectMediaUrls } from '../model/completedDeletionCleanup';
 
 export const COMPLETED_DELETION_CLEANUP_EVENT = 'cardforge:completed-deletion-cleanup';
-let pendingCompletedDeletionNotice = false;
-export const consumeCompletedDeletionCleanupNotice = () => {
-  const pending = pendingCompletedDeletionNotice;
-  pendingCompletedDeletionNotice = false;
-  return pending;
+import { getProjectPersistenceScope } from '../persistence/projectPersistenceScope';
+
+const pendingCompletedDeletionScopes = new Set<string>();
+export const consumeCompletedDeletionCleanupNotice = (scope = getProjectPersistenceScope()) => {
+  if (!pendingCompletedDeletionScopes.has(scope)) return false;
+  pendingCompletedDeletionScopes.delete(scope);
+  return true;
 };
 
 /** An unavailable or malformed evidence service is unknown, never deletion proof. */
@@ -36,6 +38,6 @@ export async function prepareCompletedDeletionCleanup(document: ProjectDocumentV
 }
 
 export function notifyCompletedDeletionCleanup() {
-  pendingCompletedDeletionNotice = true;
+  pendingCompletedDeletionScopes.add(getProjectPersistenceScope());
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(COMPLETED_DELETION_CLEANUP_EVENT));
 }
