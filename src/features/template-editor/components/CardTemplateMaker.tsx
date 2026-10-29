@@ -139,8 +139,10 @@ export function CardTemplateMaker({
     setSelectedElementId,
     undo,
   } = controller;
-  const latestEditorRef = useRef({ template: currentTemplate, isDirty });
-  latestEditorRef.current = { template: currentTemplate, isDirty };
+  const mountedRef = useRef(false);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+  const latestEditorRef = useRef({ template: currentTemplate, isDirty, isActive });
+  latestEditorRef.current = { template: currentTemplate, isDirty, isActive };
   const isSharedTemplate = currentTemplate.templateSource === 'default';
   const isReviewDraft = Boolean(currentTemplate.templatePipelineContext);
   const [isPreparingReview, setIsPreparingReview] = useState(false);
@@ -210,7 +212,13 @@ export function CardTemplateMaker({
   const openLibrarySection = useCallback((sectionId: string) => { setRequestedLibrarySectionId(sectionId); setMobilePanel('library'); }, [setMobilePanel]);
   const openElementActions = useCallback((element: FreeformCardElement) => { selectElement(element.id); setContextElement(element); }, [selectElement]);
   const openElementInspector = useCallback((element: FreeformCardElement) => { selectElement(element.id); setMobilePanel('inspector'); }, [selectElement, setMobilePanel]);
-  const requestTemplateChange = useCallback((action: () => void) => { if (!isDirty) action(); else setPendingTemplateChange(() => action); }, [isDirty]);
+  const requestTemplateChange = useCallback((action: () => void) => { if (!latestEditorRef.current.isDirty) action(); else setPendingTemplateChange(() => action); }, []);
+  const openPipelineDestination = useCallback((url: string, templateId: string | null) => {
+    // An old request may finish after switching documents or closing Design. Its
+    // retained attempt remains recoverable; it must not navigate the new context.
+    if (!mountedRef.current || !latestEditorRef.current.isActive || latestEditorRef.current.template.id !== templateId) return;
+    requestTemplateChange(() => window.location.assign(url));
+  }, [requestTemplateChange]);
   const commands = useTemplateEditorCommands({
     acceptTemplate,
     beginDraft,
@@ -253,10 +261,13 @@ export function CardTemplateMaker({
     if (isCreatingPipelineDraft) return;
     if (!await commands.saveTemplate()) return;
     setIsCreatingPipelineDraft(true);
-    try { window.location.assign(await onContinueNewTemplateInPipeline(currentTemplate, requireRasterSelection())); }
+    try {
+      const destination = await onContinueNewTemplateInPipeline(currentTemplate, requireRasterSelection());
+      openPipelineDestination(destination, currentTemplate.id);
+    }
     catch (error) { toast({ title: 'Pipeline outcome not confirmed', description: error instanceof Error ? error.message : 'Unable to continue this Template in the Pipeline.', variant: 'destructive' }); }
     finally { setIsCreatingPipelineDraft(false); }
-  }, [commands, currentTemplate, isCreatingPipelineDraft, onContinueNewTemplateInPipeline, requireRasterSelection, toast]);
+  }, [commands, currentTemplate, isCreatingPipelineDraft, onContinueNewTemplateInPipeline, openPipelineDestination, requireRasterSelection, toast]);
   const handleSubmitSharedRevision = useCallback(async () => {
     if (!canSubmitExistingRevision || isSubmittingSharedRevision || isReviewDraft) return;
     if (isDirty && !await commands.saveTemplate()) return;
@@ -368,7 +379,7 @@ export function CardTemplateMaker({
             <Button type="button" size="sm" className="cardforge-template-status-action shrink-0 bg-[#d5ad54] text-[#161007] hover:bg-[var(--cf-accent-strong)]" disabled={isCreatingPipelineDraft || isSavingTemplate || Boolean(currentTemplate.id && !attemptRecoveryReady)} onClick={() => void handleContinueInPipeline()}>{isCreatingPipelineDraft ? 'Opening Pipeline…' : hasSavedPipelineAttempts ? pendingRaster ? 'Continue selected adoption' : 'Continue current work as a separate submission' : 'Continue in Pipeline'}</Button>
           </div>
         ) : null}
-        {canSubmitNewTemplate && currentTemplate.id ? <TemplatePipelineAttemptRecovery templateId={currentTemplate.id} busy={isCreatingPipelineDraft} onAttemptsChange={setHasSavedPipelineAttempts} onReadyChange={setAttemptRecoveryReady} onOpenDestination={url => requestTemplateChange(() => window.location.assign(url))} /> : null}
+        {canSubmitNewTemplate && currentTemplate.id ? <TemplatePipelineAttemptRecovery templateId={currentTemplate.id} busy={isCreatingPipelineDraft} onAttemptsChange={setHasSavedPipelineAttempts} onReadyChange={setAttemptRecoveryReady} onOpenDestination={url => openPipelineDestination(url, currentTemplate.id)} /> : null}
         {pendingRaster ? <div role="status" className="rounded border border-amber-500 p-2 text-sm">
           Pending managed adoption: {pendingRaster.name}. This picture appears in the Pipeline version only after successful submission. Local Save and export keep your current picture unchanged.
           {rasterIssue ? <p>{rasterIssue}</p> : null}

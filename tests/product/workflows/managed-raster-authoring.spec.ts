@@ -11,7 +11,7 @@ const css = postcss([tailwindcss(tailwindConfig)]).process((readFileSync('src/ap
 const selection = { registryAssetId:'managed-raster',publishedSubmissionId:'11111111-1111-4111-8111-111111111111',elementId:'art' };
 for(const width of [390,1440]) for(const contract of [false,true]) test(`@golden explicit managed raster picker and recoverable submission at ${width}px contract=${contract}`,async({page},info)=>{
   await page.setViewportSize({width,height:960});
-  const requests: {body:Record<string,unknown>; key:string}[]=[]; const lookups: {body:Record<string,unknown>; key:string}[]=[]; const unexpected:string[]=[]; let committed=false;
+  const requests: {body:Record<string,unknown>; key:string}[]=[]; const lookups: {body:Record<string,unknown>; key:string}[]=[]; const unexpected:string[]=[]; let committed=false; let delayLookup=false; let releaseLookup: (()=>void) | null=null;
   await page.route('**/*',route=>{
     const url=new URL(route.request().url());
     if(url.pathname==='/__raster-authoring')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><head></head><body style="margin:0"></body></html>'});
@@ -27,7 +27,9 @@ for(const width of [390,1440]) for(const contract of [false,true]) test(`@golden
       const request={body:route.request().postDataJSON(),key:route.request().headers()['idempotency-key']};
       if(url.searchParams.get('lookup')==='1'){
         lookups.push(request);
-        return route.fulfill({json:{openInPipelineUrl:committed?'/account?section=library&scope=pipeline&tool=contribute&submission=synthetic':null}});
+        const finish=()=>route.fulfill({json:{openInPipelineUrl:committed?'/account?section=library&scope=pipeline&tool=contribute&submission=synthetic':null}});
+        if(delayLookup)return new Promise<void>(resolve=>{releaseLookup=()=>{delayLookup=false;void finish().then(resolve);};});
+        return finish();
       }
       requests.push(request);
       if(width===1440||requests.length===2)committed=true;
@@ -78,12 +80,28 @@ for(const width of [390,1440]) for(const contract of [false,true]) test(`@golden
   await page.reload(); await boot();
   await expect(page.getByRole('region',{name:'Saved Pipeline attempts'})).toBeVisible();
   await expect(page.getByRole('button',{name:'Continue current work as a separate submission',exact:true})).toBeVisible();
+  if(committed){
+    delayLookup=true;
+    await page.getByRole('button',{name:'Check submission outcome',exact:true}).click();
+    await expect.poll(()=>typeof releaseLookup).toBe('function');
+    await page.getByRole('button',{name:'Hide editor',exact:true}).click();
+    const settledLookup=page.waitForResponse(response=>response.url().includes('lookup=1'));
+    releaseLookup!();
+    // Flush the delayed response before mounting a new editor instance.
+    await expect(page.getByRole('button',{name:'Show editor',exact:true})).toBeVisible();
+    await settledLookup;
+    await page.getByRole('button',{name:'Show editor',exact:true}).click();
+    await expect(page).toHaveURL(/__raster-authoring/);
+    delayLookup=true; releaseLookup=null;
+    await page.getByRole('button',{name:'Check submission outcome',exact:true}).click();
+    await expect.poll(()=>typeof releaseLookup).toBe('function');
+  }
   await page.locator(`[data-cardforge-editor-overlay][data-freeform-element-id="${elementId}"]`).click();
   if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
   await page.getByLabel('Picture URL, card field, or uploaded file').fill('/independent.svg');
   if(width<1024)await page.getByRole('button',{name:'Close inspector',exact:true}).click();
   if(committed){
-    await page.getByRole('button',{name:'Check submission outcome',exact:true}).click();
+    releaseLookup!();
     await expect(page.getByRole('alertdialog')).toBeVisible();
     await page.getByRole('button',{name:'Keep editing',exact:true}).click();
     await expect(page).toHaveURL(/__raster-authoring/);
