@@ -133,7 +133,7 @@ describe('managed raster actual preparation and receipt recovery',()=>{
   it('rejects exact-base Review context at the actual shared new-draft owner before source reads',async()=>{
     const io=mock();
     await expect(createTemplatePipelineDraft({template:{...template,templatePipelineContext:{expectedBase:{assetId:'base'}}} as typeof template,
-      contributorId:'author',submissionKey:'review-attempt',managedRasterSelection:selection})).rejects.toMatchObject({code:'managed_raster_review_unsupported'});
+      contributorId:'author',contributorEmail:null,submissionKey:'review-attempt',managedRasterSelection:selection})).rejects.toMatchObject({code:'managed_raster_review_unsupported'});
     expect(io.download).not.toHaveBeenCalled();expect(io.upload).not.toHaveBeenCalled();
   });
   it('recovers an exact committed draft before touching unavailable or changed raster storage',async()=>{
