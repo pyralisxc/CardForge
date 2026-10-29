@@ -54,7 +54,7 @@ export function assertStaticManagedRasterSlot(
   const chosen = elements.filter(element => element.id === selection.elementId);
   if (chosen.length !== 1 || chosen[0].type !== 'image') throw unavailable();
   const image = chosen[0];
-  if (image.imageSource?.includes('{{') || image.content?.includes('{{')
+  if (image.imageSource?.includes('{{') || (image.content !== undefined && image.content !== '')
     || template.fieldContracts?.some(contract => contract.type === 'image'
       && (contract.elementId === image.id || (!contract.elementId && contract.key === getImageFieldKeyForElement(image))))
     || template.templatePreviewData?.[getImageFieldKeyForElement(image)] !== undefined) throw unavailable();
@@ -161,7 +161,7 @@ export async function prepareManagedRasterTemplateRevision(
     freeformCanvas: {
       ...template.freeformCanvas!,
       elements: template.freeformCanvas!.elements.map(e => e.id === selection.elementId
-        ? { ...e, imageSource: reference }
+        ? { ...e, imageSource: reference, content: '' }
         : e),
     },
   };

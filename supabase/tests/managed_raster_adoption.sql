@@ -51,7 +51,7 @@ begin
  payload:=jsonb_build_object('id','native-adopter','name','Native Adopter','aspectRatio','63:88',
    'freeformCanvas',jsonb_build_object('width',630,'height',880,'elements',jsonb_build_array(
      jsonb_build_object('id','art','name','Art','type','image','x',0,'y',0,'width',200,'height',200,'zIndex',0,
-       'imageSource','cardforge-pipeline-asset://'||normalized))));
+       'imageSource','cardforge-pipeline-asset://'||normalized,'content',''))));
  selected:=jsonb_build_object('assetId',target,'submissionId',receipt,'elementId','art',
    'originalSha256',original,'normalizedSha256',normalized);
  begin

@@ -374,7 +374,7 @@ try:
     payload = {"id":adopter,"name":"Raster adopter","aspectRatio":"63:88","freeformCanvas":{
         "width":630,"height":880,"elements":[{"id":"art","name":"Art","type":"image","x":0,"y":0,
                                       "width":200,"height":200,"zIndex":0,
-                                      "imageSource":"cardforge-pipeline-asset://" + webp_hash}]}}
+                                      "imageSource":"cardforge-pipeline-asset://" + webp_hash,"content":""}]}}
     binding = {"assetId":raster_asset,"submissionId":raster_submission,"elementId":"art",
                "originalSha256":source_hash,"normalizedSha256":webp_hash}
     wrapped = ("public.cardforge_author_template_managed_raster('draft','" + adopter

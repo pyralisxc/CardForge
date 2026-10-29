@@ -172,7 +172,7 @@ begin
    then raise exception 'raster_adoption_slot_unsupported'; end if;
  select count(*),coalesce(bool_and(value->>'type'='image'
      and value->>'imageSource'='cardforge-pipeline-asset://'||webp_hash
-     and coalesce(value->>'content','') !~ '\{\{'),false)
+     and jsonb_typeof(value->'content')='string' and value->>'content'=''),false)
  into found_count,matched from jsonb_array_elements(p_payload->'freeformCanvas'->'elements') value
  where value->>'id'=p_requested->>'elementId';
  if found_count<>1 or not matched or exists(
