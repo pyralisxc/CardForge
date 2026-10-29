@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       elementId: z.string().min(1).max(200),
     }).strict().safeParse(selected);
     if (selection && !selection.success) {
-      return createApiErrorResponse(400, 'invalid_raster_adoption', 'Choose an exact published managed raster and image slot.');
+      return createApiErrorResponse(400, 'invalid_template_payload', 'Choose an exact published managed raster and image slot.');
     }
     delete (localTemplate as TCGCardTemplate & { managedRasterSelection?: unknown }).managedRasterSelection;
     if (localTemplate.templateSource === 'default') {

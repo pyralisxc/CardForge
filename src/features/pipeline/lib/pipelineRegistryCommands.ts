@@ -322,7 +322,7 @@ export const createTemplatePipelineDraft = async ({
   const supabase = requireSupabase();
   const source = templateReviewPayload(template);
   const prepared = managedRasterSelection
-    ? await prepareManagedRasterTemplateRevision(source, managedRasterSelection)
+    ? await prepareManagedRasterTemplateRevision(source as TCGCardTemplate & { id: string }, managedRasterSelection)
     : null;
   const storedTemplate = await externalizePipelineTemplateAssets(prepared?.template ?? source);
   const { data: submissionId, error } = await supabase.rpc(
@@ -392,7 +392,7 @@ const writeTemplateRevision = async ({
   const supabase = requireSupabase();
   const source = templateReviewPayload(template);
   const prepared = managedRasterSelection
-    ? await prepareManagedRasterTemplateRevision(source, managedRasterSelection)
+    ? await prepareManagedRasterTemplateRevision(source as TCGCardTemplate & { id: string }, managedRasterSelection)
     : null;
   const storedTemplate = await externalizePipelineTemplateAssets(prepared?.template ?? source);
   const { data: revisionId, error } = await supabase.rpc(
