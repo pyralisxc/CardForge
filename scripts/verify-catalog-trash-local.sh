@@ -105,6 +105,16 @@ for conflict in table bucket; do
   grep -q "ERROR:  $expected" "$proof/plugin-$conflict-conflict.log"
   cat "$proof/plugin-$conflict-conflict.log"
 done
+# Only the isolated GitHub-hosted stack receives this proposal. Generate its
+# timestamped filename using the pinned official CLI; do not treat the local
+# preparation source as a committed schema migration or touch hosted Staging.
+supabase migration new --help > "$proof/migration-new-help.txt"
+run_cli generated-set-migration migration new set_package_source_binding --workdir "$work"
+generated=("$work"/supabase/migrations/*_set_package_source_binding.sql)
+[[ ${#generated[@]} == 1 && -f ${generated[0]} ]] || { echo "Expected one CLI-generated Set migration"; exit 1; }
+cp "$root/supabase/tests/set_package_source_binding.preparation.sql" "${generated[0]}"
+printf '%s\\n' "$(basename "${generated[0]}")" > "$proof/generated-set-migration-name.txt"
+sha256sum "${generated[0]}" > "$proof/generated-set-migration-sha256.txt"
 run_cli remaining migration up --workdir "$work" --local
 psql_local -c "BEGIN; SET LOCAL cardforge.fixture_disposable = 'plugin-releases';" \
   -f "$root/supabase/tests/plugin_release_retention.sql" -c 'ROLLBACK;' > "$proof/plugin-retention.log" 2>&1
