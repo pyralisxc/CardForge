@@ -73,14 +73,6 @@ cleanup() {
   exit "$status"
 }
 trap cleanup EXIT
-# The pinned official CLI creates the filename; record it in the existing
-# disposable native artifact before removing this name-only temporary file.
-# Do not replay the temporary empty migration or touch hosted providers.
-run_cli icon-migration-name migration new canonical_icon_render_mode --workdir "$work"
-icon_names=("$work"/supabase/migrations/*_canonical_icon_render_mode.sql)
-[[ ${#icon_names[@]} == 1 && -f ${icon_names[0]} ]] || { echo "Expected exactly one CLI-generated icon migration"; exit 1; }
-printf '%s\n' "$(basename "${icon_names[0]}")" > "$proof/icon-migration-generated-filename.txt"
-rm -- "${icon_names[0]}"
 run_cli start start --workdir "$work"
 run_cli replay db reset --workdir "$work" --local --no-seed
 cid=$(docker inspect --format '{{.Id}}' "$container")
