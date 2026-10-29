@@ -1,5 +1,7 @@
 "use client";
 
+import type { ComponentProps } from 'react';
+
 import { cardFontOptionsToSelectOptions } from '@/domain/rendering';
 import { SHAPE_PRIMITIVE_OPTIONS } from '@/domain/templates';
 import { AppearanceStudioPanel } from '@/features/template-editor/components/AppearanceStudioPanel';
@@ -29,6 +31,7 @@ type AvailableFonts = ReturnType<typeof cardFontOptionsToSelectOptions>;
 
 interface TemplateEditorInspectorSidebarProps {
   availableFonts: AvailableFonts;
+  managedAdoption?: ComponentProps<typeof ImageInspectorPanel>['managedAdoption'];
   canUploadCustomAssets: boolean;
   commands: TemplateEditorCommands;
   controller: TemplateEditorController;
@@ -41,6 +44,7 @@ interface TemplateEditorInspectorSidebarProps {
 
 export function TemplateEditorInspectorSidebar({
   availableFonts,
+  managedAdoption,
   canUploadCustomAssets,
   commands,
   controller,
@@ -88,6 +92,7 @@ export function TemplateEditorInspectorSidebar({
             />
             {elements.canUseImageSource ? (
               <ImageInspectorPanel
+                  managedAdoption={managedAdoption}
                   element={selectedElement}
                   imageAssets={elements.compatibleImageAssets}
                   personalItems={elements.connectedLibraryItems}

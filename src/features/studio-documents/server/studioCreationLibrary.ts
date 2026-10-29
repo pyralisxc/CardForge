@@ -28,6 +28,8 @@ export interface StudioCreationLibraryItem {
   kind: StudioCreationLibraryKind;
   description?: string;
   url?: string;
+  /** Exact discovery pin, not proof of managed adoption eligibility. */
+  publishedSubmissionId?: string;
   value?: string;
   category?: string;
   packName?: string;
@@ -105,6 +107,7 @@ const assetItem = (
   name: asset.name,
   kind,
   url: asset.url,
+  publishedSubmissionId: asset.publishedSubmissionId,
   packName: asset.packName,
   allowedTargets: [...asset.allowedTargets],
   studioDestinations: asset.studioDestinations ? [...asset.studioDestinations] : undefined,

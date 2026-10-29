@@ -17,6 +17,8 @@ export interface CardAssetOption {
   name: string;
   url: string;
   previewUrl?: string;
+  /** Discovery identity only; the server revalidates eligibility on submission. */
+  publishedSubmissionId?: string;
   kind: 'texture' | 'divider' | 'border' | 'frame' | 'icon' | 'image' | 'template' | 'elementPreset';
   librarySource?: 'official' | 'contributor' | 'local';
   accessTier?: 'free' | 'paid' | 'contributor' | 'hidden';

@@ -5,12 +5,8 @@ import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServe
 import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 import { storePipelineTemplateAsset } from './pipelineTemplateAssets';
 
-/** Author-selected source identity. A URL, asset digest or registry alias alone never supplies authority. */
-export interface ManagedRasterSelection {
-  registryAssetId: string;
-  publishedSubmissionId: string;
-  elementId: string;
-}
+import { managedRasterSlotIssue, type ManagedRasterSelection } from './managedRasterSelection';
+export type { ManagedRasterSelection } from './managedRasterSelection';
 
 export interface ObservedManagedRasterSource {
   registryAssetId: string;
@@ -50,13 +46,7 @@ export function assertStaticManagedRasterSlot(
   template: TCGCardTemplate & { id: string },
   selection: ManagedRasterSelection,
 ): void {
-  const elements = template.freeformCanvas?.elements ?? [];
-  const chosen = elements.filter(element => element.id === selection.elementId);
-  if (chosen.length !== 1 || chosen[0].type !== 'image') throw unavailable();
-  const image = chosen[0];
-  if (image.imageSource?.includes('{{') || (image.content !== undefined && image.content !== '')
-    || template.fieldContracts?.some(contract => contract.type === 'image')
-    || Object.keys(template.templatePreviewData ?? {}).length > 0) throw unavailable();
+  if (managedRasterSlotIssue(template, selection.elementId)) throw unavailable();
 }
 
 /**

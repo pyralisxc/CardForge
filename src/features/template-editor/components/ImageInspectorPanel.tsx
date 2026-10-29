@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from 'react';
-import type { ChangeEvent } from 'react';
+import type { ComponentProps, ChangeEvent } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { TemplateAssetLibraryPicker } from './TemplateAssetLibraryPicker';
 
 interface ImageInspectorPanelProps {
   element: FreeformCardElement;
+  managedAdoption?: ComponentProps<typeof TemplateAssetLibraryPicker>['managedAdoption'];
   imageAssets: CardAssetOption[];
   personalItems: readonly PersonalLibraryItem[];
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
@@ -25,6 +26,7 @@ interface ImageInspectorPanelProps {
 
 export function ImageInspectorPanel({
   element,
+  managedAdoption,
   imageAssets,
   personalItems,
   onUpdateElement,
@@ -64,9 +66,10 @@ export function ImageInspectorPanel({
             />
           </div>
         </div>
-        <div className="flex items-center justify-between gap-2">
+        <div className="space-y-2">
           <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Pictures</Label>
           <TemplateAssetLibraryPicker
+            managedAdoption={managedAdoption}
             assets={imageAssets}
             kind="image"
             label="a picture"

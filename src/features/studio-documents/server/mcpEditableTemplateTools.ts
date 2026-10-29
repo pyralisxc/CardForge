@@ -397,9 +397,9 @@ export const registerEditableTemplateTools = ({
         openWorldHint: false,
       },
     },
-    async ({ documentId, templateId }) => runObservedMcpTool({
+    async ({ documentId, templateId, managedRasterSelection }) => runObservedMcpTool({
       toolName: 'continue_template_in_pipeline',
-      input: { documentId, templateId },
+      input: { documentId, templateId, managedRasterSelection },
       execute: async (access) => {
         const userId = access.user.id;
         const rateLimit = await consumeRateLimit({
@@ -413,7 +413,7 @@ export const registerEditableTemplateTools = ({
           rateLimit.retryAfterSeconds,
           { resource: 'template_pipeline_handoffs', maximum: 60, unit: 'attempts_per_hour' },
         );
-        const result = await submitTemplateWorkingDocumentToPipeline({ access, documentId, templateId });
+        const result = await submitTemplateWorkingDocumentToPipeline({ access, documentId, templateId, managedRasterSelection });
         const structuredContent = {
           draftId: result.draft.id,
           openInPipelineUrl: absoluteUrl(result.openInPipelineUrl),

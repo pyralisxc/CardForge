@@ -1,3 +1,4 @@
+import type { ManagedRasterSelection } from '@/features/pipeline/client';
 import { fromJsonSchema } from '@modelcontextprotocol/server';
 
 import {
@@ -352,13 +353,18 @@ export const documentIdInputSchema = fromJsonSchema<{ documentId: string }>({
   },
 });
 
-export const pipelineInputSchema = fromJsonSchema<{ documentId: string; templateId?: string }>({
+export const pipelineInputSchema = fromJsonSchema<{ documentId: string; templateId?: string; managedRasterSelection?: ManagedRasterSelection }>({
   type: 'object',
   additionalProperties: false,
   required: ['documentId'],
   properties: {
     documentId: { type: 'string', format: 'uuid' },
     templateId: { type: 'string', minLength: 1 },
+    managedRasterSelection: {
+      type: 'object', additionalProperties: false, required: ['registryAssetId', 'publishedSubmissionId', 'elementId'],
+      description: 'Optional explicit managed raster for a static image slot. No digest, URL or eligibility assertions. Server revalidates the exact publication.',
+      properties: { registryAssetId: { type: 'string', minLength: 1, maxLength: 200 }, publishedSubmissionId: { type: 'string', format: 'uuid' }, elementId: { type: 'string', minLength: 1, maxLength: 200 } },
+    },
   },
 });
 
