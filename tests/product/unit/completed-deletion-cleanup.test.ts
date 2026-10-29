@@ -40,7 +40,14 @@ describe('completed public deletion cleanup', () => {
     ]);
     expect(fork.fieldContracts).toEqual(template.fieldContracts);
     expect(result.document.userTemplates.find((item) => item.id === 'shared')!.freeformCanvas!.elements).toHaveLength(2);
-    expect(cleanCompletedDeletionReferences(result.document, new Set([dead])).changed).toBe(false);
+    const again = cleanCompletedDeletionReferences(result.document, new Set([dead]));
+    if (again.changed) console.info('completed-deletion-repeat-diff', JSON.stringify({
+      templatesBefore: result.document.userTemplates.map(t => ({ id: t.id, elements: t.freeformCanvas?.elements })),
+      templatesAfter: again.document.userTemplates.map(t => ({ id: t.id, elements: t.freeformCanvas?.elements })),
+      cardBefore: result.document.storedCards.map(c => ({ id: c.uniqueId, templateId: c.templateId, backingTemplateId: c.backingTemplateId })),
+      cardAfter: again.document.storedCards.map(c => ({ id: c.uniqueId, templateId: c.templateId, backingTemplateId: c.backingTemplateId })),
+    }));
+    expect(again.changed).toBe(false);
   });
 
   it('keeps a repaired image blank through canonical field materialization with retained card data and contracts', () => {

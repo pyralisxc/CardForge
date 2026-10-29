@@ -56,14 +56,19 @@ export function cleanCompletedDeletionReferences(
     const renderedById = new Map(renderedElements.map(element => [element.id, element]));
     if (template.freeformCanvas) template.freeformCanvas.elements = elements.map((element) => {
       const rendered = renderedById.get(element.id) ?? element;
-      if (element.type === 'image' && deletedUrls.has(imageSource(rendered, data))) {
+      const independentlyEmbedded = /^(?:cardforge-browser-asset:|cardforge-project-asset:)/u.test(element.imageSource ?? '')
+        && !deletedUrls.has(imageSource(element, data));
+      if (element.type === 'image' && !independentlyEmbedded
+        && element.imageSource !== COMPLETED_DELETION_BLANK_MEDIA
+        && deletedUrls.has(imageSource(rendered, data))) {
         element.imageSource = COMPLETED_DELETION_BLANK_MEDIA;
         if (element.content && deletedUrls.has(element.content)) element.content = '';
       } else if (element.type === 'image') {
         element.imageSource = clear(element.imageSource);
         element.content = clear(element.content);
       }
-      if (element.type === 'icon' && deletedUrls.has(replacePlaceholdersLocal(rendered.iconImageSource, data, false))) {
+      if (element.type === 'icon' && element.iconName !== COMPLETED_DELETION_BLANK_MEDIA
+        && deletedUrls.has(replacePlaceholdersLocal(rendered.iconImageSource, data, false))) {
         element.iconImageSource = '';
         element.iconName = COMPLETED_DELETION_BLANK_MEDIA;
       } else {
