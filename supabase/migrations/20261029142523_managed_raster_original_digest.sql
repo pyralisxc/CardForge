@@ -226,7 +226,10 @@ create or replace function public.cardforge_guard_set_package_source()
 returns trigger language plpgsql security invoker set search_path='' as $$
 declare proof jsonb; prior jsonb; verified jsonb; bound jsonb;
 begin
- if tg_op='UPDATE' and old.asset_type='sets' and new.asset_type<>'sets' then raise exception 'set_source_kind_immutable'; end if;
+ if tg_op='UPDATE' and old.asset_type='sets' and new.asset_type='templates' then
+  if old.catalog_dependencies is not null then raise exception 'set_source_binding_immutable'; end if;
+  raise exception 'set_source_kind_immutable';
+ end if;
  if new.asset_type='templates' then
   if tg_op='UPDATE' then
    -- Match the existing Set no-backfill and immutable source boundary.

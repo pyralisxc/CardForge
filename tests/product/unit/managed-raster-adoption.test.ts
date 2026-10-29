@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
-import { createTemplatePipelineDraft } from '@/features/pipeline/lib/pipelineRegistryCommands';
+import { createTemplatePipelineDraft, submitTemplateRevision, publishOwnerTemplateRevision } from '@/features/pipeline/lib/pipelineRegistryCommands';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { verifySelectedPublishedManagedRaster, assertStaticManagedRasterSlot, prepareManagedRasterTemplateRevision, readManagedRasterAttempt } from '@/features/pipeline/lib/managedRasterAdoption';
 
@@ -147,6 +147,26 @@ describe('managed raster actual preparation and receipt recovery',()=>{
     await expect(createTemplatePipelineDraft({...args,template:{...template,name:'Different snapshot'}})).rejects.toMatchObject({status:409});
     chain.maybeSingle.mockResolvedValueOnce({data:null,error:{message:'unavailable'}} as never);
     await expect(createTemplatePipelineDraft(args)).rejects.toMatchObject({status:503});
+    expect(download).not.toHaveBeenCalled();expect(rpc).not.toHaveBeenCalled();
+  });
+  it.each([['submit', submitTemplateRevision, 'submitted'], ['owner', publishOwnerTemplateRevision, 'published']] as const)('recovers an exact %s revision before unavailable source bytes',async(kind,command,status)=>{
+    let prior:unknown=null;
+    const download=vi.fn(()=>{throw new Error('Source unavailable after commit');});
+    const rpc=vi.fn(()=>{throw new Error('Must recover, not create again');});
+    const row={id:'saved-draft',status,base_revision_number:2,revision_number:3,target_registry_asset_id:template.id};
+    const chain={select:vi.fn(),eq:vi.fn(),maybeSingle:vi.fn(async()=>({data:prior,error:null})),
+      limit:vi.fn(async()=>({data:[row],error:null}))};
+    chain.select.mockReturnValue(chain);chain.eq.mockReturnValue(chain);
+    const from=vi.fn((table:string)=>{expect(table).toBe('cardforge_contributor_asset_submissions');return chain;});
+    vi.mocked(getSupabaseServerClient).mockReturnValue({from,rpc,storage:{from:()=>({download})}} as never);
+    const args={template,contributorId:'author',contributorEmail:null,submissionKey:'same-saved-attempt',expectedRevision:2,managedRasterSelection:selection};
+    const initial=await readManagedRasterAttempt(template,selection,'author',null,args.submissionKey,kind,2);
+    prior={id:row.id,catalog_dependencies:{managedRaster:{request:{requestFingerprint:initial.requestFingerprint}}}};
+    await expect(command(args)).resolves.toMatchObject({id:row.id,revisionNumber:3});
+    expect(download).not.toHaveBeenCalled();expect(rpc).not.toHaveBeenCalled();
+    await expect(command({...args,template:{...template,name:'Different snapshot'}})).rejects.toMatchObject({status:409});
+    chain.maybeSingle.mockResolvedValueOnce({data:null,error:{message:'unavailable'}} as never);
+    await expect(command(args)).rejects.toMatchObject({status:503});
     expect(download).not.toHaveBeenCalled();expect(rpc).not.toHaveBeenCalled();
   });
 });
