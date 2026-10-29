@@ -218,10 +218,14 @@ describe('remote artwork in portable browser packages', () => {
     const liveInline = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZxQAAAAASUVORK5CYII=';
     source.userTemplates[0].fieldContracts = [{ key: 'artwork', type: 'image', elementId: 'art', defaultValue: dead }];
     source.userTemplates[0].freeformCanvas!.elements[0].imageSource = '__cardforge_deleted_media_blank__';
+    source.userTemplates[0].freeformCanvas!.elements[0].content = '{{artwork:"https://assets.example/deleted-compound.png"}}';
+    // Preserved unscoped contracts are not active unless a surviving media
+    // consumer actually uses their key. Text/data may retain the old URL.
+    source.userTemplates[0].fieldContracts.push({ key: 'retiredUnscoped', type: 'image', defaultValue: dead });
     source.userTemplates[0].templatePreviewData = { artwork: dead };
     source.userTemplates[0].cardBorderImageSource = undefined;
     source.storedCards = [source.storedCards[0]];
-    source.storedCards[0].data = { artwork: dead, notes: dead, additionalImage: liveInline };
+    source.storedCards[0].data = { artwork: dead, retiredUnscoped: dead, notes: dead, additionalImage: liveInline };
     // An unrelated independent inline asset remains locally portable.
     source.userTemplates[0].freeformCanvas!.elements.push({
       id: 'live', name: 'Live', type: 'image', imageSource: liveInline,
@@ -237,6 +241,9 @@ describe('remote artwork in portable browser packages', () => {
     expect(restored.userTemplates[0].fieldContracts).toEqual(source.userTemplates[0].fieldContracts);
     expect(restored.storedCards[0].data.artwork).toBe(dead);
     expect(restored.storedCards[0].data.notes).toBe(dead);
+    expect(restored.storedCards[0].data.retiredUnscoped).toBe(dead);
+    expect(restored.userTemplates[0].freeformCanvas!.elements.find(e => e.id === 'art')!.content)
+      .toContain('deleted-compound.png');
     const live = restored.userTemplates[0].freeformCanvas!.elements.find(e => e.id === 'live')!;
     expect(live.imageSource).toMatch(/^cardforge-browser-asset:\/\//u);
     const { getCardFaceCanvas } = await import('@/domain/rendering');
@@ -248,6 +255,21 @@ describe('remote artwork in portable browser packages', () => {
     const blank = canvas!.elements.find(e => e.id === 'art')!;
     expect(resolveFreeformImageUrl(blank, restored.storedCards[0].data)).toBe('');
     expect(resolveFreeformImageUrl(canvas!.elements.find(e => e.id === 'live')!, restored.storedCards[0].data)).toBe(live.imageSource);
+  });
+
+  it('still captures an unscoped image contract when surviving media uses its field', async () => {
+    setProjectPersistenceScope('guest');
+    const source = remoteProject();
+    source.userTemplates[0].fieldContracts = [{ key: 'artwork', type: 'image' }];
+    source.userTemplates[0].freeformCanvas!.elements[0].imageSource = '{{artwork}}';
+    source.userTemplates[0].cardBorderImageSource = undefined;
+    source.storedCards = [source.storedCards[0]];
+    source.storedCards[0].data = { artwork: remoteArt };
+    const fetch = vi.fn(async () => new Response('live-bytes', { headers: { 'Content-Type': 'image/png' } }));
+    vi.stubGlobal('fetch', fetch);
+    const snapshot = await buildBrowserCardForgeProjectSnapshot({ document: source, name: 'Active unscoped media' });
+    expect(fetch).toHaveBeenCalledWith(remoteArt, expect.anything());
+    expect(snapshot.manifest.assets).toHaveLength(1);
   });
 
   it.each(['not-found', 'cors', 'timeout', 'html', 'empty', 'oversized'] as const)('refuses a portable snapshot on %s without modifying authored work', async (failure) => {
