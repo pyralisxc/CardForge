@@ -27,6 +27,7 @@ const OwnerMcpUsagePanel = dynamic(() => import('@/features/mcp-usage/client/own
 const OwnerRolesPanel = dynamic(() => import('./OwnerGovernancePanels').then((module) => module.OwnerRolesPanel), { loading: panelFallback });
 const OwnerActivityPanel = dynamic(() => import('./OwnerGovernancePanels').then((module) => module.OwnerActivityPanel), { loading: panelFallback });
 const OwnerRetentionPanel = dynamic(() => import('./OwnerGovernancePanels').then((module) => module.OwnerRetentionPanel), { loading: panelFallback });
+const OwnerStudioDependencyPanel = dynamic(() => import('./OwnerStudioDependencyPanel').then((module) => module.OwnerStudioDependencyPanel), { loading: panelFallback });
 
 export type OwnerWorkspace = 'overview' | 'audience' | 'governance';
 
@@ -167,11 +168,13 @@ export function OwnerProfileOperations({ initialWorkspace = 'overview' }: OwnerP
                     <TabsTrigger value="roles" className={subtabClassName}>Roles &amp; Permissions</TabsTrigger>
                     <TabsTrigger value="history" className={subtabClassName}>Change History</TabsTrigger>
                     <TabsTrigger value="retention" className={subtabClassName}>Deletion &amp; Retention</TabsTrigger>
+                    <TabsTrigger value="studio-integrity" className={subtabClassName}>Studio integrity</TabsTrigger>
                   </TabsList>
                   <TabsContent value="legal" className="mt-0"><OwnerLegalPanel operationsPayload={siteWorkspaceContent} onOperationsChange={updateOperations} /></TabsContent>
                   <TabsContent value="roles" className="mt-0"><OwnerRolesPanel /></TabsContent>
                   <TabsContent value="history" className="mt-0"><OwnerActivityPanel /></TabsContent>
                   <TabsContent value="retention" className="mt-0"><OwnerRetentionPanel /></TabsContent>
+                  <TabsContent value="studio-integrity" className="mt-0"><OwnerStudioDependencyPanel /></TabsContent>
                 </Tabs>
               ) : <SiteWorkspaceState loading={isLoadingSite} error={siteLoadError} retry={ensureSite} />}
             </TabsContent>
