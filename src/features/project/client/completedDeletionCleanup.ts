@@ -2,6 +2,12 @@ import type { ProjectDocumentV1 } from '../model/projectDocument';
 import { cleanCompletedDeletionReferences, collectProjectMediaUrls } from '../model/completedDeletionCleanup';
 
 export const COMPLETED_DELETION_CLEANUP_EVENT = 'cardforge:completed-deletion-cleanup';
+let pendingCompletedDeletionNotice = false;
+export const consumeCompletedDeletionCleanupNotice = () => {
+  const pending = pendingCompletedDeletionNotice;
+  pendingCompletedDeletionNotice = false;
+  return pending;
+};
 
 /** An unavailable or malformed evidence service is unknown, never deletion proof. */
 export async function prepareCompletedDeletionCleanup(document: ProjectDocumentV1, signal?: AbortSignal) {
@@ -30,5 +36,6 @@ export async function prepareCompletedDeletionCleanup(document: ProjectDocumentV
 }
 
 export function notifyCompletedDeletionCleanup() {
+  pendingCompletedDeletionNotice = true;
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(COMPLETED_DELETION_CLEANUP_EVENT));
 }

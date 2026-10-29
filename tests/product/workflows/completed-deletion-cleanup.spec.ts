@@ -29,7 +29,7 @@ test('cleans confirmed deleted card artwork, saves recovery, and keeps a shared 
   }, deletedUrl);
   await page.route('**/api/catalog/completed-deletions', (route) => route.fulfill({ json: { deletedUrls: route.request().postDataJSON().urls.includes(deletedUrl) ? [deletedUrl] : [] } }));
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('Deleted artwork removed', { exact: true })).toBeVisible();
+  await expect(page.getByText('Deleted artwork cleared', { exact: true })).toBeVisible();
   const recovered = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve) => { const request = indexedDB.open('cardforge-browser-storage', 1); request.onsuccess = () => resolve(request.result); });
     const value = await new Promise<string>((resolve) => { const request = db.transaction('key-value').objectStore('key-value').get('project-workspace:local:__recovery__:workspace'); request.onsuccess = () => resolve(request.result); });
@@ -38,11 +38,13 @@ test('cleans confirmed deleted card artwork, saves recovery, and keeps a shared 
   expect(recovered).toContain(deletedUrl);
   await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
   await page.locator('button[data-artifact-id="scale-card-1"]').press('Enter');
-  await expect(page.getByLabel('100 Card Scale Set focused Artifact viewport', { exact: true }).locator('[data-freeform-element-id="scale-artwork"]')).toHaveCount(0);
+  await expect(page.getByLabel('100 Card Scale Set focused Artifact viewport', { exact: true }).locator('[data-freeform-element-id="scale-artwork"]')).toHaveCount(1);
   await expect(page.locator('[data-freeform-element-id="scale-template-title"]').filter({ visible: true }).first()).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath('cleaned-card.png') });
+  await expect(page.getByLabel('100 Card Scale Set focused Artifact viewport', { exact: true }).locator('[data-freeform-element-id="scale-artwork"] img')).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath('blanked-card.png') });
+  // The repaired local workspace remains durable before the editor is visible.
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByLabel('100 Card Scale Set focused Artifact viewport', { exact: true }).locator('[data-freeform-element-id="scale-artwork"]')).toHaveCount(0);
+  await expect(page.getByLabel('100 Card Scale Set focused Artifact viewport', { exact: true }).locator('[data-freeform-element-id="scale-artwork"]')).toHaveCount(1);
   await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
   await page.locator('button[data-artifact-id="scale-card-2"]').press('Enter');
   await expect(page.getByLabel('100 Card Scale Set focused Artifact viewport', { exact: true }).locator('[data-freeform-element-id="scale-artwork"]').filter({ visible: true }).first()).toBeVisible();

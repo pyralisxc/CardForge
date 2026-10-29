@@ -22,7 +22,7 @@ import { trackCardForgeEvent } from '@/features/analytics/client/tracking';
 import type { ProjectDocumentV1 } from '../model/projectDocument';
 import type { BrowserStorageSaveStatus } from '../persistence/indexedDbStorage';
 
-import { COMPLETED_DELETION_CLEANUP_EVENT } from '../client/completedDeletionCleanup';
+import { COMPLETED_DELETION_CLEANUP_EVENT, consumeCompletedDeletionCleanupNotice } from '../client/completedDeletionCleanup';
 
 const BACKUP_REMINDER_KEY = 'cardforge-project-backup-reminder-at';
 const BACKUP_REMINDER_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -59,6 +59,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
   useEffect(() => {
     const notify = () => toast({ title: 'Deleted artwork cleared', description: 'Content confirmed permanently deleted was blanked in its existing element and the local repair was saved. Your original file is unchanged.', duration: 10_000 });
     window.addEventListener(COMPLETED_DELETION_CLEANUP_EVENT, notify);
+    if (consumeCompletedDeletionCleanupNotice()) notify();
     return () => window.removeEventListener(COMPLETED_DELETION_CLEANUP_EVENT, notify);
   }, [toast]);
 
