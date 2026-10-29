@@ -5,6 +5,7 @@ import type { TCGCardTemplate } from '@/domain/templates';
 import {
   createNewSharedTemplateId,
   createTemplatePipelineDraft,
+  assertTemplatePipelineDraftContext,
   PipelineRegistryCommandError,
   isRepositoryTemplate,
   storePipelineTemplateAsset,
@@ -299,6 +300,7 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
       409,
     );
   }
+  assertTemplatePipelineDraftContext(localTemplate);
   const reviewTemplate = await materializeTemplateForPipelineReview({
     ownerUserId: access.user.id,
     documentId: document.id,

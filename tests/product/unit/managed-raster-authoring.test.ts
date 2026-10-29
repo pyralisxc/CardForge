@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TCGCardTemplate } from '@/domain/templates';
 const boundary = vi.hoisted(() => ({ create: vi.fn(), read: vi.fn(), downloads: vi.fn(), require: vi.fn(), verify: vi.fn(), access: vi.fn() }));
 vi.mock('@/features/pipeline/server', async () => ({
+  assertTemplatePipelineDraftContext: (await import('@/features/pipeline/lib/pipelineRegistryCommands')).assertTemplatePipelineDraftContext,
   createNewSharedTemplateId: () => 'shared-template', createTemplatePipelineDraft: boundary.create,
   isRepositoryTemplate: (t: TCGCardTemplate) => Boolean(t.id && t.freeformCanvas),
   verifySelectedPublishedManagedRaster: boundary.verify,
@@ -63,6 +64,19 @@ describe('managed raster authoring handoff', () => {
       const before=structuredClone(changed); expect(managedRasterSlotIssue(changed,'art')).not.toBeNull(); expect(changed).toEqual(before);
     }
   });
+  it('rejects a saved exact-base Review draft in HTTP and MCP before any asset materialization or draft command', async () => {
+    const review = {...template,templatePipelineContext:{expectedBase:{assetId:'published-base'}}} as TCGCardTemplate;
+    document.document.userTemplates=[review];
+    const response=await POST(new Request('https://example.invalid/api/templates/submissions',{method:'POST',headers:{'Idempotency-Key':'review-attempt'},body:JSON.stringify({...review,managedRasterSelection:selection})}));
+    expect(response.status).toBe(409);expect((await response.json()).error.code).toBe('managed_raster_review_unsupported');
+    await expect(submitTemplateWorkingDocumentToPipeline({access,documentId:document.id,managedRasterSelection:selection})).rejects.toMatchObject({status:409,code:'managed_raster_review_unsupported'});
+    expect(boundary.downloads).not.toHaveBeenCalled();expect(boundary.create).not.toHaveBeenCalled();
+  });
+  it('exposes permanent ordinary-only eligibility distinctly from temporary read unavailability', async () => {
+    boundary.verify.mockRejectedValue(new PipelineRegistryCommandError('No verified original upload digest. Ordinary picture only.',409,'managed_raster_ineligible'));
+    const response=await GET(new Request(`https://example.invalid/api/assets?${new URLSearchParams(selection)}`));
+    expect(response.status).toBe(409);expect((await response.json()).error).toMatchObject({code:'managed_raster_ineligible',retryable:false});
+  });
   it('browser HTTP handoff carries selection separately from the authored Template and rejects caller authority', async () => {
     const send = (pins: unknown) => POST(new Request('https://example.invalid/api/templates/submissions', {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':'synthetic-attempt'},body:JSON.stringify({...template,managedRasterSelection:pins})}));
     const response=await send(selection); expect(response.status).toBe(201);
@@ -77,6 +91,8 @@ describe('managed raster authoring handoff', () => {
   });
   it.each([409,503])('preserves source conflict versus unavailable (%s)', async status => {
     boundary.verify.mockRejectedValue(new PipelineRegistryCommandError('Source cannot be checked',status));
-    expect((await GET(new Request(`https://example.invalid/api/assets?${new URLSearchParams(selection)}`))).status).toBe(status);
+    const response = await GET(new Request(`https://example.invalid/api/assets?${new URLSearchParams(selection)}`));
+    expect(response.status).toBe(status);
+    expect((await response.json()).error.code).toBe(status === 409 ? 'managed_raster_conflict' : 'pipeline_unavailable');
   });
 });

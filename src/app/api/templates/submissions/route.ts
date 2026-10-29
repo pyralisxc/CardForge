@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   createNewSharedTemplateId,
   createTemplatePipelineDraft,
+  assertTemplatePipelineDraftContext,
   PipelineRegistryCommandError,
   isRepositoryTemplate,
 } from '@/features/pipeline/server';
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
     }
 
     const localTemplate = validation.data as TCGCardTemplate;
+    assertTemplatePipelineDraftContext(localTemplate);
     const selected = (parsedBody.data as Record<string,unknown>).managedRasterSelection;
     const selection = selected === undefined ? undefined : z.object({
       registryAssetId: z.string().min(1).max(200),
@@ -122,7 +124,7 @@ export async function POST(request: Request) {
       return createApiErrorResponse(503, 'pipeline_unavailable', error.message);
     }
     if (error instanceof PipelineRegistryCommandError) {
-      return createApiErrorResponse(error.status, 'pipeline_unavailable', error.message);
+      return createApiErrorResponse(error.status, error.code === 'managed_raster_review_unsupported' ? error.code : 'pipeline_unavailable', error.message);
     }
     console.error('Failed to create a Template Pipeline draft:', error);
     return createApiErrorResponse(500, 'pipeline_unavailable', 'Unable to continue this Template in the Pipeline.');

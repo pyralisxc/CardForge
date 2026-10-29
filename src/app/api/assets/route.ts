@@ -21,7 +21,11 @@ export async function GET(request?: Request) {
     return createNoStoreJsonResponse((await getCachedCardForgeCatalog(entitlement.accessMode)).assets);
   } catch (error) {
     if (error instanceof ContributorAccessError) return createApiErrorResponse(error.status, 'contributor_access_required', error.message);
-    if (error instanceof PipelineRegistryCommandError) return createApiErrorResponse(error.status, 'pipeline_unavailable', error.message);
+    if (error instanceof PipelineRegistryCommandError) {
+      const code = error.code === 'managed_raster_ineligible' || error.code === 'managed_raster_conflict'
+        ? error.code : error.status === 409 ? 'managed_raster_conflict' : 'pipeline_unavailable';
+      return createApiErrorResponse(error.status, code, error.message);
+    }
     console.error('Failed to load asset library:', error);
     return createApiErrorResponse(
       500,

@@ -16,7 +16,8 @@ for(const width of [390,1440]) test(`@golden explicit managed raster picker and 
     const url=new URL(route.request().url());
     if(url.pathname==='/__raster-authoring')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><head></head><body style="margin:0"></body></html>'});
     if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
-    if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[{id:'managed-raster',name:'Synthetic managed raster',url:'/raster.svg',kind:'image',publishedSubmissionId:selection.publishedSubmissionId,registryStatus:'published',librarySource:'contributor',accessTier:'free',tileMode:'contain',seamless:false,allowedTargets:['image']},{id:'legacy',name:'Legacy ordinary picture',url:'/raster.svg',kind:'image',tileMode:'contain',seamless:false,allowedTargets:['image']}]}}});
+    if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[{id:'managed-raster',name:'Synthetic managed raster',url:'/raster.svg',kind:'image',publishedSubmissionId:selection.publishedSubmissionId,registryStatus:'published',librarySource:'contributor',accessTier:'free',tileMode:'contain',seamless:false,allowedTargets:['image']},{id:'legacy',publishedSubmissionId:'22222222-2222-4222-8222-222222222222',name:'Legacy ordinary picture',url:'/raster.svg',kind:'image',tileMode:'contain',seamless:false,allowedTargets:['image']}]}}});
+    if(url.pathname==='/api/assets' && url.searchParams.get('registryAssetId')==='legacy')return route.fulfill({status:409,json:{error:{code:'managed_raster_ineligible',message:'This published picture has no verified original upload digest. Use it as an ordinary independent picture; it is not eligible for managed adoption.',kind:'conflict',retryable:false}}});
     if(url.pathname==='/api/assets')return route.fulfill({json:{state:'ready',selection:Object.fromEntries(url.searchParams)}});
     if(url.pathname==='/raster.svg'||url.pathname==='/600x400.png'||url.pathname==='/independent.svg')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#00cc66"/></svg>'});
     if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
@@ -37,7 +38,7 @@ for(const width of [390,1440]) test(`@golden explicit managed raster picker and 
   await expect(managed).toBeVisible();await managed.check();
   await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
   await page.getByRole('option',{name:/Legacy ordinary picture/}).click();await page.getByRole('button',{name:'Use selection',exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText('ordinary picture choice');
+  await expect(page.getByRole('alert')).toContainText('ordinary independent picture');
   await page.getByRole('option',{name:/Synthetic managed raster/}).click();await page.getByRole('button',{name:'Use selection',exact:true}).click();
   await expect(page.getByRole('status').filter({hasText:'Pending managed adoption:'})).toContainText('Synthetic managed raster');
   await expect(page.getByLabel('Picture URL, card field, or uploaded file')).toHaveValue('');
