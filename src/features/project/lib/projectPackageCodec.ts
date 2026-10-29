@@ -355,6 +355,7 @@ export const buildCardForgeProjectSnapshot = async ({
 
 export const decodeCardForgeProjectPackage = async (
   input: Uint8Array | ArrayBuffer | Blob,
+  onValidatedSourceManifest?: (manifest: unknown) => void,
 ): Promise<CardForgeProjectPackageSnapshot> => {
   const inputBytes = input instanceof Blob ? input.size : input.byteLength;
   if (inputBytes <= 0 || inputBytes > MAX_PROJECT_PACKAGE_BYTES + MAX_PROJECT_PACKAGE_METADATA_BYTES) {
@@ -447,6 +448,7 @@ export const decodeCardForgeProjectPackage = async (
       }
       assets.set(descriptor.id, bytes);
     }
+    onValidatedSourceManifest?.(manifestValue);
     return { manifest, assets };
   } finally {
     await zip.close().catch(() => undefined);

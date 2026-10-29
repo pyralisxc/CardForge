@@ -4,6 +4,7 @@ import path from 'path';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
+import { interpretStarterSetPackage } from './lib/interpretStarterSetPackage.mjs';
 import {
   assertPreviewFontPublicationTarget,
   createVerifiedFontLicenseSidecar,
@@ -625,7 +626,60 @@ export const buildStarterSetProject = (definition, template) => {
   return project;
 };
 
-const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
+export const publishStarterSetItem = async (supabase, set, ownerProfile) => {
+  if (set.packageInterpretation?.packageSha256 !== set.packageSha256
+    || set.packageInterpretation?.fileSizeBytes !== set.fileSizeBytes) {
+    throw new Error('Starter Set interpretation does not match the verified object receipt.');
+  }
+  const { error } = await supabase.rpc('cardforge_publish_official_starter_set', {
+    p_asset_id: set.id,
+    p_name: set.name,
+    p_description: set.description,
+    p_package_url: set.packageUrl,
+    p_preview_url: set.previewUrl,
+    p_storage_bucket: ASSET_BUCKET,
+    p_storage_path: set.storagePath,
+    p_file_size_bytes: set.fileSizeBytes,
+    p_package_sha256: set.packageSha256,
+    p_package_interpretation: set.packageInterpretation,
+    p_contributor_id: ownerProfile.clerk_user_id,
+    p_contributor_email: ownerProfile.email,
+    p_specialty_tags: set.specialtyTags,
+    p_use_case_tags: set.useCaseTags,
+    p_source_notes: set.sourceNotes,
+  });
+  if (error) throw error;
+};
+
+// This establishes byte identity only. Native consumer admission still requires
+// a publication-bound interpretation; a digest is not a negative dependency scan.
+export const storeStarterSetPackage = async (supabase, assetId, body) => {
+  if (!/^[a-z0-9][a-z0-9-]{2,119}$/.test(assetId) || !body.byteLength) {
+    throw new Error('Invalid starter Set package identity.');
+  }
+  const packageSha256 = createHash('sha256').update(body).digest('hex');
+  const storagePath = `owner-defaults/sets/${assetId}/${packageSha256}.cardforge`;
+  const bucket = supabase.storage.from(ASSET_BUCKET);
+  const { error: uploadError } = await bucket.upload(storagePath, body, {
+    contentType: 'application/octet-stream',
+    upsert: false,
+  });
+  // A lost response or duplicate is not publication proof. Read the exact object
+  // on both success and failure, and never overwrite/remove a conflicting object.
+  const { data, error } = await bucket.download(storagePath);
+  if (error || !data) {
+    throw new Error('Starter Set package readback unavailable.', { cause: error || uploadError });
+  }
+  const stored = Buffer.from(await data.arrayBuffer());
+  if (stored.byteLength !== body.byteLength
+    || createHash('sha256').update(stored).digest('hex') !== packageSha256) {
+    throw new Error('Starter Set package readback differs from exact source bytes.');
+  }
+  return { storagePath, packageSha256, fileSizeBytes: body.byteLength,
+    packageUrl: bucket.getPublicUrl(storagePath).data.publicUrl };
+};
+
+export const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
   const directory = path.join(projectRoot, BOOTSTRAP_ROOT, 'sets');
   const files = (await walkFiles(directory)).filter((file) => file.endsWith('.json'));
   const items = [];
@@ -650,24 +704,17 @@ const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
       assets,
     };
     const body = await buildDeterministicStarterSetPackage(manifest);
-    const packageSha256 = createHash('sha256').update(body).digest('hex');
-    const storagePath = `owner-defaults/sets/${definition.id}-v${definition.version}.cardforge`;
-    const { error } = await supabase.storage.from(ASSET_BUCKET).upload(storagePath, body, {
-      // The shared bucket intentionally exposes a narrow provider allowlist.
-      // The Pipeline row carries the exact CardForge package type; Storage uses
-      // its accepted generic binary transport type for the same bytes.
-      contentType: 'application/octet-stream',
-      upsert: true,
-    });
-    if (error) throw error;
-    const { data } = supabase.storage.from(ASSET_BUCKET).getPublicUrl(storagePath);
+    const packageInterpretation = await interpretStarterSetPackage(body);
+    const stored = await storeStarterSetPackage(supabase, definition.id, body);
+    if (packageInterpretation.packageSha256 !== stored.packageSha256
+      || packageInterpretation.fileSizeBytes !== stored.fileSizeBytes) {
+      throw new Error('Starter Set source changed between interpretation and readback.');
+    }
     items.push({
       ...definition,
-      packageUrl: data.publicUrl,
+      ...stored,
+      packageInterpretation,
       previewUrl: publicUrlByLocalPath.get(definition.previewUrl) || '',
-      storagePath,
-      fileSizeBytes: body.byteLength,
-      packageSha256,
     });
   }
   return items;
@@ -1091,23 +1138,7 @@ const main = async () => {
   }
 
   for (const set of starterSets) {
-    const { error } = await supabase.rpc('cardforge_publish_official_starter_set', {
-      p_asset_id: set.id,
-      p_name: set.name,
-      p_description: set.description,
-      p_package_url: set.packageUrl,
-      p_preview_url: set.previewUrl,
-      p_storage_bucket: ASSET_BUCKET,
-      p_storage_path: set.storagePath,
-      p_file_size_bytes: set.fileSizeBytes,
-      p_package_sha256: set.packageSha256,
-      p_contributor_id: ownerProfile.clerk_user_id,
-      p_contributor_email: OWNER_EMAIL,
-      p_specialty_tags: set.specialtyTags,
-      p_use_case_tags: set.useCaseTags,
-      p_source_notes: set.sourceNotes,
-    });
-    if (error) throw error;
+    await publishStarterSetItem(supabase, set, { ...ownerProfile, email: OWNER_EMAIL });
     console.log(`Published starter Set: ${set.name}`);
   }
 
