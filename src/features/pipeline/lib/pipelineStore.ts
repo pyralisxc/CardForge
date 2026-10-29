@@ -275,7 +275,7 @@ export const updatePipelineProgramSettings = async (
 
 export const buildPipelineSubmissionRecord = ({ contributorId, contributorEmail, input }: {
   contributorId: string; contributorEmail: string | null;
-  input: Parameters<typeof normalizePipelineSubmissionInput>[0] & { sourceContentSha256?: string };
+  input: Parameters<typeof normalizePipelineSubmissionInput>[0];
 }) => {
   const normalized = normalizePipelineSubmissionInput(input);
   if (!normalized.ok) throw new PipelineStoreError(normalized.message, 400);
@@ -300,7 +300,6 @@ export const buildPipelineSubmissionRecord = ({ contributorId, contributorEmail,
       source_mime_type: normalized.value.sourceMimeType,
       source_storage_bucket: normalized.value.sourceStorageBucket,
       source_storage_path: normalized.value.sourceStoragePath,
-      ...(input.sourceContentSha256 ? { source_content_sha256: input.sourceContentSha256 } : {}),
       status: 'voting',
       automated_status: 'voting',
       owner_status_override: null,
@@ -319,10 +318,13 @@ export const createPipelineSubmission = async ({
   contributorEmail,
   input,
   uploadToken,
+  sourceContentSha256,
 }: {
   contributorId: string;
   contributorEmail: string | null;
   uploadToken?: string;
+  /** Trusted accepted-byte metadata, never normalized author input. */
+  sourceContentSha256?: string;
   input: {
     assetType?: unknown;
     studioDestination?: unknown;
@@ -342,7 +344,6 @@ export const createPipelineSubmission = async ({
     sourceMimeType?: unknown;
     sourceStorageBucket?: unknown;
     sourceStoragePath?: unknown;
-    sourceContentSha256?: string;
   };
 }): Promise<void> => {
   const supabase = getSupabaseServerClient();
@@ -369,7 +370,8 @@ export const createPipelineSubmission = async ({
   const record = buildPipelineSubmissionRecord({ contributorId, contributorEmail, input });
   if (uploadToken) {
     const receipt = await runPipelineUploadCommand('cardforge_commit_pipeline_upload_submission', {
-      p_path: record.source_storage_path, p_token: uploadToken, p_fields: record,
+      p_path: record.source_storage_path, p_token: uploadToken,
+      p_fields: { ...record, ...(sourceContentSha256 ? { source_content_sha256: sourceContentSha256 } : {}) },
     });
     if (!isPipelineUploadToken(receipt)) throw new PipelineStoreError('The submission receipt could not be confirmed. Keep this upload.', 503);
     return;

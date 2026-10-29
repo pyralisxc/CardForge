@@ -369,14 +369,14 @@ try:
           + " editorial_review_status='approved',published_at=now(),revision_number=1,"
           + f" registry_asset_id='{raster_asset}',target_registry_asset_id='{raster_asset}' where id='{raster_submission}';")
     a.run("insert into public.cardforge_pipeline_template_assets(asset_id,storage_bucket,storage_path,mime_type,byte_count)"
-          + f" values('{webp_hash}','cardforge-developer-assets','template-assets/{webp_hash}.webp','image/webp',100) on conflict do nothing;")
+          + f" values('{webp_hash}','cardforge-contributor-assets','template-assets/{webp_hash}.webp','image/webp',100) on conflict do nothing;")
     adopter = 'native-adopter-' + uuid.uuid4().hex
     payload = {"id":adopter,"name":"Raster adopter","aspectRatio":"63:88","freeformCanvas":{
         "width":630,"height":880,"elements":[{"id":"art","name":"Art","type":"image","x":0,"y":0,
                                       "width":200,"height":200,"zIndex":0,
                                       "imageSource":"cardforge-pipeline-asset://" + webp_hash,"content":""}]}}
     binding = {"assetId":raster_asset,"submissionId":raster_submission,"elementId":"art",
-               "originalSha256":source_hash,"normalizedSha256":webp_hash}
+               "originalSha256":source_hash,"normalizedSha256":webp_hash,"requestFingerprint":"e" * 64}
     wrapped = ("public.cardforge_author_template_managed_raster('draft','" + adopter
                + "','Raster adopter','','raster-owner',null,'" + json.dumps(payload)
                + "'::jsonb,0,'raster-race-key','" + json.dumps(binding) + "'::jsonb)")
@@ -389,6 +389,40 @@ try:
     reasons = b.run(f"select array_to_string(public.cardforge_catalog_trash_entry_reasons('{raster_lineage}'),',');")[-1]
     assert 'pipeline_identity_consumer_requires_resolution' in reasons, reasons
     print('PASS: native raster adoption loses locked-lineage race; committed exact dependency fences catalog Trash')
+
+    # Writer-first commit: the exact bound consumer must block the real command.
+    state = json.loads(a.run(f"select public.cardforge_read_catalog_trash('{raster_submission}')::text;")[-1])['state']
+    expect_conflict(a, command('trash', state), 'catalog_trash_dependency_blocked')
+    # Disposable fixture cleanup only; never invoked on a hosted target.
+    a.run(f"delete from public.cardforge_contributor_asset_submissions where id='{adopted_id}';")
+    state = json.loads(a.run(f"select public.cardforge_read_catalog_trash('{raster_submission}')::text;")[-1])['state']
+    a.run('begin;')
+    a.run('select ' + command('trash', state) + ';')
+    backend_raster_writer = int(b.run('select pg_backend_pid();')[-1])
+    result = queue.Queue()
+    def queued_raster_write():
+        try:
+            result.put(b.run("do $$ begin begin perform " + wrapped + "; raise exception 'queued_raster_admitted'; exception when raise_exception then if sqlerrm<>'raster_adoption_source_changed' then raise; end if; end; end $$;"))
+        except Exception as error:
+            result.put(error)
+    worker = threading.Thread(target=queued_raster_write)
+    worker.start()
+    deadline = time.monotonic() + 1.5
+    while a.run(f"select cardinality(pg_blocking_pids({backend_raster_writer}))>0;")[-1] != 't':
+        assert time.monotonic() < deadline, 'Raster writer did not wait behind Trash'
+        time.sleep(0.01)
+    a.run('commit;')
+    worker.join(timeout=5)
+    assert not worker.is_alive(), 'Raster writer did not finish after Trash COMMIT'
+    outcome = result.get(timeout=1)
+    if isinstance(outcome, Exception):
+        raise outcome
+    assert a.run(f"select count(*) from public.cardforge_contributor_asset_submissions where target_registry_asset_id='{adopter}';")[-1] == '0'
+    b.run('begin isolation level repeatable read;')
+    b.run("do $$ begin begin perform " + wrapped + "; raise exception 'raster_snapshot_admitted'; exception when raise_exception then if sqlerrm<>'raster_adoption_isolation_unsupported' then raise; end if; end; end $$;")
+    b.run('rollback;')
+    print('PASS: raster writer-first blocks Trash; Trash COMMIT rejects queued adoption; old isolation rejected')
+
 
 finally:
     a.close()

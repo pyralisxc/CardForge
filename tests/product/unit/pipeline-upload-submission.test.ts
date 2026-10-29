@@ -6,7 +6,7 @@ import { buildCardForgeProjectSnapshot, createCardForgeProjectPackageBlob } from
 import { createProjectDocumentFromState } from '@/features/project/model/projectDocument';
 
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { createPipelineSubmission, updatePipelineSubmissionDetails } from '@/features/pipeline/lib/pipelineStore';
+import { buildPipelineSubmissionRecord, createPipelineSubmission, updatePipelineSubmissionDetails } from '@/features/pipeline/lib/pipelineStore';
 import {
   createUploadedPipelineSubmission,
   preparePipelineUpload,
@@ -28,6 +28,15 @@ const mockedGetSupabaseServerClient = vi.mocked(getSupabaseServerClient);
 const mockedCreatePipelineSubmission = vi.mocked(createPipelineSubmission);
 
 describe('Pipeline partial classification edits', () => {
+  it('never copies a caller-supplied digest into normalized submission fields', () => {
+    const input = { assetType:'imageAssets', studioDestination:'image.picture',
+      specialtyTags:['games'], useCaseTags:['tcg'], name:'Raster', description:'',
+      sourceUrl:'https://example.invalid/image.png', previewUrl:'https://example.invalid/image.png',
+      sourceFileSizeBytes:100, sourceMimeType:'image/png', sourceContentSha256:'a'.repeat(64) };
+    const record=buildPipelineSubmissionRecord({contributorId:'author',contributorEmail:null,input});
+    expect(record).not.toHaveProperty('source_content_sha256');
+  });
+
   it.each([
     ['icons', ['general'], [], { useCaseTags: [] }, true],
     ['icons', ['games'], ['tcg'], { useCaseTags: [] }, false],
@@ -255,7 +264,7 @@ describe('contributor asset upload submission', () => {
     expect(prepared[0][1].p_request).not.toHaveProperty('source_content_sha256');
     expect(prepared[1][1].p_request).toMatchObject({source_content_sha256:digest});
     expect(mockedCreatePipelineSubmission).toHaveBeenCalledWith(expect.objectContaining({
-      input:expect.objectContaining({sourceContentSha256:digest}),
+      sourceContentSha256:digest,
     }));
     expect(storage.update).not.toHaveBeenCalled();
     expect(storage.remove).not.toHaveBeenCalled();

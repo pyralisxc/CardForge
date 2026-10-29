@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
+import sharp from 'sharp';
+import { createTemplatePipelineDraft } from '@/features/pipeline/lib/pipelineRegistryCommands';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { verifySelectedPublishedManagedRaster, assertStaticManagedRasterSlot } from '@/features/pipeline/lib/managedRasterAdoption';
+import { verifySelectedPublishedManagedRaster, assertStaticManagedRasterSlot, prepareManagedRasterTemplateRevision, readManagedRasterAttempt } from '@/features/pipeline/lib/managedRasterAdoption';
 
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: vi.fn() }));
 const bytes = Uint8Array.from([1,2,3,4]);
@@ -22,7 +24,7 @@ const lineage = {id:'lineage-A',registry_asset_id:'raster-live',upload_state:'ow
 function mock(options:{source?:unknown;lineage?:unknown;registry?:unknown;receipt?:unknown;
   file?:Uint8Array|null;storageError?:boolean}={}){
   let submissionReads=0;
-  const query=(table:string)=>({select:(columns:string)=>({eq:()=>({maybeSingle:async()=>{
+  const query=(table:string)=>({upsert:vi.fn(async()=>({error:null})),select:(columns:string)=>({eq:()=>({maybeSingle:async()=>{
     const project=(value:unknown)=>{
       if(value===null || typeof value!=='object') return value;
       return Object.fromEntries(columns.split(',').filter(c=>Object.prototype.hasOwnProperty.call(value,c))
@@ -35,8 +37,9 @@ function mock(options:{source?:unknown;lineage?:unknown;registry?:unknown;receip
   }})})});
   const download=vi.fn(async()=>({data:options.file===null?null:
     new Blob([Uint8Array.from(options.file??bytes).buffer]),error:options.storageError?{message:'unavailable'}:null}));
-  vi.mocked(getSupabaseServerClient).mockReturnValue({from:query,storage:{from:()=>({download})}} as never);
-  return{download};
+  const upload=vi.fn(async (_path:string,_bytes:Buffer)=>({error:null}));
+  vi.mocked(getSupabaseServerClient).mockReturnValue({from:query,storage:{from:()=>({download,upload,exists:async()=>({data:false,error:null})})}} as never);
+  return{download,upload};
 }
 beforeEach(()=>{vi.resetAllMocks();mock();});
 describe('static slot precondition',()=>{
@@ -103,5 +106,47 @@ describe('published raster immutable-source observation',()=>{
     await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:503});
     mock({source:{...source,source_file_size_bytes:5}});
     await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
+  });
+});
+
+
+describe('managed raster actual preparation and receipt recovery',()=>{
+  const template={id:'new-template',name:'New Template',aspectRatio:'63:88' as const,
+    freeformCanvas:{width:630,height:880,elements:[{id:'art',name:'Art',type:'image' as const,
+      x:0,y:0,width:120,height:180,zIndex:0,imageSource:'',content:''}]}};
+  it('decodes actual accepted PNG and binds a distinct WebP identity without changing geometry',async()=>{
+    const png=await sharp({create:{width:2,height:2,channels:4,background:'#ff8800'}}).png().toBuffer();
+    const originalSha=createHash('sha256').update(png).digest('hex');
+    const {upload}=mock({file:png,source:{...source,source_file_size_bytes:png.length},
+      receipt:{...receipt,source_content_sha256:originalSha}});
+    const prepared=await prepareManagedRasterTemplateRevision(template,selection);
+    expect(upload).toHaveBeenCalledTimes(1);
+    const normalized=upload.mock.calls[0][1];
+    expect((await sharp(normalized).metadata()).format).toBe('webp');
+    expect(prepared.adoption.originalSha256).toBe(originalSha);
+    expect(prepared.adoption.normalizedSha256).toBe(createHash('sha256').update(normalized).digest('hex'));
+    expect(prepared.adoption.normalizedSha256).not.toBe(originalSha);
+    expect(prepared.template.freeformCanvas?.elements[0]).toMatchObject({x:0,y:0,width:120,height:180});
+    expect(template.freeformCanvas.elements[0].imageSource).toBe('');
+  });
+  it('recovers an exact committed draft before touching unavailable or changed raster storage',async()=>{
+    let prior:unknown=null;
+    const download=vi.fn(()=>{throw new Error('Source unavailable after commit');});
+    const rpc=vi.fn(()=>{throw new Error('Must recover, not create again');});
+    const row={id:'saved-draft',status:'draft',base_revision_number:0,revision_number:1,target_registry_asset_id:template.id};
+    const chain={select:vi.fn(),eq:vi.fn(),maybeSingle:vi.fn(async()=>({data:prior,error:null})),
+      limit:vi.fn(async()=>({data:[row],error:null}))};
+    chain.select.mockReturnValue(chain);chain.eq.mockReturnValue(chain);
+    const from=vi.fn((table:string)=>{expect(table).toBe('cardforge_contributor_asset_submissions');return chain;});
+    vi.mocked(getSupabaseServerClient).mockReturnValue({from,rpc,storage:{from:()=>({download})}} as never);
+    const args={template,contributorId:'author',contributorEmail:null,submissionKey:'same-saved-attempt',managedRasterSelection:selection};
+    const initial=await readManagedRasterAttempt(template,selection,'author',null,args.submissionKey,'draft',0);
+    prior={id:row.id,catalog_dependencies:{managedRaster:{request:{requestFingerprint:initial.requestFingerprint}}}};
+    await expect(createTemplatePipelineDraft(args)).resolves.toMatchObject({id:row.id,revisionNumber:1});
+    expect(download).not.toHaveBeenCalled();expect(rpc).not.toHaveBeenCalled();
+    await expect(createTemplatePipelineDraft({...args,template:{...template,name:'Different snapshot'}})).rejects.toMatchObject({status:409});
+    chain.maybeSingle.mockResolvedValueOnce({data:null,error:{message:'unavailable'}} as never);
+    await expect(createTemplatePipelineDraft(args)).rejects.toMatchObject({status:503});
+    expect(download).not.toHaveBeenCalled();expect(rpc).not.toHaveBeenCalled();
   });
 });

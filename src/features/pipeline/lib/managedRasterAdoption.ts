@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
+import { templateReviewRequestText } from './templateReview';
 import type { TCGCardTemplate } from '@/domain/templates';
-import { getImageFieldKeyForElement } from '@/domain/rendering';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 import { storePipelineTemplateAsset } from './pipelineTemplateAssets';
@@ -55,9 +55,8 @@ export function assertStaticManagedRasterSlot(
   if (chosen.length !== 1 || chosen[0].type !== 'image') throw unavailable();
   const image = chosen[0];
   if (image.imageSource?.includes('{{') || (image.content !== undefined && image.content !== '')
-    || template.fieldContracts?.some(contract => contract.type === 'image'
-      && (contract.elementId === image.id || (!contract.elementId && contract.key === getImageFieldKeyForElement(image))))
-    || template.templatePreviewData?.[getImageFieldKeyForElement(image)] !== undefined) throw unavailable();
+    || template.fieldContracts?.some(contract => contract.type === 'image')
+    || Object.keys(template.templatePreviewData ?? {}).length > 0) throw unavailable();
 }
 
 /**
@@ -175,4 +174,31 @@ export async function prepareManagedRasterTemplateRevision(
       normalizedSha256,
     },
   };
+}
+
+/** Exact-attempt read precedes any source fetch/normalization on recovery. */
+export async function readManagedRasterAttempt(
+  template: TCGCardTemplate,
+  selection: ManagedRasterSelection,
+  actorId: string,
+  actorEmail: string | null,
+  submissionKey: string,
+  kind: 'draft' | 'submit' | 'owner',
+  expectedRevision: number,
+): Promise<{ requestFingerprint: string; submissionId: string | null }> {
+  const requestFingerprint = createHash('sha256').update(JSON.stringify([
+    templateReviewRequestText(template), selection.registryAssetId, selection.publishedSubmissionId,
+    selection.elementId, actorId, actorEmail ?? '', kind, expectedRevision,
+  ])).digest('hex');
+  const db = getSupabaseServerClient();
+  if (!db) throw new PipelineRegistryCommandError('Pipeline is unavailable. Keep the same saved attempt.', 503);
+  const { data, error } = await db.from('cardforge_contributor_asset_submissions')
+    .select('id,catalog_dependencies').eq('target_registry_asset_id', template.id)
+    .eq('contributor_id', actorId).eq('submission_key', submissionKey).maybeSingle();
+  if (error) throw new PipelineRegistryCommandError('The exact adoption receipt could not be checked. Keep the same saved attempt.', 503);
+  if (!data) return { requestFingerprint, submissionId: null };
+  if (data.catalog_dependencies?.managedRaster?.request?.requestFingerprint !== requestFingerprint) {
+    throw new PipelineRegistryCommandError('This attempt belongs to a different saved Template or source selection.', 409);
+  }
+  return { requestFingerprint, submissionId: data.id };
 }

@@ -448,7 +448,6 @@ export const createUploadedPipelineSubmission = async ({
 
   const { data } = storage.getPublicUrl(uploadedFile.storagePath);
   const input = {
-        sourceContentSha256: undefined as string | undefined,
         assetType: descriptor.assetType,
         studioDestination: descriptor.studioDestination,
         specialtyTags,
@@ -487,10 +486,9 @@ export const createUploadedPipelineSubmission = async ({
   let normalizedBytes: Buffer | null = null;
   if (descriptor.assetType === 'sets') await assertUploadedSetPackage(uploadedBytes);
   else normalizedBytes = await validateUploadedAssetBytes(descriptor, uploadedBytes);
-  if (descriptor.assetType === 'imageAssets' && descriptor.extension !== 'svg') {
-    input.sourceContentSha256 = createHash('sha256').update(Buffer.from(await uploadedBytes.arrayBuffer())).digest('hex');
-  }
-  const committedRequest = { ...request, ...(input.sourceContentSha256 ? { source_content_sha256: input.sourceContentSha256 } : {}) };
+  const sourceContentSha256 = descriptor.assetType === 'imageAssets' && descriptor.extension !== 'svg'
+    ? createHash('sha256').update(Buffer.from(await uploadedBytes.arrayBuffer())).digest('hex') : undefined;
+  const committedRequest = { ...request, ...(sourceContentSha256 ? { source_content_sha256: sourceContentSha256 } : {}) };
   // Read-only validation may race cleanup. Recheck/commit native ownership
   // before normalization or submission so exactly one side obtains authority.
   const commitment = await prepare(true, committedRequest);
@@ -501,7 +499,7 @@ export const createUploadedPipelineSubmission = async ({
     if (error) throw new PipelineStoreError('Safe SVG storage could not be confirmed. Its submission commitment is retained.', 503);
     input.sourceFileSizeBytes = normalizedBytes.byteLength;
   }
-  await createPipelineSubmission({ contributorId, contributorEmail, input, uploadToken: commitment.token });
+  await createPipelineSubmission({ contributorId, contributorEmail, input, uploadToken: commitment.token, sourceContentSha256 });
   // No compensation on failure: the native insert may have committed even if
   // its response was lost. Cleanup can never cross this commitment.
 };

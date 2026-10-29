@@ -73,6 +73,12 @@ cleanup() {
   exit "$status"
 }
 trap cleanup EXIT
+# Temporary name-only provenance capture using the pinned official CLI.
+run_cli raster-migration-name migration new managed_raster_original_digest --workdir "$work"
+raster_names=("$work"/supabase/migrations/*_managed_raster_original_digest.sql)
+[[ ${#raster_names[@]} == 1 && -f ${raster_names[0]} ]] || { echo 'Expected one CLI-generated raster migration'; exit 1; }
+printf '%s\n' "$(basename "${raster_names[0]}")" > "$proof/raster-migration-generated-filename.txt"
+rm -- "${raster_names[0]}"
 run_cli start start --workdir "$work"
 run_cli replay db reset --workdir "$work" --local --no-seed
 cid=$(docker inspect --format '{{.Id}}' "$container")

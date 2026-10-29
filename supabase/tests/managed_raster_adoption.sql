@@ -8,10 +8,10 @@ set local statement_timeout='30s';
 do $$
 declare
  descriptor jsonb:='{"assetType":"imageAssets","fileName":"adopt.png","fileSizeBytes":100,"mimeType":"image/png","transportExtension":"png"}';
- reservation jsonb; line uuid; path text; request jsonb; token uuid; receipt uuid;
+ reservation jsonb; line uuid; path text; request jsonb; token uuid; receipt uuid; current_id uuid;
  target text:='raster-native-'||gen_random_uuid()::text;
  normalized text:=repeat('b',64); original text:=repeat('a',64);
- payload jsonb; selected jsonb; adopted uuid; bound jsonb; reasons text[];
+ payload jsonb; selected jsonb; adopted uuid; bound jsonb; reasons text[]; legacy uuid; changed text;
 begin
  if exists(select 1 from public.cardforge_asset_registry) then raise exception 'raster_adoption_fixture_requires_empty_catalog'; end if;
  reservation:=public.cardforge_reserve_pipeline_upload('raster-proof',descriptor);
@@ -40,20 +40,70 @@ begin
    then raise exception 'raster_original_digest_not_committed'; end if;
  if public.cardforge_commit_pipeline_upload_submission(path,token,request) is distinct from receipt
    then raise exception 'raster_submission_retry_changed'; end if;
+
+ if public.cardforge_prepare_pipeline_upload_submission('raster-proof',path,descriptor,request-'source_content_sha256',false)->>'state' is distinct from 'owned'
+   then raise exception 'read_only_retry_failed'; end if;
+ begin
+  perform public.cardforge_prepare_pipeline_upload_submission('raster-proof',path,descriptor,
+    request||jsonb_build_object('source_content_sha256',repeat('c',64)),false);
+  raise exception 'changed_retry_digest_admitted';
+ exception when raise_exception then if sqlerrm<>'pipeline_upload_identity_conflict' then raise; end if; end;
+ begin
+  perform public.cardforge_prepare_pipeline_upload_submission('raster-proof',path,descriptor,request-'source_content_sha256',true);
+  raise exception 'claimed_retry_omitted_digest';
+ exception when raise_exception then if sqlerrm<>'pipeline_upload_identity_conflict' then raise; end if; end;
+ foreach changed in array array[repeat('c',64),null] loop
+  begin
+   update public.cardforge_contributor_asset_submissions set source_content_sha256=changed where id=receipt;
+   raise exception 'digest_mutation_admitted';
+  exception when raise_exception then if sqlerrm<>'pipeline_upload_identity_conflict' then raise; end if; end;
+ end loop;
+ -- Digestless legacy rows never gain proof, even outside reserved paths.
+ insert into public.cardforge_contributor_asset_submissions(contributor_id,asset_type,name,status)
+ values('raster-proof','imageAssets','Legacy digestless','submitted') returning id into legacy;
+ begin
+  update public.cardforge_contributor_asset_submissions set source_content_sha256=original where id=legacy;
+  raise exception 'legacy_digest_backfill_admitted';
+ exception when raise_exception then if sqlerrm<>'pipeline_upload_identity_conflict' then raise; end if; end;
+ begin
+  insert into public.cardforge_contributor_asset_submissions(contributor_id,asset_type,name,status,source_content_sha256)
+  values('raster-proof','imageAssets','Forged digest','submitted',original);
+  raise exception 'unowned_digest_insert_admitted';
+ exception when raise_exception then if sqlerrm<>'pipeline_upload_identity_conflict' then raise; end if; end;
+ delete from public.cardforge_contributor_asset_submissions where id=legacy;
  update public.cardforge_pipeline_asset_lineages set registry_asset_id=target,revision_high_water=1 where id=line;
  insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id)
  values(target,'Native raster proof','image',request->>'source_url','published','free','contributor',receipt);
  update public.cardforge_contributor_asset_submissions
  set status='published',editorial_review_status='approved',published_at=now(),revision_number=1,
   registry_asset_id=target,target_registry_asset_id=target where id=receipt;
+
+ -- Current publication may be a later revision, while the original upload
+ -- receipt remains fixed and owns the only accepted original digest.
+ insert into public.cardforge_contributor_asset_submissions(
+   lineage_id,contributor_id,asset_type,name,status,editorial_review_status,published_at,
+   registry_asset_id,target_registry_asset_id,revision_number,source_url,source_storage_bucket,
+   source_storage_path,source_mime_type,source_file_size_bytes)
+ select lineage_id,contributor_id,asset_type,name,'published','approved',now(),
+   target,target,2,source_url,source_storage_bucket,source_storage_path,source_mime_type,source_file_size_bytes
+ from public.cardforge_contributor_asset_submissions where id=receipt returning id into current_id;
+ update public.cardforge_pipeline_asset_lineages set revision_high_water=2 where id=line;
+ update public.cardforge_asset_registry set contributor_submission_id=current_id where asset_id=target;
+ if (select upload_submission_id from public.cardforge_pipeline_asset_lineages where id=line) is distinct from receipt
+   or (select source_content_sha256 from public.cardforge_contributor_asset_submissions where id=current_id) is not null then
+   raise exception 'original_receipt_was_moved'; end if;
  insert into public.cardforge_pipeline_template_assets(asset_id,storage_bucket,storage_path,mime_type,byte_count)
- values(normalized,'cardforge-developer-assets','template-assets/'||normalized||'.webp','image/webp',100);
+ values(normalized,'cardforge-contributor-assets','template-assets/'||normalized||'.webp','image/webp',100);
  payload:=jsonb_build_object('id','native-adopter','name','Native Adopter','aspectRatio','63:88',
    'freeformCanvas',jsonb_build_object('width',630,'height',880,'elements',jsonb_build_array(
      jsonb_build_object('id','art','name','Art','type','image','x',0,'y',0,'width',200,'height',200,'zIndex',0,
        'imageSource','cardforge-pipeline-asset://'||normalized,'content',''))));
- selected:=jsonb_build_object('assetId',target,'submissionId',receipt,'elementId','art',
-   'originalSha256',original,'normalizedSha256',normalized);
+ selected:=jsonb_build_object('assetId',target,'submissionId',current_id,'elementId','art',
+   'originalSha256',original,'normalizedSha256',normalized,'requestFingerprint',repeat('e',64));
+ begin
+  perform public.cardforge_verified_raster_adoption(payload,selected||jsonb_build_object('submissionId',receipt));
+  raise exception 'historical_pointer_admitted';
+ exception when raise_exception then if sqlerrm<>'raster_adoption_source_changed' then raise; end if; end;
  begin
   perform public.cardforge_verified_raster_adoption(payload,selected||jsonb_build_object('originalSha256',repeat('c',64)));
   raise exception 'spoofed_original_digest_accepted';
@@ -81,7 +131,25 @@ begin
     'raster-proof',null,payload,0,'native-raster-adoption',
     selected||jsonb_build_object('normalizedSha256',repeat('d',64)));
   raise exception 'raster_retry_changed_adoption_admitted';
- exception when raise_exception then if sqlerrm not in ('raster_adoption_normalized_unavailable','raster_adoption_revision_conflict') then raise; end if; end;
+ exception when raise_exception then if sqlerrm not in ('raster_adoption_normalized_unavailable','raster_adoption_revision_conflict','template_revision_conflict') then raise; end if; end;
+
+ begin
+  update public.cardforge_contributor_asset_submissions set catalog_dependencies=null where id=adopted;
+  raise exception 'bound_dependency_cleared';
+ exception when raise_exception then if sqlerrm<>'raster_adoption_binding_immutable' then raise; end if; end;
+ begin
+  update public.cardforge_contributor_asset_submissions set source_payload=jsonb_set(source_payload,'{name}','"Changed"') where id=adopted;
+  raise exception 'bound_payload_rewritten';
+ exception when raise_exception then if sqlerrm<>'raster_adoption_binding_immutable' then raise; end if; end;
+ legacy:=public.cardforge_create_template_pipeline_draft('legacy-unbound-template','Legacy unbound','raster-proof',null,
+   '{"id":"legacy-unbound-template","name":"Legacy unbound"}', 'legacy-unbound-key');
+ begin
+  update public.cardforge_contributor_asset_submissions set catalog_dependencies=jsonb_build_object('managedRaster',bound) where id=legacy;
+  raise exception 'legacy_dependency_backfill_admitted';
+ exception when raise_exception then if sqlerrm<>'raster_adoption_binding_immutable' then raise; end if; end;
+ if has_function_privilege('anon','public.cardforge_create_template_pipeline_draft(text,text,text,text,jsonb,text,jsonb)','EXECUTE')
+   or has_function_privilege('authenticated','public.cardforge_submit_template_revision(text,text,text,text,text,jsonb,integer,text,jsonb)','EXECUTE') then
+   raise exception 'adoption_privilege_expanded'; end if;
  raise notice 'PASS managed raster native digest/revision/ref fence';
 end $$;
 rollback;
