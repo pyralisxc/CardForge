@@ -39,7 +39,6 @@ type PublishedRasterRecord = {
   source_storage_path: string | null;
   source_mime_type: string | null;
   source_file_size_bytes: number | null;
-  source_content_sha256: string | null;
 };
 
 /** An authored selection is static only when the current Template cannot
@@ -81,7 +80,7 @@ export async function verifySelectedPublishedManagedRaster(
     || registry.contributor_submission_id !== selection.publishedSubmissionId) throw unavailable();
 
   const { data: source, error: sourceError } = await db.from('cardforge_contributor_asset_submissions')
-    .select('id,lineage_id,revision_number,status,published_at,target_registry_asset_id,source_storage_bucket,source_storage_path,source_mime_type,source_file_size_bytes,source_content_sha256')
+    .select('id,lineage_id,revision_number,status,published_at,target_registry_asset_id,source_storage_bucket,source_storage_path,source_mime_type,source_file_size_bytes')
     .eq('id',selection.publishedSubmissionId).maybeSingle();
   if (sourceError) throw new PipelineRegistryCommandError('Published raster revision could not be checked.', 503);
   const revision = source as PublishedRasterRecord | null;
@@ -91,11 +90,10 @@ export async function verifySelectedPublishedManagedRaster(
     || revision.target_registry_asset_id !== selection.registryAssetId
     || revision.source_storage_bucket !== 'cardforge-contributor-assets'
     || !revision.source_storage_path
-    || !/^[a-f0-9]{64}$/u.test(revision.source_content_sha256 ?? '')
     || !['image/png','image/jpeg','image/webp'].includes(revision.source_mime_type ?? '')) throw unavailable();
 
   const { data: lineage, error: lineageError } = await db.from('cardforge_pipeline_asset_lineages')
-    .select('id,registry_asset_id,upload_state,upload_submission_id,upload_operation_token,upload_source_path,catalog_trashed_at,purge_state,catalog_claim_token,catalog_claimed_at,catalog_destructive_uncertainty')
+    .select('id,registry_asset_id,upload_state,upload_submission_id,upload_operation_token,upload_request,upload_source_path,catalog_trashed_at,purge_state,catalog_claim_token,catalog_claimed_at,catalog_destructive_uncertainty')
     .eq('id',revision.lineage_id).maybeSingle();
   if (lineageError) throw new PipelineRegistryCommandError('Raster ownership could not be verified.', 503);
   if (!lineage || lineage.id !== revision.lineage_id || lineage.registry_asset_id !== selection.registryAssetId
@@ -108,13 +106,14 @@ export async function verifySelectedPublishedManagedRaster(
   // Match its original operation/lineage/Storage tuple, not its id to the
   // current publication submission.
   const { data: receipt, error: receiptError } = await db.from('cardforge_contributor_asset_submissions')
-    .select('id,lineage_id,source_upload_token,source_storage_bucket,source_storage_path')
+    .select('id,lineage_id,source_upload_token,source_storage_bucket,source_storage_path,source_content_sha256')
     .eq('id',lineage.upload_submission_id).maybeSingle();
   if (receiptError) throw new PipelineRegistryCommandError('Original upload receipt is unavailable.',503);
   if (!receipt || receipt.id !== lineage.upload_submission_id || receipt.lineage_id !== revision.lineage_id
     || receipt.source_upload_token !== lineage.upload_operation_token
     || receipt.source_storage_bucket !== revision.source_storage_bucket
-    || receipt.source_storage_path !== revision.source_storage_path) throw unavailable();
+    || receipt.source_storage_path !== revision.source_storage_path
+    || !/^[a-f0-9]{64}$/u.test(receipt.source_content_sha256 ?? '')) throw unavailable();
   const { data: file, error: downloadError } = await db.storage.from(revision.source_storage_bucket)
     .download(revision.source_storage_path);
   if (downloadError || !file) throw new PipelineRegistryCommandError('Published raster bytes could not be verified.', 503);
@@ -122,7 +121,7 @@ export async function verifySelectedPublishedManagedRaster(
   if (!bytes.length || bytes.length > 2_400_000
     || (revision.source_file_size_bytes !== null && revision.source_file_size_bytes !== bytes.length)) throw unavailable();
   const originalSha256 = createHash('sha256').update(bytes).digest('hex');
-  if (originalSha256 !== revision.source_content_sha256) throw unavailable();
+  if (originalSha256 !== receipt.source_content_sha256) throw unavailable();
 
   // This read-only observation is never an adoption receipt. The matching
   // native locked source/consumer transaction remains the authority.

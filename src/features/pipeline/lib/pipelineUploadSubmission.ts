@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { isReservedPipelineUploadPath, isPipelineUploadToken, runPipelineUploadCommand } from './pipelineUploadCommitments';
 import sharp from 'sharp';
 import { create as decodeFont } from 'fontkit';
@@ -468,9 +469,9 @@ export const createUploadedPipelineSubmission = async ({
   };
   const request = buildPipelineSubmissionRecord({ contributorId, contributorEmail, input });
   const descriptorIdentity = uploadIdentity(descriptor);
-  const prepare = async (claim: boolean) => {
+  const prepare = async (claim: boolean, payload = request) => {
     const result = await runPipelineUploadCommand('cardforge_prepare_pipeline_upload_submission', {
-      p_actor: contributorId, p_path: uploadedFile.storagePath, p_descriptor: descriptorIdentity, p_request: request, p_claim: claim,
+      p_actor: contributorId, p_path: uploadedFile.storagePath, p_descriptor: descriptorIdentity, p_request: payload, p_claim: claim,
     }) as { state?: unknown; token?: unknown };
     if (result.state !== 'owned' && result.state !== 'pending' && !(result.state === 'submitting' && isPipelineUploadToken(result.token))) {
       throw new PipelineStoreError('The upload ownership receipt is unreadable. Its source is retained.', 503);
@@ -485,9 +486,13 @@ export const createUploadedPipelineSubmission = async ({
   let normalizedBytes: Buffer | null = null;
   if (descriptor.assetType === 'sets') await assertUploadedSetPackage(uploadedBytes);
   else normalizedBytes = await validateUploadedAssetBytes(descriptor, uploadedBytes);
+  if (descriptor.assetType === 'imageAssets' && descriptor.extension !== 'svg') {
+    input.sourceContentSha256 = createHash('sha256').update(Buffer.from(await uploadedBytes.arrayBuffer())).digest('hex');
+  }
+  const committedRequest = { ...request, ...(input.sourceContentSha256 ? { source_content_sha256: input.sourceContentSha256 } : {}) };
   // Read-only validation may race cleanup. Recheck/commit native ownership
   // before normalization or submission so exactly one side obtains authority.
-  const commitment = await prepare(true);
+  const commitment = await prepare(true, committedRequest);
   if (commitment.state === 'owned') return;
   if (commitment.state !== 'submitting' || !isPipelineUploadToken(commitment.token)) throw new PipelineStoreError('Submission ownership was not confirmed.', 503);
   if (normalizedBytes) {

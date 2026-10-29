@@ -300,6 +300,7 @@ export const buildPipelineSubmissionRecord = ({ contributorId, contributorEmail,
       source_mime_type: normalized.value.sourceMimeType,
       source_storage_bucket: normalized.value.sourceStorageBucket,
       source_storage_path: normalized.value.sourceStoragePath,
+      ...(input.sourceContentSha256 ? { source_content_sha256: input.sourceContentSha256 } : {}),
       status: 'voting',
       automated_status: 'voting',
       owner_status_override: null,
@@ -341,6 +342,7 @@ export const createPipelineSubmission = async ({
     sourceMimeType?: unknown;
     sourceStorageBucket?: unknown;
     sourceStoragePath?: unknown;
+    sourceContentSha256?: string;
   };
 }): Promise<void> => {
   const supabase = getSupabaseServerClient();
