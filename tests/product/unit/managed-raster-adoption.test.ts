@@ -12,19 +12,21 @@ const source = {id:'submission-v3',lineage_id:'lineage-A',revision_number:3,stat
   published_at:'2026-10-28T00:00:00Z',target_registry_asset_id:'raster-live',
   source_storage_bucket:'cardforge-contributor-assets',source_storage_path:'owned/revision-3.png',
   source_mime_type:'image/png',source_file_size_bytes:4,
-  source_content_sha256:digest,source_upload_token:'token-3'};
+  source_content_sha256:digest};
+const receipt = {id:'original-upload',lineage_id:'lineage-A',source_upload_token:'token-3',
+  source_storage_bucket:'cardforge-contributor-assets',source_storage_path:'owned/revision-3.png'};
 const lineage = {id:'lineage-A',registry_asset_id:'raster-live',upload_state:'owned',
-  upload_submission_id:'submission-v3',upload_operation_token:'token-3',
+  upload_submission_id:'original-upload',upload_operation_token:'token-3',upload_request:{asset_type:'imageAssets'},
   upload_source_path:'owned/revision-3.png',catalog_trashed_at:null,purge_state:null,
-  catalog_claim_token:null,catalog_destructive_uncertainty:null};
-function mock(options:{source?:unknown;lineage?:unknown;registry?:unknown;laterRegistry?:unknown;
+  catalog_claim_token:null,catalog_claimed_at:null,catalog_destructive_uncertainty:null};
+function mock(options:{source?:unknown;lineage?:unknown;registry?:unknown;receipt?:unknown;
   file?:Uint8Array|null;storageError?:boolean}={}){
-  let registryReads=0;
+  let submissionReads=0;
   const query=(table:string)=>({select:()=>({eq:()=>({maybeSingle:async()=>{
-    if(table==='cardforge_asset_registry')return{data:++registryReads===1?(options.registry===undefined?registry:options.registry):
-      (options.laterRegistry===undefined?registry:options.laterRegistry),error:null};
+    if(table==='cardforge_asset_registry')return{data:options.registry===undefined?registry:options.registry,error:null};
     if(table==='cardforge_pipeline_asset_lineages')return{data:options.lineage===undefined?lineage:options.lineage,error:null};
-    return{data:options.source===undefined?source:options.source,error:null};
+    return{data:++submissionReads===1?(options.source===undefined?source:options.source):
+      (options.receipt===undefined?receipt:options.receipt),error:null};
   }})})});
   const download=vi.fn(async()=>({data:options.file===null?null:
     new Blob([Uint8Array.from(options.file??bytes).buffer]),error:options.storageError?{message:'unavailable'}:null}));
@@ -71,9 +73,7 @@ describe('published raster immutable-source observation',()=>{
     mock({file:Uint8Array.from([4,3,2,1])});
     await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
   });
-  it('rejects changed live pointer or wrong source revision',async()=>{
-    mock({laterRegistry:{...registry,contributor_submission_id:'other'}});
-    await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
+  it('observes a current pointer but leaves transaction races for native locked proof',async()=>{
     mock({registry:{...registry,contributor_submission_id:'other'}});
     await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
   });
@@ -83,6 +83,14 @@ describe('published raster immutable-source observation',()=>{
     mock({source:{...source,source_storage_bucket:'arbitrary-public'}});
     await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
     mock({lineage:{...lineage,catalog_trashed_at:'2026-10-28T00:00:00Z'}});
+    await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
+  });
+  it('accepts the original upload receipt distinct from the current published revision, but rejects wrong receipt tuples',async()=>{
+    const result=await verifySelectedPublishedManagedRaster(selection);
+    expect(result.submissionId).toBe('submission-v3');
+    mock({receipt:{...receipt,source_storage_path:'another/path.png'}});
+    await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
+    mock({lineage:{...lineage,catalog_claimed_at:'2026-10-28T00:00:00Z'}});
     await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
   });
   it('rejects missing bytes and unexpected sizes',async()=>{
