@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { readApiErrorMessage } from "@/infrastructure/http/clientResponses";
 
@@ -19,6 +19,7 @@ export function OwnerStudioDependencyPanel() {
   const [documentId, setDocumentId] = useState("");
   const [revision, setRevision] = useState("");
   const [pending, setPending] = useState(false);
+  const requestInFlight = useRef(false);
   const [receipt, setReceipt] = useState<ReconciliationReceipt | null>(null);
   const [error, setError] = useState("");
   const [uncertain, setUncertain] = useState(false);
@@ -26,7 +27,9 @@ export function OwnerStudioDependencyPanel() {
   const valid = uuidPattern.test(documentId.trim()) && Number.isSafeInteger(parsedRevision) && parsedRevision > 0;
 
   const reconcile = async () => {
-    if (!valid || pending || uncertain) return;
+    if (!valid || pending || uncertain || requestInFlight.current) return;
+    requestInFlight.current = true;
+    const target = { documentId: documentId.trim(), expectedRevision: parsedRevision };
     setPending(true);
     setReceipt(null);
     setError("");
@@ -36,7 +39,7 @@ export function OwnerStudioDependencyPanel() {
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         cache: "no-store",
-        body: JSON.stringify({ documentId: documentId.trim(), expectedRevision: parsedRevision }),
+        body: JSON.stringify(target),
       });
       if (!response.ok) {
         const message = await readApiErrorMessage(response, "Studio reconciliation was not confirmed.");
@@ -45,8 +48,10 @@ export function OwnerStudioDependencyPanel() {
         return;
       }
       const result = (await response.json()) as ReconciliationReceipt;
-      if (result.documentId !== documentId.trim() || result.revision !== parsedRevision ||
-        typeof result.complete !== "boolean" || !Array.isArray(result.opaqueReasons)) {
+      if (!result || result.documentId !== target.documentId || result.revision !== target.expectedRevision ||
+        !Number.isSafeInteger(result.contractVersion) || result.contractVersion <= 0 ||
+        typeof result.complete !== "boolean" || !Array.isArray(result.opaqueReasons) ||
+        !result.opaqueReasons.every((reason: unknown) => typeof reason === "string")) {
         setUncertain(true);
         setError("The response could not be verified. Inspect persisted dependency metadata before any retry.");
         return;
@@ -56,6 +61,7 @@ export function OwnerStudioDependencyPanel() {
       setUncertain(true);
       setError("The outcome is unknown. Inspect persisted dependency metadata before any retry.");
     } finally {
+      requestInFlight.current = false;
       setPending(false);
     }
   };
@@ -71,13 +77,13 @@ export function OwnerStudioDependencyPanel() {
       <div className="grid max-w-3xl gap-3 sm:grid-cols-[minmax(0,1fr)_9rem]">
         <label className="space-y-1 text-sm text-[var(--cf-text-muted)]">
           <span>Document ID</span>
-          <input aria-label="Studio document ID" value={documentId} onChange={event => { setDocumentId(event.target.value); setReceipt(null); setError(""); }}
+          <input aria-label="Studio document ID" value={documentId} disabled={pending} onChange={event => { setDocumentId(event.target.value); setReceipt(null); setError(""); }}
             placeholder="UUID from native inspection" autoComplete="off" spellCheck={false}
             className="w-full border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-2 text-[var(--cf-text-strong)]" />
         </label>
         <label className="space-y-1 text-sm text-[var(--cf-text-muted)]">
           <span>Exact revision</span>
-          <input aria-label="Expected Studio revision" value={revision} onChange={event => { setRevision(event.target.value); setReceipt(null); setError(""); }}
+          <input aria-label="Expected Studio revision" value={revision} disabled={pending} onChange={event => { setRevision(event.target.value); setReceipt(null); setError(""); }}
             inputMode="numeric" type="number" min="1" step="1" autoComplete="off"
             className="w-full border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-2 text-[var(--cf-text-strong)]" />
         </label>
@@ -90,7 +96,7 @@ export function OwnerStudioDependencyPanel() {
       </p> : null}
       {error ? <p role="alert" className="text-sm text-[var(--cf-danger)]">{error}</p> : null}
       {receipt ? <div role="status" className="space-y-1 border border-[var(--cf-border)] p-3 text-sm text-[var(--cf-text-strong)]">
-        <p>Reconciliation acknowledged for revision {receipt.revision}; interpretation contract {receipt.contractVersion}.</p>
+        <p>Reconciliation acknowledged for document {receipt.documentId}, revision {receipt.revision}; interpretation contract {receipt.contractVersion}.</p>
         <p>{receipt.complete ? "Dependency interpretation complete." : "Dependency interpretation remains incomplete; content stays opaque."}</p>
         {receipt.opaqueReasons.length ? <p>Opaque reasons: {receipt.opaqueReasons.join(", ")}</p> : null}
         <p className="text-[var(--cf-text-muted)]">Confirm persisted dependency metadata separately before accepting lifecycle recovery.</p>
