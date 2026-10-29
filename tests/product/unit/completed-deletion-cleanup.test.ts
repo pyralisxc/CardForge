@@ -3,6 +3,8 @@ import { cleanCompletedDeletionReferences } from '@/features/project/model/compl
 import { prepareCompletedDeletionCleanup } from '@/features/project/client/completedDeletionCleanup';
 import { createProjectDocumentFromState } from '@/features/project/model/projectDocument';
 import type { TCGCardTemplate } from '@/domain/templates';
+import { getCardFaceCanvas } from '@/domain/rendering';
+import { resolveFreeformImageUrl } from '@/features/card-rendering/model/elementStyles';
 
 const dead = 'https://staging.supabase.co/storage/v1/object/public/art/removed.png';
 const live = 'https://external.example/original.png';
@@ -39,6 +41,26 @@ describe('completed public deletion cleanup', () => {
     expect(fork.fieldContracts).toEqual(template.fieldContracts);
     expect(result.document.userTemplates.find((item) => item.id === 'shared')!.freeformCanvas!.elements).toHaveLength(2);
     expect(cleanCompletedDeletionReferences(result.document, new Set([dead])).changed).toBe(false);
+  });
+
+  it('keeps a repaired image blank through canonical field materialization with retained card data and contracts', () => {
+    const original = document();
+    const repaired = cleanCompletedDeletionReferences(original, new Set([dead])).document;
+    const card = repaired.storedCards[0];
+    const fork = repaired.userTemplates.find(t => t.id === card.templateId)!;
+    expect(fork.fieldContracts).toEqual(template.fieldContracts);
+    expect(card.data).toEqual({ art: dead, description: dead });
+    const rendered = getCardFaceCanvas({ uniqueId: card.uniqueId, template: fork, backingTemplate: null, backingTemplateId: null, data: card.data }, 'front');
+    const picture = rendered?.elements.find(e => e.id === 'picture');
+    expect(picture).toMatchObject({ id: 'picture', type: 'image', imageSource: '__cardforge_deleted_media_blank__', x: 10, y: 20 });
+    expect(picture && resolveFreeformImageUrl(picture, card.data)).toBe('');
+    expect(rendered?.elements.find(e => e.id === 'label')?.parentId).toBe('picture');
+    // The sibling still materializes its original field contract and live art.
+    const sibling = repaired.storedCards[1];
+    const shared = repaired.userTemplates.find(t => t.id === sibling.templateId)!;
+    const siblingCanvas = getCardFaceCanvas({ uniqueId: sibling.uniqueId, template: shared, backingTemplate: null, backingTemplateId: null, data: sibling.data }, 'front');
+    const livePicture = siblingCanvas?.elements.find(e => e.id === 'picture');
+    expect(livePicture && resolveFreeformImageUrl(livePicture, sibling.data)).toBe(live);
   });
 
   it('preserves a live card override when the shared default was deleted, on both faces', () => {
