@@ -349,7 +349,7 @@ try:
     webp_hash = 'b' * 64
     raster_request = {
         "contributor_id":"raster-owner","asset_type":"imageAssets","name":"Raster contention",
-        "variant_kind":"base","semantic_role":"artwork","specialty_tags":[],"use_case_tags":[],
+        "variant_kind":"base","semantic_role":"picture","specialty_tags":[],"use_case_tags":[],
         "compatibility_tags":[],"description":"","source_notes":"",
         "source_storage_bucket":"cardforge-contributor-assets","source_storage_path":raster_path,
         "source_url":"https://example.invalid/storage/v1/object/public/cardforge-contributor-assets/" + raster_path,

@@ -19,7 +19,7 @@ begin
  request:=jsonb_build_object(
   'contributor_id','raster-proof','contributor_email',null,'asset_type','imageAssets',
   'requested_studio_destination',null,'specialty_tags','[]'::jsonb,'use_case_tags','[]'::jsonb,
-  'semantic_role','artwork','visual_family',null,'variant_kind','base','variant_label',null,
+  'semantic_role','picture','visual_family',null,'variant_kind','base','variant_label',null,
   'compatibility_tags','[]'::jsonb,'name','Native raster proof','description','','source_notes','',
   'preview_url','https://example.invalid/storage/v1/object/public/cardforge-contributor-assets/'||path,
   'source_url','https://example.invalid/storage/v1/object/public/cardforge-contributor-assets/'||path,
