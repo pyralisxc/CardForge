@@ -230,4 +230,138 @@ grant execute on function public.cardforge_verified_raster_adoption(jsonb,jsonb)
 grant execute on function public.cardforge_raster_binding_valid(jsonb) to service_role;
 grant execute on function public.cardforge_author_template_managed_raster(text,text,text,text,text,text,jsonb,integer,text,jsonb) to service_role;
 
+
+-- Reuse the established native admission guard; bound identity references
+-- fence Trash, while legacy/unproven history remains opaque.
+create or replace function public.cardforge_catalog_trash_entry_reasons(p_lineage_id uuid)
+returns text[] language plpgsql security invoker set search_path='' as $$
+declare l public.cardforge_pipeline_asset_lineages%rowtype; r public.cardforge_asset_registry%rowtype;
+  reasons text[] := '{}'; consumer record; payload jsonb; key text;
+  ids text[]; sources text[]; opaque boolean:=false; referenced boolean:=false;
+begin
+  select * into l from public.cardforge_pipeline_asset_lineages where id=p_lineage_id;
+  select * into r from public.cardforge_asset_registry where asset_id=l.registry_asset_id;
+  if l.catalog_destructive_uncertainty is not null then reasons:=array_append(reasons,l.catalog_destructive_uncertainty); end if;
+  if l.purge_state is not null or l.catalog_claim_token is not null or l.catalog_claimed_at is not null
+    or exists(select 1 from public.cardforge_contributor_asset_submissions s where s.lineage_id=l.id
+      and (s.purge_state is not null or s.purge_claim_token is not null or s.purge_claimed_at is not null or s.owner_purge_requested_at is not null))
+    then reasons:=array_append(reasons,'destructive_attempt_requires_reconciliation'); end if;
+  if r.asset_id is null or r.contributor_submission_id is null then
+    reasons:=array_append(reasons,'catalog_registry_identity_unavailable');
+  end if;
+  if exists(select 1 from public.cardforge_contributor_asset_submissions newer
+    join public.cardforge_contributor_asset_submissions published_base on published_base.id=r.contributor_submission_id
+    where newer.lineage_id=l.id and newer.revision_number>published_base.revision_number) then
+    reasons:=array_append(reasons,'newer_revision_requires_review');
+  end if;
+  if exists(select 1 from public.cardforge_contributor_asset_submissions source where source.lineage_id=l.id
+    and (source.source_storage_bucket is not null or source.source_storage_path is not null)
+    and not coalesce((source.source_storage_bucket='cardforge-contributor-assets'
+      and source.source_storage_path=l.upload_source_path and l.upload_state='owned'
+      and l.upload_operation_token is not null and l.upload_request is not null
+      and exists(select 1 from public.cardforge_contributor_asset_submissions receipt
+        where receipt.id=l.upload_submission_id and receipt.lineage_id=l.id
+          and receipt.source_upload_token=l.upload_operation_token
+          and receipt.source_storage_bucket=source.source_storage_bucket
+          and receipt.source_storage_path=source.source_storage_path)),false)) then
+    reasons:=array_append(reasons,'upload_cleanup_commitment_unverified');
+  end if;
+  -- Templates, fonts and presets also supply the runtime bootstrap. Do not
+  -- hide them before installed-resolution compatibility has been established.
+  if r.asset_type is null or r.asset_type not in ('image','texture','divider','icon') then
+    reasons:=array_append(reasons,'installed_runtime_resolution_unverified');
+  end if;
+  ids:=array_remove(array[r.asset_id,l.id::text],null)||array(select id::text from public.cardforge_contributor_asset_submissions where lineage_id=l.id);
+  select coalesce(array_agg(distinct u) filter(where nullif(u,'') is not null),'{}') into sources
+    from (select r.url u union all select r.preview_url
+      union all select s.source_url from public.cardforge_contributor_asset_submissions s where s.lineage_id=l.id
+      union all select s.preview_url from public.cardforge_contributor_asset_submissions s where s.lineage_id=l.id) x;
+  -- Exact stored source/preview aliases only: never derive equivalence from a
+  -- display name, filename, URL rewrite, failed fetch or caller-provided scan.
+
+  -- Respect readRegistryContentAsset precedence, but do not skip an invalid
+  -- non-NULL candidate: native and JS validation may differ at their edges.
+  -- Such a candidate stays opaque rather than clearing a later fallback.
+  -- Only Styles have metadata fallback. NULL source is never backfilled.
+  -- Sets require a source-owner interpretation bound to the exact immutable
+  -- package publication. Legacy URL/hash-only rows remain opaque.
+  for consumer in select a.*,s.source_payload,to_jsonb(s) set_source from public.cardforge_asset_registry a
+    left join public.cardforge_contributor_asset_submissions s on s.id=a.contributor_submission_id
+    where a.asset_type in ('elementPreset','template','set') loop
+    payload:=consumer.source_payload;
+    if consumer.asset_type='elementPreset' then
+      if payload is null or payload='null'::jsonb then
+        payload:=null;
+        foreach key in array array['style','elementPreset','payload'] loop
+          if consumer.metadata->key is not null and consumer.metadata->key<>'null'::jsonb then
+            payload:=consumer.metadata->key; exit;
+          end if;
+        end loop;
+      end if;
+    end if;
+    if public.cardforge_catalog_consumer_mentions(payload,ids,sources)
+      or (consumer.asset_type='set' and public.cardforge_catalog_consumer_mentions(jsonb_build_object('imageSource',consumer.preview_url),ids,sources)) then referenced:=true; end if;
+    if consumer.asset_type='set' then
+      if public.cardforge_set_dependency_binding_valid(consumer.set_source)
+        and consumer.url=consumer.set_source->>'source_url'
+        and consumer.storage_bucket=consumer.set_source->>'source_storage_bucket'
+        and consumer.storage_path=consumer.set_source->>'source_storage_path' then
+        if public.cardforge_studio_dependencies_mention(consumer.set_source->'catalog_dependencies'->'references',ids,sources)
+          or public.cardforge_catalog_consumer_mentions(jsonb_build_object('imageSource',consumer.preview_url),ids,sources) then referenced:=true; end if;
+        if consumer.set_source->'catalog_dependencies'->'complete' is distinct from 'true'::jsonb then opaque:=true; end if;
+      else opaque:=true; end if;
+    elsif consumer.asset_type='template' and public.cardforge_raster_binding_valid(consumer.set_source) then
+      if consumer.set_source->'catalog_dependencies'->'managedRaster'->>'assetId'=any(ids)
+        or consumer.set_source->'catalog_dependencies'->'managedRaster'->>'lineageId'=any(ids)
+        or consumer.set_source->'catalog_dependencies'->'managedRaster'->>'submissionId'=any(ids)
+      then referenced:=true; end if;
+    elsif not public.cardforge_catalog_consumer_inspectable(payload,
+      case when consumer.asset_type='elementPreset' then 'style' else 'template' end) then opaque:=true; end if;
+  end loop;
+
+  -- Unpublished and historical native payloads remain consumers. A linked
+  -- legacy NULL Style was inspected through its authoritative registry above;
+  -- never substitute that current metadata for an unlinked historical revision.
+  for consumer in select s.* from public.cardforge_contributor_asset_submissions s
+    where s.lineage_id is distinct from l.id
+      and not exists(select 1 from public.cardforge_asset_registry a where a.contributor_submission_id=s.id
+        and a.asset_type in ('elementPreset','template','set')) loop
+    if public.cardforge_catalog_consumer_mentions(consumer.source_payload,ids,sources)
+      or (consumer.asset_type='sets' and public.cardforge_catalog_consumer_mentions(jsonb_build_object('imageSource',consumer.preview_url),ids,sources)) then referenced:=true; end if;
+    if consumer.asset_type in ('elementPresets','templates','sets') then
+      if consumer.asset_type='sets' then
+        if public.cardforge_set_dependency_binding_valid(to_jsonb(consumer)) then
+          if public.cardforge_studio_dependencies_mention(consumer.catalog_dependencies->'references',ids,sources) then referenced:=true; end if;
+          if consumer.catalog_dependencies->'complete' is distinct from 'true'::jsonb then opaque:=true; end if;
+        else opaque:=true; end if;
+      elsif consumer.asset_type='templates' and public.cardforge_raster_binding_valid(to_jsonb(consumer)) then
+        if consumer.catalog_dependencies->'managedRaster'->>'assetId'=any(ids)
+          or consumer.catalog_dependencies->'managedRaster'->>'lineageId'=any(ids)
+          or consumer.catalog_dependencies->'managedRaster'->>'submissionId'=any(ids)
+        then referenced:=true; end if;
+      elsif not public.cardforge_catalog_consumer_inspectable(consumer.source_payload,
+        case when consumer.asset_type='elementPresets' then 'style' else 'template' end) then opaque:=true; end if;
+    elsif consumer.source_payload is not null then
+      -- No negative proof for an unsupported payload kind.
+      opaque:=true;
+    end if;
+  end loop;
+  if referenced then reasons:=array_append(reasons,'pipeline_identity_consumer_requires_resolution'); end if;
+
+  -- Inspect the proven source-contained Studio subset in the existing SHARE-
+  -- locked mutation transaction; never consume an earlier service-side scan.
+  for consumer in select document_payload,revision,catalog_dependencies from public.cardforge_studio_documents loop
+    if public.cardforge_catalog_consumer_mentions(consumer.document_payload,ids,sources)
+      or (public.cardforge_studio_dependency_binding_valid(consumer.document_payload,consumer.revision,consumer.catalog_dependencies)
+        and public.cardforge_studio_dependencies_mention(consumer.catalog_dependencies->'references',ids,sources)) then
+      if not ('studio_identity_consumer_requires_resolution'=any(reasons)) then
+        reasons:=array_append(reasons,'studio_identity_consumer_requires_resolution');
+      end if;
+    elsif not public.cardforge_studio_dependency_binding_valid(consumer.document_payload,consumer.revision,consumer.catalog_dependencies)
+      or consumer.catalog_dependencies->'complete' is distinct from 'true'::jsonb then opaque:=true;
+    end if;
+  end loop;
+  if opaque then reasons:=array_append(reasons,'json_consumer_inventory_unverified'); end if;
+  return reasons;
+end $$;
 commit;
