@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createHash } from 'node:crypto';
+import sharp from 'sharp';
 
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import {
   externalizePipelineTemplateAssets,
+  storePipelineTemplateAsset,
   hydratePipelineTemplateAssetReferences,
 } from '@/features/pipeline/lib/pipelineTemplateAssets';
 import { mapRegistryRowsToTemplateLibrary } from '@/features/pipeline/lib/repositoryCatalog';
@@ -17,6 +20,29 @@ const onePixelPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAA
 describe('Pipeline Template assets', () => {
   beforeEach(() => {
     mockedGetSupabaseServerClient.mockReset();
+  });
+
+  it('decodes actual raster bytes into a separate verified WebP content identity', async () => {
+    const source = Buffer.from(onePixelPng.split(',')[1]!, 'base64');
+    const writes: Buffer[] = [];
+    const upload = vi.fn(async (_path: string, bytes: Buffer) => {
+      writes.push(Buffer.from(bytes)); return { error: null };
+    });
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    mockedGetSupabaseServerClient.mockReturnValue({
+      storage: { from: () => ({ exists: async () => ({ data: false, error: null }), upload }) },
+      from: () => ({ upsert }),
+    } as never);
+    const normalizedReference = await storePipelineTemplateAsset(source);
+    expect(writes).toHaveLength(1);
+    expect((await sharp(writes[0]).metadata()).format).toBe('webp');
+    const originalSha = createHash('sha256').update(source).digest('hex');
+    const normalizedSha = createHash('sha256').update(writes[0]).digest('hex');
+    expect(normalizedSha).not.toBe(originalSha);
+    expect(normalizedReference).toBe('cardforge-pipeline-asset://' + normalizedSha);
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      asset_id: normalizedSha, storage_path: 'template-assets/' + normalizedSha + '.webp',
+    }), { onConflict: 'asset_id' });
   });
 
   it('stores repeated embedded artwork once and persists only content-addressed references', async () => {
