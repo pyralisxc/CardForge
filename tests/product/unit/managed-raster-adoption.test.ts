@@ -7,17 +7,17 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerCl
 const bytes = Uint8Array.from([1,2,3,4]);
 const digest = createHash('sha256').update(bytes).digest('hex');
 const selection = {registryAssetId:'raster-live',publishedSubmissionId:'submission-v3',elementId:'art'};
-const registry = {asset_id:'raster-live',asset_type:'image',status:'published',contributor_submission_id:'submission-v3'};
+const registry = {asset_id:'raster-live',asset_type:'image',status:'published',access_tier:'free',contributor_submission_id:'submission-v3'};
 const source = {id:'submission-v3',lineage_id:'lineage-A',revision_number:3,status:'published',
   published_at:'2026-10-28T00:00:00Z',target_registry_asset_id:'raster-live',
-  source_storage_bucket:'cardforge-contributor-assets',source_storage_path:'owned/revision-3.png',
+  source_storage_bucket:'cardforge-contributor-assets',source_storage_path:'pipeline-owned-v1/fixture/source.png',
   source_mime_type:'image/png',source_file_size_bytes:4,
 };
 const receipt = {id:'original-upload',lineage_id:'lineage-A',source_upload_token:'token-3',
-  source_storage_bucket:'cardforge-contributor-assets',source_storage_path:'owned/revision-3.png',source_content_sha256:digest};
+  source_storage_bucket:'cardforge-contributor-assets',source_storage_path:'pipeline-owned-v1/fixture/source.png',source_content_sha256:digest};
 const lineage = {id:'lineage-A',registry_asset_id:'raster-live',upload_state:'owned',
   upload_submission_id:'original-upload',upload_operation_token:'token-3',upload_request:{asset_type:'imageAssets'},
-  upload_source_path:'owned/revision-3.png',catalog_trashed_at:null,purge_state:null,
+  upload_source_path:'pipeline-owned-v1/fixture/source.png',catalog_trashed_at:null,purge_state:null,
   catalog_claim_token:null,catalog_claimed_at:null,catalog_destructive_uncertainty:null};
 function mock(options:{source?:unknown;lineage?:unknown;registry?:unknown;receipt?:unknown;
   file?:Uint8Array|null;storageError?:boolean}={}){

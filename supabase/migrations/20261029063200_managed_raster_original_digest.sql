@@ -32,6 +32,36 @@ end $$; then raise exception 'pipeline_upload_source_digest_missing'; end if;
  update public.cardforge_pipeline_asset_lineages set upload_state='submitting',upload_operation_token=gen_random_uuid(),upload_request=p_request where id=l.id returning * into l;
  return jsonb_build_object('state','submitting','token',l.upload_operation_token,'lineageId',l.id);
 end $$;
+create or replace function public.cardforge_guard_pipeline_upload_source() returns trigger
+language plpgsql security invoker set search_path='' as $$
+declare l public.cardforge_pipeline_asset_lineages%rowtype;
+begin
+ if tg_op='UPDATE' and new.source_content_sha256 is distinct from old.source_content_sha256
+   then raise exception 'pipeline_upload_identity_conflict'; end if;
+ if tg_op='UPDATE' and old.source_storage_path like 'pipeline-owned-v1/%' and
+   (new.source_storage_path is distinct from old.source_storage_path or new.source_storage_bucket is distinct from old.source_storage_bucket
+    or new.lineage_id is distinct from old.lineage_id or new.contributor_id is distinct from old.contributor_id
+    or new.source_upload_token is distinct from old.source_upload_token or new.asset_type is distinct from old.asset_type
+    or new.source_url is distinct from old.source_url or new.source_file_size_bytes is distinct from old.source_file_size_bytes
+    or new.source_mime_type is distinct from old.source_mime_type) then raise exception 'pipeline_upload_identity_conflict'; end if;
+ -- Existing source identities are immutable; ordinary governance/claim updates
+ -- retain their existing owners and must not be blocked by their own commitment.
+ if tg_op='UPDATE' and old.source_storage_path like 'pipeline-owned-v1/%' then return new; end if;
+ if new.source_storage_path like 'pipeline-owned-v1/%' or new.source_url like '%/pipeline-owned-v1/%' then
+   select * into l from public.cardforge_pipeline_asset_lineages where upload_source_path=new.source_storage_path for update nowait;
+   if not found or new.source_storage_bucket is distinct from 'cardforge-contributor-assets'
+      or new.contributor_id is distinct from l.upload_contributor_id or new.lineage_id is distinct from l.id
+      or new.asset_type is distinct from l.upload_descriptor->>'assetType'
+      or right(coalesce(new.source_url,''),length('/storage/v1/object/public/cardforge-contributor-assets/'||new.source_storage_path))
+        <> '/storage/v1/object/public/cardforge-contributor-assets/'||new.source_storage_path then raise exception 'pipeline_upload_identity_conflict'; end if;
+   if l.purge_state is not null or l.catalog_destructive_uncertainty is not null or l.catalog_trashed_at is not null then
+     raise exception 'pipeline_upload_prior_commitment'; end if;
+   if l.upload_state='submitting' then
+     if new.source_upload_token is distinct from l.upload_operation_token then raise exception 'pipeline_upload_identity_conflict'; end if;
+   elsif l.upload_state<>'owned' then raise exception 'pipeline_upload_cleanup_committed'; end if;
+ end if;
+ return new;
+end $$;
 create or replace function public.cardforge_commit_pipeline_upload_submission(p_path text,p_token uuid,p_fields jsonb) returns uuid
 language plpgsql security invoker set search_path='' as $$
 declare l public.cardforge_pipeline_asset_lineages%rowtype; result uuid;
@@ -112,7 +142,7 @@ begin
    then raise exception 'raster_adoption_source_changed'; end if;
  select * into l from public.cardforge_pipeline_asset_lineages where id=published.lineage_id for update nowait;
  select * into r from public.cardforge_asset_registry where asset_id=p_requested->>'assetId' for share;
- if l.id is null or r.asset_id is null or r.asset_type<>'image' or r.status<>'published'
+ if l.id is null or r.asset_id is null or r.asset_type<>'image' or r.status<>'published' or r.access_tier<>'free'
    or r.contributor_submission_id is distinct from published.id
    or l.registry_asset_id is distinct from r.asset_id
    or l.upload_state<>'owned' or l.upload_submission_id is null
@@ -129,6 +159,7 @@ begin
    or original.source_storage_bucket is distinct from published.source_storage_bucket
    or original.source_storage_path is distinct from published.source_storage_path
    or original.source_storage_bucket<>'cardforge-contributor-assets'
+   or original.source_storage_path not like 'pipeline-owned-v1/%'
    or original.source_content_sha256 is null
    or original.source_content_sha256 is distinct from p_requested->>'originalSha256'
    or published.source_mime_type not in ('image/png','image/jpeg','image/webp')

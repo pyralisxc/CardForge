@@ -75,9 +75,9 @@ export async function verifySelectedPublishedManagedRaster(
   const db = getSupabaseServerClient();
   if (!db) throw new PipelineRegistryCommandError('Pipeline source storage is unavailable.', 503);
   const { data: registry, error: registryError } = await db.from('cardforge_asset_registry')
-    .select('asset_id,asset_type,status,contributor_submission_id').eq('asset_id',selection.registryAssetId).maybeSingle();
+    .select('asset_id,asset_type,status,access_tier,contributor_submission_id').eq('asset_id',selection.registryAssetId).maybeSingle();
   if (registryError) throw new PipelineRegistryCommandError('Published raster identity could not be checked.', 503);
-  if (!registry || registry.asset_type !== 'image' || registry.status !== 'published'
+  if (!registry || registry.asset_type !== 'image' || registry.status !== 'published' || registry.access_tier !== 'free'
     || registry.contributor_submission_id !== selection.publishedSubmissionId) throw unavailable();
 
   const { data: source, error: sourceError } = await db.from('cardforge_contributor_asset_submissions')
@@ -90,7 +90,7 @@ export async function verifySelectedPublishedManagedRaster(
     || !Number.isInteger(revision.revision_number) || revision.revision_number < 1
     || revision.target_registry_asset_id !== selection.registryAssetId
     || revision.source_storage_bucket !== 'cardforge-contributor-assets'
-    || !revision.source_storage_path
+    || !revision.source_storage_path || !revision.source_storage_path.startsWith('pipeline-owned-v1/')
     || !['image/png','image/jpeg','image/webp'].includes(revision.source_mime_type ?? '')) throw unavailable();
 
   const { data: lineage, error: lineageError } = await db.from('cardforge_pipeline_asset_lineages')
