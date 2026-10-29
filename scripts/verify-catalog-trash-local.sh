@@ -10,6 +10,14 @@ proof="$root/test-results/native-catalog-trash"
 mkdir -p "$proof"
 git rev-parse HEAD HEAD^{tree} > "$proof/source-identity.txt"
 cat "$proof/source-identity.txt"
+# Temporary canonical migration generation; removed after collecting CLI provenance.
+supabase migration new --help > "$proof/migration-new-help.txt"
+supabase migration new managed_raster_first_publication
+migration=$(find "$root/supabase/migrations" -name '*_managed_raster_first_publication.sql' -print)
+[[ $(printf '%s\n' "$migration" | wc -l) == 1 && -n "$migration" ]]
+cp "$root/supabase/tests/managed_raster_first_publication.preparation.sql" "$migration"
+printf '%s\n' "$migration"
+cp "$migration" "$proof/"
 supabase start --help > "$proof/start-help.txt"
 supabase db reset --help > "$proof/reset-help.txt"
 supabase stop --help > "$proof/stop-help.txt"

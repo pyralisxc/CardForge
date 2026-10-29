@@ -15,6 +15,7 @@ import { TemplateAssetLibraryPicker } from './TemplateAssetLibraryPicker';
 
 interface ImageInspectorPanelProps {
   element: FreeformCardElement;
+  canUseAsFixedPicture?: boolean;
   managedAdoption?: ComponentProps<typeof TemplateAssetLibraryPicker>['managedAdoption'];
   imageAssets: CardAssetOption[];
   personalItems: readonly PersonalLibraryItem[];
@@ -27,6 +28,7 @@ interface ImageInspectorPanelProps {
 export function ImageInspectorPanel({
   element,
   managedAdoption,
+  canUseAsFixedPicture = false,
   imageAssets,
   personalItems,
   onUpdateElement,
@@ -66,6 +68,9 @@ export function ImageInspectorPanel({
             />
           </div>
         </div>
+        {canUseAsFixedPicture && <Button type="button" variant="outline" onClick={() => onUpdateElement({ imageSource: '', content: '' })}>
+          Use as fixed picture
+        </Button>}
         <div className="space-y-2">
           <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Pictures</Label>
           <TemplateAssetLibraryPicker

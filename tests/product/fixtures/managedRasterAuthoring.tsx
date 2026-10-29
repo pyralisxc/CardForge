@@ -5,10 +5,8 @@ import { useTemplateLibraryActions } from '@/features/template-editor/hooks/useT
 import { Toaster } from '@/components/ui/toaster';
 import type { TCGCardTemplate } from '@/domain/templates';
 const noop = () => {};
-const initial: TCGCardTemplate = { id:'synthetic-local',name:'Synthetic authoring',aspectRatio:'63:88',templateSource:'user',freeformCanvas:{width:630,height:880,elements:[
-  {id:'art',name:'Static picture',type:'image',x:100,y:100,width:300,height:300,zIndex:1,imageSource:'',content:''},
-  {id:'other',name:'Other slot',type:'image',x:100,y:500,width:200,height:200,zIndex:2,imageSource:'',content:''},
-]} };
+const initial: TCGCardTemplate = { id:'synthetic-local',name:'Synthetic authoring',aspectRatio:'63:88',templateSource:'user',freeformCanvas:{width:630,height:880,elements:[]} };
+if(new URLSearchParams(location.search).has('contract')) initial.fieldContracts=[{key:'existingArtwork',type:'image'}];
 function Fixture() {
   const [templates, setTemplates] = useState([initial]);
   const [saved,setSaved] = useState(''); const [exported,setExported]=useState('');

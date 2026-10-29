@@ -9,9 +9,9 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerCl
 const bytes = Uint8Array.from([1,2,3,4]);
 const digest = createHash('sha256').update(bytes).digest('hex');
 const selection = {registryAssetId:'raster-live',publishedSubmissionId:'submission-v3',elementId:'art'};
-const registry = {asset_id:'raster-live',asset_type:'image',status:'published',access_tier:'free',contributor_submission_id:'submission-v3'};
-const source = {id:'submission-v3',lineage_id:'lineage-A',revision_number:3,status:'published',
-  published_at:'2026-10-28T00:00:00Z',target_registry_asset_id:'raster-live',
+const registry = {asset_id:'raster-live',asset_type:'image',status:'published',access_tier:'free',contributor_submission_id:'submission-v3',metadata:{revisionId:'submission-v3',revisionNumber:3}};
+const source = {id:'submission-v3',lineage_id:'lineage-A',asset_type:'imageAssets',revision_number:3,status:'published',
+  published_at:'2026-10-28T00:00:00Z',registry_asset_id:'raster-live',target_registry_asset_id:'raster-live',
   source_storage_bucket:'cardforge-contributor-assets',source_storage_path:'pipeline-owned-v1/fixture/source.png',
   source_mime_type:'image/png',source_file_size_bytes:4,
 };
@@ -68,6 +68,26 @@ describe('published raster immutable-source observation',()=>{
     expect(result).toMatchObject({submissionId:'submission-v3',lineageId:'lineage-A',originalSha256:digest});
     expect(result).not.toHaveProperty('normalizedReference');
     expect(result).not.toHaveProperty('templateWebpSha256');
+  });
+  it('reads exact first-publication metadata without backfilling a NULL native ordinal or target',async()=>{
+    const first={...source,revision_number:null,target_registry_asset_id:null};
+    const before=structuredClone(first);
+    mock({source:first,registry:{...registry,metadata:{revisionId:source.id,revisionNumber:1}}});
+    await expect(verifySelectedPublishedManagedRaster(selection)).resolves.toMatchObject({revisionNumber:1});
+    expect(first).toEqual(before);
+  });
+  it.each([
+    {revisionId:'other',revisionNumber:3}, {revisionId:source.id,revisionNumber:2},
+    {revisionId:source.id,revisionNumber:0}, {revisionId:source.id,revisionNumber:'3'}, {},
+  ])('rejects mismatched publication metadata %j',async metadata=>{
+    mock({registry:{...registry,metadata}});
+    await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
+  });
+  it('rejects NULL native ordinal beyond revision one and mismatched registry/target identity',async()=>{
+    for (const invalid of [{...source,revision_number:null},{...source,registry_asset_id:'other'}, {...source,target_registry_asset_id:'other'}]) {
+      mock({source:invalid});
+      await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
+    }
   });
   it('rejects uncommitted legacy digest, spoofed lineage or independent submission',async()=>{
     const legacy=mock({receipt:{...receipt,source_content_sha256:null}});

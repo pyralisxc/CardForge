@@ -28,7 +28,9 @@ const ineligible = () => new PipelineRegistryCommandError(
 type PublishedRasterRecord = {
   id: string;
   lineage_id: string;
-  revision_number: number;
+  asset_type: string;
+  revision_number: number | null;
+  registry_asset_id: string | null;
   status: string;
   published_at: string | null;
   target_registry_asset_id: string | null;
@@ -65,21 +67,25 @@ export async function verifySelectedPublishedManagedRaster(
   const db = getSupabaseServerClient();
   if (!db) throw new PipelineRegistryCommandError('Pipeline source storage is unavailable.', 503);
   const { data: registry, error: registryError } = await db.from('cardforge_asset_registry')
-    .select('asset_id,asset_type,status,access_tier,contributor_submission_id').eq('asset_id',selection.registryAssetId).maybeSingle();
+    .select('asset_id,asset_type,status,access_tier,contributor_submission_id,metadata').eq('asset_id',selection.registryAssetId).maybeSingle();
   if (registryError) throw new PipelineRegistryCommandError('Published raster identity could not be checked.', 503);
   if (!registry || registry.asset_type !== 'image' || registry.status !== 'published' || registry.access_tier !== 'free') throw ineligible();
   if (registry.contributor_submission_id !== selection.publishedSubmissionId) throw new PipelineRegistryCommandError(
     'The selected publication changed. Refresh the Library and choose its exact revision again.', 409, 'managed_raster_conflict');
 
   const { data: source, error: sourceError } = await db.from('cardforge_contributor_asset_submissions')
-    .select('id,lineage_id,revision_number,status,published_at,target_registry_asset_id,source_storage_bucket,source_storage_path,source_mime_type,source_file_size_bytes')
+    .select('id,lineage_id,asset_type,revision_number,status,published_at,registry_asset_id,target_registry_asset_id,source_storage_bucket,source_storage_path,source_mime_type,source_file_size_bytes')
     .eq('id',selection.publishedSubmissionId).maybeSingle();
   if (sourceError) throw new PipelineRegistryCommandError('Published raster revision could not be checked.', 503);
   const revision = source as PublishedRasterRecord | null;
-  if (!revision || revision.id !== selection.publishedSubmissionId || !revision.lineage_id
+  const publishedOrdinal = registry.metadata?.revisionNumber;
+  if (!revision || revision.id !== selection.publishedSubmissionId || !revision.lineage_id || revision.asset_type !== 'imageAssets'
     || revision.status !== 'published' || !revision.published_at
-    || !Number.isInteger(revision.revision_number) || revision.revision_number < 1
-    || revision.target_registry_asset_id !== selection.registryAssetId
+    || !Number.isSafeInteger(publishedOrdinal) || publishedOrdinal < 1 || publishedOrdinal > 2147483647
+    || registry.metadata?.revisionId !== revision.id
+    || (revision.revision_number === null ? publishedOrdinal !== 1 : revision.revision_number !== publishedOrdinal)
+    || revision.registry_asset_id !== selection.registryAssetId
+    || (revision.target_registry_asset_id !== null && revision.target_registry_asset_id !== selection.registryAssetId)
     || revision.source_storage_bucket !== 'cardforge-contributor-assets'
     || !revision.source_storage_path || !revision.source_storage_path.startsWith('pipeline-owned-v1/')
     || !['image/png','image/jpeg','image/webp'].includes(revision.source_mime_type ?? '')) throw ineligible();
@@ -122,7 +128,7 @@ export async function verifySelectedPublishedManagedRaster(
   // native locked source/consumer transaction remains the authority.
   return {
     registryAssetId: selection.registryAssetId, lineageId: revision.lineage_id,
-    submissionId: revision.id, revisionNumber: revision.revision_number,
+    submissionId: revision.id, revisionNumber: publishedOrdinal,
     elementId: selection.elementId, sourceBucket: revision.source_storage_bucket,
     sourcePath: revision.source_storage_path, originalSha256,
   };
