@@ -3,7 +3,7 @@ import { seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
 const deletedUrl = 'https://example.invalid/completed-public-artwork.png';
 
-test('cleans confirmed deleted card artwork, saves recovery, and keeps a shared sibling on reload', async ({ page }, testInfo) => {
+test('@golden cleans confirmed deleted card artwork, saves recovery, and keeps a shared sibling on reload', async ({ page }, testInfo) => {
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, exportSample: true });
   await page.evaluate(async (url) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -52,7 +52,7 @@ test('cleans confirmed deleted card artwork, saves recovery, and keeps a shared 
 });
 
 
-test('repair save failure gates the editor and retry commits without erasing the original', async ({ page }) => {
+test('@golden repair save failure gates the editor and retry commits without erasing the original', async ({ page }) => {
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, exportSample: true });
   const original = await page.evaluate(async (url) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
