@@ -44,6 +44,13 @@ function input(node: Node, value: string) { (node.props.onChange as (event: unkn
 function submit(tree: ReactElement) {
   return nodes(tree).find(n => n.type === 'button' || typeof n.props.onClick === 'function')!;
 }
+function click(tree: ReactElement) {
+  // The real Button callback returns void, so its return value is not completion.
+  (submit(tree).props.onClick as () => void)();
+}
+async function settle(assertion: (tree: ReactElement) => void) {
+  await vi.waitFor(() => assertion(render()));
+}
 function selectTarget() {
   let tree = render();
   input(field(tree, 'Studio document ID'), documentId);
@@ -59,21 +66,21 @@ describe('Owner Studio dependency action UI', () => {
     const fetchMock = vi.fn(() => new Promise<Response>(done => { resolve = done; }));
     vi.stubGlobal('fetch', fetchMock);
     const initial = selectTarget();
-    const original = (submit(initial).props.onClick as () => Promise<void>)();
+    click(initial);
     const pending = render();
     expect(field(pending, 'Studio document ID').props.disabled).toBe(true);
     expect(field(pending, 'Expected Studio revision').props.disabled).toBe(true);
     expect(submit(pending).props.disabled).toBe(true);
     // The same old click closure also cannot start a second request.
-    await (submit(initial).props.onClick as () => Promise<void>)();
+    click(initial);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(JSON.parse((fetchMock.mock.calls[0] as unknown as [string, { body: string }])[1].body)).toEqual({ documentId, expectedRevision: 7 });
     resolve(new Response(JSON.stringify({ documentId, revision: 7, contractVersion: 1, complete: true, opaqueReasons: [] })));
-    await original;
-    const done = render();
-    expect(textOf(done)).toContain(`document ${documentId}, revision 7`);
-    expect(field(done, 'Studio document ID').props.disabled).toBe(false);
-    expect(field(done, 'Expected Studio revision').props.disabled).toBe(false);
+    await settle(done => {
+      expect(textOf(done)).toContain(`document ${documentId}, revision 7`);
+      expect(field(done, 'Studio document ID').props.disabled).toBe(false);
+      expect(field(done, 'Expected Studio revision').props.disabled).toBe(false);
+    });
   });
 
   it.each([
@@ -84,31 +91,39 @@ describe('Owner Studio dependency action UI', () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify(body)));
     vi.stubGlobal('fetch', fetchMock);
     const tree = selectTarget();
-    await (submit(tree).props.onClick as () => Promise<void>)();
-    const done = render();
-    expect(textOf(done)).toContain('outcome');
-    expect(textOf(done)).not.toContain('Reconciliation acknowledged');
-    expect(submit(done).props.disabled).toBe(true);
+    click(tree);
+    await settle(done => {
+      expect(textOf(done)).toContain('outcome');
+      expect(textOf(done)).not.toContain('Reconciliation acknowledged');
+      expect(submit(done).props.disabled).toBe(true);
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('disables retry after a network or 503 outcome with unknown write state', async () => {
-    const fetchMock = vi.fn(async () => { throw new TypeError('lost response'); });
+  it.each(['network', 'http503'] as const)('disables repeat after %s uncertainty while mounted', async failure => {
+    const fetchMock = vi.fn(async () => {
+      if (failure === 'network') throw new TypeError('lost response');
+      return new Response(JSON.stringify({ error: { message: 'Reconciliation unavailable' } }), { status: 503 });
+    });
     vi.stubGlobal('fetch', fetchMock);
-    await (submit(selectTarget()).props.onClick as () => Promise<void>)();
-    const done = render();
-    expect(textOf(done)).toContain('Outcome uncertain');
-    expect(submit(done).props.disabled).toBe(true);
+    click(selectTarget());
+    await settle(done => {
+      expect(textOf(done)).toContain('Outcome uncertain');
+      expect(submit(done).props.disabled).toBe(true);
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('permits correction after a known 409 conflict without claiming success', async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: { message: 'Studio revision changed' } }), { status: 409 }));
     vi.stubGlobal('fetch', fetchMock);
-    await (submit(selectTarget()).props.onClick as () => Promise<void>)();
+    click(selectTarget());
+    await settle(done => {
+      expect(textOf(done)).toContain('Studio revision changed');
+      expect(textOf(done)).not.toContain('Reconciliation acknowledged');
+      expect(submit(done).props.disabled).toBe(false);
+    });
     let tree = render();
-    expect(textOf(tree)).not.toContain('Reconciliation acknowledged');
-    expect(submit(tree).props.disabled).toBe(false);
     input(field(tree, 'Expected Studio revision'), '8');
     tree = render();
     expect(field(tree, 'Expected Studio revision').props.value).toBe('8');

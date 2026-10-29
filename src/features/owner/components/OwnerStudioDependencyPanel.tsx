@@ -92,7 +92,7 @@ export function OwnerStudioDependencyPanel() {
         {pending ? "Reconciling…" : "Reconcile exact Studio revision"}
       </Button>
       {uncertain ? <p role="alert" className="text-sm text-[var(--cf-warning)]">
-        Outcome uncertain: the action remains disabled for this session. Read native Studio dependency state before retrying in a fresh session.
+        Outcome uncertain: this control is locked while mounted. Inspect native Studio dependency state before any retry, including after reopening this panel.
       </p> : null}
       {error ? <p role="alert" className="text-sm text-[var(--cf-danger)]">{error}</p> : null}
       {receipt ? <div role="status" className="space-y-1 border border-[var(--cf-border)] p-3 text-sm text-[var(--cf-text-strong)]">
