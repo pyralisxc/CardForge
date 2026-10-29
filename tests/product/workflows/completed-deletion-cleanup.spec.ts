@@ -50,3 +50,70 @@ test('cleans confirmed deleted card artwork, saves recovery, and keeps a shared 
   await expect(page.getByLabel('100 Card Scale Set focused Artifact viewport', { exact: true }).locator('[data-freeform-element-id="scale-artwork"]').filter({ visible: true }).first()).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('shared-sibling-preserved.png') });
 });
+
+
+test('repair save failure gates the editor and retry commits without erasing the original', async ({ page }) => {
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, exportSample: true });
+  const original = await page.evaluate(async (url) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('cardforge-browser-storage', 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const result = await new Promise<string>((resolve, reject) => {
+      const tx = db.transaction('key-value', 'readwrite');
+      const store = tx.objectStore('key-value');
+      const key = 'project-workspace:local:workspace';
+      const get = store.get(key);
+      get.onsuccess = () => {
+        const record = JSON.parse(get.result);
+        const workspace = JSON.parse(record.value);
+        workspace.state.storedCards[0].data.artwork = url;
+        record.value = JSON.stringify(workspace);
+        store.put(JSON.stringify(record), key);
+        resolve(JSON.stringify(record));
+      };
+      get.onerror = () => reject(get.error);
+    });
+    db.close();
+    return result;
+  }, deletedUrl);
+  await page.route('**/api/catalog/completed-deletions', route =>
+    route.fulfill({ json: { deletedUrls: route.request().postDataJSON().urls.includes(deletedUrl) ? [deletedUrl] : [] } }));
+  await page.addInitScript(() => {
+    sessionStorage.setItem('blockCompletedDeletionSave', sessionStorage.getItem('blockCompletedDeletionSave') ?? 'true');
+    const nativePut = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (value: unknown, key?: IDBValidKey) {
+      if (sessionStorage.getItem('blockCompletedDeletionSave') === 'true'
+        && key === 'project-workspace:local:workspace') {
+        throw new DOMException('Synthetic repair write failure', 'QuotaExceededError');
+      }
+      return nativePut.call(this, value, key!);
+    };
+  });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('CardForge could not finish preparing this account workspace. Try again before editing.')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Select 100 Card Scale Set/ })).toHaveCount(0);
+  const saved = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>(resolve => { const req = indexedDB.open('cardforge-browser-storage', 1); req.onsuccess = () => resolve(req.result); });
+    const result = await new Promise<string>(resolve => {
+      const req = db.transaction('key-value', 'readonly').objectStore('key-value').get('project-workspace:local:workspace');
+      req.onsuccess = () => resolve(req.result);
+    });
+    db.close(); return result;
+  });
+  expect(saved).toBe(original);
+  await page.evaluate(() => sessionStorage.setItem('blockCompletedDeletionSave', 'false'));
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByText('Deleted artwork cleared', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Select 100 Card Scale Set/ })).toBeVisible();
+  await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
+  await page.locator('button[data-artifact-id="scale-card-1"]').press('Enter');
+  await expect(page.getByLabel('100 Card Scale Set focused Artifact viewport', { exact: true })
+    .locator('[data-freeform-element-id="scale-artwork"]')).toHaveCount(1);
+  await expect(page.getByLabel('100 Card Scale Set focused Artifact viewport', { exact: true })
+    .locator('[data-freeform-element-id="scale-artwork"] img')).toHaveCount(0);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByLabel('100 Card Scale Set focused Artifact viewport', { exact: true })
+    .locator('[data-freeform-element-id="scale-artwork"] img')).toHaveCount(0);
+});
