@@ -22,3 +22,5 @@ export type { ExactCandidateSpecimen } from './lib/exactCandidateReview';
 export { createPipelineReviewTarget, resolvePipelineReviewTarget, readReviewPublication, type PipelineReviewTarget } from './lib/pipelineReviewTarget';
 
 export { PIPELINE_STATUSES, PIPELINE_TYPES } from './lib/pipelineItems';
+
+export { managedRasterSlotIssue, type ManagedRasterSelection } from './lib/managedRasterSelection';

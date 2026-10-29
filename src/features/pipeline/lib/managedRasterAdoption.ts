@@ -5,12 +5,8 @@ import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServe
 import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 import { storePipelineTemplateAsset } from './pipelineTemplateAssets';
 
-/** Author-selected source identity. A URL, asset digest or registry alias alone never supplies authority. */
-export interface ManagedRasterSelection {
-  registryAssetId: string;
-  publishedSubmissionId: string;
-  elementId: string;
-}
+import { managedRasterSlotIssue, type ManagedRasterSelection } from './managedRasterSelection';
+export type { ManagedRasterSelection } from './managedRasterSelection';
 
 export interface ObservedManagedRasterSource {
   registryAssetId: string;
@@ -24,9 +20,9 @@ export interface ObservedManagedRasterSource {
   originalSha256: string;
 }
 
-const unavailable = () => new PipelineRegistryCommandError(
-  'The selected published raster revision or its exact managed bytes are unavailable.', 409,
-  'managed_raster_adoption_unavailable',
+const ineligible = () => new PipelineRegistryCommandError(
+  'This publication is not eligible for managed adoption. It remains an ordinary picture choice where accessible; choose another managed source.', 409,
+  'managed_raster_ineligible',
 );
 
 type PublishedRasterRecord = {
@@ -50,13 +46,8 @@ export function assertStaticManagedRasterSlot(
   template: TCGCardTemplate & { id: string },
   selection: ManagedRasterSelection,
 ): void {
-  const elements = template.freeformCanvas?.elements ?? [];
-  const chosen = elements.filter(element => element.id === selection.elementId);
-  if (chosen.length !== 1 || chosen[0].type !== 'image') throw unavailable();
-  const image = chosen[0];
-  if (image.imageSource?.includes('{{') || (image.content !== undefined && image.content !== '')
-    || template.fieldContracts?.some(contract => contract.type === 'image')
-    || Object.keys(template.templatePreviewData ?? {}).length > 0) throw unavailable();
+  const issue = managedRasterSlotIssue(template, selection.elementId);
+  if (issue) throw new PipelineRegistryCommandError(issue, 409, 'managed_raster_ineligible');
 }
 
 /**
@@ -70,14 +61,15 @@ export function assertStaticManagedRasterSlot(
 export async function verifySelectedPublishedManagedRaster(
   selection: ManagedRasterSelection,
 ): Promise<ObservedManagedRasterSource> {
-  if (!selection.registryAssetId?.trim() || !selection.publishedSubmissionId?.trim() || !selection.elementId?.trim()) throw unavailable();
+  if (!selection.registryAssetId?.trim() || !selection.publishedSubmissionId?.trim() || !selection.elementId?.trim()) throw ineligible();
   const db = getSupabaseServerClient();
   if (!db) throw new PipelineRegistryCommandError('Pipeline source storage is unavailable.', 503);
   const { data: registry, error: registryError } = await db.from('cardforge_asset_registry')
     .select('asset_id,asset_type,status,access_tier,contributor_submission_id').eq('asset_id',selection.registryAssetId).maybeSingle();
   if (registryError) throw new PipelineRegistryCommandError('Published raster identity could not be checked.', 503);
-  if (!registry || registry.asset_type !== 'image' || registry.status !== 'published' || registry.access_tier !== 'free'
-    || registry.contributor_submission_id !== selection.publishedSubmissionId) throw unavailable();
+  if (!registry || registry.asset_type !== 'image' || registry.status !== 'published' || registry.access_tier !== 'free') throw ineligible();
+  if (registry.contributor_submission_id !== selection.publishedSubmissionId) throw new PipelineRegistryCommandError(
+    'The selected publication changed. Refresh the Library and choose its exact revision again.', 409, 'managed_raster_conflict');
 
   const { data: source, error: sourceError } = await db.from('cardforge_contributor_asset_submissions')
     .select('id,lineage_id,revision_number,status,published_at,target_registry_asset_id,source_storage_bucket,source_storage_path,source_mime_type,source_file_size_bytes')
@@ -90,7 +82,7 @@ export async function verifySelectedPublishedManagedRaster(
     || revision.target_registry_asset_id !== selection.registryAssetId
     || revision.source_storage_bucket !== 'cardforge-contributor-assets'
     || !revision.source_storage_path || !revision.source_storage_path.startsWith('pipeline-owned-v1/')
-    || !['image/png','image/jpeg','image/webp'].includes(revision.source_mime_type ?? '')) throw unavailable();
+    || !['image/png','image/jpeg','image/webp'].includes(revision.source_mime_type ?? '')) throw ineligible();
 
   const { data: lineage, error: lineageError } = await db.from('cardforge_pipeline_asset_lineages')
     .select('id,registry_asset_id,upload_state,upload_submission_id,upload_operation_token,upload_request,upload_source_path,catalog_trashed_at,purge_state,catalog_claim_token,catalog_claimed_at,catalog_destructive_uncertainty')
@@ -101,7 +93,7 @@ export async function verifySelectedPublishedManagedRaster(
     || !lineage.upload_operation_token || !lineage.upload_request
     || lineage.upload_source_path !== revision.source_storage_path
     || lineage.catalog_trashed_at || lineage.purge_state || lineage.catalog_claim_token || lineage.catalog_claimed_at
-    || lineage.catalog_destructive_uncertainty) throw unavailable();
+    || lineage.catalog_destructive_uncertainty) throw ineligible();
   // The upload receipt is immutable and may precede this published revision.
   // Match its original operation/lineage/Storage tuple, not its id to the
   // current publication submission.
@@ -112,16 +104,19 @@ export async function verifySelectedPublishedManagedRaster(
   if (!receipt || receipt.id !== lineage.upload_submission_id || receipt.lineage_id !== revision.lineage_id
     || receipt.source_upload_token !== lineage.upload_operation_token
     || receipt.source_storage_bucket !== revision.source_storage_bucket
-    || receipt.source_storage_path !== revision.source_storage_path
-    || !/^[a-f0-9]{64}$/u.test(receipt.source_content_sha256 ?? '')) throw unavailable();
+    || receipt.source_storage_path !== revision.source_storage_path) throw ineligible();
+  if (!/^[a-f0-9]{64}$/u.test(receipt.source_content_sha256 ?? '')) throw new PipelineRegistryCommandError(
+    'This published picture has no verified original upload digest. Use it as an ordinary independent picture; it is not eligible for managed adoption.',
+    409, 'managed_raster_ineligible');
   const { data: file, error: downloadError } = await db.storage.from(revision.source_storage_bucket)
     .download(revision.source_storage_path);
   if (downloadError || !file) throw new PipelineRegistryCommandError('Published raster bytes could not be verified.', 503);
   const bytes = Buffer.from(await file.arrayBuffer());
   if (!bytes.length || bytes.length > 2_400_000
-    || (revision.source_file_size_bytes !== null && revision.source_file_size_bytes !== bytes.length)) throw unavailable();
+    || (revision.source_file_size_bytes !== null && revision.source_file_size_bytes !== bytes.length)) throw ineligible();
   const originalSha256 = createHash('sha256').update(bytes).digest('hex');
-  if (originalSha256 !== receipt.source_content_sha256) throw unavailable();
+  if (originalSha256 !== receipt.source_content_sha256) throw new PipelineRegistryCommandError(
+    'The published source bytes changed. Managed adoption is blocked; refresh the exact source before retrying.', 409, 'managed_raster_conflict');
 
   // This read-only observation is never an adoption receipt. The matching
   // native locked source/consumer transaction remains the authority.
@@ -149,12 +144,12 @@ export async function prepareManagedRasterTemplateRevision(
   const { data: file, error } = await db.storage.from(observed.sourceBucket).download(observed.sourcePath);
   if (error || !file) throw new PipelineRegistryCommandError('Published raster bytes are unavailable.', 503);
   const bytes = Buffer.from(await file.arrayBuffer());
-  if (createHash('sha256').update(bytes).digest('hex') !== observed.originalSha256) throw unavailable();
+  if (createHash('sha256').update(bytes).digest('hex') !== observed.originalSha256) throw ineligible();
   // This creates an independently content-addressed normalized Template WebP.
   // Never delete it as compensation: other Templates may already share it.
   const reference = await storePipelineTemplateAsset(bytes);
   const normalizedSha256 = /^cardforge-pipeline-asset:\/\/([a-f0-9]{64})$/u.exec(reference)?.[1];
-  if (!normalizedSha256) throw unavailable();
+  if (!normalizedSha256) throw ineligible();
   const prepared: TCGCardTemplate & { id: string } = {
     ...template,
     freeformCanvas: {

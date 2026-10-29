@@ -312,6 +312,14 @@ const loadTemplatePipelineResult = async (
   };
 };
 
+/** Exact-base Review drafts must retain their own reviewed-base command path. */
+export function assertTemplatePipelineDraftContext(template: TCGCardTemplate): void {
+  if (template.templatePipelineContext) throw new PipelineRegistryCommandError(
+    'This is an exact-base Review draft. Continue through its existing Review submission; managed adoption and new-draft handoff are unsupported for this draft.',
+    409, 'managed_raster_review_unsupported',
+  );
+}
+
 export const createTemplatePipelineDraft = async ({
   template,
   contributorId,
@@ -319,6 +327,7 @@ export const createTemplatePipelineDraft = async ({
   submissionKey,
   managedRasterSelection,
 }: TemplatePipelineDraftInput): Promise<TemplatePipelineDraftResult> => {
+  assertTemplatePipelineDraftContext(template);
   const supabase = requireSupabase();
   const source = templateReviewPayload(template);
   const attempt = managedRasterSelection

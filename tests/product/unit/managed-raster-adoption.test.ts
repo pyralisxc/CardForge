@@ -70,8 +70,9 @@ describe('published raster immutable-source observation',()=>{
     expect(result).not.toHaveProperty('templateWebpSha256');
   });
   it('rejects uncommitted legacy digest, spoofed lineage or independent submission',async()=>{
-    mock({receipt:{...receipt,source_content_sha256:null}});
-    await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
+    const legacy=mock({receipt:{...receipt,source_content_sha256:null}});
+    await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409,code:'managed_raster_ineligible',message:expect.stringContaining('ordinary independent picture')});
+    expect(legacy.download).not.toHaveBeenCalled();
     mock({source:{...source,lineage_id:'other'}});
     await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
     mock({source:{...source,id:'independent-submission'}});
@@ -83,7 +84,7 @@ describe('published raster immutable-source observation',()=>{
   });
   it('observes a current pointer but leaves transaction races for native locked proof',async()=>{
     mock({registry:{...registry,contributor_submission_id:'other'}});
-    await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
+    await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409,code:'managed_raster_conflict'});
   });
   it('rejects non-owned uploads, wrong storage source and active Trash/claim',async()=>{
     mock({lineage:{...lineage,upload_state:'pending'}});
@@ -128,6 +129,12 @@ describe('managed raster actual preparation and receipt recovery',()=>{
     expect(prepared.adoption.normalizedSha256).not.toBe(originalSha);
     expect(prepared.template.freeformCanvas?.elements[0]).toMatchObject({x:0,y:0,width:120,height:180});
     expect(template.freeformCanvas.elements[0].imageSource).toBe('');
+  });
+  it('rejects exact-base Review context at the actual shared new-draft owner before source reads',async()=>{
+    const io=mock();
+    await expect(createTemplatePipelineDraft({template:{...template,templatePipelineContext:{expectedBase:{assetId:'base'}}} as typeof template,
+      contributorId:'author',contributorEmail:null,submissionKey:'review-attempt',managedRasterSelection:selection})).rejects.toMatchObject({code:'managed_raster_review_unsupported'});
+    expect(io.download).not.toHaveBeenCalled();expect(io.upload).not.toHaveBeenCalled();
   });
   it('recovers an exact committed draft before touching unavailable or changed raster storage',async()=>{
     let prior:unknown=null;
