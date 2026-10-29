@@ -42,6 +42,8 @@ import { useTemplateEditorCommands } from '@/features/template-editor/hooks/useT
 import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig';
 import { createTemplateEditorActions } from '@/features/template-editor/lib/templateEditorActions';
 
+import { TemplatePipelineAttemptRecovery } from './TemplatePipelineAttemptRecovery';
+
 interface CardTemplateMakerProps {
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
@@ -162,6 +164,8 @@ export function CardTemplateMaker({
   const [pendingTemplateChange, setPendingTemplateChange] = useState<(() => void) | null>(null);
   const [saveName, setSaveName] = useState('');
   const [contextElement, setContextElement] = useState<FreeformCardElement | null>(null);
+  const [attemptRecoveryReady, setAttemptRecoveryReady] = useState(false);
+  const [hasSavedPipelineAttempts, setHasSavedPipelineAttempts] = useState(false);
   const [isCreatingPipelineDraft, setIsCreatingPipelineDraft] = useState(false);
   const [isSubmittingSharedRevision, setIsSubmittingSharedRevision] = useState(false);
   const wasActiveRef = useRef(isActive);
@@ -250,7 +254,7 @@ export function CardTemplateMaker({
     if (!await commands.saveTemplate()) return;
     setIsCreatingPipelineDraft(true);
     try { window.location.assign(await onContinueNewTemplateInPipeline(currentTemplate, requireRasterSelection())); }
-    catch (error) { toast({ title: 'Pipeline draft not created', description: error instanceof Error ? error.message : 'Unable to continue this Template in the Pipeline.', variant: 'destructive' }); }
+    catch (error) { toast({ title: 'Pipeline outcome not confirmed', description: error instanceof Error ? error.message : 'Unable to continue this Template in the Pipeline.', variant: 'destructive' }); }
     finally { setIsCreatingPipelineDraft(false); }
   }, [commands, currentTemplate, isCreatingPipelineDraft, onContinueNewTemplateInPipeline, requireRasterSelection, toast]);
   const handleSubmitSharedRevision = useCallback(async () => {
@@ -361,11 +365,12 @@ export function CardTemplateMaker({
         ) : canSubmitNewTemplate ? (
           <div className="cardforge-template-status flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-start gap-2"><GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" /><div><p className="cardforge-template-status-title font-medium text-[var(--cf-accent-text)]">Personal Template · not shared</p><p className="cardforge-template-status-description mt-0.5 leading-5">Save locally as often as you like. Continue in Pipeline carries over the authored design facts, then asks you to complete classification and source details before review.</p></div></div>
-            <Button type="button" size="sm" className="cardforge-template-status-action shrink-0 bg-[#d5ad54] text-[#161007] hover:bg-[var(--cf-accent-strong)]" disabled={isCreatingPipelineDraft || isSavingTemplate} onClick={() => void handleContinueInPipeline()}>{isCreatingPipelineDraft ? 'Opening Pipeline…' : 'Continue in Pipeline'}</Button>
+            <Button type="button" size="sm" className="cardforge-template-status-action shrink-0 bg-[#d5ad54] text-[#161007] hover:bg-[var(--cf-accent-strong)]" disabled={isCreatingPipelineDraft || isSavingTemplate || Boolean(currentTemplate.id && !attemptRecoveryReady)} onClick={() => void handleContinueInPipeline()}>{isCreatingPipelineDraft ? 'Opening Pipeline…' : hasSavedPipelineAttempts ? 'Continue current work as a separate submission' : 'Continue in Pipeline'}</Button>
           </div>
         ) : null}
+        {canSubmitNewTemplate && currentTemplate.id ? <TemplatePipelineAttemptRecovery templateId={currentTemplate.id} busy={isCreatingPipelineDraft} onAttemptsChange={setHasSavedPipelineAttempts} onReadyChange={setAttemptRecoveryReady} onOpenDestination={url => requestTemplateChange(() => window.location.assign(url))} /> : null}
         {pendingRaster ? <div role="status" className="rounded border border-amber-500 p-2 text-sm">
-          Pending managed adoption: {pendingRaster.name}. Only the next Pipeline submission adopts this exact publication; local Save and export remain independent.
+          Pending managed adoption: {pendingRaster.name}. This picture appears in the Pipeline version only after successful submission. Local Save and export keep your current picture unchanged.
           {rasterIssue ? <p>{rasterIssue}</p> : null}
           <Button type="button" variant="outline" size="sm" disabled={isCreatingPipelineDraft || isSubmittingSharedRevision} onClick={() => setPendingRaster(null)}>Clear pending adoption</Button>
         </div> : null}

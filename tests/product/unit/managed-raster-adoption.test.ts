@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
-import { createTemplatePipelineDraft, submitTemplateRevision, publishOwnerTemplateRevision } from '@/features/pipeline/lib/pipelineRegistryCommands';
+import { readTemplatePipelineDraftAttempt, createTemplatePipelineDraft, submitTemplateRevision, publishOwnerTemplateRevision } from '@/features/pipeline/lib/pipelineRegistryCommands';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { verifySelectedPublishedManagedRaster, assertStaticManagedRasterSlot, prepareManagedRasterTemplateRevision, readManagedRasterAttempt } from '@/features/pipeline/lib/managedRasterAdoption';
 
@@ -169,6 +169,11 @@ describe('managed raster actual preparation and receipt recovery',()=>{
     const args={template,contributorId:'author',contributorEmail:null,submissionKey:'same-saved-attempt',managedRasterSelection:selection};
     const initial=await readManagedRasterAttempt(template,selection,'author',null,args.submissionKey,'draft',0);
     prior={id:row.id,catalog_dependencies:{managedRaster:{request:{requestFingerprint:initial.requestFingerprint}}}};
+    await expect(readTemplatePipelineDraftAttempt(args)).resolves.toBe(row.id);
+    await expect(readTemplatePipelineDraftAttempt({...args,contributorEmail:'new-address@example.invalid'})).resolves.toBe(row.id);
+    expect(chain.eq).toHaveBeenCalledWith('contributor_id','author');
+    expect(chain.eq).toHaveBeenCalledWith('submission_key',args.submissionKey);
+    expect(chain.eq).toHaveBeenCalledWith('target_registry_asset_id',template.id);
     await expect(createTemplatePipelineDraft(args)).resolves.toMatchObject({id:row.id,revisionNumber:1});
     expect(download).not.toHaveBeenCalled();expect(rpc).not.toHaveBeenCalled();
     await expect(createTemplatePipelineDraft({...args,template:{...template,name:'Different snapshot'}})).rejects.toMatchObject({status:409});

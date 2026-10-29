@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TCGCardTemplate } from '@/domain/templates';
-const boundary = vi.hoisted(() => ({ create: vi.fn(), read: vi.fn(), downloads: vi.fn(), require: vi.fn(), verify: vi.fn(), access: vi.fn() }));
+const boundary = vi.hoisted(() => ({ receipt: vi.fn(), create: vi.fn(), read: vi.fn(), downloads: vi.fn(), require: vi.fn(), verify: vi.fn(), access: vi.fn() }));
 vi.mock('@/features/pipeline/server', async () => ({
   assertTemplatePipelineDraftContext: (await import('@/features/pipeline/lib/pipelineRegistryCommands')).assertTemplatePipelineDraftContext,
+  readTemplatePipelineDraftAttempt: boundary.receipt,
   createNewSharedTemplateId: () => 'shared-template', createTemplatePipelineDraft: boundary.create,
   isRepositoryTemplate: (t: TCGCardTemplate) => Boolean(t.id && t.freeformCanvas),
   verifySelectedPublishedManagedRaster: boundary.verify,
@@ -76,6 +77,24 @@ describe('managed raster authoring handoff', () => {
     boundary.verify.mockRejectedValue(new PipelineRegistryCommandError('No verified original upload digest. Ordinary picture only.',409,'managed_raster_ineligible'));
     const response=await GET(new Request(`https://example.invalid/api/assets?${new URLSearchParams(selection)}`));
     expect(response.status).toBe(409);expect((await response.json()).error).toMatchObject({code:'managed_raster_ineligible',retryable:false});
+  });
+  it('reads the exact historical snapshot without creating or materializing and fences a changed account', async () => {
+    boundary.receipt.mockResolvedValue('original-draft');
+    const request = (actor = 'actor') => new Request('https://example.invalid/api/templates/submissions?lookup=1', {
+      method:'POST',headers:{'Idempotency-Key':'original-attempt','X-Pipeline-Contributor':actor},
+      body:JSON.stringify({...template,managedRasterSelection:selection}),
+    });
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect((await response.json()).openInPipelineUrl).toContain('submission=original-draft');
+    expect(boundary.receipt).toHaveBeenCalledWith(expect.objectContaining({contributorId:'actor',submissionKey:'original-attempt',managedRasterSelection:selection}));
+    expect(boundary.create).not.toHaveBeenCalled(); expect(boundary.downloads).not.toHaveBeenCalled();
+    expect((await POST(request('another-actor'))).status).toBe(409);
+    expect(boundary.receipt).toHaveBeenCalledTimes(1);
+    boundary.receipt.mockResolvedValue(null);
+    expect(await (await POST(request())).json()).toEqual({openInPipelineUrl:null});
+    boundary.receipt.mockRejectedValue(new PipelineRegistryCommandError('Uncertain',503));
+    expect((await POST(request())).status).toBe(503);
   });
   it('browser HTTP handoff carries selection separately from the authored Template and rejects caller authority', async () => {
     const send = (pins: unknown) => POST(new Request('https://example.invalid/api/templates/submissions', {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':'synthetic-attempt'},body:JSON.stringify({...template,managedRasterSelection:pins})}));

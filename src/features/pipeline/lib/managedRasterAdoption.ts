@@ -187,19 +187,23 @@ export async function readManagedRasterAttempt(
   kind: 'draft' | 'submit' | 'owner',
   expectedRevision: number,
 ): Promise<{ requestFingerprint: string; submissionId: string | null }> {
-  const requestFingerprint = createHash('sha256').update(JSON.stringify([
+  const fingerprintForEmail = (email: string | null) => createHash('sha256').update(JSON.stringify([
     templateReviewRequestText(template), selection.registryAssetId, selection.publishedSubmissionId,
-    selection.elementId, actorId, actorEmail ?? '', kind, expectedRevision,
+    selection.elementId, actorId, email ?? '', kind, expectedRevision,
   ])).digest('hex');
+  const requestFingerprint = fingerprintForEmail(actorEmail);
   const db = getSupabaseServerClient();
   if (!db) throw new PipelineRegistryCommandError('Pipeline is unavailable. Keep the same saved attempt.', 503);
   const { data, error } = await db.from('cardforge_contributor_asset_submissions')
-    .select('id,catalog_dependencies').eq('target_registry_asset_id', template.id)
+    .select('id,contributor_email,catalog_dependencies').eq('target_registry_asset_id', template.id)
     .eq('contributor_id', actorId).eq('submission_key', submissionKey).maybeSingle();
   if (error) throw new PipelineRegistryCommandError('The exact adoption receipt could not be checked. Keep the same saved attempt.', 503);
   if (!data) return { requestFingerprint, submissionId: null };
-  if (data.catalog_dependencies?.managedRaster?.request?.requestFingerprint !== requestFingerprint) {
+  // Contributor ID authorizes recovery. A later account email change must not alter
+  // the historical request: compare using the original server-owned submission email.
+  const receiptFingerprint = fingerprintForEmail(data.contributor_email ?? null);
+  if (data.catalog_dependencies?.managedRaster?.request?.requestFingerprint !== receiptFingerprint) {
     throw new PipelineRegistryCommandError('This attempt belongs to a different saved Template or source selection.', 409);
   }
-  return { requestFingerprint, submissionId: data.id };
+  return { requestFingerprint: receiptFingerprint, submissionId: data.id };
 }
