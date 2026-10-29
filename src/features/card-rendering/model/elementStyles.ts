@@ -61,6 +61,7 @@ export const resolveFreeformImageUrl = (
   data: CardData,
   _fallbackText = 'Artwork'
 ): string => {
+  if (element.imageSource === '__cardforge_deleted_media_blank__') return '';
   const imageFieldKey = getImageFieldKeyForElement(element);
   const keyedFieldValue = data[imageFieldKey];
   if (typeof keyedFieldValue === 'string' && isRenderableImageSource(keyedFieldValue)) {

@@ -11,6 +11,7 @@ import { hydrateProjectWorkspaceForScope } from '../store/workspaceStore';
 interface AccountProjectWorkspaceBootstrapDependencies {
   adopt: typeof adoptGuestWorkspaceForAccount;
   hydrate: typeof hydrateProjectWorkspaceForScope;
+  cleanup?: (signal?: AbortSignal) => Promise<void>;
 }
 
 export interface AccountProjectWorkspaceIssue {
@@ -30,6 +31,10 @@ export const prepareAccountProjectWorkspace = async (
   dependencies: AccountProjectWorkspaceBootstrapDependencies = {
     adopt: adoptGuestWorkspaceForAccount,
     hydrate: hydrateProjectWorkspaceForScope,
+    cleanup: async (signal) => {
+      const { cleanCurrentWorkspaceCompletedDeletions } = await import('./projectWorkspaceDocument');
+      await cleanCurrentWorkspaceCompletedDeletions(signal);
+    },
   },
   signal?: AbortSignal,
 ): Promise<void> => {
@@ -37,6 +42,10 @@ export const prepareAccountProjectWorkspace = async (
   await dependencies.adopt(persistenceScope, signal);
   signal?.throwIfAborted();
   await dependencies.hydrate(persistenceScope, signal);
+  signal?.throwIfAborted();
+  // Complete exact-evidence recovery and durable CAS save before any editor
+  // children can mount. Failures keep the original recoverable and gate Ready.
+  await dependencies.cleanup?.(signal);
   signal?.throwIfAborted();
 };
 
