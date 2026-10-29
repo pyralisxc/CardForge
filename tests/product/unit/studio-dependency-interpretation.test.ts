@@ -49,6 +49,25 @@ describe('source-owned Studio dependency interpretation', () => {
     {exportSettings:[]},{productionPlan:0},
   ]) expect(interpretStudioDependencies({...document,...delta}).complete).toBe(false);
  });
+ it('interprets canonical project operation receipts without discarding unknown receipts', () => {
+  const receipt={operationId:'op-a',requestHash:'hash',revision:2,changedTemplateIds:['local'],
+    changedElementIds:[],changedCardIds:[],changedAssetRequirementIds:[],
+    warnings:['No effect'],canonicalRenderingRecommended:false};
+  expect(interpretStudioDependencies({...document,mcpOperationReceipts:[receipt]}).opaqueReasons).toEqual([]);
+  for (const malformed of [{...receipt,newDependency:'unknown'}, {...receipt,changedCardIds:[42]}, {...receipt,canonicalRenderingRecommended:'false'}]) {
+    expect(interpretStudioDependencies({...document,mcpOperationReceipts:[malformed]}).opaqueReasons).toContain('unsupported_operation_receipts');
+  }
+ });
+ it('understands canonical production asset binding provenance but retains unbound sources', () => {
+  const plan={version:1,decisionMode:'confirmed',purpose:'Deck',deliverable:'Cards',
+    outputSize:{width:63,height:88,unit:'mm'},visualDirection:{summary:'Minimal',palette:[],typography:[]},
+    editableFieldKeys:[],assets:[{id:'asset',name:'Card face',kind:'image',role:'Face',source:'placeholder',
+      quantity:1,status:'placeholder',binding:'element.image',embeddedAssetId:'embedded-local'}]};
+  const proof=interpretStudioDependencies({...document,productionPlan:plan});
+  expect(proof.opaqueReasons).toEqual([]);
+  expect(interpretStudioDependencies({...document,productionPlan:{...plan,assets:[{...plan.assets[0],assetUrl:'https://example.invalid/image.png'}]}}).opaqueReasons).toContain('external_or_unbound_source');
+  expect(interpretStudioDependencies({...document,productionPlan:{...plan,assets:[{...plan.assets[0],unknownSource:'secret'}]}}).opaqueReasons).toContain('unsupported_raw_production_plan');
+ });
  it('does not certify custom inventories discarded by normalization', () => {
   expect(interpretStudioDependencies({...document,customAssets:{futureDependencies:[{sourceId:'future-id'}]}}).complete).toBe(false);
   expect(interpretStudioDependencies({...document,customFonts:[{brokenFont:'future-id'}]}).complete).toBe(false);
