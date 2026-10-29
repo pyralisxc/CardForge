@@ -1,5 +1,6 @@
 "use client";
 
+import { retainTemplatePipelineAttempt, resolveTemplatePipelineAttempt } from '../lib/templatePipelineAttempts';
 import type { ManagedRasterSelection } from '@/features/pipeline/client';
 
 import { useCallback, useRef, useState } from 'react';
@@ -357,7 +358,13 @@ export function useTemplateLibraryActions({
 
   const handleContinueNewTemplateInPipeline = useCallback(async (template: TCGCardTemplate, managedRasterSelection?: ManagedRasterSelection): Promise<string> => {
     if (!projectCapabilities.canSubmitTemplateRevisions || template.templateSource === 'default') throw new Error('Only a contributor or owner can continue a new personal Template in the Pipeline.');
-    const request = managedRasterSelection ? { ...template, managedRasterSelection } : template;
+    if (managedRasterSelection) {
+      const attempt = await retainTemplatePipelineAttempt(template, managedRasterSelection);
+      const destination = await resolveTemplatePipelineAttempt(attempt, true);
+      if (!destination) throw new Error('The outcome remains uncertain. Check the saved attempt.');
+      return destination;
+    }
+    const request = template;
     const fingerprint = JSON.stringify(request);
     const pending = pendingNewTemplateKeysRef.current.get(template.id!);
     const submissionKey = pending?.fingerprint === fingerprint ? pending.key : nanoid(32);

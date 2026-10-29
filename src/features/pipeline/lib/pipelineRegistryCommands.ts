@@ -320,6 +320,14 @@ export function assertTemplatePipelineDraftContext(template: TCGCardTemplate): v
   );
 }
 
+/** Read-only recovery of the original managed request; never revalidates current artwork. */
+export async function readTemplatePipelineDraftAttempt(input: TemplatePipelineDraftInput): Promise<string | null> {
+  assertTemplatePipelineDraftContext(input.template);
+  if (!input.managedRasterSelection) throw new PipelineRegistryCommandError('An exact managed adoption attempt is required.', 400);
+  return (await readManagedRasterAttempt(templateReviewPayload(input.template), input.managedRasterSelection,
+    input.contributorId, input.contributorEmail, input.submissionKey, 'draft', 0)).submissionId;
+}
+
 export const createTemplatePipelineDraft = async ({
   template,
   contributorId,

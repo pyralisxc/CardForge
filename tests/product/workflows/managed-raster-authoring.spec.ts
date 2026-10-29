@@ -11,7 +11,7 @@ const css = postcss([tailwindcss(tailwindConfig)]).process((readFileSync('src/ap
 const selection = { registryAssetId:'managed-raster',publishedSubmissionId:'11111111-1111-4111-8111-111111111111',elementId:'art' };
 for(const width of [390,1440]) for(const contract of [false,true]) test(`@golden explicit managed raster picker and recoverable submission at ${width}px contract=${contract}`,async({page},info)=>{
   await page.setViewportSize({width,height:960});
-  const requests: {body:Record<string,unknown>; key:string}[]=[]; const unexpected:string[]=[];
+  const requests: {body:Record<string,unknown>; key:string}[]=[]; const lookups: {body:Record<string,unknown>; key:string}[]=[]; const unexpected:string[]=[]; let committed=false; let delayLookup=false; let releaseLookup: (()=>void) | null=null;
   await page.route('**/*',route=>{
     const url=new URL(route.request().url());
     if(url.pathname==='/__raster-authoring')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><head></head><body style="margin:0"></body></html>'});
@@ -23,15 +23,26 @@ for(const width of [390,1440]) for(const contract of [false,true]) test(`@golden
     if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
     if(url.pathname==='/account')return route.fulfill({contentType:'text/html',body:'Synthetic Pipeline handoff received'});
     if(url.pathname==='/api/templates/submissions'){
-      requests.push({body:route.request().postDataJSON(),key:route.request().headers()['idempotency-key']});
-      if(requests.length===3)return route.fulfill({status:201,json:{openInPipelineUrl:'/account?section=library&scope=pipeline&submission=synthetic'}});
-      return route.fulfill({status:503,json:{error:{code:'pipeline_unavailable',message:'Synthetic uncertain response. Retry exact intent.',kind:'unavailable',retryable:true}}});
+      if(route.request().method()==='GET')return route.fulfill({json:{contributorId:'synthetic-actor'}});
+      const request={body:route.request().postDataJSON(),key:route.request().headers()['idempotency-key']};
+      if(url.searchParams.get('lookup')==='1'){
+        lookups.push(request);
+        const finish=()=>route.fulfill({json:{openInPipelineUrl:committed?'/account?section=library&scope=pipeline&tool=contribute&submission=synthetic':null}});
+        if(delayLookup)return new Promise<void>(resolve=>{releaseLookup=()=>{delayLookup=false;void finish().then(resolve);};});
+        return finish();
+      }
+      requests.push(request);
+      if(width===1440||requests.length===2)committed=true;
+      return route.fulfill({status:503,json:{error:{code:'pipeline_unavailable',message:'Synthetic lost response. Check the saved attempt.',kind:'unavailable',retryable:true}}});
     }
     unexpected.push(`${route.request().method()} ${url.pathname}`);return route.abort();
   });
-  await page.goto('/__raster-authoring'+(contract?'?contract=1':'')); await page.addStyleTag({content:(await css).css});
-  for(const file of bundle.outputFiles.filter(f=>f.path.endsWith('.css')))await page.addStyleTag({content:file.text});
-  await page.addScriptTag({content:bundle.outputFiles.find(f=>f.path.endsWith('.js'))!.text});
+  const boot = async () => {
+    await page.addStyleTag({content:(await css).css});
+    for(const file of bundle.outputFiles.filter(f=>f.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+    await page.addScriptTag({content:bundle.outputFiles.find(f=>f.path.endsWith('.js'))!.text});
+  };
+  await page.goto('/__raster-authoring'+(contract?'?contract=1':'')); await boot();
   if(width<1024)await page.getByRole('button',{name:'Open editor menu',exact:true}).click();
   await page.getByRole('button',{name:'Elements',exact:true}).click();
   await page.getByRole('button',{name:'Picture',exact:true}).click();
@@ -64,25 +75,58 @@ for(const width of [390,1440]) for(const contract of [false,true]) test(`@golden
   expect(requests[0].body.managedRasterSelection).toEqual(actualSelection);
   const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved).not.toHaveProperty('managedRasterSelection');
   expect(saved.freeformCanvas.elements.find((e:{id:string})=>e.id===elementId).imageSource).toBe('');
-  await page.getByRole('button',{name:'Continue in Pipeline',exact:true}).click();await expect.poll(()=>requests.length).toBe(2);
-  expect(requests[1]).toEqual(requests[0]);
-  await page.getByRole('button',{name:'Export local proof'}).click();expect(await page.getByTestId('exported').textContent()).not.toContain('managedRasterSelection');
+  await expect(page.getByRole('button',{name:'Continue selected adoption',exact:true})).toBeVisible();
+  // A real reload discards all React refs and transient selection; IndexedDB owns the attempt.
+  await page.reload(); await boot();
+  await expect(page.getByRole('region',{name:'Saved Pipeline attempts'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Continue current work as a separate submission',exact:true})).toBeVisible();
+  if(committed){
+    delayLookup=true;
+    await page.getByRole('button',{name:'Check submission outcome',exact:true}).click();
+    await expect.poll(()=>typeof releaseLookup).toBe('function');
+    await page.getByRole('button',{name:'Hide editor',exact:true}).click();
+    const settledLookup=page.waitForResponse(response=>response.url().includes('lookup=1'));
+    releaseLookup!();
+    // Flush the delayed response before mounting a new editor instance.
+    await expect(page.getByRole('button',{name:'Show editor',exact:true})).toBeVisible();
+    await settledLookup;
+    await page.getByRole('button',{name:'Show editor',exact:true}).click();
+    await expect(page).toHaveURL(/__raster-authoring/);
+    delayLookup=true; releaseLookup=null;
+    await page.getByRole('button',{name:'Check submission outcome',exact:true}).click();
+    await expect.poll(()=>typeof releaseLookup).toBe('function');
+  }
   await page.locator(`[data-cardforge-editor-overlay][data-freeform-element-id="${elementId}"]`).click();
   if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
   await page.getByLabel('Picture URL, card field, or uploaded file').fill('/independent.svg');
-  await expect(page.getByRole('button',{name:'Use as fixed picture',exact:true})).toHaveCount(0);
-  await expect(managed).toBeEnabled();await managed.uncheck();
-  await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
-  await page.getByRole('option',{name:/Legacy ordinary picture/}).click();await page.getByRole('button',{name:'Use selection',exact:true}).click();
-  await expect(page.getByLabel('Picture URL, card field, or uploaded file')).toHaveValue('/raster.svg');
   if(width<1024)await page.getByRole('button',{name:'Close inspector',exact:true}).click();
-  await expect(page.getByRole('status').filter({hasText:'Pending managed adoption:'})).toContainText('changed');
-  await page.getByRole('button',{name:'Continue in Pipeline',exact:true}).click();
-  await expect(page.getByText('The Template or selected slot changed. Clear this pending adoption and choose again before submitting.',{exact:true}).first()).toBeVisible();
-  expect(requests).toHaveLength(2);
-  await page.getByRole('button',{name:'Clear pending adoption'}).click();
-  await page.getByRole('button',{name:'Continue in Pipeline',exact:true}).click();await expect.poll(()=>requests.length).toBe(3);
-  expect(requests[2].body).not.toHaveProperty('managedRasterSelection');expect(requests[2].key).not.toBe(requests[0].key);
+  if(committed){
+    releaseLookup!();
+    await expect(page.getByRole('alertdialog')).toBeVisible();
+    await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+    await expect(page).toHaveURL(/__raster-authoring/);
+    expect(requests).toHaveLength(1);
+  }
+  // Persist newer independent local work before resolving the historical submission.
+  await page.keyboard.press('Control+s');
+  await expect.poll(async()=>JSON.parse(await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'))||'{}').freeformCanvas?.elements[0]?.imageSource).toBe('/independent.svg');
+  await page.getByRole('button',{name:'Export local proof'}).click();
+  expect(await page.getByTestId('exported').textContent()).not.toContain('managedRasterSelection');
+  expect(await page.getByTestId('exported').textContent()).toContain('/independent.svg');
+  if(!committed){
+    await page.getByRole('button',{name:'Check submission outcome',exact:true}).click();
+    await expect(page.getByText('No committed draft was found.',{exact:false})).toBeVisible();
+    await page.getByRole('button',{name:'Retry original snapshot',exact:true}).click();
+    await expect.poll(()=>requests.length).toBe(2);
+    expect(requests[1]).toEqual(requests[0]);
+    await page.reload(); await boot();
+  }
+  await page.screenshot({path:info.outputPath('saved-attempt-recovery.png')});
+  await info.attach('Saved historical attempt after reload',{path:info.outputPath('saved-attempt-recovery.png'),contentType:'image/png'});
+  await page.getByRole('button',{name:'Check submission outcome',exact:true}).click();
   await expect(page).toHaveURL(/submission=synthetic/);
+  expect(requests).toHaveLength(width===1440?1:2);
+  for(const lookup of lookups)expect(lookup).toEqual(requests[0]);
+  expect(JSON.parse(await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'))||'{}').freeformCanvas.elements[0].imageSource).toBe('/independent.svg');
   expect(unexpected).toEqual([]);
 });
