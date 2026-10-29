@@ -56,9 +56,10 @@ export function cleanCompletedDeletionReferences(
     const renderedById = new Map(renderedElements.map(element => [element.id, element]));
     if (template.freeformCanvas) template.freeformCanvas.elements = elements.map((element) => {
       const rendered = renderedById.get(element.id) ?? element;
-      const independentlyEmbedded = /^(?:cardforge-browser-asset:|cardforge-project-asset:)/u.test(element.imageSource ?? '')
-        && !deletedUrls.has(imageSource(element, data));
-      if (element.type === 'image' && !independentlyEmbedded
+      // The effective materialized image wins: an explicit card field may
+      // override independently embedded Template bytes. Keep the original
+      // embedded source in shared history, but blank this card's presentation.
+      if (element.type === 'image'
         && element.imageSource !== COMPLETED_DELETION_BLANK_MEDIA
         && deletedUrls.has(imageSource(rendered, data))) {
         element.imageSource = COMPLETED_DELETION_BLANK_MEDIA;

@@ -14,7 +14,7 @@ const template: TCGCardTemplate = { id: 'shared', name: 'Shared', aspectRatio: '
     { id: 'picture', name: 'Picture', type: 'image', imageSource: '{{art}}', x: 10, y: 20, width: 100, height: 100, zIndex: 1 },
     { id: 'label', name: 'Label', type: 'text', parentId: 'picture', content: '{{art}}', x: 5, y: 6, width: 50, height: 20, zIndex: 2 },
   ] } };
-const document = () => createProjectDocumentFromState({ userTemplates: [template], cardSets: [{ id: 'set', name: 'Set', templateIds: ['shared'] }],
+const document = () => createProjectDocumentFromState({ userTemplates: [structuredClone(template)], cardSets: [{ id: 'set', name: 'Set', templateIds: ['shared'] }],
   storedCards: [
     { uniqueId: 'deleted', templateId: 'shared', setId: 'set', data: { art: dead, description: dead } },
     { uniqueId: 'other', templateId: 'shared', setId: 'set', data: { art: live } },
@@ -108,6 +108,28 @@ describe('completed public deletion cleanup', () => {
     expect(icon).toMatchObject({ id: 'icon', type: 'icon', x: 17, y: 28, width: 40, height: 35,
       zIndex: 3, iconName: '__cardforge_deleted_media_blank__', iconImageSource: '' });
     expect(cleanCompletedDeletionReferences(result.document, new Set([dead])).changed).toBe(false);
+  });
+
+  it('blanks the effective deleted card override while retaining independent embedded fallback and shared sibling', () => {
+    const original = document();
+    const local = 'cardforge-browser-asset://' + 'a'.repeat(64);
+    original.userTemplates[0].freeformCanvas!.elements[0].imageSource = local;
+    original.storedCards[0].data.art = dead;
+    original.storedCards[1].data.art = local;
+    const result = cleanCompletedDeletionReferences(original, new Set([dead]));
+    const card = result.document.storedCards[0];
+    const fork = result.document.userTemplates.find(t => t.id === card.templateId)!;
+    const rendered = getCardFaceCanvas({ uniqueId: card.uniqueId, template: fork,
+      backingTemplate: null, backingTemplateId: null, data: card.data }, 'front')!;
+    expect(resolveFreeformImageUrl(rendered.elements.find(e => e.id === 'picture')!, card.data)).toBe('');
+    expect(fork.fieldContracts).toEqual(template.fieldContracts);
+    expect(card.data.art).toBe(dead);
+    expect(result.document.userTemplates.find(t => t.id === 'shared')!.freeformCanvas!.elements[0].imageSource).toBe(local);
+    const sibling = result.document.storedCards[1];
+    const siblingCanvas = getCardFaceCanvas({ uniqueId: sibling.uniqueId,
+      template: result.document.userTemplates.find(t => t.id === sibling.templateId)!,
+      backingTemplate: null, backingTemplateId: null, data: sibling.data }, 'front')!;
+    expect(resolveFreeformImageUrl(siblingCanvas.elements.find(e => e.id === 'picture')!, sibling.data)).toBe(local);
   });
 
   it('preserves an independently embedded local asset despite an unrelated completed public URL', () => {
