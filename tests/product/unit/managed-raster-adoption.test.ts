@@ -41,7 +41,7 @@ const api = (options: { registry?: Record<string, unknown> | null; source?: Reco
     } }) }),
   });
   const storage = { from: () => ({ download: async () => ({
-    data: options.file === null ? null : new Blob([options.file ?? bytes]), error: null,
+    data: options.file === null ? null : new Blob([Uint8Array.from(options.file ?? bytes).buffer]), error: null,
   }) }) };
   vi.mocked(getSupabaseServerClient).mockReturnValue({ from: query, storage } as never);
 };
