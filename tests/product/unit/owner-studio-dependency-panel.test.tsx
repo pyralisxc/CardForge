@@ -93,7 +93,7 @@ describe('Owner Studio dependency action UI', () => {
     const tree = selectTarget();
     click(tree);
     await settle(done => {
-      expect(textOf(done)).toContain('outcome');
+      expect(textOf(done)).toContain('The response could not be verified');
       expect(textOf(done)).not.toContain('Reconciliation acknowledged');
       expect(submit(done).props.disabled).toBe(true);
     });
