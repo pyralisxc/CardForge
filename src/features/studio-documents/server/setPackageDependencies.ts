@@ -18,6 +18,9 @@ export async function interpretPipelineSetPackage(bytes: Uint8Array) {
   // Inspect them before projecting the canonical card payloads for the existing interpreter.
   let rawRuntime: unknown = project;
   if (source.cardforgeProject === 2) {
+    // v2 owns artifacts, not v1 storedCards. The codec currently drops this
+    // extra raw field; do not certify an uninspected future source shape.
+    if (Object.prototype.hasOwnProperty.call(project, 'storedCards')) reasons.add('unsupported_package_project_field');
     if (!Array.isArray(project.artifacts) || project.artifacts.some(artifact => !record(artifact)
       || Object.keys(artifact).some(key => !['artifactId','artifactType','setId','card'].includes(key))
       || artifact.artifactType !== 'card' || !record(artifact.card))) reasons.add('unsupported_package_artifact');

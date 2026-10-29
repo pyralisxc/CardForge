@@ -17,6 +17,13 @@ describe('canonical Set package dependency interpretation', () => {
     const proof=await interpretPipelineSetPackage(await make({futureDependency:'unknown'}));
     expect(proof.complete).toBe(false); expect(proof.opaqueReasons).toContain('unsupported_project_field');
   });
+  it('rejects raw v2 storedCards even if the codec projects only artifacts', async () => {
+    const rawCards = [{templateId:'target-template',uniqueId:'x',data:{}}];
+    const proof = await interpretPipelineSetPackage(await make({storedCards:rawCards,artifacts:[]}));
+    expect(proof.complete).toBe(false);
+    expect(proof.opaqueReasons).toContain('unsupported_package_project_field');
+    expect(proof.sourceManifest.project).toEqual(expect.objectContaining({storedCards:rawCards,artifacts:[]}));
+  });
   it('blocks unknown manifest extensions', async () => {
     const proof=await interpretPipelineSetPackage(await make({}, {futureDependency:'unknown'}));
     expect(proof.complete).toBe(false); expect(proof.opaqueReasons).toContain('unsupported_package_manifest_field');
