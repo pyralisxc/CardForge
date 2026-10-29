@@ -17,3 +17,12 @@ export function managedRasterSlotIssue(template: TCGCardTemplate, elementId: str
   }
   return null;
 }
+
+/** Only the untouched new-Picture placeholder can be explicitly made fixed. */
+export function canUseDefaultAsFixedPicture(template: TCGCardTemplate, elementId: string): boolean {
+  const chosen = (template.freeformCanvas?.elements ?? []).filter(element => element.id === elementId);
+  return chosen.length === 1 && chosen[0].type === 'image'
+    && chosen[0].imageSource === 'artworkUrl' && chosen[0].content === 'artworkUrl'
+    && !template.fieldContracts?.length
+    && Object.keys(template.templatePreviewData ?? {}).length === 0;
+}

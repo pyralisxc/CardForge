@@ -364,12 +364,8 @@ try:
     raster_token = prepared['token']
     raster_submission = a.run("select public.cardforge_commit_pipeline_upload_submission('"
                               + raster_path + "','" + raster_token + "','" + raster_request_json + "'::jsonb);")[-1]
-    a.run(f"update public.cardforge_pipeline_asset_lineages set registry_asset_id='{raster_asset}',revision_high_water=1 where id='{raster_lineage}';")
-    a.run("insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id)"
-          + f" values('{raster_asset}','Native raster','image','{raster_request['source_url']}','published','free','contributor','{raster_submission}');")
-    a.run("update public.cardforge_contributor_asset_submissions set status='published',"
-          + " editorial_review_status='approved',published_at=now(),revision_number=1,"
-          + f" registry_asset_id='{raster_asset}',target_registry_asset_id='{raster_asset}' where id='{raster_submission}';")
+    a.run(f"select public.cardforge_set_contributor_asset_owner_override('{raster_submission}',true,'published',true,'free','Native raster race','raster-owner');")
+    raster_asset = a.run(f"select registry_asset_id from public.cardforge_contributor_asset_submissions where id='{raster_submission}';")[-1]
     a.run("insert into public.cardforge_pipeline_template_assets(asset_id,storage_bucket,storage_path,mime_type,byte_count)"
           + f" values('{webp_hash}','cardforge-contributor-assets','template-assets/{webp_hash}.webp','image/webp',100) on conflict do nothing;")
     adopter = 'native-adopter-' + uuid.uuid4().hex

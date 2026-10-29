@@ -133,6 +133,7 @@ psql_local -f "$root/supabase/tests/catalog_typed_consumers.sql" > "$proof/typed
 cat "$proof/typed-consumers.log"
 psql_local -f "$root/supabase/tests/pipeline_upload_commitments.sql" > "$proof/upload-commitments.log" 2>&1
 psql_local -f "$root/supabase/tests/managed_raster_adoption.sql" > "$proof/raster-adoption.log" 2>&1 || { cat "$proof/raster-adoption.log"; exit 1; } || { cat "$proof/upload-commitments.log"; exit 1; }
+cat "$proof/raster-adoption.log"
 cat "$proof/upload-commitments.log"
 CARDFORGE_LOCAL_DB_CONTAINER="$cid" python3 "$root/scripts/test-catalog-trash-contention.py" > "$proof/contention.log" 2>&1 || { cat "$proof/contention.log"; exit 1; }
 cat "$proof/fixture.log" "$proof/contention.log"

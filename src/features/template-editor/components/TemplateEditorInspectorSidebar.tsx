@@ -1,4 +1,5 @@
 "use client";
+import { canUseDefaultAsFixedPicture } from '@/features/pipeline/client';
 
 import type { ComponentProps } from 'react';
 
@@ -92,6 +93,7 @@ export function TemplateEditorInspectorSidebar({
             />
             {elements.canUseImageSource ? (
               <ImageInspectorPanel
+                  canUseAsFixedPicture={canUseDefaultAsFixedPicture(currentTemplate, selectedElement.id)}
                   managedAdoption={managedAdoption}
                   element={selectedElement}
                   imageAssets={elements.compatibleImageAssets}

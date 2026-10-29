@@ -21,7 +21,7 @@ import { GET } from '@/app/api/assets/route';
 import { POST } from '@/app/api/templates/submissions/route';
 vi.mock('@/infrastructure/security/abuseProtection', () => ({ consumeRateLimit: async () => ({allowed:true}), RateLimitUnavailableError: class extends Error {} }));
 import { PipelineRegistryCommandError } from '@/features/pipeline/lib/pipelineRegistryCommandsError';
-import { managedRasterSlotIssue } from '@/features/pipeline/lib/managedRasterSelection';
+import { managedRasterSlotIssue, canUseDefaultAsFixedPicture } from '@/features/pipeline/lib/managedRasterSelection';
 const selection = { registryAssetId: 'managed-image', publishedSubmissionId: '11111111-1111-4111-8111-111111111111', elementId: 'art' };
 const template: TCGCardTemplate = { id: 'local-template', name: 'Synthetic', aspectRatio: '63:88', templateSource: 'user', freeformCanvas: { width: 630, height: 880, elements: [{id:'art', name:'Art', type:'image', x:0,y:0,width:100,height:100,zIndex:0,imageSource:''}] } };
 let document: { id: string; revision: number; document: { userTemplates: TCGCardTemplate[] } };
@@ -94,5 +94,23 @@ describe('managed raster authoring handoff', () => {
     const response = await GET(new Request(`https://example.invalid/api/assets?${new URLSearchParams(selection)}`));
     expect(response.status).toBe(status);
     expect((await response.json()).error.code).toBe(status === 409 ? 'managed_raster_conflict' : 'pipeline_unavailable');
+  });
+});
+
+describe('explicit default-picture conversion eligibility',()=>{
+  const fresh={...template,freeformCanvas:{...template.freeformCanvas!,elements:[{...template.freeformCanvas!.elements[0],imageSource:'artworkUrl',content:'artworkUrl'}]}};
+  it('offers only the untouched placeholder, without mutating geometry or content',()=>{
+    const before=structuredClone(fresh);
+    expect(canUseDefaultAsFixedPicture(fresh,'art')).toBe(true);
+    expect(fresh).toEqual(before);
+  });
+  it('refuses real content, contracts, preview overrides, missing and ambiguous slots',()=>{
+    expect(canUseDefaultAsFixedPicture({...fresh,fieldContracts:[{key:'art',type:'image',elementId:'art'}]},'art')).toBe(false);
+    expect(canUseDefaultAsFixedPicture({...fresh,templatePreviewData:{art:'value'}},'art')).toBe(false);
+    for(const imageSource of ['https://example.invalid/a.png','data:image/png;base64,YQ==','otherField','']) {
+      expect(canUseDefaultAsFixedPicture({...fresh,freeformCanvas:{...fresh.freeformCanvas,elements:[{...fresh.freeformCanvas.elements[0],imageSource}]}},'art')).toBe(false);
+    }
+    expect(canUseDefaultAsFixedPicture(fresh,'other')).toBe(false);
+    expect(canUseDefaultAsFixedPicture({...fresh,freeformCanvas:{...fresh.freeformCanvas,elements:[...fresh.freeformCanvas.elements,...fresh.freeformCanvas.elements]}},'art')).toBe(false);
   });
 });

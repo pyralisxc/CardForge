@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
 const bundle = buildSync({entryPoints:['tests/product/fixtures/managedRasterAuthoring.tsx'],bundle:true,platform:'browser',format:'iife',write:false,outfile:join(tmpdir(),'managed-raster-authoring.js'),define:{'process.env.NODE_ENV':'"production"','process.env':'{}'}});
 const css = postcss([tailwindcss(tailwindConfig)]).process((readFileSync('src/app/cardforgePresentation.css','utf8')+readFileSync('src/app/globals.css','utf8')).replace(/@import ['"]([^'"]+)['"];?/g,(_,path:string)=>readFileSync(join('src/app',path),'utf8')),{from:'src/app/globals.css'});
 const selection = { registryAssetId:'managed-raster',publishedSubmissionId:'11111111-1111-4111-8111-111111111111',elementId:'art' };
-for(const width of [390,1440]) test(`@golden explicit managed raster picker and recoverable submission at ${width}px`,async({page},info)=>{
+for(const width of [390,1440]) for(const contract of [false,true]) test(`@golden explicit managed raster picker and recoverable submission at ${width}px contract=${contract}`,async({page},info)=>{
   await page.setViewportSize({width,height:960});
   const requests: {body:Record<string,unknown>; key:string}[]=[]; const unexpected:string[]=[];
   await page.route('**/*',route=>{
@@ -29,13 +29,27 @@ for(const width of [390,1440]) test(`@golden explicit managed raster picker and 
     }
     unexpected.push(`${route.request().method()} ${url.pathname}`);return route.abort();
   });
-  await page.goto('/__raster-authoring'); await page.addStyleTag({content:(await css).css});
+  await page.goto('/__raster-authoring'+(contract?'?contract=1':'')); await page.addStyleTag({content:(await css).css});
   for(const file of bundle.outputFiles.filter(f=>f.path.endsWith('.css')))await page.addStyleTag({content:file.text});
   await page.addScriptTag({content:bundle.outputFiles.find(f=>f.path.endsWith('.js'))!.text});
-  await page.locator('[data-cardforge-editor-overlay][data-freeform-element-id="art"]').click();
+  if(width<1024)await page.getByRole('button',{name:'Open editor menu',exact:true}).click();
+  await page.getByRole('button',{name:'Elements',exact:true}).click();
+  await page.getByRole('button',{name:'Picture',exact:true}).click();
+  const elementId = await page.locator('[data-cardforge-editor-overlay][data-freeform-element-id]').first().getAttribute('data-freeform-element-id');
+  const actualSelection={...selection,elementId};
   if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
   const managed=page.getByRole('checkbox',{name:'Adopt managed picture on Pipeline submission'});
-  await expect(managed).toBeVisible();await managed.check();
+  await expect(managed).toBeVisible();await expect(managed).toBeDisabled();
+  await expect(page.getByLabel('Picture URL, card field, or uploaded file')).toHaveValue('artworkUrl');
+  if(contract){
+    await expect(page.getByRole('button',{name:'Use as fixed picture',exact:true})).toHaveCount(0);
+    await expect(page.getByText('Managed adoption needs a static image slot without content, image fields or preview overrides. Your existing content is unchanged.',{exact:true})).toBeVisible();
+    expect(requests).toHaveLength(0);expect(unexpected).toEqual([]);return;
+  }
+  await page.screenshot({path:info.outputPath('fixed-picture-action.png')});
+  await info.attach('Explicit fixed picture action',{path:info.outputPath('fixed-picture-action.png'),contentType:'image/png'});
+  await page.getByRole('button',{name:'Use as fixed picture',exact:true}).click();
+  await expect(managed).toBeEnabled(); await managed.check();
   await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
   await page.getByRole('option',{name:/Legacy ordinary picture/}).click();await page.getByRole('button',{name:'Use selection',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('ordinary independent picture');
@@ -47,15 +61,16 @@ for(const width of [390,1440]) test(`@golden explicit managed raster picker and 
   if(width<1024)await page.getByRole('button',{name:'Close inspector',exact:true}).click();
   await page.getByRole('button',{name:'Continue in Pipeline',exact:true}).click();
   await expect.poll(()=>requests.length).toBe(1);
-  expect(requests[0].body.managedRasterSelection).toEqual(selection);
+  expect(requests[0].body.managedRasterSelection).toEqual(actualSelection);
   const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved).not.toHaveProperty('managedRasterSelection');
-  expect(saved.freeformCanvas.elements.find((e:{id:string})=>e.id==='art').imageSource).toBe('');
+  expect(saved.freeformCanvas.elements.find((e:{id:string})=>e.id===elementId).imageSource).toBe('');
   await page.getByRole('button',{name:'Continue in Pipeline',exact:true}).click();await expect.poll(()=>requests.length).toBe(2);
   expect(requests[1]).toEqual(requests[0]);
   await page.getByRole('button',{name:'Export local proof'}).click();expect(await page.getByTestId('exported').textContent()).not.toContain('managedRasterSelection');
-  await page.locator('[data-cardforge-editor-overlay][data-freeform-element-id="art"]').click();
+  await page.locator(`[data-cardforge-editor-overlay][data-freeform-element-id="${elementId}"]`).click();
   if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
   await page.getByLabel('Picture URL, card field, or uploaded file').fill('/independent.svg');
+  await expect(page.getByRole('button',{name:'Use as fixed picture',exact:true})).toHaveCount(0);
   await expect(managed).toBeEnabled();await managed.uncheck();
   await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
   await page.getByRole('option',{name:/Legacy ordinary picture/}).click();await page.getByRole('button',{name:'Use selection',exact:true}).click();
