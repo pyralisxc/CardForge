@@ -1,4 +1,5 @@
 import type { TCGCardTemplate } from '@/domain/templates';
+import { z } from 'zod';
 import {
   createNewSharedTemplateId,
   createTemplatePipelineDraft,
@@ -59,6 +60,16 @@ export async function POST(request: Request) {
     }
 
     const localTemplate = validation.data as TCGCardTemplate;
+    const selected = (parsedBody.data as Record<string,unknown>).managedRasterSelection;
+    const selection = selected === undefined ? undefined : z.object({
+      registryAssetId: z.string().min(1).max(200),
+      publishedSubmissionId: z.string().uuid(),
+      elementId: z.string().min(1).max(200),
+    }).strict().safeParse(selected);
+    if (selection && !selection.success) {
+      return createApiErrorResponse(400, 'invalid_raster_adoption', 'Choose an exact published managed raster and image slot.');
+    }
+    delete (localTemplate as TCGCardTemplate & { managedRasterSelection?: unknown }).managedRasterSelection;
     if (localTemplate.templateSource === 'default') {
       return createApiErrorResponse(
         409,
@@ -91,6 +102,7 @@ export async function POST(request: Request) {
       contributorId: access.user.id,
       contributorEmail: access.email,
       submissionKey,
+      managedRasterSelection: selection ? selection.data : undefined,
     });
 
     return createNoStoreJsonResponse({

@@ -3,6 +3,7 @@ import type { TCGCardTemplate } from '@/domain/templates';
 import { getImageFieldKeyForElement } from '@/domain/rendering';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
+import { storePipelineTemplateAsset } from './pipelineTemplateAssets';
 
 /** Author-selected source identity. A URL, asset digest or registry alias alone never supplies authority. */
 export interface ManagedRasterSelection {
@@ -130,5 +131,48 @@ export async function verifySelectedPublishedManagedRaster(
     submissionId: revision.id, revisionNumber: revision.revision_number,
     elementId: selection.elementId, sourceBucket: revision.source_storage_bucket,
     sourcePath: revision.source_storage_path, originalSha256,
+  };
+}
+
+/**
+ * Server-owned authoring preparation. This is not a persisted attestation:
+ * the native revision RPC locks and rechecks the source and the exact new
+ * payload within one transaction before recording its binding.
+ */
+export async function prepareManagedRasterTemplateRevision(
+  template: TCGCardTemplate & { id: string },
+  selection: ManagedRasterSelection,
+) {
+  assertStaticManagedRasterSlot(template, selection);
+  const observed = await verifySelectedPublishedManagedRaster(selection);
+  const db = getSupabaseServerClient();
+  if (!db) throw new PipelineRegistryCommandError('Pipeline source storage is unavailable.', 503);
+  const { data: file, error } = await db.storage.from(observed.sourceBucket).download(observed.sourcePath);
+  if (error || !file) throw new PipelineRegistryCommandError('Published raster bytes are unavailable.', 503);
+  const bytes = Buffer.from(await file.arrayBuffer());
+  if (createHash('sha256').update(bytes).digest('hex') !== observed.originalSha256) throw unavailable();
+  // This creates an independently content-addressed normalized Template WebP.
+  // Never delete it as compensation: other Templates may already share it.
+  const reference = await storePipelineTemplateAsset(bytes);
+  const normalizedSha256 = /^cardforge-pipeline-asset:\/\/([a-f0-9]{64})$/u.exec(reference)?.[1];
+  if (!normalizedSha256) throw unavailable();
+  const prepared: TCGCardTemplate & { id: string } = {
+    ...template,
+    freeformCanvas: {
+      ...template.freeformCanvas!,
+      elements: template.freeformCanvas!.elements.map(e => e.id === selection.elementId
+        ? { ...e, imageSource: reference }
+        : e),
+    },
+  };
+  return {
+    template: prepared,
+    adoption: {
+      assetId: observed.registryAssetId,
+      submissionId: observed.submissionId,
+      elementId: selection.elementId,
+      originalSha256: observed.originalSha256,
+      normalizedSha256,
+    },
   };
 }

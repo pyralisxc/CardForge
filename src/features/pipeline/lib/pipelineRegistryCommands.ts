@@ -13,6 +13,7 @@ import { getUniqueActiveContributorProfileReferenceByEmail } from '@/features/co
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 import { externalizePipelineTemplateAssets } from './pipelineTemplateAssets';
+import { prepareManagedRasterTemplateRevision, type ManagedRasterSelection } from './managedRasterAdoption';
 import { templateReviewPayload } from './templateReview';
 
 export { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
@@ -54,6 +55,7 @@ export interface SubmitTemplateRevisionInput {
   contributorEmail: string | null;
   expectedRevision: number;
   submissionKey: string;
+  managedRasterSelection?: ManagedRasterSelection;
 }
 
 export interface TemplateRevisionResult {
@@ -95,6 +97,7 @@ interface TemplatePipelineDraftInput {
   contributorId: string;
   contributorEmail: string | null;
   submissionKey: string;
+  managedRasterSelection?: ManagedRasterSelection;
 }
 
 export interface PurgePipelineSubmissionInput {
@@ -314,10 +317,17 @@ export const createTemplatePipelineDraft = async ({
   contributorId,
   contributorEmail,
   submissionKey,
+  managedRasterSelection,
 }: TemplatePipelineDraftInput): Promise<TemplatePipelineDraftResult> => {
   const supabase = requireSupabase();
-  const storedTemplate = await externalizePipelineTemplateAssets(templateReviewPayload(template));
-  const { data: submissionId, error } = await supabase.rpc('cardforge_create_template_pipeline_draft', {
+  const source = templateReviewPayload(template);
+  const prepared = managedRasterSelection
+    ? await prepareManagedRasterTemplateRevision(source, managedRasterSelection)
+    : null;
+  const storedTemplate = await externalizePipelineTemplateAssets(prepared?.template ?? source);
+  const { data: submissionId, error } = await supabase.rpc(
+    prepared ? 'cardforge_author_template_managed_raster' : 'cardforge_create_template_pipeline_draft', {
+    ...(prepared ? { p_kind: 'draft', p_description: '' , p_expected_revision: 0, p_adoption: prepared.adoption } : {}),
     p_asset_id: storedTemplate.id,
     p_name: storedTemplate.name,
     p_contributor_id: contributorId,
@@ -377,12 +387,19 @@ const writeTemplateRevision = async ({
   contributorEmail,
   expectedRevision,
   submissionKey,
+  managedRasterSelection,
 }: SubmitTemplateRevisionInput, publishDirectly: boolean): Promise<TemplateRevisionResult> => {
   const supabase = requireSupabase();
-  const storedTemplate = await externalizePipelineTemplateAssets(templateReviewPayload(template));
+  const source = templateReviewPayload(template);
+  const prepared = managedRasterSelection
+    ? await prepareManagedRasterTemplateRevision(source, managedRasterSelection)
+    : null;
+  const storedTemplate = await externalizePipelineTemplateAssets(prepared?.template ?? source);
   const { data: revisionId, error } = await supabase.rpc(
-    publishDirectly ? 'cardforge_publish_owner_template_revision' : 'cardforge_submit_template_revision',
+    prepared ? 'cardforge_author_template_managed_raster'
+      : publishDirectly ? 'cardforge_publish_owner_template_revision' : 'cardforge_submit_template_revision',
     {
+      ...(prepared ? { p_kind: publishDirectly ? 'owner' : 'submit', p_adoption: prepared.adoption } : {}),
       p_asset_id: storedTemplate.id,
       p_name: storedTemplate.name,
       p_description: storedTemplate.templateDescription ?? 'Base card design revision submitted from CardForge Studio.',
