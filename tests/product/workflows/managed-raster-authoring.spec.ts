@@ -73,6 +73,7 @@ for(const width of [390,1440]) for(const contract of [false,true]) test(`@golden
   expect(requests[0].body.managedRasterSelection).toEqual(actualSelection);
   const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved).not.toHaveProperty('managedRasterSelection');
   expect(saved.freeformCanvas.elements.find((e:{id:string})=>e.id===elementId).imageSource).toBe('');
+  await expect(page.getByRole('button',{name:'Continue selected adoption',exact:true})).toBeVisible();
   // A real reload discards all React refs and transient selection; IndexedDB owns the attempt.
   await page.reload(); await boot();
   await expect(page.getByRole('region',{name:'Saved Pipeline attempts'})).toBeVisible();
