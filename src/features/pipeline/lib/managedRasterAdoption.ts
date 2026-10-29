@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import type { TCGCardTemplate } from '@/domain/templates';
+import { getImageFieldKeyForElement } from '@/domain/rendering';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 
@@ -40,6 +42,24 @@ type PublishedRasterRecord = {
   source_content_sha256: string | null;
   source_upload_token: string | null;
 };
+
+/** An authored selection is static only when the current Template cannot
+ * resolve an image field or preview override ahead of its selected media slot.
+ * No field contract, preview data or child content is silently removed.
+ */
+export function assertStaticManagedRasterSlot(
+  template: TCGCardTemplate & { id: string },
+  selection: ManagedRasterSelection,
+): void {
+  const elements = template.freeformCanvas?.elements ?? [];
+  const chosen = elements.filter(element => element.id === selection.elementId);
+  if (chosen.length !== 1 || chosen[0].type !== 'image') throw unavailable();
+  const image = chosen[0];
+  if (image.imageSource?.includes('{{') || image.content?.includes('{{')
+    || template.fieldContracts?.some(contract => contract.type === 'image'
+      && (contract.elementId === image.id || (!contract.elementId && contract.key === getImageFieldKeyForElement(image))))
+    || template.templatePreviewData?.[getImageFieldKeyForElement(image)] !== undefined) throw unavailable();
+}
 
 /**
  * Source-owner preflight for one deliberately chosen published managed raster.

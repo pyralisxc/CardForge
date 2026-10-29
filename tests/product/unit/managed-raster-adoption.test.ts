@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { verifySelectedPublishedManagedRaster } from '@/features/pipeline/lib/managedRasterAdoption';
+import { verifySelectedPublishedManagedRaster, assertStaticManagedRasterSlot } from '@/features/pipeline/lib/managedRasterAdoption';
 
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: vi.fn() }));
 const bytes = Uint8Array.from([1,2,3,4]);
@@ -32,6 +32,26 @@ function mock(options:{source?:unknown;lineage?:unknown;registry?:unknown;laterR
   return{download};
 }
 beforeEach(()=>{vi.resetAllMocks();mock();});
+describe('static slot precondition',()=>{
+  const basic = { id:'template-1', name:'Template', aspectRatio:'63:88' as const,
+    freeformCanvas:{width:630,height:880,elements:[{ id:'art',name:'Image',type:'image' as const,
+      x:0,y:0,width:50,height:60,zIndex:0,imageSource:'' }]},
+  };
+  it('accepts a single static slot without altering any authored content',()=>{
+    const before=structuredClone(basic);
+    expect(()=>assertStaticManagedRasterSlot(basic,selection)).not.toThrow();
+    expect(basic).toEqual(before);
+  });
+  it('rejects per-card contracts, preview data and bound dynamic sources',()=>{
+    expect(()=>assertStaticManagedRasterSlot({...basic,fieldContracts:[
+      {key:'art',type:'image' as const,elementId:'art'}]},selection)).toThrow();
+    expect(()=>assertStaticManagedRasterSlot({...basic,templatePreviewData:{
+      image_image_art:'https://example.invalid/override.png'}},selection)).toThrow();
+    expect(()=>assertStaticManagedRasterSlot({...basic,freeformCanvas:{...basic.freeformCanvas,
+      elements:[{...basic.freeformCanvas.elements[0],imageSource:'{{art}}'}]}},selection)).toThrow();
+  });
+});
+
 describe('published raster immutable-source observation',()=>{
   it('observes original digest and verified lineage without writing normalized storage',async()=>{
     const result=await verifySelectedPublishedManagedRaster(selection);
