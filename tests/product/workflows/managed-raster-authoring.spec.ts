@@ -55,6 +55,10 @@ for(const width of [390,1440]) test(`@golden explicit managed raster picker and 
   await page.locator('[data-cardforge-editor-overlay][data-freeform-element-id="art"]').click();
   if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
   await page.getByLabel('Picture URL, card field, or uploaded file').fill('/independent.svg');
+  await expect(managed).toBeEnabled();await managed.uncheck();
+  await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
+  await page.getByRole('option',{name:/Legacy ordinary picture/}).click();await page.getByRole('button',{name:'Use selection',exact:true}).click();
+  await expect(page.getByLabel('Picture URL, card field, or uploaded file')).toHaveValue('/raster.svg');
   if(width<1024)await page.getByRole('button',{name:'Close inspector',exact:true}).click();
   await expect(page.getByRole('status').filter({hasText:'Pending managed adoption:'})).toContainText('changed');
   await page.getByRole('button',{name:'Continue in Pipeline',exact:true}).click();

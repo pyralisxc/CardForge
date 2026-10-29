@@ -122,7 +122,7 @@ export function TemplateAssetLibraryPicker({
   return (
     <>
       {managedAdoption ? <label className="flex items-start gap-2 text-xs">
-        <input type="checkbox" checked={adopt} disabled={Boolean(managedAdoption.issue)} onChange={event => setAdopt(event.target.checked)} />
+        <input type="checkbox" checked={adopt} disabled={Boolean(managedAdoption.issue) && !adopt} onChange={event => setAdopt(event.target.checked)} />
         Adopt managed picture on Pipeline submission
       </label> : null}
       {managedAdoption?.pendingName ? <p className="text-xs text-amber-200">Selected for next Pipeline submission: {managedAdoption.pendingName}. Local picture unchanged.</p> : null}
