@@ -103,6 +103,16 @@ describe('completed public deletion cleanup', () => {
     expect(cleanCompletedDeletionReferences(result.document, new Set([dead])).changed).toBe(false);
   });
 
+  it('preserves an independently embedded local asset despite an unrelated completed public URL', () => {
+    const original = document();
+    const local = 'cardforge-browser-asset://' + 'a'.repeat(64);
+    original.userTemplates[0].freeformCanvas!.elements[0].imageSource = local;
+    original.storedCards[0].data.art = local;
+    const repaired = cleanCompletedDeletionReferences(original, new Set([dead]));
+    expect(repaired.document.userTemplates[0].freeformCanvas!.elements[0].imageSource).toBe(local);
+    expect(repaired.document.storedCards[0].data.art).toBe(local);
+  });
+
   it('leaves pending/private/unknown references alone and clears only confirmed appearance media', () => {
     const original = document();
     expect(cleanCompletedDeletionReferences(original, new Set()).document).toBe(original);

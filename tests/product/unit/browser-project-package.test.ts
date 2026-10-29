@@ -211,6 +211,45 @@ describe('remote artwork in portable browser packages', () => {
     expect(restored.storedCards[1].data.artwork).toBe(restored.storedCards[0].data.artwork);
   });
 
+  it('round-trips a confirmed blank media layer without fetching inactive card/default URLs or disturbing embedded live art', async () => {
+    setProjectPersistenceScope('guest');
+    const source = remoteProject();
+    const dead = remoteArt;
+    const liveInline = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZxQAAAAASUVORK5CYII=';
+    source.userTemplates[0].fieldContracts = [{ key: 'artwork', type: 'image', elementId: 'art', defaultValue: dead }];
+    source.userTemplates[0].freeformCanvas!.elements[0].imageSource = '__cardforge_deleted_media_blank__';
+    source.userTemplates[0].templatePreviewData = { artwork: dead };
+    source.userTemplates[0].cardBorderImageSource = undefined;
+    source.storedCards = [source.storedCards[0]];
+    source.storedCards[0].data = { artwork: dead, notes: dead, additionalImage: liveInline };
+    // An unrelated independent inline asset remains locally portable.
+    source.userTemplates[0].freeformCanvas!.elements.push({
+      id: 'live', name: 'Live', type: 'image', imageSource: liveInline,
+      x: 0, y: 0, width: 24, height: 24, zIndex: 5,
+    });
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    const snapshot = await buildBrowserCardForgeProjectSnapshot({ document: source, name: 'Blank and live' });
+    expect(fetch).not.toHaveBeenCalled();
+    const reopened = await decodeCardForgeProjectPackage(await createCardForgeProjectPackageBlob(snapshot));
+    const restored = await materializeBrowserProjectSnapshot(reopened);
+    const element = restored.userTemplates[0].freeformCanvas!.elements.find(e => e.id === 'art')!;
+    expect(element.imageSource).toBe('__cardforge_deleted_media_blank__');
+    expect(restored.userTemplates[0].fieldContracts).toEqual(source.userTemplates[0].fieldContracts);
+    expect(restored.storedCards[0].data.artwork).toBe(dead);
+    expect(restored.storedCards[0].data.notes).toBe(dead);
+    const live = restored.userTemplates[0].freeformCanvas!.elements.find(e => e.id === 'live')!;
+    expect(live.imageSource).toMatch(/^cardforge-browser-asset:\/\//u);
+    const { getCardFaceCanvas } = await import('@/domain/rendering');
+    const { resolveFreeformImageUrl } = await import('@/features/card-rendering/model/elementStyles');
+    const canvas = getCardFaceCanvas({
+      uniqueId: restored.storedCards[0].uniqueId, template: restored.userTemplates[0],
+      backingTemplate: null, backingTemplateId: null, data: restored.storedCards[0].data,
+    }, 'front');
+    const blank = canvas!.elements.find(e => e.id === 'art')!;
+    expect(resolveFreeformImageUrl(blank, restored.storedCards[0].data)).toBe('');
+    expect(resolveFreeformImageUrl(canvas!.elements.find(e => e.id === 'live')!, restored.storedCards[0].data)).toBe(live.imageSource);
+  });
+
   it.each(['not-found', 'cors', 'timeout', 'html', 'empty', 'oversized'] as const)('refuses a portable snapshot on %s without modifying authored work', async (failure) => {
     setProjectPersistenceScope('guest');
     const source = remoteProject();
