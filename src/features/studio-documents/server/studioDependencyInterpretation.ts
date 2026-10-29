@@ -29,6 +29,14 @@ const style = z.object({
   librarySource: z.string().optional(), accessTier: z.string().optional(), registryStatus: z.string().optional(), contributorName: z.string().optional(),
   studioDestinations: z.array(z.string()).optional(), studioOrder: z.number().optional(), studioFeatured: z.boolean().optional(), studioRoutingMode: z.string().optional(),
 }).strict();
+// Canonical ProjectDocumentV1 MCP operation receipt is bounded audit metadata,
+// not a mutable catalog reference or an opaque extension by its mere presence.
+const operationReceipt = z.object({
+  operationId: z.string(), requestHash: z.string(), revision: z.number().int(),
+  changedTemplateIds: z.array(z.string()), changedElementIds: z.array(z.string()),
+  changedCardIds: z.array(z.string()), changedAssetRequirementIds: z.array(z.string()),
+  warnings: z.array(z.string()), canonicalRenderingRecommended: z.boolean(),
+}).strict();
 const storedCard = z.object({ templateId: z.string(), backingTemplateId: z.string().nullable().optional(), data: scalarData, backingData: scalarData.optional(),
   uniqueId: z.string(), setId: z.string().optional(), setName: z.string().optional(), tagIds: z.array(z.string()).optional(), updatedAt: z.string().optional() }).strict();
 const set = z.object({ id: z.string(), name: z.string(), templateIds: z.array(z.string()).optional(),
@@ -86,7 +94,7 @@ export function interpretStudioDependencies(payload: unknown) {
       || Object.entries(assets).some(([key, items]) => !['cardforge-maker-custom-textures','cardforge-maker-custom-dividers','cardforge-maker-custom-icons','cardforge-maker-custom-images'].includes(key)
         || !Array.isArray(items) || items.length > 0))) opaque.add('custom_asset_or_font_inventory');
     if (raw.customFonts !== undefined && (!Array.isArray(raw.customFonts) || raw.customFonts.length > 0)) opaque.add('custom_asset_or_font_inventory');
-    if (raw.mcpOperationReceipts !== undefined && (!Array.isArray(raw.mcpOperationReceipts) || raw.mcpOperationReceipts.length > 0)) opaque.add('unsupported_operation_receipts');
+    if (raw.mcpOperationReceipts !== undefined && (!Array.isArray(raw.mcpOperationReceipts) || raw.mcpOperationReceipts.some(entry => !operationReceipt.safeParse(entry).success))) opaque.add('unsupported_operation_receipts');
     if (raw.exportSettings !== undefined && (!raw.exportSettings || typeof raw.exportSettings !== 'object' || Array.isArray(raw.exportSettings))) opaque.add('unsupported_export_settings');
     if (raw.productionPlan !== undefined && !projectProductionPlanSchema.safeParse(raw.productionPlan).success) opaque.add('unsupported_raw_production_plan');
   }
@@ -125,6 +133,7 @@ export function interpretStudioDependencies(payload: unknown) {
     if (templateRefs.some(id => id && !localTemplates.has(id))) opaque.add('mutable_catalog_template_resolution');
     if (Object.values(normalized.customAssets).some(items => items.length) || normalized.customFonts?.length) opaque.add('custom_asset_or_font_inventory');
     if (normalized.productionPlan && !projectProductionPlanSchema.safeParse(normalized.productionPlan).success) opaque.add('unsupported_production_plan');
+    if (normalized.mcpOperationReceipts?.some(entry => !operationReceipt.safeParse(entry).success)) opaque.add('unsupported_operation_receipts');
     // These metadata values do not render references. Unknown fields remain opaque.
     const exportKeys = ['selectedPaperSize','pdfMarginMm','pdfCardSpacingMm','pdfIncludeCutLines','pdfDuplexLayout','exportMode','exportDpi'];
     if (Object.keys(normalized.exportSettings).some(key => !exportKeys.includes(key))) opaque.add('unsupported_export_settings');

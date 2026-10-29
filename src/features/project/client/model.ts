@@ -4,6 +4,7 @@ export {
 } from '../model/projectDocument';
 export type { ProjectDocumentV1 } from '../model/projectDocument';
 export {
+  PROJECT_ASSET_BINDINGS,
   PROJECT_ASSET_REQUIREMENT_KINDS,
   PROJECT_ASSET_REQUIREMENT_SOURCES,
   PROJECT_ASSET_REQUIREMENT_STATUSES,

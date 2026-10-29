@@ -5,6 +5,7 @@ import {
   CARDFORGE_FREEFORM_SHAPE_KINDS,
 } from '@/domain/templates';
 import {
+  PROJECT_ASSET_BINDINGS,
   PROJECT_ASSET_REQUIREMENT_KINDS,
   PROJECT_ASSET_REQUIREMENT_SOURCES,
   PROJECT_ASSET_REQUIREMENT_STATUSES,
@@ -220,8 +221,10 @@ const productionAssetRequirementSchema = z.object({
   source: z.enum(PROJECT_ASSET_REQUIREMENT_SOURCES),
   quantity: z.number().int().min(1).max(64),
   status: z.enum(PROJECT_ASSET_REQUIREMENT_STATUSES),
+  binding: z.enum(PROJECT_ASSET_BINDINGS).optional(),
   assetId: boundedString(255).optional(),
   assetUrl: boundedString(20_000).optional(),
+  embeddedAssetId: boundedString(255).optional(),
   prompt: boundedString(4_000).optional(),
   targetElementIds: z.array(boundedTrimmedString(255)).max(100).optional(),
   width: z.number().finite().positive().max(20_000).optional(),
