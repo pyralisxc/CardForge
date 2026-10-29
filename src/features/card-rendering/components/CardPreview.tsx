@@ -362,6 +362,9 @@ export function CardPreview({
         }
 
         if (element.type === 'icon') {
+          if (element.iconName === '__cardforge_deleted_media_blank__') {
+            return <ProjectBinaryFrame key={element.id} style={baseStyle} data-freeform-element-id={element.id} />;
+          }
           const iconImageUrl = element.iconImageSource ? replacePlaceholdersLocal(element.iconImageSource, dataToRender, isEditorPreview) : '';
           if (iconImageUrl && (
             iconImageUrl.startsWith('http')

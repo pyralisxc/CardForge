@@ -32,8 +32,11 @@ describe('completed public deletion cleanup', () => {
     expect(cleaned.templateId).not.toBe('shared');
     expect(cleaned.data).toEqual({ art: dead, description: dead });
     const fork = result.document.userTemplates.find((item) => item.id === cleaned.templateId)!;
-    expect(fork.freeformCanvas!.elements).toEqual([expect.objectContaining({ id: 'label', x: 15, y: 26, parentId: undefined, content: '{{art}}' })]);
-    expect(fork.fieldContracts).toEqual([]);
+    expect(fork.freeformCanvas!.elements).toEqual([
+      expect.objectContaining({ id: 'picture', x: 10, y: 20, width: 100, height: 100, imageSource: '__cardforge_deleted_media_blank__' }),
+      expect.objectContaining({ id: 'label', x: 5, y: 6, parentId: 'picture', content: '{{art}}' }),
+    ]);
+    expect(fork.fieldContracts).toEqual(template.fieldContracts);
     expect(result.document.userTemplates.find((item) => item.id === 'shared')!.freeformCanvas!.elements).toHaveLength(2);
     expect(cleanCompletedDeletionReferences(result.document, new Set([dead])).changed).toBe(false);
   });
@@ -61,10 +64,21 @@ describe('completed public deletion cleanup', () => {
     const result = cleanCompletedDeletionReferences(original, new Set([dead]));
     const front = result.document.userTemplates.find((item) => item.id === result.document.storedCards[0].templateId)!;
     const back = result.document.userTemplates.find((item) => item.id === result.document.storedCards[1].backingTemplateId)!;
-    expect(front.freeformCanvas!.elements.some((item) => item.id === 'picture')).toBe(false);
-    expect(back.freeformCanvas!.elements.some((item) => item.id === 'picture')).toBe(false);
+    expect(front.freeformCanvas!.elements.find((item) => item.id === 'picture')?.imageSource).toBe('__cardforge_deleted_media_blank__');
+    expect(back.freeformCanvas!.elements.find((item) => item.id === 'picture')?.imageSource).toBe('__cardforge_deleted_media_blank__');
     expect(back.templatePreviewData).toEqual({ art: dead });
     expect(result.document.userTemplates.find((item) => item.id === 'shared')!.freeformCanvas!.elements).toHaveLength(2);
+  });
+
+  it('blanks deleted icon media without legacy Sparkles fallback or geometry changes', () => {
+    const original = document();
+    original.userTemplates[0].freeformCanvas!.elements.push({ id: 'icon', name: 'Icon', type: 'icon', iconImageSource: dead,
+      x: 17, y: 28, width: 40, height: 35, zIndex: 3 });
+    const result = cleanCompletedDeletionReferences(original, new Set([dead]));
+    const icon = result.document.userTemplates[0].freeformCanvas!.elements.find(e => e.id === 'icon')!;
+    expect(icon).toMatchObject({ id: 'icon', type: 'icon', x: 17, y: 28, width: 40, height: 35,
+      zIndex: 3, iconName: '__cardforge_deleted_media_blank__', iconImageSource: '' });
+    expect(cleanCompletedDeletionReferences(result.document, new Set([dead])).changed).toBe(false);
   });
 
   it('leaves pending/private/unknown references alone and clears only confirmed appearance media', () => {

@@ -2,8 +2,9 @@ import type { CardData } from '@/domain/cards';
 import { getCardFaceCanvas, getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/domain/rendering';
 import type { FreeformAppearance, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import { createPersonalTemplateFork } from '@/domain/templates/templateIdentity';
-import { resolveCanvasElementWorldOrigin } from '@/domain/templates/hierarchyGeometry';
 import type { ProjectDocumentV1 } from './projectDocument';
+
+export const COMPLETED_DELETION_BLANK_MEDIA = '__cardforge_deleted_media_blank__';
 
 const renderable = (value: unknown): value is string => typeof value === 'string'
   && /^(?:http|data:|blob:|cardforge-browser-asset:\/\/|\/)/u.test(value);
@@ -47,30 +48,34 @@ export function cleanCompletedDeletionReferences(
     template.cardBackgroundImageUrl = clear(template.cardBackgroundImageUrl);
     template.cardBorderImageSource = clear(template.cardBorderImageSource);
     appearance(template.appearance);
+    // Preserve the original layer and its children/field contracts. An explicit
+    // valid string sentinel prevents card-data/default fallbacks from reviving
+    // media whose *rendered* exact URL has completed-deletion evidence.
     const elements = template.freeformCanvas?.elements ?? [];
     const renderedElements = getCardFaceCanvas({ template: original, data, uniqueId: 'cleanup' }, 'front')?.elements ?? [];
-    const removed = new Set(renderedElements.filter((element) => (
-      (element.type === 'image' && deletedUrls.has(imageSource(element, data)))
-      || (element.type === 'icon' && deletedUrls.has(replacePlaceholdersLocal(element.iconImageSource, data, false)))
-    )).map((element) => element.id));
-    if (template.freeformCanvas) template.freeformCanvas.elements = elements.filter((element) => !removed.has(element.id)).map((element) => {
-      if (element.parentId && removed.has(element.parentId)) {
-        if (template.freeformCanvas?.hierarchyVersion === 2) Object.assign(element, resolveCanvasElementWorldOrigin(element, elements));
-        element.parentId = undefined;
-      }
-      if (element.type === 'image') {
+    const renderedById = new Map(renderedElements.map(element => [element.id, element]));
+    if (template.freeformCanvas) template.freeformCanvas.elements = elements.map((element) => {
+      const rendered = renderedById.get(element.id) ?? element;
+      if (element.type === 'image' && deletedUrls.has(imageSource(rendered, data))) {
+        element.imageSource = COMPLETED_DELETION_BLANK_MEDIA;
+        if (element.content && deletedUrls.has(element.content)) element.content = '';
+      } else if (element.type === 'image') {
         element.imageSource = clear(element.imageSource);
         element.content = clear(element.content);
       }
-      element.iconImageSource = clear(element.iconImageSource);
+      if (element.type === 'icon' && deletedUrls.has(replacePlaceholdersLocal(rendered.iconImageSource, data, false))) {
+        element.iconImageSource = '';
+        element.iconName = COMPLETED_DELETION_BLANK_MEDIA;
+      } else {
+        element.iconImageSource = clear(element.iconImageSource);
+      }
       element.backgroundImageUrl = clear(element.backgroundImageUrl);
       appearance(element.appearance);
       return element;
     });
-    template.fieldContracts = template.fieldContracts?.filter((contract) => !contract.elementId || !removed.has(contract.elementId));
     return template;
   };
-  document.userTemplates = source.userTemplates.map((template) => cleanTemplate(template));
+  document.userTemplates = source.userTemplates.map((template) => cleanTemplate(template, template.templatePreviewData ?? {}));
   const originals = new Map(source.userTemplates.map((template) => [template.id, template]));
   const baselines = new Map(document.userTemplates.map((template) => [template.id, template]));
   for (const card of document.storedCards) {
@@ -90,8 +95,9 @@ export function cleanCompletedDeletionReferences(
         const set = document.cardSets.find((candidate) => candidate.id === card.setId);
         if (set && !set.templateIds?.includes(fork.id!)) set.templateIds = [...(set.templateIds ?? []), fork.id!];
       }
-      // Card data may also feed surviving text or other bindings. Removing the
-      // media layer is sufficient; never erase a shared authored data value.
+      // Card data and field contracts remain authored. The blank element
+      // sentinel takes precedence over their image fallbacks without erasing
+      // shared text or other card fields.
     }
   }
   for (const assets of Object.values(document.customAssets)) {

@@ -60,8 +60,9 @@ function ResolvedArtifactThumbnailImage({ card, face }: { card: DisplayCard; fac
       const areaDifference = (right.width * right.height) - (left.width * left.height);
       return areaDifference || right.zIndex - left.zIndex;
     })[0];
-  const boundValue = image ? data[getImageFieldKeyForElement(image)] : undefined;
-  const authoredSource = image ? replacePlaceholdersLocal(image.imageSource || image.content, data, false) : undefined;
+  const blankImage = image?.imageSource === '__cardforge_deleted_media_blank__';
+  const boundValue = !blankImage && image ? data[getImageFieldKeyForElement(image)] : undefined;
+  const authoredSource = !blankImage && image ? replacePlaceholdersLocal(image.imageSource || image.content, data, false) : undefined;
   const indirectValue = authoredSource ? data[authoredSource] : undefined;
   const heroSource = isImageSource(boundValue)
     ? boundValue
