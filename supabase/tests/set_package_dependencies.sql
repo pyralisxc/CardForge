@@ -4,7 +4,7 @@ set local role service_role;
 set local lock_timeout='5s';
 do $$
 declare actor text:='set-source-native'; asset text:='set-source-proof'; package_hash text:=repeat('a',64);
- source_path text; source_url text; proof jsonb; row_value jsonb; altered jsonb; candidate uuid; again uuid; pin text;
+ source_path text; source_url text; proof jsonb; row_value jsonb; altered jsonb; candidate uuid; again uuid; dependent uuid; pin text;
  target uuid:=gen_random_uuid(); target_asset text:='set-source-target'; reasons text[]; signature text;
 begin
  if exists(select 1 from public.cardforge_asset_registry) or exists(select 1 from public.cardforge_studio_documents) then
@@ -78,9 +78,17 @@ begin
  -- An actual dependent bound publication blocks, then rolls back its isolated subcase.
  begin
   altered:=jsonb_set(proof,'{references,identities}',jsonb_build_array(target_asset));
-  perform public.cardforge_publish_official_starter_set('dependent-set','Dependent','Synthetic dependency',
+  dependent:=public.cardforge_publish_official_starter_set('dependent-set','Dependent','Synthetic dependency',
    'https://example.invalid/storage/v1/object/public/cardforge-contributor-assets/owner-defaults/sets/dependent-set/'||package_hash||'.cardforge','',
    'cardforge-contributor-assets','owner-defaults/sets/dependent-set/'||package_hash||'.cardforge',42,package_hash,actor,'',array['games'],array['playing-cards'],'Synthetic',altered);
+  if (select status from public.cardforge_contributor_asset_submissions where id=dependent) is distinct from 'publish_candidate'
+   then raise exception 'dependent_set_editorial_candidate_expected'; end if;
+  perform public.cardforge_set_contributor_asset_owner_override(dependent,true,'published',true,'free','Synthetic dependent Set native proof',actor);
+  if (select status from public.cardforge_contributor_asset_submissions where id=dependent) is distinct from 'published'
+   then raise exception 'dependent_set_owner_publication_missing'; end if;
+  if not exists(select 1 from public.cardforge_asset_registry
+    where asset_id='dependent-set' and asset_type='set' and contributor_submission_id=dependent)
+   then raise exception 'dependent_set_registry_pointer_missing'; end if;
   reasons:=public.cardforge_catalog_trash_entry_reasons(target);
   if not ('pipeline_identity_consumer_requires_resolution'=any(reasons)) then raise exception 'bound_set_reference_not_blocked'; end if;
   if not exists(select 1 from jsonb_array_elements(public.cardforge_catalog_trash_inventory_details(target)) detail
