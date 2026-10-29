@@ -334,6 +334,62 @@ try:
     expect_conflict(b, "public.cardforge_claim_pipeline_upload_cleanup('race-owner','" + path + "')", 'pipeline_upload_cleanup_blocked')
     print('PASS: cleanup commitment wins; submission and duplicate cleanup remain excluded without any lease reset')
 
+
+    # New authored raster dependency uses the original upload receipt and the
+    # same guarded lineage/registry lock boundary as catalog Trash.
+    raster_desc = {"assetType":"imageAssets","fileName":"proof.png","fileSizeBytes":100,
+                   "mimeType":"image/png","transportExtension":"png"}
+    raster_desc_json = json.dumps(raster_desc)
+    reservation = json.loads(a.run("select public.cardforge_reserve_pipeline_upload('raster-owner','"
+                                   + raster_desc_json + "'::jsonb)::text;")[-1])
+    raster_path = reservation['storagePath']
+    raster_lineage = reservation['lineageId']
+    raster_asset = 'native-raster-' + uuid.uuid4().hex
+    source_hash = 'a' * 64
+    webp_hash = 'b' * 64
+    raster_request = {
+        "contributor_id":"raster-owner","asset_type":"imageAssets","name":"Raster contention",
+        "source_storage_bucket":"cardforge-contributor-assets","source_storage_path":raster_path,
+        "source_url":"https://example.invalid/storage/v1/object/public/cardforge-contributor-assets/" + raster_path,
+        "preview_url":"https://example.invalid/storage/v1/object/public/cardforge-contributor-assets/" + raster_path,
+        "source_mime_type":"image/png","source_file_size_bytes":100,
+        "source_content_sha256":source_hash
+    }
+    raster_request_json = json.dumps(raster_request)
+    prepared = json.loads(a.run("select public.cardforge_prepare_pipeline_upload_submission('raster-owner','"
+                                  + raster_path + "','" + raster_desc_json + "'::jsonb,'"
+                                  + raster_request_json + "'::jsonb,true)::text;")[-1])
+    raster_token = prepared['token']
+    raster_submission = a.run("select public.cardforge_commit_pipeline_upload_submission('"
+                              + raster_path + "','" + raster_token + "','" + raster_request_json + "'::jsonb);")[-1]
+    a.run(f"update public.cardforge_pipeline_asset_lineages set registry_asset_id='{raster_asset}',revision_high_water=1 where id='{raster_lineage}';")
+    a.run("insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id)"
+          + f" values('{raster_asset}','Native raster','image','{raster_request['source_url']}','published','free','contributor','{raster_submission}');")
+    a.run("update public.cardforge_contributor_asset_submissions set status='published',"
+          + " editorial_review_status='approved',published_at=now(),revision_number=1,"
+          + f" registry_asset_id='{raster_asset}',target_registry_asset_id='{raster_asset}' where id='{raster_submission}';")
+    a.run("insert into public.cardforge_pipeline_template_assets(asset_id,storage_bucket,storage_path,mime_type,byte_count)"
+          + f" values('{webp_hash}','cardforge-developer-assets','template-assets/{webp_hash}.webp','image/webp',100) on conflict do nothing;")
+    adopter = 'native-adopter-' + uuid.uuid4().hex
+    payload = {"id":adopter,"name":"Raster adopter","aspectRatio":"63:88","freeformCanvas":{
+        "width":630,"height":880,"elements":[{"id":"art","name":"Art","type":"image","x":0,"y":0,
+                                      "width":200,"height":200,"zIndex":0,
+                                      "imageSource":"cardforge-pipeline-asset://" + webp_hash}]}}
+    binding = {"assetId":raster_asset,"submissionId":raster_submission,"elementId":"art",
+               "originalSha256":source_hash,"normalizedSha256":webp_hash}
+    wrapped = ("public.cardforge_author_template_managed_raster('draft','" + adopter
+               + "','Raster adopter','','raster-owner',null,'" + json.dumps(payload)
+               + "'::jsonb,0,'raster-race-key','" + json.dumps(binding) + "'::jsonb)")
+    a.run('begin;')
+    a.run(f"select 1 from public.cardforge_pipeline_asset_lineages where id='{raster_lineage}' for update;")
+    expect_busy(b, wrapped)
+    a.run('rollback;')
+    adopted_id = b.run("select " + wrapped + ";")[-1]
+    assert len(adopted_id) == 36
+    reasons = b.run(f"select array_to_string(public.cardforge_catalog_trash_entry_reasons('{raster_lineage}'),',');")[-1]
+    assert 'pipeline_identity_consumer_requires_resolution' in reasons, reasons
+    print('PASS: native raster adoption loses locked-lineage race; committed exact dependency fences catalog Trash')
+
 finally:
     a.close()
     b.close()
