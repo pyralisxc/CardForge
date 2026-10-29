@@ -24,6 +24,17 @@ begin
   'complete',true,'references','{"identities":[],"sources":[]}'::jsonb,'opaqueReasons','[]'::jsonb);
  candidate:=public.cardforge_publish_official_starter_set(asset,'Synthetic Set','Local source fixture',source_url,'',
  'cardforge-contributor-assets',source_path,42,package_hash,actor,'',array['games'],array['playing-cards'],'Synthetic',proof);
+ -- Editorial readiness deliberately leaves bootstrap publication as a candidate.
+ -- Use the existing native Owner command to publish this synthetic row before
+ -- asserting registry-trigger safety; an UPDATE of zero rows proves nothing.
+ if (select status from public.cardforge_contributor_asset_submissions where id=candidate) is distinct from 'publish_candidate'
+ then raise exception 'set_fixture_expected_editorial_candidate'; end if;
+ perform public.cardforge_set_contributor_asset_owner_override(candidate,true,'published',true,'free','Synthetic Set native proof',actor);
+ if (select status from public.cardforge_contributor_asset_submissions where id=candidate) is distinct from 'published'
+ then raise exception 'set_fixture_owner_publication_missing'; end if;
+ if not exists(select 1 from public.cardforge_asset_registry
+   where asset_id=asset and asset_type='set' and contributor_submission_id=candidate)
+ then raise exception 'set_fixture_registry_publication_missing'; end if;
  select to_jsonb(s) into row_value from public.cardforge_contributor_asset_submissions s where id=candidate;
  if not public.cardforge_set_dependency_binding_valid(row_value) then raise exception 'set_binding_not_created'; end if;
  again:=public.cardforge_publish_official_starter_set(asset,'Synthetic Set','Local source fixture',source_url,'',

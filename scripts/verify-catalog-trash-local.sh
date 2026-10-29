@@ -113,7 +113,7 @@ run_cli generated-set-migration migration new set_package_source_binding --workd
 generated=("$work"/supabase/migrations/*_set_package_source_binding.sql)
 [[ ${#generated[@]} == 1 && -f ${generated[0]} ]] || { echo "Expected one CLI-generated Set migration"; exit 1; }
 cp "$root/supabase/tests/set_package_source_binding.preparation.sql" "${generated[0]}"
-printf '%s\\n' "$(basename "${generated[0]}")" > "$proof/generated-set-migration-name.txt"
+printf '%s\n' "$(basename "${generated[0]}")" > "$proof/generated-set-migration-name.txt"
 sha256sum "${generated[0]}" > "$proof/generated-set-migration-sha256.txt"
 run_cli remaining migration up --workdir "$work" --local
 psql_local -c "BEGIN; SET LOCAL cardforge.fixture_disposable = 'plugin-releases';" \
