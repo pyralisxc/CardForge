@@ -19,6 +19,24 @@ begin
    or has_function_privilege('anon','public.cardforge_catalog_consumer_mentions(jsonb,text[],text[],text,integer)','EXECUTE')
    or has_function_privilege('authenticated','public.cardforge_catalog_consumer_mentions(jsonb,text[],text[],text,integer)','EXECUTE') then
    raise exception 'typed_inspection_browser_privileges'; end if;
+ -- Current FreeformCardElement.iconRenderMode is original/tint, never font/image.
+ -- No icon image source is provided in these positive cases.
+ for payload in select value from jsonb_array_elements(jsonb_build_array(
+   '{"id":"icon-test","name":"Icon","type":"icon","x":0,"y":0,"width":10,"height":10,"zIndex":0,"iconRenderMode":"original"}'::jsonb,
+   '{"id":"icon-test","name":"Icon","type":"icon","x":0,"y":0,"width":10,"height":10,"zIndex":0,"iconRenderMode":"tint"}'::jsonb
+ )) loop
+   if not public.cardforge_catalog_consumer_inspectable(payload,'element') then
+     raise exception 'canonical_icon_render_mode_rejected'; end if;
+ end loop;
+ for payload in select value from jsonb_array_elements(jsonb_build_array(
+   '{"id":"icon-test","name":"Icon","type":"icon","x":0,"y":0,"width":10,"height":10,"zIndex":0,"iconRenderMode":"font"}'::jsonb,
+   '{"id":"icon-test","name":"Icon","type":"icon","x":0,"y":0,"width":10,"height":10,"zIndex":0,"iconRenderMode":"image"}'::jsonb,
+   '{"id":"icon-test","name":"Icon","type":"icon","x":0,"y":0,"width":10,"height":10,"zIndex":0,"iconRenderMode":"original","unknownRendererField":true}'::jsonb,
+   '{"id":"icon-test","name":"Icon","type":"icon","x":0,"y":0,"width":10,"height":10,"zIndex":0,"iconRenderMode":"tint","iconImageSource":"https://example.invalid/retained.svg"}'::jsonb
+ )) loop
+   if public.cardforge_catalog_consumer_inspectable(payload,'element') then
+     raise exception 'icon_mode_or_external_source_cleared'; end if;
+ end loop;
  if not public.cardforge_catalog_consumer_inspectable(style,'style') or not public.cardforge_catalog_consumer_inspectable(template,'template') then
    raise exception 'supported_source_contained_payload_rejected'; end if;
  foreach key in array array['updates','templateUpdates'] loop
