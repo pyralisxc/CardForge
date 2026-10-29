@@ -10,14 +10,6 @@ proof="$root/test-results/native-catalog-trash"
 mkdir -p "$proof"
 git rev-parse HEAD HEAD^{tree} > "$proof/source-identity.txt"
 cat "$proof/source-identity.txt"
-# Temporary canonical migration generation; removed after collecting CLI provenance.
-supabase migration new --help > "$proof/migration-new-help.txt"
-supabase migration new managed_raster_first_publication
-migration=$(find "$root/supabase/migrations" -name '*_managed_raster_first_publication.sql' -print)
-[[ $(printf '%s\n' "$migration" | wc -l) == 1 && -n "$migration" ]]
-cp "$root/supabase/tests/managed_raster_first_publication.preparation.sql" "$migration"
-printf '%s\n' "$migration"
-cp "$migration" "$proof/"
 supabase start --help > "$proof/start-help.txt"
 supabase db reset --help > "$proof/reset-help.txt"
 supabase stop --help > "$proof/stop-help.txt"
@@ -141,6 +133,7 @@ psql_local -f "$root/supabase/tests/catalog_typed_consumers.sql" > "$proof/typed
 cat "$proof/typed-consumers.log"
 psql_local -f "$root/supabase/tests/pipeline_upload_commitments.sql" > "$proof/upload-commitments.log" 2>&1
 psql_local -f "$root/supabase/tests/managed_raster_adoption.sql" > "$proof/raster-adoption.log" 2>&1 || { cat "$proof/raster-adoption.log"; exit 1; } || { cat "$proof/upload-commitments.log"; exit 1; }
+cat "$proof/raster-adoption.log"
 cat "$proof/upload-commitments.log"
 CARDFORGE_LOCAL_DB_CONTAINER="$cid" python3 "$root/scripts/test-catalog-trash-contention.py" > "$proof/contention.log" 2>&1 || { cat "$proof/contention.log"; exit 1; }
 cat "$proof/fixture.log" "$proof/contention.log"

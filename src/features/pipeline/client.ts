@@ -23,4 +23,4 @@ export { createPipelineReviewTarget, resolvePipelineReviewTarget, readReviewPubl
 
 export { PIPELINE_STATUSES, PIPELINE_TYPES } from './lib/pipelineItems';
 
-export { managedRasterSlotIssue, type ManagedRasterSelection } from './lib/managedRasterSelection';
+export { canUseDefaultAsFixedPicture, managedRasterSlotIssue, type ManagedRasterSelection } from './lib/managedRasterSelection';

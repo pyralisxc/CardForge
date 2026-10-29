@@ -154,6 +154,35 @@ begin
  if (select to_jsonb(s) from public.cardforge_contributor_asset_submissions s where id=receipt) is distinct from source_before
    then raise exception 'adoption_rewrote_source_history'; end if;
  raise notice 'PASS normal first-publication NULL ordinal/target, exact metadata, unchanged source';
+ -- No public image-revision creation command exists yet. Seed only a distinct
+ -- later candidate here, then use the actual publication owner. This is separate
+ -- from the untouched first-publication journey proven above, not an authoring API.
+ insert into public.cardforge_contributor_asset_submissions(
+   lineage_id,contributor_id,asset_type,name,status,variant_kind,semantic_role,
+   registry_asset_id,target_registry_asset_id,revision_number,base_revision_number,
+   source_url,preview_url,source_storage_bucket,source_storage_path,source_mime_type,source_file_size_bytes)
+ select lineage_id,contributor_id,asset_type,name,'submitted','base','picture',
+   target,target,2,1,source_url,preview_url,source_storage_bucket,source_storage_path,source_mime_type,source_file_size_bytes
+ from public.cardforge_contributor_asset_submissions where id=receipt returning id into current_id;
+ perform public.cardforge_set_contributor_asset_owner_override(current_id,true,'published',true,'free','Later native raster proof','raster-proof');
+ if (select upload_submission_id from public.cardforge_pipeline_asset_lineages where id=line) is distinct from receipt
+   or (select source_content_sha256 from public.cardforge_contributor_asset_submissions where id=current_id) is not null
+   or (select source_content_sha256 from public.cardforge_contributor_asset_submissions where id=receipt) is distinct from original
+   then raise exception 'original_upload_receipt_changed'; end if;
+ begin
+   perform public.cardforge_verified_raster_adoption(payload,selected);
+   raise exception 'historical_pointer_admitted';
+ exception when raise_exception then if sqlerrm<>'raster_adoption_source_changed' then raise; end if; end;
+ selected:=selected||jsonb_build_object('submissionId',current_id);
+ bound:=public.cardforge_verified_raster_adoption(payload,selected);
+ if bound->>'originalUploadId' is distinct from receipt::text
+   or bound->>'submissionId' is distinct from current_id::text or bound->>'revisionNumber'<>'2'
+   then raise exception 'later_publication_original_receipt_not_resolved'; end if;
+ adopted:=public.cardforge_author_template_managed_raster('draft','native-later-adopter','Later Adopter','',
+   'raster-proof',null,payload||jsonb_build_object('id','native-later-adopter'),0,'native-later-adoption',selected);
+ if not public.cardforge_raster_binding_valid(to_jsonb((select s from public.cardforge_contributor_asset_submissions s where id=adopted)))
+   then raise exception 'later_publication_binding_invalid'; end if;
+ raise notice 'PASS distinct later publication uses original upload receipt; historical pointer rejected';
  raise notice 'PASS managed raster native digest/revision/ref fence';
 end $$;
 rollback;

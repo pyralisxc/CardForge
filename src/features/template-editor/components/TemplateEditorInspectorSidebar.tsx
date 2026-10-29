@@ -1,5 +1,5 @@
 "use client";
-import { canUseDefaultAsFixedPicture } from '@/features/pipeline/lib/managedRasterSelection';
+import { canUseDefaultAsFixedPicture } from '@/features/pipeline/client';
 
 import type { ComponentProps } from 'react';
 
