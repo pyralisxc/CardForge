@@ -1,4 +1,3 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
 import { parsePipelineRetentionRequest, routePipelineRetentionClaims } from "./targeting.ts";
 import { processRevisionPurge } from "./processor.ts";
