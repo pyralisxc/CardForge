@@ -275,7 +275,7 @@ export const updatePipelineProgramSettings = async (
 
 export const buildPipelineSubmissionRecord = ({ contributorId, contributorEmail, input }: {
   contributorId: string; contributorEmail: string | null;
-  input: Parameters<typeof normalizePipelineSubmissionInput>[0];
+  input: Parameters<typeof normalizePipelineSubmissionInput>[0] & { sourceContentSha256?: string };
 }) => {
   const normalized = normalizePipelineSubmissionInput(input);
   if (!normalized.ok) throw new PipelineStoreError(normalized.message, 400);
