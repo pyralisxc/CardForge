@@ -1,8 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { TCGCardTemplate } from '@/domain/templates';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
-import { storePipelineTemplateAsset } from './pipelineTemplateAssets';
 
 /** Author-selected source identity. A URL, asset digest or registry alias alone never supplies authority. */
 export interface ManagedRasterSelection {
@@ -11,7 +9,7 @@ export interface ManagedRasterSelection {
   elementId: string;
 }
 
-export interface VerifiedManagedRasterAdoption {
+export interface ObservedManagedRasterSource {
   registryAssetId: string;
   lineageId: string;
   submissionId: string;
@@ -19,11 +17,8 @@ export interface VerifiedManagedRasterAdoption {
   elementId: string;
   sourceBucket: string;
   sourcePath: string;
-  /** SHA-256 of the published managed source bytes, before Template normalization. */
+  /** Exact original source digest recorded by a trusted upload commitment. */
   originalSha256: string;
-  /** Separate SHA-256 of the normalized Template WebP bytes. */
-  templateWebpSha256: string;
-  normalizedReference: string;
 }
 
 const unavailable = () => new PipelineRegistryCommandError(
@@ -42,39 +37,21 @@ type PublishedRasterRecord = {
   source_storage_path: string | null;
   source_mime_type: string | null;
   source_file_size_bytes: number | null;
+  source_content_sha256: string | null;
+  source_upload_token: string | null;
 };
-
-export function applyVerifiedManagedRasterToTemplate(
-  template: TCGCardTemplate & { id: string },
-  selection: ManagedRasterSelection,
-  result: VerifiedManagedRasterAdoption,
-): TCGCardTemplate & { id: string } {
-  if (!selection.elementId || result.elementId !== selection.elementId
-    || result.registryAssetId !== selection.registryAssetId
-    || result.submissionId !== selection.publishedSubmissionId
-    || !template.freeformCanvas) throw unavailable();
-  const matches = template.freeformCanvas.elements.filter(e => e.id === selection.elementId);
-  if (matches.length !== 1 || matches[0].type !== 'image') throw unavailable();
-  return {
-    ...template,
-    freeformCanvas: {
-      ...template.freeformCanvas,
-      elements: template.freeformCanvas.elements.map(element => element.id === selection.elementId
-        ? { ...element, imageSource: result.normalizedReference }
-        : element),
-    },
-  };
-}
 
 /**
  * Source-owner preflight for one deliberately chosen published managed raster.
- * This does not record a durable dependency or change Template publication state.
- * A native, revision-atomic binding must be written before this preflight may
- * be used as catalog admission evidence.
+ * This is deliberately read-only. It does not normalize/upload bytes,
+ * modify a Template or produce a revision-atomic dependency. It requires a
+ * trusted immutable upload digest; legacy source rows without one fail closed.
+ * The native upload commitment and Template revision transaction must establish
+ * that stored digest before this may authorize any adoption.
  */
 export async function verifySelectedPublishedManagedRaster(
   selection: ManagedRasterSelection,
-): Promise<VerifiedManagedRasterAdoption> {
+): Promise<ObservedManagedRasterSource> {
   if (!selection.registryAssetId?.trim() || !selection.publishedSubmissionId?.trim() || !selection.elementId?.trim()) throw unavailable();
   const db = getSupabaseServerClient();
   if (!db) throw new PipelineRegistryCommandError('Pipeline source storage is unavailable.', 503);
@@ -85,7 +62,7 @@ export async function verifySelectedPublishedManagedRaster(
     || registry.contributor_submission_id !== selection.publishedSubmissionId) throw unavailable();
 
   const { data: source, error: sourceError } = await db.from('cardforge_contributor_asset_submissions')
-    .select('id,lineage_id,revision_number,status,published_at,target_registry_asset_id,source_storage_bucket,source_storage_path,source_mime_type,source_file_size_bytes')
+    .select('id,lineage_id,revision_number,status,published_at,target_registry_asset_id,source_storage_bucket,source_storage_path,source_mime_type,source_file_size_bytes,source_content_sha256,source_upload_token')
     .eq('id',selection.publishedSubmissionId).maybeSingle();
   if (sourceError) throw new PipelineRegistryCommandError('Published raster revision could not be checked.', 503);
   const revision = source as PublishedRasterRecord | null;
@@ -93,9 +70,21 @@ export async function verifySelectedPublishedManagedRaster(
     || revision.status !== 'published' || !revision.published_at
     || !Number.isInteger(revision.revision_number) || revision.revision_number < 1
     || revision.target_registry_asset_id !== selection.registryAssetId
-    || !revision.source_storage_bucket || !revision.source_storage_path
+    || revision.source_storage_bucket !== 'cardforge-contributor-assets'
+    || !revision.source_storage_path || !revision.source_upload_token
+    || !/^[a-f0-9]{64}$/u.test(revision.source_content_sha256 ?? '')
     || !['image/png','image/jpeg','image/webp'].includes(revision.source_mime_type ?? '')) throw unavailable();
 
+  const { data: lineage, error: lineageError } = await db.from('cardforge_pipeline_asset_lineages')
+    .select('id,registry_asset_id,upload_state,upload_submission_id,upload_operation_token,upload_source_path,catalog_trashed_at,purge_state,catalog_claim_token,catalog_destructive_uncertainty')
+    .eq('id',revision.lineage_id).maybeSingle();
+  if (lineageError) throw new PipelineRegistryCommandError('Raster ownership could not be verified.', 503);
+  if (!lineage || lineage.id !== revision.lineage_id || lineage.registry_asset_id !== selection.registryAssetId
+    || lineage.upload_state !== 'owned' || lineage.upload_submission_id !== revision.id
+    || lineage.upload_operation_token !== revision.source_upload_token
+    || lineage.upload_source_path !== revision.source_storage_path
+    || lineage.catalog_trashed_at || lineage.purge_state || lineage.catalog_claim_token
+    || lineage.catalog_destructive_uncertainty) throw unavailable();
   const { data: file, error: downloadError } = await db.storage.from(revision.source_storage_bucket)
     .download(revision.source_storage_path);
   if (downloadError || !file) throw new PipelineRegistryCommandError('Published raster bytes could not be verified.', 503);
@@ -103,24 +92,14 @@ export async function verifySelectedPublishedManagedRaster(
   if (!bytes.length || bytes.length > 2_400_000
     || (revision.source_file_size_bytes !== null && revision.source_file_size_bytes !== bytes.length)) throw unavailable();
   const originalSha256 = createHash('sha256').update(bytes).digest('hex');
+  if (originalSha256 !== revision.source_content_sha256) throw unavailable();
 
-  // Normalization produces distinct owned bytes: the digest cannot confer
-  // the original source's lineage or future deletion authority.
-  const normalizedReference = await storePipelineTemplateAsset(bytes);
-  const templateWebpSha256 = /^cardforge-pipeline-asset:\/\/([a-f0-9]{64})$/u.exec(normalizedReference)?.[1];
-  if (!templateWebpSha256) throw unavailable();
-
-  const { data: current, error: currentError } = await db.from('cardforge_asset_registry')
-    .select('contributor_submission_id,status').eq('asset_id',selection.registryAssetId).maybeSingle();
-  if (currentError) throw new PipelineRegistryCommandError('Published raster changed during adoption.', 503);
-  if (!current || current.status !== 'published'
-    || current.contributor_submission_id !== selection.publishedSubmissionId) throw unavailable();
-
+  // This read-only observation is never an adoption receipt. The matching
+  // native locked source/consumer transaction remains the authority.
   return {
     registryAssetId: selection.registryAssetId, lineageId: revision.lineage_id,
     submissionId: revision.id, revisionNumber: revision.revision_number,
     elementId: selection.elementId, sourceBucket: revision.source_storage_bucket,
     sourcePath: revision.source_storage_path, originalSha256,
-    templateWebpSha256, normalizedReference,
   };
 }
