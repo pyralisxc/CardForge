@@ -448,6 +448,7 @@ export const createUploadedPipelineSubmission = async ({
 
   const { data } = storage.getPublicUrl(uploadedFile.storagePath);
   const input = {
+        sourceContentSha256: undefined as string | undefined,
         assetType: descriptor.assetType,
         studioDestination: descriptor.studioDestination,
         specialtyTags,

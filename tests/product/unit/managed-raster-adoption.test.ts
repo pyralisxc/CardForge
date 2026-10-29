@@ -12,9 +12,9 @@ const source = {id:'submission-v3',lineage_id:'lineage-A',revision_number:3,stat
   published_at:'2026-10-28T00:00:00Z',target_registry_asset_id:'raster-live',
   source_storage_bucket:'cardforge-contributor-assets',source_storage_path:'owned/revision-3.png',
   source_mime_type:'image/png',source_file_size_bytes:4,
-  source_content_sha256:digest};
+};
 const receipt = {id:'original-upload',lineage_id:'lineage-A',source_upload_token:'token-3',
-  source_storage_bucket:'cardforge-contributor-assets',source_storage_path:'owned/revision-3.png'};
+  source_storage_bucket:'cardforge-contributor-assets',source_storage_path:'owned/revision-3.png',source_content_sha256:digest};
 const lineage = {id:'lineage-A',registry_asset_id:'raster-live',upload_state:'owned',
   upload_submission_id:'original-upload',upload_operation_token:'token-3',upload_request:{asset_type:'imageAssets'},
   upload_source_path:'owned/revision-3.png',catalog_trashed_at:null,purge_state:null,
@@ -22,11 +22,16 @@ const lineage = {id:'lineage-A',registry_asset_id:'raster-live',upload_state:'ow
 function mock(options:{source?:unknown;lineage?:unknown;registry?:unknown;receipt?:unknown;
   file?:Uint8Array|null;storageError?:boolean}={}){
   let submissionReads=0;
-  const query=(table:string)=>({select:()=>({eq:()=>({maybeSingle:async()=>{
-    if(table==='cardforge_asset_registry')return{data:options.registry===undefined?registry:options.registry,error:null};
-    if(table==='cardforge_pipeline_asset_lineages')return{data:options.lineage===undefined?lineage:options.lineage,error:null};
-    return{data:++submissionReads===1?(options.source===undefined?source:options.source):
-      (options.receipt===undefined?receipt:options.receipt),error:null};
+  const query=(table:string)=>({select:(columns:string)=>({eq:()=>({maybeSingle:async()=>{
+    const project=(value:unknown)=>{
+      if(value===null || typeof value!=='object') return value;
+      return Object.fromEntries(columns.split(',').filter(c=>Object.prototype.hasOwnProperty.call(value,c))
+        .map(c=>[c,(value as Record<string,unknown>)[c]]));
+    };
+    if(table==='cardforge_asset_registry')return{data:project(options.registry===undefined?registry:options.registry),error:null};
+    if(table==='cardforge_pipeline_asset_lineages')return{data:project(options.lineage===undefined?lineage:options.lineage),error:null};
+    return{data:project(++submissionReads===1?(options.source===undefined?source:options.source):
+      (options.receipt===undefined?receipt:options.receipt)),error:null};
   }})})});
   const download=vi.fn(async()=>({data:options.file===null?null:
     new Blob([Uint8Array.from(options.file??bytes).buffer]),error:options.storageError?{message:'unavailable'}:null}));
@@ -62,7 +67,7 @@ describe('published raster immutable-source observation',()=>{
     expect(result).not.toHaveProperty('templateWebpSha256');
   });
   it('rejects uncommitted legacy digest, spoofed lineage or independent submission',async()=>{
-    mock({source:{...source,source_content_sha256:null}});
+    mock({receipt:{...receipt,source_content_sha256:null}});
     await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
     mock({source:{...source,lineage_id:'other'}});
     await expect(verifySelectedPublishedManagedRaster(selection)).rejects.toMatchObject({status:409});
