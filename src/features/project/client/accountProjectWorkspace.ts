@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { adoptGuestWorkspaceForAccount } from '../persistence/guestWorkspaceAdoption';
 import {
   BROWSER_WORKSPACE_REMOTE_CHANGE_EVENT,
+  getProjectPersistenceScope,
   type ProjectPersistenceScope,
 } from '../persistence/projectPersistenceScope';
 import { BROWSER_WORKSPACE_CONFLICT_EVENT } from '../persistence/indexedDbStorage';
@@ -16,6 +17,7 @@ interface AccountProjectWorkspaceBootstrapDependencies {
 
 export interface AccountProjectWorkspaceIssue {
   kind: 'conflict' | 'remote-change';
+  evidenceKey?: string;
   title: string;
   message: string;
 }
@@ -66,8 +68,16 @@ export const subscribeToAccountProjectWorkspaceIssues = (
   target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'> | null = typeof window === 'undefined' ? null : window,
 ): (() => void) => {
   if (!target) return () => undefined;
-  const onConflict = () => listener(getWorkspaceIssue(BROWSER_WORKSPACE_CONFLICT_EVENT));
-  const onRemoteChange = () => listener(getWorkspaceIssue(BROWSER_WORKSPACE_REMOTE_CHANGE_EVENT));
+  const report = (event: Event) => {
+    const detail = (event as CustomEvent).detail;
+    const namespace = `project-workspace:${getProjectPersistenceScope()}`;
+    if (detail?.namespace && detail.namespace !== namespace) return;
+    const issue = getWorkspaceIssue(event.type);
+    listener({ ...issue, evidenceKey: JSON.stringify([namespace, issue.kind,
+      detail?.expectedRevision ?? null, detail?.actualRevision ?? detail?.revision ?? null]) });
+  };
+  const onConflict = report;
+  const onRemoteChange = report;
   target.addEventListener(BROWSER_WORKSPACE_CONFLICT_EVENT, onConflict);
   target.addEventListener(BROWSER_WORKSPACE_REMOTE_CHANGE_EVENT, onRemoteChange);
   return () => {

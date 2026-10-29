@@ -19,6 +19,8 @@ export type { ProjectPersistenceScope } from '../lib/projectPersistenceIdentity'
 const DISABLED_SCOPE = 'unscoped-disabled';
 let activeProjectPersistenceScope: ProjectPersistenceScope | typeof DISABLED_SCOPE = DISABLED_SCOPE;
 const workspaceRevisions = new Map<string, number>();
+// Last loaded or committed bytes, not permission to adopt another tab's revision.
+const workspaceValues = new Map<string, string>();
 const workspaceWriteQueues = new Map<string, Promise<void>>();
 const restoredWorkspaces = new Set<string>();
 const workspaceWriterId = typeof globalThis.crypto?.randomUUID === 'function'
@@ -144,6 +146,7 @@ export const restoreBrowserWorkspaceRecovery = async (source: BrowserWorkspaceRe
       },
     });
     workspaceRevisions.set(revisionKey, revision);
+    workspaceValues.set(revisionKey, value);
     restoredWorkspaces.add(revisionKey);
     getWorkspaceRevisionChannel()?.postMessage({ namespace, key: WORKSPACE_STORAGE_KEY, revision, writerId: workspaceWriterId });
     // Quarantine is retained until explicitly discarded, including after restore.
@@ -175,7 +178,7 @@ const isValidWorkspacePayload = (value: string) => {
 
 export const createScopedProjectStorage = (
   baseNamespace: 'project-workspace' | 'project-assets',
-  options: Parameters<typeof createIndexedDbStorage>[1] = {},
+  options: NonNullable<Parameters<typeof createIndexedDbStorage>[1]> & { skipUnchangedWorkspaceWrites?: boolean } = {},
 ): StateStorage => ({
   getItem: async (key) => {
     const scope = activeProjectPersistenceScope;
@@ -185,6 +188,7 @@ export const createScopedProjectStorage = (
     if (rawValue === null) {
       if (baseNamespace === 'project-workspace') {
         workspaceRevisions.set(getWorkspaceRevisionKey(namespace, key), 0);
+        workspaceValues.delete(getWorkspaceRevisionKey(namespace, key));
         getWorkspaceRevisionChannel();
       }
       return null;
@@ -227,6 +231,7 @@ export const createScopedProjectStorage = (
         });
       }
     }
+    if (baseNamespace === 'project-workspace') workspaceValues.set(getWorkspaceRevisionKey(namespace, key), externalized.storedValue);
     return externalized.storedValue;
   },
   setItem: async (key, value) => {
@@ -243,6 +248,9 @@ export const createScopedProjectStorage = (
         if (restoredWorkspaces.has(revisionKey)) throw new Error('This workspace was restored. Reload before editing or saving again.');
         if (!isValidWorkspacePayload(value)) throw new Error('Browser workspace must contain readable JSON before it can be saved.');
         const externalized = await externalizeBrowserProjectAssetJson(value, scope);
+        // Zustand also persists catalog/bootstrap and same-value updates. Only
+        // autosave may omit these writes. Explicit saves still prove native CAS.
+        if (options.skipUnchangedWorkspaceWrites && workspaceValues.get(revisionKey) === externalized.storedValue) return;
         const expectedRevision = workspaceRevisions.get(revisionKey) ?? 0;
         const revision = await compareAndSetBrowserWorkspaceValue({
           namespace,
@@ -254,6 +262,7 @@ export const createScopedProjectStorage = (
           recoveryKeys: workspaceAssetKeys(scope),
         });
         workspaceRevisions.set(revisionKey, revision);
+        workspaceValues.set(revisionKey, externalized.storedValue);
         getWorkspaceRevisionChannel()?.postMessage({ namespace, key, revision, writerId: workspaceWriterId });
       });
     } catch (error) {
@@ -298,6 +307,7 @@ export const commitBrowserWorkspaceImport = async ({ value, relatedWrites, befor
       },
     });
     workspaceRevisions.set(revisionKey, revision);
+    workspaceValues.set(revisionKey, externalized.storedValue);
     getWorkspaceRevisionChannel()?.postMessage({ namespace, key: WORKSPACE_STORAGE_KEY, revision, writerId: workspaceWriterId });
   });
 };
