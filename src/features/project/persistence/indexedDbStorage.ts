@@ -326,7 +326,7 @@ export const compareAndSetBrowserWorkspaceValue = async ({
   } catch (error) {
     finishWorkspaceWrite(true);
     if (typeof window !== 'undefined' && error instanceof BrowserWorkspaceConflictError) {
-      window.dispatchEvent(new CustomEvent(BROWSER_WORKSPACE_CONFLICT_EVENT, { detail: error }));
+      window.dispatchEvent(new CustomEvent(BROWSER_WORKSPACE_CONFLICT_EVENT, { detail: { namespace, key, expectedRevision: error.expectedRevision, actualRevision: error.actualRevision } }));
     }
     throw error;
   } finally {

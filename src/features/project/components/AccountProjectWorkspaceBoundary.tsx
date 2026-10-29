@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   AlertDialog,
@@ -42,6 +42,7 @@ export function AccountProjectWorkspaceBoundary({
   const [retry, setRetry] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [issue, setIssue] = useState<AccountProjectWorkspaceIssue | null>(null);
+  const announcedIssues = useRef(new Set<string>());
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
   const [retainedGuestWork, setRetainedGuestWork] = useState<RetainedGuestWorkSummary | null>(null);
   const [guestImportBusy, setGuestImportBusy] = useState(false);
@@ -80,10 +81,20 @@ export function AccountProjectWorkspaceBoundary({
     return () => { cancelled = true; };
   }, [persistenceScope, readyScope]);
 
-  useEffect(() => subscribeToAccountProjectWorkspaceIssues((nextIssue) => {
-    setIssue(nextIssue);
-    setIsIssueDialogOpen(true);
-  }), []);
+  useEffect(() => {
+    announcedIssues.current.clear();
+    setIssue(null);
+    setIsIssueDialogOpen(false);
+    return subscribeToAccountProjectWorkspaceIssues((nextIssue) => {
+      const key = nextIssue.evidenceKey ?? nextIssue.kind;
+      // Dismissal acknowledges this evidence, never authorizes a stale write.
+      // Keep the persistent banner and explicit Review action available.
+      if (announcedIssues.current.has(key)) return;
+      announcedIssues.current.add(key);
+      setIssue(nextIssue);
+      setIsIssueDialogOpen(true);
+    });
+  }, [persistenceScope]);
 
   const reloadSavedWorkspace = () => window.location.reload();
 

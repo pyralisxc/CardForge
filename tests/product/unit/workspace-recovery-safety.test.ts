@@ -22,6 +22,22 @@ describe('workspace recovery failure safety', () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
+  it('omits byte-identical autosaves without granting stale explicit-save or authored-write authority', async () => {
+    const autosave = createScopedProjectStorage('project-workspace', { skipUnchangedWorkspaceWrites: true });
+    const explicit = createScopedProjectStorage('project-workspace');
+    await autosave.getItem('workspace');
+    await autosave.setItem('workspace', payload('local'));
+    await autosave.setItem('workspace', payload('local'));
+    const raw = createBrowserKeyValueStorage(namespace);
+    expect(parseBrowserWorkspaceRecord((await raw.getItem('workspace'))!).revision).toBe(1);
+    await compareAndSetBrowserWorkspaceValue({namespace,key:'workspace',value:payload('other tab'),expectedRevision:1,writerId:'other'});
+    await autosave.setItem('workspace', payload('local'));
+    expect(parseBrowserWorkspaceRecord((await raw.getItem('workspace'))!)).toMatchObject({revision:2,value:payload('other tab')});
+    await expect(explicit.setItem('workspace',payload('local'))).rejects.toBeInstanceOf(BrowserWorkspaceConflictError);
+    await expect(autosave.setItem('workspace',payload('new local edit'))).rejects.toBeInstanceOf(BrowserWorkspaceConflictError);
+    expect(parseBrowserWorkspaceRecord((await raw.getItem('workspace'))!)).toMatchObject({revision:2,value:payload('other tab')});
+  });
+
   it('restores as a new revision and rejects a stale pre-restore writer', async () => {
     const storage = createScopedProjectStorage('project-workspace', { keepRecoverySnapshot: true });
     await storage.getItem('workspace');
