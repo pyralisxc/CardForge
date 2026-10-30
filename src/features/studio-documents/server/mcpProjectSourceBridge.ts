@@ -6,6 +6,7 @@ import {
   buildCardForgeProjectSnapshot,
   createCardForgeProjectPackageBlob,
   getGoogleDriveProject,
+  getGoogleDriveProjectSummary,
   GOOGLE_DRIVE_PROJECT_PROVIDER,
   updateGoogleDriveProjectFromServer,
   type ProjectDocumentV1,
@@ -51,6 +52,38 @@ const assertExpectedSource = ({
       409,
     );
   }
+};
+
+/** Read exact saved bytes without creating a Studio document or writing to Drive. */
+export const readConnectedProjectForAgent = async ({
+  access, provider, projectId, expectedProviderRevision, expectedProjectRevision,
+}: {
+  access: StudioAgentAccess;
+  provider: typeof GOOGLE_DRIVE_PROJECT_PROVIDER;
+  projectId: string;
+  expectedProviderRevision: string;
+  expectedProjectRevision: string;
+}) => {
+  const accountUserId = requireAccountId(access);
+  if (provider !== GOOGLE_DRIVE_PROJECT_PROVIDER) {
+    throw new StudioDocumentStoreError('That connected project provider is unsupported.', 400);
+  }
+  if (!expectedProviderRevision || !expectedProjectRevision) {
+    throw new StudioDocumentStoreError('Read the exact saved provider and project revisions before inspecting cards.', 400);
+  }
+  const source = await getGoogleDriveProject({ ownerUserId: accountUserId, fileId: projectId });
+  const current = await getGoogleDriveProjectSummary({ ownerUserId: accountUserId, fileId: projectId });
+  if (
+    source.summary.fileId !== projectId || current.fileId !== projectId
+    || source.summary.providerRevision !== expectedProviderRevision
+    || current.providerRevision !== expectedProviderRevision
+    || source.summary.projectRevision !== expectedProjectRevision
+    || (current.projectRevision && current.projectRevision !== expectedProjectRevision)
+    || source.summary.accountId !== current.accountId
+  ) {
+    throw new StudioDocumentStoreError('The saved project changed during inspection. Read its current exact revisions before requesting another preview.', 409);
+  }
+  return source;
 };
 
 export const checkoutConnectedProjectForAgent = async ({

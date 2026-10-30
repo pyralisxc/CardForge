@@ -19,3 +19,4 @@ export {
   RenderArtifactStoreError,
   writeRenderArtifact,
 } from './server/renderArtifactStore';
+export { createRenderArtifactDownload } from './server/renderArtifactStore';

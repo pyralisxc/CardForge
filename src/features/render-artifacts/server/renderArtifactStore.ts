@@ -139,3 +139,11 @@ export const removeRenderArtifactsForStudioDocument = async ({
   const removed = await requireStore().storage.from(CARDFORGE_RENDER_ARTIFACT_BUCKET).remove(paths);
   if (removed.error) throw new RenderArtifactStoreError('Unable to remove cached CardForge renders.');
 };
+
+/** Explicit export only. Caller must recheck current source access and entitlement first. */
+export async function createRenderArtifactDownload({ ownerUserId, artifact }: { ownerUserId: string; artifact: RenderArtifact }) {
+  const { data, error } = await requireStore().storage.from(CARDFORGE_RENDER_ARTIFACT_BUCKET)
+    .createSignedUrl(artifactPath(ownerUserId, artifact), 60, { download: `cardforge-${artifact.artifactId}.png` });
+  if (error || !data?.signedUrl) throw new RenderArtifactStoreError('Canonical export delivery is unavailable.', 503);
+  return data.signedUrl;
+}
