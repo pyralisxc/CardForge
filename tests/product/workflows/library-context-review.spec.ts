@@ -343,10 +343,15 @@ for (const missing of [false, true]) test(`@golden historical Template keeps sou
 });
 
 for (const width of [390,1440]) test(`@golden Desk exact governance preserves dirty draft and return at ${width}px`, async ({page},info)=>{
- test.setTimeout(90_000); await page.setViewportSize({width,height:900}); const evidence=await mount(page,'?deskActual=1&published=1');
- const launcher=page.getByRole('button',{name:width<900 ? 'Open commands' : 'Search or type a command',exact:true});
+ test.setTimeout(90_000); await page.setViewportSize({width,height:900}); const evidence=await mount(page,'?deskActual=1&deskMenu=1&published=1');
+ if(width<900) await page.getByLabel('Open Desk filters',{exact:true}).click();
+ await page.getByRole('button',{name:'Choose Desk views',exact:true}).click();
+ await page.getByRole('menuitemcheckbox',{name:'My published',exact:true}).click();
+ await page.keyboard.press('Escape');
+ if(width<900) await page.getByLabel('Open Desk filters',{exact:true}).click();
+ const launcher=page.getByRole('button',{name:'Actions for Synthetic material revision one',exact:true});
  await launcher.click();
- await page.getByRole('button',{name:'Review & manage',exact:true}).click();
+ await page.getByRole('menuitem',{name:'Review & manage',exact:true}).click();
  await expect(page.getByLabel('Exact revision governance')).toBeVisible();
  await page.getByRole('button',{name:'Manage',exact:true}).click();
  const note=page.getByLabel('Exact revision governance').locator('label').filter({hasText:/^\s*Decision note/}).locator('textarea');
@@ -387,5 +392,18 @@ test('@golden Desk uncertain revision survives Back and recovers its exact attem
  const requests=await page.evaluate(()=>(window as typeof window & {libraryRequests:{url:string;method:string;body?:string}[]}).libraryRequests);
  const posts=requests.filter(request=>request.method==='POST'); expect(posts).toHaveLength(1);
  expect(requests.some(request=>request.method==='GET' && request.url.includes(`submissionKey=${JSON.parse(posts[0].body!).submissionKey}`))).toBe(true);
+ expect(evidence.mutations).toEqual([]);expect(evidence.errors).toEqual([]);
+});
+
+
+test('@golden Desk remote ellipsis exposes exact location actions without deleting a copy',async({page})=>{
+ const evidence=await mount(page,'?deskActual=1&deskMenu=1&deskDrive=1');
+ const menu=page.getByRole('button',{name:'Actions for Synthetic Drive Set.cardforge',exact:true});
+ await menu.click();
+ await expect(page.getByRole('menuitem',{name:'View source',exact:true})).toBeVisible();
+ await expect(page.getByRole('menuitem',{name:'Move Drive copy to Trash',exact:true})).toBeVisible();
+ await page.getByRole('menuitem',{name:'Manage locations',exact:true}).click();
+ await expect(page.getByRole('dialog')).toContainText('Synthetic Drive Set');
+ await expect(page.getByText('Action could not be completed',{exact:true})).toHaveCount(0);
  expect(evidence.mutations).toEqual([]);expect(evidence.errors).toEqual([]);
 });

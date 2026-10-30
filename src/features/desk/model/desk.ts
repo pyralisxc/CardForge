@@ -220,7 +220,7 @@ export const getWorkActions = (
 ): ActionDescriptor[] => {
   const sources = getAccountLibraryActionSources(item).map((source) => source.source);
   const localSet = Boolean(item.references.localSetId);
-  const locationActions = getAccountLibraryEnvironmentActions(item, { canUseProjectFiles }).filter(action => ['library.view-source', 'library.manage-location', 'library.delete-copy'].includes(action.id));
+  const locationActions = getAccountLibraryEnvironmentActions(item, { canUseProjectFiles, manageLocationResult: 'tool-opened' }).filter(action => ['library.view-source', 'library.manage-location', 'library.delete-copy'].includes(action.id));
   const openAutomation: ActionDescriptor['automation'] = item.references.driveFileId
     ? { kind: 'published-mcp', tools: ['list_connected_projects', 'checkout_project'] }
     : { kind: 'human-only', owner: 'cardforge' };

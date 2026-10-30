@@ -261,6 +261,7 @@ export function Desk({
     richTextHighlightColor,
     remoteWorkspaceItem,
     runAction,
+    runWorkAction,
     searchRef,
     selectedCard,
     selectedCardIndex,
@@ -670,6 +671,8 @@ export function Desk({
             endDrag={endDeskDrag}
             endMarquee={endDeskMarquee}
             shouldSuppressActivation={shouldSuppressActivation}
+            isOwner={experience.owner && experience.signedIn}
+            onRunWorkAction={runWorkAction}
             onSelectWork={selectDeskWork}
             onQueryChange={setQuery}
             onSourceFiltersChange={(sources) => deskViewPreferences.update((current) => ({ ...current, sources }))}
