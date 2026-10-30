@@ -1,1 +1,1 @@
-export const CARDFORGE_MCP_CONTRACT_VERSION = '1.0.5';
+export const CARDFORGE_MCP_CONTRACT_VERSION = '1.0.6';
