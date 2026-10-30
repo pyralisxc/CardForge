@@ -91,11 +91,12 @@ for(const width of [390,1440]) test(`@golden Studio controls preserve selected g
   expect(unexpected).toEqual([]);
 });
 
-async function mountHistoryProof(page:import('@playwright/test').Page,query='',svgIcon=false) {
+async function mountHistoryProof(page:import('@playwright/test').Page,query='',svgIcon=false,fillTexture=false) {
  await page.route('**/*',route=>{const url=new URL(route.request().url());
   if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0"></body></html>'});
   if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
-  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:svgIcon?[{id:'asymmetric-icon',name:'Synthetic asymmetric SVG',url:'/asymmetric.svg',kind:'icon',tileMode:'contain',seamless:false,allowedTargets:['icon']}]:[],imageAssets:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:fillTexture?[{id:'history-ink',name:'Synthetic history Ink',url:'/history-ink.svg',kind:'texture',tileMode:'repeat',seamless:true,allowedTargets:['shape']}]:[],dividers:[],icons:svgIcon?[{id:'asymmetric-icon',name:'Synthetic asymmetric SVG',url:'/asymmetric.svg',kind:'icon',tileMode:'contain',seamless:false,allowedTargets:['icon']}]:[],imageAssets:[]}}});
+  if(fillTexture&&url.pathname==='/history-ink.svg')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#000"/></svg>'});
   if(svgIcon&&url.pathname==='/asymmetric.svg')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><path d="M0 0H50V100H0Z" fill="#ff0000"/><path d="M50 50H100V100H50Z" fill="#0000ff"/></svg>'});
   if(url.pathname==='/api/templates/submissions')return route.fulfill({json:{contributorId:'synthetic-actor'}});
   if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
@@ -106,6 +107,34 @@ async function mountHistoryProof(page:import('@playwright/test').Page,query='',s
  await page.getByRole('button',{name:'Elements',exact:true}).click();await page.getByRole('button',{name:'Text',exact:true}).and(page.locator('[draggable="true"]')).click();
  if(page.viewportSize()!.width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
 }
+for(const width of [390,1440])for(const interaction of ['keyboard','pointer'] as const)test(`@golden Fill texture strength ${interaction} completion preserves history at ${width}px`,async({page},info)=>{
+ test.setTimeout(90000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1',false,true);
+ const closeInspector=async()=>{if(width<1024)await page.getByRole('button',{name:'Close inspector',exact:true}).click();};
+ const openInspector=async()=>{if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();};
+ await closeInspector();if(width<1024)await page.getByRole('button',{name:'Open editor menu',exact:true}).click();await page.getByRole('button',{name:'Elements',exact:true}).click();await page.getByRole('button',{name:'Shape',exact:true}).and(page.locator('[draggable="true"]')).click();await openInspector();
+ await page.getByRole('button',{name:'Look',exact:true}).click();await page.getByRole('button',{name:'Choose from Library',exact:true}).click();await page.getByRole('option',{name:/Synthetic history Ink/}).click();await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ const strength=page.getByLabel('Fill texture strength',{exact:true}).getByRole('slider');
+ await strength.press('Home');for(let step=0;step<25;step++)await strength.press('ArrowRight');
+ const save=async()=>{await closeInspector();await page.getByRole('button',{name:width<1024?'Save Template in this browser':'Save',exact:true}).click();await expect(page.getByTestId('working-dirty')).toHaveText('saved');await openInspector();};
+ await save();const baseline=JSON.parse(await page.getByTestId('saved').textContent()||'{}');const original=baseline.freeformCanvas.elements.find((element:{type:string})=>element.type==='shape');
+ const reopen=async()=>{await page.reload();await page.addStyleTag({content:(await css).css});for(const file of bundle.outputFiles.filter(f=>f.path.endsWith('.css')))await page.addStyleTag({content:file.text});await page.addScriptTag({content:bundle.outputFiles.find(f=>f.path.endsWith('.js'))!.text});await page.locator(`[data-cardforge-editor-overlay="true"][data-freeform-element-id="${original.id}"]`).click();await openInspector();await page.getByRole('button',{name:'Look',exact:true}).click();};
+ const expectValue=async(value:number)=>{await expect(strength).toHaveAttribute('aria-valuenow',String(value));};
+ const undo=async()=>strength.press('ControlOrMeta+z');const redo=async()=>strength.press('ControlOrMeta+Shift+z');
+ const drag=async(ratio:number,slow=false)=>{await strength.scrollIntoViewIfNeeded();await expect(strength).toBeInViewport();const thumb=(await strength.boundingBox())!;const root=(await page.getByLabel('Fill texture strength',{exact:true}).boundingBox())!;const y=thumb.y+thumb.height/2;await page.mouse.move(thumb.x+thumb.width/2,y);await page.mouse.down();await page.mouse.move(root.x+root.width*.45,y,{steps:4});if(slow)await page.waitForTimeout(900);await page.mouse.move(root.x+root.width*ratio,y,{steps:8});await page.mouse.up();return Number(await strength.getAttribute('aria-valuenow'));};
+ await reopen();await expectValue(25);await expect(page.getByRole('button',{name:'Undo',exact:true}).first()).toBeDisabled();
+ if(interaction==='keyboard'){
+  await strength.press('End');await expectValue(100);await strength.press('End');await strength.press('Home');await expectValue(0);
+  await undo();await expectValue(100);await redo();await expectValue(0);await undo();await undo();await expectValue(25);
+ }else{
+  const first=await drag(.65,true);expect(first).toBeGreaterThan(25);const second=await drag(.85);expect(second).toBeGreaterThan(first);
+  await undo();await expectValue(first);await undo();await expectValue(25);
+  const thumb=(await strength.boundingBox())!;await page.mouse.click(thumb.x+thumb.width/2,thumb.y+thumb.height/2);await expectValue(25);await expect(page.getByRole('button',{name:'Undo',exact:true}).first()).toBeDisabled();await expect(page.getByRole('button',{name:'Redo',exact:true}).first()).toBeEnabled();
+ }
+ await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ let final:number;if(interaction==='keyboard'){await strength.press('End');final=100;}else final=await drag(.75);await expectValue(final);await save();await undo();await expectValue(25);await expect(page.getByTestId('working-dirty')).toHaveText('dirty');await redo();await expectValue(final);await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');const expected={...original,appearance:{...original.appearance,material:{...original.appearance.material,texture:{...original.appearance.material.texture,intensity:final}}}};expect(saved.freeformCanvas.elements.find((element:{id:string})=>element.id===original.id)).toEqual(expected);expect(saved.freeformCanvas.elements.filter((element:{id:string})=>element.id!==original.id)).toEqual(baseline.freeformCanvas.elements.filter((element:{id:string})=>element.id!==original.id));expect(saved.fieldContracts).toEqual(baseline.fieldContracts);
+ const stored=await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'));await reopen();await expectValue(final);expect(await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'))).toBe(stored);await page.screenshot({path:info.outputPath(`texture-history-${interaction}.png`)});
+});
 for(const width of [390,1440])test(`@golden completed typography spacing preserves grouped Undo and Save at ${width}px`, async ({page},info)=>{
  await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1');
  const closeInspector=async()=>{if(width<1024)await page.getByRole('button',{name:'Close inspector',exact:true}).click();};
