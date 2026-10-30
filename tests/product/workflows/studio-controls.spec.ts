@@ -1,5 +1,5 @@
 import { buildSync } from 'esbuild';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import postcss from 'postcss';
@@ -91,11 +91,12 @@ for(const width of [390,1440]) test(`@golden Studio controls preserve selected g
   expect(unexpected).toEqual([]);
 });
 
-async function mountHistoryProof(page:import('@playwright/test').Page,query='') {
+async function mountHistoryProof(page:import('@playwright/test').Page,query='',svgIcon=false) {
  await page.route('**/*',route=>{const url=new URL(route.request().url());
   if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0"></body></html>'});
   if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
-  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:svgIcon?[{id:'asymmetric-icon',name:'Synthetic asymmetric SVG',url:'/asymmetric.svg',kind:'icon',tileMode:'contain',seamless:false,allowedTargets:['icon']}]:[],imageAssets:[]}}});
+  if(svgIcon&&url.pathname==='/asymmetric.svg')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><path d="M0 0H50V100H0Z" fill="#ff0000"/><path d="M50 50H100V100H50Z" fill="#0000ff"/></svg>'});
   if(url.pathname==='/api/templates/submissions')return route.fulfill({json:{contributorId:'synthetic-actor'}});
   if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
   return route.abort();
@@ -191,4 +192,46 @@ for (const delayed of [false,true]) test(`@golden same-ID normalized Save keeps 
  await page.getByRole('button',{name:'Redo',exact:true}).first().click();await expect(editor).toHaveText('Captured authored snapshot');await expect(page.getByTestId('working-dirty')).toHaveText('saved');
  await editor.fill('Next authored snapshot');await page.getByRole('button',{name:'Save',exact:true}).click();if(delayed)await page.getByRole('button',{name:'Finish local Save'}).click();await expect(page.getByTestId('working-dirty')).toHaveText('saved');
  const second=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(second.templateParentRevisionId).toBe(first.templateRevisionId);expect(second.templateRevision).toBe(first.templateRevision+1);expect(second.freeformCanvas.elements.find((e:{id:string})=>e.id==='neighbor').content).toBe(first.freeformCanvas.elements.find((e:{id:string})=>e.id==='neighbor').content);
+});
+
+
+// An L-shaped alpha mask makes X, Y and XY distinguishable even with one tint color.
+// Reopen is read-only: do not conflate renderer fidelity with another normalized Save.
+for(const width of [390,1440])test(`@golden native SVG tint and asymmetric flips survive local Save, reopen and PNG output at ${width}px`,async({page},info)=>{
+ test.setTimeout(120000);page.setDefaultTimeout(10000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'',true);
+ await page.locator('.tiptap[contenteditable="true"]').fill('Unchanged neighboring text');
+ if(width<1024){await page.getByRole('button',{name:'Close inspector',exact:true}).click();await page.getByRole('button',{name:'Open editor menu',exact:true}).click();}
+ await page.getByRole('button',{name:'Elements',exact:true}).click();await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
+ if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
+ await page.getByRole('button',{name:'Choose from Library',exact:true}).click();await page.getByRole('option',{name:/Synthetic asymmetric SVG/}).click();await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ await expect(page.getByLabel('Vector color',{exact:true})).toContainText('Original');
+ await page.getByRole('button',{name:'Layout',exact:true}).click();
+ for(const [label,value] of [['x','180'],['y','250'],['width','200'],['height','200']])await page.getByLabel(label,{exact:true}).fill(value);
+ let neighbor:unknown;let appearance:unknown;let iconId='';let lastImageSource='';
+ const saveAndProve=async(name:string,mode:'original'|'tint',flipX:boolean,flipY:boolean,persist=true)=>{
+  if(width<1024)await page.getByRole('button',{name:'Close inspector',exact:true}).click();
+  if(persist)await page.getByRole('button',{name:width<1024?'Save Template in this browser':'Save',exact:true}).click();await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+  const saved=JSON.parse(await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'))||'{}');const icon=saved.freeformCanvas.elements.find((e:{type:string})=>e.type==='icon');const text=saved.freeformCanvas.elements.find((e:{type:string})=>e.type==='text');
+  expect(text).toMatchObject({content:'Unchanged neighboring text'});if(!neighbor){neighbor=text;appearance=icon.appearance;}else expect(text).toEqual(neighbor);expect(icon.appearance).toEqual(appearance);
+  iconId=icon.id;expect(icon).toMatchObject({iconImageSource:'/asymmetric.svg',iconRenderMode:mode,x:180,y:250,width:200,height:200,rotation:0,opacity:1});expect(!!icon.flipX).toBe(flipX);expect(!!icon.flipY).toBe(flipY);if(mode==='tint')expect(icon.fillColor).toBe('#00ff00');
+  const canvas=page.getByRole('region',{name:'Template canvas',exact:true});const transform=`matrix(${flipX?-1:1}, 0, 0, ${flipY?-1:1}, 0, 0)`;await expect(canvas.locator(`.tcg-card-preview [data-freeform-element-id="${iconId}"]:not([data-cardforge-editor-overlay])`)).toHaveCSS('transform',transform);await expect(canvas.locator(`[data-cardforge-editor-overlay="true"][data-freeform-element-id="${iconId}"]`)).toHaveCSS('transform',transform);
+  await page.getByRole('button',{name:'Render saved PNG',exact:true}).click();const image=page.getByAltText('Saved Studio PNG');await expect(image).toBeVisible();await expect(image).not.toHaveAttribute('src',lastImageSource);lastImageSource=await image.getAttribute('src')||'';
+  const pixels=await image.evaluate(async(node:HTMLImageElement)=>{await node.decode();const c=document.createElement('canvas');c.width=node.naturalWidth;c.height=node.naturalHeight;const ctx=c.getContext('2d')!;ctx.drawImage(node,0,0);const pixel=(x:number,y:number)=>[...ctx.getImageData(Math.floor(c.width*x/630),Math.floor(c.height*y/880),1,1).data];return {quadrants:[[230,300],[330,300],[230,400],[330,400]].map(([x,y])=>pixel(x,y)),background:pixel(160,230)};});
+  const expected=[[255,0,0,255],pixels.background,[255,0,0,255],[0,0,255,255]];if(mode==='tint'){expected[0]=[0,255,0,255];expected[2]=[0,255,0,255];expected[3]=[0,255,0,255];}if(flipX){[expected[0],expected[1]]=[expected[1],expected[0]];[expected[2],expected[3]]=[expected[3],expected[2]];}if(flipY){[expected[0],expected[2]]=[expected[2],expected[0]];[expected[1],expected[3]]=[expected[3],expected[1]];}
+  expect(pixels.quadrants).toEqual(expected);
+  const output=info.outputPath(`${name}.png`);writeFileSync(output,Buffer.from(await image.evaluate(async(node:HTMLImageElement)=>[...new Uint8Array(await (await fetch(node.src)).arrayBuffer())])));await info.attach(name,{path:output,contentType:'image/png'});
+  if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
+ };
+ await saveAndProve('original', 'original',false,false);
+ await page.getByRole('button',{name:'Symbol',exact:true}).click();await page.getByLabel('Vector color',{exact:true}).click();await page.getByRole('option',{name:'Single-color tint',exact:true}).click();await page.locator('#element-icon-vector-tint').click();await page.getByTitle('Hex color value',{exact:true}).fill('#00ff00');await page.getByTitle('Hex color value',{exact:true}).press('Enter');await page.getByTitle('Hex color value',{exact:true}).press('Escape');
+ await saveAndProve('tint', 'tint',false,false);
+ await page.getByRole('button',{name:'Layout',exact:true}).click();await page.getByRole('button',{name:'Flip layer horizontally',exact:true}).click();await saveAndProve('tint-flip-x','tint',true,false);
+ await page.getByRole('button',{name:'Flip layer horizontally',exact:true}).click();await page.getByRole('button',{name:'Flip layer vertically',exact:true}).click();await saveAndProve('tint-flip-y','tint',false,true);
+ await page.getByRole('button',{name:'Flip layer horizontally',exact:true}).click();await saveAndProve('tint-flip-xy','tint',true,true);
+ await page.getByRole('button',{name:'Symbol',exact:true}).click();await page.getByLabel('Vector color',{exact:true}).click();await page.getByRole('option',{name:'Original',exact:true}).click();await saveAndProve('restored-original-flip-xy','original',true,true);
+ if(width<1024)await page.getByRole('button',{name:'Close inspector',exact:true}).click();await page.getByRole('button',{name:'Export local proof',exact:true}).click();const stored=await page.getByTestId('saved').textContent();expect(await page.getByTestId('exported').textContent()).toBe(stored);
+ await page.reload();await page.addStyleTag({content:(await css).css});for(const file of bundle.outputFiles.filter(f=>f.path.endsWith('.css')))await page.addStyleTag({content:file.text});await page.addScriptTag({content:bundle.outputFiles.find(f=>f.path.endsWith('.js'))!.text});
+ await page.locator(`[data-cardforge-editor-overlay="true"][data-freeform-element-id="${iconId}"]`).click();if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
+ await page.getByRole('button',{name:'Symbol',exact:true}).click();await expect(page.getByLabel('Vector color',{exact:true})).toContainText('Original');await saveAndProve('reopened-original-flip-xy','original',true,true,false);
+ expect(await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'))).toBe(stored);
 });
