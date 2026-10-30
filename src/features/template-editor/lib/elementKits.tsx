@@ -24,6 +24,8 @@ export type ElementKit = {
   preset?: Partial<FreeformCardElement>;
 };
 
+export const DEFAULT_DIVIDER_SIZE = { width: 470, height: 36 } as const;
+
 export const CONSOLIDATED_ELEMENT_KITS: ElementKit[] = [
   { label: 'Text', description: 'Static or placeholder-driven text.', category: 'Core', icon: Type, type: 'text' },
   { label: 'Picture', description: 'Artwork, uploaded picture, or data-key picture slot.', category: 'Core', icon: ImageIcon, type: 'image' },
@@ -39,8 +41,7 @@ export const CONSOLIDATED_ELEMENT_KITS: ElementKit[] = [
       name: 'Divider',
       shapeKind: 'line',
       shapeRole: 'divider',
-      width: 470,
-      height: 36,
+      ...DEFAULT_DIVIDER_SIZE,
       strokeWidth: 0,
       borderWidth: '_none_',
       borderRadius: 'rounded-none',

@@ -3,7 +3,7 @@
 import type { PipelineReviewTarget } from '../lib/pipelineReviewTarget';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { appearanceToStyle } from '@/features/card-rendering/client';
+import { AppearanceSurface, appearanceToStyle } from '@/features/card-rendering/client';
 import { ApiClientError, readApiError, readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import {
   pipelineMediaRevisionAppearance,
@@ -19,7 +19,7 @@ export function MediaPresentationPreview({ sourceUrl, presentation }: {
     <p className="w-full text-xs">Full-strength source fit specimen, not an approval or print proof.</p>
     {[160, 240].map((width) => <div key={width} className="grid gap-1 text-xs">
       <span>{width}px · {presentation.proposed.tileMode} · {presentation.proposed.seamless ? 'seamless claim' : 'not seamless'}</span>
-      {['#f5f0e8', '#15111d'].map((backgroundColor) => <div key={backgroundColor} style={{ ...appearanceToStyle(appearance), width, height: width * 0.7, backgroundColor }} />)}
+      {['#f5f0e8', '#15111d'].map((backgroundColor) => <AppearanceSurface key={backgroundColor} style={{ ...appearanceToStyle(appearance), width, height: width * 0.7, backgroundColor }} />)}
     </div>)}
   </div>;
 }

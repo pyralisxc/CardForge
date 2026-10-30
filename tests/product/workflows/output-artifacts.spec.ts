@@ -217,7 +217,7 @@ test(`@golden keeps complete SVG ${variant} Stretch composition in the native ca
   await page.locator('button[data-artifact-id="scale-card-1"]').press('Enter');
   const card = page.locator('[data-focused-artifact-frame] .tcg-card-preview');
   await expect(card).toBeVisible();
-  await expect(variant === 'tint' ? card.locator('[data-freeform-element-id="stretch-tint"]') : card).toHaveCSS(variant === 'tint' ? 'mask-image' : 'background-image', /svgView/);
+  await expect(variant === 'tint' ? card.locator('[data-freeform-element-id="stretch-tint"]') : variant === 'texture' ? card.locator(':scope > [data-appearance-layer="0"]') : card).toHaveCSS(variant === 'tint' ? 'mask-image' : 'background-image', /svgView/);
   const verifyCorners = async (png: Buffer) => {
     const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     for (const [x, y, expected] of [[0.1, 0.1, [0, 85, 255]], [0.9, 0.1, [0, 170, 85]], [0.1, 0.9, [170, 51, 0]], [0.9, 0.9, [255, 204, 0]]] as const) {
