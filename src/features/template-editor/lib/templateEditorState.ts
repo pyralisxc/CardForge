@@ -145,3 +145,38 @@ export const redoTemplateEditorState = (
     future: state.future.slice(1),
   });
 };
+
+// Library persistence owns these identities; Undo must not restore stale revision metadata.
+const SAVED_TEMPLATE_METADATA = new Set<keyof TCGCardTemplate>([
+  'id', 'templateSource', 'templateLibrarySource', 'templateAccessTier',
+  'templateRegistryStatus', 'templateContributorName', 'templateLineageId',
+  'templateRevision', 'templateRevisionId', 'templateParentRevisionId',
+  'templateOriginLineageId', 'templateOriginRevisionId', 'templatePipelineContext',
+]);
+
+export const acceptSavedTemplateEditorState = (
+  state: TemplateEditorState,
+  submitted: TCGCardTemplate,
+  saved: TCGCardTemplate,
+): TemplateEditorState => {
+  if (state.currentTemplate.id !== submitted.id && state.currentTemplate.id !== saved.id) return state;
+  const reconcile = (template: TCGCardTemplate): TCGCardTemplate => {
+    const next = { ...template };
+    const keys = new Set([...Object.keys(submitted), ...Object.keys(saved)] as (keyof TCGCardTemplate)[]);
+    for (const key of keys) {
+      // Preserve authored changes since the captured snapshot, including history before it.
+      if (SAVED_TEMPLATE_METADATA.has(key) || JSON.stringify(template[key]) === JSON.stringify(submitted[key])) {
+        if (Object.hasOwn(saved, key)) Object.assign(next, { [key]: saved[key] });
+        else delete next[key];
+      }
+    }
+    return reconstructMinimalTemplate(next);
+  };
+  return reconcileTemplateEditorSelection({
+    ...state,
+    currentTemplate: reconcile(state.currentTemplate),
+    history: state.history.map(snapshot => ({ ...snapshot, currentTemplate: reconcile(snapshot.currentTemplate) })),
+    future: state.future.map(snapshot => ({ ...snapshot, currentTemplate: reconcile(snapshot.currentTemplate) })),
+    historyGroup: undefined,
+  });
+};

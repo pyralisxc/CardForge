@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { prepareTemplateForLibrarySave } from '@/features/template-editor/client';
 import { CardTemplateMaker } from '@/features/template-editor/components/CardTemplateMaker';
 import { initializeCardDataFromTemplate } from '@/features/card-generator/client';
 import { renderCardToPngBlob } from '@/features/card-generator/lib/cardPreviewExport';
@@ -56,7 +57,7 @@ function Fixture() {
       selectedTemplateIdForEditing={selectedId} onSelectTemplateForEditing={setSelectedId} canUseProjectFiles canSubmitSharedTemplateRevision canPublishSharedLibrary={false}
       showCardWatermark={false} canUploadCustomAssets={false} isActive isCheckoutStarting={false} fileInputRef={file}
       onDirtyChange={setDirty}
-      onSaveTemplate={async t=>{const params=new URLSearchParams(location.search);if(params.has('rejectSave'))throw new Error('Synthetic local persistence refusal');if(params.has('delayedSave'))await new Promise<void>(resolve=>setFinishSave(()=>resolve));const snapshot={...t,id:params.has('forkSave')?'synthetic-fork':t.id!};setTemplates(current=>[...current.filter(row=>row.id!==snapshot.id),snapshot]);setSaved(JSON.stringify(snapshot));localStorage.setItem('synthetic-saved-template',JSON.stringify(snapshot));if(params.has('forkSave'))setSelectedId(snapshot.id);if(params.has('postCommitDelay'))await new Promise<void>(resolve=>setFinishSave(()=>resolve));return snapshot.id;}}
+      onSaveTemplate={async t=>{const params=new URLSearchParams(location.search);if(params.has('rejectSave'))throw new Error('Synthetic local persistence refusal');if(params.has('delayedSave'))await new Promise<void>(resolve=>setFinishSave(()=>resolve));const prepared=params.has('normalizedSave')?prepareTemplateForLibrarySave(t,true,()=> 'saved-revision',templates.find(row=>row.id===t.id)):t;const snapshot={...prepared,id:params.has('forkSave')?'synthetic-fork':t.id!};setTemplates(current=>[...current.filter(row=>row.id!==snapshot.id),snapshot]);setSaved(JSON.stringify(snapshot));localStorage.setItem('synthetic-saved-template',JSON.stringify(snapshot));if(params.has('forkSave'))setSelectedId(snapshot.id);if(params.has('postCommitDelay'))await new Promise<void>(resolve=>setFinishSave(()=>resolve));return {id:snapshot.id!,template:snapshot};}}
       
       onSubmitTemplateRevision={async()=>{throw new Error('Submission forbidden in local proof');}} onContinueNewTemplateInPipeline={async()=>{throw new Error('Submission forbidden in local proof');}}
       onDeleteTemplate={noop} onCloneTemplate={()=>null} onExportProject={noop} onImportProject={noop} onLoadProject={noop}

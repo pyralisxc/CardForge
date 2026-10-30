@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ImageInspectorPanel } from '@/features/template-editor/components/ImageInspectorPanel';
 import {
+  acceptSavedTemplateEditorState,
   commitTemplateEditorState,
   createTemplateEditorState,
   redoTemplateEditorState,
@@ -195,4 +196,21 @@ it('does not record equivalent updates and invalidates redo on any new authored 
  const undone=undoTemplateEditorState(changed);
  const next=commitTemplateEditorState(undone,current=>({...current,name:'new'}),false);
  expect(next.future).toEqual([]);
+});
+
+it('accepts authoritative same-ID metadata while preserving selection, history and later authored work', () => {
+ const base=createTemplateEditorState({...template('same',['first','selected']),templateSource:'default',templateLibrarySource:'pipeline',templateRevision:3,templateRevisionId:'published-3'});
+ const submitted=commitTemplateEditorState({...base,selectedElementId:'selected'},t=>({...t,name:'Submitted'}));
+ const saved:TCGCardTemplate={...submitted.currentTemplate,templateSource:'user',templateLibrarySource:'personal',templateRegistryStatus:'draft',templateRevisionId:'draft-4',templateParentRevisionId:'published-3'};
+ const accepted=acceptSavedTemplateEditorState(submitted,submitted.currentTemplate,saved);
+ expect(accepted.currentTemplate).toEqual(saved);expect(accepted.selectedElementId).toBe('selected');
+ const undone=undoTemplateEditorState(accepted);
+ expect(undone.currentTemplate.name).toBe('same');expect(undone.currentTemplate.templateRevisionId).toBe('draft-4');
+ expect(redoTemplateEditorState(undone).currentTemplate).toEqual(saved);
+ const later=commitTemplateEditorState(submitted,t=>({...t,name:'Later authored name'}));
+ const recovered=acceptSavedTemplateEditorState(later,submitted.currentTemplate,saved);
+ expect(recovered.currentTemplate.name).toBe('Later authored name');expect(recovered.currentTemplate.templateRevisionId).toBe('draft-4');
+ expect(undoTemplateEditorState(recovered).currentTemplate).toEqual(saved);
+ const other=createTemplateEditorState(template('other',['other-element']));
+ expect(acceptSavedTemplateEditorState(other,submitted.currentTemplate,saved)).toBe(other);
 });

@@ -16,6 +16,7 @@ import {
   type LayerDropPosition,
 } from '@/features/template-editor/lib/canvasCommands';
 import {
+  acceptSavedTemplateEditorState,
   commitTemplateEditorState,
   createTemplateEditorState,
   getTemplateEditorCanvas,
@@ -136,6 +137,10 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
 
   const recordTemplateHistory = useCallback((template?: TCGCardTemplate) => {
     setEditorState((previous) => recordTemplateEditorHistory(previous, template ?? previous.currentTemplate));
+  }, []);
+
+  const acceptSavedTemplate = useCallback((submitted: TCGCardTemplate, saved: TCGCardTemplate) => {
+    setEditorState(previous => acceptSavedTemplateEditorState(previous, submitted, saved));
   }, []);
 
   const finishHistoryGroup = useCallback(() => setEditorState(previous => previous.historyGroup ? { ...previous, historyGroup: undefined } : previous), []);
@@ -259,6 +264,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     clearCheckedLayers,
     commitTemplate,
     finishHistoryGroup,
+    acceptSavedTemplate,
     currentTemplate: editorState.currentTemplate,
     deleteSelected,
     duplicateSelected,

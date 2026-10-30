@@ -178,3 +178,17 @@ test('@golden a rejected local Save retains authored work and its undo history',
  await editor.fill('Unsaved edits');await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByText('Template not saved',{exact:true})).toBeVisible();await expect(editor).toHaveText('Unsaved edits');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
  await page.getByRole('button',{name:'Undo',exact:true}).first().click();await expect(editor).not.toHaveText('Unsaved edits');expect(await page.getByTestId('saved').textContent()).toBe('');
 });
+
+for (const delayed of [false,true]) test(`@golden same-ID normalized Save keeps canonical revision metadata and authored history${delayed?' across delayed acknowledgment':''}`,async({page})=>{
+ await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?historyContracts=1&normalizedSave=1'+(delayed?'&postCommitDelay=1':''));
+ const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Captured authored snapshot');
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ if(delayed){await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();await editor.fill('Later authored text');await page.getByRole('button',{name:'Finish local Save'}).click();await expect(editor).toHaveText('Later authored text');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');await page.getByRole('button',{name:'Undo',exact:true}).first().click();}
+ await expect(editor).toHaveText('Captured authored snapshot');await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ const first=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(first).toMatchObject({id:'synthetic-local',templateSource:'user',templateLibrarySource:'personal',templateRegistryStatus:'localOnly'});expect(first.templateRevisionId).toBeTruthy();expect(first.templateRevision).toBeGreaterThan(0);
+ // Selection and authored history survive; redo returns to the authoritative saved baseline.
+ await page.getByRole('button',{name:'Undo',exact:true}).first().click();await expect(editor).not.toHaveText('Captured authored snapshot');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+ await page.getByRole('button',{name:'Redo',exact:true}).first().click();await expect(editor).toHaveText('Captured authored snapshot');await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ await editor.fill('Next authored snapshot');await page.getByRole('button',{name:'Save',exact:true}).click();if(delayed)await page.getByRole('button',{name:'Finish local Save'}).click();await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ const second=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(second.templateParentRevisionId).toBe(first.templateRevisionId);expect(second.templateRevision).toBe(first.templateRevision+1);expect(second.freeformCanvas.elements.find((e:{id:string})=>e.id==='neighbor').content).toBe(first.freeformCanvas.elements.find((e:{id:string})=>e.id==='neighbor').content);
+});
