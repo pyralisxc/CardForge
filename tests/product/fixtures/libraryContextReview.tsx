@@ -1,3 +1,4 @@
+import { Toaster } from '@/components/ui/toaster';
 import { SearchParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
 import { Desk } from '@/features/desk/components/Desk';
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
@@ -82,7 +83,7 @@ window.fetch = async (input, init) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   if (params.has('deskActual') && (!init?.method || init.method === 'GET')) {
     if(params.has('deskDrive') && url.startsWith('/api/project-sources/google-drive')) return Response.json({connection:{provider:'google-drive',configured:true,connected:true,displayName:'Synthetic Drive',rootFolderId:'folder',status:'active',statusNote:null,lastVerifiedAt:null},projects:[{provider:'google-drive',accountId:'synthetic-account',fileId:'synthetic-drive-file',workId:'synthetic-drive-work',name:'Synthetic Drive Set.cardforge',providerRevision:'head:'+'a'.repeat(64),projectRevision:'b'.repeat(64),modifiedAt:'2026-10-30T00:00:00Z',size:100,webViewLink:'https://drive.google.com/file/d/synthetic-drive-file',thumbnailLink:null}],nextPageToken:null});
-    if (url === '/api/pipeline/my-published') return Response.json({submissions:[row]});
+    if (url === '/api/pipeline/my-published') return Response.json({submissions:params.has('deskSearch')?[row,{...newer,lineageId:'20000000-0000-4000-8000-000000000002',registryAssetId:'other-bridge',targetRegistryAssetId:'other-bridge',name:'Unrelated Bridge Back'}]:[row]});
     if (url === '/api/catalog/studio-bootstrap') return Response.json({...queueCatalog,studioDefaults:{defaultTemplateId:null}});
     if (url !== '/api/catalog' && !url.startsWith('/api/pipeline?') && !url.startsWith('/api/owner/pipeline/')) return Response.json({error:{code:'fixture_unavailable',kind:'unavailable',message:'Provider excluded from isolated Desk proof',retryable:false}},{status:503});
   }
@@ -96,6 +97,11 @@ window.fetch = async (input, init) => {
     if (url === '/api/pipeline/library') return Response.json({ program: { ...program, submissions: queueRows } });
     if (url.startsWith('/api/pipeline/hearts?')) return Response.json({ metrics: [] });
     if (!url.startsWith('/api/pipeline?')) return Response.json({ error: { code: 'fixture_unavailable', kind: 'unavailable', message: 'Provider excluded from isolated Library proof', retryable: false } }, { status: 503 });
+  }
+  if (params.has('globalSettingsSave') && url === '/api/pipeline' && init?.method === 'PUT') {
+    proof.libraryRequests.push({url,method:'PUT',body:String(init.body)});
+    program.settings = JSON.parse(String(init.body)).settings;
+    return Response.json({program});
   }
   if (params.has('submit') && url.startsWith('/api/owner/pipeline/style-revisions')) {
     proof.libraryRequests.push({ url, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : undefined });
@@ -182,7 +188,7 @@ function QueueProof() {
   </main>;
 }
 const mount = document.createElement('div'); document.body.append(mount); const fixtureRouter = { bfcacheId: 'isolated-library', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: () => {}, replace: () => {}, prefetch: async () => {} };
-createRoot(mount).render(params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : params.has('queueActual') ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
+createRoot(mount).render(<><Toaster />{params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : params.has('queueActual') ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
   experience={{ signedIn: true, owner: true, plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: false } } as AccountExperienceProjection}
   businessIdentity={{} as never} persistenceScope="account:isolated-library-fixture" />
-</AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />);
+</AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />}</>);

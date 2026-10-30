@@ -586,6 +586,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
             : activeTool === 'review-manage' && !reviewTarget ? <p>The exact selection is unavailable. Close this tool and refresh Library.</p>
             : <OwnerContributorProgramPanel key={activeTool === 'pipeline-operations' ? 'global' : reviewTarget?.submissionId}
               target={activeTool === 'pipeline-operations' ? undefined : reviewTarget ?? undefined}
+              navigationBlocked={toolDirty || Boolean(toolCloseBlocked)}
+              onOpenRevisionQueue={activeTool === 'pipeline-operations' ? () => {
+                if (toolDirty || toolCloseBlocked) return;
+                closeContextualTool(); chooseScope('pipeline'); setRevisionMode(true);
+                requestAnimationFrame(() => document.getElementById('library-revision-mode')?.focus());
+              } : undefined}
               onDirtyChange={setToolDirty} onSelectionMutated={() => { closeContextualTool(); refresh(); }} onRevise={reviseSelected} renderTemplateSpecimen={renderPipelineTemplateSpecimen} />}
           </div>
         </EnvironmentToolLayer>
