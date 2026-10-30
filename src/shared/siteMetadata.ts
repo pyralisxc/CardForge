@@ -75,7 +75,12 @@ export const createRootSiteMetadata = ({
   socialImage,
   faviconUrl,
   metadataBase,
-}: RootSiteMetadataInput): Metadata => ({
+}: RootSiteMetadataInput): Metadata => {
+  // Older Website Editions retain the original bundled SVG identity. Resolve
+  // that one known asset to its identical raster export; custom media stays owned.
+  const iconUrl = faviconUrl === '/brand/cardforge-studio/favicon.svg'
+    ? '/brand/cardforge-studio/favicon.png' : faviconUrl;
+  return ({
   metadataBase,
   title: {
     default: `${brandName} | ${homepageTitle}`,
@@ -84,9 +89,9 @@ export const createRootSiteMetadata = ({
   description: homepageDescription,
   keywords: searchKeywords,
   icons: {
-    icon: faviconUrl,
-    shortcut: faviconUrl,
-    apple: faviconUrl,
+    icon: iconUrl,
+    shortcut: iconUrl,
+    apple: iconUrl,
   },
   openGraph: {
     siteName: brandName,
@@ -97,3 +102,4 @@ export const createRootSiteMetadata = ({
     images: [socialImage.url],
   },
 });
+};
