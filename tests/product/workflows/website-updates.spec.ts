@@ -28,3 +28,11 @@ test('@golden exact committed release attempt resolves by readback without anoth
 test('@golden successful working advance refreshes the previous published record',async({page})=>{
  await mount(page);await page.getByText('Owner: manage website update notes',{exact:true}).click();await page.getByLabel('Version',{exact:true}).fill('0.0.2');await page.getByRole('button',{name:'Begin next working version after Production release'}).click();await expect(page.getByLabel('Version',{exact:true})).toHaveValue('0.0.2');await expect(page.getByRole('button',{name:'Save working notes',exact:true})).toBeVisible();await page.getByLabel('Existing record').selectOption('0.0.1');await expect(page.getByRole('button',{name:'Save narrative correction'})).toBeVisible();await expect(page.getByRole('button',{name:'Save working notes',exact:true})).toHaveCount(0);
 });
+
+test('@golden Owner with only released history opens the latest saved narrative without an empty draft',async({page})=>{
+ await mount(page,'?releasedOwner=1');await page.getByText('Owner: manage website update notes',{exact:true}).click();
+ await expect(page.getByLabel('Version',{exact:true})).toHaveValue('0.0.2');
+ await expect(page.getByLabel('improvements',{exact:true})).toHaveValue('Retained released notes');
+ await expect(page.getByLabel('fixes',{exact:true})).toHaveValue('Original correction');
+ expect(await page.evaluate(()=>(window as typeof window & {releaseRequests:string[]}).releaseRequests)).toEqual([]);
+});
