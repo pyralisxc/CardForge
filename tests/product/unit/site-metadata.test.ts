@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
 import { createPageMetadata, createRootSiteMetadata } from '@/shared/siteMetadata';
@@ -83,4 +85,16 @@ describe('site metadata', () => {
     expect(metadata.robots).toEqual({ index: false, follow: false });
     expect(metadata.alternates?.canonical).toBe('/studio');
   });
+});
+
+it('advertises the raster export of the bundled favicon without overriding Owner media', async () => {
+  const input={brandName:'CardForge',homepageTitle:'Studio',homepageDescription:'Create',searchKeywords:[],socialImage:{url:'/social.png',width:1600,height:900,alt:'Studio'},metadataBase:new URL('https://cardforges.com')};
+  expect(createRootSiteMetadata({...input,faviconUrl:'/brand/cardforge-studio/favicon.svg'}).icons).toEqual({icon:'/brand/cardforge-studio/favicon.png',shortcut:'/brand/cardforge-studio/favicon.png',apple:'/brand/cardforge-studio/favicon.png'});
+  const owned='/api/public/site-media/brand.favicon?v=owner-revision';
+  expect(createRootSiteMetadata({...input,faviconUrl:owned}).icons).toEqual({icon:owned,shortcut:owned,apple:owned});
+  const bytes=readFileSync('public/brand/cardforge-studio/favicon.png');
+  expect(await sharp(bytes).metadata()).toMatchObject({format:'png',width:512,height:512});
+  const actual=await sharp(bytes).ensureAlpha().raw().toBuffer();
+  const expected=await sharp(readFileSync('assets/brand/cardforge-studio/favicon.svg'),{density:300}).resize({width:512,height:512,fit:'inside',withoutEnlargement:false}).ensureAlpha().raw().toBuffer();
+  expect(actual.equals(expected)).toBe(true);
 });

@@ -66,6 +66,8 @@ for (const brandExport of exportsToCreate) {
     })
     .toFile(outputPath);
 
+  if (brandExport.output === 'favicon-512.png') await copyFile(outputPath, path.join(runtimeDirectory, 'favicon.png'));
+
   console.log(`${brandExport.output}: ${result.width}x${result.height}, ${result.size} bytes`);
 }
 
