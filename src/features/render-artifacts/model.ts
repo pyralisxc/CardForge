@@ -7,9 +7,9 @@ export type RenderArtifactKind = 'template-preview' | 'card-preview' | 'set-cont
 export type RenderArtifactFace = 'front' | 'back' | 'none';
 
 export interface RenderArtifactDescriptor {
-  sourceKind: 'studio-document';
+  sourceKind: 'studio-document' | 'pipeline-revision' | 'google-drive-project';
   sourceId: string;
-  sourceRevision: number;
+  sourceRevision: number | string;
   kind: RenderArtifactKind;
   subjectId: string;
   face: RenderArtifactFace;

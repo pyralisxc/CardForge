@@ -1,3 +1,4 @@
+import { registerSavedSourceTools } from './mcpSavedSourceTools';
 import { registerPersonalLibraryTools } from '@/features/personal-library/server';
 import { registerAccountWorkflowTools } from './mcpAccountWorkflowTools';
 import { registerAgentCardTools } from './mcpAgentCardTools';
@@ -13,5 +14,6 @@ export const registerAgentTemplateTools = (
   registerAgentCardTools(options);
   registerWorkingDocumentTools(options);
   registerProjectSourceTools(options);
+  registerSavedSourceTools(options);
   registerPersonalLibraryTools(options);
 };

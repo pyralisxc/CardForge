@@ -11,3 +11,5 @@ export {
   syncAgentTemplateSave,
   type AgentTemplateSyncResult,
 } from './lib/agentTemplateRoundTrip';
+
+export { SavedSourcePreviewClient } from './components/SavedSourcePreviewClient';

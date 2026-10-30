@@ -17,7 +17,7 @@ const isAllowedRenderUrl = (value: string, publicOrigin: string): boolean => {
     const url = new URL(value);
     const allowed = new URL(publicOrigin);
     return url.origin === allowed.origin
-      && (url.pathname === '/mcp-template-preview' || url.pathname === '/mcp-card-set-preview');
+      && (url.pathname === '/mcp-template-preview' || url.pathname === '/mcp-card-set-preview' || url.pathname === '/saved-source-preview');
   } catch {
     return false;
   }
