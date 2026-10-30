@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { getCampaignMediaPreviewUrl, loadCampaignDeskProjection, type MarketingContentPackage } from '@/features/marketing-content/client';
-import { getPipelineImagePreviewUrl, getPipelineTypeLabel, loadOwnPublishedPipelineSubmissions, createPipelineReviewTarget, type CardForgeCatalogManifest, type PipelineSubmission } from '@/features/pipeline/client';
+import { DEFAULT_PIPELINE_PROGRAM_SETTINGS, getPipelineImagePreviewUrl, getPipelineTypeLabel, loadOwnPublishedPipelineSubmissions, createPipelineReviewTarget, projectPipelineLibrary, type CardForgeCatalogManifest, type PipelineSubmission } from '@/features/pipeline/client';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
@@ -112,6 +112,25 @@ export const toPublishedDeskItem = (submission: PipelineSubmission, catalog?: Ca
   };
 };
 
+/** Desk organization and spatial state belong to a lineage, not each revision. */
+export const toPublishedDeskItems = (
+  submissions: PipelineSubmission[],
+  catalog: CardForgeCatalogManifest | null,
+): AccountLibraryItem[] => {
+  const publicationByLineage = new Map((catalog?.pipeline?.items ?? []).flatMap(item => (
+    item.lineageId && item.submissionId ? [[item.lineageId, item.submissionId] as const] : []
+  )));
+  // Reuse Pipeline's exact-publication preference and retained-revision ordering.
+  // These inputs are already restricted to the contributor's published records;
+  // no review/voting authority is derived from this presentation projection.
+  return projectPipelineLibrary({
+    submissions,
+    votingQueue: [],
+    currentContributorIds: [],
+    settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
+  }, publicationByLineage).map(item => toPublishedDeskItem(item.submission, catalog));
+};
+
 const sourceFailure = (
   id: DeskDiscoverySource,
   error: unknown,
@@ -195,7 +214,7 @@ export function useDeskWorkDiscovery({
         setPublished,
         async () => {
           const [rows, catalog] = await Promise.all([loadOwnPublishedPipelineSubmissions(), fetch('/api/catalog', {cache:'no-store'}).then(async response => response.ok ? await response.json() as CardForgeCatalogManifest : null).catch(() => null)]);
-          return rows.map(row => toPublishedDeskItem(row, catalog));
+          return toPublishedDeskItems(rows, catalog);
         },
         'Your published Pipeline work is unavailable.',
         (items) => items.length === 0,

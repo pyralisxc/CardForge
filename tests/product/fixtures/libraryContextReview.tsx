@@ -55,6 +55,21 @@ proof.libraryRequests = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
 const queueCatalog: ReturnType<typeof identityCatalog> = { ...identityCatalog(), pipeline: { items: [] } };
+const oldBridge = { ...row, id: '10000000-0000-4000-8000-000000000003',
+  lineageId: '20000000-0000-4000-8000-000000000002', registryAssetId: 'other-bridge', targetRegistryAssetId: 'other-bridge',
+  assetType: 'templates', name: 'Unrelated Bridge Back', revisionNumber: 1,
+  sourcePayload: identityTemplate('other-bridge', '#660000') } as PipelineSubmission;
+const currentBridge = { ...oldBridge, id: '10000000-0000-4000-8000-000000000004', revisionNumber: 2,
+  sourcePayload: identityTemplate('other-bridge', '#006600') };
+const deskSearchRows = [row, oldBridge, currentBridge];
+if (params.has('deskSearch')) {
+  queueCatalog.pipeline = { items: [row, currentBridge].map(submission => ({
+    id: submission.registryAssetId!, name: submission.name, assetType: submission.assetType === 'templates' ? 'template' : 'elementPreset',
+    submissionId: submission.id, lineageId: submission.lineageId ?? null, updatedAt: 'registry-epoch',
+    previewUrl: null, access: 'free', source: 'official', fileSizeBytes: null,
+  })) };
+  program.submissions = deskSearchRows;
+}
 const queueRows = Array.from({ length: 15 }, (_, index) => ({ ...row,
   id: `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
   lineageId: index < 2 ? row.lineageId : `20000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
@@ -82,8 +97,9 @@ const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   if (params.has('deskActual') && (!init?.method || init.method === 'GET')) {
+    if (params.has('deskSearch') && url === '/api/catalog') return Response.json(queueCatalog);
     if(params.has('deskDrive') && url.startsWith('/api/project-sources/google-drive')) return Response.json({connection:{provider:'google-drive',configured:true,connected:true,displayName:'Synthetic Drive',rootFolderId:'folder',status:'active',statusNote:null,lastVerifiedAt:null},projects:[{provider:'google-drive',accountId:'synthetic-account',fileId:'synthetic-drive-file',workId:'synthetic-drive-work',name:'Synthetic Drive Set.cardforge',providerRevision:'head:'+'a'.repeat(64),projectRevision:'b'.repeat(64),modifiedAt:'2026-10-30T00:00:00Z',size:100,webViewLink:'https://drive.google.com/file/d/synthetic-drive-file',thumbnailLink:null}],nextPageToken:null});
-    if (url === '/api/pipeline/my-published') return Response.json({submissions:params.has('deskSearch')?[row,{...newer,lineageId:'20000000-0000-4000-8000-000000000002',registryAssetId:'other-bridge',targetRegistryAssetId:'other-bridge',name:'Unrelated Bridge Back'}]:[row]});
+    if (url === '/api/pipeline/my-published') return Response.json({submissions:params.has('deskSearch')?deskSearchRows:[row]});
     if (url === '/api/catalog/studio-bootstrap') return Response.json({...queueCatalog,studioDefaults:{defaultTemplateId:null}});
     if (url !== '/api/catalog' && !url.startsWith('/api/pipeline?') && !url.startsWith('/api/owner/pipeline/')) return Response.json({error:{code:'fixture_unavailable',kind:'unavailable',message:'Provider excluded from isolated Desk proof',retryable:false}},{status:503});
   }
