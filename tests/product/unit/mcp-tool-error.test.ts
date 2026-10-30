@@ -55,3 +55,12 @@ describe('MCP boundary failures', () => {
     });
   });
 });
+
+it.each([409, 503] as const)('serializes exact revision deletion %s as reconciliation, never automatic retry', async status => {
+  const { RevisionDeleteError } = await import('@/features/pipeline/server');
+  const message = status === 409 ? 'Exact revision claim was not confirmed' : 'Revision deletion incomplete; reconcile its Storage and claim state';
+  const result = createMcpToolError(new RevisionDeleteError(status, message));
+  expect(result.content).toEqual([{ type: 'text', text: message }]);
+  expect(result._meta['cardforge/boundaryFailure']).toMatchObject({ status, retryable: false, nextAction: expect.stringContaining('retained destructive claim state') });
+  expect(result._meta['cardforge/boundaryFailure'].nextAction).not.toContain('retry against its latest revision');
+});
