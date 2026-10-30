@@ -26,8 +26,6 @@ import {
   getPipelineVotingPresetLabel,
   type PipelineProgramSettings,
   type PipelineVotingPreset,
-  type PipelineStatus,
-  type PipelineType,
 } from '@/features/pipeline/lib/pipelineItems';
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
 import type { PipelineTemplateSpecimenRenderer } from './PipelineContributionModel';
@@ -41,15 +39,17 @@ interface PipelineItemsResponse {
 }
 
 export function OwnerContributorProgramPanel({
-  initialStatusFilter = 'all',
   target,
   onDirtyChange,
   onRevise,
   onSelectionMutated,
   renderTemplateSpecimen,
+  onOpenRevisionQueue,
+  navigationBlocked = false,
 }: {
-  initialStatusFilter?: PipelineStatus | 'all';
   target?: PipelineReviewTarget;
+  onOpenRevisionQueue?: () => void;
+  navigationBlocked?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
   onSelectionMutated?: () => void;
   onRevise?: (submission: PipelineProgramView['submissions'][number]) => void;
@@ -64,10 +64,6 @@ export function OwnerContributorProgramPanel({
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [libraryQuery, setLibraryQuery] = useState('');
-  const [libraryAssetType, setLibraryAssetType] = useState<PipelineType | 'all'>('all');
-  const [libraryStatus, setLibraryStatus] = useState<PipelineStatus | 'all'>(initialStatusFilter);
-  const [libraryPage, setLibraryPage] = useState(1);
   const hasLoadedRef = useRef(false);
 
   const loadProgram = useCallback(async () => {
@@ -76,10 +72,10 @@ export function OwnerContributorProgramPanel({
     try {
       if (target) await readReviewPublication(target);
       const params = new URLSearchParams({
-        query: target ? '' : libraryQuery,
-        assetType: libraryAssetType,
-        status: libraryStatus,
-        page: String(libraryPage),
+        query: '',
+        assetType: 'all',
+        status: 'all',
+        page: '1',
         pageSize: target ? '50' : '12',
       });
       const response = await fetch(`/api/pipeline?${params.toString()}`, { cache: 'no-store' });
@@ -114,7 +110,7 @@ export function OwnerContributorProgramPanel({
     } finally {
       setIsLoading(false);
     }
-  }, [libraryAssetType, libraryPage, libraryQuery, libraryStatus, target, toast]);
+  }, [target, toast]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadProgram(), 250);
@@ -310,32 +306,17 @@ export function OwnerContributorProgramPanel({
     <section onChangeCapture={() => onDirtyChange?.(true)} className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface)] p-6">
       <OwnerContributorProgramOverview program={program} settings={settings} lastSavedLabel={lastSavedLabel} />
 
-      <Tabs defaultValue="library" className="mt-5 space-y-5">
+      <div className="mt-5 border border-[var(--cf-border)] p-4">
+        <h3 className="font-serif text-xl">Review queue</h3>
+        <p className="mt-2 text-sm text-[var(--cf-text-muted)]">Discover and filter every authorized submission in Library’s Pipeline revision queue. Select a revision there for Review &amp; manage; Desk offers the same controls for an exact published selection.</p>
+        {onOpenRevisionQueue ? <Button type="button" className="mt-3" variant="outline" disabled={navigationBlocked || isSaving} onClick={onOpenRevisionQueue}>Open Library revision queue</Button> : null}
+        {navigationBlocked ? <p className="mt-2 text-sm">Save these changes, or close and discard them, before opening the queue.</p> : null}
+      </div>
+      <Tabs defaultValue="rules" className="mt-5 space-y-5">
         <TabsList className="flex h-auto flex-wrap justify-start rounded-none border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-1">
-          <TabsTrigger value="library" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[var(--cf-text-subtle)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[var(--cf-accent-text)]">Asset library</TabsTrigger>
           <TabsTrigger value="studio-map" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[var(--cf-text-subtle)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[var(--cf-accent-text)]">Studio map</TabsTrigger>
           <TabsTrigger value="rules" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[var(--cf-text-subtle)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[var(--cf-accent-text)]">Pipeline rules</TabsTrigger>
         </TabsList>
-        <TabsContent value="library" className="mt-0">
-          <OwnerAssetLibraryPanel
-            onRevisionCreated={loadProgram}
-            program={program}
-            renderTemplateSpecimen={renderTemplateSpecimen}
-            query={libraryQuery}
-            assetTypeFilter={libraryAssetType}
-            statusFilter={libraryStatus}
-            page={libraryPage}
-            onQueryChange={(value) => { setLibraryQuery(value); setLibraryPage(1); }}
-            onAssetTypeFilterChange={(value) => { setLibraryAssetType(value); setLibraryPage(1); }}
-            onStatusFilterChange={(value) => { setLibraryStatus(value); setLibraryPage(1); }}
-            onPageChange={setLibraryPage}
-            updatingSubmissionId={updatingSubmissionId}
-            onUpdateOverride={updateOverride}
-            onUpdateEditorialReview={updateEditorialReview}
-            onDeletePermanently={deletePermanently}
-            onDeleteRevisionNow={deleteRevisionNow}
-          />
-        </TabsContent>
         <TabsContent value="studio-map" className="mt-0">
           <OwnerStudioRoutingPanel />
         </TabsContent>
