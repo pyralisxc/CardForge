@@ -517,7 +517,7 @@ function AssetPreview({
   );
 }
 
-function PipelineRecipePreview({
+export function PipelineRecipePreview({
   recipe,
   expanded,
 }: {

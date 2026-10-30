@@ -90,3 +90,22 @@ export const readStudioDocumentPreviewToken = (
   if (!payload || payload.expiresAt < Math.floor(now / 1000)) return null;
   return payload;
 };
+
+// Separate purpose prevents a source-render capability from authorizing a Studio document read.
+export const createSavedSourcePreviewToken = (input: { ownerUserId: string; request: import('../sourcePreview').SourceRenderRequest }, now = Date.now()): string => {
+  const encoded = Buffer.from(JSON.stringify({ ...input, expiresAt: Math.floor(now / 1000) + 300 }), 'utf8').toString('base64url');
+  const signature = createHmac('sha256', getSigningKey()).update(`cardforge-saved-source-preview-v1.${encoded}`).digest('base64url');
+  return `${encoded}.${signature}`;
+};
+export const readSavedSourcePreviewToken = (token: string, now = Date.now()): { ownerUserId: string; request: unknown } | null => {
+  try {
+    const [encoded, supplied, ...rest] = token.split('.');
+    if (!encoded || !supplied || rest.length || encoded.length > 16000) return null;
+    const signature = createHmac('sha256', getSigningKey()).update(`cardforge-saved-source-preview-v1.${encoded}`).digest('base64url');
+    const a = Buffer.from(supplied); const b = Buffer.from(signature);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+    if (typeof payload.ownerUserId !== 'string' || !Number.isInteger(payload.expiresAt) || payload.expiresAt < Math.floor(now / 1000)) return null;
+    return { ownerUserId: payload.ownerUserId, request: payload.request };
+  } catch { return null; }
+};

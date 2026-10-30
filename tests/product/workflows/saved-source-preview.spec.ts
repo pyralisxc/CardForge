@@ -1,0 +1,32 @@
+import { buildSync } from 'esbuild';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { expect, test } from '@playwright/test';
+const bundle=buildSync({entryPoints:['tests/product/fixtures/savedSourcePreview.tsx'],bundle:true,platform:'browser',format:'iife',write:false,outfile:join(tmpdir(),'saved-source-preview.js'),define:{'process.env.NODE_ENV':'"production"','process.env':'{}'}});
+const template={id:'exact-template',name:'Exact synthetic saved source',templateSource:'user',aspectRatio:'1:1',freeformCanvas:{width:400,height:400,elements:[{id:'shape',type:'shape',name:'Exact panel',fillColor:'#102040',backgroundColor:'#102040',rotation:0,opacity:1,zIndex:1,shapeKind:'rectangle',x:0,y:0,width:400,height:400,appearance:{material:{baseColor:'#102040'}}}]}};
+for(const width of [390,1440]) test(`@golden exact source renders branded and clean native PNGs at ${width}px`,async({page},info)=>{
+ test.setTimeout(90_000); await page.setViewportSize({width,height:800});
+ let branded=true; const errors:string[]=[];
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__saved-source')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><head></head><body></body></html>'});
+  if(url.pathname==='/api/saved-source-preview')return route.fulfill({json:{title:'Exact synthetic saved source',sourceVersion:'a'.repeat(64),identity:{submissionId:'selected-historical-revision'},branded,content:{kind:'template',template}}});
+  if(url.pathname==='/brand/cardforge-studio/watermark.svg')return route.fulfill({contentType:'image/svg+xml',body:readFileSync('public/brand/cardforge-studio/watermark.svg')});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  errors.push(url.pathname);return route.abort();
+ });
+ const boot=async()=>{await page.goto('/__saved-source');for(const f of bundle.outputFiles.filter(f=>f.path.endsWith('.css')))await page.addStyleTag({content:f.text});await page.addScriptTag({content:bundle.outputFiles.find(f=>f.path.endsWith('.js'))!.text});};
+ const image=page.locator('img[data-cardforge-render-artifact="saved-source"]');
+ await boot(); await expect(image).toBeVisible();
+ const read=()=>image.evaluate(async(node:HTMLImageElement)=>{await node.decode();const c=document.createElement('canvas');c.width=node.naturalWidth;c.height=node.naturalHeight;const ctx=c.getContext('2d')!;ctx.drawImage(node,0,0);return {width:c.width,height:c.height,pixels:Array.from(ctx.getImageData(0,0,c.width,c.height).data)};});
+ const marked=await read(); expect(marked.width).toBeGreaterThan(300);
+ await image.screenshot({path:info.outputPath('branded-native.png')});await info.attach('Branded exact native PNG',{path:info.outputPath('branded-native.png'),contentType:'image/png'});
+ await expect(page.getByText(/selected-historical-revision/)).toBeVisible();
+ branded=false;await boot();await expect(image).toBeVisible();const clean=await read();
+ const center=(Math.floor(clean.height/2)*clean.width+Math.floor(clean.width/2))*4;expect(clean.pixels.slice(center,center+4)).toEqual([16,32,64,255]);
+ expect(clean.width).toBe(marked.width);expect(clean.height).toBe(marked.height);
+ expect(marked.pixels.filter((v,i)=>Math.abs(v-clean.pixels[i])>2).length).toBeGreaterThan(1000);
+ await image.screenshot({path:info.outputPath('clean-native.png')});await info.attach('Entitled clean native PNG',{path:info.outputPath('clean-native.png'),contentType:'image/png'});
+ expect(errors).toEqual([]);
+});
