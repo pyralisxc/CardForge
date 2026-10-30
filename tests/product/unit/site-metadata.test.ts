@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import sharp from 'sharp';
+import { getDefaultSiteMedia } from '@/features/public-site/model/siteMedia';
 import { describe, expect, it } from 'vitest';
 
 import { createPageMetadata, createRootSiteMetadata } from '@/shared/siteMetadata';
@@ -92,6 +93,7 @@ it('advertises the raster export of the bundled favicon without overriding Owner
   expect(createRootSiteMetadata({...input,faviconUrl:'/brand/cardforge-studio/favicon.svg'}).icons).toEqual({icon:'/brand/cardforge-studio/favicon.png',shortcut:'/brand/cardforge-studio/favicon.png',apple:'/brand/cardforge-studio/favicon.png'});
   const owned='/api/public/site-media/brand.favicon?v=owner-revision';
   expect(createRootSiteMetadata({...input,faviconUrl:owned}).icons).toEqual({icon:owned,shortcut:owned,apple:owned});
+  expect(getDefaultSiteMedia('brand.favicon')).toMatchObject({width:512,height:512,defaultSrc:'/brand/cardforge-studio/favicon.png'});
   const bytes=readFileSync('public/brand/cardforge-studio/favicon.png');
   expect(await sharp(bytes).metadata()).toMatchObject({format:'png',width:512,height:512});
   const actual=await sharp(bytes).ensureAlpha().raw().toBuffer();

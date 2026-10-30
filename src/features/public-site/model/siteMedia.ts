@@ -135,8 +135,8 @@ export const DEFAULT_SITE_MEDIA: SiteMediaDefaults[] = [
     guidance: 'Used as the favicon, shortcut icon, and mobile app icon. Choose a simple square image that remains clear at very small sizes.',
     defaultSrc: '/brand/cardforge-studio/favicon.png',
     defaultAlt: 'CardForge Studio browser icon',
-    width: 128,
-    height: 128,
+    width: 512,
+    height: 512,
     presentation: {
       ...centeredPresentation,
       frame: 'natural',
