@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 import { AppearanceStudioPanel, createSharedLineageDraft } from '@/features/template-editor/client';
-import { appearanceToStyle } from '@/features/card-rendering/client';
+import { AppearanceSurface, appearanceToStyle } from '@/features/card-rendering/client';
 import { readReviewPublication, templateReviewBaseSchema, templateReviewReceiptSchema } from '@/features/pipeline/client';
 import type { PipelineReviewTarget } from '@/features/pipeline/client';
 import { ApiClientError, readApiError, readApiErrorMessage } from '@/infrastructure/http/clientResponses';
@@ -96,7 +96,7 @@ export function LibraryRevisionEntry({ target, kind, onDirtyChange, onTemplateDr
       onTemplateDraft(draft);
     }}>Prepare local review draft in Design</button> : null}
     {base && style ? <TooltipProvider>
-      <div aria-label="Revision appearance preview" style={{ ...appearanceToStyle(style.appearance), width: 200, height: 150, maxWidth: '100%' }} />
+      <AppearanceSurface aria-label="Revision appearance preview" style={{ ...appearanceToStyle(style.appearance), width: 200, height: 150, maxWidth: '100%' }} />
       <fieldset disabled={busy || Boolean(attempt.current) || Boolean(receipt)}>
         <AppearanceStudioPanel element={{ id: 'revision-preview', type: 'shape', name: style.name, x: 0, y: 0, width: 200, height: 150, zIndex: 1 }} selectedAppearance={style.appearance}
           compatibleAppearanceStyles={[]} compatibleTextureAssets={[]} elementStylePresets={[]} canUseImageSource={false} canUseDividerControls={false}
