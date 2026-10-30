@@ -108,16 +108,6 @@ jobs:
         with:
           version: 2.122.0
       - if: steps.native.outputs.required == 'true'
-        name: Prepare canonical website-release migration (temporary preparation)
-        run: |
-          supabase migration new website_release_history
-          migration=$(find supabase/migrations -name '*_website_release_history.sql' -print)
-          test -n "$migration"
-          cp scripts/sql-preparation/website-releases.sql "$migration"
-          sha256sum "$migration"
-          mkdir -p test-results/native-catalog-trash
-          cp "$migration" test-results/native-catalog-trash/website-release-migration.sql
-      - if: steps.native.outputs.required == 'true'
         name: Replay native Supabase migrations and SQL contention fixtures
         run: bash scripts/verify-catalog-trash-local.sh
       - if: ${{ always() && steps.native.outputs.required == 'true' }}

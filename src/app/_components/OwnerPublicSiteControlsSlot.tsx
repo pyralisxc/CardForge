@@ -34,6 +34,11 @@ export async function OwnerPublicSiteControlsSlot({ currentPath }: { currentPath
     liveGeneration: live.generation, manifest: await readWebsiteRevision(presentation.revisionId),
   } : null;
   const publicationEnvironment = resolveOwnerPublicationEnvironment(process.env.VERCEL_ENV);
+  let websiteReleaseEditor;
+  if (currentPath === '/updates') {
+    try { websiteReleaseEditor = <OwnerWebsiteReleaseEditor initial={await getWebsiteReleaseRecords()} production={publicationEnvironment === 'production'} deployedSha={process.env.VERCEL_GIT_COMMIT_SHA??null}/>; }
+    catch { websiteReleaseEditor = <p role="status">Website update records are unavailable. Owner editing is paused; no empty release history was substituted. Reload when the records are available.</p>; }
+  }
   return <PublicSiteOwnerLiveControls
     currentPath={currentPath}
     publicationEnvironment={publicationEnvironment}
@@ -41,7 +46,7 @@ export async function OwnerPublicSiteControlsSlot({ currentPath }: { currentPath
     initialMedia={completeSiteMediaForSections(siteMedia, getSiteCompositionSections(siteConfiguration))}
     initialSiteConfiguration={siteConfiguration}
     editionSession={editionSession}
-    siteOperationsEditor={currentPath === '/updates' ? <OwnerWebsiteReleaseEditor initial={await getWebsiteReleaseRecords()} production={publicationEnvironment === 'production'} deployedSha={process.env.VERCEL_GIT_COMMIT_SHA??null}/> : <OwnerPublicSiteOperations publicationEnvironment={publicationEnvironment} currentPath={currentPath} />}
+    siteOperationsEditor={currentPath === '/updates' ? websiteReleaseEditor : <OwnerPublicSiteOperations publicationEnvironment={publicationEnvironment} currentPath={currentPath} />}
     roadmapRulesEditor={roadmapSettings ? <OwnerRoadmapRulesLiveEditor initialSettings={roadmapSettings} /> : undefined}
   />;
 }
