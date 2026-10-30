@@ -59,6 +59,7 @@ export const getAccountLibraryEnvironmentActions = (
   options: {
     disabledReason?: string;
     canUseProjectFiles?: boolean;
+    manageLocationResult?: 'navigation' | 'tool-opened';
   } = {},
 ): ActionDescriptor[] => {
   const { disabledReason, canUseProjectFiles = true } = options;
@@ -171,7 +172,7 @@ export const getAccountLibraryEnvironmentActions = (
       availability,
       commitment: 'none',
       automation: human(),
-      result: 'navigation',
+      result: options.manageLocationResult ?? 'navigation',
     });
   }
 
