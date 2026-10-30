@@ -17,9 +17,10 @@ describe('Divider Studio source selection', () => {
   it('applies a Library divider to the selected appearance and renders its source without replacing geometry', () => {
     const asset = { id: 'sunforged', name: 'Sunforged Divider', kind: 'divider', url: 'https://example.test/sunforged.svg', allowedTargets: ['divider'], studioDestinations: ['element.divider'], tileMode: 'stretch', defaultOpacity: 85 } as CardAssetOption;
     const element: FreeformCardElement = { id: 'selected-divider', type: 'shape', name: 'Divider', x: 15, y: 20, width: 240, height: 36, zIndex: 2, shapeRole: 'divider' };
-    const before = { ...element };
     let appearance: FreeformAppearance = { shapeRole: 'divider', material: { baseColor: '#fff', textColor: '#123456' }, border: { kind: 'solid', width: 2 } };
-    const updateElement = vi.fn();
+    element.appearance = appearance;
+    const before = { ...element };
+    const updateElement = vi.fn((updates: Partial<FreeformCardElement>) => { appearance = updates.appearance!; });
     const markup = renderToStaticMarkup(createElement(DividerStudioPanel, {
       element, selectedAppearance: appearance, dividerAssets: [asset], dividerPresets: [], personalItems: [],
       canUploadCustomAssets: true, onAddFromProvider: vi.fn(), onMaterializePersonal: vi.fn(), onHandleAssetUpload: vi.fn(),
@@ -34,7 +35,9 @@ describe('Divider Studio source selection', () => {
     expect(appearance).toMatchObject({ dividerAsset: asset.url, assetKind: 'divider', assetRenderMode: 'original', shapeRole: 'divider', textureOpacity: 85, tileMode: 'stretch', material: { baseColor: 'transparent', textColor: '#123456' }, border: { kind: 'none', width: 0 } });
     expect(appearanceToStyle(appearance).backgroundImage).toBe(`url("${asset.url}#svgView(preserveAspectRatio(none))")`);
     expect(element).toEqual(before);
-    expect(updateElement).not.toHaveBeenCalled();
+    expect(updateElement).toHaveBeenCalledTimes(1);
+    expect(updateElement.mock.calls[0][0]).not.toHaveProperty('width');
+    expect(updateElement.mock.calls[0][0]).not.toHaveProperty('height');
   });
 
   it('renders a reviewed SVG divider as a recolorable mask when tint mode is selected', () => {
