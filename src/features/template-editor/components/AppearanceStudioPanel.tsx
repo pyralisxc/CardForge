@@ -65,6 +65,8 @@ export function AppearanceStudioPanel({
   onMaterializePersonal,
 }: AppearanceStudioPanelProps) {
   const textureAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const textureGestureElementRef = useRef<string | null>(null);
+  const finishTextureGesture = () => { textureGestureElementRef.current = null; };
   const [styleSearch, setStyleSearch] = useState('');
   const [showAllStyles, setShowAllStyles] = useState(false);
   const normalizedStyleSearch = styleSearch.trim().toLowerCase();
@@ -87,6 +89,13 @@ export function AppearanceStudioPanel({
   const hiddenStyleCount = filteredLocalFills.length + filteredReviewedStyles.length - visibleLocalFills.length - visibleReviewedStyles.length;
 
   const textureStrength = selectedAppearance?.material?.texture?.intensity ?? (selectedAppearance?.material?.texture?.assetSource || selectedAppearance?.material?.texture?.imageSource ? 100 : 0);
+  const updateTextureStrength = (value: number) => {
+    // A pointer gesture records its first change, including drags with pauses.
+    // Native keyboard steps commit independently; no timer or blur is required.
+    const trackHistory = textureGestureElementRef.current !== element.id;
+    textureGestureElementRef.current = element.id;
+    onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, texture: { ...(appearance.material?.texture || { kind: 'grain' }), intensity: value } } }), trackHistory);
+  };
 
   const applyTexture = (asset: CardAssetOption) => onUpdateAppearance((appearance) => ({
     ...appearance,
@@ -318,7 +327,15 @@ export function AppearanceStudioPanel({
         {canUseBackgroundTexture && (
           <div>
             <div className="mb-1 flex items-center justify-between text-[10px] text-[#8f95a3]"><span>Fill texture</span><span>{textureStrength}%</span></div>
-            <Slider aria-label="Fill texture strength" value={[textureStrength]} min={0} max={100} step={1} onValueChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, texture: { ...(appearance.material?.texture || { kind: 'grain' }), intensity: value[0] } } }), false)} />
+            <Slider aria-label="Fill texture strength" value={[textureStrength]} min={0} max={100} step={1}
+              onValueChange={(value) => updateTextureStrength(value[0])}
+              onPointerDownCapture={finishTextureGesture}
+              onKeyDownCapture={finishTextureGesture}
+              onKeyUpCapture={finishTextureGesture}
+              onValueCommit={finishTextureGesture}
+              onPointerCancelCapture={finishTextureGesture}
+              onBlur={finishTextureGesture}
+            />
           </div>
         )}
         <div>
