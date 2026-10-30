@@ -1,4 +1,8 @@
-export class RevisionDeleteError extends Error {constructor(public readonly status:409|503,message:string){super(message);}}
+export class RevisionDeleteError extends Error {
+ readonly retryable = false;
+ readonly nextAction = 'Inspect this exact revision and retained destructive claim state. Reconcile any uncertain Storage or finalization outcome before a newly confirmed action; do not automatically retry deletion.';
+ constructor(public readonly status:409|503,message:string){super(message);}
+}
 import {getSupabaseServerClient} from '@/infrastructure/database/supabaseServer';
 import {processRevisionPurge} from '../../../../supabase/functions/purge-pipeline-revisions/processor';
 export async function deleteOneTrashedPipelineRevision(args:{
