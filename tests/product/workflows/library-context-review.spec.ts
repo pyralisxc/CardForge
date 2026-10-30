@@ -53,7 +53,7 @@ for (const condition of ['missing', 'stale', 'historical']) test(`@golden Librar
     await expect(page.getByRole('alert')).toContainText('not the current published base');
     await expect(page.getByLabel('Revision appearance preview')).toHaveCount(0);
   } else {
-    await expect(page.getByText(/no other revision was substituted/)).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Isolated Library composition' }).getByText(/no other revision was substituted/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Manage', exact: true })).toHaveCount(0);
   }
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
@@ -99,7 +99,7 @@ for (const changed of [false, true]) test(`@golden Published Library checks regi
   const evidence = await mount(page, `?published=1${changed ? '&publicationChanged=1' : ''}`);
   await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
   if (changed) {
-    await expect(page.getByText(/selected catalog publication changed/)).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Isolated Library composition' }).getByText(/selected catalog publication changed/)).toBeVisible();
     await expect(page.getByLabel('Exact revision governance')).toHaveCount(0);
   } else {
     await expect(page.getByLabel('Exact revision governance')).toBeVisible();
