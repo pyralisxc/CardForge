@@ -10,6 +10,13 @@ export const savedSourceSelectionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('pipeline'), assetId: z.string().min(1).max(200), submissionId: z.string().uuid(), lineageId: z.string().uuid(), selection: z.enum(['current', 'historical']), setId: z.string().max(255).optional(), cardIds: ids.optional() }).strict(),
 ]);
 export type SavedSourceSelection = z.infer<typeof savedSourceSelectionSchema>;
+// Discovery may resolve a missing package pin, but cannot select cards or render.
+const driveMetadataSelectionSchema = z.object({
+  kind: z.literal('google-drive'), projectId: z.string().min(8).max(255),
+  expectedProviderRevision: z.string().min(1).max(255),
+}).strict();
+export const savedSourceInspectionSchema = z.union([savedSourceSelectionSchema, driveMetadataSelectionSchema]);
+export type SavedSourceInspection = z.infer<typeof savedSourceInspectionSchema>;
 export const sourceRenderRequestSchema = z.object({ source: savedSourceSelectionSchema, sourceVersion: z.string().regex(/^[a-f0-9]{64}$/), operation: z.enum(['preview', 'export', 'clean-export']) }).strict();
 export type SourceRenderRequest = z.infer<typeof sourceRenderRequestSchema>;
 export type NativeSourceContent =
@@ -21,6 +28,7 @@ export type NativeSourceContent =
   | { kind: 'unsupported'; reason: string };
 export interface NativeSourceSnapshot {
   title: string;
+  resolvedSource?: SavedSourceSelection;
   sourceIntegrity?: { kind: string; notice: string };
   availableSelections?: Array<{ setId: string; name: string; totalCards: number; cardIds: string[] }>;
   sourceVersion: string;

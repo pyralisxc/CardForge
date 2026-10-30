@@ -6,10 +6,10 @@ import { readExactCandidateReview, exactCandidateIdentitySchema, readExactPublis
 import { decodeCardForgeProjectPackage, hydrateCardForgeProjectSnapshot } from '@/features/project/server';
 import { readConnectedProjectForAgent } from './mcpProjectSourceBridge';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
-import { savedSourceSelectionSchema, type SavedSourceSelection, type NativeSourceSnapshot, type NativeSourceContent } from '../sourcePreview';
+import { savedSourceInspectionSchema, type SavedSourceSelection, type SavedSourceInspection, type NativeSourceSnapshot, type NativeSourceContent } from '../sourcePreview';
 
-export async function readSavedSourcePreview(access: StudioAgentAccess, raw: SavedSourceSelection): Promise<NativeSourceSnapshot> {
-  const source = savedSourceSelectionSchema.parse(raw);
+export async function readSavedSourcePreview(access: StudioAgentAccess, raw: SavedSourceInspection): Promise<NativeSourceSnapshot> {
+  const source = savedSourceInspectionSchema.parse(raw);
   if (source.kind === 'pipeline-candidate') {
     if (!access.isOwner) throw new AccountToolAccessError('Owner access is required for exact pending Template review.', 403);
     const parsed = exactCandidateIdentitySchema.safeParse(source.identity);
@@ -21,13 +21,16 @@ export async function readSavedSourcePreview(access: StudioAgentAccess, raw: Sav
   }
   if (source.kind === 'google-drive') {
     const result = await readConnectedProjectForAgent({ access, provider: 'google-drive', ...source });
-    if (source.setId && source.cardIds) validateCards(result.document, source.setId, source.cardIds);
-    const content = selectCards(result.document, source.setId, source.cardIds);
+    const selected = 'expectedProjectRevision' in source ? source : undefined;
+    if (selected?.setId && selected.cardIds) validateCards(result.document, selected.setId, selected.cardIds);
+    const content = selectCards(result.document, selected?.setId, selected?.cardIds);
+    const resolvedSource: SavedSourceSelection = { ...source, expectedProjectRevision: result.summary.projectRevision };
     return {
+      resolvedSource,
       sourceIntegrity: { kind: 'version-bound-package', notice: 'Observed saved package bytes match the selected provider and package revisions; the portable source is unchanged.' },
       title: result.summary.name,
-      sourceVersion: createHash('sha256').update(JSON.stringify({ identity: { projectId: source.projectId, providerRevision: source.expectedProviderRevision, projectRevision: source.expectedProjectRevision }, accountId: result.summary.accountId, bytes: createHash('sha256').update(result.bytes).digest('hex') })).digest('hex'),
-      identity: { provider: 'google-drive', projectId: source.projectId, providerRevision: source.expectedProviderRevision, projectRevision: source.expectedProjectRevision },
+      sourceVersion: createHash('sha256').update(JSON.stringify({ identity: { projectId: source.projectId, providerRevision: source.expectedProviderRevision, projectRevision: resolvedSource.expectedProjectRevision }, accountId: result.summary.accountId, bytes: createHash('sha256').update(result.bytes).digest('hex') })).digest('hex'),
+      identity: { provider: 'google-drive', projectId: source.projectId, providerRevision: source.expectedProviderRevision, projectRevision: resolvedSource.expectedProjectRevision },
       content, availableSelections: selections(result.document),
     };
   }

@@ -5,7 +5,7 @@ import { getPublishedRegistryRows } from '@/features/pipeline/server';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import { createRenderArtifactDownload } from '@/features/render-artifacts/server';
 import type { StudioAgentAccess } from './studioAgentAccess';
-import { savedSourceSelectionSchema, sourceRenderRequestSchema, type SavedSourceSelection, type SourceRenderRequest } from '../sourcePreview';
+import { savedSourceSelectionSchema, savedSourceInspectionSchema, sourceRenderRequestSchema, type SavedSourceInspection, type SourceRenderRequest } from '../sourcePreview';
 import { readSavedSourcePreview } from './savedSourcePreview';
 import { renderSavedSource } from './savedSourceArtifacts';
 import { createRenderArtifactPreviewResult, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
@@ -39,12 +39,12 @@ export function registerSavedSourceTools({ server, publicOrigin, getAccess, tool
   server.registerTool('inspect_saved_source', {
     title:'Inspect exact Pipeline or saved Drive source',
     outputSchema: output({title:{type:'string'},source:sourceProperty,sourceVersion:{type:'string'},identity,sourceIntegrity:integrity,specimen:{type:'string'},availableSelections:{type:'array',items:arbitraryObject}},['title','source','sourceVersion','identity','specimen']),
-    description:'Read exact source identity and supported native specimen without checkout or provider writes. Drive requires exact provider/project revision and selected Set/card ids. Historical Pipeline never substitutes the latest publication. Pending Templates require Owner and the existing exact candidate identity/base/hash contract.',
-    inputSchema:fromJsonSchema<{source:SavedSourceSelection}>(z.toJSONSchema(z.object({source:savedSourceSelectionSchema}).strict()) as JsonSchemaType),
+    description:'Read exact source identity and supported native specimen without checkout or provider writes. Drive metadata discovery may omit a missing project revision using only the exact discovered provider pin and file id; omit Set/card ids until the returned resolved source supplies the package pin. Card inspection, preview and export require the full exact source. Historical Pipeline never substitutes the latest publication. Pending Templates require Owner and the existing exact candidate identity/base/hash contract.',
+    inputSchema:fromJsonSchema<{source:SavedSourceInspection}>(z.toJSONSchema(z.object({source:savedSourceInspectionSchema}).strict()) as JsonSchemaType),
     annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false},
   }, async input => run('inspect_saved_source',input, async access => {
     const result = await readSavedSourcePreview(access,input.source);
-    return { content:[{type:'text' as const,text:result.content.kind==='unsupported'?result.content.reason:`Exact ${result.title} is available for native inspection. ${result.sourceIntegrity?.notice ?? ''}`}],structuredContent:{title:result.title,source:input.source,sourceVersion:result.sourceVersion,identity:result.identity,sourceIntegrity:result.sourceIntegrity,specimen:result.content.kind,availableSelections:result.availableSelections} };
+    return { content:[{type:'text' as const,text:result.content.kind==='unsupported'?`${result.resolvedSource ? 'Resolved the exact saved package metadata; reuse the returned complete source pin. ' : ''}${result.content.reason}`:`Exact ${result.title} is available for native inspection. ${result.sourceIntegrity?.notice ?? ''}`}],structuredContent:{title:result.title,source:result.resolvedSource ?? input.source,sourceVersion:result.sourceVersion,identity:result.identity,sourceIntegrity:result.sourceIntegrity,specimen:result.content.kind,availableSelections:result.availableSelections} };
   }));
   for (const operation of ['preview','export'] as const) server.registerTool(`${operation}_saved_source`, {
     outputSchema: output({source:sourceProperty,sourceVersion:{type:'string'},identity,sourceIntegrity:integrity,branded:{type:'boolean'},renderArtifacts:{type:'array',items:arbitraryObject},downloads:{type:'array',items:arbitraryObject},displayImages:{type:'array',items:arbitraryObject},openInCardForgeUrl:{type:'string'}},['source','sourceVersion','identity','branded','renderArtifacts','downloads','displayImages','openInCardForgeUrl']),

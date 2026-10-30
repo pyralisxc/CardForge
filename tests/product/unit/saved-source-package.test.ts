@@ -40,3 +40,15 @@ it('renders selected package metadata and text as prose while retaining actual a
  mocks.published.mockResolvedValue({assetType:'sets',bytes:Buffer.from(unsafe),identity:{submissionId:source.submissionId},sourceVersion:'b'.repeat(64),title:'Unsafe'});
  await expect(readSavedSourcePreview(access,{...source,setId:'s',cardIds:['c']})).rejects.toMatchObject({status:400});
 });
+
+it('resolves metadata from unchanged decoded Drive bytes and requires its full pin for card selection',async()=>{
+ const snapshot=await buildCardForgeProjectSnapshot({document,name:'Legacy saved',savedAt:'2026-10-30T00:00:00Z'});
+ const bytes=await encodeCardForgeProjectPackage(snapshot);const before=Buffer.from(bytes);const hydrated=hydrateCardForgeProjectSnapshot(await decodeCardForgeProjectPackage(bytes));
+ const metadata={kind:'google-drive' as const,projectId:'legacy-file',expectedProviderRevision:'head:'+'a'.repeat(64)};
+ mocks.drive.mockResolvedValue({summary:{fileId:metadata.projectId,name:'Legacy saved',accountId:'linked-account',projectRevision:snapshot.manifest.projectRevision},bytes,document:hydrated});
+ const result=await readSavedSourcePreview(access,metadata);
+ expect(result.resolvedSource).toEqual({...metadata,expectedProjectRevision:snapshot.manifest.projectRevision});expect(result.content.kind).toBe('unsupported');expect(result.availableSelections?.[0].cardIds).toEqual(['c']);
+ const pinned=await readSavedSourcePreview(access,{...metadata,expectedProjectRevision:snapshot.manifest.projectRevision,setId:'s',cardIds:['c']});
+ expect(pinned.content.kind).toBe('cards');expect(pinned.sourceVersion).toBe(result.sourceVersion);expect(Buffer.from(bytes)).toEqual(before);
+ mocks.drive.mockClear();await expect(readSavedSourcePreview(access,{...metadata,setId:'s',cardIds:['c']} as never)).rejects.toBeDefined();expect(mocks.drive).not.toHaveBeenCalled();
+});
