@@ -421,6 +421,35 @@ try:
     b.run('rollback;')
     print('PASS: raster writer-first blocks Trash; Trash COMMIT rejects queued adoption; old isolation rejected')
 
+    # Release creation and competing edits serialize on the existing row/version.
+    a.run('begin;')
+    notes = "'{\"improvements\":[],\"fixes\":[],\"knownLimits\":[]}'::jsonb"
+    a.run("delete from public.cardforge_roadmap_items where release_version='0.0.1' and status<>'shipped';")
+    create_release = "public.cardforge_save_website_release('98.0.1'," + notes + ",null,null,null,gen_random_uuid(),false,'synthetic-owner')"
+    a.run('select ' + create_release + ';')
+    backend_release_writer = b.run('select pg_backend_pid();')[-1]
+    result = queue.Queue()
+    def queued_release_write():
+        try:
+            result.put(b.run("do $$ begin begin perform " + create_release + "; raise exception 'duplicate_release_admitted'; exception when raise_exception then if sqlerrm<>'website_release_conflict' then raise; end if; end; end $$;"))
+        except Exception as error:
+            result.put(error)
+    worker = threading.Thread(target=queued_release_write)
+    worker.start()
+    deadline = time.monotonic() + 1.5
+    while a.run(f"select cardinality(pg_blocking_pids({backend_release_writer}))>0;")[-1] != 't':
+        assert time.monotonic() < deadline, 'Release writer did not serialize by exact version'
+        time.sleep(0.01)
+    a.run('commit;')
+    worker.join(timeout=5)
+    assert not worker.is_alive(), 'Release writer did not finish after COMMIT'
+    outcome = result.get(timeout=1)
+    if isinstance(outcome, Exception):
+        raise outcome
+    assert a.run("select count(*) from public.cardforge_roadmap_items where release_version='98.0.1';")[-1] == '1'
+    a.run("delete from public.cardforge_roadmap_items where release_version='98.0.1';")
+    print('PASS: website release writer COMMIT rejects a queued duplicate version')
+
 
 finally:
     a.close()

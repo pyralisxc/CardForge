@@ -1,5 +1,5 @@
 import { getCurrentOwnerAccess } from '@/features/owner/server';
-import { OwnerPublicSiteOperations } from '@/features/owner/client';
+import { OwnerPublicSiteOperations, OwnerWebsiteReleaseEditor } from '@/features/owner/client';
 import { PublicSiteOwnerLiveControls } from '@/features/public-site/client';
 import {
   completeSiteMediaForSections,
@@ -8,7 +8,7 @@ import {
 } from '@/features/public-site/server';
 import { resolveLiveWebsitePresentation } from '@/features/public-site/server/websitePresentationResolver';
 import { readLiveWebsiteRevision, readWebsiteRevisionIdentity, readWebsiteRevision } from '@/features/public-site/server/websiteEditionStore';
-import { getRoadmapSettings } from '@/features/roadmap/server';
+import { getRoadmapSettings, getWebsiteReleaseRecords } from '@/features/roadmap/server';
 
 import { OwnerRoadmapRulesLiveEditor } from './OwnerRoadmapRulesLiveEditor';
 
@@ -34,6 +34,13 @@ export async function OwnerPublicSiteControlsSlot({ currentPath }: { currentPath
     liveGeneration: live.generation, manifest: await readWebsiteRevision(presentation.revisionId),
   } : null;
   const publicationEnvironment = resolveOwnerPublicationEnvironment(process.env.VERCEL_ENV);
+  let websiteReleaseEditor;
+  if (currentPath === '/updates') {
+    const records = await getWebsiteReleaseRecords().catch(() => null);
+    websiteReleaseEditor = records
+      ? <OwnerWebsiteReleaseEditor initial={records} production={publicationEnvironment === 'production'} deployedSha={process.env.VERCEL_GIT_COMMIT_SHA??null}/>
+      : <p role="status">Website update records are unavailable. Owner editing is paused; no empty release history was substituted. Reload when the records are available.</p>;
+  }
   return <PublicSiteOwnerLiveControls
     currentPath={currentPath}
     publicationEnvironment={publicationEnvironment}
@@ -41,7 +48,7 @@ export async function OwnerPublicSiteControlsSlot({ currentPath }: { currentPath
     initialMedia={completeSiteMediaForSections(siteMedia, getSiteCompositionSections(siteConfiguration))}
     initialSiteConfiguration={siteConfiguration}
     editionSession={editionSession}
-    siteOperationsEditor={<OwnerPublicSiteOperations publicationEnvironment={publicationEnvironment} currentPath={currentPath} />}
+    siteOperationsEditor={currentPath === '/updates' ? websiteReleaseEditor : <OwnerPublicSiteOperations publicationEnvironment={publicationEnvironment} currentPath={currentPath} />}
     roadmapRulesEditor={roadmapSettings ? <OwnerRoadmapRulesLiveEditor initialSettings={roadmapSettings} /> : undefined}
   />;
 }

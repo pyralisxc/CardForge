@@ -15,12 +15,12 @@ import {
   LegalDocumentStoreError,
 } from '@/features/legal/server';
 import {
-  RoadmapStoreError,
+  RoadmapStoreError, getWebsiteReleaseRecords,
 } from '@/features/roadmap/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
-import { publishOwnerSiteContentBlock, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus } from '@/features/owner/server/ownerSiteCommands';
+import { publishOwnerSiteContentBlock, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus, publishOwnerWebsiteRelease } from '@/features/owner/server/ownerSiteCommands';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +45,7 @@ export async function GET(request: Request) {
     const owner = await timing.track('owner_access', requireOwner);
     if (!owner.ok) return owner.response;
     const scope = new URL(request.url).searchParams.get('scope');
+    if (scope === 'websiteReleases') return createNoStoreJsonResponse({items:await getWebsiteReleaseRecords()});
     if (scope === 'site') {
       const siteControls = await timing.track('site_controls', getOwnerSiteControlPayload);
       const response = createNoStoreJsonResponse({ siteControls });
@@ -80,6 +81,7 @@ export async function PUT(request: Request) {
 
     const body = await request.json() as {
       kind?: unknown;
+      websiteRelease?: unknown;
       businessIdentity?: Record<string, unknown>;
       expectedIdentityVersion?: unknown;
       expectedUpdatedAt?: unknown;
@@ -134,6 +136,7 @@ export async function PUT(request: Request) {
     }
 
     if (body.kind === 'legal') return respondPublication(await publishOwnerLegalDocument({ actor, input: body.legalDocument ?? {} }));
+    if (body.kind === 'websiteRelease') return respondPublication(await publishOwnerWebsiteRelease({actor,input:body.websiteRelease}));
     if (body.kind === 'roadmapStatus') return respondPublication(await publishOwnerRoadmapStatus({ actor, input: body.roadmapItem ?? {} }));
 
     return createApiErrorResponse(400, 'owner_request_invalid', 'Unknown owner operations update.');
