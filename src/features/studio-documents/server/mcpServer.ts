@@ -1,3 +1,4 @@
+import { registerRevisionDeletionTools } from './mcpRevisionDeletionTools';
 import { createMcpHandler } from 'mcp-handler';
 
 import { registerCatalogTrashTools } from './mcpCatalogTrashTools';
@@ -23,6 +24,7 @@ export const cardForgeMcpHandler = createMcpHandler(
     };
     registerAgentTemplateTools(options);
     registerCatalogTrashTools(options);
+    registerRevisionDeletionTools(options);
     registerEditableTemplateTools(options);
   },
   {

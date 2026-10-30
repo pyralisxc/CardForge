@@ -7,7 +7,7 @@ export const RESERVED_SITE_PAGE_SLUGS = new Set([
   'about', 'accessibility', 'account', 'api', 'cameron', 'card-assets', 'contact',
   'contributor-terms', 'contributors', 'creator-pass-terms', 'integrations', 'mcp',
   'mcp-card-set-preview', 'mcp-template-preview', 'owner', 'plans', 'privacy',
-  'refund', 'roadmap', 'sign-in', 'sign-up', 'studio', 'supporter-terms', 'terms',
+  'refund', 'updates', 'roadmap', 'sign-in', 'sign-up', 'studio', 'supporter-terms', 'terms',
   'robots', 'sitemap', 'favicon', '_next', '.well-known',
 ]);
 
@@ -38,6 +38,7 @@ export const getOwnerSitePageContext = (
   if (currentPath === '/about') return { label: 'About', contentGroups: ['about', 'shell'], mediaGroups: ['brand'], authoredPage: null, mediaSlots: [] };
   if (currentPath === '/cameron') return { label: 'Founder', contentGroups: ['founder', 'shell'], mediaGroups: ['brand', 'founder'], authoredPage: null, mediaSlots: [] };
   if (currentPath === '/contributors') return { label: 'Contributor Program', contentGroups: ['contributor', 'shell'], mediaGroups: ['brand'], authoredPage: null, mediaSlots: [] };
+  if (currentPath === '/updates') return {label:'Updates',contentGroups:['shell'],mediaGroups:['brand'],authoredPage:null,mediaSlots:[]};
   if (currentPath === '/roadmap') return { label: 'Roadmap', contentGroups: ['roadmap', 'shell'], mediaGroups: ['brand'], authoredPage: null, mediaSlots: [] };
 
   const authoredPage = pages.find((page) => `/${page.slug}` === currentPath) ?? null;

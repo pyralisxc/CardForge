@@ -16,6 +16,7 @@ export {
 } from './model/accountLibrary';
 export {
   getAccountLibraryActionSources,
+  getAccountLibraryEnvironmentActions,
 } from './model/accountLibraryEnvironment';
 export {
   accountSourceToWorkLocation,
@@ -35,3 +36,5 @@ export type {
   AccountLibrarySource,
   AccountLibraryWorkPreview,
 } from './model/accountLibrary';
+
+export { LibraryRevisionEntry } from './components/LibraryRevisionEntry';

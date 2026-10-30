@@ -11,7 +11,7 @@ import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 // host's 4.5 MB response cap for the MCP/JSON-RPC or streaming envelope.
 export const MAX_MCP_PREVIEW_RESULT_BYTES = 3_750_000;
 const DISPLAY_METADATA_RESERVE_BYTES = 16_384;
-const DISPLAY_NOTICE = 'Native images are bounded displays of the canonical PNG artifacts. displayImages identifies unchanged canonical bytes or reduced displays that are not byte-identical to the full artifacts. Canonical artifact metadata and the exact-revision Studio link remain unchanged.';
+const DISPLAY_NOTICE = 'Native images are bounded displays of the canonical PNG artifacts. displayImages identifies unchanged canonical bytes or reduced displays that are not byte-identical to the full artifacts. Canonical artifact metadata and the exact-revision CardForge link remain unchanged.';
 
 type DisplayImage = {
   artifactId: string;

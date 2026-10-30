@@ -20,7 +20,10 @@ interface TextExpressionEditorProps {
   fieldCount: number;
   highlightColor: string;
   onHighlightColorChange: (color: string) => void;
-  onContentChange: (value: string) => void;
+  onContentChange: (value: string,mode?:'typing'|'discrete') => void;
+  externalHistory?: import('react').ComponentProps<typeof CardForgeRichTextEditor>['externalHistory'];
+  onVariableCreated?: (key:string,text:string,content:string)=>void;
+  onVariableRemoved?: (key:string,content:string)=>void;
   onElementChange: (updates: Partial<FreeformCardElement>) => void;
   activeVariableKey: string | null;
   onActiveVariableChange: (key: string | null) => void;
@@ -37,6 +40,9 @@ export function TextExpressionEditor({
   highlightColor,
   onHighlightColorChange,
   onContentChange,
+  externalHistory,
+  onVariableCreated,
+  onVariableRemoved,
   onElementChange,
   activeVariableKey,
   onActiveVariableChange,
@@ -79,6 +85,9 @@ export function TextExpressionEditor({
           highlightColor={highlightColor}
           onHighlightColorChange={onHighlightColorChange}
           onChange={onContentChange}
+          externalHistory={externalHistory}
+          onVariableCreated={onVariableCreated}
+          onVariableRemoved={onVariableRemoved}
           activeVariableKey={activeVariableKey}
           onActiveVariableChange={onActiveVariableChange}
           onCreateVariable={onCreateVariable}

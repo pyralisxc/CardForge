@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/shared/classNames';
-import { appearanceToStyle } from '@/features/card-rendering/client';
+import { AppearanceSurface, appearanceToStyle } from '@/features/card-rendering/client';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import type { PersonalLibraryItem, PersonalLibraryRole } from '@/features/personal-library/client';
 import type { AppearanceGradientType, AppearanceStylePreset, AppearanceTextureKind, FreeformAppearance, FreeformCardElement } from '@/domain/templates';
@@ -65,6 +65,8 @@ export function AppearanceStudioPanel({
   onMaterializePersonal,
 }: AppearanceStudioPanelProps) {
   const textureAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const textureGestureElementRef = useRef<string | null>(null);
+  const finishTextureGesture = () => { textureGestureElementRef.current = null; };
   const [styleSearch, setStyleSearch] = useState('');
   const [showAllStyles, setShowAllStyles] = useState(false);
   const normalizedStyleSearch = styleSearch.trim().toLowerCase();
@@ -85,6 +87,15 @@ export function AppearanceStudioPanel({
     ? filteredReviewedStyles
     : filteredReviewedStyles.slice(0, 6);
   const hiddenStyleCount = filteredLocalFills.length + filteredReviewedStyles.length - visibleLocalFills.length - visibleReviewedStyles.length;
+
+  const textureStrength = selectedAppearance?.material?.texture?.intensity ?? (selectedAppearance?.material?.texture?.assetSource || selectedAppearance?.material?.texture?.imageSource ? 100 : 0);
+  const updateTextureStrength = (value: number) => {
+    // A pointer gesture records its first change, including drags with pauses.
+    // Native keyboard steps commit independently; no timer or blur is required.
+    const trackHistory = textureGestureElementRef.current !== element.id;
+    textureGestureElementRef.current = element.id;
+    onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, texture: { ...(appearance.material?.texture || { kind: 'grain' }), intensity: value } } }), trackHistory);
+  };
 
   const applyTexture = (asset: CardAssetOption) => onUpdateAppearance((appearance) => ({
     ...appearance,
@@ -192,7 +203,7 @@ export function AppearanceStudioPanel({
                 className="h-8 justify-start gap-2 rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-2 text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]/80"
                 onClick={() => onApplyAppearancePreset(style)}
               >
-                <span className="h-3.5 w-3.5 shrink-0 rounded-[2px] border border-[#2d3340]" style={appearanceToStyle(style.appearance)} />
+                <AppearanceSurface as="span" className="h-3.5 w-3.5 shrink-0 rounded-[2px] border border-[#2d3340]" style={{ borderWidth: 1, borderStyle: 'solid', borderColor: '#2d3340', borderRadius: 2, ...appearanceToStyle(style.appearance) }} />
                 <span className="truncate">{style.name}</span>
               </Button>
             </TooltipTrigger>
@@ -315,8 +326,16 @@ export function AppearanceStudioPanel({
       <div className="grid grid-cols-2 gap-3">
         {canUseBackgroundTexture && (
           <div>
-            <div className="mb-1 flex items-center justify-between text-[10px] text-[#8f95a3]"><span>Fill texture</span><span>{selectedAppearance?.material?.texture?.intensity ?? 0}%</span></div>
-            <Slider value={[selectedAppearance?.material?.texture?.intensity ?? 0]} min={0} max={100} step={1} onValueChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, texture: { ...(appearance.material?.texture || { kind: 'grain' }), intensity: value[0] } } }), false)} />
+            <div className="mb-1 flex items-center justify-between text-[10px] text-[#8f95a3]"><span>Fill texture</span><span>{textureStrength}%</span></div>
+            <Slider aria-label="Fill texture strength" value={[textureStrength]} min={0} max={100} step={1}
+              onValueChange={(value) => updateTextureStrength(value[0])}
+              onPointerDownCapture={finishTextureGesture}
+              onKeyDownCapture={finishTextureGesture}
+              onKeyUpCapture={finishTextureGesture}
+              onValueCommit={finishTextureGesture}
+              onPointerCancelCapture={finishTextureGesture}
+              onBlur={finishTextureGesture}
+            />
           </div>
         )}
         <div>

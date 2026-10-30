@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
 import { ContentQualityGuidance } from '@/features/pipeline/components/ContentQualityGuidance';
 import {
+  AppearanceSurface,
   appearanceToStyle,
   CardPreview,
   shapeClipPath,
@@ -516,7 +517,7 @@ function AssetPreview({
   );
 }
 
-function PipelineRecipePreview({
+export function PipelineRecipePreview({
   recipe,
   expanded,
 }: {
@@ -549,7 +550,7 @@ function PipelineRecipePreview({
       role="img"
       aria-label={`${recipe.name} Pipeline recipe preview`}
     >
-      <div className={visualClassName} style={visualStyle}>
+      <AppearanceSurface className={visualClassName} style={visualStyle}>
         {isIcon ? (
           <Sparkles className={expanded ? 'h-11 w-11' : 'h-5 w-5'} style={{ color: glyphColor }} aria-hidden="true" />
         ) : isTextSurface && !isDivider ? (
@@ -557,7 +558,7 @@ function PipelineRecipePreview({
             Aa
           </span>
         ) : null}
-      </div>
+      </AppearanceSurface>
       {expanded ? (
         <div className="text-center">
           <p className="font-serif text-lg text-[var(--cf-accent-text)]">{recipe.name}</p>

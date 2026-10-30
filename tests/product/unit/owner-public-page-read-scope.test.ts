@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
   media: vi.fn(),
   configuration: vi.fn(),
   roadmap: vi.fn(),
+  releases: vi.fn(),
   broadOwnerPayload: vi.fn(),
 }));
 
@@ -20,6 +21,7 @@ vi.mock('@/features/owner/server', () => ({
 }));
 vi.mock('@/features/owner/client', () => ({
   OwnerPublicSiteOperations: () => null,
+  OwnerWebsiteReleaseEditor: () => null,
 }));
 vi.mock('@/features/public-site/client', () => ({
   PublicSiteOwnerLiveControls: () => null,
@@ -33,6 +35,7 @@ vi.mock('@/features/public-site/server', async () => ({
   resolveOwnerPublicationEnvironment: () => 'preview',
 }));
 vi.mock('@/features/roadmap/server', () => ({
+  getWebsiteReleaseRecords: () => state.releases(),
   getRoadmapSettings: async () => { state.roadmap(); return { published: true }; },
 }));
 vi.mock('@/app/_components/OwnerRoadmapRulesLiveEditor', () => ({
@@ -79,4 +82,12 @@ describe('public-page Owner editing read boundary', () => {
     expect(state.roadmap).toHaveBeenCalledOnce();
     expect(state.broadOwnerPayload).not.toHaveBeenCalled();
   });
+});
+
+it('contains an unavailable release read for signed-in Owner without inventing an editable empty record', async()=>{
+ state.releases.mockRejectedValueOnce(new Error('database unavailable'));
+ const node=await OwnerPublicSiteControlsSlot({currentPath:'/updates'});
+ expect(node?.props.siteOperationsEditor.type).toBe('p');
+ expect(node?.props.siteOperationsEditor.props.role).toBe('status');
+ expect(node?.props.siteOperationsEditor.props.children).toContain('Owner editing is paused');
 });

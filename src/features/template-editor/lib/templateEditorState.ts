@@ -11,6 +11,7 @@ export interface TemplateEditorSnapshot {
 export interface TemplateEditorState extends TemplateEditorSnapshot {
   history: TemplateEditorSnapshot[];
   future: TemplateEditorSnapshot[];
+  historyGroup?: { key: string; at: number };
 }
 
 type TemplateUpdater = (template: TCGCardTemplate) => TCGCardTemplate;
@@ -70,6 +71,7 @@ export const selectTemplateEditorElement = (
 ): TemplateEditorState => ({
   ...state,
   selectedElementId,
+  historyGroup: state.selectedElementId === selectedElementId ? state.historyGroup : undefined,
 });
 
 export const commitTemplateEditorState = (
@@ -77,17 +79,24 @@ export const commitTemplateEditorState = (
   updater: TemplateUpdater,
   trackHistory = true,
   nextSelectedElementId?: string | null,
+  group?: { key: string; at: number },
 ): TemplateEditorState => {
   const before = toSnapshot(state);
   const currentTemplate = reconstructMinimalTemplate(updater(before.currentTemplate));
+  if (JSON.stringify(currentTemplate) === JSON.stringify(state.currentTemplate)) {
+    const unchanged=nextSelectedElementId===undefined?state:selectTemplateEditorElement(state,nextSelectedElementId);
+    return !group&&unchanged.historyGroup?{...unchanged,historyGroup:undefined}:unchanged;
+  }
+  const extendGroup = Boolean(group && state.historyGroup?.key === group.key && group.at >= state.historyGroup.at && group.at - state.historyGroup.at < 750);
   const nextState = reconcileTemplateEditorSelection({
     ...state,
     currentTemplate,
     selectedElementId: nextSelectedElementId === undefined
       ? state.selectedElementId
       : nextSelectedElementId,
-    history: trackHistory ? appendHistorySnapshot(state.history, before) : state.history,
-    future: trackHistory ? [] : state.future,
+    history: trackHistory && !extendGroup ? appendHistorySnapshot(state.history, before) : state.history,
+    future: [],
+    historyGroup: trackHistory ? group : undefined,
   });
 
   return nextState;
@@ -103,6 +112,7 @@ export const recordTemplateEditorHistory = (
     selectedElementId: state.selectedElementId,
   }),
   future: [],
+  historyGroup: undefined,
 });
 
 export const undoTemplateEditorState = (
@@ -133,5 +143,40 @@ export const redoTemplateEditorState = (
     selectedElementId: next.selectedElementId,
     history: appendHistorySnapshot(state.history, state),
     future: state.future.slice(1),
+  });
+};
+
+// Library persistence owns these identities; Undo must not restore stale revision metadata.
+const SAVED_TEMPLATE_METADATA = new Set<keyof TCGCardTemplate>([
+  'id', 'templateSource', 'templateLibrarySource', 'templateAccessTier',
+  'templateRegistryStatus', 'templateContributorName', 'templateLineageId',
+  'templateRevision', 'templateRevisionId', 'templateParentRevisionId',
+  'templateOriginLineageId', 'templateOriginRevisionId', 'templatePipelineContext',
+]);
+
+export const acceptSavedTemplateEditorState = (
+  state: TemplateEditorState,
+  submitted: TCGCardTemplate,
+  saved: TCGCardTemplate,
+): TemplateEditorState => {
+  if (state.currentTemplate.id !== submitted.id && state.currentTemplate.id !== saved.id) return state;
+  const reconcile = (template: TCGCardTemplate): TCGCardTemplate => {
+    const next = { ...template };
+    const keys = new Set([...Object.keys(submitted), ...Object.keys(saved)] as (keyof TCGCardTemplate)[]);
+    for (const key of keys) {
+      // Preserve authored changes since the captured snapshot, including history before it.
+      if (SAVED_TEMPLATE_METADATA.has(key) || JSON.stringify(template[key]) === JSON.stringify(submitted[key])) {
+        if (Object.hasOwn(saved, key)) Object.assign(next, { [key]: saved[key] });
+        else delete next[key];
+      }
+    }
+    return reconstructMinimalTemplate(next);
+  };
+  return reconcileTemplateEditorSelection({
+    ...state,
+    currentTemplate: reconcile(state.currentTemplate),
+    history: state.history.map(snapshot => ({ ...snapshot, currentTemplate: reconcile(snapshot.currentTemplate) })),
+    future: state.future.map(snapshot => ({ ...snapshot, currentTemplate: reconcile(snapshot.currentTemplate) })),
+    historyGroup: undefined,
   });
 };

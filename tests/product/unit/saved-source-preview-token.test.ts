@@ -1,0 +1,6 @@
+import { beforeEach, expect, it, vi } from 'vitest';
+import { createSavedSourcePreviewToken, readSavedSourcePreviewToken, createStudioDocumentPreviewToken, readStudioDocumentPreviewToken } from '@/features/studio-documents/server/studioDocumentPreviewToken';
+const request={source:{kind:'pipeline' as const,assetId:'asset',submissionId:'11111111-1111-4111-8111-111111111111',lineageId:'22222222-2222-4222-8222-222222222222',selection:'historical' as const},sourceVersion:'a'.repeat(64),operation:'preview' as const};
+beforeEach(()=>vi.stubEnv('CLERK_SECRET_KEY','synthetic-local-signing-key'));
+it('pins actor, exact source version and render operation with bounded expiry',()=>{const token=createSavedSourcePreviewToken({ownerUserId:'actor',request},1000000);expect(readSavedSourcePreviewToken(token,1000000)).toEqual({ownerUserId:'actor',request});expect(readSavedSourcePreviewToken(token,1301000)).toBeNull();});
+it('rejects tampering and cross-purpose Studio capabilities',()=>{const token=createSavedSourcePreviewToken({ownerUserId:'actor',request});expect(readSavedSourcePreviewToken(token+'x')).toBeNull();expect(readStudioDocumentPreviewToken(token)).toBeNull();expect(readSavedSourcePreviewToken(createStudioDocumentPreviewToken({ownerUserId:'actor',documentId:'document',revision:1}))).toBeNull();});

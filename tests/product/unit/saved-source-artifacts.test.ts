@@ -1,0 +1,24 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('server-only', () => ({}));
+const mocks = vi.hoisted(() => ({ access:vi.fn(), source:vi.fn(), read:vi.fn(), render:vi.fn(), write:vi.fn(), token:vi.fn(), limit:vi.fn() }));
+vi.mock('@/features/account/server', () => ({ getAccountToolAccessForUserId:mocks.access, AccountToolAccessError:class extends Error { constructor(message:string,public status:number){super(message);} } }));
+vi.mock('@/features/render-artifacts/server', () => ({ CARDFORGE_RENDERER_CONTRACT_VERSION:'test',readRenderArtifact:mocks.read,renderCanonicalBrowserImages:mocks.render,writeRenderArtifact:mocks.write }));
+vi.mock('@/features/studio-documents/server/savedSourcePreview', () => ({readSavedSourcePreview:mocks.source}));
+vi.mock('@/features/studio-documents/server/studioDocumentPreviewToken', () => ({createSavedSourcePreviewToken:mocks.token}));
+vi.mock('@/infrastructure/security/abuseProtection', () => ({consumeRateLimit:mocks.limit}));
+import { renderSavedSource } from '@/features/studio-documents/server/savedSourceArtifacts';
+const source={kind:'pipeline' as const,assetId:'asset',submissionId:'11111111-1111-4111-8111-111111111111',lineageId:'22222222-2222-4222-8222-222222222222',selection:'current' as const};
+const snapshot={title:'Exact',sourceVersion:'a'.repeat(64),content:{kind:'template',template:{}},identity:{submissionId:source.submissionId}};
+const input={actorUserId:'actor',publicOrigin:'https://preview.example',request:{source,sourceVersion:snapshot.sourceVersion,operation:'preview' as 'preview'|'export'|'clean-export'}};
+const account=(clean:boolean)=>({user:{id:'actor'},isOwner:false,entitlement:{accessMode:clean?'paid':'free',capabilities:{canExportClean:clean}}});
+describe('exact source render and export boundary',()=>{
+ beforeEach(()=>{vi.clearAllMocks();mocks.access.mockResolvedValue(account(true));mocks.source.mockResolvedValue(snapshot);mocks.read.mockResolvedValue(null);mocks.token.mockReturnValue('signed');mocks.limit.mockResolvedValue({allowed:true});mocks.render.mockResolvedValue([{subjectId:'template',bytes:Buffer.from('canonical')}]);mocks.write.mockImplementation(async({descriptor,bytes})=>({...descriptor,bytes,artifactId:'artifact',mimeType:'image/png',byteLength:bytes.length,cacheHit:false}));});
+ it.each([true,false])('shared chat is branded regardless of clean entitlement %s',async clean=>{mocks.access.mockResolvedValue(account(clean));const result=await renderSavedSource(input);expect(result.branded).toBe(true);expect(mocks.write.mock.calls[0][0].descriptor.profile).toContain('branded');expect(mocks.token.mock.calls[0][0].request.operation).toBe('preview');});
+ it('clean export uses a distinct cache identity and fresh entitlement',async()=>{const result=await renderSavedSource({...input,request:{...input.request,operation:'clean-export'}});expect(result.branded).toBe(false);expect(mocks.read.mock.calls[0][0].descriptor.profile).toContain('clean');expect(mocks.access).toHaveBeenCalledTimes(3);});
+ it('denies expired clean entitlement before consulting an old clean cache',async()=>{mocks.access.mockResolvedValue(account(false));await expect(renderSavedSource({...input,request:{...input.request,operation:'clean-export'}})).rejects.toMatchObject({status:403});expect(mocks.read).not.toHaveBeenCalled();});
+ it('ordinary Free export stays branded',async()=>{mocks.access.mockResolvedValue(account(false));expect((await renderSavedSource({...input,request:{...input.request,operation:'export'}})).branded).toBe(true);});
+ it('rejects changed source before using the cache',async()=>{mocks.source.mockResolvedValue({...snapshot,sourceVersion:'b'.repeat(64)});await expect(renderSavedSource(input)).rejects.toMatchObject({status:409});expect(mocks.read).not.toHaveBeenCalled();});
+ it('rechecks source on a cache hit rather than allowing pointer changes during its read',async()=>{mocks.read.mockResolvedValue({bytes:Buffer.from('cached')});mocks.source.mockResolvedValueOnce(snapshot).mockResolvedValueOnce({...snapshot,sourceVersion:'b'.repeat(64)});await expect(renderSavedSource(input)).rejects.toMatchObject({status:409});expect(mocks.render).not.toHaveBeenCalled();});
+ it('rejects entitlement expiry during uncached export before publishing bytes',async()=>{mocks.access.mockResolvedValueOnce(account(true)).mockResolvedValue(account(false));await expect(renderSavedSource({...input,request:{...input.request,operation:'export'}})).rejects.toMatchObject({status:403});expect(mocks.write).not.toHaveBeenCalled();});
+ it('preserves unavailable source failures, without reading cached pixels',async()=>{const error=Object.assign(new Error('Unavailable'),{status:503});mocks.source.mockRejectedValue(error);await expect(renderSavedSource(input)).rejects.toBe(error);expect(mocks.read).not.toHaveBeenCalled();});
+});

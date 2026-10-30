@@ -14,3 +14,5 @@ export * from './server/mcpPluginSkills';
 export * from './server/mcpTemplateToolResults';
 
 export { cardForgeMcpHandler } from './server/mcpServer';
+
+export { readSourcePreviewRequest } from './server/sourcePreviewRequest';

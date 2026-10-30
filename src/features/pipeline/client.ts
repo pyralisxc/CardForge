@@ -21,6 +21,11 @@ export type { ExactCandidateSpecimen } from './lib/exactCandidateReview';
 
 export { createPipelineReviewTarget, resolvePipelineReviewTarget, readReviewPublication, type PipelineReviewTarget } from './lib/pipelineReviewTarget';
 
-export { PIPELINE_STATUSES, PIPELINE_TYPES } from './lib/pipelineItems';
+export { DEFAULT_PIPELINE_PROGRAM_SETTINGS, PIPELINE_STATUSES, PIPELINE_TYPES } from './lib/pipelineItems';
 
 export { canUseDefaultAsFixedPicture, managedRasterSlotIssue, type ManagedRasterSelection } from './lib/managedRasterSelection';
+
+export { PipelineRecipePreview } from './components/PipelineSubmissionRows';
+
+export { MediaPresentationPreview } from './components/MediaPresentationRevision';
+export type { PipelineMediaPresentation } from './lib/pipelineMediaPresentation';

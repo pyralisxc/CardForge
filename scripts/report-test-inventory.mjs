@@ -34,8 +34,12 @@ const productDomains = [
 // legal, security, or repository contract under test. This explicit inventory keeps
 // ordinary component/helper composition pins from quietly returning.
 const sourceReaderContracts = [
+  ['tests/product/workflows/website-updates.spec.ts', 'canonical application CSS compiled for actual release notes and Owner editor browser behavior; no implementation source-text assertions'],
+  ['tests/product/unit/site-metadata.test.ts', 'bundled favicon PNG format/dimensions and decoded pixels against its canonical SVG asset; no implementation source-text assertions'],
   ['tests/product/workflows/managed-raster-authoring.spec.ts', 'canonical CSS and fonts for integrated Template editor/picker browser proof; no source-text assertions'],
   ['tests/product/workflows/library-context-review.spec.ts', 'canonical application CSS compiled by existing PostCSS/Tailwind for real component visual proof; no source-text assertions'],
+  ['tests/product/workflows/saved-source-preview.spec.ts', 'canonical native source specimen and existing brand watermark browser pixels; no source-text assertions'],
+  ['tests/product/workflows/studio-controls.spec.ts', 'canonical application CSS and bundled fonts for real Studio controls and exported pixel proof; no source-text assertions'],
   ['tests/product/workflows/style-review-render.spec.ts', 'canonical application CSS and bundled fonts for real component visual proof; no source-text assertions'],
   ['tests/product/workflows/library-template-identity.spec.ts', 'canonical application CSS compiled by existing PostCSS/Tailwind for real component visual proof; no source-text assertions'],
   ['tests/product/unit/website-edition-private-stage-labels.test.ts', 'published Owner control labels and private Edition staging action contract'],

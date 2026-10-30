@@ -33,6 +33,7 @@ export const PUBLIC_NAVIGATION = {
         NAVIGATION_LINKS.plans,
         NAVIGATION_LINKS.account,
         NAVIGATION_LINKS.roadmap,
+        {href:'/updates',label:'Updates'},
       ],
     },
     {

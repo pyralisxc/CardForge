@@ -53,7 +53,7 @@ for (const condition of ['missing', 'stale', 'historical']) test(`@golden Librar
     await expect(page.getByRole('alert')).toContainText('not the current published base');
     await expect(page.getByLabel('Revision appearance preview')).toHaveCount(0);
   } else {
-    await expect(page.getByText(/no other revision was substituted/)).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Isolated Library composition' }).getByText(/no other revision was substituted/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Manage', exact: true })).toHaveCount(0);
   }
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
@@ -99,7 +99,7 @@ for (const changed of [false, true]) test(`@golden Published Library checks regi
   const evidence = await mount(page, `?published=1${changed ? '&publicationChanged=1' : ''}`);
   await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
   if (changed) {
-    await expect(page.getByText(/selected catalog publication changed/)).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Isolated Library composition' }).getByText(/selected catalog publication changed/)).toBeVisible();
     await expect(page.getByLabel('Exact revision governance')).toHaveCount(0);
   } else {
     await expect(page.getByLabel('Exact revision governance')).toBeVisible();
@@ -340,4 +340,112 @@ for (const missing of [false, true]) test(`@golden historical Template keeps sou
   }
   await info.attach('historical-template-source', { body: await page.screenshot(), contentType: 'image/png' });
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+for (const width of [390,1440]) test(`@golden Desk exact governance preserves dirty draft and return at ${width}px`, async ({page},info)=>{
+ test.setTimeout(90_000); await page.setViewportSize({width,height:900}); const evidence=await mount(page,'?deskActual=1&deskMenu=1&published=1');
+ if(width<900) await page.getByLabel('Open Desk filters',{exact:true}).click();
+ await page.getByRole('button',{name:'Choose Desk views',exact:true}).click();
+ await page.getByRole('menuitemcheckbox',{name:'My published',exact:true}).click();
+ await page.keyboard.press('Escape');
+ if(width<900) await page.getByLabel('Open Desk filters',{exact:true}).click();
+ const launcher=page.getByRole('button',{name:'Actions for Synthetic material revision one',exact:true});
+ await launcher.click();
+ await page.getByRole('menuitem',{name:'Review & manage',exact:true}).click();
+ await expect(page.getByLabel('Exact revision governance')).toBeVisible();
+ await page.getByRole('button',{name:'Manage',exact:true}).click();
+ const note=page.getByLabel('Exact revision governance').locator('label').filter({hasText:/^\s*Decision note/}).locator('textarea');
+ await note.fill('Unsaved Desk note');
+ await page.evaluate(()=>history.back());
+ await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+ await expect(page.getByRole('alertdialog')).toHaveCount(0);
+ await expect(note).toHaveValue('Unsaved Desk note');
+ await page.getByRole('button',{name:'Return to Desk',exact:true}).click();
+ await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+ await expect(page.getByRole('alertdialog')).toHaveCount(0);
+ await expect(note).toHaveValue('Unsaved Desk note');
+ await page.screenshot({path:info.outputPath('desk-exact-governance.png')});
+ await page.getByRole('button',{name:'Return to Desk',exact:true}).click();
+ await page.getByRole('button',{name:'Discard',exact:true}).click();
+ await expect(launcher).toBeFocused();
+ expect(evidence.mutations).toEqual([]);expect(evidence.errors).toEqual([]);
+});
+
+test('@golden Desk uncertain revision survives Back and recovers its exact attempt', async ({page}) => {
+ const evidence=await mount(page,'?deskActual=1&published=1&submit=uncertain');
+ await page.getByRole('button',{name:'Search or type a command',exact:true}).click();
+ await page.getByRole('button',{name:'Review & manage',exact:true}).click();
+ await page.getByRole('button',{name:'Revise existing',exact:true}).click();
+ await page.getByRole('button',{name:'Color #ebd39f',exact:true}).click();
+ await page.getByTitle('Hex color value').fill('#123456');
+ await page.getByTitle('Hex color value').press('Tab'); await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Submit revision for review'}).click();
+ await expect(page.getByRole('alert')).toContainText('may have succeeded');
+ await page.evaluate(()=>history.back());
+ await expect(page.getByRole('alertdialog')).toContainText('Resolve this attempt before closing');
+ await expect(page.getByRole('button',{name:'Discard',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+ await expect(page.getByRole('alertdialog')).toHaveCount(0);
+ await expect(page.getByRole('region',{name:'Revise selected published artifact'})).toBeVisible();
+ await page.getByRole('button',{name:'Check submission outcome'}).click();
+ await expect(page.getByRole('status').filter({hasText:'Revision 2 submitted'})).toBeVisible();
+ const requests=await page.evaluate(()=>(window as typeof window & {libraryRequests:{url:string;method:string;body?:string}[]}).libraryRequests);
+ const posts=requests.filter(request=>request.method==='POST'); expect(posts).toHaveLength(1);
+ expect(requests.some(request=>request.method==='GET' && request.url.includes(`submissionKey=${JSON.parse(posts[0].body!).submissionKey}`))).toBe(true);
+ expect(evidence.mutations).toEqual([]);expect(evidence.errors).toEqual([]);
+});
+
+
+test('@golden Desk remote ellipsis exposes exact location actions without deleting a copy',async({page})=>{
+ const evidence=await mount(page,'?deskActual=1&deskMenu=1&deskDrive=1');
+ const menu=page.getByRole('button',{name:'Actions for Synthetic Drive Set.cardforge',exact:true});
+ await menu.click();
+ await expect(page.getByRole('menuitem',{name:'View source',exact:true})).toBeVisible();
+ await expect(page.getByRole('menuitem',{name:'Move Drive copy to Trash',exact:true})).toBeVisible();
+ await page.getByRole('menuitem',{name:'Manage locations',exact:true}).click();
+ await expect(page.getByRole('dialog')).toContainText('Synthetic Drive Set');
+ await expect(page.getByText('Action could not be completed',{exact:true})).toHaveCount(0);
+ expect(evidence.mutations).toEqual([]);expect(evidence.errors).toEqual([]);
+});
+
+for(const width of [390,1440]) test(`@golden global Pipeline reuses Library queue and preserves contextual governance at ${width}px`,async({page},info)=>{
+ await page.setViewportSize({width,height:900});const evidence=await mount(page,'?queueActual=1&scope=pipeline&globalSettingsSave=1');
+ await page.getByRole('button',{name:'Pipeline operations',exact:true}).click();
+ await expect(page.getByRole('tab',{name:'Asset library',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('tab',{name:'Studio map',exact:true})).toBeVisible();
+ await expect(page.getByRole('tab',{name:'Pipeline rules',exact:true})).toHaveAttribute('data-state','active');
+ const queue=page.getByRole('button',{name:'Open Library revision queue',exact:true});await expect(queue).toBeEnabled();
+ const maximum=page.locator('label').filter({hasText:/Max Contributors/}).locator('input');const before=Number(await maximum.inputValue());await maximum.fill(String(before+1));
+ await expect(queue).toBeDisabled();await page.getByRole('button',{name:'Close Pipeline tool',exact:true}).click();
+ await expect(page.getByRole('alertdialog')).toBeVisible();await page.getByRole('button',{name:'Keep editing',exact:true}).click();await expect(maximum).toHaveValue(String(before+1));
+ await page.getByRole('button',{name:'Save Contributor program',exact:true}).click();await expect(page.getByText('Contributor program saved',{exact:true})).toBeVisible();await expect(queue).toBeEnabled();
+ await queue.click();await expect(page.getByLabel('Pipeline discovery mode')).toHaveValue('revisions');await expect(page.getByLabel('Pipeline discovery mode')).toBeFocused();
+ await expect(page.getByLabel('Pipeline discovery').getByRole('status')).toContainText('15 matching revisions');
+ await page.getByRole('button',{name:'Next revisions'}).click();await expect(page.getByLabel('pipeline Library objects').locator('article')).toHaveCount(3);
+ const row=page.locator('[id="library-object-pipeline:submission:10000000-0000-4000-8000-000000000015"]');await row.click();
+ await page.getByRole('button',{name:'Review & manage',exact:true}).first().click();await expect(page.getByLabel('Exact revision governance')).toContainText('Material 15');
+ await page.getByRole('button',{name:'Manage',exact:true}).click();await expect(page.getByRole('button',{name:'Save control',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Refresh recovery state',exact:true})).toBeVisible();
+ await page.screenshot({path:info.outputPath('contextual-governance.png')});await info.attach('contextual-governance',{path:info.outputPath('contextual-governance.png'),contentType:'image/png'});
+ await page.getByRole('button',{name:'Close Pipeline tool',exact:true}).click();
+ if(width<900){const details=page.getByRole('dialog',{name:'Material 15',exact:true});await expect(details).toBeVisible();await details.getByRole('button',{name:'Close',exact:true}).click();await expect(row).toBeFocused();}
+ await expect(page.getByLabel('Pipeline discovery').getByRole('status')).toContainText('Page 2 of 2');
+ const writes=await page.evaluate(()=>(window as typeof window&{libraryRequests:{url:string,method:string}[]}).libraryRequests.filter(r=>r.method!=='GET'));expect(writes).toEqual([expect.objectContaining({url:'/api/pipeline',method:'PUT'})]);expect(evidence.mutations).toEqual([]);expect(evidence.errors).toEqual([]);
+});
+
+for(const width of [390,1440]) test(`@golden Desk search reconciles published lineage revisions without residual objects at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:900});const evidence=await mount(page,'?deskActual=1&deskMenu=1&deskSearch=1');
+ if(width<900)await page.getByLabel('Open Desk filters',{exact:true}).click();
+ await page.getByRole('button',{name:'Choose Desk views',exact:true}).click();await page.getByRole('menuitemcheckbox',{name:'My published',exact:true}).click();await page.keyboard.press('Escape');
+ const first=page.locator('[data-desk-set-object-id="pipeline:20000000-0000-4000-8000-000000000001"]');const bridge=page.locator('[data-desk-set-object-id="pipeline:20000000-0000-4000-8000-000000000002"]');await expect(first).toBeVisible();
+ await expect(bridge).toHaveCount(1);await expect(bridge).toContainText('Revision 2');
+ const original=await bridge.getAttribute('style');
+ for(let repeat=0;repeat<3;repeat++){
+  await page.getByPlaceholder('Search Desk work').fill('Synthetic material revision one');await expect(page.getByText('1 visible work',{exact:true})).toBeVisible();await expect(first).toBeVisible();await expect(bridge).toHaveCount(0);await expect(page.locator('[data-desk-set-object-id]')).toHaveCount(1);
+  await page.getByPlaceholder('Search Desk work').fill('');await expect(bridge).toHaveCount(1);await expect(page.locator('[data-desk-set-object-id]')).toHaveCount(2);expect(await bridge.getAttribute('style')).toBe(original);
+ }
+ if(width<900)await page.getByLabel('Open Desk filters',{exact:true}).click();
+ await bridge.getByRole('button',{name:'Actions for Unrelated Bridge Back',exact:true}).click();await page.getByRole('menuitem',{name:'Review & manage',exact:true}).click();
+ await expect(page.getByLabel('Exact revision governance')).toContainText('Selected revision 2');
+ await expect(page.getByLabel('Exact revision governance')).toContainText('10000000-0000-4000-8000-000000000004');
+ expect(evidence.errors).toEqual([]);expect(evidence.mutations).toEqual([]);
 });

@@ -1,7 +1,9 @@
 "use client";
+import { AppearanceSurface } from './AppearanceSurface';
+import { textureLayerStyle } from '../model/appearance';
 
 import { useId } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, SVGProps } from 'react';
 
 import { canRenderVectorShape, getVectorShapeDefinition } from '@/domain/rendering';
 import type { FreeformCardElement } from '@/domain/templates';
@@ -43,7 +45,12 @@ export function VectorShapeElement({ element, style, strokeScale = 1 }: VectorSh
 
   if (!canRenderVectorShape(element) || !definition) return null;
 
-  const strokeWidth = getShapeStrokeWidth(element, style, strokeScale);
+  const strokeWidth = element.appearance?.border?.kind === 'none' || style?.borderStyle === 'none'
+    ? 0 : getShapeStrokeWidth(element, style, strokeScale);
+  const doubleStroke = element.appearance?.border?.kind === 'double' || style?.borderStyle === 'double';
+  const strokeMaskId = `${clipId}-double`;
+  const authoredRadius = element.appearance?.border?.radius;
+  const radius = authoredRadius === undefined ? undefined : Math.max(0, Math.min(authoredRadius, element.width * 0.48, element.height * 0.48));
   const strokeColor = element.strokeColor
     || element.borderColor
     || (typeof style?.borderColor === 'string' ? style.borderColor : undefined)
@@ -55,6 +62,7 @@ export function VectorShapeElement({ element, style, strokeScale = 1 }: VectorSh
   const glow = element.appearance?.effects?.glow ?? 0;
   const glowColor = element.appearance?.border?.secondaryColor || element.appearance?.border?.color || strokeColor;
   const surfaceStyle: CSSProperties = {
+    ...textureLayerStyle(style),
     width: '100%',
     height: '100%',
     backgroundColor: typeof style?.backgroundColor === 'string' ? style.backgroundColor : fillColor,
@@ -71,36 +79,24 @@ export function VectorShapeElement({ element, style, strokeScale = 1 }: VectorSh
     overflow: 'visible',
     filter: glow > 0 ? `drop-shadow(0 0 ${glow}px ${glowColor})` : undefined,
   };
-  const commonShapeProps = {
-    fill: backgroundImage ? 'transparent' : fillColor,
-    stroke: strokeWidth > 0 ? strokeColor : 'transparent',
-    strokeWidth,
-    strokeLinejoin: 'round' as const,
-    vectorEffect: 'non-scaling-stroke' as const,
-  };
-
-  const shape = definition.kind === 'rect'
-    ? <rect x="2" y="2" width="96" height="96" rx={definition.rx ?? 4} {...commonShapeProps} />
+  const geometry = (props: Omit<SVGProps<SVGElement>, 'ref'> = {}) => definition.kind === 'rect'
+    ? <rect x="2" y="2" width="96" height="96"
+        rx={radius === undefined ? definition.rx ?? 4 : radius * 100 / element.width}
+        ry={radius === undefined ? definition.rx ?? 4 : radius * 100 / element.height} {...props} />
     : definition.kind === 'ellipse'
-      ? <ellipse cx="50" cy="50" rx="48" ry="48" {...commonShapeProps} />
+      ? <ellipse cx="50" cy="50" rx="48" ry="48" {...props} />
       : definition.kind === 'polygon'
-        ? <polygon points={definition.points} {...commonShapeProps} />
-        : <path d={definition.d} fillRule={definition.fillRule} {...commonShapeProps} />;
-
-  const clipShape = definition.kind === 'rect'
-    ? <rect x="2" y="2" width="96" height="96" rx={definition.rx ?? 4} />
-    : definition.kind === 'ellipse'
-      ? <ellipse cx="50" cy="50" rx="48" ry="48" />
-      : definition.kind === 'polygon'
-        ? <polygon points={definition.points} />
-        : <path d={definition.d} fillRule={definition.fillRule} />;
+        ? <polygon points={definition.points} {...props} />
+        : <path d={definition.d} fillRule={definition.fillRule} {...props} />;
+  const strokeProps = { fill: 'none', stroke: strokeColor, strokeWidth,
+    strokeLinejoin: 'round' as const, vectorEffect: 'non-scaling-stroke' as const };
 
   return (
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false" style={svgStyle}>
       {backgroundImage && (
         <defs>
           <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
-            {clipShape}
+            {geometry()}
           </clipPath>
         </defs>
       )}
@@ -108,11 +104,18 @@ export function VectorShapeElement({ element, style, strokeScale = 1 }: VectorSh
         <g clipPath={`url(#${clipId})`}>
           {/* Fit backgrounds in authored coordinates before projecting into the normalized shape. */}
           <foreignObject x="0" y="0" width={element.width} height={element.height} transform={`scale(${100 / element.width} ${100 / element.height})`}>
-            <div style={surfaceStyle} />
+            <AppearanceSurface style={surfaceStyle} />
           </foreignObject>
         </g>
       )}
-      {shape}
+      {geometry({ fill: backgroundImage ? 'transparent' : fillColor })}
+      {doubleStroke && strokeWidth > 0 && <defs>
+        <mask id={strokeMaskId} maskUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300" style={{ maskType: 'luminance' }}>
+          <rect x="-100" y="-100" width="300" height="300" fill="white" />
+          {geometry({ ...strokeProps, stroke: 'black', strokeWidth: strokeWidth / 3 })}
+        </mask>
+      </defs>}
+      {strokeWidth > 0 && geometry({ ...strokeProps, mask: doubleStroke ? `url(#${strokeMaskId})` : undefined })}
     </svg>
   );
 }

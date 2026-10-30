@@ -20,13 +20,17 @@ interface ElementContentPanelProps {
   variableCardRefs: MutableRefObject<Record<string, HTMLDivElement | null>>;
   onSetActiveVariableKey: (key: string | null) => void;
   onSetRichTextHighlightColor: (color: string) => void;
-  onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
+  onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean,historyGroup?:string) => void;
+  externalHistory: NonNullable<import('react').ComponentProps<typeof TextExpressionEditor>['externalHistory']>;
+  onVariableCreated:(key:string,text:string,content:string)=>void;
+  onVariableRemoved:(key:string,content:string)=>void;
   onAddStructuredRowPattern: () => void;
   onCreateEditorVariableFromSelection: (text: string) => string | undefined;
   onFocusVariableCard: (key: string) => void;
   onRemoveSelectedElementVariableContract: (key: string) => void;
   onRenameSelectedElementVariable: (oldKey: string, nextKey: string) => void;
   onUpsertFieldContract: (key: string, updates: Partial<FieldContract>) => void;
+  onUpsertFieldContracts: (keys: string[], updates: Partial<FieldContract>) => void;
 }
 
 export function ElementContentPanel({
@@ -41,12 +45,16 @@ export function ElementContentPanel({
   onSetActiveVariableKey,
   onSetRichTextHighlightColor,
   onUpdateElement,
+  externalHistory,
+  onVariableCreated,
+  onVariableRemoved,
   onAddStructuredRowPattern,
   onCreateEditorVariableFromSelection,
   onFocusVariableCard,
   onRemoveSelectedElementVariableContract,
   onRenameSelectedElementVariable,
   onUpsertFieldContract,
+  onUpsertFieldContracts,
 }: ElementContentPanelProps) {
   if (element.type === 'text') {
     return (
@@ -56,15 +64,18 @@ export function ElementContentPanel({
           element={element}
           fieldContracts={currentTemplate.fieldContracts}
           onAddStructuredRowPattern={onAddStructuredRowPattern}
-          onUpdateContract={onUpsertFieldContract}
+          onUpdateContracts={onUpsertFieldContracts}
         />
         <TextExpressionEditor
           element={element}
           fieldCount={selectedElementTemplateFields.length}
           highlightColor={richTextHighlightColor}
           onHighlightColorChange={onSetRichTextHighlightColor}
-          onContentChange={(value) => onUpdateElement({ content: value }, false)}
-          onElementChange={(updates) => onUpdateElement(updates, false)}
+          onContentChange={(value,mode) => onUpdateElement({ content: value },true,mode==='typing'?`text:${element.id}`:undefined)}
+          externalHistory={externalHistory}
+          onVariableCreated={onVariableCreated}
+          onVariableRemoved={onVariableRemoved}
+          onElementChange={(updates) => onUpdateElement(updates,true)}
           activeVariableKey={activeVariableKey}
           onActiveVariableChange={onSetActiveVariableKey}
           onCreateVariable={onCreateEditorVariableFromSelection}

@@ -1,5 +1,5 @@
 // Persisted pixels are version-keyed: bump this when canonical rendering changes.
-export const CARDFORGE_RENDERER_CONTRACT_VERSION = '2026-10-18.1';
+export const CARDFORGE_RENDERER_CONTRACT_VERSION = '2026-10-30.2';
 export const CARDFORGE_RENDER_ARTIFACT_BUCKET = 'cardforge-render-artifacts';
 export const MAX_RENDER_ARTIFACT_BYTES = 16 * 1024 * 1024;
 
@@ -7,9 +7,9 @@ export type RenderArtifactKind = 'template-preview' | 'card-preview' | 'set-cont
 export type RenderArtifactFace = 'front' | 'back' | 'none';
 
 export interface RenderArtifactDescriptor {
-  sourceKind: 'studio-document';
+  sourceKind: 'studio-document' | 'pipeline-revision' | 'google-drive-project';
   sourceId: string;
-  sourceRevision: number;
+  sourceRevision: number | string;
   kind: RenderArtifactKind;
   subjectId: string;
   face: RenderArtifactFace;

@@ -4,3 +4,5 @@ export type { OwnerWorkspace } from './components/OwnerOperationsPage';
 export type { OwnerOperationsPayload, OwnerDatabaseMetrics } from './lib/ownerOperations';
 
 export { publishOwnerPresentation } from './model/ownerOperationsClient';
+
+export { OwnerWebsiteReleaseEditor } from './components/OwnerWebsiteReleaseEditor';
