@@ -27,12 +27,15 @@ import {
 } from '../model/creatorHistory';
 
 interface CreatorNavigationOptions {
+  toolLayerOwnsHistory?: boolean;
   transitionToDesk?: (commit: () => void) => void;
   initialFocusedWorkId?: string | null;
   initialFocusedArtifactId?: string | null;
 }
 
-export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId, transitionToDesk }: CreatorNavigationOptions) {
+export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId, transitionToDesk, toolLayerOwnsHistory = false }: CreatorNavigationOptions) {
+  const externalHistoryRef = useRef(toolLayerOwnsHistory);
+  externalHistoryRef.current = toolLayerOwnsHistory;
   const [navigationReady, setNavigationReady] = useState(false);
   const [focusedWorkId, setFocusedWorkId] = useState<string | null>(initialFocusedWorkId ?? null);
   const [inspectorWorkId, setInspectorWorkId] = useState<string | null>(null);
@@ -151,6 +154,8 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
 
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
+      // The in-place governance layer owns its pushed entry and dirty/uncertain Back decision.
+      if (externalHistoryRef.current) return;
       const current = currentRef.current;
       const activeTool = current.session.toolStack.at(-1);
       if (activeTool?.dirty && !bypassDirtyCloseRef.current) {
