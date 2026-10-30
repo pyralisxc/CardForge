@@ -118,6 +118,8 @@ cat "$proof/editorial-review.log"
 psql_local -c "SET cardforge.fixture_disposable = 'style-review';" \
   -f "$root/supabase/tests/pipeline_style_review.sql" > "$proof/style-review.log" 2>&1
 cat "$proof/style-review.log"
+psql_local -f "$root/supabase/tests/website_releases.sql" > "$proof/website-releases.log" 2>&1 || { cat "$proof/website-releases.log"; exit 1; }
+cat "$proof/website-releases.log"
 # Reset with --no-seed still executes migration-owned INSERTs. Only this fresh,
 # container-bound ephemeral CI stack is cleared. The SQL fixture itself keeps
 # its strict refusal of an existing catalog; never copy this into a migration

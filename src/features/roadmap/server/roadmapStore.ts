@@ -34,6 +34,7 @@ type RoadmapItemRow = {
   expense_source_url: string | null;
   expense_verified_at: string | null;
   shipped_at: string | null;
+  release_version?: string | null;
   created_at: string;
   updated_at?: string;
   sort_order: number;
@@ -219,7 +220,7 @@ export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapP
 
   const { data: rows, error: rowsError } = await supabase
     .from('cardforge_roadmap_items')
-    .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,expense_provider,expense_plan,expense_source_url,expense_verified_at,shipped_at,created_at,updated_at,sort_order')
+    .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,expense_provider,expense_plan,expense_source_url,expense_verified_at,shipped_at,release_version,created_at,updated_at,sort_order')
     .neq('status', 'archived_negative_signal')
     .order('visible_month', { ascending: true })
     .order('sort_order', { ascending: true })
@@ -230,7 +231,9 @@ export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapP
     return createUnavailablePayload(settings, creatorPassIncome);
   }
 
-  const itemRows = (rows ?? []) as RoadmapItemRow[];
+  // Numbered working notes belong to /updates, never Chronicle shipped progress.
+  // Legacy unversioned rows and their votes retain the existing projection.
+  const itemRows = ((rows ?? []) as RoadmapItemRow[]).filter(row => !row.release_version || (row.status === 'shipped' && row.shipped_at !== null));
   const itemIds = itemRows.map((item) => item.id);
 
   const { count: activeUserSuggestionCount, error: countError } = await supabase
@@ -443,6 +446,7 @@ export const deleteContributorRoadmapItem = async ({
     .eq('id', itemId);
 
   if (error) {
+    if (error.message?.includes('website_release_published_immutable')) throw new RoadmapStoreError('Published website releases cannot be deleted. Use the update notes editor for narrative corrections.',409);
     console.error('Failed to delete contributor roadmap item:', error);
     throw new RoadmapStoreError('Unable to delete roadmap item.', 500);
   }
