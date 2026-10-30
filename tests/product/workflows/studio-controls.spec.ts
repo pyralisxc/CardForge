@@ -106,6 +106,35 @@ async function mountHistoryProof(page:import('@playwright/test').Page,query='',s
  await page.getByRole('button',{name:'Elements',exact:true}).click();await page.getByRole('button',{name:'Text',exact:true}).and(page.locator('[draggable="true"]')).click();
  if(page.viewportSize()!.width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
 }
+for(const width of [390,1440])test(`@golden completed typography spacing preserves grouped Undo and Save at ${width}px`, async ({page},info)=>{
+ await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1');
+ const closeInspector=async()=>{if(width<1024)await page.getByRole('button',{name:'Close inspector',exact:true}).click();};
+ const openInspector=async()=>{if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();};
+ const save=async()=>{await closeInspector();await page.getByRole('button',{name:width<1024?'Save Template in this browser':'Save',exact:true}).click();await expect(page.getByTestId('working-dirty')).toHaveText('saved');await openInspector();};
+ const history=async(action:'Undo'|'Redo')=>{await closeInspector();await page.getByRole('button',{name:action,exact:true}).first().click();await openInspector();};
+ await save();const baseline=JSON.parse(await page.getByTestId('saved').textContent()||'{}');
+ const original=baseline.freeformCanvas.elements.find((element:{id:string})=>element.id!=='neighbor');
+ const reopen=async()=>{
+  await page.reload();await page.addStyleTag({content:(await css).css});for(const file of bundle.outputFiles.filter(f=>f.path.endsWith('.css')))await page.addStyleTag({content:file.text});await page.addScriptTag({content:bundle.outputFiles.find(f=>f.path.endsWith('.js'))!.text});
+  await page.locator(`[data-cardforge-editor-overlay="true"][data-freeform-element-id="${original.id}"]`).click();await openInspector();
+  await page.getByRole('button',{name:'Text',exact:true}).and(page.locator(':not([draggable="true"])')).click();await page.getByText('Text Details',{exact:true}).click();
+ };
+ await reopen();const height=page.getByLabel('Line Height',{exact:true});const spacing=page.getByLabel('Letter Spacing',{exact:true});const originalHeight=await height.inputValue();const originalSpacing=await spacing.inputValue();
+ await height.fill('2.25');await height.press('Tab');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+ await history('Undo');await expect(height).toHaveValue(originalHeight);await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ await history('Redo');await expect(height).toHaveValue('2.25');await save();
+ await history('Undo');await expect(height).toHaveValue(originalHeight);await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+ await history('Redo');await expect(height).toHaveValue('2.25');await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ await spacing.fill('');await spacing.pressSequentially('0.08em',{delay:25});await spacing.press('Tab');
+ await history('Undo');await expect(spacing).toHaveValue(originalSpacing);await expect(height).toHaveValue('2.25');await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ await history('Redo');await expect(spacing).toHaveValue('0.08em');
+ await spacing.fill('0.16em');await spacing.press('Tab');await spacing.fill('0.24em');await spacing.press('Tab');
+ await history('Undo');await expect(spacing).toHaveValue('0.16em');await history('Undo');await expect(spacing).toHaveValue('0.08em');await history('Redo');await expect(spacing).toHaveValue('0.16em');await history('Undo');await save();
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved.freeformCanvas.elements.find((element:{id:string})=>element.id===original.id)).toEqual({...original,lineHeight:'2.25',letterSpacing:'0.08em'});
+ expect(saved.freeformCanvas.elements.find((element:{id:string})=>element.id==='neighbor')).toEqual(baseline.freeformCanvas.elements.find((element:{id:string})=>element.id==='neighbor'));expect(saved.fieldContracts).toEqual(baseline.fieldContracts);
+ const stored=await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'));await reopen();await expect(height).toHaveValue('2.25');await expect(spacing).toHaveValue('0.08em');expect(await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'))).toBe(stored);
+ await page.screenshot({path:info.outputPath('spacing-history-reopened.png')});
+});
 for(const width of [390,1440])test(`@golden Template variable transactions and Save share one undo history at ${width}px`,async({page},info)=>{
  test.setTimeout(90000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1');
  const undo=()=>page.getByRole('button',{name:'Undo',exact:true})[width<1024?'last':'first']();const redo=()=>page.getByRole('button',{name:'Redo',exact:true})[width<1024?'last':'first']();

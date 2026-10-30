@@ -206,7 +206,8 @@ export function TemplateEditorInspectorSidebar({
               availableFonts={availableFonts}
               paddingOptions={PADDING_OPTIONS}
               controlClassName={makerTheme.control}
-              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+              onUpdateElement={(updates, trackHistory, historyGroup) => updateElement(selectedElement.id, updates, trackHistory, historyGroup)}
+              onFinishHistoryGroup={controller.finishHistoryGroup}
               onUpsertFieldContract={variables.upsertFieldContract}
             />
           </InspectorFlowSection>

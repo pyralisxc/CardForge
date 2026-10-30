@@ -19,7 +19,8 @@ interface TypographyInspectorPanelProps {
   availableFonts: Array<{ value: string; name: string }>;
   paddingOptions: Array<{ value: string; label: string }>;
   controlClassName: string;
-  onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
+  onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean, historyGroup?: string) => void;
+  onFinishHistoryGroup: () => void;
   onUpsertFieldContract: (key: string, updates: Partial<FieldContract>) => void;
 }
 
@@ -30,6 +31,7 @@ export function TypographyInspectorPanel({
   paddingOptions,
   controlClassName,
   onUpdateElement,
+  onFinishHistoryGroup,
   onUpsertFieldContract,
 }: TypographyInspectorPanelProps) {
   return (
@@ -108,7 +110,8 @@ export function TypographyInspectorPanel({
                 max="4"
                 placeholder="1.4"
                 value={element.lineHeight || ''}
-                onChange={(event) => onUpdateElement({ lineHeight: event.target.value || undefined }, false)}
+                onChange={(event) => onUpdateElement({ lineHeight: event.target.value || undefined }, true, `line-height:${element.id}`)}
+                onBlur={onFinishHistoryGroup}
               />
             </div>
             <div>
@@ -123,7 +126,8 @@ export function TypographyInspectorPanel({
                 className={controlClassName}
                 placeholder="0em"
                 value={element.letterSpacing || ''}
-                onChange={(event) => onUpdateElement({ letterSpacing: event.target.value || undefined }, false)}
+                onChange={(event) => onUpdateElement({ letterSpacing: event.target.value || undefined }, true, `letter-spacing:${element.id}`)}
+                onBlur={onFinishHistoryGroup}
               />
             </div>
           </div>
