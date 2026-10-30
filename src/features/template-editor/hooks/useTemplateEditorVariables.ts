@@ -21,13 +21,13 @@ import { toTitleCase } from '@/shared/text';
 interface UseTemplateEditorVariablesInput {
   controller: Pick<
     TemplateEditorController,
-    'canvas' | 'commitTemplate' | 'currentTemplate' | 'selectedElement' | 'updateElement'
+    'canvas' | 'commitTemplate' | 'currentTemplate' | 'selectedElement'
   >;
   toast: ToastFn;
 }
 
 export function useTemplateEditorVariables({
-  controller: { canvas, commitTemplate, currentTemplate, selectedElement, updateElement },
+  controller: { canvas, commitTemplate, currentTemplate, selectedElement },
   toast,
 }: UseTemplateEditorVariablesInput) {
   const [activeVariableKey, setActiveVariableKey] = useState<string | null>(null);
@@ -50,8 +50,14 @@ export function useTemplateEditorVariables({
   }, [selectedElement?.id]);
 
   const upsertFieldContract = useCallback((key: string, updates: Partial<FieldContract>) => {
-    commitTemplate((template) => upsertTemplateFieldContract(template, key, updates), false);
+    const properties=Object.keys(updates).filter(property=>property!=='elementId');
+    const continuous=properties.length>0&&properties.every(property=>['defaultValue','example','description','maxLength','fontSizePx','lineHeight','letterSpacing'].includes(property));
+    commitTemplate((template) => upsertTemplateFieldContract(template, key, updates), true,undefined,continuous?`field:${updates.elementId??''}:${key}:${properties.toSorted().join(',')}`:undefined);
   }, [commitTemplate]);
+
+  const upsertFieldContracts=useCallback((keys:string[],updates:Partial<FieldContract>)=>{
+    commitTemplate(template=>keys.reduce((next,key)=>upsertTemplateFieldContract(next,key,updates),template));
+  },[commitTemplate]);
 
   const focusVariableCard = useCallback((key: string) => {
     setActiveVariableKey(key);
@@ -81,7 +87,7 @@ export function useTemplateEditorVariables({
       selectedElementId: selectedElement.id,
       oldKey,
       nextKey,
-    }), false);
+    }));
     focusVariableCard(nextKey);
   }, [canvas, commitTemplate, currentTemplate.fieldContracts, focusVariableCard, selectedElement, toast]);
 
@@ -89,7 +95,7 @@ export function useTemplateEditorVariables({
     if (!selectedElement) return;
     commitTemplate(
       (template) => removeScopedTextElementVariableContract(template, selectedElement.id, key),
-      false,
+      true,
     );
     setActiveVariableKey(null);
   }, [commitTemplate, selectedElement]);
@@ -110,24 +116,30 @@ export function useTemplateEditorVariables({
       existingKey,
     );
     if (!nextKey) return undefined;
-    const inferredType = inferTextElementContentModel(currentTemplate, selectedElement);
-    upsertFieldContract(nextKey, {
-      key: nextKey,
-      elementId: selectedElement.id,
-      label: toTitleCase(nextKey),
-      type: inferredType === 'structuredRows' ? 'structuredRows' : 'text',
-      required: false,
-      multiline: cleanSelectedText.includes('\n'),
-      defaultValue: cleanSelectedText,
-      example: cleanSelectedText,
-    });
-    toast({
-      title: 'Variable created',
-      description: `"${nextKey}" was added to this text element. You can adjust its rich text behavior below.`,
-    });
-    focusVariableCard(nextKey);
     return nextKey;
-  }, [currentTemplate, focusVariableCard, selectedElement, toast, upsertFieldContract]);
+  }, [currentTemplate.fieldContracts, selectedElement, toast]);
+
+  const completeVariableCreation = useCallback((key:string,selectedText:string,content:string) => {
+    if (!selectedElement || selectedElement.type !== 'text') return;
+    const inferredType=inferTextElementContentModel(currentTemplate,selectedElement);
+    commitTemplate(template=>{
+      const next=upsertTemplateFieldContract(template,key,{key,elementId:selectedElement.id,label:toTitleCase(key),type:inferredType==='structuredRows'?'structuredRows':'text',required:false,multiline:selectedText.includes('\n'),defaultValue:selectedText,example:selectedText});
+      const active=next.freeformCanvas??canvas;
+      return {...next,freeformCanvas:{...active,elements:active.elements.map(element=>element.id===selectedElement.id?{...element,content}:element)}};
+    });
+    toast({title:'Variable created',description:`"${key}" was added to this text element. You can adjust its rich text behavior below.`});
+    focusVariableCard(key);
+  },[canvas,commitTemplate,currentTemplate,focusVariableCard,selectedElement,toast]);
+
+  const completeVariableRemoval = useCallback((key:string,content:string)=>{
+    if (!selectedElement) return;
+    commitTemplate(template=>{
+      const next=removeScopedTextElementVariableContract(template,selectedElement.id,key);
+      const active=next.freeformCanvas??canvas;
+      return {...next,freeformCanvas:{...active,elements:active.elements.map(element=>element.id===selectedElement.id?{...element,content}:element)}};
+    });
+    setActiveVariableKey(null);
+  },[canvas,commitTemplate,selectedElement]);
 
   const addStructuredRowPattern = useCallback(() => {
     if (!selectedElement || selectedElement.type !== 'text') return;
@@ -157,20 +169,11 @@ export function useTemplateEditorVariables({
     const nextContent = selectedElement.content?.trim()
       ? `${selectedElement.content}\n${rowPattern}`
       : rowPattern;
-    updateElement(selectedElement.id, { content: nextContent });
-    [
-      { key: labelKey, label: 'Label', example: 'Flying' },
-      { key: valueKey, label: 'Value', example: '+1' },
-    ].forEach((field) => {
-      upsertFieldContract(field.key, {
-        key: field.key,
-        elementId: selectedElement.id,
-        label: field.label,
-        type: 'structuredRows',
-        required: field.key === labelKey,
-        defaultValue: field.example,
-        example: field.example,
-      });
+    commitTemplate(template=>{
+      const active=template.freeformCanvas??canvas;
+      let next={...template,freeformCanvas:{...active,elements:active.elements.map(element=>element.id===selectedElement.id?{...element,content:nextContent}:element)}};
+      for (const field of [{key:labelKey,label:'Label',example:'Flying'},{key:valueKey,label:'Value',example:'+1'}]) next=upsertTemplateFieldContract(next,field.key,{...field,elementId:selectedElement.id,type:'structuredRows',required:field.key===labelKey,defaultValue:field.example}) as typeof next;
+      return next;
     });
     setActiveVariableKey(labelKey);
     toast({
@@ -178,18 +181,21 @@ export function useTemplateEditorVariables({
       description: `${labelKey} and ${valueKey} were added to this text element. Add actual rows in Make cards.`,
     });
     requestAnimationFrame(() => focusVariableCard(labelKey));
-  }, [currentTemplate.fieldContracts, focusVariableCard, selectedElement, toast, updateElement, upsertFieldContract]);
+  }, [canvas,commitTemplate,currentTemplate.fieldContracts, focusVariableCard, selectedElement, toast]);
 
   return {
     activeVariableKey,
     addStructuredRowPattern,
     createVariableFromSelection,
+    completeVariableCreation,
+    completeVariableRemoval,
     focusVariableCard,
     removeVariable,
     renameVariable,
     selectedElementTemplateFields,
     setActiveVariableKey,
     upsertFieldContract,
+    upsertFieldContracts,
     variableCardRefs,
     variableKeyInputRefs,
   };

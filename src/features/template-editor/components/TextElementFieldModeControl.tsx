@@ -30,14 +30,14 @@ interface TextElementFieldModeControlProps {
   element: FreeformCardElement;
   fieldContracts?: FieldContract[];
   onAddStructuredRowPattern: () => void;
-  onUpdateContract: (key: string, updates: Partial<FieldContract>) => void;
+  onUpdateContracts: (keys: string[], updates: Partial<FieldContract>) => void;
 }
 export function TextElementFieldModeControl({
   fields,
   element,
   fieldContracts,
   onAddStructuredRowPattern,
-  onUpdateContract,
+  onUpdateContracts,
 }: TextElementFieldModeControlProps) {
   const variableFields = fields.filter((field) => !isStaticSegmentFieldKey(field.key));
   const mode: TextFieldContractType = variableFields.some((field) => {
@@ -55,12 +55,7 @@ export function TextElementFieldModeControl({
   const variableCount = variableFields.length;
 
   const applyMode = (nextMode: TextFieldContractType) => {
-    variableFields.forEach((field) => {
-      onUpdateContract(field.key, {
-        elementId: element.id,
-        type: nextMode,
-      });
-    });
+    onUpdateContracts(variableFields.map(field=>field.key),{elementId:element.id,type:nextMode});
   };
 
   return (

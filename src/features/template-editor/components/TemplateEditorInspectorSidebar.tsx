@@ -83,13 +83,17 @@ export function TemplateEditorInspectorSidebar({
               variableCardRefs={variables.variableCardRefs}
               onSetActiveVariableKey={variables.setActiveVariableKey}
               onSetRichTextHighlightColor={onRichTextHighlightColorChange}
-              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+              onUpdateElement={(updates, trackHistory,group) => updateElement(selectedElement.id, updates, trackHistory,group)}
+              externalHistory={{undo:controller.undo,redo:controller.redo,canUndo:controller.history.length>0,canRedo:controller.future.length>0,finishGroup:controller.finishHistoryGroup}}
+              onVariableCreated={variables.completeVariableCreation}
+              onVariableRemoved={variables.completeVariableRemoval}
               onAddStructuredRowPattern={variables.addStructuredRowPattern}
               onCreateEditorVariableFromSelection={variables.createVariableFromSelection}
               onFocusVariableCard={variables.focusVariableCard}
               onRemoveSelectedElementVariableContract={variables.removeVariable}
               onRenameSelectedElementVariable={variables.renameVariable}
               onUpsertFieldContract={variables.upsertFieldContract}
+              onUpsertFieldContracts={variables.upsertFieldContracts}
             />
             {elements.canUseImageSource ? (
               <ImageInspectorPanel

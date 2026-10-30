@@ -174,3 +174,25 @@ describe('picture inspector history', () => {
     expect(redone.selectedElementId).toBe('picture');
   });
 });
+
+it('groups one continuous authored field edit without crossing another field or a discrete command',()=>{
+ const base=createTemplateEditorState(template('history',['front-a']));
+ const change=(name:string)=>(current:TCGCardTemplate)=>({...current,name});
+ const first=commitTemplateEditorState(base,change('a'),true,undefined,{key:'field:a',at:100});
+ const second=commitTemplateEditorState(first,change('ab'),true,undefined,{key:'field:a',at:200});
+ expect(second.history).toHaveLength(1);expect(undoTemplateEditorState(second).currentTemplate.name).toBe('history');
+ const other=commitTemplateEditorState(second,change('other'),true,undefined,{key:'field:b',at:250});
+ expect(other.history).toHaveLength(2);
+ const discrete=commitTemplateEditorState(other,change('discrete'));
+ expect(discrete.history).toHaveLength(3);
+ const resumed=commitTemplateEditorState(discrete,change('resumed'),true,undefined,{key:'field:b',at:300});
+ expect(resumed.history).toHaveLength(4);
+});
+it('does not record equivalent updates and invalidates redo on any new authored change',()=>{
+ const base=createTemplateEditorState(template('history',['front-a']));
+ expect(commitTemplateEditorState(base,current=>({...current}))).toBe(base);
+ const changed=commitTemplateEditorState(base,current=>({...current,name:'first'}));
+ const undone=undoTemplateEditorState(changed);
+ const next=commitTemplateEditorState(undone,current=>({...current,name:'new'}),false);
+ expect(next.future).toEqual([]);
+});

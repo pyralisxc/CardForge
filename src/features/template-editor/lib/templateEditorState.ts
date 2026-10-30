@@ -11,6 +11,7 @@ export interface TemplateEditorSnapshot {
 export interface TemplateEditorState extends TemplateEditorSnapshot {
   history: TemplateEditorSnapshot[];
   future: TemplateEditorSnapshot[];
+  historyGroup?: { key: string; at: number };
 }
 
 type TemplateUpdater = (template: TCGCardTemplate) => TCGCardTemplate;
@@ -70,6 +71,7 @@ export const selectTemplateEditorElement = (
 ): TemplateEditorState => ({
   ...state,
   selectedElementId,
+  historyGroup: state.selectedElementId === selectedElementId ? state.historyGroup : undefined,
 });
 
 export const commitTemplateEditorState = (
@@ -77,17 +79,24 @@ export const commitTemplateEditorState = (
   updater: TemplateUpdater,
   trackHistory = true,
   nextSelectedElementId?: string | null,
+  group?: { key: string; at: number },
 ): TemplateEditorState => {
   const before = toSnapshot(state);
   const currentTemplate = reconstructMinimalTemplate(updater(before.currentTemplate));
+  if (JSON.stringify(currentTemplate) === JSON.stringify(state.currentTemplate)) {
+    const unchanged=nextSelectedElementId===undefined?state:selectTemplateEditorElement(state,nextSelectedElementId);
+    return !group&&unchanged.historyGroup?{...unchanged,historyGroup:undefined}:unchanged;
+  }
+  const extendGroup = Boolean(group && state.historyGroup?.key === group.key && group.at >= state.historyGroup.at && group.at - state.historyGroup.at < 750);
   const nextState = reconcileTemplateEditorSelection({
     ...state,
     currentTemplate,
     selectedElementId: nextSelectedElementId === undefined
       ? state.selectedElementId
       : nextSelectedElementId,
-    history: trackHistory ? appendHistorySnapshot(state.history, before) : state.history,
-    future: trackHistory ? [] : state.future,
+    history: trackHistory && !extendGroup ? appendHistorySnapshot(state.history, before) : state.history,
+    future: [],
+    historyGroup: trackHistory ? group : undefined,
   });
 
   return nextState;
@@ -103,6 +112,7 @@ export const recordTemplateEditorHistory = (
     selectedElementId: state.selectedElementId,
   }),
   future: [],
+  historyGroup: undefined,
 });
 
 export const undoTemplateEditorState = (

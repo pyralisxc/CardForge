@@ -39,7 +39,7 @@ import { trackCardForgeEvent } from '@/features/analytics/client';
 import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
 
 interface UseTemplateEditorCommandsInput {
-  acceptTemplate: (template: TCGCardTemplate) => void;
+  acceptTemplate: (template: TCGCardTemplate,savedId?:string|null) => void;
   beginDraft: (template: TCGCardTemplate) => void;
   controller: TemplateEditorController;
   deleteSelected: () => void;
@@ -88,6 +88,7 @@ export function useTemplateEditorCommands({
   const backgroundImageInputRef = useRef<HTMLInputElement | null>(null);
   const borderImageInputRef = useRef<HTMLInputElement | null>(null);
   const saveInFlightRef = useRef(false);
+  const workingRef=useRef(currentTemplate);workingRef.current=currentTemplate;
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [customWidthValue, setCustomWidthValue] = useState('');
@@ -163,6 +164,7 @@ export function useTemplateEditorCommands({
       });
       return false;
     }
+    controller.finishHistoryGroup();
     saveInFlightRef.current = true;
     setIsSavingTemplate(true);
     try {
@@ -170,8 +172,15 @@ export function useTemplateEditorCommands({
         ...templateToSave,
         freeformCanvas: reconstructFreeformCanvas(templateToSave.freeformCanvas),
       });
-      acceptTemplate(templateToSave);
-      onSelectTemplate(savedId);
+      const current=workingRef.current;
+      if (current.id !== templateToSave.id && current.id !== savedId) {
+        toast({title:'Earlier Template snapshot saved',description:'Your current document is unchanged. Continue from its own saved state.'});
+        return false;
+      }
+      acceptTemplate(templateToSave,savedId);
+      const newerEdits=JSON.stringify(reconstructMinimalTemplate(current))!==JSON.stringify(reconstructMinimalTemplate(templateToSave));
+      if (!newerEdits || current.id===savedId) onSelectTemplate(savedId);
+      else toast({title:'Earlier Template snapshot saved',description:'Your newer working edits remain unchanged and unsaved. The saved copy is available in your Library.'});
       return true;
     } catch (error) {
       toast({
@@ -184,7 +193,7 @@ export function useTemplateEditorCommands({
       saveInFlightRef.current = false;
       setIsSavingTemplate(false);
     }
-  }, [acceptTemplate, currentTemplate, onSaveTemplate, onSelectTemplate, toast]);
+  }, [acceptTemplate,controller,currentTemplate,onSaveTemplate,onSelectTemplate,toast]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -321,10 +330,10 @@ export function useTemplateEditorCommands({
   const openTemplate = useCallback((template: TCGCardTemplate) => {
     if (!template.id) return;
     requestTemplateChange(() => {
-      acceptTemplate(template);
+      beginDraft(template);
       onSelectTemplate(template.id);
     });
-  }, [acceptTemplate, onSelectTemplate, requestTemplateChange]);
+  }, [beginDraft, onSelectTemplate, requestTemplateChange]);
 
   const cloneTemplate = useCallback(() => {
     const templateId = currentTemplate.id;

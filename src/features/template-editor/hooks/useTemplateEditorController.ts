@@ -60,12 +60,14 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     updater: TemplateUpdater,
     trackHistory = true,
     nextSelectedElementId?: string | null,
+    historyGroup?: string,
   ) => {
     setEditorState((previous) => commitTemplateEditorState(
       previous,
       updater,
       trackHistory,
       nextSelectedElementId,
+      historyGroup ? { key: historyGroup, at: Date.now() } : undefined,
     ));
   }, []);
 
@@ -76,9 +78,12 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
           ? (nextValue as TemplateUpdater)(previous.currentTemplate)
           : nextValue,
       );
+      if (JSON.stringify(currentTemplate) === JSON.stringify(previous.currentTemplate)) return previous;
       return reconcileTemplateEditorSelection({
         ...previous,
         currentTemplate,
+        future: [],
+        historyGroup: undefined,
       });
     });
   }, []);
@@ -96,6 +101,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     updates: Partial<FreeformCanvas>,
     trackHistory = true,
     nextSelectedElementId?: string | null,
+    historyGroup?: string,
   ) => {
     setEditorState((previous) => commitTemplateEditorState(
       previous,
@@ -111,6 +117,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
       },
       trackHistory,
       nextSelectedElementId,
+      historyGroup ? { key: historyGroup, at: Date.now() } : undefined,
     ));
   }, []);
 
@@ -118,17 +125,20 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     elementId: string,
     updates: Partial<FreeformCardElement>,
     trackHistory = true,
+    historyGroup?: string,
   ) => {
     updateCanvas({
       elements: canvas.elements.map((element) => (
         element.id === elementId ? { ...element, ...updates } : element
       )),
-    }, trackHistory);
+    }, trackHistory, undefined, historyGroup);
   }, [canvas.elements, updateCanvas]);
 
   const recordTemplateHistory = useCallback((template?: TCGCardTemplate) => {
     setEditorState((previous) => recordTemplateEditorHistory(previous, template ?? previous.currentTemplate));
   }, []);
+
+  const finishHistoryGroup = useCallback(() => setEditorState(previous => previous.historyGroup ? { ...previous, historyGroup: undefined } : previous), []);
 
   const undo = useCallback(() => {
     setEditorState(undoTemplateEditorState);
@@ -248,6 +258,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     checkedLayerIds,
     clearCheckedLayers,
     commitTemplate,
+    finishHistoryGroup,
     currentTemplate: editorState.currentTemplate,
     deleteSelected,
     duplicateSelected,

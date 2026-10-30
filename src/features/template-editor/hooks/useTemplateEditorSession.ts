@@ -86,6 +86,8 @@ export function useTemplateEditorSession({
   initialTemplateRef.current = initialTemplate;
 
   const controller = useTemplateEditorController(initialTemplate);
+  const workingRef=useRef(controller.currentTemplate);workingRef.current=controller.currentTemplate;
+  const templatesRef=useRef(templates);templatesRef.current=templates;
   const contributorFontFaceCss = useProjectBinaryAssetValue(createPipelineFontFaceCss(fontOptions));
 
   useEffect(() => {
@@ -97,10 +99,13 @@ export function useTemplateEditorSession({
     controller.resetTemplate(template);
   }, [controller]);
 
-  const acceptTemplate = useCallback((template: TCGCardTemplate) => {
-    setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(template)));
-    controller.resetTemplate(template);
-  }, [controller]);
+  const finishHistoryGroup=controller.finishHistoryGroup;
+  const acceptTemplate = useCallback((template: TCGCardTemplate,savedId=template.id) => {
+    if (workingRef.current.id!==template.id && workingRef.current.id!==savedId) return;
+    const saved = savedId!==template.id ? templatesRef.current.find(row=>row.id===savedId)??{...template,id:savedId} : template;
+    setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(saved)));
+    finishHistoryGroup();
+  }, [finishHistoryGroup]);
 
   return {
     acceptTemplate,

@@ -151,6 +151,7 @@ export function TextFieldSettingsList({
                   <div className="space-y-1">
                     <Label className="text-[10px] text-[#8f95a3]">Preview Default</Label>
                     <Input
+                      aria-label={`Preview default for ${field.label}`}
                       value={contract?.defaultValue || ''}
                       placeholder={field.defaultValue || 'No default'}
                       onChange={(event) => onUpdateContract(field.key, {
@@ -213,6 +214,7 @@ export function TextFieldSettingsList({
                         type="number"
                         min="6"
                         max="96"
+                        aria-label={`Font size for ${field.label}`}
                         value={contract?.fontSizePx ?? ''}
                         placeholder={`${textFontSizePx(element)}`}
                         onChange={(event) => onUpdateContract(field.key, {
