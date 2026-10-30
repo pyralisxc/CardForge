@@ -36,8 +36,10 @@ export async function OwnerPublicSiteControlsSlot({ currentPath }: { currentPath
   const publicationEnvironment = resolveOwnerPublicationEnvironment(process.env.VERCEL_ENV);
   let websiteReleaseEditor;
   if (currentPath === '/updates') {
-    try { websiteReleaseEditor = <OwnerWebsiteReleaseEditor initial={await getWebsiteReleaseRecords()} production={publicationEnvironment === 'production'} deployedSha={process.env.VERCEL_GIT_COMMIT_SHA??null}/>; }
-    catch { websiteReleaseEditor = <p role="status">Website update records are unavailable. Owner editing is paused; no empty release history was substituted. Reload when the records are available.</p>; }
+    const records = await getWebsiteReleaseRecords().catch(() => null);
+    websiteReleaseEditor = records
+      ? <OwnerWebsiteReleaseEditor initial={records} production={publicationEnvironment === 'production'} deployedSha={process.env.VERCEL_GIT_COMMIT_SHA??null}/>
+      : <p role="status">Website update records are unavailable. Owner editing is paused; no empty release history was substituted. Reload when the records are available.</p>;
   }
   return <PublicSiteOwnerLiveControls
     currentPath={currentPath}
