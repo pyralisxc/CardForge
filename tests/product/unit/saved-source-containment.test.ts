@@ -32,3 +32,26 @@ it.each(['font/woff2','application/x-font-opentype'])('allows canonical embedded
  expect(()=>assertContainedSource({imageSource:dataUrl})).toThrow(/source-contained/);
  expect(()=>assertContainedSource({dataUrl})).toThrow(/source-contained/);
 });
+
+it.each(['https://example.com/rules', 'url(print this)', 'C:\\rules\\cards', 'cardforge-pipeline-asset://'+'a'.repeat(64)])('preserves printable resource-looking text %s', text => {
+ const source=template({name:text,templateDescription:text,templatePreviewData:{portrait:pixel,website:text},freeformCanvas:{width:400,height:400,elements:[{id:'image',type:'image',name:'Artwork',imageSource:'portrait',x:0,y:0,width:100,height:100},{id:'text',type:'text',content:'{{website}}',x:0,y:100,width:100,height:100}]}});
+ expect(()=>assertContainedTemplate(source,{website:text})).not.toThrow();
+});
+it('validates effective resource substitutions and derived image overrides rather than all card prose',()=>{
+ const source=template({templatePreviewData:{portrait:pixel},cardBackgroundImageUrl:'{{background}}'});
+ expect(()=>assertContainedTemplate(source,{background:'/external.png'})).toThrow(/source-contained/);
+ expect(()=>assertContainedTemplate(source,{background:pixel})).not.toThrow();
+});
+it.each(['url(https://example.com/x)', 'image-set(url(/x.png) 1x)', 'var(--external)'])('refuses actual CSS resource indirection %s', backgroundImage=>{
+ expect(()=>assertContainedSource({appearance:{rawCss:{backgroundImage}}})).toThrow(/source-contained/);
+});
+
+it('refuses an actual image content fallback URL while preserving text content URLs',()=>{
+ const source=template({freeformCanvas:{width:400,height:400,elements:[{id:'i',name:'Artwork',type:'image',content:'https://example.com/image',x:0,y:0,width:100,height:100}]}});
+ expect(()=>assertContainedTemplate(source)).toThrow(/source-contained/);
+});
+
+it.each(['http-logo.png','https-logo.png','/mutable.png'])('denies canonical renderable content fallback %s',content=>{
+ const source=template({freeformCanvas:{width:400,height:400,elements:[{id:'i',name:'Artwork',type:'image',content,x:0,y:0,width:100,height:100}]}});
+ expect(()=>assertContainedTemplate(source)).toThrow(/source-contained/);
+});

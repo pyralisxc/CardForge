@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('server-only',()=>({}));
 const state=vi.hoisted(()=>({rows:{} as Record<string,Record<string,unknown>|null>,error:false,reads:0,after:null as null|(()=>void),download:vi.fn()}));
@@ -33,4 +34,31 @@ describe('exact Pipeline source visibility and identity',()=>{
   const second=await readExactPublishedSource(access,target);
   expect(second.sourceVersion).not.toBe(first.sourceVersion);expect(second.sourceIntegrity.kind).toBe('observed-source-bytes');
  });
+
+it('does not download or replace resource-looking printable text in a selected published payload',async()=>{
+ const label='cardforge-pipeline-asset://'+'a'.repeat(64);
+ state.rows[names.s]!.source_payload={...style,name:'https://example.com/style',updates:{content:label}};
+ const result=await readExactPublishedSource(access,target);
+ expect(result.content).toMatchObject({name:'https://example.com/style',updates:{content:label}});
+ expect(state.download).not.toHaveBeenCalled();
+});
+
+it('hydrates only a typed published image binding, not identical printable managed-URI text',async()=>{
+ const bytes=Buffer.from('immutable image specimen');const hash=createHash('sha256').update(bytes).digest('hex');const uri='cardforge-pipeline-asset://'+hash;
+ state.rows[names.s]={...state.rows[names.s],asset_type:'templates',source_payload:{id:'t',name:uri,aspectRatio:'1:1',templatePreviewData:{artworkUrl:uri,caption:uri,imageSource:'https://example.com/prose'},freeformCanvas:{width:100,height:100,elements:[{id:'i',name:'Art',type:'image',imageSource:'artworkUrl',x:0,y:0,width:100,height:100,zIndex:1}]}}};
+ state.download.mockResolvedValue({data:new Blob([bytes]),error:null});
+ const result=await readExactPublishedSource(access,target);
+ expect(result.content).toMatchObject({name:uri,templatePreviewData:{artworkUrl:'data:image/webp;base64,'+bytes.toString('base64'),caption:uri,imageSource:'https://example.com/prose'}});
+ expect(state.download).toHaveBeenCalledExactlyOnceWith('template-assets/'+hash+'.webp');
+});
+
+it('fails closed on shared printable/artwork managed data and ignores unused image content fallback bindings',async()=>{
+ const bytes=Buffer.from('immutable image specimen');const hash=createHash('sha256').update(bytes).digest('hex');const uri='cardforge-pipeline-asset://'+hash;
+ const template={id:'t',name:'Exact',aspectRatio:'1:1',templatePreviewData:{portrait:uri},freeformCanvas:{width:100,height:100,elements:[{id:'i',name:'Art',type:'image',imageSource:'portrait',x:0,y:0,width:100,height:100,zIndex:1},{id:'text',name:'Text',type:'text',content:'{{portrait}}',x:0,y:0,width:100,height:20,zIndex:2}]}};
+ state.rows[names.s]={...state.rows[names.s],asset_type:'templates',source_payload:template};
+ await expect(readExactPublishedSource(access,target)).rejects.toMatchObject({status:400});expect(state.download).not.toHaveBeenCalled();
+ template.freeformCanvas.elements[0].imageSource='data:image/png;base64,YQ==';template.freeformCanvas.elements[0].content='{{portrait}}';
+ const result=await readExactPublishedSource(access,target);expect(result.content).toMatchObject({templatePreviewData:{portrait:uri}});expect(state.download).not.toHaveBeenCalled();
+});
+
 });

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { expect, test } from '@playwright/test';
 const bundle=buildSync({entryPoints:['tests/product/fixtures/savedSourcePreview.tsx'],bundle:true,platform:'browser',format:'iife',write:false,outfile:join(tmpdir(),'saved-source-preview.js'),define:{'process.env.NODE_ENV':'"production"','process.env':'{}'}});
-const template={id:'exact-template',name:'Exact synthetic saved source',templateSource:'user',aspectRatio:'1:1',freeformCanvas:{width:400,height:400,elements:[{id:'shape',type:'shape',name:'Exact panel',fillColor:'#102040',backgroundColor:'#102040',rotation:0,opacity:1,zIndex:1,shapeKind:'rectangle',x:0,y:0,width:400,height:400,appearance:{material:{baseColor:'#102040'}}}]}};
+const template={id:'exact-template',name:'Exact synthetic saved source',templateSource:'user',aspectRatio:'1:1',freeformCanvas:{width:400,height:400,elements:[{id:'shape',type:'shape',name:'Exact panel',fillColor:'#102040',backgroundColor:'#102040',rotation:0,opacity:1,zIndex:1,shapeKind:'rectangle',x:0,y:0,width:400,height:400,appearance:{material:{baseColor:'#102040'}}},{id:'printable',type:'text',name:'Printable source text',content:'https://example.com/rules C:\\cards',textColor:'#ffffff',fontSizePx:14,fontFamily:'font-sans',x:12,y:12,width:376,height:42,zIndex:2}]}};
 for(const width of [390,1440]) test(`@golden exact source renders branded and clean native PNGs at ${width}px`,async({page},info)=>{
  test.setTimeout(90_000); await page.setViewportSize({width,height:800});
  let branded=true; const errors:string[]=[];

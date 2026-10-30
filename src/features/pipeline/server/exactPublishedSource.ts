@@ -1,4 +1,6 @@
 import 'server-only';
+import { getImageFieldKeyForElement, TEMPLATE_PLACEHOLDER_REGEX } from '@/domain/rendering';
+import { isRenderResourceField } from '@/domain/templates/sourceResourceFields';
 import { createHash } from 'node:crypto';
 import type { AccountToolAccess } from '@/features/account/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
@@ -57,9 +59,10 @@ export async function readExactPublishedSource(access: AccountToolAccess, target
     if (!bytes.length || totalBytes > 50 * 1024 * 1024) throw new PipelineRegistryCommandError('Exact source exceeds the native inspection budget.', 413);
     return { bytes, mimeType: data.type };
   };
-  const hydrate = async (value: unknown, depth = 0): Promise<unknown> => {
+  const hydrate = async (value: unknown, depth = 0, key = '', resourceData = new Set<string>(), inData = false, parentType = ''): Promise<unknown> => {
     if (depth > 80) throw new PipelineRegistryCommandError('Source nesting exceeds the native inspection budget.', 413);
     if (typeof value === 'string') {
+      if (!(inData ? resourceData.has(key) : isRenderResourceField(key)) && !(parentType === 'image' && ['defaultValue','content'].includes(key))) return value;
       const hash = /^cardforge-pipeline-asset:\/\/([a-f0-9]{64})$/u.exec(value)?.[1];
       if (hash) {
         if (!downloads.has(value)) {
@@ -72,8 +75,8 @@ export async function readExactPublishedSource(access: AccountToolAccess, target
       if (/^(?:https?:|blob:|cardforge-)/iu.test(value)) throw new PipelineRegistryCommandError('This exact specimen has an external or unsupported dependency. Open the native revision to inspect it.', 400);
       return value;
     }
-    if (Array.isArray(value)) return Promise.all(value.map(v => hydrate(v, depth + 1)));
-    if (value && typeof value === 'object') return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([k,v]) => [k, await hydrate(v, depth + 1)])));
+    if (Array.isArray(value)) return Promise.all(value.map(v => hydrate(v, depth + 1, key, resourceData, inData, parentType)));
+    if (value && typeof value === 'object') return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([k,v]) => [k, await hydrate(v, depth + 1, k, resourceData, ['templatePreviewData','data','backingData'].includes(key), String(k === 'content' && (value as Record<string,unknown>).imageSource ? '' : (value as Record<string,unknown>).type ?? ''))])));
     return value;
   };
   let content: unknown = s.source_payload;
@@ -86,7 +89,32 @@ export async function readExactPublishedSource(access: AccountToolAccess, target
     if (s.asset_type === 'templates' ? !isRepositoryTemplate(content) : !isRepositoryStyle(content)) {
       throw new PipelineRegistryCommandError('Exact authored source is unavailable; no newer catalog payload was substituted.', 400);
     }
-    content = await hydrate(content);
+    const resourceData = new Set<string>();
+    if (isRepositoryTemplate(content)) {
+      for (const field of content.fieldContracts ?? []) if (field.type === 'image') resourceData.add(field.key);
+      for (const element of content.freeformCanvas?.elements ?? []) if (element.type === 'image') {
+        resourceData.add(getImageFieldKeyForElement(element));
+        if (element.imageSource) resourceData.add(element.imageSource);
+      }
+    }
+    const collectBindings = (value: unknown, key = '', parentType = '', depth = 0): void => {
+      if (depth > 80) throw new PipelineRegistryCommandError('Source nesting exceeds the native inspection budget.', 413);
+      if (typeof value === 'string' && (isRenderResourceField(key) || parentType === 'image' && ['defaultValue','content'].includes(key))) {
+        for (const match of value.matchAll(new RegExp(TEMPLATE_PLACEHOLDER_REGEX))) resourceData.add(match[1]);
+      } else if (Array.isArray(value)) value.forEach(v => collectBindings(v,key,parentType,depth+1));
+      else if (value && typeof value === 'object') Object.entries(value).filter(([k]) => !['templatePreviewData','data','backingData'].includes(k)).forEach(([k,v]) => collectBindings(v,k,String(k === 'content' && (value as Record<string,unknown>).imageSource ? '' : (value as Record<string,unknown>).type ?? ''),depth+1));
+    };
+    collectBindings(content);
+    if (isRepositoryTemplate(content)) {
+      const data = { ...content.templatePreviewData };
+      for (const field of content.fieldContracts ?? []) if (data[field.key] === undefined && field.defaultValue !== undefined) data[field.key] = field.defaultValue;
+      for (const element of content.freeformCanvas?.elements ?? []) if (element.type === 'text') {
+        for (const match of (element.content || '').matchAll(new RegExp(TEMPLATE_PLACEHOLDER_REGEX))) {
+          if (resourceData.has(match[1]) && typeof data[match[1]] === 'string' && String(data[match[1]]).startsWith('cardforge-pipeline-asset://')) throw new PipelineRegistryCommandError('This exact source shares a managed artwork binding with printable text. No text or artwork was substituted.',400);
+        }
+      }
+    }
+    content = await hydrate(content, 0, '', resourceData);
   } else {
     if (!s.source_storage_bucket || !s.source_storage_path) throw new PipelineRegistryCommandError('This revision lacks an exact managed source tuple.', 400);
     const result = await download(s.source_storage_bucket, s.source_storage_path); bytes = result.bytes; mimeType ||= result.mimeType;

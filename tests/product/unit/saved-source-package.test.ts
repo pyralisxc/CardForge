@@ -24,3 +24,19 @@ it('inspects selected native packaged cards without changing portable bytes or e
 it('refuses non-Owner pending source before calling the exact candidate reader',async()=>{
  await expect(readSavedSourcePreview(access,{kind:'pipeline-candidate',identity:{}})).rejects.toMatchObject({status:403});expect(mocks.candidate).not.toHaveBeenCalled();
 });
+
+it('renders selected package metadata and text as prose while retaining actual artwork containment',async()=>{
+ const prose='https://example.com/rules C:\\cards\\rules';
+ const doc=structuredClone(document);doc.cardSets[0].name=prose;doc.storedCards[0].setName=prose;doc.storedCards[0].data.website=prose;
+ doc.userTemplates[0].name=prose;doc.userTemplates[0].templatePreviewData={website:prose};
+ const snapshot=await buildCardForgeProjectSnapshot({document:doc,name:'Printable',savedAt:'2026-10-30T00:00:00Z'});
+ const bytes=await encodeCardForgeProjectPackage(snapshot);
+ mocks.published.mockResolvedValue({assetType:'sets',bytes:Buffer.from(bytes),identity:{submissionId:source.submissionId},sourceVersion:'a'.repeat(64),title:'Saved'});
+ const result=await readSavedSourcePreview(access,{...source,setId:'s',cardIds:['c']});
+ expect(result.content.kind).toBe('cards');
+ if(result.content.kind==='cards')expect(result.content.document.storedCards[0].data.website).toBe(prose);
+ doc.userTemplates[0].freeformCanvas!.elements[0].imageSource='/external.png';
+ const unsafe=await encodeCardForgeProjectPackage(await buildCardForgeProjectSnapshot({document:doc,name:'Unsafe',savedAt:'2026-10-30T00:00:00Z'}));
+ mocks.published.mockResolvedValue({assetType:'sets',bytes:Buffer.from(unsafe),identity:{submissionId:source.submissionId},sourceVersion:'b'.repeat(64),title:'Unsafe'});
+ await expect(readSavedSourcePreview(access,{...source,setId:'s',cardIds:['c']})).rejects.toMatchObject({status:400});
+});
