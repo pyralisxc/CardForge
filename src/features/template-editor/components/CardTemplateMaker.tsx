@@ -1,5 +1,7 @@
 "use client";
 
+import type { TemplateSaveReceipt } from '@/features/template-editor/lib/templateSaveReceipt';
+
 import { managedRasterSlotIssue, type ManagedRasterSelection } from '@/features/pipeline/client';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import Link from 'next/link';
@@ -47,7 +49,7 @@ import { TemplatePipelineAttemptRecovery } from './TemplatePipelineAttemptRecove
 interface CardTemplateMakerProps {
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
-  onSaveTemplate: (template: TCGCardTemplate) => Promise<string>;
+  onSaveTemplate: (template: TCGCardTemplate) => Promise<TemplateSaveReceipt>;
   onSubmitTemplateRevision: (template: TCGCardTemplate, selection?: ManagedRasterSelection) => Promise<void>;
   onPrepareTemplateReview?: (template: TCGCardTemplate, isStillCurrent: () => boolean) => Promise<TCGCardTemplate>;
   onSubmitTemplateReview?: (template: TCGCardTemplate) => Promise<void>;

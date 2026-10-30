@@ -99,7 +99,10 @@ interface VariableMenuState {
 interface CardForgeRichTextEditorProps {
   id?: string;
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, mode?: 'typing'|'discrete') => void;
+  externalHistory?: { undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean; finishGroup: () => void };
+  onVariableCreated?: (key: string, text: string, content: string) => void;
+  onVariableRemoved?: (key: string, content: string) => void;
   className?: string;
   editorClassName?: string;
   highlightColor: string;
@@ -120,6 +123,9 @@ export function CardForgeRichTextEditor({
   id,
   value,
   onChange,
+  externalHistory,
+  onVariableCreated,
+  onVariableRemoved,
   className,
   editorClassName,
   highlightColor,
@@ -146,6 +152,7 @@ export function CardForgeRichTextEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({
+        undoRedo: externalHistory ? false : undefined,
         heading: false,
         blockquote: false,
         code: false,
@@ -170,6 +177,14 @@ export function CardForgeRichTextEditor({
         'data-placeholder': placeholder || '',
       },
       handleDOMEvents: {
+        keydown: (_view,event) => {
+          if (!externalHistory || event.altKey || !(event.ctrlKey || event.metaKey)) return false;
+          const key=event.key.toLowerCase();
+          if (key !== 'z' && key !== 'y') return false;
+          event.preventDefault();
+          if (key === 'y' || event.shiftKey) externalHistory.redo(); else externalHistory.undo();
+          return true;
+        },
         contextmenu: (_view, event) => {
           const target = event.target as HTMLElement | null;
           const variableElement = target?.closest?.('[data-cardforge-variable-key]') as HTMLElement | null;
@@ -202,7 +217,7 @@ export function CardForgeRichTextEditor({
             const content = selectedText
               ? _view.state.schema.text(selectedText)
               : _view.state.schema.text(key);
-            _view.dispatch(_view.state.tr.replaceSelectionWith(variableNode.create({ key }, content), false));
+            _view.dispatch(_view.state.tr.replaceSelectionWith(variableNode.create({ key }, content), false).setMeta('cardforge-variable-create',{key,text:selectedText || 'Variable'}));
             event.preventDefault();
             onActiveVariableChange?.(key);
             return true;
@@ -218,10 +233,16 @@ export function CardForgeRichTextEditor({
         },
       },
     },
-    onUpdate: ({ editor }) => {
-      onChange(tiptapDocToTemplateText(editor.getJSON()));
+    onUpdate: ({ editor, transaction }) => {
+      const content=tiptapDocToTemplateText(editor.getJSON());
+      const created=transaction.getMeta('cardforge-variable-create') as {key:string;text:string}|undefined;
+      const removed=transaction.getMeta('cardforge-variable-remove') as string|undefined;
+      if (created && onVariableCreated) onVariableCreated(created.key,created.text,content);
+      else if (removed && onVariableRemoved) onVariableRemoved(removed,content);
+      else onChange(content, !transaction.getMeta('uiEvent') && transaction.steps.every(step=>step.toJSON().stepType==='replace') ? 'typing':'discrete');
     },
-    onSelectionUpdate: ({ editor }) => {
+    onSelectionUpdate: ({ editor, transaction }) => {
+      if (!transaction.docChanged) externalHistory?.finishGroup();
       const { $from } = editor.state.selection;
       let currentKey: string | null = null;
       for (let depth = $from.depth; depth >= 0; depth--) {
@@ -290,6 +311,7 @@ export function CardForgeRichTextEditor({
       .chain()
       .focus()
       .deleteSelection()
+      .setMeta('cardforge-variable-create',{key,text:selectedText || 'Variable'})
       .insertContent({
         type: 'cardForgeVariable',
         attrs: { key },
@@ -333,10 +355,10 @@ export function CardForgeRichTextEditor({
       return true;
     });
     if (removed) {
-      editor.view.dispatch(transaction);
-      onRemoveVariable?.(key);
+      editor.view.dispatch(transaction.setMeta('cardforge-variable-remove',key));
+      if (!onVariableRemoved) onRemoveVariable?.(key);
     }
-  }, [editor, onRemoveVariable]);
+  }, [editor, onRemoveVariable, onVariableRemoved]);
 
   const clearVariableStyling = useCallback((key: string) => {
     if (!editor) return;
@@ -436,10 +458,10 @@ export function CardForgeRichTextEditor({
           </>
         )}
         <div className="h-4 w-px bg-[#2d3340]" />
-        <button type="button" className={btn} aria-label="Undo" title="Undo" onClick={() => editor?.chain().focus().undo().run()}>
+        <button type="button" className={btn} aria-label="Undo" title="Undo" disabled={externalHistory ? !externalHistory.canUndo : false} onClick={() => externalHistory ? externalHistory.undo() : editor?.chain().focus().undo().run()}>
           <Undo2 className="h-3.5 w-3.5" />
         </button>
-        <button type="button" className={btn} aria-label="Redo" title="Redo" onClick={() => editor?.chain().focus().redo().run()}>
+        <button type="button" className={btn} aria-label="Redo" title="Redo" disabled={externalHistory ? !externalHistory.canRedo : false} onClick={() => externalHistory ? externalHistory.redo() : editor?.chain().focus().redo().run()}>
           <Redo2 className="h-3.5 w-3.5" />
         </button>
         {activeVariableKey && (

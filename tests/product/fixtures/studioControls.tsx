@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { prepareTemplateForLibrarySave } from '@/features/template-editor/client';
 import { CardTemplateMaker } from '@/features/template-editor/components/CardTemplateMaker';
+import { initializeCardDataFromTemplate } from '@/features/card-generator/client';
 import { renderCardToPngBlob } from '@/features/card-generator/lib/cardPreviewExport';
 import { CardPreview } from '@/features/card-rendering/client';
 import { Toaster } from '@/components/ui/toaster';
@@ -8,9 +10,13 @@ import { getFreshDefaultTemplateObject, type FreeformCardElement, type TCGCardTe
 const noop = () => {};
 const initial: TCGCardTemplate = { id:'synthetic-local',name:'Synthetic authoring',aspectRatio:'63:88',templateSource:'user',freeformCanvas:{width:630,height:880,elements:[]} };
 if(new URLSearchParams(location.search).has('contract')) initial.fieldContracts=[{key:'existingArtwork',type:'image'}];
+if(new URLSearchParams(location.search).has('historyContracts')) { initial.freeformCanvas!.elements=[{id:'neighbor',type:'text',name:'Untouched neighbor',content:'{{untouched:"Keep neighbor"}}',x:20,y:20,width:150,height:40,zIndex:1}];initial.fieldContracts=[{key:'untouched',elementId:'neighbor',type:'text',defaultValue:'Keep neighbor'}]; }
 function Fixture() {
   const [templates, setTemplates] = useState<TCGCardTemplate[]>(() => [JSON.parse(localStorage.getItem('synthetic-saved-template') ?? 'null') ?? initial]);
+  const [selectedId,setSelectedId]=useState(initial.id);
   const [showEditor,setShowEditor] = useState(true);
+  const [dirty,setDirty]=useState(false);
+  const [finishSave,setFinishSave]=useState<null|(()=>void)>(null);
   const [saved,setSaved] = useState(''); const [exported,setExported]=useState('');
   const file = useRef<HTMLInputElement>(null!);
   const [showProofs,setShowProofs]=useState(true);
@@ -45,11 +51,13 @@ function Fixture() {
     }
     setProofs(images);
   };
-  return <><button onClick={()=>setShowProofs(false)}>Close output proofs</button><button onClick={renderRounded}>Render rounded proof</button>{rounded.map((src,i)=><img style={{display:showProofs?undefined:'none'}} key={i} alt={`Rounded proof ${[100,25,0][i]}`} src={src}/>)}<button onClick={renderStrokes}>Render stroke proof</button>{strokes.map(p=><img style={{display:showProofs?undefined:'none'}} key={p.name} alt={`Stroke proof ${p.name}`} src={p.src}/>)}<button onClick={renderStrengths}>Render strength proof</button>{proofs.map((src,i)=><img style={{display:showProofs?undefined:'none'}} key={i} alt={`Strength proof ${[100,25,0][i]}`} src={src}/>)}<button onClick={async()=>{ const template=JSON.parse(localStorage.getItem('synthetic-saved-template')!); const blob=await renderCardToPngBlob({template,data:{},uniqueId:'studio-export'},'virtual',72); setImage(URL.createObjectURL(blob)); }}>Render saved PNG</button>{image && <img alt="Saved Studio PNG" src={image}/>}<div data-testid="saved-preview">{saved && <CardPreview card={{template:JSON.parse(saved),data:{},uniqueId:'saved-preview'}} targetWidthPx={630}/>}</div><button onClick={()=>setShowEditor(value=>!value)}>{showEditor?'Hide editor':'Show editor'}</button><button onClick={()=>setExported(localStorage.getItem('synthetic-saved-template') ?? JSON.stringify(templates))}>Export local proof</button><output hidden data-testid="saved">{saved}</output><output hidden data-testid="exported">{exported}</output>
+  return <><button onClick={()=>setShowProofs(false)}>Close output proofs</button><button onClick={renderRounded}>Render rounded proof</button>{rounded.map((src,i)=><img style={{display:showProofs?undefined:'none'}} key={i} alt={`Rounded proof ${[100,25,0][i]}`} src={src}/>)}<button onClick={renderStrokes}>Render stroke proof</button>{strokes.map(p=><img style={{display:showProofs?undefined:'none'}} key={p.name} alt={`Stroke proof ${p.name}`} src={p.src}/>)}<button onClick={renderStrengths}>Render strength proof</button>{proofs.map((src,i)=><img style={{display:showProofs?undefined:'none'}} key={i} alt={`Strength proof ${[100,25,0][i]}`} src={src}/>)}<button onClick={async()=>{ const template=JSON.parse(localStorage.getItem('synthetic-saved-template')!); const blob=await renderCardToPngBlob({template,data:initializeCardDataFromTemplate(template,template.templatePreviewData??{})[1],uniqueId:'studio-export'},'virtual',72); setImage(URL.createObjectURL(blob)); }}>Render saved PNG</button>{image && <img alt="Saved Studio PNG" src={image}/>}<div data-testid="saved-preview">{saved && <CardPreview card={{template:JSON.parse(saved),data:initializeCardDataFromTemplate(JSON.parse(saved),JSON.parse(saved).templatePreviewData??{})[1],uniqueId:'saved-preview'}} targetWidthPx={630}/>}</div><button onClick={()=>setShowEditor(value=>!value)}>{showEditor?'Hide editor':'Show editor'}</button><button onClick={()=>setExported(localStorage.getItem('synthetic-saved-template') ?? JSON.stringify(templates))}>Export local proof</button><output hidden data-testid="saved">{saved}</output><output hidden data-testid="exported">{exported}</output>
+    <output data-testid="working-dirty">{dirty?'dirty':'saved'}</output>{finishSave?<><button onClick={()=>{finishSave();setFinishSave(null);}}>Finish local Save</button><button onClick={()=>{const other:TCGCardTemplate={...initial,id:'other-template',name:'Other local Template',freeformCanvas:{width:630,height:880,elements:[{id:'other-text',type:'text',name:'Other text',content:'Other document',x:10,y:10,width:200,height:80,zIndex:1}]}};setTemplates(current=>[...current.filter(row=>row.id!==other.id),other]);setSelectedId(other.id);}}>Switch local Template during Save</button></>:null}
     {showEditor && <CardTemplateMaker templates={templates} defaultTemplates={[]} backFaceTemplates={[]} userTemplates={templates}
-      selectedTemplateIdForEditing={initial.id!} onSelectTemplateForEditing={noop} canUseProjectFiles canSubmitSharedTemplateRevision canPublishSharedLibrary={false}
+      selectedTemplateIdForEditing={selectedId} onSelectTemplateForEditing={setSelectedId} canUseProjectFiles canSubmitSharedTemplateRevision canPublishSharedLibrary={false}
       showCardWatermark={false} canUploadCustomAssets={false} isActive isCheckoutStarting={false} fileInputRef={file}
-      onSaveTemplate={async t=>{setTemplates([t]);setSaved(JSON.stringify(t));localStorage.setItem('synthetic-saved-template',JSON.stringify(t));return t.id!;}}
+      onDirtyChange={setDirty}
+      onSaveTemplate={async t=>{const params=new URLSearchParams(location.search);if(params.has('rejectSave'))throw new Error('Synthetic local persistence refusal');if(params.has('delayedSave'))await new Promise<void>(resolve=>setFinishSave(()=>resolve));const prepared=params.has('normalizedSave')?prepareTemplateForLibrarySave(t,true,()=> 'saved-revision',templates.find(row=>row.id===t.id)):t;const snapshot={...prepared,id:params.has('forkSave')?'synthetic-fork':t.id!};setTemplates(current=>[...current.filter(row=>row.id!==snapshot.id),snapshot]);setSaved(JSON.stringify(snapshot));localStorage.setItem('synthetic-saved-template',JSON.stringify(snapshot));if(params.has('forkSave'))setSelectedId(snapshot.id);if(params.has('postCommitDelay'))await new Promise<void>(resolve=>setFinishSave(()=>resolve));return {id:snapshot.id!,template:snapshot};}}
       
       onSubmitTemplateRevision={async()=>{throw new Error('Submission forbidden in local proof');}} onContinueNewTemplateInPipeline={async()=>{throw new Error('Submission forbidden in local proof');}}
       onDeleteTemplate={noop} onCloneTemplate={()=>null} onExportProject={noop} onImportProject={noop} onLoadProject={noop}

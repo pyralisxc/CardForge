@@ -90,3 +90,105 @@ for(const width of [390,1440]) test(`@golden Studio controls preserve selected g
   await info.attach('reopened-output',{body:await page.getByAltText('Saved Studio PNG').screenshot(),contentType:'image/png'});
   expect(unexpected).toEqual([]);
 });
+
+async function mountHistoryProof(page:import('@playwright/test').Page,query='') {
+ await page.route('**/*',route=>{const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0"></body></html>'});
+  if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname==='/api/templates/submissions')return route.fulfill({json:{contributorId:'synthetic-actor'}});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  return route.abort();
+ });
+ await page.goto('/__studio-history'+query);await page.addStyleTag({content:(await css).css});for(const file of bundle.outputFiles.filter(f=>f.path.endsWith('.css')))await page.addStyleTag({content:file.text});await page.addScriptTag({content:bundle.outputFiles.find(f=>f.path.endsWith('.js'))!.text});
+ if(page.viewportSize()!.width<1024)await page.getByRole('button',{name:'Open editor menu',exact:true}).click();
+ await page.getByRole('button',{name:'Elements',exact:true}).click();await page.getByRole('button',{name:'Text',exact:true}).and(page.locator('[draggable="true"]')).click();
+ if(page.viewportSize()!.width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
+}
+for(const width of [390,1440])test(`@golden Template variable transactions and Save share one undo history at ${width}px`,async({page},info)=>{
+ test.setTimeout(90000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1');
+ const undo=()=>page.getByRole('button',{name:'Undo',exact:true})[width<1024?'last':'first']();const redo=()=>page.getByRole('button',{name:'Redo',exact:true})[width<1024?'last':'first']();
+ const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Field fallback');await editor.press('ControlOrMeta+A');
+ await page.getByRole('button',{name:'Make variable',exact:true}).click();
+ const variable=page.getByRole('textbox',{name:/Variable name for/});await expect(variable).toHaveCount(1);
+ await undo().click();await expect(variable).toHaveCount(0);await expect(editor).toHaveText('Field fallback');
+ await redo().click();await expect(variable).toHaveCount(1);
+ await editor.focus();await editor.press('ControlOrMeta+z');await expect(variable).toHaveCount(0);await editor.press('ControlOrMeta+Shift+z');await expect(variable).toHaveCount(1);
+ await variable.fill('title');await variable.press('Enter');await expect(variable).toHaveValue('title');
+ await page.getByRole('button',{name:'Undo',exact:true}).last().click();await expect(variable).not.toHaveValue('title');await expect(editor).toHaveText('Field fallback');
+ await page.getByRole('button',{name:'Redo',exact:true}).last().click();await expect(variable).toHaveValue('title');
+ const size=page.getByLabel(/^Font size for /);await size.fill('48');await undo().click();await expect(size).toHaveValue('');await redo().click();await expect(size).toHaveValue('48');
+ const italic=page.getByRole('switch',{name:/Italic text for/});await italic.click();await undo().click();await expect(italic).not.toBeChecked();await redo().click();await expect(italic).toBeChecked();
+ const defaultValue=page.getByLabel(/^Preview default for /);await defaultValue.fill('Revised fallback');
+ if(width<1024)await page.getByRole('button',{name:'Close inspector',exact:true}).click();
+ await page.getByRole('button',{name:width<1024?'Save Template in this browser':'Save',exact:true}).click();await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved.fieldContracts.find((field:{key:string})=>field.key==='untouched')).toMatchObject({elementId:'neighbor',defaultValue:'Keep neighbor'});expect(saved.freeformCanvas.elements.find((element:{id:string})=>element.id==='neighbor').content).toBe('{{untouched:"Keep neighbor"}}');expect(saved.freeformCanvas.elements.find((element:{id:string})=>element.id!=='neighbor').content).toContain('{{title:');expect(saved.fieldContracts.find((field:{key:string})=>field.key==='title')).toMatchObject({defaultValue:'Revised fallback',fontSizePx:48,fontStyle:'italic'});
+ await undo().click();await expect(defaultValue).toHaveValue('Field fallback');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+ await redo().click();await expect(defaultValue).toHaveValue('Revised fallback');await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ await undo().click();await defaultValue.fill('Different fallback');await expect(redo()).toBeDisabled();
+ await page.screenshot({path:info.outputPath('field-history.png')});await info.attach('Native field history',{path:info.outputPath('field-history.png'),contentType:'image/png'});
+ if(width===1440){
+  await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+  const stored=JSON.parse(await page.getByTestId('saved').textContent()||'{}');const targetId=stored.freeformCanvas.elements.find((element:{id:string})=>element.id!=='neighbor').id;
+  await page.reload();await page.addStyleTag({content:(await css).css});for(const file of bundle.outputFiles.filter(f=>f.path.endsWith('.css')))await page.addStyleTag({content:file.text});await page.addScriptTag({content:bundle.outputFiles.find(f=>f.path.endsWith('.js'))!.text});
+  await page.locator(`[data-cardforge-editor-overlay="true"][data-freeform-element-id="${targetId}"]`).click();
+  await expect(page.getByLabel(/^Preview default for /)).toHaveValue('Different fallback');await expect(page.getByLabel(/^Font size for /)).toHaveValue('48');await expect(page.getByRole('switch',{name:/Italic text for/})).toBeChecked();
+  await page.getByRole('button',{name:'Render saved PNG',exact:true}).click();await expect(page.getByAltText('Saved Studio PNG')).toBeVisible();
+  await page.getByAltText('Saved Studio PNG').screenshot({path:info.outputPath('reloaded-field-output.png')});await info.attach('Reloaded field output',{path:info.outputPath('reloaded-field-output.png'),contentType:'image/png'});
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('synthetic-saved-template')!))).toEqual(stored);
+ }
+});
+test('@golden edits made while local Save is pending survive its earlier snapshot acknowledgment',async({page})=>{
+ await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?delayedSave=1');
+ const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Saved snapshot');await page.getByRole('button',{name:'Save',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();await editor.fill('Newer unsaved text');await page.getByRole('button',{name:'Finish local Save'}).click();
+ await expect(editor).toHaveText('Newer unsaved text');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved.freeformCanvas.elements.find((element:{type:string})=>element.type==='text').content).toBe('Saved snapshot');
+});
+
+test('@golden a saved fork adopts its returned identity without overwriting edits made after commit',async({page})=>{
+ await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?forkSave=1&postCommitDelay=1');
+ const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Saved fork snapshot');await page.getByRole('button',{name:'Save',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();await expect(editor).toHaveText('Saved fork snapshot');await editor.fill('Newer fork draft');
+ await page.getByRole('button',{name:'Finish local Save'}).click();await expect(editor).toHaveText('Newer fork draft');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved.id).toBe('synthetic-fork');expect(saved.freeformCanvas.elements.find((element:{type:string})=>element.type==='text').content).toBe('Saved fork snapshot');
+});
+
+test('@golden structured-row creation and multi-field mode changes are atomic Template history operations',async({page})=>{
+ await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page);const editor=page.locator('.tiptap[contenteditable="true"]');
+ await editor.fill('Rule');await editor.press('ControlOrMeta+A');await page.getByRole('button',{name:'Make variable',exact:true}).click();
+ await page.getByRole('radio',{name:/Repeating Text/}).click();await page.getByRole('button',{name:'Add Label + Value',exact:true}).click();
+ await expect(page.getByRole('textbox',{name:/Variable name for/})).toHaveCount(3);await page.getByRole('button',{name:'Undo',exact:true}).first().click();await expect(page.getByRole('textbox',{name:/Variable name for/})).toHaveCount(1);
+ await page.getByRole('button',{name:'Redo',exact:true}).first().click();await expect(page.getByRole('textbox',{name:/Variable name for/})).toHaveCount(3);
+ await page.getByRole('radio',{name:/^Text One editable/}).click();await page.getByRole('button',{name:'Save',exact:true}).click();
+ const text=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(text.fieldContracts).toHaveLength(3);expect(text.fieldContracts.every((field:{type:string})=>field.type==='text')).toBe(true);
+ await page.getByRole('button',{name:'Undo',exact:true}).first().click();await page.getByRole('button',{name:'Save',exact:true}).click();
+ const rows=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(rows.fieldContracts).toHaveLength(3);expect(rows.fieldContracts.every((field:{type:string})=>field.type==='structuredRows')).toBe(true);
+});
+
+test('@golden a stale Save acknowledgment cannot retarget a different current Template',async({page})=>{
+ await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?delayedSave=1');const editor=page.locator('.tiptap[contenteditable="true"]');
+ await editor.fill('Earlier snapshot');await page.getByRole('button',{name:'Save',exact:true}).click();await page.getByRole('button',{name:'Switch local Template during Save'}).click();await expect(editor).toHaveText('Other document');
+ await page.getByRole('button',{name:'Finish local Save'}).click();await expect(editor).toHaveText('Other document');await expect(page.getByTestId('working-dirty')).toHaveText('saved');await expect(page.getByRole('button',{name:'Undo',exact:true}).first()).toBeDisabled();
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved.freeformCanvas.elements.find((element:{type:string})=>element.type==='text').content).toBe('Earlier snapshot');
+});
+test('@golden a rejected local Save retains authored work and its undo history',async({page})=>{
+ await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?rejectSave=1');const editor=page.locator('.tiptap[contenteditable="true"]');
+ await editor.fill('Unsaved edits');await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByText('Template not saved',{exact:true})).toBeVisible();await expect(editor).toHaveText('Unsaved edits');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+ await page.getByRole('button',{name:'Undo',exact:true}).first().click();await expect(editor).not.toHaveText('Unsaved edits');expect(await page.getByTestId('saved').textContent()).toBe('');
+});
+
+for (const delayed of [false,true]) test(`@golden same-ID normalized Save keeps canonical revision metadata and authored history${delayed?' across delayed acknowledgment':''}`,async({page})=>{
+ await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?historyContracts=1&normalizedSave=1'+(delayed?'&postCommitDelay=1':''));
+ const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Captured authored snapshot');
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ if(delayed){await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();await editor.fill('Later authored text');await page.getByRole('button',{name:'Finish local Save'}).click();await expect(editor).toHaveText('Later authored text');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');await page.getByRole('button',{name:'Undo',exact:true}).first().click();}
+ await expect(editor).toHaveText('Captured authored snapshot');await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ const first=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(first).toMatchObject({id:'synthetic-local',templateSource:'user',templateLibrarySource:'personal',templateRegistryStatus:'localOnly'});expect(first.templateRevisionId).toBeTruthy();expect(first.templateRevision).toBeGreaterThan(0);
+ // Selection and authored history survive; redo returns to the authoritative saved baseline.
+ await page.getByRole('button',{name:'Undo',exact:true}).first().click();await expect(editor).not.toHaveText('Captured authored snapshot');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+ await page.getByRole('button',{name:'Redo',exact:true}).first().click();await expect(editor).toHaveText('Captured authored snapshot');await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ await editor.fill('Next authored snapshot');await page.getByRole('button',{name:'Save',exact:true}).click();if(delayed)await page.getByRole('button',{name:'Finish local Save'}).click();await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ const second=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(second.templateParentRevisionId).toBe(first.templateRevisionId);expect(second.templateRevision).toBe(first.templateRevision+1);expect(second.freeformCanvas.elements.find((e:{id:string})=>e.id==='neighbor').content).toBe(first.freeformCanvas.elements.find((e:{id:string})=>e.id==='neighbor').content);
+});

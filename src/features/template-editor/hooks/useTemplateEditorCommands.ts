@@ -1,5 +1,7 @@
 "use client";
 
+import type { TemplateSaveReceipt } from '@/features/template-editor/lib/templateSaveReceipt';
+
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
@@ -39,14 +41,14 @@ import { trackCardForgeEvent } from '@/features/analytics/client';
 import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
 
 interface UseTemplateEditorCommandsInput {
-  acceptTemplate: (template: TCGCardTemplate) => void;
+  acceptTemplate: (submitted: TCGCardTemplate, saved: TCGCardTemplate) => void;
   beginDraft: (template: TCGCardTemplate) => void;
   controller: TemplateEditorController;
   deleteSelected: () => void;
   duplicateSelected: () => void;
   isActive: boolean;
   onCloneTemplate: (templateId: string) => string | null;
-  onSaveTemplate: (template: TCGCardTemplate) => Promise<string>;
+  onSaveTemplate: (template: TCGCardTemplate) => Promise<TemplateSaveReceipt>;
   onSelectTemplate: (templateId: string | null) => void;
   setAutoFitCanvas: Dispatch<SetStateAction<boolean>>;
   setPreviewMode: Dispatch<SetStateAction<boolean>>;
@@ -88,6 +90,7 @@ export function useTemplateEditorCommands({
   const backgroundImageInputRef = useRef<HTMLInputElement | null>(null);
   const borderImageInputRef = useRef<HTMLInputElement | null>(null);
   const saveInFlightRef = useRef(false);
+  const workingRef=useRef(currentTemplate);workingRef.current=currentTemplate;
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [customWidthValue, setCustomWidthValue] = useState('');
@@ -163,15 +166,28 @@ export function useTemplateEditorCommands({
       });
       return false;
     }
+    controller.finishHistoryGroup();
     saveInFlightRef.current = true;
     setIsSavingTemplate(true);
     try {
-      const savedId = await onSaveTemplate({
+      const receipt = await onSaveTemplate({
         ...templateToSave,
         freeformCanvas: reconstructFreeformCanvas(templateToSave.freeformCanvas),
       });
-      acceptTemplate(templateToSave);
-      onSelectTemplate(savedId);
+      const savedId = receipt.id;
+      if (!receipt.template || receipt.template.id !== savedId) {
+        toast({title: 'Template saved; readback unavailable', description: 'The local commit succeeded, but its saved record could not be confirmed. Your working edits remain unchanged. Inspect the Library before continuing.', variant: 'destructive'});
+        return false;
+      }
+      const current=workingRef.current;
+      if (current.id !== templateToSave.id && current.id !== savedId) {
+        toast({title:'Earlier Template snapshot saved',description:'Your current document is unchanged. Continue from its own saved state.'});
+        return false;
+      }
+      acceptTemplate(templateToSave, receipt.template);
+      const newerEdits=JSON.stringify(reconstructMinimalTemplate(current))!==JSON.stringify(reconstructMinimalTemplate(templateToSave));
+      if (!newerEdits || current.id===savedId) onSelectTemplate(savedId);
+      else toast({title:'Earlier Template snapshot saved',description:'Your newer working edits remain unchanged and unsaved. The saved copy is available in your Library.'});
       return true;
     } catch (error) {
       toast({
@@ -184,7 +200,7 @@ export function useTemplateEditorCommands({
       saveInFlightRef.current = false;
       setIsSavingTemplate(false);
     }
-  }, [acceptTemplate, currentTemplate, onSaveTemplate, onSelectTemplate, toast]);
+  }, [acceptTemplate,controller,currentTemplate,onSaveTemplate,onSelectTemplate,toast]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -321,10 +337,10 @@ export function useTemplateEditorCommands({
   const openTemplate = useCallback((template: TCGCardTemplate) => {
     if (!template.id) return;
     requestTemplateChange(() => {
-      acceptTemplate(template);
+      beginDraft(template);
       onSelectTemplate(template.id);
     });
-  }, [acceptTemplate, onSelectTemplate, requestTemplateChange]);
+  }, [beginDraft, onSelectTemplate, requestTemplateChange]);
 
   const cloneTemplate = useCallback(() => {
     const templateId = currentTemplate.id;

@@ -1,5 +1,6 @@
 "use client";
 
+import type { TemplateSaveReceipt } from '../lib/templateSaveReceipt';
 import { retainTemplatePipelineAttempt, resolveTemplatePipelineAttempt } from '../lib/templatePipelineAttempts';
 import type { ManagedRasterSelection } from '@/features/pipeline/client';
 
@@ -51,7 +52,7 @@ interface PendingTemplateSaveInternal {
   scopeIds: string[];
   face: CardFace;
   setId: string | null;
-  resolve: (id: string) => void;
+  resolve: (receipt: TemplateSaveReceipt) => void;
   reject: (error: Error) => void;
 }
 
@@ -202,7 +203,8 @@ export function useTemplateLibraryActions({
     });
     setTemplateEditorSelectedTemplateId(savedTemplateId);
     if (templateToSave.templateUsage !== 'back-preset') setGeneratorSelectedTemplateId(savedTemplateId);
-    const templateForFile = selectAllTemplates(useProjectStore.getState()).find((candidate) => candidate.id === savedTemplateId);
+    const committed = selectAllTemplates(useProjectStore.getState()).find((candidate) => candidate.id === savedTemplateId);
+    const templateForFile = committed ? reconstructMinimalTemplateObject(committed) : null;
     if (templateForFile?.templateSource === 'user') {
       try {
         const syncResult = await syncAgentTemplateSave(templateForFile);
@@ -213,10 +215,10 @@ export function useTemplateLibraryActions({
         toast({ title: 'Template saved locally; ChatGPT sync failed', description: error instanceof Error ? `${error.message} Your browser copy is safe.` : 'Your browser copy is safe, but CardForge could not update its linked ChatGPT working draft.', variant: 'destructive' });
       }
     }
-    return savedTemplateId;
+    return { id: savedTemplateId, template: templateForFile };
   }, [commitTemplateChange, projectCapabilities.canSubmitTemplateRevisions, setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, toast]);
 
-  const handleSaveTemplate = useCallback(async (template: TCGCardTemplate): Promise<string> => {
+  const handleSaveTemplate = useCallback(async (template: TCGCardTemplate): Promise<TemplateSaveReceipt> => {
     const source = templates.find((candidate) => candidate.id === template.id) ?? null;
     const impact = buildTemplateSaveImpact({ previous: source, next: template, cards: storedCards });
     const face: CardFace = designScope?.face ?? (template.templateUsage === 'back-preset' ? 'back' : 'front');
@@ -235,7 +237,7 @@ export function useTemplateLibraryActions({
       const decision = canSaveShared ? 'shared' : 'fork';
       return await commitSave(pending, decision);
     }
-    return await new Promise<string>((resolve, reject) => {
+    return await new Promise<TemplateSaveReceipt>((resolve, reject) => {
       pendingSaveRef.current = { ...pending, resolve, reject };
       setPendingTemplateSaveImpact({
         templateName: template.name || source?.name || 'Template',

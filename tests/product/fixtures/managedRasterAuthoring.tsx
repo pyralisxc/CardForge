@@ -22,7 +22,7 @@ function Fixture() {
     {showEditor && <CardTemplateMaker templates={templates} defaultTemplates={[]} backFaceTemplates={[]} userTemplates={templates}
       selectedTemplateIdForEditing={initial.id!} onSelectTemplateForEditing={noop} canUseProjectFiles canSubmitSharedTemplateRevision canPublishSharedLibrary={false}
       showCardWatermark={false} canUploadCustomAssets={false} isActive isCheckoutStarting={false} fileInputRef={file}
-      onSaveTemplate={async t=>{setSaved(JSON.stringify(t));localStorage.setItem('synthetic-saved-template',JSON.stringify(t));return t.id!;}}
+      onSaveTemplate={async t=>{setSaved(JSON.stringify(t));localStorage.setItem('synthetic-saved-template',JSON.stringify(t));return {id:t.id!,template:t};}}
       onContinueNewTemplateInPipeline={actions.handleContinueNewTemplateInPipeline} onSubmitTemplateRevision={actions.handleSubmitTemplateRevision}
       onDeleteTemplate={noop} onCloneTemplate={()=>null} onExportProject={noop} onImportProject={noop} onLoadProject={noop}
       onStartCheckout={noop} appearanceStyles={[]} onSaveAppearanceStyle={()=>''} onReturnToTemplateMaker={noop} />}
