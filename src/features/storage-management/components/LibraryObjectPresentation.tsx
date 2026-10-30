@@ -8,7 +8,7 @@ import type { DisplayCard } from '@/domain/rendering';
 import { hasCardBacking } from '@/domain/rendering';
 import type { ActionDescriptor, EnvironmentDetailRecord, EnvironmentStatusTone } from '@/features/app-shell/client/environment';
 import { getStudioAssetDestinationDefinition } from '@/domain/templates';
-import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
+import { AppearanceSurface, appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import { formatContentTaxonomyTag, getSemanticRoleLabel, getPipelineDecisionReasonLabel, getPipelineStatusLabel, isContributorPipelineVoteable } from '@/features/pipeline/client';
 import { MediaPresentationRevision, MediaPresentationPreview } from '@/features/pipeline/client/media-revisions';
 import type { PipelineSubmission } from '@/features/pipeline/client';
@@ -81,7 +81,7 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
   if ((item.scope === 'published' && item.published.kind === 'template') || (item.scope === 'pipeline' && item.pipeline.submission.assetType === 'templates')) {
     return <span className={styles.objectFallback} aria-label={`${item.name} Template preview unavailable`}><SourceIcon item={item} /><small>Template preview unavailable</small></span>;
   }
-  if (style) return <span className={styles.stylePreview} style={appearanceToStyle(style.appearance)} aria-label={`${item.name} style preview`} />;
+  if (style) return <AppearanceSurface as="span" className={styles.stylePreview} style={{ borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--cf-border-strong) 75%, transparent)', ...appearanceToStyle(style.appearance) }} aria-label={`${item.name} style preview`} />;
   if (item.scope === 'pipeline' && item.pipeline.submission.mediaPresentation) return item.pipeline.submission.sourceUrl
     ? <MediaPresentationPreview sourceUrl={item.pipeline.submission.sourceUrl} presentation={item.pipeline.submission.mediaPresentation} />
     : <span>Exact source preview requires Owner or original contributor access.</span>;

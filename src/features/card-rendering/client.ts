@@ -1,3 +1,4 @@
+export { AppearanceSurface } from './components/AppearanceSurface';
 export { CardForgeRichTextEditor } from './components/CardForgeRichTextEditor';
 export { CardPreview } from './components/CardPreview';
 export { useArtifactViewport } from './hooks/useArtifactViewport';
