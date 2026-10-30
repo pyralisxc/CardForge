@@ -13,6 +13,7 @@ import type { ElementPresetRecipe } from '@/features/template-editor/lib/element
 import type { FreeformAppearance, FreeformCardElement } from '@/domain/templates';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 import { ColorField } from '@/features/template-editor/components/ColorField';
+import { buildDividerLibrarySelection } from '../lib/dividerLibrarySelection';
 import { isSvgAssetSource } from '@/domain/templates/vectorAssets';
 
 interface DividerStudioPanelProps {
@@ -45,18 +46,7 @@ export function DividerStudioPanel({
   onUpdateAppearance,
 }: DividerStudioPanelProps) {
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
-  const applyDivider = (asset: CardAssetOption) => onUpdateAppearance((appearance) => ({
-    ...appearance,
-    dividerAsset: asset.url,
-    assetKind: 'divider',
-    assetRenderMode: isSvgAssetSource(asset.url) ? 'original' : undefined,
-    textureOpacity: asset.defaultOpacity ?? 100,
-    blendMode: asset.defaultBlendMode ?? 'normal',
-    tileMode: asset.tileMode ?? 'stretch',
-    shapeRole: 'divider',
-    material: { ...appearance.material, baseColor: 'transparent', texture: { kind: 'none' } },
-    border: { ...appearance.border, kind: 'none', width: 0 },
-  }));
+  const applyDivider = (asset: CardAssetOption) => onUpdateElement(buildDividerLibrarySelection(element, asset));
 
   const hasAssetBackedDivider = Boolean(selectedAppearance?.dividerAsset || selectedAppearance?.assetSource);
   const dividerSource = selectedAppearance?.dividerAsset || selectedAppearance?.assetSource;

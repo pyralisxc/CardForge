@@ -2,7 +2,8 @@
 
 import { normalizeTemplateAppearance, type TCGCardTemplate } from '@/domain/templates';
 import { useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
-import { appearanceToStyle, authoredCardFoundationStyle } from '../model/appearance';
+import { AppearanceSurface } from './AppearanceSurface';
+import { appearanceToStyle, authoredCardFoundationStyle, textureLayerStyle } from '../model/appearance';
 
 const toThumbnailBackgroundImage = (value?: string): string | undefined => {
   if (!value) return undefined;
@@ -35,11 +36,12 @@ export function TemplateThumbnail({ template }: { template: TCGCardTemplate }) {
     .join('') || 'CF';
 
   return (
-    <span
+    <AppearanceSurface as="span"
       className="relative flex h-[72px] shrink-0 items-center justify-center overflow-hidden rounded-[5px] border bg-[#06080d] bg-no-repeat shadow-inner"
       style={{
+        ...textureLayerStyle(foundationStyle ?? (hasAuthoredBackground ? undefined : appearance)),
         width: `${thumbnailWidth}px`,
-        borderColor,
+        borderWidth: 1, borderStyle: 'solid', borderRadius: 5, borderColor,
         backgroundColor,
         backgroundImage: safeBackgroundImage,
         backgroundPosition: foundationStyle?.backgroundPosition ?? (hasAuthoredBackground ? 'center' : appearance.backgroundPosition || 'center'),
@@ -61,6 +63,6 @@ export function TemplateThumbnail({ template }: { template: TCGCardTemplate }) {
           </span>
         </>
       ) : null}
-    </span>
+    </AppearanceSurface>
   );
 }
