@@ -65,7 +65,7 @@ function selectCards(document: Extract<NativeSourceContent, {kind:'cards'}>['doc
   const required = new Set(cards.map(c => c.templateId));
   const templates = document.userTemplates.filter(t => required.has(t.id ?? ''));
   const fonts = new Set((document.customFonts ?? []).map(f => f.value));
-  assertContainedSource({ cards, fonts: document.customFonts }, fonts);
+  assertContainedSource({ fonts: document.customFonts }, fonts);
   for (const card of cards) {
     const template = templates.find(t => t.id === card.templateId);
     if (!template) throw new StudioDocumentStoreError('Exact card Template is unavailable; no fallback was substituted.', 400);
