@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { MultiSelectionFilterMenu } from '@/components/ui/multi-selection-filter-menu';
 import { SelectionFilterMenu } from '@/components/ui/selection-filter-menu';
-import { EnvironmentBoundaryNotice } from '@/features/app-shell/client/environment';
+import { EnvironmentBoundaryNotice, type ActionDescriptor } from '@/features/app-shell/client/environment';
 import { CARD_SET_BUILT_IN_TYPES, type CardFace } from '@/domain/cards';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import type { AccountLibraryItem, AccountLibraryOrganizationOperation, AccountLibrarySource } from '@/features/storage-management/client';
@@ -71,6 +71,8 @@ export interface DeskOverviewSurfaceProps {
   camera: DeskCamera;
   canUseProjectFiles: boolean;
   canSubmit: boolean;
+  isOwner?: boolean;
+  onRunWorkAction?: (item: AccountLibraryItem, action: ActionDescriptor) => void;
   renderWorkPreview: (item: AccountLibraryItem, featured: boolean, focused: boolean, face: CardFace) => ReactNode;
   previewArtifactIds: (item: AccountLibraryItem) => string[];
   presentationSize: (item: AccountLibraryItem) => { width: number; height: number; visualHeight: number; physical: boolean };
@@ -318,7 +320,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
             {props.visibleWork.map((item) => {
               const featured = item.id === props.activeWorkId;
               const focused = item.id === props.focusedItemId;
-              return <DeskWorkObject key={item.id} item={item} active={featured} featured={featured} focused={focused} selected={props.selectedIds.includes(item.id)} arrangeMode={touchMultiSelect} obscured={Boolean(props.focusedItemId) && !focused} position={props.positions[item.id]} presentationSize={props.presentationSize(item)} canUseProjectFiles={props.canUseProjectFiles} canSubmit={props.canSubmit} preview={(face) => props.renderWorkPreview(item, featured, focused, face)} canFlip={props.canFlipWork(item)} artifactIds={props.previewArtifactIds(item)} focusedSurface={focused ? props.renderFocusedSurface(item) : null} beginDrag={props.beginDrag} moveDrag={props.moveDrag} endDrag={props.endDrag} shouldSuppressActivation={props.shouldSuppressActivation} onSelect={props.onSelectWork} onFocus={props.onFocusWork} onOpenLane={props.onOpenLane} onOpenLocation={props.onOpenLocation} onOpenPipeline={props.onOpenPipeline} onDuplicate={props.onDuplicate} onInspect={props.onInspect} onDelete={props.onDelete} />;
+              return <DeskWorkObject key={item.id} item={item} active={featured} featured={featured} focused={focused} selected={props.selectedIds.includes(item.id)} arrangeMode={touchMultiSelect} obscured={Boolean(props.focusedItemId) && !focused} position={props.positions[item.id]} presentationSize={props.presentationSize(item)} canUseProjectFiles={props.canUseProjectFiles} canSubmit={props.canSubmit} isOwner={props.isOwner} onRunWorkAction={props.onRunWorkAction} preview={(face) => props.renderWorkPreview(item, featured, focused, face)} canFlip={props.canFlipWork(item)} artifactIds={props.previewArtifactIds(item)} focusedSurface={focused ? props.renderFocusedSurface(item) : null} beginDrag={props.beginDrag} moveDrag={props.moveDrag} endDrag={props.endDrag} shouldSuppressActivation={props.shouldSuppressActivation} onSelect={props.onSelectWork} onFocus={props.onFocusWork} onOpenLane={props.onOpenLane} onOpenLocation={props.onOpenLocation} onOpenPipeline={props.onOpenPipeline} onDuplicate={props.onDuplicate} onInspect={props.onInspect} onDelete={props.onDelete} />;
             })}
           </div>
         </div>

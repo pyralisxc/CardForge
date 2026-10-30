@@ -5,11 +5,12 @@ import { Copy, Info, MoreHorizontal, Pencil, Printer, RefreshCcw, Save, Trash2, 
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useArtifactFaces, useCaptureArtifactStackOrigins } from '@/features/card-rendering/client';
+import type { ActionDescriptor } from '@/features/app-shell/client/environment';
 import type { CardFace } from '@/domain/cards';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
-import { DESK_METADATA_SEPARATOR, getDeskWorkKeyboardIntent, getDeskWorkPresentationMeta } from '../model/desk';
+import { DESK_METADATA_SEPARATOR, getDeskWorkKeyboardIntent, getDeskWorkPresentationMeta, getWorkActions } from '../model/desk';
 import styles from './Desk.module.css';
 
 interface DeskWorkObjectProps {
@@ -24,6 +25,8 @@ interface DeskWorkObjectProps {
   presentationSize?: { width: number; height: number; visualHeight: number; physical: boolean };
   canUseProjectFiles: boolean;
   canSubmit: boolean;
+  isOwner?: boolean;
+  onRunWorkAction?: (item: AccountLibraryItem, action: ActionDescriptor) => void;
   preview: (face: CardFace) => ReactNode;
   canFlip: boolean;
   artifactIds: string[];
@@ -150,6 +153,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
             {props.item.references.localSetId ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onDuplicate(props.item))}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
             {props.item.references.localSetId ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'export'))}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
             <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onInspect(props.item))}><Info aria-hidden="true" />Details</DropdownMenuItem>
+            {props.onRunWorkAction ? getWorkActions(props.item, true, props.canSubmit, props.canUseProjectFiles, props.isOwner).filter(action=>['library.view-source','library.manage-location','library.delete-copy','desk.review-manage'].includes(action.id)).map(action=><DropdownMenuItem key={action.id} className={menuItemClassName} disabled={action.availability.kind !== 'available'} title={action.availability.kind === 'disabled' ? action.availability.reason : undefined} onSelect={selectMenuAction(()=>{ document.getElementById(`set-info-${props.item.id}`)?.focus({preventScroll:true}); props.onRunWorkAction?.(props.item,action); })}>{action.label}</DropdownMenuItem>) : null}
             {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className={`${menuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(() => props.onDelete(props.item))}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
           </DropdownMenuContent>
         </DropdownMenu>
