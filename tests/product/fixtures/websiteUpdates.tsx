@@ -6,6 +6,7 @@ import { OwnerPageEditorStateContext } from '@/features/public-site/client';
 import { projectWebsiteReleases, websiteReleaseNotesSchema, type WebsiteReleaseRecord } from '@/features/roadmap/model/websiteRelease';
 const params=new URLSearchParams(location.search);
 const initial:WebsiteReleaseRecord={id:'20000000-0000-4000-8000-000000000001',version:'0.0.1',notes:{improvements:['Exact governed previews'],fixes:['Faithful Studio controls'],knownLimits:['Main promotion remains pending']},sourceSha:null,candidateSha:null,shippedAt:null,updatedAt:'2026-10-30T00:00:00Z'};
+if(params.has('embeddedNote'))initial.notes={...initial.notes,improvements:['Existing note\nwith continuation']};
 const proof=window as typeof window & {releaseRequests:string[]};proof.releaseRequests=[];
 const seedRows:WebsiteReleaseRecord[]=params.has('releasedOwner')?[{...initial,id:'20000000-0000-4000-8000-000000000002',version:'0.0.2',notes:{improvements:['Retained released notes'],fixes:['Original correction'],knownLimits:[]},sourceSha:'a'.repeat(40),candidateSha:'b'.repeat(40),shippedAt:'2026-10-30T00:00:00Z'},{...initial,sourceSha:'c'.repeat(40),candidateSha:'d'.repeat(40),shippedAt:'2026-10-29T00:00:00Z'}]:[initial];
 const storageKey='synthetic-website-release-records';
