@@ -341,3 +341,51 @@ for (const missing of [false, true]) test(`@golden historical Template keeps sou
   await info.attach('historical-template-source', { body: await page.screenshot(), contentType: 'image/png' });
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+for (const width of [390,1440]) test(`@golden Desk exact governance preserves dirty draft and return at ${width}px`, async ({page},info)=>{
+ test.setTimeout(90_000); await page.setViewportSize({width,height:900}); const evidence=await mount(page,'?deskActual=1&published=1');
+ const launcher=page.getByRole('button',{name:width<900 ? 'Open commands' : 'Search or type a command',exact:true});
+ await launcher.click();
+ await page.getByRole('button',{name:'Review & manage',exact:true}).click();
+ await expect(page.getByLabel('Exact revision governance')).toBeVisible();
+ await page.getByRole('button',{name:'Manage',exact:true}).click();
+ const note=page.getByLabel('Exact revision governance').locator('label').filter({hasText:/^\s*Decision note/}).locator('textarea');
+ await note.fill('Unsaved Desk note');
+ await page.evaluate(()=>history.back());
+ await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+ await expect(page.getByRole('alertdialog')).toHaveCount(0);
+ await expect(note).toHaveValue('Unsaved Desk note');
+ await page.getByRole('button',{name:'Return to Desk',exact:true}).click();
+ await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+ await expect(page.getByRole('alertdialog')).toHaveCount(0);
+ await expect(note).toHaveValue('Unsaved Desk note');
+ await page.screenshot({path:info.outputPath('desk-exact-governance.png')});
+ await page.getByRole('button',{name:'Return to Desk',exact:true}).click();
+ await page.getByRole('button',{name:'Discard',exact:true}).click();
+ await expect(launcher).toBeFocused();
+ expect(evidence.mutations).toEqual([]);expect(evidence.errors).toEqual([]);
+});
+
+test('@golden Desk uncertain revision survives Back and recovers its exact attempt', async ({page}) => {
+ const evidence=await mount(page,'?deskActual=1&published=1&submit=uncertain');
+ await page.getByRole('button',{name:'Search or type a command',exact:true}).click();
+ await page.getByRole('button',{name:'Review & manage',exact:true}).click();
+ await page.getByRole('button',{name:'Revise existing',exact:true}).click();
+ await page.getByRole('button',{name:'Color #ebd39f',exact:true}).click();
+ await page.getByTitle('Hex color value').fill('#123456');
+ await page.getByTitle('Hex color value').press('Tab'); await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Submit revision for review'}).click();
+ await expect(page.getByRole('alert')).toContainText('may have succeeded');
+ await page.evaluate(()=>history.back());
+ await expect(page.getByRole('alertdialog')).toContainText('Resolve this attempt before closing');
+ await expect(page.getByRole('button',{name:'Discard',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+ await expect(page.getByRole('alertdialog')).toHaveCount(0);
+ await expect(page.getByRole('region',{name:'Revise selected published artifact'})).toBeVisible();
+ await page.getByRole('button',{name:'Check submission outcome'}).click();
+ await expect(page.getByRole('status').filter({hasText:'Revision 2 submitted'})).toBeVisible();
+ const requests=await page.evaluate(()=>(window as typeof window & {libraryRequests:{url:string;method:string;body?:string}[]}).libraryRequests);
+ const posts=requests.filter(request=>request.method==='POST'); expect(posts).toHaveLength(1);
+ expect(requests.some(request=>request.method==='GET' && request.url.includes(`submissionKey=${JSON.parse(posts[0].body!).submissionKey}`))).toBe(true);
+ expect(evidence.mutations).toEqual([]);expect(evidence.errors).toEqual([]);
+});

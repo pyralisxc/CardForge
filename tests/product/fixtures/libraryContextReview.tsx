@@ -1,3 +1,6 @@
+import { SearchParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
+import { Desk } from '@/features/desk/components/Desk';
+import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
 import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { UnifiedAccountLibrary } from '@/features/storage-management/components/UnifiedAccountLibrary';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
@@ -77,6 +80,11 @@ if (params.has('historyTemplate')) {
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  if (params.has('deskActual') && (!init?.method || init.method === 'GET')) {
+    if (url === '/api/pipeline/my-published') return Response.json({submissions:[row]});
+    if (url === '/api/catalog/studio-bootstrap') return Response.json({...queueCatalog,studioDefaults:{defaultTemplateId:null}});
+    if (url !== '/api/catalog' && !url.startsWith('/api/pipeline?') && !url.startsWith('/api/owner/pipeline/')) return Response.json({error:{code:'fixture_unavailable',kind:'unavailable',message:'Provider excluded from isolated Desk proof',retryable:false}},{status:503});
+  }
   if (params.has('queueActual') && (!init?.method || init.method === 'GET')) {
     if (url === '/api/catalog/studio-bootstrap') return Response.json({ ...queueCatalog, studioDefaults: { defaultTemplateId: null } });
     if (url === '/api/catalog') {
@@ -173,7 +181,7 @@ function QueueProof() {
   </main>;
 }
 const mount = document.createElement('div'); document.body.append(mount); const fixtureRouter = { bfcacheId: 'isolated-library', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: () => {}, replace: () => {}, prefetch: async () => {} };
-createRoot(mount).render(params.has('queueActual') ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
+createRoot(mount).render(params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={`pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:false},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : params.has('queueActual') ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
   experience={{ signedIn: true, owner: true, plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: false } } as AccountExperienceProjection}
   businessIdentity={{} as never} persistenceScope="account:isolated-library-fixture" />
 </AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />);

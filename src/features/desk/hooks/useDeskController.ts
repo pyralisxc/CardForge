@@ -123,6 +123,8 @@ export function useDeskController({
   const setSourceFilter = useCallback((source: 'all' | AccountLibrarySource) => {
     deskViewPreferences.update((current) => ({ ...current, sources: source === 'all' ? [] : [source] }));
   }, [deskViewPreferences]);
+  const reviewReturnRef = useRef<{focus:HTMLElement|null;itemId:string}|null>(null);
+  const [reviewWork, setReviewWork] = useState<AccountLibraryItem | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
   const [preparingWorkId, setPreparingWorkId] = useState<string | null>(null);
@@ -147,7 +149,7 @@ export function useDeskController({
     setDirtyCloseRequested,
     setInspectorWorkId,
     setInteractionSession,
-  } = useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId, transitionToDesk });
+  } = useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId, transitionToDesk, toolLayerOwnsHistory: Boolean(reviewWork) });
   const [pendingTool, setPendingTool] = useState<{
     setId: string;
     tool: Parameters<typeof navigateToTool>[1];
@@ -680,6 +682,7 @@ export function useDeskController({
     inspectorItem,
     commands: {
       createWork: openCreateMenu,
+      reviewWork: item => { reviewReturnRef.current = {focus:document.activeElement instanceof HTMLElement ? document.activeElement : null,itemId:item.id}; setReviewWork(item); },
       focusWork,
       openRemoteWork,
       openGenerate: (setId) => openContextTool(setId, 'generate'),
@@ -816,6 +819,8 @@ export function useDeskController({
     otherSets,
     pendingDeleteCards,
     pendingDeleteWork,
+    reviewWork,
+    closeReviewWork: () => { const restore=reviewReturnRef.current; setReviewWork(null); requestAnimationFrame(()=>{ const focus=restore?.focus?.isConnected ? restore.focus : document.getElementById(`set-${restore?.itemId}`) ?? Array.from(document.querySelectorAll<HTMLElement>('[aria-label="Open commands"], [aria-label="Search or type a command"]')).find(node=>node.getClientRects().length>0); focus?.focus({preventScroll:true}); }); },
     pipelineSubmitSetId,
     preparingWorkId,
     projection: deskProjection,

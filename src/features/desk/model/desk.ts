@@ -4,6 +4,7 @@ import type { ActionDescriptor, EnvironmentDetailRecord } from '@/features/app-s
 import { createSendToPipelineActionDescriptor } from '@/features/pipeline/client';
 import {
   getAccountLibraryActionSources,
+  getAccountLibraryEnvironmentActions,
   type AccountLibraryItem,
   type AccountLibrarySource,
 } from '@/features/storage-management/client';
@@ -215,9 +216,11 @@ export const getWorkActions = (
   canDelete: boolean,
   canContribute = false,
   canUseProjectFiles = false,
+  isOwner = false,
 ): ActionDescriptor[] => {
   const sources = getAccountLibraryActionSources(item).map((source) => source.source);
   const localSet = Boolean(item.references.localSetId);
+  const locationActions = getAccountLibraryEnvironmentActions(item, { canUseProjectFiles }).filter(action => ['library.view-source', 'library.manage-location', 'library.delete-copy'].includes(action.id));
   const openAutomation: ActionDescriptor['automation'] = item.references.driveFileId
     ? { kind: 'published-mcp', tools: ['list_connected_projects', 'checkout_project'] }
     : { kind: 'human-only', owner: 'cardforge' };
@@ -267,12 +270,9 @@ export const getWorkActions = (
       scope: 'object' as const, hierarchy: 'overflow' as const,
       availability: canDelete ? { kind: 'available' as const } : { kind: 'disabled' as const, reason: 'This Set cannot be deleted right now.' },
       commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'tool-opened' as const,
-    }] : [{
-      id: 'desk.manage-location' as const, label: 'Manage source', ownerFeature: 'storage-management' as const,
-      supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,
-      scope: 'object' as const, hierarchy: 'overflow' as const, availability: { kind: 'available' as const }, commitment: 'none' as const,
-      automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
-    }]),
+    }] : []),
+    ...(isOwner && item.references.pipelineLineageId ? [{ id: 'desk.review-manage' as const, label: 'Review & manage', ownerFeature: 'pipeline' as const, supportedObjectKinds: [item.kind], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'owner' as const, scope: 'object' as const, hierarchy: 'supporting' as const, availability: item.references.pipelineReviewTarget ? {kind:'available' as const} : {kind:'disabled' as const,reason:'Exact publication evidence is unavailable. Refresh Desk before reviewing; no latest revision is substituted.'}, commitment:'none' as const,automation:{kind:'human-only' as const,owner:'cardforge' as const},result:'tool-opened' as const }] : []),
+    ...locationActions.filter(action => !localSet || action.id !== 'library.delete-copy'),
   ];
 };
 

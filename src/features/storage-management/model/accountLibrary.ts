@@ -1,3 +1,4 @@
+import type { PipelineReviewTarget } from '@/features/pipeline/client';
 import type { CardSetMetadata } from '@/domain/cards';
 import type { LocalLibraryResource } from '@/features/project/client/library-resources';
 
@@ -37,6 +38,7 @@ export interface AccountLibraryReferences {
   workingDraftId?: string;
   campaignId?: string;
   pipelineLineageId?: string;
+  pipelineReviewTarget?: PipelineReviewTarget;
   pipelineAssetType?: string;
   pipelineSourceUrl?: string;
   pipelineSourceNotes?: string;
