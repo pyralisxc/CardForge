@@ -32,6 +32,15 @@ export function ColorField({ value, onChange, id }: ColorFieldProps) {
           defaultValue={hex}
           key={hex}
           title="Hex color value"
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              if (/^#[0-9a-fA-F]{6}$/.test(event.currentTarget.value)) onChange(event.currentTarget.value);
+            } else if (event.key === 'Escape') {
+              // Restore before the popover closes and blur can commit.
+              event.currentTarget.value = hex;
+            }
+          }}
           onBlur={(event) => {
             if (/^#[0-9a-fA-F]{6}$/.test(event.target.value)) {
               onChange(event.target.value);

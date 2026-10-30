@@ -133,3 +133,90 @@ for (const width of [390, 1440]) test(`@golden Library same-name Style and Divid
   await page.screenshot({ path: info.outputPath('historical.png') }); await info.attach('historical-own-source', { path: info.outputPath('historical.png'), contentType: 'image/png' });
   expect(unexpected).toEqual([]);
 });
+
+const richTextFixture = buildSync({ entryPoints: ['tests/product/fixtures/richTextComposition.tsx'], bundle: true,
+  platform: 'browser', format: 'iife', write: false, outfile: join(tmpdir(), 'rich-text-composition.js'),
+  define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' } });
+for (const width of [390, 1440]) test(`@golden composes native Bold Italic Underline through save reopen and PNG at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 900 });
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/__rich-composition') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head></head><body></body></html>' });
+    if (url.pathname.startsWith('/fonts/') && !url.pathname.includes('..')) return route.fulfill({ body: readFileSync(join('public', url.pathname)) });
+    return route.abort();
+  });
+  const mount = async () => {
+    await page.goto('/__rich-composition');
+    await page.addStyleTag({ content: (await libraryCss).css });
+    for (const file of richTextFixture.outputFiles.filter(f => f.path.endsWith('.css'))) await page.addStyleTag({ content: file.text });
+    await page.addScriptTag({ content: richTextFixture.outputFiles.find(f => f.path.endsWith('.js'))!.text });
+  };
+  await mount();
+  const editor = page.locator('[contenteditable="true"]');
+  await editor.click(); await editor.press('ControlOrMeta+a');
+  await page.getByRole('button', { name: 'Bold', exact: true }).click();
+  await page.getByRole('button', { name: 'Italic', exact: true }).click();
+  const rendered = page.getByTestId('canonical-card').getByText('Combined words', { exact: true });
+  await expect(rendered).toHaveCSS('font-weight', '700'); await expect(rendered).toHaveCSS('font-style', 'italic');
+  await page.getByRole('button', { name: 'Underline', exact: true }).click();
+  await expect(rendered).toHaveCSS('text-decoration-line', 'underline');
+  await expect(page.getByTestId('saved-syntax')).toHaveText('___**Combined words**___');
+  await page.getByRole('button', { name: 'Save local text' }).click();
+  await mount();
+  await expect(editor).toHaveText('Combined words');
+  await expect(rendered).toHaveCSS('font-weight', '700'); await expect(rendered).toHaveCSS('font-style', 'italic'); await expect(rendered).toHaveCSS('text-decoration-line', 'underline');
+  await page.getByRole('button', { name: 'Export canonical PNG' }).click();
+  const image = page.getByAltText('Canonical composed marks PNG'); await expect(image).toBeVisible();
+  expect(await image.evaluate(async (node: HTMLImageElement) => { await node.decode(); return node.naturalWidth; })).toBeGreaterThan(100);
+  await page.screenshot({ path: info.outputPath('rich-editor-preview.png') });
+  await info.attach('native-editor-and-canonical-preview', { path: info.outputPath('rich-editor-preview.png'), contentType: 'image/png' });
+  await image.screenshot({ path: info.outputPath('rich-export.png') });
+  await info.attach('canonical-composed-marks-export', { path: info.outputPath('rich-export.png'), contentType: 'image/png' });
+});
+
+test('@golden ColorField commits Enter and blur, cancels Escape, and never submits its parent form', async ({ page }) => {
+  await page.route('**/*', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head></head><body></body></html>' }));
+  await page.goto('/__rich-composition');
+  await page.addStyleTag({ content: (await libraryCss).css });
+  await page.addScriptTag({ content: richTextFixture.outputFiles.find(f => f.path.endsWith('.js'))!.text });
+  await page.getByRole('button', { name: 'Color #112233', exact: true }).click();
+  const hex = page.getByTitle('Hex color value');
+  await hex.fill('#aabbcc'); await hex.press('Enter');
+  await expect(page.getByTestId('color')).toHaveText('#aabbcc');
+  await expect(page.getByTestId('form-submits')).toHaveText('0');
+  await hex.fill('#123'); await hex.press('Enter');
+  await expect(page.getByTestId('color')).toHaveText('#aabbcc');
+  await hex.fill('#ff0000'); await hex.press('Escape');
+  await expect(page.getByTestId('color')).toHaveText('#aabbcc');
+  await page.getByRole('button', { name: 'Color #aabbcc', exact: true }).click();
+  await hex.fill('#00cc66'); await hex.press('Tab');
+  await expect(page.getByTestId('color')).toHaveText('#00cc66');
+  await hex.fill('invalid'); await page.getByRole('button', { name: 'Outside color' }).click({ force: true });
+  await expect(page.getByTestId('color')).toHaveText('#00cc66');
+  await expect(page.getByTestId('form-submits')).toHaveText('0');
+});
+
+test('@golden reopens adjacent native mixed-mark runs without invented underline or literal delimiters', async ({ page }) => {
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.pathname.startsWith('/fonts/') && !url.pathname.includes('..')) return route.fulfill({ body: readFileSync(join('public', url.pathname)) });
+    return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head></head><body></body></html>' });
+  });
+  const mount = async () => {
+    await page.goto('/__rich-composition?mixed=1');
+    await page.addStyleTag({ content: (await libraryCss).css });
+    await page.addScriptTag({ content: richTextFixture.outputFiles.find(f => f.path.endsWith('.js'))!.text });
+  };
+  await mount();
+  for (const saved of [false, true]) {
+    if (saved) { await page.getByRole('button', { name: 'Save local text' }).click(); await mount(); }
+    await expect(page.locator('[contenteditable="true"]')).toHaveText('onetwothree');
+    const card = page.getByTestId('canonical-card');
+    await expect(card).toHaveText('onetwothree');
+    for (const word of ['one', 'two', 'three']) {
+      await expect(card.getByText(word, { exact: true })).toHaveCSS('font-style', 'italic');
+      await expect(card.getByText(word, { exact: true })).toHaveCSS('text-decoration-line', 'none');
+    }
+    await expect(card.getByText('two', { exact: true })).toHaveCSS('font-weight', '700');
+  }
+});
