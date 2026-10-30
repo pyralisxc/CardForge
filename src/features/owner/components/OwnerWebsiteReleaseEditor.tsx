@@ -10,7 +10,7 @@ const formFor=(row:WebsiteReleaseRecord)=>({version:row.version,notes:row.notes,
 export function OwnerWebsiteReleaseEditor({initial,production,deployedSha}:{initial:WebsiteReleaseRecord[];production:boolean;deployedSha:string|null}) {
  const [records,setRecords]=useState(initial);const [stale,setStale]=useState(false);
  const [attempt,setAttempt]=useState<{body:string}|null>(null);const uncertain=useRef(false);const busyRef=useRef(false);
- const [initialForm]=useState(()=>{const row=initial.find(r=>!r.shippedAt);return row?formFor(row):{version:'0.0.1',notes:{improvements:[],fixes:[],knownLimits:[]},candidate:''};});
+ const [initialForm]=useState(()=>{const row=initial.find(r=>!r.shippedAt)??initial.toSorted((a,b)=>Date.parse(b.shippedAt!)-Date.parse(a.shippedAt!))[0];return row?formFor(row):{version:'0.0.1',notes:{improvements:[],fixes:[],knownLimits:[]},candidate:''};});
  const editor=useEditorDraft(initialForm,useContext(OwnerPageEditorStateContext),Boolean(attempt));
  const {version,notes,candidate}=editor.draft;const busy=editor.saving;
  const working=records.find(row=>!row.shippedAt);const selected=records.find(r=>r.version===version);const [message,setMessage]=useState('');
