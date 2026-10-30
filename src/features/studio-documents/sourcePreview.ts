@@ -21,6 +21,7 @@ export type NativeSourceContent =
   | { kind: 'unsupported'; reason: string };
 export interface NativeSourceSnapshot {
   title: string;
+  sourceIntegrity?: { kind: string; notice: string };
   availableSelections?: Array<{ setId: string; name: string; totalCards: number; cardIds: string[] }>;
   sourceVersion: string;
   content: NativeSourceContent;

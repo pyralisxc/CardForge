@@ -94,6 +94,7 @@ export async function readExactPublishedSource(access: AccountToolAccess, target
   }
   if (digest(await read()) !== digest(snapshot)) throw new PipelineRegistryCommandError('Pipeline revision or publication changed during inspection.', 409);
   return {
+    sourceIntegrity: bytes ? (s.source_content_sha256 ? { kind: 'verified-source-digest' as const, notice: 'Source bytes match the retained immutable digest.' } : { kind: 'observed-source-bytes' as const, notice: 'Legacy source: this render is bound to bytes observed now at the retained source location. Original publication bytes are not certified.' }) : { kind: 'authored-payload' as const, notice: 'Exact authored payload and embedded content-addressed dependencies.' },
     title: s.name, assetType: s.asset_type as string, content, bytes, presentation: parsePipelineMediaPresentation(s.media_presentation), mimeType: mimeType as string | null,
     sourceVersion: digest({ snapshot, content, bytes: bytes ? createHash('sha256').update(bytes).digest('hex') : null }),
     identity: { assetId: target.assetId, submissionId: s.id as string, lineageId: target.lineageId, revisionNumber: s.revision_number as number | null, publicationUpdatedAt: r?.updated_at ?? null },

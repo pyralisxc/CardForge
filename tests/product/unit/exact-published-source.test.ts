@@ -24,4 +24,13 @@ describe('exact Pipeline source visibility and identity',()=>{
  it('rejects a changed registry epoch during hydration',async()=>{state.after=()=>{state.rows[names.r]={...state.rows[names.r],updated_at:'r2'};};await expect(readExactPublishedSource(access,target)).rejects.toMatchObject({status:409});});
  it('does not flatten database unavailability into missing source',async()=>{state.error=true;await expect(readExactPublishedSource(access,target)).rejects.toMatchObject({status:503});});
  it('denies paid catalog access to Free viewers',async()=>{state.rows[names.r]!.access_tier='paid';await expect(readExactPublishedSource(access,target)).rejects.toMatchObject({status:403});});
+ it('labels digestless retained media as observed bytes and changes its version when those bytes change',async()=>{
+  state.rows[names.s]={...state.rows[names.s],asset_type:'images',source_payload:null,source_storage_bucket:'cardforge-contributor-assets',source_storage_path:'legacy/source.png',source_mime_type:'image/png',source_content_sha256:null};
+  state.download.mockResolvedValue({data:new Blob(['first'],{type:'image/png'}),error:null});
+  const first=await readExactPublishedSource(access,target);
+  expect(first.sourceIntegrity).toMatchObject({kind:'observed-source-bytes',notice:expect.stringContaining('Original publication bytes are not certified')});
+  state.download.mockResolvedValue({data:new Blob(['other'],{type:'image/png'}),error:null});
+  const second=await readExactPublishedSource(access,target);
+  expect(second.sourceVersion).not.toBe(first.sourceVersion);expect(second.sourceIntegrity.kind).toBe('observed-source-bytes');
+ });
 });

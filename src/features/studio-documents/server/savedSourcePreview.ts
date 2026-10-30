@@ -17,13 +17,14 @@ export async function readSavedSourcePreview(access: StudioAgentAccess, raw: Sav
     const identity = parsed.data;
     const candidate = await readExactCandidateReview(identity);
     assertContainedTemplate(candidate.template);
-    return { title: candidate.template.name, sourceVersion: candidate.hydratedSha256, content: { kind: 'template', template: candidate.template }, identity: { submissionId: identity.submissionId, lineageId: identity.lineageId, assetId: identity.assetId, revisionNumber: identity.revisionNumber } };
+    return { sourceIntegrity: { kind: 'candidate-content-addressed', notice: 'Exact candidate payload with verified embedded content-addressed artwork.' }, title: candidate.template.name, sourceVersion: candidate.hydratedSha256, content: { kind: 'template', template: candidate.template }, identity: { submissionId: identity.submissionId, lineageId: identity.lineageId, assetId: identity.assetId, revisionNumber: identity.revisionNumber } };
   }
   if (source.kind === 'google-drive') {
     const result = await readConnectedProjectForAgent({ access, provider: 'google-drive', ...source });
     if (source.setId && source.cardIds) validateCards(result.document, source.setId, source.cardIds);
     const content = selectCards(result.document, source.setId, source.cardIds);
     return {
+      sourceIntegrity: { kind: 'version-bound-package', notice: 'Observed saved package bytes match the selected provider and package revisions; the portable source is unchanged.' },
       title: result.summary.name,
       sourceVersion: createHash('sha256').update(JSON.stringify({ identity: { projectId: source.projectId, providerRevision: source.expectedProviderRevision, projectRevision: source.expectedProjectRevision }, accountId: result.summary.accountId, bytes: createHash('sha256').update(result.bytes).digest('hex') })).digest('hex'),
       identity: { provider: 'google-drive', projectId: source.projectId, providerRevision: source.expectedProviderRevision, projectRevision: source.expectedProjectRevision },
@@ -44,7 +45,7 @@ export async function readSavedSourcePreview(access: StudioAgentAccess, raw: Sav
   } else content = { kind: 'unsupported', reason: 'This exact source has no supported native specimen. Inspect the selected revision in CardForge.' };
   if (content.kind === 'template') assertContainedTemplate(content.template);
   if (content.kind === 'recipe') assertContainedSource(content.recipe);
-  return { title: result.title, availableSelections, identity: result.identity, sourceVersion: result.sourceVersion, content };
+  return { sourceIntegrity: result.sourceIntegrity, title: result.title, availableSelections, identity: result.identity, sourceVersion: result.sourceVersion, content };
 }
 function validateCards(document: Extract<NativeSourceContent, {kind:'cards'}>['document'], setId: string, cardIds: string[]) {
   if (!document.cardSets.some(s => s.id === setId) || cardIds.some(id => !document.storedCards.some(c => c.uniqueId === id && c.setId === setId))) {

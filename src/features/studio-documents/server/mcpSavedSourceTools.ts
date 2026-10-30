@@ -11,6 +11,7 @@ import { renderSavedSource } from './savedSourceArtifacts';
 import { createRenderArtifactPreviewResult, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
 
 const output = (properties: Record<string, unknown>, required: string[]) => fromJsonSchema({type:'object',properties,required,additionalProperties:false} as JsonSchemaType);
+const integrity = {type:'object',properties:{kind:{type:'string'},notice:{type:'string'}},required:['kind','notice'],additionalProperties:false};
 const identity = {type:'object',additionalProperties:{type:['string','number','null']}};
 const sourceProperty = z.toJSONSchema(savedSourceSelectionSchema);
 const arbitraryObject = {type:'object',additionalProperties:true};
@@ -37,16 +38,16 @@ export function registerSavedSourceTools({ server, publicOrigin, getAccess, tool
   }));
   server.registerTool('inspect_saved_source', {
     title:'Inspect exact Pipeline or saved Drive source',
-    outputSchema: output({title:{type:'string'},source:sourceProperty,sourceVersion:{type:'string'},identity,specimen:{type:'string'},availableSelections:{type:'array',items:arbitraryObject}},['title','source','sourceVersion','identity','specimen']),
+    outputSchema: output({title:{type:'string'},source:sourceProperty,sourceVersion:{type:'string'},identity,sourceIntegrity:integrity,specimen:{type:'string'},availableSelections:{type:'array',items:arbitraryObject}},['title','source','sourceVersion','identity','specimen']),
     description:'Read exact source identity and supported native specimen without checkout or provider writes. Drive requires exact provider/project revision and selected Set/card ids. Historical Pipeline never substitutes the latest publication. Pending Templates require Owner and the existing exact candidate identity/base/hash contract.',
     inputSchema:fromJsonSchema<{source:SavedSourceSelection}>(z.toJSONSchema(z.object({source:savedSourceSelectionSchema}).strict()) as JsonSchemaType),
     annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false},
   }, async input => run('inspect_saved_source',input, async access => {
     const result = await readSavedSourcePreview(access,input.source);
-    return { content:[{type:'text' as const,text:result.content.kind==='unsupported'?result.content.reason:`Exact ${result.title} is available for native inspection.`}],structuredContent:{title:result.title,source:input.source,sourceVersion:result.sourceVersion,identity:result.identity,specimen:result.content.kind,availableSelections:result.availableSelections} };
+    return { content:[{type:'text' as const,text:result.content.kind==='unsupported'?result.content.reason:`Exact ${result.title} is available for native inspection. ${result.sourceIntegrity?.notice ?? ''}`}],structuredContent:{title:result.title,source:input.source,sourceVersion:result.sourceVersion,identity:result.identity,sourceIntegrity:result.sourceIntegrity,specimen:result.content.kind,availableSelections:result.availableSelections} };
   }));
   for (const operation of ['preview','export'] as const) server.registerTool(`${operation}_saved_source`, {
-    outputSchema: output({source:sourceProperty,sourceVersion:{type:'string'},identity,branded:{type:'boolean'},renderArtifacts:{type:'array',items:arbitraryObject},downloads:{type:'array',items:arbitraryObject},displayImages:{type:'array',items:arbitraryObject},openInCardForgeUrl:{type:'string'}},['source','sourceVersion','identity','branded','renderArtifacts','downloads','displayImages','openInCardForgeUrl']),
+    outputSchema: output({source:sourceProperty,sourceVersion:{type:'string'},identity,sourceIntegrity:integrity,branded:{type:'boolean'},renderArtifacts:{type:'array',items:arbitraryObject},downloads:{type:'array',items:arbitraryObject},displayImages:{type:'array',items:arbitraryObject},openInCardForgeUrl:{type:'string'}},['source','sourceVersion','identity','branded','renderArtifacts','downloads','displayImages','openInCardForgeUrl']),
     title:operation==='preview'?'Show a branded exact source in chat':'Export an exact source with current entitlement',
     description:operation==='preview'?'Canonical compact chat image, visibly branded at every tier, with an exact CardForge link. Does not create an editable copy or modify portable bytes.':'Explicit PNG export. Rechecks current source access and canExportClean before cache access/delivery. clean-export denies without current entitlement; ordinary export is watermarked for Free. Full canonical download links expire after 60 seconds; display reduction never changes original package bytes.',
     inputSchema:fromJsonSchema<SourceRenderRequest>(z.toJSONSchema(sourceRenderRequestSchema) as JsonSchemaType),
@@ -55,6 +56,6 @@ export function registerSavedSourceTools({ server, publicOrigin, getAccess, tool
     const request = {...input,operation:operation==='preview'?'preview' as const:input.operation==='clean-export'?'clean-export' as const:'export' as const};
     const result = await renderSavedSource({actorUserId:access.user.id,request,publicOrigin});
     const downloads = operation==='export' ? await Promise.all(result.artifacts.map(async artifact => ({artifactId:artifact.artifactId,url:await createRenderArtifactDownload({ownerUserId:access.user.id,artifact}),expiresInSeconds:60}))) : [];
-    return createRenderArtifactPreviewResult({ artifacts:result.artifacts,text:`${result.snapshot.title} · ${result.branded?'CardForge branded':'clean entitled export'} · exact selected source.`, structuredContent:{source:input.source,sourceVersion:result.snapshot.sourceVersion,identity:result.snapshot.identity,branded:result.branded,renderArtifacts:result.artifacts.map(renderArtifactStructuredContent),downloads,openInCardForgeUrl:result.openInCardForgeUrl} });
+    return createRenderArtifactPreviewResult({ artifacts:result.artifacts,text:`${result.snapshot.title} · ${result.branded?'CardForge branded':'clean entitled export'} · exact selected source. ${result.snapshot.sourceIntegrity?.notice ?? ''}`, structuredContent:{source:input.source,sourceVersion:result.snapshot.sourceVersion,identity:result.snapshot.identity,sourceIntegrity:result.snapshot.sourceIntegrity,branded:result.branded,renderArtifacts:result.artifacts.map(renderArtifactStructuredContent),downloads,openInCardForgeUrl:result.openInCardForgeUrl} });
   }));
 }

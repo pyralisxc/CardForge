@@ -65,6 +65,7 @@ export function SavedSourcePreviewClient() {
     {fontCss && <style>{fontCss}</style>}
     <h1>{snapshot?.title ?? 'Exact CardForge source'}</h1>
     {snapshot && <p className="break-all text-xs">{Object.entries(snapshot.identity).map(([key,value]) => `${key}: ${value ?? 'unassigned'}`).join(' · ')}</p>}
+    {snapshot?.sourceIntegrity && <p>{snapshot.sourceIntegrity.notice}</p>}
     {error ? <p role="alert">{error}</p> : <p>{images.length ? 'Exact native render' : 'Rendering exact source…'}</p>}
     {content && ['media', 'font', 'recipe'].includes(content.kind) && <div style={{ position: 'absolute', left: -10000, top: 0 }}>
       <div ref={specimen} style={{ width: 480, minHeight: 320, padding: 20, background: '#f5f0e8', color: '#20170f' }}>
