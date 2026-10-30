@@ -705,11 +705,16 @@ export const listGoogleDriveProjects = async (ownerUserId: string): Promise<Goog
 export const getGoogleDriveProject = async ({
   ownerUserId,
   fileId,
+  expectedProviderRevision,
 }: {
   ownerUserId: string;
   fileId: string;
+  expectedProviderRevision?: string;
 }): Promise<GoogleDriveProjectDownload & { document: ProjectDocumentV1 }> => {
   const { row, accessToken, summary } = await getAuthorizedGoogleDriveProjectMetadata({ ownerUserId, fileId });
+  if (expectedProviderRevision && summary.providerRevision !== expectedProviderRevision) {
+    throw new ProjectStorageProviderError('The connected project changed before its package was read. Refresh its exact provider revision before inspecting it.', 409, { kind: 'conflict' });
+  }
   if (summary.capabilities && !summary.capabilities.canDownload) {
     throw new ProjectStorageProviderError('Your current Drive role cannot download this project.', 403, { kind: 'authorization', nextAction: 'Ask the Drive owner for file access or choose another project.' });
   }

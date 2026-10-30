@@ -229,15 +229,32 @@ describe('read-only saved project inspection', () => {
   });
   it('returns the exact decoded source without checkout, package rewriting or provider writes', async () => {
     const before = JSON.stringify(document);
-    expect(await readConnectedProjectForAgent(input)).toBe(driveSource);
+    expect(await readConnectedProjectForAgent(input)).toEqual(driveSource);
     expect(JSON.stringify(document)).toBe(before);
-    expect(projectMocks.getGoogleDriveProject).toHaveBeenCalledWith({ ownerUserId: 'account-source', fileId: 'drive_file_source' });
+    expect(projectMocks.getGoogleDriveProject).toHaveBeenCalledWith({ ownerUserId: 'account-source', fileId: 'drive_file_source', expectedProviderRevision: '8' });
     expect(documentMocks.createStudioDocument).not.toHaveBeenCalled();
     expect(projectMocks.updateGoogleDriveProjectFromServer).not.toHaveBeenCalled();
   });
   it.each(['expectedProviderRevision', 'expectedProjectRevision'] as const)('rejects a stale %s without a checkout', async key => {
     await expect(readConnectedProjectForAgent({ ...input, [key]: 'stale' })).rejects.toMatchObject({ status: 409 });
     expect(documentMocks.createStudioDocument).not.toHaveBeenCalled();
+  });
+  it('resolves only the decoded package revision when provider metadata is absent', async () => {
+    projectMocks.getGoogleDriveProjectSummary.mockResolvedValue({ ...driveSource.summary, projectRevision: null });
+    const metadataInput = { ...input, expectedProjectRevision: undefined };
+    const before = JSON.stringify(document);
+    expect((await readConnectedProjectForAgent(metadataInput)).summary.projectRevision).toBe(sourceRevision);
+    expect(JSON.stringify(document)).toBe(before);
+    expect(documentMocks.createStudioDocument).not.toHaveBeenCalled();
+    expect(projectMocks.updateGoogleDriveProjectFromServer).not.toHaveBeenCalled();
+  });
+  it('rejects a conflicting decoded/provider package identity instead of inventing one', async () => {
+    projectMocks.getGoogleDriveProjectSummary.mockResolvedValue({ ...driveSource.summary, projectRevision: 'b'.repeat(64) });
+    const metadataInput = { ...input, expectedProjectRevision: undefined };
+    await expect(readConnectedProjectForAgent(metadataInput)).rejects.toMatchObject({ status: 409 });
+    projectMocks.getGoogleDriveProjectSummary.mockResolvedValue({ ...driveSource.summary, projectRevision: null });
+    projectMocks.getGoogleDriveProject.mockResolvedValue({ ...driveSource, summary: { ...driveSource.summary, projectRevision: null } });
+    await expect(readConnectedProjectForAgent(metadataInput)).rejects.toMatchObject({ status: 409 });
   });
   it('rejects provider movement during the package download', async () => {
     projectMocks.getGoogleDriveProjectSummary.mockResolvedValue({ ...driveSource.summary, providerRevision: '9' });
@@ -246,6 +263,11 @@ describe('read-only saved project inspection', () => {
   it('rejects a connected account change during the read', async () => {
     projectMocks.getGoogleDriveProjectSummary.mockResolvedValue({ ...driveSource.summary, accountId: 'other-account' });
     await expect(readConnectedProjectForAgent(input)).rejects.toMatchObject({ status: 409 });
+  });
+  it('does not return package metadata after download authority is revoked during the read', async () => {
+    projectMocks.getGoogleDriveProjectSummary.mockResolvedValue({ ...driveSource.summary, capabilities: { canDownload: false } });
+    await expect(readConnectedProjectForAgent(input)).rejects.toMatchObject({ status: 403 });
+    expect(documentMocks.createStudioDocument).not.toHaveBeenCalled();
   });
   it('requires a linked account before any provider read', async () => {
     await expect(readConnectedProjectForAgent({ ...input, access: { entitlement: { isSignedIn: false } } as never })).rejects.toMatchObject({ status: 401 });

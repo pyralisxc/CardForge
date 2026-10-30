@@ -7,6 +7,7 @@ import {
   disconnectGoogleDriveProjectStorage,
   listGoogleDriveProjects,
   getGoogleDriveProjectThumbnail,
+  getGoogleDriveProject,
   prepareGoogleDriveProjectUpload,
   parseGoogleError,
   updateGoogleDriveProjectFromServer,
@@ -91,6 +92,18 @@ describe('Google Drive provider boundaries', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
+  });
+
+  it('rejects a stale exact read pin before downloading any package bytes', async () => {
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(selectConnectionQuery()) } as never);
+    const fetch = vi.fn().mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
+      .mockResolvedValueOnce(Response.json({ id: 'drive-file-12345', name: 'Legacy.cardforge',
+        mimeType: 'application/vnd.cardforge.project+zip', headRevisionId: 'native-2', version: '2', modifiedTime: '2026-09-01',
+        parents: ['drive_folder_123'], capabilities: writableProjectCapabilities, size: '128' }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(getGoogleDriveProject({ ownerUserId: 'user-1', fileId: 'drive-file-12345', expectedProviderRevision: headToken('1') })).rejects.toMatchObject({ status: 409, kind: 'conflict' });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls.some(([url]) => String(url).includes('alt=media'))).toBe(false);
   });
 
   it('reads private native thumbnails without importing the package or exposing credentials to the browser', async () => {
