@@ -33,3 +33,5 @@ export { createStyleReviewRevision, readStyleReviewBase, readStyleReviewReceipt 
 
 export { verifySelectedPublishedManagedRaster, assertStaticManagedRasterSlot } from './lib/managedRasterAdoption';
 export type { ManagedRasterSelection } from './lib/managedRasterAdoption';
+export { inspectOwnerRevisionDeletion, deleteOwnerRevision } from './server/ownerRevisionDeletionTools';
+export { RevisionDeleteError } from './server/ownerRevisionDeletion';

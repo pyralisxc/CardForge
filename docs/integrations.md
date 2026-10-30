@@ -92,6 +92,8 @@ Owner grants use explicit additive metadata and the same account lock. Removing 
 
 ## MCP — agent access to CardForge Studio
 
+Owner-only `get_pipeline_revision_deletion` discovers one exact submission UUID, name/path confirmation and current blockers. `delete_pipeline_revision_now` reuses the existing native Owner claim and one-revision processor; discovery never grants deletion authority. It cannot delete a catalog lineage, enable expiry, or accept an arbitrary Storage target. A committed result remains committed when activity recording or catalog refresh returns a warning. An uncertain result uses no deletion Boolean and requires read-only reconciliation, never automatic retry; an absent row alone is not proof of prior success. Both tools retain linked-account role enforcement and normal usage telemetry.
+
 **Protocol/auth owners:** MCP owns the tool/resource protocol; Clerk owns OAuth token verification and linked account identity.
 
 **Start here:**
