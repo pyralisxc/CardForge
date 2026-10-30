@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { createPipelineReviewTarget, resolvePipelineReviewTarget, verifyReviewPublication } from '@/features/pipeline/lib/pipelineReviewTarget';
 import { libraryReviewSelection, canEditSelectedContribution } from '@/features/storage-management/lib/libraryReviewSelection';
-import { PipelineDetailContent, createLibraryReviewAction, getSharedLibraryActions } from '@/features/storage-management/components/LibraryObjectPresentation';
+import { getPipelineRevisionLabel, PipelineDetailContent, createLibraryReviewAction, getSharedLibraryActions } from '@/features/storage-management/components/LibraryObjectPresentation';
 import { isActionApplicable } from '@/features/app-shell/environment/model';
 import type { PipelineSubmission } from '@/features/pipeline/client';
 import type { LibraryViewItem } from '@/features/storage-management/components/LibraryObjectPresentation';
@@ -20,6 +20,14 @@ describe('Library exact review selection', () => {
   });
   it.each(['lineageId', 'revisionNumber', 'status', 'publishedAt', 'updatedAt', 'registryAssetId'] as const)('rejects changed %s rather than adopting latest', field => {
     expect(() => resolvePipelineReviewTarget(createPipelineReviewTarget(row)!, [{ ...row, [field]: 'changed' } as PipelineSubmission])).toThrow('changed');
+  });
+  it('pins the exact current publication when selecting its Pipeline revision row', () => {
+    const item = pipeline();
+    if (item.scope !== 'pipeline') throw new Error('Expected Pipeline fixture');
+    item.pipeline.catalogPublication = { submissionId: row.id, updatedAt: 'registry-epoch' };
+    const target = libraryReviewSelection(item, [])!;
+    expect(target.catalogPublication).toEqual({ submissionId: 'r1', updatedAt: 'registry-epoch' });
+    expect(() => verifyReviewPublication(target, [{ id: 'material', lineageId: 'lineage', submissionId: 'r2', updatedAt: 'new-epoch' }] as never)).toThrow('changed');
   });
   it('rejects missing exact identity', () => {
     expect(() => resolvePipelineReviewTarget(createPipelineReviewTarget(row)!, [{ ...row, id: 'other' }])).toThrow('unavailable');
@@ -79,4 +87,28 @@ describe('own Contributor pending history entry', () => {
     expect(markup('mine')).not.toContain('Edit Revision 1');
   });
   it('does not offer editing another Contributor history', () => expect(markup('other')).not.toContain('Edit Revision 2'));
+});
+
+
+describe('unpublished upload exact review', () => {
+  const upload = { ...row, id: 'upload', registryAssetId: null, targetRegistryAssetId: null,
+    revisionNumber: null, status: 'voting' as const, publishedAt: null };
+  it('pins the existing submission and lineage without inventing a catalog ID or revision', () => {
+    const target = libraryReviewSelection(pipeline(upload), [upload])!;
+    expect(target).toMatchObject({ assetId: null, submissionId: 'upload', lineageId: 'lineage', revisionNumber: null });
+    expect(resolvePipelineReviewTarget(target, [upload])).toBe(upload);
+  });
+  it.each(['lineageId', 'registryAssetId', 'targetRegistryAssetId', 'revisionNumber', 'status', 'updatedAt'] as const)('rejects changed upload %s', field => {
+    expect(() => resolvePipelineReviewTarget(createPipelineReviewTarget(upload)!, [{ ...upload, [field]: 'changed' } as PipelineSubmission])).toThrow('changed');
+  });
+  it('does not weaken published or missing-lineage identity', () => {
+    expect(createPipelineReviewTarget({ ...upload, status: 'published' })).toBeNull();
+    expect(createPipelineReviewTarget({ ...upload, publishedAt: '2026-01-01' })).toBeNull();
+    expect(createPipelineReviewTarget({ ...upload, lineageId: undefined })).toBeNull();
+  });
+});
+
+it('labels an unnumbered pending upload without inventing revision one or legacy history', () => {
+ expect(getPipelineRevisionLabel({ ...row, revisionNumber: null, publishedAt: null, status: 'voting' })).toBe('Unnumbered submission · r1');
+ expect(getPipelineRevisionLabel({ ...row, revisionNumber: null })).toBe('Unnumbered published submission · r1');
 });

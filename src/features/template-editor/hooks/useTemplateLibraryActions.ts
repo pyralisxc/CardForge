@@ -1,5 +1,8 @@
 "use client";
 
+import { retainTemplatePipelineAttempt, resolveTemplatePipelineAttempt } from '../lib/templatePipelineAttempts';
+import type { ManagedRasterSelection } from '@/features/pipeline/client';
+
 import { useCallback, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 
@@ -272,16 +275,17 @@ export function useTemplateLibraryActions({
     setPendingTemplateSaveImpact((current) => current ? { ...current, variantName } : current);
   }, []);
 
-  const handleSubmitTemplateRevision = useCallback(async (template: TCGCardTemplate) => {
+  const handleSubmitTemplateRevision = useCallback(async (template: TCGCardTemplate, managedRasterSelection?: ManagedRasterSelection) => {
     if (!projectCapabilities.canSubmitTemplateRevisions) throw new Error('Template revision submission is not available for this account.');
     const current = selectAllTemplates(useProjectStore.getState()).find((candidate) => candidate.id === template.id) ?? template;
     if (!current.id) throw new Error('Save this Template before submitting a revision.');
     const payload = { ...current, templateSource: 'default' as const, templateLibrarySource: 'pipeline' as const, templateRegistryStatus: 'draft' as const };
-    const fingerprint = JSON.stringify(payload);
+    const request = managedRasterSelection ? { ...payload, managedRasterSelection } : payload;
+    const fingerprint = JSON.stringify(request);
     const previousKey = pendingRevisionKeysRef.current.get(current.id);
     const submissionKey = previousKey?.fingerprint === fingerprint ? previousKey.key : nanoid(32);
     pendingRevisionKeysRef.current.set(current.id, { fingerprint, key: submissionKey });
-    const result = await mutateShippedLibrary('/api/templates', 'POST', payload, 'Unable to submit the Template revision.', { 'Idempotency-Key': submissionKey });
+    const result = await mutateShippedLibrary('/api/templates', 'POST', request, 'Unable to submit the Template revision.', { 'Idempotency-Key': submissionKey });
     const revision = result.revision && typeof result.revision === 'object' ? result.revision as { id?: string; revisionNumber?: number } : null;
     if (projectCapabilities.canPublishSharedLibrary && typeof revision?.revisionNumber === 'number') {
       addOrUpdateTemplate({
@@ -352,13 +356,20 @@ export function useTemplateLibraryActions({
     toast({ title: 'Template review receipt', description: `Revision ${receipt.revisionNumber} · ${receipt.status} · editorial ${receipt.editorialReviewStatus}. The live Template and your browser draft are unchanged.` });
   }, [addOrUpdateTemplate, projectCapabilities.canPublishSharedLibrary, toast]);
 
-  const handleContinueNewTemplateInPipeline = useCallback(async (template: TCGCardTemplate): Promise<string> => {
+  const handleContinueNewTemplateInPipeline = useCallback(async (template: TCGCardTemplate, managedRasterSelection?: ManagedRasterSelection): Promise<string> => {
     if (!projectCapabilities.canSubmitTemplateRevisions || template.templateSource === 'default') throw new Error('Only a contributor or owner can continue a new personal Template in the Pipeline.');
-    const fingerprint = JSON.stringify(template);
+    if (managedRasterSelection) {
+      const attempt = await retainTemplatePipelineAttempt(template, managedRasterSelection);
+      const destination = await resolveTemplatePipelineAttempt(attempt, true);
+      if (!destination) throw new Error('The outcome remains uncertain. Check the saved attempt.');
+      return destination;
+    }
+    const request = template;
+    const fingerprint = JSON.stringify(request);
     const pending = pendingNewTemplateKeysRef.current.get(template.id!);
     const submissionKey = pending?.fingerprint === fingerprint ? pending.key : nanoid(32);
     pendingNewTemplateKeysRef.current.set(template.id!, { fingerprint, key: submissionKey });
-    const result = await mutateShippedLibrary('/api/templates/submissions', 'POST', template, 'Unable to create the Template Pipeline draft.', { 'Idempotency-Key': submissionKey });
+    const result = await mutateShippedLibrary('/api/templates/submissions', 'POST', request, 'Unable to create the Template Pipeline draft.', { 'Idempotency-Key': submissionKey });
     const openInPipelineUrl = typeof result.openInPipelineUrl === 'string' ? result.openInPipelineUrl : null;
     if (!openInPipelineUrl?.startsWith('/account?section=library&scope=pipeline')) throw new Error('The Pipeline draft was created, but its secure handoff link was unavailable.');
     return openInPipelineUrl;

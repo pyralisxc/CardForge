@@ -229,6 +229,7 @@ describe('Pipeline Library projection', () => {
       sets: { items: [] },
     } as unknown as CardForgeCatalogManifest;
 
+    catalog.pipeline = { items: [{ id: 'ember-art', submissionId: publishedImage.id }] } as CardForgeCatalogManifest['pipeline'];
     const projected = projectPipelineLibraryObjects(program([publishedImage]), catalog);
 
     expect(projected[0].previewUrl).toBe('/card-assets/ember-art-preview.webp');
@@ -290,13 +291,14 @@ describe('Pipeline Library projection', () => {
       sets: { items: [] },
     } as CardForgeCatalogManifest;
 
+    catalog.pipeline = { items: [{ id: 'font-arcane', submissionId: publishedFont.id }] } as CardForgeCatalogManifest['pipeline'];
     const projected = projectPipelineLibraryObjects(program([publishedFont]), catalog);
 
     expect(projected[0].previewUrl).toBeNull();
     expect(projected[0].fontFamily).toBe('Arcane, serif');
   });
 
-  it('falls back to the canonical catalog name when legacy lineage ids do not match', () => {
+  it('does not substitute a same-name catalog object when legacy lineage ids do not match', () => {
     const publishedImage = submission('published-image-legacy', {
       assetType: 'imageAssets',
       status: 'published',
@@ -319,7 +321,43 @@ describe('Pipeline Library projection', () => {
       fonts: { fonts: [], registry: { configured: true, source: 'database', total: 0 } }, sets: { items: [] },
     } as CardForgeCatalogManifest;
 
-    expect(projectPipelineLibraryObjects(program([publishedImage]), catalog)[0].previewUrl).toBe('/card-assets/ember-art.png');
+    expect(projectPipelineLibraryObjects(program([publishedImage]), catalog)[0].previewUrl).toBeNull();
+  });
+});
+
+describe('Library visual identity across Styles and files', () => {
+  const style = { id: 'style-gilded', name: 'Gilded Filigree', kind: 'material', targets: ['shape'], appearance: { material: { baseColor: '#ffd700' } } };
+  const catalog = {
+    templates: { defaults: [], userTemplates: [] }, styles: { version: 1, styles: [style] },
+    assets: { templates: [], imageAssets: [], textures: [], icons: [],
+      dividers: [{ id: 'svg-gilded', name: style.name, kind: 'divider', url: '/divider.svg' }],
+      elementPresets: [{ id: style.id, name: style.name, kind: 'elementPreset', url: '/api/styles#style-gilded' }] },
+    fonts: { fonts: [] }, sets: { items: [] },
+    pipeline: { items: [{ id: 'svg-gilded', submissionId: 'divider-r2' }, { id: style.id, submissionId: 'style-r1' }] },
+  } as unknown as CardForgeCatalogManifest;
+  it('hydrates an exact Style binding without attaching it to same-name files', () => {
+    const rows = [submission('divider-r2', { assetType: 'dividers', name: style.name, status: 'published', targetRegistryAssetId: 'svg-gilded', previewUrl: '' }),
+      submission('style-r1', { assetType: 'elementPresets', name: style.name, status: 'published', targetRegistryAssetId: style.id, previewUrl: '' })];
+    const projected = projectPipelineLibraryObjects(program(rows), catalog);
+    expect(projected.find(item => item.submission.id === 'divider-r2')).toMatchObject({ style: null, previewUrl: '/divider.svg' });
+    expect(projected.find(item => item.submission.id === 'style-r1')?.style).toEqual(style);
+    const published = projectPublishedLibraryObjects(catalog);
+    expect(published.find(item => item.kind === 'divider')?.style).toBeNull();
+    expect(published.find(item => item.kind === 'elementPreset')?.style).toEqual(style);
+  });
+  it('keeps historical source and missing source distinct from the current catalog visual', () => {
+    for (const previewUrl of ['/historical.svg', '']) {
+      const historical = submission('divider-r1', { assetType: 'dividers', name: style.name, status: 'archived', targetRegistryAssetId: 'svg-gilded', previewUrl });
+      expect(projectPipelineLibraryObjects(program([historical]), catalog)[0]).toMatchObject({ style: null, previewUrl: previewUrl || null });
+    }
+    const authoredStyle = { ...style, appearance: { material: { baseColor: '#123456' } } };
+    const historicalStyle = submission('style-r0', { assetType: 'elementPresets', name: style.name, status: 'archived', targetRegistryAssetId: style.id, sourcePayload: authoredStyle });
+    expect(projectPipelineLibraryObjects(program([historicalStyle]), catalog)[0].style).toEqual(authoredStyle);
+  });
+  it.each(['image', 'texture', 'divider', 'icon'] as const)('does not attach Style data to a %s even with an embedded namesake style', kind => {
+    const key = { image: 'imageAssets', texture: 'textures', divider: 'dividers', icon: 'icons' }[kind];
+    const value = { ...catalog, assets: { ...catalog.assets, [key]: [{ id: `file-${kind}`, kind, name: style.name, style, url: '/own.svg' }] } } as CardForgeCatalogManifest;
+    expect(projectPublishedLibraryObjects(value).find(item => item.id === `published:${kind}:file-${kind}`)?.style).toBeNull();
   });
 });
 
@@ -340,5 +378,19 @@ describe('exact Template Library identity', () => {
     const [item] = projectPipelineLibraryObjects(identityProgram([row]), catalog);
     expect(item.template).toEqual(mode === 'history' ? row.sourcePayload : null);
     expect(item.previewUrl).toBeNull();
+  });
+});
+
+
+describe('current publication outside a revision page', () => {
+  it('does not call a displayed historical publication live or retirable', () => {
+    const old = identitySubmission('A1', { lineageId: 'lineage-A', targetRegistryAssetId: 'A',
+      registryAssetId: 'A', status: 'published', publishedAt: '2026-01-01T00:00:00Z', revisionNumber: 1,
+      sourcePayload: identityTemplate('original-A', '#00ff00') });
+    const [item] = projectPipelineLibraryObjects(identityProgram([old], old.contributorId), identityCatalog());
+    expect(item.submission.id).toBe('A1');
+    expect(item.currentPublishedSubmission).toBeNull();
+    expect(item.retirableSubmission).toBeNull();
+    expect(item.template).toEqual(old.sourcePayload);
   });
 });

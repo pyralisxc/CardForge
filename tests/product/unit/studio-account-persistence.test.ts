@@ -133,6 +133,28 @@ describe('Studio account-scoped persistence', () => {
     expect(calls).toEqual(['adopt:account:continuity', 'hydrate:account:continuity']);
   });
 
+  it('blocks workspace readiness until completed-deletion cleanup settles, and propagates save failure', async () => {
+    const calls: string[] = [];
+    let finishCleanup: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { finishCleanup = resolve; });
+    const setup = {
+      adopt: async () => { calls.push('adopt'); return false; },
+      hydrate: async () => { calls.push('hydrate'); },
+      cleanup: async () => { calls.push('cleanup'); await gate; },
+    };
+    let ready = false;
+    const opening = prepareAccountProjectWorkspace('account:guarded', setup).then(() => { ready = true; });
+    await vi.waitFor(() => expect(calls).toEqual(['adopt', 'hydrate', 'cleanup']));
+    expect(ready).toBe(false);
+    finishCleanup?.();
+    await opening;
+    expect(ready).toBe(true);
+    await expect(prepareAccountProjectWorkspace('account:guarded', {
+      ...setup,
+      cleanup: async () => { throw new Error('recovery save conflicted'); },
+    })).rejects.toThrow('recovery save conflicted');
+  });
+
   it('resumes existing account work without replacing it or transferring guest catalogs', async () => {
     const guestWorkspace = createIndexedDbStorage('project-workspace:guest');
     const accountWorkspace = createIndexedDbStorage('project-workspace:account:user-adoption');

@@ -1,3 +1,4 @@
+import { interpretStudioDependencies } from './studioDependencyInterpretation';
 import { randomUUID } from 'node:crypto';
 
 import type { ProjectDocumentV1 } from '@/features/project/server';
@@ -267,6 +268,7 @@ export const createStudioDocument = async ({
       creation_source: creationSource,
       document_version: externalized.document.version,
       document_payload: externalized.document,
+      catalog_dependencies: { ...interpretStudioDependencies(externalized.document), sourcePayload: externalized.document },
       retention_hours: retentionHours,
       last_activity_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + retentionHours * 60 * 60 * 1000).toISOString(),
@@ -319,6 +321,7 @@ export const updateStudioDocument = async ({
       title,
       document_version: externalized.document.version,
       document_payload: externalized.document,
+      catalog_dependencies: { ...interpretStudioDependencies(externalized.document), sourcePayload: externalized.document },
       revision: expectedRevision + 1,
       retention_hours: retentionHours,
       last_activity_at: new Date().toISOString(),
@@ -492,4 +495,43 @@ export const restoreStudioDocument = async (
   }
   if (!data) throw new StudioDocumentStoreError('Studio document is no longer recoverable.', 404);
   return toSummary(data as unknown as Omit<StudioDocumentRow, 'document_payload'>);
+};
+
+/** Internal source-owner repair only; never accepts a caller-provided interpretation. */
+export const reconcileStudioDocumentDependencies = async (ownerUserId: string, documentId: string): Promise<void> => {
+  await reconcileStudioDependencySnapshot(documentId, { ownerUserId });
+};
+
+/** Called only by the Owner boundary; reads ownership from the persisted row. */
+export const reconcileOwnerStudioDocumentDependencies = async (documentId: string, expectedRevision: number) => (
+  reconcileStudioDependencySnapshot(documentId, { expectedRevision })
+);
+
+const reconcileStudioDependencySnapshot = async (
+  documentId: string,
+  scope: { ownerUserId: string } | { expectedRevision: number },
+) => {
+  const store = requireStore();
+  let query = store.from('cardforge_studio_documents')
+    .select('owner_user_id,document_payload,revision').eq('id', documentId);
+  if ('ownerUserId' in scope) query = query.eq('owner_user_id', scope.ownerUserId);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw new StudioDocumentStoreError('Unable to read Studio dependency sources.', 503);
+  if (!data) throw new StudioDocumentStoreError('Studio document not found.', 404);
+  if ('expectedRevision' in scope && data.revision !== scope.expectedRevision) {
+    throw new StudioDocumentStoreError('Studio source changed. Reload its revision before reconciliation.', 409);
+  }
+  const payload = data.document_payload;
+  const interpretation = interpretStudioDependencies(payload);
+  const { data: reconciled, error: writeError } = await store.rpc('cardforge_reconcile_studio_catalog_dependencies', {
+    p_owner_user_id: 'ownerUserId' in scope ? scope.ownerUserId : data.owner_user_id,
+    p_document_id: documentId, p_expected_revision: data.revision,
+    p_expected_payload: payload,
+    p_interpretation: { ...interpretation, sourcePayload: payload },
+  });
+  if (writeError) throw new StudioDocumentStoreError('Studio reconciliation outcome is unavailable. Inspect the document before retrying.', 503);
+  if (!reconciled) throw new StudioDocumentStoreError('Studio source changed during dependency reconciliation. Reload before retrying.', 409);
+  // Never return another author's payload or ownership identity to the caller.
+  return { documentId, revision: data.revision as number, contractVersion: interpretation.contractVersion,
+    complete: interpretation.complete, opaqueReasons: interpretation.opaqueReasons };
 };

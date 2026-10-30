@@ -123,18 +123,26 @@ describe('exact Pipeline Template specimen export', () => {
 
   it('never falls back to the live catalog template when the exact candidate payload is missing', () => {
     const withoutCandidate = { ...revision, sourcePayload: null };
-    expect(buildPipelineTemplateSpecimen(withoutCandidate, 'candidate', candidate)).toBeNull();
+    expect(buildPipelineTemplateSpecimen(withoutCandidate, 'candidate', { template: candidate, submissionId: 'live-parent', lineageId: revision.lineageId! })).toBeNull();
   });
 
   it('keeps a live-catalog specimen distinct from the submitted candidate', () => {
     const live = { ...candidate, name: 'Bridge Back Live', templateRevision: 1 };
     const candidateSpecimen = buildPipelineTemplateSpecimen(revision, 'candidate');
-    const liveSpecimen = buildPipelineTemplateSpecimen(revision, 'live', live);
+    const liveSpecimen = buildPipelineTemplateSpecimen(revision, 'live', { template: live, submissionId: 'live-parent', lineageId: revision.lineageId! });
 
     expect(candidateSpecimen?.card.template).toBe(candidate);
     expect(liveSpecimen?.card.template).toBe(live);
     expect(candidateSpecimen?.fileName).toContain('-candidate-r2-base-r1-');
     expect(liveSpecimen?.fileName).toContain('-live-r1-base-r1-');
+    expect(liveSpecimen?.submissionId).toBe('live-parent');
+    expect(liveSpecimen?.fileName).toContain('submission-live-parent');
+    expect(buildPipelineTemplateSpecimen(revision, 'live')).toBeNull();
+    expect(buildPipelineTemplateSpecimen(revision, 'live', { template: live, submissionId: 'other', lineageId: 'other-lineage' })).toBeNull();
+    const historical = buildPipelineTemplateSpecimen({ ...revision, status: 'published', revisionNumber: 1 }, 'submission');
+    expect(historical?.submissionId).toBe(revision.id);
+    expect(historical?.revisionNumber).toBe(1);
+    expect(historical?.card.template).toBe(candidate);
   });
 });
 describe('contributor asset program rules', () => {
@@ -271,6 +279,15 @@ describe('contributor asset program rules', () => {
     expect(getReviewProgressLabel({ positiveVotes: 2, negativeVotes: 1 }, 5)).toBe('2 more votes needed');
     expect(getReviewProgressPercent({ positiveVotes: 2, negativeVotes: 1 }, 5)).toBe(60);
     expect(getReviewProgressLabel({ positiveVotes: 5, negativeVotes: 1 }, 5)).toBe('6/5 votes ready');
+  });
+
+  it('does not infer live availability from current or historical published status alone', () => {
+    for (const revisionNumber of [1, 2, null]) {
+      const message = getSubmissionNextStep({ ...baseSubmission, status: 'published', revisionNumber }, { settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS });
+      expect(message).toContain('Published through automatic ranking');
+      expect(message).toContain('depends on the active publication');
+      expect(message).not.toContain('Live in the shared library');
+    }
   });
 
   it('explains automatic results and persistent owner overrides honestly', () => {

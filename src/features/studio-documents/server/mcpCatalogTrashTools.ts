@@ -7,7 +7,13 @@ import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 const snapshotOutputSchema = fromJsonSchema<CatalogTrashSnapshot>({
   type: 'object', additionalProperties: false, required: ['name', 'state', 'retentionDays', 'reasons', 'entryReasons'],
   properties: { name: { type: 'string' }, state: { type: 'object' }, retentionDays: { type: 'integer' },
-    reasons: { type: 'array', items: { type: 'string' } }, entryReasons: { type: 'array', items: { type: 'string' } } },
+    reasons: { type: 'array', items: { type: 'string' } }, entryReasons: { type: 'array', items: { type: 'string' } },
+    inventoryDetails: { type: 'array', items: { type: 'object', additionalProperties: false,
+      required: ['origin', 'recordId', 'payloadKind', 'conditions'], properties: {
+        origin: { type: 'string', enum: ['registry', 'submission', 'studio'] }, recordId: { type: 'string', minLength: 1 },
+        payloadKind: { type: 'string', minLength: 1 }, conditions: { type: 'array', minItems: 1, items: { type: 'string', minLength: 1 } },
+      } } },
+  },
 });
 
 export function registerCatalogTrashTools({ server, getAccess, toolError }: Parameters<typeof registerAccountWorkflowTools>[0]) {

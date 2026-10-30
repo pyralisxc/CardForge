@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from 'react';
+import { requireOkResponse } from '@/infrastructure/http/clientResponses';
+import type { ManagedRasterSelection } from '@/features/pipeline/client';
 import { FolderOpen } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,7 @@ interface TemplateAssetLibraryPickerProps {
   target: LibraryPickerRequest['target'];
   onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
   onApply: (asset: CardAssetOption) => void;
+  managedAdoption?: { pendingName?: string; issue: string | null; onSelect: (selection: ManagedRasterSelection, name: string) => void };
   builtInOptions?: readonly { name: string; value: string }[];
   onApplyBuiltIn?: (value: string) => void;
   onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
@@ -57,11 +60,13 @@ export function TemplateAssetLibraryPicker({
   target,
   onAddFromProvider,
   onApply,
+  managedAdoption,
   builtInOptions = [],
   onApplyBuiltIn,
   onMaterializePersonal,
 }: TemplateAssetLibraryPickerProps) {
   const [open, setOpen] = useState(false);
+  const [adopt, setAdopt] = useState(false);
   const request = useMemo((): LibraryPickerRequest => ({
     purpose: `template.${kind}-source`,
     title: `Choose ${label}`,
@@ -93,7 +98,7 @@ export function TemplateAssetLibraryPicker({
         kind,
         role: personalRoles[0],
         source,
-        sourceLabel: sourceLabelForAsset(asset),
+        sourceLabel: adopt ? (asset.publishedSubmissionId ? 'Exact publication · eligibility checked on selection' : 'Ordinary picture only · no published receipt') : sourceLabelForAsset(asset),
         previewUrl: asset.url,
         materialization: source === 'project' ? 'already-local' as const : 'reference' as const,
       };
@@ -112,10 +117,16 @@ export function TemplateAssetLibraryPicker({
         revision: Number.isFinite(Number(item.providerRevision)) ? Number(item.providerRevision) : undefined,
         materialization: 'project-copy' as const,
       })),
-  ], [assets, builtInOptions, kind, personalItems, personalRoles]);
+  ], [adopt, assets, builtInOptions, kind, personalItems, personalRoles]);
 
   return (
     <>
+      {managedAdoption ? <label className="flex items-start gap-2 text-xs">
+        <input type="checkbox" checked={adopt} disabled={Boolean(managedAdoption.issue) && !adopt} onChange={event => setAdopt(event.target.checked)} />
+        Adopt managed picture on Pipeline submission
+      </label> : null}
+      {managedAdoption?.pendingName ? <p className="text-xs text-amber-200">Selected for next Pipeline submission: {managedAdoption.pendingName}. Local picture unchanged.</p> : null}
+      {managedAdoption?.issue ? <p className="text-xs">{managedAdoption.issue}</p> : null}
       <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
         <FolderOpen className="mr-1.5 h-4 w-4" aria-hidden="true" />
         Choose from Library
@@ -134,6 +145,19 @@ export function TemplateAssetLibraryPicker({
         onSelect={async (result) => {
           const selection = result.selections[0];
           if (!selection) return;
+          if (adopt && managedAdoption) {
+            if (managedAdoption.issue) throw new Error(managedAdoption.issue);
+            const asset = assets.find(candidate => candidate.id === selection.objectId);
+            if (!asset?.publishedSubmissionId) throw new Error('This is an ordinary picture choice, not an eligible managed publication. Switch off managed adoption to use it independently.');
+            const pins = { registryAssetId: asset.id, publishedSubmissionId: asset.publishedSubmissionId, elementId: target.ids[0] };
+            if (!pins.elementId) throw new Error('Select one image slot.');
+            const response = await fetch(`/api/assets?${new URLSearchParams(pins)}`);
+            await requireOkResponse(response, 'Managed adoption eligibility is unavailable. Your picture is unchanged.');
+            const observation = await response.json() as { state?: string; selection?: ManagedRasterSelection };
+            if (observation.state !== 'ready' || JSON.stringify(observation.selection) !== JSON.stringify(pins)) throw new Error('The exact source observation changed. Choose again.');
+            managedAdoption.onSelect(pins, asset.name);
+            return;
+          }
           if (selection.id.startsWith(`published:built-in-${kind}:`) && onApplyBuiltIn) {
             onApplyBuiltIn(selection.objectId);
             return;

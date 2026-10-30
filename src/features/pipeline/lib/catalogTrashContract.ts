@@ -44,11 +44,20 @@ export const catalogTrashCommandSchema = z.discriminatedUnion('action', [
 export type CatalogTrashCommand = z.infer<typeof catalogTrashCommandSchema>;
 export type CatalogTrashExpectedState = z.infer<typeof catalogTrashExpectedStateSchema>;
 
+// Read-only observations; never accepted as command eligibility evidence.
+export const catalogTrashInventoryDetailSchema = z.object({
+  origin: z.enum(['registry', 'submission', 'studio']),
+  recordId: z.string().min(1),
+  payloadKind: z.string().min(1),
+  conditions: z.array(z.string().min(1)).min(1),
+}).strict();
+
 export const catalogTrashSnapshotSchema = z.object({
   name: z.string().min(1),
   state: catalogTrashExpectedStateSchema,
   retentionDays: z.number().int().positive(),
   reasons: z.array(z.string().min(1)),
   entryReasons: z.array(z.string().min(1)),
+  inventoryDetails: z.array(catalogTrashInventoryDetailSchema).optional(),
 }).strict();
 export type CatalogTrashSnapshot = z.infer<typeof catalogTrashSnapshotSchema>;

@@ -71,7 +71,9 @@ function SourceIcon({ item }: { item: LibraryViewItem }) {
 function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; previewUrl: string | null }) {
   const [previewFailed, setPreviewFailed] = useState(false);
   const template = item.scope === 'published' ? item.published.template : item.scope === 'pipeline' ? item.pipeline.template : null;
-  const style = item.scope === 'published' ? item.published.style : item.scope === 'pipeline' ? item.pipeline.style : null;
+  const style = item.scope === 'published' && item.published.kind === 'elementPreset'
+    ? item.published.style
+    : item.scope === 'pipeline' && item.pipeline.submission.assetType === 'elementPresets' ? item.pipeline.style : null;
   if (item.scope === 'published' && item.published.kind === 'set') {
     return <span className={styles.objectFallback} aria-label={`${item.name} complete Set`}><Boxes aria-hidden="true" /><small>Complete Set</small></span>;
   }
@@ -84,13 +86,17 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
     ? <MediaPresentationPreview sourceUrl={item.pipeline.submission.sourceUrl} presentation={item.pipeline.submission.mediaPresentation} />
     : <span>Exact source preview requires Owner or original contributor access.</span>;
   if (previewUrl && !previewFailed) return <img src={previewUrl} alt="" className={styles.objectImage} onError={() => setPreviewFailed(true)} />;
+  const fileBacked = item.scope === 'published'
+    ? ['image', 'texture', 'divider', 'icon', 'border', 'frame'].includes(item.published.kind)
+    : item.scope === 'pipeline' && ['imageAssets', 'textures', 'dividers', 'icons'].includes(item.pipeline.submission.assetType);
+  if (fileBacked || (previewUrl && previewFailed)) return <span className={styles.objectFallback}>Preview unavailable</span>;
   if (item.fontFamily || (item.scope === 'pipeline' && item.pipeline.submission.assetType === 'fonts')) return <span className={styles.fontSample} style={{ fontFamily: item.fontFamily ?? undefined }}>Aa</span>;
   return <span className={styles.objectFallback}><SourceIcon item={item} /></span>;
 }
 
-export const getPipelineRevisionLabel = (revision: Pick<PipelineSubmission, 'id' | 'revisionNumber'>): string => (
+export const getPipelineRevisionLabel = (revision: Pick<PipelineSubmission, 'id' | 'revisionNumber'> & Partial<Pick<PipelineSubmission, 'status' | 'publishedAt'>>): string => (
   revision.revisionNumber == null
-    ? `Legacy revision · ${revision.id.slice(0, 8)}`
+    ? `${revision.status === 'published' || revision.publishedAt ? 'Unnumbered published submission' : 'Unnumbered submission'} · ${revision.id.slice(0, 8)}`
     : `Revision ${revision.revisionNumber}`
 );
 
@@ -261,11 +267,11 @@ export function PublishedRevisionFeedback({ revision, name, canReview, votingId,
   onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
 }) {
   return <section className={styles.pipelineDetail} aria-label="Published revision feedback">
-    <h3>Revision {revision.revisionNumber ?? 1} feedback</h3>
+    <h3>Revision {revision.revisionNumber ?? 'unassigned'} feedback</h3>
     <p>Hearts appreciate the whole work. Thumbs review this exact published revision.</p>
     {canReview && isContributorPipelineVoteable(revision) ? <div className={styles.revisionVotes}>
-      <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, name, 'positive')} aria-label={`Vote up on ${name} revision ${revision.revisionNumber ?? 1}`}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
-      <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, name, 'negative')} aria-label={`Vote down on ${name} revision ${revision.revisionNumber ?? 1}`}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
+      <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, name, 'positive')} aria-label={`Vote up on ${name} revision ${revision.revisionNumber ?? 'unassigned'}`}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
+      <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, name, 'negative')} aria-label={`Vote down on ${name} revision ${revision.revisionNumber ?? 'unassigned'}`}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
     </div> : null}
   </section>;
 }
@@ -293,7 +299,7 @@ export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 
       availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
     }] : []),
     ...(item.pipeline.editableSubmission?.id === item.pipeline.submission.id && item.pipeline.ownership === 'mine' ? [{
-      id: 'library.edit-pipeline' as const, label: `Edit revision ${item.pipeline.editableSubmission.revisionNumber ?? 1}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
+      id: 'library.edit-pipeline' as const, label: `Edit revision ${item.pipeline.editableSubmission.revisionNumber ?? 'unassigned'}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
       supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'primary' as const,
       availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'tool-opened' as const,
     }] : []),
@@ -303,12 +309,12 @@ export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 
       availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
     }] : []),
     ...(item.pipeline.editableSubmission?.id === item.pipeline.submission.id && item.pipeline.ownership === 'mine' ? [{
-      id: 'library.withdraw-pipeline' as const, label: `Withdraw revision ${item.pipeline.editableSubmission.revisionNumber ?? 1}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
+      id: 'library.withdraw-pipeline' as const, label: `Withdraw revision ${item.pipeline.editableSubmission.revisionNumber ?? 'unassigned'}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
       supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'overflow' as const,
       availability: { kind: 'available' as const }, commitment: 'destructive' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
     }] : []),
     ...(item.pipeline.retirableSubmission ? [{
-      id: 'library.retire-pipeline' as const, label: `Retire published revision ${item.pipeline.retirableSubmission.revisionNumber ?? 1}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
+      id: 'library.retire-pipeline' as const, label: `Retire published revision ${item.pipeline.retirableSubmission.revisionNumber ?? 'unassigned'}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
       supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'overflow' as const,
       availability: { kind: 'available' as const }, commitment: 'publication' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
     }] : []),

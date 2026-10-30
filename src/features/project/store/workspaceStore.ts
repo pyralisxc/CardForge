@@ -73,7 +73,7 @@ const inertStorage: StateStorage = {
 
 const createWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersistedState>(() => createScopedProjectStorage(
   'project-workspace',
-  WORKSPACE_STORAGE_OPTIONS,
+  { ...WORKSPACE_STORAGE_OPTIONS, skipUnchangedWorkspaceWrites: true },
 ));
 
 const createInertWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersistedState>(() => inertStorage);

@@ -96,6 +96,169 @@ a, b = Session(), Session()
 try:
     a.run("set role service_role; set statement_timeout='5s';")
     b.run("set role service_role; set statement_timeout='2s';")
+    # Exact Set package interpretations share the existing catalog table locks.
+    # Native fixtures use synthetic trusted receipts; byte decoding/readback is
+    # covered through the real TypeScript/importer owners, never live Storage.
+    def set_insert(asset, submission, identities=None, preview=''):
+        digest = 'a' * 64
+        path = 'owner-defaults/sets/' + asset + '/' + digest + '.cardforge'
+        proof = {"contractVersion": 1, "packageSha256": digest, "fileSizeBytes": 42,
+                 "projectRevision": 'b' * 64, "sourceManifest": {"projectRevision": 'b' * 64, "project": {}},
+                 "complete": True, "references": {"identities": identities or [], "sources": []}, "opaqueReasons": []}
+        return ("insert into public.cardforge_contributor_asset_submissions(id,contributor_id,asset_type,name,status,revision_number,"
+                "target_registry_asset_id,source_url,source_storage_bucket,source_storage_path,source_file_size_bytes,source_payload,catalog_dependencies,preview_url) values("
+                f"'{submission}','isolated-contention','sets','Synthetic Set','submitted',1,'{asset}',"
+                f"'https://example.invalid/storage/v1/object/public/cardforge-contributor-assets/{path}',"
+                f"'cardforge-contributor-assets','{path}',42,'" + json.dumps({"packageSha256": digest, "portableProject": True}) + "'::jsonb,'"
+                + json.dumps(proof) + f"'::jsonb,'{preview}')")
+
+    lineage, current, old, state = fixture(a)
+    consumer = str(uuid.uuid4())
+    a.run('begin;')
+    a.run(set_insert('set-writer-' + consumer, consumer, ['contention-' + lineage]) + ';')
+    expect_busy(b, command('trash', state))
+    a.run('commit;')
+    expect_conflict(b, command('trash', state), 'catalog_trash_dependency_blocked')
+    a.run(f"delete from public.cardforge_contributor_asset_submissions where id='{consumer}';")
+    print('PASS: Set writer wins; committed typed identity blocks Trash')
+
+    backend_set_writer = int(b.run('select pg_backend_pid();')[-1])
+    for mode in ['insert', 'update']:
+        lineage, current, old, state = fixture(a)
+        target_url = 'https://example.invalid/' + lineage + '.svg'
+        a.run(f"update public.cardforge_contributor_asset_submissions set source_url='{target_url}' where id='{current}';")
+        a.run(f"update public.cardforge_asset_registry set url='{target_url}' where asset_id='contention-{lineage}';")
+        state = json.loads(a.run(f"select public.cardforge_read_catalog_trash('{current}')::text;")[-1])['state']
+        consumer = str(uuid.uuid4())
+        if mode == 'update':
+            a.run(set_insert('set-updated-' + consumer, consumer) + ';')
+            statement = f"update public.cardforge_contributor_asset_submissions set preview_url='{target_url}' where id='{consumer}'"
+        else:
+            statement = set_insert('set-queued-' + consumer, consumer, ['contention-' + lineage])
+        a.run('begin;')
+        a.run('select ' + command('trash', state) + ';')
+        result = queue.Queue()
+        def queued_set_write():
+            try:
+                result.put(b.run("do $$ begin begin " + statement + "; raise exception 'queued_set_admitted'; exception when raise_exception then if sqlerrm<>'set_catalog_reference_unavailable' then raise; end if; end; end $$;"))
+            except Exception as error:
+                result.put(error)
+        worker = threading.Thread(target=queued_set_write)
+        worker.start()
+        deadline = time.monotonic() + 1.5
+        while a.run(f"select cardinality(pg_blocking_pids({backend_set_writer}))>0;")[-1] != 't':
+            assert time.monotonic() < deadline, 'Set writer did not wait behind Trash'
+            time.sleep(0.01)
+        a.run('commit;')
+        worker.join(timeout=5)
+        assert not worker.is_alive(), 'Set writer did not finish after Trash COMMIT'
+        outcome = result.get(timeout=1)
+        if isinstance(outcome, Exception):
+            raise outcome
+        if mode == 'insert':
+            assert a.run(f"select count(*) from public.cardforge_contributor_asset_submissions where id='{consumer}';")[-1] == '0'
+        else:
+            assert a.run(f"select preview_url='' from public.cardforge_contributor_asset_submissions where id='{consumer}';")[-1] == 't'
+            a.run(f"delete from public.cardforge_contributor_asset_submissions where id='{consumer}';")
+        print('PASS: Trash COMMIT then queued Set ' + mode.upper() + ' rejects dependency')
+
+    # Kind-only changes must not use an unchanged URL/pointer fast path.
+    media = str(uuid.uuid4())
+    a.run(f"insert into public.cardforge_contributor_asset_submissions(id,contributor_id,asset_type,name,status,revision_number) values('{media}','isolated-contention','icons','Kind proof','submitted',1);")
+    a.run(f"do $$ begin begin update public.cardforge_contributor_asset_submissions set asset_type='sets' where id='{media}'; raise exception 'submission_kind_bypass'; exception when raise_exception then if sqlerrm<>'set_catalog_dependency_unverified' then raise; end if; end; end $$;")
+    a.run(f"delete from public.cardforge_contributor_asset_submissions where id='{media}';")
+    media_asset = 'kind-proof-' + media
+    a.run(f"insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source) values('{media_asset}','Kind proof','icon','https://example.invalid/unrelated.svg','published','free','contributor');")
+    a.run(f"do $$ begin begin update public.cardforge_asset_registry set asset_type='set' where asset_id='{media_asset}'; raise exception 'registry_kind_bypass'; exception when raise_exception then if sqlerrm<>'set_catalog_dependency_unverified' then raise; end if; end; end $$;")
+    a.run(f"delete from public.cardforge_asset_registry where asset_id='{media_asset}';")
+    print('PASS: kind-only transitions cannot bypass committed Trash inspection')
+
+    consumer = str(uuid.uuid4())
+    b.run('begin isolation level repeatable read;')
+    b.run('select count(*) from public.cardforge_pipeline_asset_lineages;')
+    statement = set_insert('set-old-snapshot-' + consumer, consumer)
+    b.run("do $$ begin begin " + statement + "; raise exception 'set_snapshot_admitted'; exception when raise_exception then if sqlerrm<>'set_catalog_isolation_unsupported' then raise; end if; end; end $$;")
+    b.run('rollback;')
+    print('PASS: Set write rejects unsupported repeatable snapshot')
+
+    # Studio source-owned interpretation uses native digest/revision binding.
+    # Run this group before creating unrelated destructive claims below.
+    literal = {"version": 1, "userTemplates": [{"id": "literal", "name": "Literal", "aspectRatio": "2:3",
+        "freeformCanvas": {"width": 300, "height": 450, "elements": []}}], "storedCards": [], "cardSets": []}
+    def studio_values(payload):
+        # Synthetic trusted descriptor for a fully literal template; production
+        # interpretation is covered separately through its TypeScript owner.
+        proof = {"contractVersion": 1, "complete": True, "references": {"identities": [payload['userTemplates'][0]['id']], "sources": []},
+                 "opaqueReasons": [], "sourcePayload": payload}
+        return "'" + json.dumps(payload) + "'::jsonb", "'" + json.dumps(proof) + "'::jsonb"
+    lineage, current, old, state = fixture(a)
+    document = str(uuid.uuid4())
+    payload, proof = studio_values(literal)
+    a.run(f"insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies) values('{document}','isolated-contention','Literal',{payload},{proof});")
+    dependent = json.loads(json.dumps(literal))
+    dependent['userTemplates'][0]['id'] = 'contention-' + lineage
+    payload, proof = studio_values(dependent)
+    a.run('begin;')
+    a.run(f"update public.cardforge_studio_documents set document_payload={payload},catalog_dependencies={proof},revision=revision+1 where id='{document}';")
+    expect_busy(b, command('trash', state))
+    a.run('commit;')
+    expect_conflict(b, command('trash', state), 'catalog_trash_dependency_blocked')
+    a.run(f"delete from public.cardforge_studio_documents where id='{document}';")
+    print('PASS: Studio writer wins; committed dependency prevents Trash')
+
+    # Actual COMMIT winner, not a rolled-back lock simulation. Each writer must
+    # wait for SHARE, then observe committed Trash and reject its new reference.
+    backend_b = int(b.run('select pg_backend_pid();')[-1])
+    for mode in ['insert', 'update']:
+        lineage, current, old, state = fixture(a)
+        document = str(uuid.uuid4())
+        if mode == 'update':
+            payload, proof = studio_values(literal)
+            a.run(f"insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies) values('{document}','isolated-contention','Literal',{payload},{proof});")
+        dependent = json.loads(json.dumps(literal))
+        dependent['userTemplates'][0]['id'] = 'contention-' + lineage
+        payload, proof = studio_values(dependent)
+        statement = (f"insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies) values('{document}','isolated-contention','Queued',{payload},{proof})"
+                     if mode == 'insert' else f"update public.cardforge_studio_documents set document_payload={payload},catalog_dependencies={proof},revision=revision+1 where id='{document}'")
+        a.run('begin;')
+        a.run('select ' + command('trash', state) + ';')
+        result = queue.Queue()
+        def queued_write():
+            try:
+                result.put(b.run("do $$ begin begin " + statement + "; raise exception 'queued_writer_was_admitted'; exception when raise_exception then if sqlerrm<>'studio_catalog_reference_unavailable' then raise; end if; end; end $$;"))
+            except Exception as error:
+                result.put(error)
+        worker = threading.Thread(target=queued_write)
+        worker.start()
+        deadline = time.monotonic() + 1.5
+        while a.run(f"select cardinality(pg_blocking_pids({backend_b}))>0;")[-1] != 't':
+            assert time.monotonic() < deadline, 'Studio writer did not actually wait behind Trash'
+            time.sleep(0.01)
+        a.run('commit;')
+        worker.join(timeout=5)
+        assert not worker.is_alive(), 'Studio writer did not finish after Trash COMMIT'
+        outcome = result.get(timeout=1)
+        if isinstance(outcome, Exception):
+            raise outcome
+        if mode == 'insert':
+            assert a.run(f"select count(*) from public.cardforge_studio_documents where id='{document}';")[-1] == '0'
+        else:
+            assert a.run(f"select document_payload->'userTemplates'->0->>'id' from public.cardforge_studio_documents where id='{document}';")[-1] == 'literal'
+            a.run(f"delete from public.cardforge_studio_documents where id='{document}';")
+        print('PASS: Trash COMMIT then queued Studio ' + mode.upper() + ' rejects new dependency')
+
+    # A stale repeatable snapshot is not the supported server write boundary.
+    # Prove the explicit isolation fence after the other session commits Trash.
+    lineage, current, old, state = fixture(a)
+    document = str(uuid.uuid4())
+    payload, proof = studio_values(literal)
+    b.run('begin isolation level repeatable read;')
+    b.run('select count(*) from public.cardforge_pipeline_asset_lineages;')
+    a.run('select ' + command('trash', state) + ';')
+    b.run(f"do $$ begin begin insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies) values('{document}','isolated-contention','Stale snapshot',{payload},{proof}); raise exception 'stale_snapshot_writer_admitted'; exception when raise_exception then if sqlerrm<>'studio_catalog_isolation_unsupported' then raise; end if; end; end $$;")
+    b.run('rollback;')
+    print('PASS: repeatable snapshot cannot certify absence of committed Trash')
+
     lineage, current, old, state = fixture(a)
     # A owns the lineage before its submission UPDATE (the real claim order).
     # B takes its SHARE table locks then must fail immediately on that lineage,
@@ -170,6 +333,94 @@ try:
     expect_conflict(b, prepare_upload(path), 'pipeline_upload_cleanup_committed')
     expect_conflict(b, "public.cardforge_claim_pipeline_upload_cleanup('race-owner','" + path + "')", 'pipeline_upload_cleanup_blocked')
     print('PASS: cleanup commitment wins; submission and duplicate cleanup remain excluded without any lease reset')
+
+
+    # New authored raster dependency uses the original upload receipt and the
+    # same guarded lineage/registry lock boundary as catalog Trash.
+    raster_desc = {"assetType":"imageAssets","fileName":"proof.png","fileSizeBytes":100,
+                   "mimeType":"image/png","transportExtension":"png"}
+    raster_desc_json = json.dumps(raster_desc)
+    reservation = json.loads(a.run("select public.cardforge_reserve_pipeline_upload('raster-owner','"
+                                   + raster_desc_json + "'::jsonb)::text;")[-1])
+    raster_path = reservation['storagePath']
+    raster_lineage = reservation['lineageId']
+    raster_asset = 'native-raster-' + uuid.uuid4().hex
+    source_hash = 'a' * 64
+    webp_hash = 'b' * 64
+    raster_request = {
+        "contributor_id":"raster-owner","asset_type":"imageAssets","name":"Raster contention",
+        "variant_kind":"base","semantic_role":"picture","specialty_tags":[],"use_case_tags":[],
+        "compatibility_tags":[],"description":"","source_notes":"",
+        "source_storage_bucket":"cardforge-contributor-assets","source_storage_path":raster_path,
+        "source_url":"https://example.invalid/storage/v1/object/public/cardforge-contributor-assets/" + raster_path,
+        "preview_url":"https://example.invalid/storage/v1/object/public/cardforge-contributor-assets/" + raster_path,
+        "source_mime_type":"image/png","source_file_size_bytes":100,
+        "source_content_sha256":source_hash
+    }
+    raster_request_json = json.dumps(raster_request)
+    prepared = json.loads(a.run("select public.cardforge_prepare_pipeline_upload_submission('raster-owner','"
+                                  + raster_path + "','" + raster_desc_json + "'::jsonb,'"
+                                  + raster_request_json + "'::jsonb,true)::text;")[-1])
+    raster_token = prepared['token']
+    raster_submission = a.run("select public.cardforge_commit_pipeline_upload_submission('"
+                              + raster_path + "','" + raster_token + "','" + raster_request_json + "'::jsonb);")[-1]
+    a.run(f"select public.cardforge_set_contributor_asset_owner_override('{raster_submission}',true,'published',true,'free','Native raster race','raster-owner');")
+    raster_asset = a.run(f"select registry_asset_id from public.cardforge_contributor_asset_submissions where id='{raster_submission}';")[-1]
+    a.run("insert into public.cardforge_pipeline_template_assets(asset_id,storage_bucket,storage_path,mime_type,byte_count)"
+          + f" values('{webp_hash}','cardforge-contributor-assets','template-assets/{webp_hash}.webp','image/webp',100) on conflict do nothing;")
+    adopter = 'native-adopter-' + uuid.uuid4().hex
+    payload = {"id":adopter,"name":"Raster adopter","aspectRatio":"63:88","freeformCanvas":{
+        "width":630,"height":880,"elements":[{"id":"art","name":"Art","type":"image","x":0,"y":0,
+                                      "width":200,"height":200,"zIndex":0,
+                                      "imageSource":"cardforge-pipeline-asset://" + webp_hash,"content":""}]}}
+    binding = {"assetId":raster_asset,"submissionId":raster_submission,"elementId":"art",
+               "originalSha256":source_hash,"normalizedSha256":webp_hash,"requestFingerprint":"e" * 64}
+    wrapped = ("public.cardforge_author_template_managed_raster('draft','" + adopter
+               + "','Raster adopter','','raster-owner',null,'" + json.dumps(payload)
+               + "'::jsonb,0,'raster-race-key','" + json.dumps(binding) + "'::jsonb)")
+    a.run('begin;')
+    a.run(f"select 1 from public.cardforge_pipeline_asset_lineages where id='{raster_lineage}' for update;")
+    expect_busy(b, wrapped)
+    a.run('rollback;')
+    adopted_id = b.run("select " + wrapped + ";")[-1]
+    assert len(adopted_id) == 36
+    reasons = b.run(f"select array_to_string(public.cardforge_catalog_trash_entry_reasons('{raster_lineage}'),',');")[-1]
+    assert 'pipeline_identity_consumer_requires_resolution' in reasons, reasons
+    print('PASS: native raster adoption loses locked-lineage race; committed exact dependency fences catalog Trash')
+
+    # Writer-first commit: the exact bound consumer must block the real command.
+    state = json.loads(a.run(f"select public.cardforge_read_catalog_trash('{raster_submission}')::text;")[-1])['state']
+    expect_conflict(a, command('trash', state), 'catalog_trash_dependency_blocked')
+    # Disposable fixture cleanup only; never invoked on a hosted target.
+    a.run(f"delete from public.cardforge_contributor_asset_submissions where id='{adopted_id}';")
+    state = json.loads(a.run(f"select public.cardforge_read_catalog_trash('{raster_submission}')::text;")[-1])['state']
+    a.run('begin;')
+    a.run('select ' + command('trash', state) + ';')
+    backend_raster_writer = int(b.run('select pg_backend_pid();')[-1])
+    result = queue.Queue()
+    def queued_raster_write():
+        try:
+            result.put(b.run("do $$ begin begin perform " + wrapped + "; raise exception 'queued_raster_admitted'; exception when raise_exception then if sqlerrm<>'raster_adoption_source_changed' then raise; end if; end; end $$;"))
+        except Exception as error:
+            result.put(error)
+    worker = threading.Thread(target=queued_raster_write)
+    worker.start()
+    deadline = time.monotonic() + 1.5
+    while a.run(f"select cardinality(pg_blocking_pids({backend_raster_writer}))>0;")[-1] != 't':
+        assert time.monotonic() < deadline, 'Raster writer did not wait behind Trash'
+        time.sleep(0.01)
+    a.run('commit;')
+    worker.join(timeout=5)
+    assert not worker.is_alive(), 'Raster writer did not finish after Trash COMMIT'
+    outcome = result.get(timeout=1)
+    if isinstance(outcome, Exception):
+        raise outcome
+    assert a.run(f"select count(*) from public.cardforge_contributor_asset_submissions where target_registry_asset_id='{adopter}';")[-1] == '0'
+    b.run('begin isolation level repeatable read;')
+    b.run("do $$ begin begin perform " + wrapped + "; raise exception 'raster_snapshot_admitted'; exception when raise_exception then if sqlerrm<>'raster_adoption_isolation_unsupported' then raise; end if; end; end $$;")
+    b.run('rollback;')
+    print('PASS: raster writer-first blocks Trash; Trash COMMIT rejects queued adoption; old isolation rejected')
+
 
 finally:
     a.close()

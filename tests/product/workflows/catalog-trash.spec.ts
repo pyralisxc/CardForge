@@ -10,7 +10,7 @@ const identity = { lineageId: '00000000-0000-4000-8000-000000000001', submission
 const active = { identity, trashedAt: null as string | null, purgeAfter: null as string | null, held: false };
 // Credential-free component proof. Requests below are intercepted fixture state,
 // not Owner authentication, PostgreSQL execution, Storage or hosted acceptance.
-for (const width of [320, 1180]) test(`catalog recovery exposes guarded Move/Hold/Restore at ${width}px`, async ({ page }, testInfo) => {
+for (const width of [320, 1180]) test(`@golden catalog recovery exposes guarded Move/Hold/Restore at ${width}px`, async ({ page }, testInfo) => {
   await page.setViewportSize({ width, height: 850 });
   let state = { ...active };
   let blocked = true;
@@ -26,7 +26,8 @@ for (const width of [320, 1180]) test(`catalog recovery exposes guarded Move/Hol
       else throw new Error('Unexpected cleanup action');
     }
     return route.fulfill({ json: { name: 'Synthetic catalog icon', state, retentionDays: 30,
-      entryReasons: blocked ? ['legacy_destructive_history_unverified'] : [],
+      entryReasons: blocked ? ['legacy_destructive_history_unverified','json_consumer_inventory_unverified'] : [],
+      inventoryDetails: blocked ? [{origin:'registry',recordId:'standard-playing-card-deck',payloadKind:'set',conditions:['set_package_not_natively_decoded']}] : [],
       reasons: ['physical_expiry_unavailable_complete_reference_and_worker_proof_required'] } });
   });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
@@ -38,6 +39,13 @@ for (const width of [320, 1180]) test(`catalog recovery exposes guarded Move/Hol
   await page.getByRole('button', { name: 'Refresh recovery state' }).click();
   await expect(page.getByRole('button', { name: 'Move to Trash' })).toBeDisabled();
   await expect(page.getByText('Earlier deletion attempts need reconciliation', { exact: false })).toBeVisible();
+  await page.getByText('Consumer inventory blockers (1)').click();
+  await expect(page.getByText('registry · set · standard-playing-card-deck')).toBeVisible();
+  await expect(page.getByText('Set package has no supported complete native dependency inspection.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Move to Trash' })).toBeDisabled();
+  const screenshot = await page.screenshot({ path: testInfo.outputPath('inventory-blockers.png'), fullPage: true });
+  await testInfo.attach('inventory-blockers', {body:screenshot,contentType:'image/png'});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(commands).toHaveLength(0);
   blocked = false;
   await page.getByRole('button', { name: 'Refresh recovery state' }).click();

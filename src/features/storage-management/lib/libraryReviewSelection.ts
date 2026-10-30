@@ -4,7 +4,10 @@ import type { LibraryViewItem } from '../components/LibraryObjectPresentation';
 
 export function libraryReviewSelection(item: LibraryViewItem, submissions: readonly PipelineSubmission[]) {
   if (item.scope === 'personal') return null;
-  if (item.scope === 'pipeline') return createPipelineReviewTarget(item.pipeline.submission);
+  if (item.scope === 'pipeline') {
+    const target = createPipelineReviewTarget(item.pipeline.submission);
+    return target && item.pipeline.catalogPublication ? { ...target, catalogPublication: item.pipeline.catalogPublication } : target;
+  }
   const identity = item.published.publicationIdentity;
   if (!identity) return null;
   const exact = submissions.find(row => row.id === identity.submissionId && row.lineageId === item.published.lineageId

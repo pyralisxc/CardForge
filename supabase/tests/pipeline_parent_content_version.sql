@@ -30,7 +30,7 @@ begin
   original_hash := pins->>'parentContentVersion';
   -- Reproduce the historical row shape before the two October25 additive columns.
   -- The remaining exclusion list is the unchanged October17 canonical contract.
-  select md5(((to_jsonb(s)-array['owner_purge_requested_at','purge_claim_token'])-array[
+  select md5(((to_jsonb(s)-array['owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256'])-array[
     'updated_at','positive_votes','negative_votes','quality_score','status','contributor_lifecycle_state',
     'automated_status','owner_status_override','calculated_access_tier','automated_access_tier','owner_access_tier_override',
     'tier_decision_reason','owner_note','decision_reason','editorial_review_status','editorial_review_note',

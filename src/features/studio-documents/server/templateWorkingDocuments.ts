@@ -1,9 +1,11 @@
+import type { ManagedRasterSelection } from '@/features/pipeline/server';
 import { createHash, randomUUID } from 'node:crypto';
 
 import type { TCGCardTemplate } from '@/domain/templates';
 import {
   createNewSharedTemplateId,
   createTemplatePipelineDraft,
+  assertTemplatePipelineDraftContext,
   PipelineRegistryCommandError,
   isRepositoryTemplate,
   storePipelineTemplateAsset,
@@ -278,10 +280,12 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
   access,
   documentId,
   templateId,
+  managedRasterSelection,
 }: {
   access: StudioAgentAccess;
   documentId: string;
   templateId?: string;
+  managedRasterSelection?: ManagedRasterSelection;
 }) => {
   requireContributionScope(access, 'library.submit');
   const document = await getStudioDocument(
@@ -296,6 +300,7 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
       409,
     );
   }
+  assertTemplatePipelineDraftContext(localTemplate);
   const reviewTemplate = await materializeTemplateForPipelineReview({
     ownerUserId: access.user.id,
     documentId: document.id,
@@ -308,7 +313,7 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
     name: localTemplate.name,
   });
   const submissionKey = createHash('sha256')
-    .update(`mcp:${access.user.id}:${document.id}:${document.revision}:${localTemplate.id}`)
+    .update(`mcp:${access.user.id}:${document.id}:${document.revision}:${localTemplate.id}${managedRasterSelection ? `:${JSON.stringify([managedRasterSelection.registryAssetId, managedRasterSelection.publishedSubmissionId, managedRasterSelection.elementId])}` : ''}`)
     .digest('hex');
   const draft = await createTemplatePipelineDraft({
     template: {
@@ -324,6 +329,7 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
     contributorId: access.user.id,
     contributorEmail: access.email,
     submissionKey,
+    managedRasterSelection,
   });
 
   return {

@@ -56,6 +56,7 @@ export interface PublishedLibraryObject {
 }
 
 export interface PipelineLibraryObject {
+  catalogPublication?: { submissionId: string; updatedAt: string | null };
   packageUrl?: string | null;
   submission: PipelineSubmission;
   reviewSubmission: PipelineSubmission | null;
@@ -74,7 +75,7 @@ export interface PipelineLibraryObject {
   style: AppearanceStylePreset | null;
 }
 
-interface LibrarySharedFailure {
+export interface LibrarySharedFailure {
   message: string;
   retryable: boolean;
   kind: BoundaryFailureKind;
@@ -83,7 +84,7 @@ interface LibrarySharedFailure {
   nextAction?: string;
 }
 
-const sharedFailure = (error: unknown, fallback: string): LibrarySharedFailure => {
+export const sharedFailure = (error: unknown, fallback: string): LibrarySharedFailure => {
   const boundary = describeAgentBoundaryFailure(error);
   if (error instanceof ApiClientError) {
     return {
@@ -132,7 +133,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     template: asset.kind === 'template'
       ? templateByIdentity.get(asset.id) ?? null
       : null,
-    style: asset.style ?? null,
+    style: asset.kind === 'elementPreset' ? asset.style ?? catalog.styles.styles.find((style) => style.id === asset.id) ?? null : null,
     packageUrl: null,
     revision: null,
     lineageId: pipelineByAssetId.get(asset.id)?.lineageId ?? null,
@@ -222,18 +223,6 @@ const EMPTY_CATALOG_VISUAL: CatalogLibraryVisual = {
   style: null,
 };
 
-const catalogNameKey = (name: string): string => `name:${name.trim().toLocaleLowerCase()}`;
-
-const registerCatalogVisual = (
-  visuals: Map<string, CatalogLibraryVisual>,
-  identity: string,
-  name: string,
-  visual: CatalogLibraryVisual,
-) => {
-  visuals.set(identity, visual);
-  visuals.set(catalogNameKey(name), visual);
-};
-
 const catalogLibraryVisuals = (catalog: CardForgeCatalogManifest | null): Map<string, CatalogLibraryVisual> => {
   const visuals = new Map<string, CatalogLibraryVisual>();
   if (!catalog) return visuals;
@@ -245,7 +234,6 @@ const catalogLibraryVisuals = (catalog: CardForgeCatalogManifest | null): Map<st
   const styleByIdentity = new Map<string, AppearanceStylePreset>();
   catalog.styles.styles.forEach((style) => {
     styleByIdentity.set(style.id, style);
-    styleByIdentity.set(style.name, style);
   });
 
   [
@@ -258,20 +246,20 @@ const catalogLibraryVisuals = (catalog: CardForgeCatalogManifest | null): Map<st
   ].forEach((asset) => {
     const previewUrl = asset.previewUrl
       || (asset.kind === 'image' || asset.kind === 'texture' || asset.kind === 'divider' || asset.kind === 'icon' ? asset.url : null);
-    registerCatalogVisual(visuals, asset.id, asset.name, {
+    visuals.set(asset.id, {
       previewUrl,
       fontFamily: null,
       template: asset.kind === 'template' ? templateByIdentity.get(asset.id) ?? null : null,
-      style: asset.style ?? styleByIdentity.get(asset.id) ?? styleByIdentity.get(asset.name) ?? null,
+      style: asset.kind === 'elementPreset' ? asset.style ?? styleByIdentity.get(asset.id) ?? null : null,
     });
   });
-  catalog.fonts.fonts.forEach((font) => registerCatalogVisual(visuals, font.value, font.name, {
+  catalog.fonts.fonts.forEach((font) => visuals.set(font.value, {
     previewUrl: null,
     fontFamily: font.cssFamily,
     template: null,
     style: null,
   }));
-  catalog.sets.items.forEach((set) => registerCatalogVisual(visuals, set.id, set.name, {
+  catalog.sets.items.forEach((set) => visuals.set(set.id, {
     previewUrl: set.previewUrl,
     fontFamily: null,
     template: null,
@@ -293,26 +281,20 @@ export const projectPipelineLibraryObjects = (
   return (
   projectPipelineLibrary(program, publishedSubmissionByLineage).map((item): PipelineLibraryObject => {
     const sourcePayload = item.submission.sourcePayload;
-    // A hydrated current Template is usable only for this exact publication.
-    // Immutable historical/candidate payloads remain their own authority, even
-    // when their original authored ID differs from the later registry ID.
-    const templatePublication = item.submission.assetType === 'templates'
-      ? catalog?.pipeline?.items.find((entry) => entry.submissionId === item.submission.id
-        && (entry.id === item.submission.targetRegistryAssetId || entry.id === item.submission.registryAssetId)
-        && (!item.submission.lineageId || entry.lineageId === item.submission.lineageId))
-      : null;
-    const publishedTemplate = templatePublication ? visuals.get(templatePublication.id)?.template : null;
-    const exactTemplate = publishedTemplate
-      ?? (item.submission.assetType === 'templates' && isRepositoryTemplate(sourcePayload) ? sourcePayload : null);
-    const lineageVisual = [item.submission.targetRegistryAssetId, item.submission.registryAssetId, catalogNameKey(item.submission.name)]
-      .flatMap((identity) => identity ? [visuals.get(identity)] : [])
-      .find((visual): visual is CatalogLibraryVisual => Boolean(visual))
-      ?? EMPTY_CATALOG_VISUAL;
+    // Catalog hydration belongs only to the explicitly linked live publication.
+    // Names are labels, not identity; historical/candidate rows keep their source.
+    const publication = catalog?.pipeline?.items.find((entry) => (
+      entry.submissionId === item.submission.id
+      && (entry.id === item.submission.targetRegistryAssetId || entry.id === item.submission.registryAssetId)
+      && (!item.submission.lineageId || entry.lineageId === item.submission.lineageId)
+    ));
+    const lineageVisual = publication ? visuals.get(publication.id) ?? EMPTY_CATALOG_VISUAL : EMPTY_CATALOG_VISUAL;
     return {
       packageUrl: catalog?.sets.items.find((set) => (
         set.id === item.currentPublishedSubmission?.registryAssetId
         || set.id === item.currentPublishedSubmission?.targetRegistryAssetId
       ))?.packageUrl ?? null,
+      catalogPublication: publication?.submissionId ? { submissionId: publication.submissionId, updatedAt: publication.updatedAt } : undefined,
       submission: item.submission,
       reviewSubmission: item.reviewSubmission,
       editableSubmission: item.editableSubmission,
@@ -327,8 +309,17 @@ export const projectPipelineLibraryObjects = (
       previewUrl: getPipelineImagePreviewUrl(item.submission)
         ?? (item.submission.assetType === 'templates' ? null : lineageVisual.previewUrl),
       fontFamily: lineageVisual.fontFamily,
-      template: exactTemplate,
-      style: isRepositoryStyle(sourcePayload) ? sourcePayload : lineageVisual.style,
+      // The registry catalog is the canonical, hydrated payload for the exact
+      // live revision. Historical submission rows intentionally retain their
+      // immutable authored payload, which may still contain pre-publication
+      // asset references. Candidates have no registry pointer yet and must use
+      // their own exact hydrated source payload.
+      template: item.submission.assetType === 'templates'
+        ? lineageVisual.template ?? (isRepositoryTemplate(sourcePayload) ? sourcePayload : null)
+        : null,
+      style: item.submission.assetType === 'elementPresets'
+        ? lineageVisual.style ?? (isRepositoryStyle(sourcePayload) ? sourcePayload : null)
+        : null,
     };
   })
   );

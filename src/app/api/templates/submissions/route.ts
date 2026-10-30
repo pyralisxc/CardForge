@@ -1,7 +1,10 @@
 import type { TCGCardTemplate } from '@/domain/templates';
+import { z } from 'zod';
 import {
   createNewSharedTemplateId,
   createTemplatePipelineDraft,
+  readTemplatePipelineDraftAttempt,
+  assertTemplatePipelineDraftContext,
   PipelineRegistryCommandError,
   isRepositoryTemplate,
 } from '@/features/pipeline/server';
@@ -21,10 +24,25 @@ import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/se
 
 export const dynamic = 'force-dynamic';
 
+/** Session identity scopes browser recovery records; it is not submission authority. */
+export async function GET() {
+  try {
+    const access = await getCurrentContributorAccess();
+    requireContributionScope(access, 'library.submit');
+    return createNoStoreJsonResponse({ contributorId: access.user.id });
+  } catch (error) {
+    if (error instanceof ContributorAccessError) return createApiErrorResponse(error.status,
+      error.status === 401 ? 'sign_in_required' : 'contributor_access_required', error.message);
+    return createApiErrorResponse(503, 'pipeline_unavailable', 'The submission account could not be checked. Existing attempts are preserved.');
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const access = await getCurrentContributorAccess();
     requireContributionScope(access, 'library.submit');
+    const expectedContributor = request.headers.get('X-Pipeline-Contributor');
+    if (expectedContributor && expectedContributor !== access.user.id) return createApiErrorResponse(409, 'managed_raster_conflict', 'Sign in with the original submission account to recover this attempt.');
 
     const rateLimit = await consumeRateLimit({
       action: 'template-pipeline-draft',
@@ -59,6 +77,17 @@ export async function POST(request: Request) {
     }
 
     const localTemplate = validation.data as TCGCardTemplate;
+    assertTemplatePipelineDraftContext(localTemplate);
+    const selected = (parsedBody.data as Record<string,unknown>).managedRasterSelection;
+    const selection = selected === undefined ? undefined : z.object({
+      registryAssetId: z.string().min(1).max(200),
+      publishedSubmissionId: z.string().uuid(),
+      elementId: z.string().min(1).max(200),
+    }).strict().safeParse(selected);
+    if (selection && !selection.success) {
+      return createApiErrorResponse(400, 'invalid_template_payload', 'Choose an exact published managed raster and image slot.');
+    }
+    delete (localTemplate as TCGCardTemplate & { managedRasterSelection?: unknown }).managedRasterSelection;
     if (localTemplate.templateSource === 'default') {
       return createApiErrorResponse(
         409,
@@ -77,7 +106,7 @@ export async function POST(request: Request) {
       localTemplateId: localTemplate.id!,
       name: localTemplate.name,
     });
-    const draft = await createTemplatePipelineDraft({
+    const draftInput: Parameters<typeof createTemplatePipelineDraft>[0] = {
       template: {
         ...localTemplate,
         id: sharedTemplateId,
@@ -91,7 +120,13 @@ export async function POST(request: Request) {
       contributorId: access.user.id,
       contributorEmail: access.email,
       submissionKey,
-    });
+      managedRasterSelection: selection ? selection.data : undefined,
+    };
+    if (new URL(request.url).searchParams.get('lookup') === '1') {
+      const submissionId = await readTemplatePipelineDraftAttempt(draftInput);
+      return createNoStoreJsonResponse({ openInPipelineUrl: submissionId ? `/account?section=library&scope=pipeline&tool=contribute&submission=${encodeURIComponent(submissionId)}` : null });
+    }
+    const draft = await createTemplatePipelineDraft(draftInput);
 
     return createNoStoreJsonResponse({
       ok: true,
@@ -110,7 +145,7 @@ export async function POST(request: Request) {
       return createApiErrorResponse(503, 'pipeline_unavailable', error.message);
     }
     if (error instanceof PipelineRegistryCommandError) {
-      return createApiErrorResponse(error.status, 'pipeline_unavailable', error.message);
+      return createApiErrorResponse(error.status, error.code === 'managed_raster_review_unsupported' ? error.code : error.status === 409 ? 'managed_raster_conflict' : 'pipeline_unavailable', error.message);
     }
     console.error('Failed to create a Template Pipeline draft:', error);
     return createApiErrorResponse(500, 'pipeline_unavailable', 'Unable to continue this Template in the Pipeline.');

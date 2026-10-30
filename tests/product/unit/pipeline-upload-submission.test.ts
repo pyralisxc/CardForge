@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 import { buildCardForgeProjectSnapshot, createCardForgeProjectPackageBlob } from '@/features/project/lib/projectPackageCodec';
 import { createProjectDocumentFromState } from '@/features/project/model/projectDocument';
 
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { createPipelineSubmission, updatePipelineSubmissionDetails } from '@/features/pipeline/lib/pipelineStore';
+import { buildPipelineSubmissionRecord, createPipelineSubmission, updatePipelineSubmissionDetails } from '@/features/pipeline/lib/pipelineStore';
 import {
   createUploadedPipelineSubmission,
   preparePipelineUpload,
@@ -27,6 +28,15 @@ const mockedGetSupabaseServerClient = vi.mocked(getSupabaseServerClient);
 const mockedCreatePipelineSubmission = vi.mocked(createPipelineSubmission);
 
 describe('Pipeline partial classification edits', () => {
+  it('never copies a caller-supplied digest into normalized submission fields', () => {
+    const input = { assetType:'imageAssets', studioDestination:'image.picture',
+      specialtyTags:['games'], useCaseTags:['tcg'], name:'Raster', description:'',
+      sourceUrl:'https://example.invalid/image.png', previewUrl:'https://example.invalid/image.png',
+      sourceFileSizeBytes:100, sourceMimeType:'image/png', sourceContentSha256:'a'.repeat(64) };
+    const record=buildPipelineSubmissionRecord({contributorId:'author',contributorEmail:null,input});
+    expect(record).not.toHaveProperty('source_content_sha256');
+  });
+
   it.each([
     ['icons', ['general'], [], { useCaseTags: [] }, true],
     ['icons', ['games'], ['tcg'], { useCaseTags: [] }, false],
@@ -235,6 +245,28 @@ describe('contributor asset upload submission', () => {
         sourceStoragePath: uploadedFile.storagePath,
       }),
     }));
+    expect(storage.remove).not.toHaveBeenCalled();
+  });
+
+  it('pins a fresh accepted PNG digest in the native upload request and normal submission input', async () => {
+    const storage = setupStorage();
+    mockedCreatePipelineSubmission.mockResolvedValue();
+    const digest = createHash('sha256').update(VALID_PNG_BYTES).digest('hex');
+    await createUploadedPipelineSubmission({
+      contributorId:'contributor-1',contributorEmail:'contributor@example.com',
+      maxFileSizeMb:25,assetType:'imageAssets',studioDestination:'image.picture',
+      ...taxonomy,name:'Source raster',description:'',previewUrl:'',
+      uploadedFile:{storagePath:ownedPath(),fileName:'source.png',
+        mimeType:'image/png',fileSizeBytes:VALID_PNG_BYTES.byteLength},
+    });
+    const prepared=storage.rpc.mock.calls.filter(([name])=>name==='cardforge_prepare_pipeline_upload_submission');
+    expect(prepared).toHaveLength(2);
+    expect(prepared[0][1].p_request).not.toHaveProperty('source_content_sha256');
+    expect(prepared[1][1].p_request).toMatchObject({source_content_sha256:digest});
+    expect(mockedCreatePipelineSubmission).toHaveBeenCalledWith(expect.objectContaining({
+      sourceContentSha256:digest,
+    }));
+    expect(storage.update).not.toHaveBeenCalled();
     expect(storage.remove).not.toHaveBeenCalled();
   });
 

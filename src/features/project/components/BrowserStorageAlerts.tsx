@@ -22,7 +22,7 @@ import { trackCardForgeEvent } from '@/features/analytics/client/tracking';
 import type { ProjectDocumentV1 } from '../model/projectDocument';
 import type { BrowserStorageSaveStatus } from '../persistence/indexedDbStorage';
 
-import { COMPLETED_DELETION_CLEANUP_EVENT } from '../client/completedDeletionCleanup';
+import { COMPLETED_DELETION_CLEANUP_EVENT, consumeCompletedDeletionCleanupNotice } from '../client/completedDeletionCleanup';
 
 const BACKUP_REMINDER_KEY = 'cardforge-project-backup-reminder-at';
 const BACKUP_REMINDER_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -57,22 +57,12 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
   const [pendingBackup, setPendingBackup] = useState<{ name: string; document: ProjectDocumentV1; scope: ReturnType<typeof getProjectPersistenceScope> } | null>(null);
 
   useEffect(() => {
-    const notify = () => toast({ title: 'Deleted artwork removed', description: 'Artwork confirmed permanently deleted was removed from this local copy. The clean copy is saved automatically; your original file is unchanged.', duration: 10_000 });
+    const showCommittedNotice = () => toast({ title: 'Deleted artwork cleared', description: 'Content confirmed permanently deleted was blanked in its existing element and the local repair was saved. Your original file is unchanged.', duration: 10_000 });
+    const notify = () => { if (consumeCompletedDeletionCleanupNotice()) showCommittedNotice(); };
     window.addEventListener(COMPLETED_DELETION_CLEANUP_EVENT, notify);
+    notify();
     return () => window.removeEventListener(COMPLETED_DELETION_CLEANUP_EVENT, notify);
   }, [toast]);
-
-  useEffect(() => {
-    if (!workspaceReady) return;
-    const controller = new AbortController();
-    void import('../client/projectWorkspaceDocument').then(({ cleanCurrentWorkspaceCompletedDeletions }) => (
-      cleanCurrentWorkspaceCompletedDeletions(controller.signal)
-    )).catch(() => {
-      // Cancellation, newer work and failed persistence leave the original
-      // untouched. Never announce a clean saved copy before its commit succeeds.
-    });
-    return () => controller.abort();
-  }, [workspaceReady]);
 
   const refreshRecovery = useCallback(() => {
     void getBrowserWorkspaceRecoveryState().then((next) => { setRecovery(next); setRecoveryError(null); }).catch((error) => {

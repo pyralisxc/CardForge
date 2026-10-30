@@ -318,10 +318,13 @@ export const createPipelineSubmission = async ({
   contributorEmail,
   input,
   uploadToken,
+  sourceContentSha256,
 }: {
   contributorId: string;
   contributorEmail: string | null;
   uploadToken?: string;
+  /** Trusted accepted-byte metadata, never normalized author input. */
+  sourceContentSha256?: string;
   input: {
     assetType?: unknown;
     studioDestination?: unknown;
@@ -367,7 +370,8 @@ export const createPipelineSubmission = async ({
   const record = buildPipelineSubmissionRecord({ contributorId, contributorEmail, input });
   if (uploadToken) {
     const receipt = await runPipelineUploadCommand('cardforge_commit_pipeline_upload_submission', {
-      p_path: record.source_storage_path, p_token: uploadToken, p_fields: record,
+      p_path: record.source_storage_path, p_token: uploadToken,
+      p_fields: { ...record, ...(sourceContentSha256 ? { source_content_sha256: sourceContentSha256 } : {}) },
     });
     if (!isPipelineUploadToken(receipt)) throw new PipelineStoreError('The submission receipt could not be confirmed. Keep this upload.', 503);
     return;

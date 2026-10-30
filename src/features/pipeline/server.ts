@@ -30,3 +30,6 @@ export { readExactCandidateReview } from './server/exactCandidateReview';
 export { exactCandidateIdentitySchema } from './lib/exactCandidateReview';
 
 export { createStyleReviewRevision, readStyleReviewBase, readStyleReviewReceipt } from './server/styleReviewRevision';
+
+export { verifySelectedPublishedManagedRaster, assertStaticManagedRasterSlot } from './lib/managedRasterAdoption';
+export type { ManagedRasterSelection } from './lib/managedRasterAdoption';

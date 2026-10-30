@@ -1,4 +1,7 @@
 "use client";
+import { canUseDefaultAsFixedPicture } from '@/features/pipeline/client';
+
+import type { ComponentProps } from 'react';
 
 import { cardFontOptionsToSelectOptions } from '@/domain/rendering';
 import { SHAPE_PRIMITIVE_OPTIONS } from '@/domain/templates';
@@ -29,6 +32,7 @@ type AvailableFonts = ReturnType<typeof cardFontOptionsToSelectOptions>;
 
 interface TemplateEditorInspectorSidebarProps {
   availableFonts: AvailableFonts;
+  managedAdoption?: ComponentProps<typeof ImageInspectorPanel>['managedAdoption'];
   canUploadCustomAssets: boolean;
   commands: TemplateEditorCommands;
   controller: TemplateEditorController;
@@ -41,6 +45,7 @@ interface TemplateEditorInspectorSidebarProps {
 
 export function TemplateEditorInspectorSidebar({
   availableFonts,
+  managedAdoption,
   canUploadCustomAssets,
   commands,
   controller,
@@ -88,6 +93,8 @@ export function TemplateEditorInspectorSidebar({
             />
             {elements.canUseImageSource ? (
               <ImageInspectorPanel
+                  canUseAsFixedPicture={canUseDefaultAsFixedPicture(currentTemplate, selectedElement.id)}
+                  managedAdoption={managedAdoption}
                   element={selectedElement}
                   imageAssets={elements.compatibleImageAssets}
                   personalItems={elements.connectedLibraryItems}
