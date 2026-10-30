@@ -432,10 +432,20 @@ for(const width of [390,1440]) test(`@golden global Pipeline reuses Library queu
  const writes=await page.evaluate(()=>(window as typeof window&{libraryRequests:{url:string,method:string}[]}).libraryRequests.filter(r=>r.method!=='GET'));expect(writes).toEqual([expect.objectContaining({url:'/api/pipeline',method:'PUT'})]);expect(evidence.mutations).toEqual([]);expect(evidence.errors).toEqual([]);
 });
 
-test('@golden Desk search mounts only matching published identities without dropping stored positions',async({page})=>{
- await page.setViewportSize({width:1440,height:900});const evidence=await mount(page,'?deskActual=1&deskMenu=1&deskSearch=1');
+for(const width of [390,1440]) test(`@golden Desk search reconciles published lineage revisions without residual objects at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:900});const evidence=await mount(page,'?deskActual=1&deskMenu=1&deskSearch=1');
+ if(width<900)await page.getByLabel('Open Desk filters',{exact:true}).click();
  await page.getByRole('button',{name:'Choose Desk views',exact:true}).click();await page.getByRole('menuitemcheckbox',{name:'My published',exact:true}).click();await page.keyboard.press('Escape');
- const first=page.locator('[data-desk-set-object-id="pipeline:20000000-0000-4000-8000-000000000001"]');const bridge=page.locator('[data-desk-set-object-id="pipeline:20000000-0000-4000-8000-000000000002"]');await expect(first).toBeVisible();await expect(bridge).toBeVisible();
- const original=await bridge.getAttribute('style');await page.getByPlaceholder('Search Desk work').fill('Synthetic material revision one');await expect(page.getByText('1 visible work',{exact:true})).toBeVisible();await expect(first).toBeVisible();await expect(bridge).toHaveCount(0);
- await page.getByPlaceholder('Search Desk work').fill('');await expect(bridge).toBeVisible();expect(await bridge.getAttribute('style')).toBe(original);expect(evidence.errors).toEqual([]);expect(evidence.mutations).toEqual([]);
+ const first=page.locator('[data-desk-set-object-id="pipeline:20000000-0000-4000-8000-000000000001"]');const bridge=page.locator('[data-desk-set-object-id="pipeline:20000000-0000-4000-8000-000000000002"]');await expect(first).toBeVisible();
+ await expect(bridge).toHaveCount(1);await expect(bridge).toContainText('Revision 2');
+ const original=await bridge.getAttribute('style');
+ for(let repeat=0;repeat<3;repeat++){
+  await page.getByPlaceholder('Search Desk work').fill('Synthetic material revision one');await expect(page.getByText('1 visible work',{exact:true})).toBeVisible();await expect(first).toBeVisible();await expect(bridge).toHaveCount(0);await expect(page.locator('[data-desk-set-object-id]')).toHaveCount(1);
+  await page.getByPlaceholder('Search Desk work').fill('');await expect(bridge).toHaveCount(1);await expect(page.locator('[data-desk-set-object-id]')).toHaveCount(2);expect(await bridge.getAttribute('style')).toBe(original);
+ }
+ if(width<900)await page.getByLabel('Open Desk filters',{exact:true}).click();
+ await bridge.getByRole('button',{name:'Actions for Unrelated Bridge Back',exact:true}).click();await page.getByRole('menuitem',{name:'Review & manage',exact:true}).click();
+ await expect(page.getByLabel('Exact revision governance')).toContainText('Selected revision 2');
+ await expect(page.getByLabel('Exact revision governance')).toContainText('10000000-0000-4000-8000-000000000004');
+ expect(evidence.errors).toEqual([]);expect(evidence.mutations).toEqual([]);
 });
