@@ -69,3 +69,34 @@ it('composes alternate saved nesting and adjacent independently formatted spans'
     { text: 'one', bold: true, italic: true }, { text: ' ' }, { text: 'two', underline: true }, { text: ' ' }, { text: 'three', bold: true },
   ]);
 });
+
+it('preserves every adjacent canonical mark pair without inserting delimiter characters', () => {
+  const formats = ['bold', 'italic', 'underline', 'highlight', 'textStyle'];
+  const node = (text: string, mask: number) => ({ type: 'text', text, marks: formats.filter((_, i) => mask & (1 << i)).map(type => ({ type, ...(type === 'textStyle' ? { attrs: { color: '#123456' } } : {}) })) });
+  for (let first = 0; first < 32; first++) for (let second = 0; second < 32; second++) {
+    const a = node('one', first), b = node('two', second);
+    const saved = tiptapDocToTemplateText({ type: 'doc', content: [{ type: 'paragraph', content: [a, b] }] });
+    const spans = parseRichText(saved);
+    expect(spans.map(span => span.text).join(''), `adjacent marks ${first}/${second}: ${saved}`).toBe('onetwo');
+    const perCharacter = spans.flatMap(({ text, ...marks }) => [...text].map(char => ({ char, ...marks })));
+    const independent = [a,b].flatMap(n => parseRichText(tiptapDocToTemplateText({ type:'doc',content:[{type:'paragraph',content:[n]}] })).flatMap(({text,...marks})=>[...text].map(char=>({char,...marks}))));
+    expect(perCharacter, `adjacent marks ${first}/${second}`).toEqual(independent);
+  }
+});
+
+it('reopens no-gap mixed marks, independently removes underline and preserves variable boundaries', () => {
+  const source = '_**first**____**second**___';
+  const reopened = templateTextToTiptapDoc(source);
+  expect(reopened.content?.[0].content).toEqual([
+    { type: 'text', text: 'first', marks: [{ type: 'bold' }, { type: 'italic' }] },
+    { type: 'text', text: 'second', marks: [{ type: 'bold' }, { type: 'italic' }, { type: 'underline' }] },
+  ]);
+  expect(tiptapDocToTemplateText(reopened)).toBe(source);
+  const second = reopened.content![0].content![1]; second.marks = second.marks!.filter(mark => mark.type !== 'underline');
+  const removed = tiptapDocToTemplateText(reopened);
+  expect(parseRichText(removed)).toEqual([{ text: 'first', bold: true, italic: true }, { text: 'second', bold: true, italic: true }]);
+  const variable = '_first_{{Ability:"___**Flying**___"}}___second___';
+  const doc = templateTextToTiptapDoc(variable);
+  expect(doc.content?.[0].content?.[1]).toMatchObject({ type: 'cardForgeVariable', attrs: { key: 'Ability' }, content: [{ type: 'text', text: 'Flying', marks: [{ type: 'bold' }, { type: 'italic' }, { type: 'underline' }] }] });
+  expect(tiptapDocToTemplateText(doc)).toBe(variable);
+});

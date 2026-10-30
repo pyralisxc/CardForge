@@ -14,7 +14,7 @@ export interface RichTextSpan {
 export function parseRichText(text: string): RichTextSpan[] {
   if (!text) return [{ text: '' }];
   const spans: RichTextSpan[] = [];
-  const regex = /\[color:([^\]]+)\]([\s\S]*?)\[\/color\]|___([\s\S]+?)___|\*\*([\s\S]+?)\*\*|__([\s\S]+?)__|_([^_]+(?:__[\s\S]+?__[^_]*)*)_|==([\s\S]+?)==/g;
+  const regex = /\[color:([^\]]+)\]([\s\S]*?)\[\/color\]|___([\s\S]+?)___|\*\*([\s\S]+?)\*\*|__([\s\S]+?)__|_([^_]+(?:__(?!_)[\s\S]+?__(?!_)[^_]*)*)_|==([\s\S]+?)==/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text)) !== null) {
