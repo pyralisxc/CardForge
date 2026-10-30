@@ -101,6 +101,7 @@ export const updateRoadmapAdminItemStatus = async ({
   }).eq('id', itemId).eq('source', 'official').eq('updated_at', expectedUpdatedAt).select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,expense_provider,expense_plan,expense_source_url,expense_verified_at,shipped_at,updated_at').maybeSingle();
 
   if (error) {
+    if (error.message?.includes('website_release_published_immutable')) throw new RoadmapStoreError('Published website release facts are immutable. Use the update notes editor for narrative corrections.',409);
     console.error('Failed to update roadmap status:', error);
     throw new RoadmapStoreError('Unable to update roadmap status.');
   }

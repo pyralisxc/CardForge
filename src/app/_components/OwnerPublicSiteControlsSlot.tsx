@@ -1,5 +1,5 @@
 import { getCurrentOwnerAccess } from '@/features/owner/server';
-import { OwnerPublicSiteOperations } from '@/features/owner/client';
+import { OwnerPublicSiteOperations, OwnerWebsiteReleaseEditor } from '@/features/owner/client';
 import { PublicSiteOwnerLiveControls } from '@/features/public-site/client';
 import {
   completeSiteMediaForSections,
@@ -8,7 +8,7 @@ import {
 } from '@/features/public-site/server';
 import { resolveLiveWebsitePresentation } from '@/features/public-site/server/websitePresentationResolver';
 import { readLiveWebsiteRevision, readWebsiteRevisionIdentity, readWebsiteRevision } from '@/features/public-site/server/websiteEditionStore';
-import { getRoadmapSettings } from '@/features/roadmap/server';
+import { getRoadmapSettings, getWebsiteReleaseRecords } from '@/features/roadmap/server';
 
 import { OwnerRoadmapRulesLiveEditor } from './OwnerRoadmapRulesLiveEditor';
 
@@ -41,7 +41,7 @@ export async function OwnerPublicSiteControlsSlot({ currentPath }: { currentPath
     initialMedia={completeSiteMediaForSections(siteMedia, getSiteCompositionSections(siteConfiguration))}
     initialSiteConfiguration={siteConfiguration}
     editionSession={editionSession}
-    siteOperationsEditor={<OwnerPublicSiteOperations publicationEnvironment={publicationEnvironment} currentPath={currentPath} />}
+    siteOperationsEditor={currentPath === '/updates' ? <OwnerWebsiteReleaseEditor initial={await getWebsiteReleaseRecords()} production={publicationEnvironment === 'production'} deployedSha={process.env.VERCEL_GIT_COMMIT_SHA??null}/> : <OwnerPublicSiteOperations publicationEnvironment={publicationEnvironment} currentPath={currentPath} />}
     roadmapRulesEditor={roadmapSettings ? <OwnerRoadmapRulesLiveEditor initialSettings={roadmapSettings} /> : undefined}
   />;
 }

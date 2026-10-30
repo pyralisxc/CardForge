@@ -1,3 +1,4 @@
+import { getWebsiteReleaseRecords } from '@/features/roadmap/server';
 import { createMcpHandler } from 'mcp-handler';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { WEBSITE_DRAFT_MEDIA_BUCKET } from '@/features/public-site/server/websiteEditionStore';
@@ -9,7 +10,7 @@ import { observeMcpToolExecution, getOwnerMcpUsageDashboard } from '@/features/m
 import { getOwnerActivity } from '@/features/owner/server/ownerActivityStore';
 import { getOwnerIntegrationStatus } from '@/features/owner/server/ownerIntegrationStatus';
 import { getOwnerSiteControlPayload, getOwnerOperationsOverviewPayload } from '@/features/owner/lib/ownerOperationsStore';
-import { publishOwnerSiteContentBlock, publishOwnerSiteConfigurationField, publishOwnerSiteConfigurationPatch, publishOwnerSitePage, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerExperienceSettings, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus } from '@/features/owner/server/ownerSiteCommands';
+import { publishOwnerSiteContentBlock, publishOwnerSiteConfigurationField, publishOwnerSiteConfigurationPatch, publishOwnerSitePage, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerExperienceSettings, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus, publishOwnerWebsiteRelease } from '@/features/owner/server/ownerSiteCommands';
 import { getPublicSiteConfiguration, getFounderProfile, getSiteMedia, getSiteContentBlocks, createSiteContentMap, completeSiteMediaForSections, PublicSiteConfigurationStoreError, SiteMediaStoreError, type PublicSiteConfiguration } from '@/features/public-site/server';
 import {
   createLegacyHomepageShowcaseStages,
@@ -534,20 +535,20 @@ export const registerOwnerReadTools = ({
 
   server.registerTool('get_owner_presentation_editor', {
     title: 'Read Owner presentation, roadmap or legal editor',
-    description: 'Read complete canonical editor values and their current revision. Identity uses identityVersion. Founder, Experience and roadmap use updatedAt. Legal publication requires both current identityVersion and the selected document version; zero represents a never-published default. Roadmap collections return items; legal collections return documents. Omit revision properties from editable values when publishing. These are the same feature owners as the website; unavailable state is an error, not an empty/default editor.',
+    description: 'Read complete canonical editor values and their current revision. Identity uses identityVersion. Founder, Experience and roadmap use updatedAt. Legal publication requires both current identityVersion and the selected document version; zero represents a never-published default. Roadmap and websiteReleases collections return items; legal collections return documents. Website release metadata is read-only: use values version, typed notes, sourceSha, candidateSha, operationId and publish, with expectedUpdatedAt separately. Use a fresh stable operation UUID for a new edit and retain it on uncertain retry; do not copy id/shippedAt/mutationKind as editable values. Omit revision properties from editable values when publishing. These are the same feature owners as the website; unavailable state is an error, not an empty/default editor.',
     inputSchema: ownerPresentationReadInputSchema, outputSchema: ownerPresentationReadOutputSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async ({ area }) => runObserved({ toolName: 'get_owner_presentation_editor', input: { area }, execute: async () => {
     const value = area === 'identity' ? await getBusinessIdentity() : area === 'founder' ? await getFounderProfile()
       : area === 'experience' ? await getExperienceSettings() : area === 'roadmapSettings' ? await getRoadmapSettings()
-        : area === 'roadmapItems' ? { items: await getRoadmapAdminItems() } : { documents: await getLegalDocuments() };
+        : area === 'websiteReleases' ? { items: await getWebsiteReleaseRecords(), currentDeploymentSha:process.env.VERCEL_GIT_COMMIT_SHA??null } : area === 'roadmapItems' ? { items: await getRoadmapAdminItems() } : { documents: await getLegalDocuments() };
     return { content: [{ type: 'text', text: 'Loaded current ' + area + ' editor; no publication performed.' }],
       structuredContent: { environment: deploymentEnvironment(), area, value } };
   } }));
 
   server.registerTool('publish_owner_presentation', {
     title: 'Publish Owner presentation, roadmap or legal changes',
-    description: 'Publish complete edited values through the same command as the website. Read get_owner_presentation_editor first; preserve its exact identityVersion or updatedAt. Legal publications append immutable history and require expectedDocumentVersion plus expectedIdentityVersion. Roadmap status values require itemId and status; preserve the exact item revision. Changing legal identity can affect legal-document consistency. Review proposed changes before publication. Preview affects staging only. Conflicts require reload/review; committed receipts must never be replayed even when refresh/history is incomplete.',
+    description: 'Publish complete edited values through the same command as the website. Read get_owner_presentation_editor first; preserve its exact identityVersion or updatedAt. Legal publications append immutable history and require expectedDocumentVersion plus expectedIdentityVersion. Roadmap status values require itemId and status; preserve the exact item revision. websiteRelease working saves use sourceSha:null and publish:false. First Production publication requires publish:true with the current deployment SHA and exact previously saved notes/candidate packet. Narrative corrections preserve published facts. Preview advance uses advanceFrom for the exact preceding release and a greater version; native Production readback and notes/CAS checks apply. Changing legal identity can affect legal-document consistency. Review proposed changes before publication. Preview affects staging only. Conflicts require reload/review; committed receipts must never be replayed even when refresh/history is incomplete.',
     inputSchema: ownerPresentationPublishInputSchema, outputSchema: ownerPresentationPublicationOutputSchema,
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
   }, async ({ area, values, expectedIdentityVersion, expectedUpdatedAt, expectedDocumentVersion }) => runObserved({
@@ -560,10 +561,10 @@ export const registerOwnerReadTools = ({
           ? await publishOwnerFounderProfile({ actor, input: values, expectedUpdatedAt: expectedUpdatedAt! })
           : area === 'experience' ? await publishOwnerExperienceSettings({ actor, input: { ...values, updatedAt: expectedUpdatedAt } })
             : area === 'roadmapSettings' ? await publishOwnerRoadmapSettings({ actor, input: { ...values, updatedAt: expectedUpdatedAt } })
-              : area === 'roadmapStatus' ? await publishOwnerRoadmapStatus({ actor, input: { ...values, expectedUpdatedAt } })
+              : area === 'websiteRelease' ? await publishOwnerWebsiteRelease({actor,input:{...values,expectedUpdatedAt}}) : area === 'roadmapStatus' ? await publishOwnerRoadmapStatus({ actor, input: { ...values, expectedUpdatedAt } })
                 : await publishOwnerLegalDocument({ actor, input: { ...values, expectedBusinessIdentityVersion: expectedIdentityVersion, expectedVersion: expectedDocumentVersion } });
       return { content: [{ type: 'text', text: publication.receipt.message + ' Environment: ' + deploymentEnvironment() + '.' }],
-        structuredContent: { environment: deploymentEnvironment(), livePublication: deploymentEnvironment() === 'production', area, ...publication } };
+        structuredContent: { environment: deploymentEnvironment(), livePublication: deploymentEnvironment() === 'production' && (area!=='websiteRelease'||['release-published','narrative-corrected'].includes((publication.value as {mutationKind?:string}).mutationKind??'')), area, ...publication } };
     },
   }));
 

@@ -443,6 +443,7 @@ export const deleteContributorRoadmapItem = async ({
     .eq('id', itemId);
 
   if (error) {
+    if (error.message?.includes('website_release_published_immutable')) throw new RoadmapStoreError('Published website releases cannot be deleted. Use the update notes editor for narrative corrections.',409);
     console.error('Failed to delete contributor roadmap item:', error);
     throw new RoadmapStoreError('Unable to delete roadmap item.', 500);
   }

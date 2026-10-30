@@ -4,7 +4,7 @@ import type { PublicSitePage } from '@/features/public-site/model/sitePages';
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/features/legal/server', () => ({ publishLegalDocument: vi.fn(), revalidateLegalDocumentCache: vi.fn() }));
-vi.mock('@/features/roadmap/server', () => ({ updateRoadmapSettings: vi.fn(), updateRoadmapAdminItemStatus: vi.fn() }));
+vi.mock('@/features/roadmap/server', () => ({ updateRoadmapSettings: vi.fn(), updateRoadmapAdminItemStatus: vi.fn(), saveWebsiteRelease:vi.fn() }));
 vi.mock('@/features/business-identity/server', () => ({ updateBusinessIdentity: vi.fn(), revalidatePublicIdentityCache: vi.fn() }));
 vi.mock('@/features/experience-settings/server', () => ({ updateExperienceSettings: vi.fn(), revalidateExperienceSettingsCache: vi.fn() }));
 
@@ -245,4 +245,16 @@ describe('focused first-party page publication', () => {
     expect(state.updateConfiguration).toHaveBeenCalledExactlyOnceWith({ ...state.configuration, pages: [], primaryNavigation: untouched, updatedAt: 'initiating-revision' });
     state.configuration.primaryNavigation = untouched;
   });
+});
+
+
+it('reports a working note save as committed and unreleased, including refresh warnings',async()=>{
+ const native=vi.mocked((await import('@/features/roadmap/server')).saveWebsiteRelease);
+ native.mockResolvedValue({id:'release-row',version:'0.0.1',notes:{improvements:[],fixes:[],knownLimits:[]},sourceSha:null,candidateSha:null,shippedAt:null,updatedAt:'2026-10-30T00:00:00Z',mutationKind:'working-saved'});
+ state.failPath=true;
+ const result=await (await import('@/features/owner/server/ownerSiteCommands')).publishOwnerWebsiteRelease({actor:{userId:'owner',email:null},input:{version:'0.0.1'}});
+ expect(result.receipt).toMatchObject({committed:true,refreshComplete:false,retryable:false,nextAction:'reload'});
+ expect(result.receipt.message).toContain('remains unreleased');
+ expect(result.receipt.message).not.toContain('was published');
+ expect(native).toHaveBeenCalledWith({version:'0.0.1'},'owner');
 });

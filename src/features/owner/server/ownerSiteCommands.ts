@@ -16,7 +16,7 @@ import {
   type SiteContentBlock,
 } from '@/features/public-site/server';
 import { publishLegalDocument, revalidateLegalDocumentCache } from '@/features/legal/server';
-import { updateRoadmapSettings, updateRoadmapAdminItemStatus } from '@/features/roadmap/server';
+import { updateRoadmapSettings, updateRoadmapAdminItemStatus, saveWebsiteRelease } from '@/features/roadmap/server';
 import { recordOwnerActivity } from './ownerActivityStore';
 import { updateBusinessIdentity, revalidatePublicIdentityCache } from '@/features/business-identity/server';
 import { updateFounderProfile, revalidateFounderProfile } from '@/features/public-site/server';
@@ -274,3 +274,11 @@ export const publishOwnerRoadmapStatus = async ({ actor, input }: { actor: Owner
   finalizeOwnerPublication({ actor, value: await updateRoadmapAdminItemStatus(input), action: 'roadmap.item.status.update', targetType: 'roadmap_item', targetId: String(input.itemId),
     summary: 'Updated an official roadmap item status.', subject: 'Roadmap status', refreshSteps: [{ label: 'roadmap-page', run: () => revalidatePath('/roadmap') }] })
 );
+
+export const publishOwnerWebsiteRelease = async ({actor,input}:{actor:OwnerCommandActor;input:unknown}) => {
+ const value=await saveWebsiteRelease(input,actor.userId);
+ const summary=value.mutationKind==='working-advanced'?'Advanced Preview working version after exact Production release readback.':value.mutationKind==='release-published'?'Recorded verified website release.':value.mutationKind==='narrative-corrected'?'Saved release narrative correction.':'Saved working website notes; this version remains unreleased.';
+ const publication=await finalizeOwnerPublication({actor,value,action:'roadmap.item.status.update',targetType:'roadmap_item',targetId:value.id,summary,subject:'Website update',refreshSteps:[{label:'updates-page',run:()=>revalidatePath('/updates')},{label:'roadmap-page',run:()=>revalidatePath('/roadmap')}]});
+ publication.receipt.message=summary+(!publication.receipt.refreshComplete?' The write committed, but refresh was incomplete. Read the saved record; do not replay.':'')+(!publication.receipt.activityRecorded?' Activity recording was unavailable.':'');
+ return publication;
+};
