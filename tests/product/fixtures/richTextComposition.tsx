@@ -6,7 +6,7 @@ import { CardPreview } from '@/features/card-rendering/client';
 import { getFreshDefaultTemplateObject } from '@/domain/templates';
 import { renderCardToPngBlob } from '@/features/card-generator/lib/cardPreviewExport';
 function Fixture() {
-  const [value, setValue] = useState(() => localStorage.getItem('synthetic-rich-text') ?? 'Combined words');
+  const [value, setValue] = useState(() => localStorage.getItem('synthetic-rich-text') ?? (new URLSearchParams(location.search).has('mixed') ? '_one__**two**__three_' : 'Combined words'));
   const [image, setImage] = useState('');
   const [color, setColor] = useState('#112233'); const [submitted, setSubmitted] = useState(0);
   const template = getFreshDefaultTemplateObject('rich-composition', 'Synthetic composed marks');

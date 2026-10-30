@@ -195,3 +195,28 @@ test('@golden ColorField commits Enter and blur, cancels Escape, and never submi
   await expect(page.getByTestId('color')).toHaveText('#00cc66');
   await expect(page.getByTestId('form-submits')).toHaveText('0');
 });
+
+test('@golden reopens adjacent native mixed-mark runs without invented underline or literal delimiters', async ({ page }) => {
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.pathname.startsWith('/fonts/') && !url.pathname.includes('..')) return route.fulfill({ body: readFileSync(join('public', url.pathname)) });
+    return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head></head><body></body></html>' });
+  });
+  const mount = async () => {
+    await page.goto('/__rich-composition?mixed=1');
+    await page.addStyleTag({ content: (await libraryCss).css });
+    await page.addScriptTag({ content: richTextFixture.outputFiles.find(f => f.path.endsWith('.js'))!.text });
+  };
+  await mount();
+  for (const saved of [false, true]) {
+    if (saved) { await page.getByRole('button', { name: 'Save local text' }).click(); await mount(); }
+    await expect(page.locator('[contenteditable="true"]')).toHaveText('onetwothree');
+    const card = page.getByTestId('canonical-card');
+    await expect(card).toHaveText('onetwothree');
+    for (const word of ['one', 'two', 'three']) {
+      await expect(card.getByText(word, { exact: true })).toHaveCSS('font-style', 'italic');
+      await expect(card.getByText(word, { exact: true })).toHaveCSS('text-decoration-line', 'none');
+    }
+    await expect(card.getByText('two', { exact: true })).toHaveCSS('font-weight', '700');
+  }
+});

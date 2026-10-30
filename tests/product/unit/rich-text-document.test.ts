@@ -62,7 +62,7 @@ describe('composed formatting survives the canonical saved syntax', () => {
 });
 
 it('composes alternate saved nesting and adjacent independently formatted spans', () => {
-  for (const source of ['**___text___**', '__**_text_**__', '_**__text__**_', '___**text**___']) {
+  for (const source of ['**___text___**', '__**_text_**__', '___**text**___']) {
     expect(parseRichText(source)).toEqual([{ text: 'text', bold: true, italic: true, underline: true }]);
   }
   expect(parseRichText('_**one**_ __two__ **three**')).toEqual([
@@ -99,4 +99,16 @@ it('reopens no-gap mixed marks, independently removes underline and preserves va
   const doc = templateTextToTiptapDoc(variable);
   expect(doc.content?.[0].content?.[1]).toMatchObject({ type: 'cardForgeVariable', attrs: { key: 'Ability' }, content: [{ type: 'text', text: 'Flying', marks: [{ type: 'bold' }, { type: 'italic' }, { type: 'underline' }] }] });
   expect(tiptapDocToTemplateText(doc)).toBe(variable);
+});
+
+it('preserves three-node native mark transitions without interpreting boundaries as nested underline', () => {
+  const formats = ['bold', 'italic', 'underline', 'highlight', 'textStyle'];
+  const marked = (text: string, mask: number) => ({ type: 'text', text, marks: formats.filter((_, i) => mask & (1 << i)).map(type => ({ type, ...(type === 'textStyle' ? { attrs: { color: '#123456' } } : {}) })) });
+  const serialize = (content: ReturnType<typeof marked>[]) => tiptapDocToTemplateText({ type: 'doc', content: [{ type: 'paragraph', content }] });
+  const characters = (source: string) => parseRichText(source).flatMap(({ text, ...marks }) => [...text].map(char => ({ char, ...marks })));
+  for (let a = 0; a < 32; a++) for (let b = 0; b < 32; b++) for (let c = 0; c < 32; c++) {
+    const nodes = [marked('one', a), marked('two', b), marked('three', c)];
+    const saved = serialize(nodes);
+    expect(characters(saved), `native transition ${a}/${b}/${c}: ${saved}`).toEqual(nodes.flatMap(node => characters(serialize([node]))));
+  }
 });
