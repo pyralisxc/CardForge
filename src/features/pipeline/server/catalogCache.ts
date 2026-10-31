@@ -8,7 +8,8 @@ import {
 import type { RegistryViewerAccess } from '@/features/pipeline/lib/registryContentAssets';
 
 export const CARDFORGE_CATALOG_TAG = 'public:cardforge-catalog';
-const CARDFORGE_CATALOG_CACHE_VERSION = 'registry-model-v4';
+// The Studio bootstrap source projection must not reuse pre-projection cache entries.
+const CARDFORGE_CATALOG_CACHE_VERSION = 'registry-model-v5';
 
 const cachedCatalogs: Record<RegistryViewerAccess, () => ReturnType<typeof getCardForgeCatalogManifest>> = {
   free: unstable_cache(

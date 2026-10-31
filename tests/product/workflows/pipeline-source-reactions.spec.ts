@@ -7,7 +7,7 @@ const bundle = buildSync({ entryPoints: ['tests/product/fixtures/pipelineSourceR
 const first = '10000000-0000-4000-8000-000000000001';
 const second = '10000000-0000-4000-8000-000000000002';
 const lineageId = '20000000-0000-4000-8000-000000000001';
-async function mount(page: Page, options: { blocked?: boolean; failure?: boolean; delayed?: boolean } = {}) {
+async function mount(page: Page, options: { blocked?: boolean; failure?: boolean; delayed?: boolean; legacyProjection?: boolean } = {}) {
   page.on('pageerror', error => console.error('SOURCE_FIXTURE_ERROR', error.message));
   const rawFonts = [
     { asset_id: 'Heading / Regular', name: 'Governed Heading', url: 'https://example.invalid/heading.woff2', metadata: {} },
@@ -34,7 +34,7 @@ async function mount(page: Page, options: { blocked?: boolean; failure?: boolean
       { id: 'published-original', name: 'Original source', url: 'data:image/png;base64,', kind: 'image', publishedSubmissionId: first, librarySource: 'official', tileMode: 'contain', seamless: false, allowedTargets: ['image'] },
       { id: 'other-source', name: 'Second source', url: 'data:image/png;base64,', kind: 'image', publishedSubmissionId: second, librarySource: 'official', tileMode: 'contain', seamless: false, allowedTargets: ['image'] },
     ] } } });
-    if (url.pathname === '/api/catalog/studio-bootstrap') return route.fulfill({ json: { templates: { defaults: [{ id: 'bootstrap-original', templateRevision: 1, templateRevisionId: 'published-r1' }] }, styles: { styles: [material] }, fonts: { fonts: governedFonts }, pipeline: [{ assetId: 'bootstrap-original', submissionId: first }, { assetId: material.id, submissionId: first }, ...rawFonts.map((row, index) => ({ assetId: row.asset_id, submissionId: index === 0 ? second : first, fontValue: governedFonts[index].value }))] } });
+    if (url.pathname === '/api/catalog/studio-bootstrap') return route.fulfill({ json: { templates: { defaults: [{ id: 'bootstrap-original', templateRevision: 1, templateRevisionId: 'published-r1' }] }, styles: { styles: [material] }, fonts: { fonts: governedFonts }, ...(options.legacyProjection ? {} : { pipeline: [{ assetId: 'bootstrap-original', submissionId: first }, { assetId: material.id, submissionId: first }, ...rawFonts.map((row, index) => ({ assetId: row.asset_id, submissionId: index === 0 ? second : first, fontValue: governedFonts[index].value }))] }) } });
     if (url.pathname === '/api/pipeline/engagement') {
       const id = url.searchParams.get('submissionId')!; reads.push(id);
       if (options.failure) return route.fulfill({ status: 503, json: { error: { message: 'Source service unavailable', code: 'pipeline_reaction_unavailable', kind: 'unavailable' } } });
@@ -145,4 +145,13 @@ test('@golden native bulk picker keeps source feedback on the last deliberate se
   await expect(page.getByRole('option', { name: /Original source/ })).toHaveAttribute('aria-selected', 'true'); await expect(page.getByRole('option', { name: /Second source/ })).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('button', { name: 'Use selection', exact: true }).click(); await expect(page.getByLabel('Bulk picture plan')).toHaveText('["data:image/png;base64,","data:image/png;base64,"]');
   expect(evidence.mutations).toEqual([{ path: `/api/pipeline/${second}/vote`, body: { voteValue: 'negative' } }]);
+});
+
+test('@golden a pre-projection bootstrap reports unavailable without declaring the governed Template ineligible', async ({ page }) => {
+  const evidence = await mount(page, { legacyProjection: true }); const source = page.getByLabel('Bootstrap source');
+  await expect(source.getByText(/Published source reactions are unavailable/)).toBeVisible();
+  await expect(source.getByText(/No exact governed Pipeline source/)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Edit personal copy', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Personal Template · not shared', exact: true })).toBeVisible();
+  expect(evidence.mutations).toEqual([]);
 });
