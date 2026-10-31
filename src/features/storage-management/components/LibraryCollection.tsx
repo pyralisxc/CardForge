@@ -1,14 +1,13 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { Fragment, useState, type RefObject } from 'react';
+import { Fragment, useState } from 'react';
 import {
   Boxes, Copy, ExternalLink, Grid2X2, Heart, LayoutList, Loader2, MoreHorizontal,
-  PanelRightOpen, RefreshCcw, Search, ThumbsDown, ThumbsUp, Trash2, UploadCloud,
+  PanelRightOpen, RefreshCcw, ThumbsDown, ThumbsUp, Trash2, UploadCloud,
 } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
 import { MultiSelectionFilterMenu } from '@/components/ui/multi-selection-filter-menu';
 import { SelectionFilterMenu } from '@/components/ui/selection-filter-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
@@ -86,7 +85,6 @@ interface LibraryCollectionProps {
   publishedRevisionByLineage: ReadonlyMap<string, PipelineSubmission>;
   projection: ReturnType<typeof useAccountLibraryProjection>;
   scopeDefinition: { label: string; description: string };
-  searchRef: RefObject<HTMLInputElement>;
   selection: SelectionSession;
   sharedType: string;
   sharedTypes: string[];
@@ -101,17 +99,16 @@ export function LibraryCollection({
   activeFailure, activeLoading, activeScope, campaignNotice, campaignTargetId, canReview, canSubmit, cardsFor, density,
   heartMetrics, heartMetricsFailed, heartMetricsLoading, heartingId, isSignedIn, isSelfVoteBlocked, onDensityChange, onOpenContribution, onOpenDetail, onPersonalAction,
   onPublishedAction, onRefresh, onSharedTypeChange, onToggleHeart, onVote, personalActions, publishedRevisionByLineage, projection,
-  scopeDefinition, searchRef, selection, sharedType, sharedTypes, templateFor, unfilteredScopeItemCount, viewItems, votingId, isOwner,
+  scopeDefinition, selection, sharedType, sharedTypes, templateFor, unfilteredScopeItemCount, viewItems, votingId, isOwner,
   serverFiltered = false, interactionDisabled = false,
 }: LibraryCollectionProps) {
   const [faces, setFaces] = useState<Record<string, CardFace>>({});
   return <section className={styles.collection} aria-labelledby="library-collection-heading">
     <div className={styles.collectionHeading}><div><h2 id="library-collection-heading">{scopeDefinition.label}</h2><p>{scopeDefinition.description}</p></div>{activeScope === 'campaigns' ? null : <span>{viewItems.length} {serverFiltered ? 'on this page' : 'shown'}</span>}</div>
     {activeScope === 'campaigns' ? isOwner
-      ? <OwnerMarketingPanel initialNotice={campaignNotice} />
-      : <CampaignLibraryWorkspace initialCampaignId={campaignTargetId} /> : <>
+      ? <OwnerMarketingPanel initialNotice={campaignNotice} searchQuery={projection.query} onSearchQueryChange={projection.setQuery} />
+      : <CampaignLibraryWorkspace initialCampaignId={campaignTargetId} searchQuery={projection.query} onSearchQueryChange={projection.setQuery} /> : <>
       <fieldset disabled={interactionDisabled} className={`${styles.toolbar} min-w-0`} aria-label="Library toolbar">
-        <label className={styles.searchField}><span className="sr-only">Search Library</span><Search aria-hidden="true" /><Input ref={searchRef} id="library-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} placeholder={`Search ${activeScope}`} /></label>
         {activeScope === 'personal' ? <>
           <MultiSelectionFilterMenu allLabel="All sources" ariaLabel="Filter Library by source" compactLabel="Source" className={styles.filterSelect} values={projection.sourceFilters} onChange={projection.setSourceFilters} options={LIBRARY_SOURCES.map((source) => ({ value: source, label: `${getAccountLibrarySourceLabel(source)} · ${projection.sourceCounts.get(source) ?? 0}` }))} />
           <MultiSelectionFilterMenu allLabel="All object kinds" ariaLabel="Filter Library by object kind" compactLabel="Kind" className={styles.filterSelect} values={projection.kindFilters} onChange={projection.setKindFilters} options={ACCOUNT_LIBRARY_KINDS.map((kind) => ({ value: kind, label: accountLibraryKindLabels[kind] }))} />

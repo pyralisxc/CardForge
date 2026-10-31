@@ -75,7 +75,7 @@ test.describe('mobile Desk controls', () => {
     await test.info().attach('owned-filter-selection', { body: await page.screenshot(), contentType: 'image/png' });
     // The expanded panel covers the Set tile; use the exposed toolbar search
     // field to prove genuine outside dismissal without forcing an obscured tap.
-    await page.getByRole('textbox', { name: 'Search Desk work', exact: true }).tap();
+    await page.getByRole('searchbox', { name: 'Search Desk work', exact: true }).tap();
     await expect(filters).not.toHaveAttribute('open', '');
     await expect(set).toContainText('Playing deck');
   });
@@ -328,7 +328,7 @@ test.describe('desktop Desk return', () => {
   test('@golden keeps the Desk camera, search, selection, and artifact node when its zone link is activated', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
-    const search = page.getByRole('textbox', { name: 'Search Desk work', exact: true });
+    const search = page.getByRole('searchbox', { name: 'Search Desk work', exact: true });
     await search.fill('100');
     await page.getByRole('button', { name: 'Zoom Desk in', exact: true }).click();
     const viewport = page.locator('[data-desk-viewport]');

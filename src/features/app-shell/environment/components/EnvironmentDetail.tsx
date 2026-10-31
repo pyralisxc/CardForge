@@ -28,7 +28,7 @@ interface DetailBodyProps {
 function DetailBody({ record, actions, visual, content, showClose, sheetContext = false, onClose, onAction }: DetailBodyProps) {
   const visibleActions = actions.filter((action) => action.availability.kind !== 'hidden');
   const primary = visibleActions.find((action) => action.hierarchy === 'primary');
-  const supporting = visibleActions.filter((action) => action.hierarchy === 'supporting');
+  const supporting = visibleActions.filter((action) => action.hierarchy === 'supporting' || (action.hierarchy === 'primary' && action !== primary));
   const overflow = visibleActions.filter((action) => action.hierarchy === 'overflow');
   const run = (action: ActionDescriptor) => { if (isActionAvailable(action)) onAction(action); };
   return (

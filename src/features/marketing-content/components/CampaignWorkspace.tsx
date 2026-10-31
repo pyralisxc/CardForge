@@ -24,8 +24,12 @@ export function CampaignWorkspace({
   workspace,
   initialCampaignId,
   onRefresh,
+  searchQuery,
+  onSearchQueryChange,
 }: {
   workspace: MarketingContentWorkspaceView;
+  searchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
   initialCampaignId?: string | null;
   onRefresh: () => Promise<void> | void;
 }) {
@@ -175,7 +179,7 @@ export function CampaignWorkspace({
       ) : null}
 
       {!showComposer ? (
-        <CampaignQueue
+        <CampaignQueue searchQuery={searchQuery} onSearchQueryChange={onSearchQueryChange}
           workspace={workspace}
           onRefresh={onRefresh}
           onEdit={editCampaign}

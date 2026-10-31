@@ -28,11 +28,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import type { CardFace } from '@/domain/cards';
+import { isActionAvailable, type ActionDescriptor } from '@/features/app-shell/client/environment';
 import { useArtifactFace } from '@/features/card-rendering/client';
 import type { DeskCamera } from '../hooks/useDeskCamera';
 import styles from './Desk.module.css';
 
 interface DeskContextRailProps {
+  workActions?: readonly ActionDescriptor[];
+  onWorkAction?: (action: ActionDescriptor) => void;
   depth: 'desk' | 'set' | 'artifact' | 'tool';
   setName?: string;
   artifactName?: string;
@@ -141,7 +144,10 @@ export function DeskContextRail(props: DeskContextRailProps) {
       </nav>
 
       <div className={styles.contextActions}>
-        {props.depth === 'set' ? <>
+        {props.depth === 'set' && props.workActions ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label={`Actions for ${props.setName ?? 'this work'}`}><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+          {props.workActions.filter(action => action.availability.kind !== 'hidden').map(action => <DropdownMenuItem key={action.id} className={compactMenuItemClassName} disabled={!isActionAvailable(action)} title={action.availability.kind === 'disabled' ? action.availability.reason : undefined} onSelect={selectMenuAction(() => { if (isActionAvailable(action)) props.onWorkAction?.(action); })}>{action.label}</DropdownMenuItem>)}
+        </DropdownMenuContent></DropdownMenu> : null}
+        {props.depth === 'set' && !props.workActions ? <>
           {props.renaming && props.localSet ? <form className={styles.contextRename}
             onSubmit={(event) => { event.preventDefault(); props.onCommitRename(); requestAnimationFrame(() => setActionsRef.current?.focus()); }}
             onKeyDown={(event) => {

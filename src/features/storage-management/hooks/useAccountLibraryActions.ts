@@ -37,6 +37,7 @@ type CommandTarget = LibraryViewItem | { scope: 'personal'; id: string; personal
 
 interface UseAccountLibraryActionsOptions {
   activeLoading: boolean;
+  openCreateSet: () => void;
   activeScope: LibraryScope;
   activeTool: LibraryTool;
   closeDetail: () => void;
@@ -59,7 +60,7 @@ interface UseAccountLibraryActionsOptions {
 }
 
 export function useAccountLibraryActions({
-  activeLoading,
+  openCreateSet,
   activeScope,
   activeTool,
   closeDetail,
@@ -121,7 +122,7 @@ export function useAccountLibraryActions({
     : currentItem?.scope === 'personal'
       ? personalActions(currentItem.personal)
       : currentItem?.scope === 'published' || currentItem?.scope === 'pipeline' ? contextualActions(currentItem)
-        : [zoneAction('library.refresh', activeLoading ? 'Refreshing' : 'Refresh Library', activeLoading)];
+        : [zoneAction('library.create-set', 'New Set')];
 
   const openPersonalItem = async (item: AccountLibraryItem): Promise<ActionOperationResult> => {
     if (item.references.localSetId) {
@@ -276,6 +277,7 @@ export function useAccountLibraryActions({
         return runPipelineLifecycle(item.pipeline.retirableSubmission, 'retire');
       },
       refresh: () => { refresh(); return { kind: 'refresh-requested' }; },
+      createSet: () => { openCreateSet(); return { kind: 'tool-opened', toolId: 'new-set' }; },
     };
   };
 
@@ -303,7 +305,9 @@ export function useAccountLibraryActions({
     actions,
     openLocations,
     personalActions,
-    runAction: (action: ActionDescriptor) => executeAction(action, currentItem, actions),
+    runAction: (action: ActionDescriptor) => action.id === 'library.create-set'
+      ? executeAction(action, null, [zoneAction('library.create-set', 'New Set')])
+      : executeAction(action, currentItem, actions),
     runPersonalAction,
     runPublishedRowAction,
   };

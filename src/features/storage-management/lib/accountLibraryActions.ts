@@ -33,6 +33,7 @@ export interface AccountLibraryActionCommands {
   withdrawPipeline: LibraryCommand;
   retirePipeline: LibraryCommand;
   refresh: LibraryCommand;
+  createSet?: LibraryCommand;
 }
 
 const commandFor = (id: ActionDescriptor['id'], commands: AccountLibraryActionCommands): LibraryCommand | null => {
@@ -55,6 +56,7 @@ const commandFor = (id: ActionDescriptor['id'], commands: AccountLibraryActionCo
     'library.retire-pipeline': commands.retirePipeline,
     'library.refresh': commands.refresh,
   };
+  if (id === 'library.create-set') return commands.createSet ?? null;
   if (id === 'library.review-manage') return commands.reviewManage ?? null;
   return commandMap[id] ?? null;
 };

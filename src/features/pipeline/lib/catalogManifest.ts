@@ -1,3 +1,4 @@
+import type { PublishedSetCatalogItem } from '@/domain/publishedSets';
 import {
   resolveStudioAssetDestinations,
   type AppearanceStyleLibrary,
@@ -60,24 +61,7 @@ export interface PublishedPipelineCatalogItem {
   updatedAt: string | null;
 }
 
-export interface PublishedSetCatalogItem {
-  id: string;
-  name: string;
-  packageUrl: string;
-  previewUrl: string | null;
-  access: 'free' | 'paid' | 'contributor';
-  source: 'official' | 'contributor';
-  fileSizeBytes: number | null;
-  revision: number;
-  description: string;
-  specialtyTags: string[];
-  useCaseTags: string[];
-  semanticRole?: string;
-  visualFamily?: string | null;
-  variantKind?: string;
-  variantLabel?: string | null;
-  compatibilityTags?: string[];
-}
+export type { PublishedSetCatalogItem } from '@/domain/publishedSets';
 
 export interface CardForgeStudioBootstrapManifest {
   version: string;

@@ -47,7 +47,7 @@ import { useDeskLayout } from './useDeskLayout';
 import { useDeskArrival } from './useDeskArrival';
 import { useDeskWorkDiscovery } from './useDeskWorkDiscovery';
 import { useDeskViewPreferences, type DeskViewId } from './useDeskViewPreferences';
-import { usePublishedSetStarters } from './usePublishedSetStarters';
+import { usePublishedSetStarters } from '@/features/project/client/new-set';
 import { useDeskProjectWorkspace } from './useDeskProjectWorkspace';
 
 const driveWorkingNeedsAttention = (phase: GoogleDriveWorkingSessionPhase) => (
