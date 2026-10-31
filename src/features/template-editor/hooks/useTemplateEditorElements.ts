@@ -145,6 +145,7 @@ export function useTemplateEditorElements({
     elementId: string,
     updater: (appearance: FreeformAppearance) => FreeformAppearance,
     trackHistory = true,
+    historyGroup?: string,
   ) => {
     const element = canvas.elements.find((item) => item.id === elementId);
     if (!element) return;
@@ -154,6 +155,7 @@ export function useTemplateEditorElements({
       elementId,
       { appearance, ...appearanceToElementRenderFields(nextElement) },
       trackHistory,
+      historyGroup,
     );
   }, [canvas.elements, updateElement]);
 
