@@ -1,4 +1,5 @@
 import { registerRevisionDeletionTools } from './mcpRevisionDeletionTools';
+import { registerRevisionRecoveryTools } from './mcpRevisionRecoveryTools';
 import { createMcpHandler } from 'mcp-handler';
 
 import { registerCatalogTrashTools } from './mcpCatalogTrashTools';
@@ -6,7 +7,7 @@ import { registerAgentTemplateTools } from './mcpAgentTemplateTools';
 import { CARDFORGE_MCP_CONTRACT_VERSION } from './mcpContractVersion';
 import { registerEditableTemplateTools } from './mcpEditableTemplateTools';
 import { registerCardForgePluginSkills } from './mcpPluginSkills';
-import { getMcpStudioAccess } from './mcpStudioAccess';
+import { getMcpStudioAccess, getMcpStudioReadAccess } from './mcpStudioAccess';
 import { createMcpToolError } from './mcpToolError';
 
 const publicOrigin = () => (
@@ -20,11 +21,13 @@ export const cardForgeMcpHandler = createMcpHandler(
       server,
       publicOrigin: publicOrigin(),
       getAccess: getMcpStudioAccess,
+      getReadAccess: getMcpStudioReadAccess,
       toolError: createMcpToolError,
     };
     registerAgentTemplateTools(options);
     registerCatalogTrashTools(options);
     registerRevisionDeletionTools(options);
+    registerRevisionRecoveryTools(options);
     registerEditableTemplateTools(options);
   },
   {

@@ -8,6 +8,7 @@ import {
 } from '@/features/account/server';
 import {
   getContributorCapabilities,
+  readContributorCapabilities,
   type ContributorAccessProjection,
   type ContributorScope,
 } from '@/features/contributor-access/server';
@@ -32,4 +33,13 @@ export const getMcpStudioAccess = async (): Promise<McpStudioAccess> => {
     isContributor: contribution.active,
     scopes: [...contribution.scopes],
   };
+};
+
+/** OAuth/account/profile inspection without the mutation enrollment path. */
+export const getMcpStudioReadAccess = async (): Promise<McpStudioAccess> => {
+  const clerkAuth = await auth({ acceptsToken: 'oauth_token' });
+  if (!clerkAuth.userId) throw new AccountToolAccessError('A linked CardForge account is required.', 401);
+  const account = await getAccountToolAccessForUserId(clerkAuth.userId);
+  const contribution = await readContributorCapabilities(account);
+  return { ...account, contribution, isContributor: contribution.active, scopes: [...contribution.scopes] };
 };
