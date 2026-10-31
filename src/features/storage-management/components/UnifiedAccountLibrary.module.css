@@ -70,7 +70,8 @@
 .pipelineDetail p { color: var(--cf-text-muted); font-size: .7rem; line-height: 1.45; }
 .pipelineDetail ol { display: grid; max-height: 10rem; margin: 0; padding: 0; overflow: auto; list-style: none; }
 .pipelineDetail li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .35rem; border-bottom: 1px solid var(--cf-border-subtle); }
-.pipelineDetail .revisionOpen { display: flex; min-width: 0; min-height: 2.75rem; align-items: center; justify-content: space-between; gap: .75rem; border: 0; background: transparent; padding: .35rem 0; color: var(--cf-text-muted); font: inherit; font-size: .72rem; text-align: left; }
+.pipelineDetail .revisionOpen { display: flex; grid-column: 1 / -1; flex-wrap: wrap; min-width: 0; min-height: 2.75rem; align-items: center; justify-content: space-between; gap: .75rem; border: 0; background: transparent; padding: .35rem 0; color: var(--cf-text-muted); font: inherit; font-size: .72rem; text-align: left; }
+.pipelineDetail li > details { grid-column: 1 / -1; min-width: 0; }
 .pipelineDetail .revisionOpen:hover { color: var(--cf-accent-text); }
 .pipelineDetail li span:first-child { color: var(--cf-text-strong); }
 .revisionVotes { display: flex; gap: .2rem; }

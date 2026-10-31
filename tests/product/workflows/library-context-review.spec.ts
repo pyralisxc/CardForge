@@ -311,8 +311,8 @@ test('@golden actual Library keeps revision context through dirty close and clea
 });
 
 
-for (const missing of [false, true]) test(`@golden historical Template keeps source and publication labels (missing=${missing})`, async ({ page }, info) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+for (const width of [390, 1440]) for (const missing of [false, true]) test(`@golden historical Template keeps source and publication labels (missing=${missing}) at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 900 });
   const evidence = await mount(page, `?queueActual=1&scope=pipeline&historyTemplate=1${missing ? '&missingHistory=1' : ''}`);
   await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
   await page.getByRole('button', { name: 'Next revisions' }).click();
@@ -320,7 +320,25 @@ for (const missing of [false, true]) test(`@golden historical Template keeps sou
   const history = page.getByLabel('Pipeline review details');
   await expect(history.getByText('History', { exact: true })).toBeVisible();
   await expect(history.getByText('Live', { exact: true })).toHaveCount(0);
-  await history.getByRole('button', { name: 'Review & manage Revision 1', exact: true }).click();
+  const reviewAction = history.getByRole('button', { name: 'Review & manage Revision 1', exact: true });
+  await reviewAction.scrollIntoViewIfNeeded();
+  const geometry = await reviewAction.evaluate(button => {
+    const bounds = button.getBoundingClientRect();
+    const summary = [...button.closest('li')!.querySelectorAll('summary')].find(node => node.textContent === 'Recover or Trash this revision')!;
+    const recovery = summary.getBoundingClientRect();
+    const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    return { action: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+      recovery: { x: recovery.x, y: recovery.y, width: recovery.width, height: recovery.height },
+      hit: hit?.textContent, reachable: hit === button || button.contains(hit) };
+  });
+  console.log('REVISION_RECOVERY_POINTER_GEOMETRY', JSON.stringify(geometry));
+  await info.attach('revision-recovery-pointer-geometry', { body: JSON.stringify(geometry), contentType: 'application/json' });
+  expect(geometry.reachable).toBe(true);
+  const recoverySummary = reviewAction.locator('xpath=ancestor::li[1]').getByText('Recover or Trash this revision', { exact: true });
+  await recoverySummary.click();
+  await expect(reviewAction.locator('xpath=ancestor::li[1]').getByRole('button', { name: 'Inspect revision recovery' })).toBeVisible();
+  await recoverySummary.click();
+  await reviewAction.click();
   const review = page.getByLabel('Exact revision governance');
   await expect(review).toContainText('10000000-0000-4000-8000-000000000015');
   await expect(review.getByText('Current live catalog payload', { exact: false })).toHaveCount(0);
