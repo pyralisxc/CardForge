@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ToastFn } from '@/components/ui/use-toast';
 import { inferTextElementContentModel } from '@/domain/rendering';
 import { extractPlaceholderKeysFromText } from '@/domain/rendering';
+import type { FreeformCardElement } from '@/domain/templates';
 import { extractTemplateFieldDefinitions } from '@/domain/templates';
 import type { TemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import {
@@ -49,11 +50,16 @@ export function useTemplateEditorVariables({
     setActiveVariableKey(null);
   }, [selectedElement?.id]);
 
-  const upsertFieldContract = useCallback((key: string, updates: Partial<FieldContract>) => {
+  const upsertFieldContract = useCallback((key: string, updates: Partial<FieldContract>, elementUpdates?: Pick<FreeformCardElement, 'textAutoFit' | 'textMinFontSizePx'>) => {
     const properties=Object.keys(updates).filter(property=>property!=='elementId');
-    const continuous=properties.length>0&&properties.every(property=>['defaultValue','example','description','maxLength','fontSizePx','lineHeight','letterSpacing'].includes(property));
-    commitTemplate((template) => upsertTemplateFieldContract(template, key, updates), true,undefined,continuous?`field:${updates.elementId??''}:${key}:${properties.toSorted().join(',')}`:undefined);
-  }, [commitTemplate]);
+    const continuous=properties.length>0&&properties.every(property=>['defaultValue','example','description','maxLength','fontSizePx','lineHeight','letterSpacing','minFontSizePx'].includes(property));
+    commitTemplate((template) => {
+      const next = upsertTemplateFieldContract(template, key, updates);
+      if (!elementUpdates || !updates.elementId) return next;
+      const activeCanvas = next.freeformCanvas ?? canvas;
+      return { ...next, freeformCanvas: { ...activeCanvas, elements: activeCanvas.elements.map(element => element.id === updates.elementId ? { ...element, ...elementUpdates } : element) } };
+    }, true,undefined,continuous?`field:${updates.elementId??''}:${key}:${properties.toSorted().join(',')}`:undefined);
+  }, [canvas, commitTemplate]);
 
   const upsertFieldContracts=useCallback((keys:string[],updates:Partial<FieldContract>)=>{
     commitTemplate(template=>keys.reduce((next,key)=>upsertTemplateFieldContract(next,key,updates),template));

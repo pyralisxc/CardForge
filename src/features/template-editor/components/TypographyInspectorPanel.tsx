@@ -21,7 +21,7 @@ interface TypographyInspectorPanelProps {
   controlClassName: string;
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean, historyGroup?: string) => void;
   onFinishHistoryGroup: () => void;
-  onUpsertFieldContract: (key: string, updates: Partial<FieldContract>) => void;
+  onUpsertFieldContract: (key: string, updates: Partial<FieldContract>, elementUpdates?: Pick<FreeformCardElement, 'textAutoFit' | 'textMinFontSizePx'>) => void;
 }
 
 export function TypographyInspectorPanel({
@@ -146,9 +146,8 @@ export function TypographyInspectorPanel({
                       onUpsertFieldContract(boundField, {
                         elementId: element.id,
                         textAutoFit: checked,
-                      });
-                    }
-                    onUpdateElement({ textAutoFit: checked }, false);
+                      }, { textAutoFit: checked });
+                    } else onUpdateElement({ textAutoFit: checked });
                   }}
                 />
               </div>
@@ -156,6 +155,7 @@ export function TypographyInspectorPanel({
             <div>
               <Label htmlFor="element-min-font-size">Min Size (px)</Label>
               <Input
+                onBlur={onFinishHistoryGroup}
                 id="element-min-font-size"
                 type="number"
                 min="6"
@@ -168,9 +168,8 @@ export function TypographyInspectorPanel({
                     onUpsertFieldContract(boundField, {
                       elementId: element.id,
                       minFontSizePx: nextMin,
-                    });
-                  }
-                  onUpdateElement({ textMinFontSizePx: nextMin }, false);
+                    }, { textMinFontSizePx: nextMin });
+                  } else onUpdateElement({ textMinFontSizePx: nextMin }, true, `min-font-size:${element.id}`);
                 }}
               />
             </div>
