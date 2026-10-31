@@ -29,7 +29,7 @@ describe('Studio MCP HTTP discovery', () => {
     const result = await readMessage(listed);
     expect(result.error).toBeUndefined();
     type ObjectSchema = { type: string; properties: Record<string, unknown>; required?: string[] };
-    const tools = result.result.tools as Array<{ name: string; inputSchema: ObjectSchema; outputSchema?: ObjectSchema }>;
+    const tools = result.result.tools as Array<{ name: string; inputSchema: ObjectSchema; outputSchema?: ObjectSchema; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean } }>;
     expect(tools.map((tool) => tool.name)).toEqual(expect.arrayContaining([
       'get_pipeline_revision_deletion', 'delete_pipeline_revision_now',
       'get_pipeline_revision_recovery', 'change_pipeline_revision_recovery',
@@ -94,5 +94,8 @@ describe('Studio MCP HTTP discovery', () => {
     expect(deletion.inputSchema.required).toEqual(['submissionId', 'name', 'storagePath']);
     expect(deletion.inputSchema.properties.submissionId).toMatchObject({ type: 'string', format: 'uuid' });
     expect(deletion.inputSchema.properties.storagePath).toMatchObject({ type: ['string', 'null'] });
+    // Inspection does not write product/profile state, but existing aggregate
+    // usage metering is a real write and must remain truthful in tools/list.
+    expect(tools.find(tool => tool.name === 'get_pipeline_revision_recovery')?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false });
   });
 });

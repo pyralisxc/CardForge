@@ -17,9 +17,9 @@ export function registerRevisionRecoveryTools({ server, getAccess, getReadAccess
   };
   server.registerTool('get_pipeline_revision_recovery', {
     title: 'Inspect exact Pipeline revision recovery',
-    description: 'Owner or exact original Contributor only. Read revision-scoped identity, current pointer, high-water, Trash epoch, source uncertainty and recovery blockers. Metadata recovery does not prove source bytes are present. Does not grant deletion authority or reveal another Contributor’s private work. Catalog-lineage recovery is separate.',
+    description: 'Owner or exact original Contributor only. Inspect product state without profile enrollment; records normal aggregate MCP usage telemetry. Read revision-scoped identity, current pointer, high-water, Trash epoch, source uncertainty and recovery blockers. Metadata recovery does not prove source bytes are present. Does not grant deletion authority or reveal another Contributor’s private work. Catalog-lineage recovery is separate.',
     inputSchema: fromJsonSchema<{ submissionId: string }>({ type: 'object', additionalProperties: false, required: ['submissionId'], properties: { submissionId: { type: 'string', format: 'uuid' } } }),
-    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, input => run('get_pipeline_revision_recovery', input, actor => readRevisionRecovery(actor, input.submissionId), getReadAccess));
   server.registerTool('change_pipeline_revision_recovery', {
     title: 'Trash, restore or hold one exact Pipeline revision',
