@@ -1,4 +1,5 @@
-import { nanoid } from 'nanoid';
+import { createHash } from 'node:crypto';
+import { isReservedPipelineUploadPath, isPipelineUploadToken, runPipelineUploadCommand } from './pipelineUploadCommitments';
 import sharp from 'sharp';
 import { create as decodeFont } from 'fontkit';
 
@@ -12,6 +13,7 @@ import {
 } from '@/domain/templates';
 import {
   createPipelineSubmission,
+  buildPipelineSubmissionRecord,
   PipelineStoreError,
 } from '@/features/pipeline/lib/pipelineStore';
 import {
@@ -35,20 +37,6 @@ const FONT_EXTENSIONS = new Set(['woff2', 'woff', 'ttf', 'otf']);
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'svg']);
 const BORDER_OVERLAY_EXTENSIONS = new Set(['png', 'webp', 'svg']);
 const SET_EXTENSIONS = new Set(['cardforge']);
-
-const sanitizePathSegment = (value: string, fallback: string, maxLength = 100): string => (
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/gu, '-')
-    .replace(/^-+|-+$/gu, '')
-    .slice(0, maxLength) || fallback
-);
-
-const sanitizeFileStem = (value: string): string => sanitizePathSegment(
-  value.replace(/\.[^.]+$/u, ''),
-  'asset',
-  80,
-);
 
 const getFileExtension = (fileName: string, mimeType: string): string => {
   const nameExtension = fileName.match(/\.([a-z0-9]+)$/iu)?.[1]?.toLowerCase();
@@ -197,27 +185,6 @@ export const validatePipelineUploadDescriptor = ({
   };
 };
 
-const getContributorStoragePrefix = (contributorId: string): string => sanitizePathSegment(
-  contributorId,
-  'contributor',
-  100,
-);
-
-const createStoragePath = (
-  contributorId: string,
-  descriptor: ValidatedUploadDescriptor,
-): string => {
-  // Contributor bytes land in a public bucket before server validation. Keep
-  // raw SVG away from an executable-looking extension until it has been
-  // replaced in place by CardForge's sanitized subset and correct MIME type.
-  const transportExtension = descriptor.extension === 'svg' ? 'cfsvg' : descriptor.extension;
-  return [
-    getContributorStoragePrefix(contributorId),
-    descriptor.assetType,
-    `${Date.now()}-${sanitizeFileStem(descriptor.fileName)}-${nanoid(12)}.${transportExtension}`,
-  ].join('/');
-};
-
 const requireSupabase = () => {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
@@ -253,7 +220,13 @@ export const preparePipelineUpload = async ({
     mimeType,
     maxFileSizeMb,
   });
-  const storagePath = createStoragePath(contributorId, descriptor);
+  const reserved = await runPipelineUploadCommand('cardforge_reserve_pipeline_upload', {
+    p_actor: contributorId, p_descriptor: uploadIdentity(descriptor),
+  }) as { storagePath?: unknown };
+  if (typeof reserved.storagePath !== 'string' || !isReservedPipelineUploadPath(reserved.storagePath)) {
+    throw new PipelineStoreError('The upload reservation could not be confirmed.', 503);
+  }
+  const storagePath = reserved.storagePath;
   const { data, error } = await requireStorage().createSignedUploadUrl(storagePath, { upsert: false });
   if (error || !data?.signedUrl) {
     throw new PipelineStoreError('Unable to prepare the Forge Review source upload.', 503);
@@ -268,15 +241,15 @@ export const preparePipelineUpload = async ({
   };
 };
 
-const assertOwnedStoragePath = (
-  contributorId: string,
-  assetType: ContributorUploadAssetType,
-  storagePath: string,
-): void => {
-  const prefix = `${getContributorStoragePrefix(contributorId)}/${assetType}/`;
-  if (!storagePath.startsWith(prefix) || storagePath.includes('..')) {
-    throw new PipelineStoreError('The uploaded Forge Review source does not belong to this Contributor.', 403);
-  }
+const uploadIdentity = (descriptor: ValidatedUploadDescriptor) => ({
+  assetType: descriptor.assetType, fileName: descriptor.fileName, fileSizeBytes: descriptor.fileSizeBytes,
+  mimeType: descriptor.mimeType, transportExtension: descriptor.extension === 'svg' ? 'cfsvg' : descriptor.extension,
+});
+
+const assertReservedPath = (storagePath: string): void => {
+  if (!isReservedPipelineUploadPath(storagePath)) throw new PipelineStoreError(
+    'This older upload has no verified cleanup history. Its bytes are retained; use a fresh upload to submit new work.', 409,
+  );
 };
 
 const getStoredObjectSize = (value: unknown): number | null => {
@@ -412,23 +385,15 @@ export const removePendingPipelineUpload = async ({
   storagePath: unknown;
 }): Promise<void> => {
   if (!isContributorUploadAssetType(assetType) || typeof storagePath !== 'string') return;
-  assertOwnedStoragePath(contributorId, assetType, storagePath);
-  const supabase = requireSupabase();
-  const { data: submitted, error: lookupError } = await supabase
-    .from('cardforge_contributor_asset_submissions')
-    .select('id')
-    .eq('contributor_id', contributorId)
-    .eq('source_storage_bucket', PIPELINE_STORAGE_BUCKET)
-    .eq('source_storage_path', storagePath)
-    .maybeSingle();
-  if (lookupError) {
-    throw new PipelineStoreError('Unable to verify the unfinished Forge Review upload.', 503);
-  }
-  if (submitted) {
-    throw new PipelineStoreError('A submitted Forge Review source cannot be removed as an unfinished upload.', 409);
-  }
-  const { error } = await supabase.storage.from(PIPELINE_STORAGE_BUCKET).remove([storagePath]);
-  if (error) throw new PipelineStoreError('Unable to clean up the unfinished Forge Review upload.', 503);
+  assertReservedPath(storagePath);
+  const token = await runPipelineUploadCommand('cardforge_claim_pipeline_upload_cleanup', { p_actor: contributorId, p_path: storagePath });
+  if (!isPipelineUploadToken(token)) throw new PipelineStoreError('The cleanup commitment could not be confirmed. No deletion was attempted.', 503);
+  // Authority is durable before I/O. Never release/reissue it on response loss,
+  // timeout, Storage error or finalization failure.
+  const { error } = await requireStorage().remove([storagePath]).catch(() => ({ error: true }));
+  if (error) throw new PipelineStoreError('Cleanup outcome is uncertain. The exact source commitment is retained for reconciliation.', 503);
+  const finalized = await runPipelineUploadCommand('cardforge_finalize_pipeline_upload_cleanup', { p_path: storagePath, p_token: token });
+  if (finalized !== true) throw new PipelineStoreError('Cleanup could not be confirmed. Its commitment is retained.', 503);
 };
 
 export interface CreateUploadedPipelineSubmissionInput {
@@ -478,34 +443,11 @@ export const createUploadedPipelineSubmission = async ({
     mimeType: uploadedFile.mimeType,
     maxFileSizeMb,
   });
-  assertOwnedStoragePath(contributorId, descriptor.assetType, uploadedFile.storagePath);
+  assertReservedPath(uploadedFile.storagePath);
   const storage = requireStorage();
 
-  try {
-    await assertUploadedObjectComplete(uploadedFile.storagePath, descriptor.fileSizeBytes);
-    const uploadedBytes = await downloadUploadedObject(uploadedFile.storagePath);
-    if (uploadedBytes.size !== descriptor.fileSizeBytes) {
-      throw new PipelineStoreError('The uploaded file bytes changed during validation. Upload the file again.', 409);
-    }
-    if (descriptor.assetType === 'sets') await assertUploadedSetPackage(uploadedBytes);
-    else {
-      const normalizedBytes = await validateUploadedAssetBytes(descriptor, uploadedBytes);
-      if (normalizedBytes) {
-        const { error: normalizationError } = await storage.update(uploadedFile.storagePath, normalizedBytes, {
-          contentType: 'image/svg+xml',
-          cacheControl: '31536000',
-        });
-        if (normalizationError) {
-          throw new PipelineStoreError('The SVG was valid but CardForge could not store its safe vector form.', 503);
-        }
-        descriptor.fileSizeBytes = normalizedBytes.byteLength;
-      }
-    }
-    const { data } = storage.getPublicUrl(uploadedFile.storagePath);
-    await createPipelineSubmission({
-      contributorId,
-      contributorEmail,
-      input: {
+  const { data } = storage.getPublicUrl(uploadedFile.storagePath);
+  const input = {
         assetType: descriptor.assetType,
         studioDestination: descriptor.studioDestination,
         specialtyTags,
@@ -524,11 +466,40 @@ export const createUploadedPipelineSubmission = async ({
         sourceMimeType: descriptor.mimeType,
         sourceStorageBucket: PIPELINE_STORAGE_BUCKET,
         sourceStoragePath: uploadedFile.storagePath,
-      },
-    });
-  } catch (error) {
-    const { error: cleanupError } = await storage.remove([uploadedFile.storagePath]);
-    if (cleanupError) console.error('Failed to compensate Pipeline upload:', cleanupError);
-    throw error;
+  };
+  const request = buildPipelineSubmissionRecord({ contributorId, contributorEmail, input });
+  const descriptorIdentity = uploadIdentity(descriptor);
+  const prepare = async (claim: boolean, payload = request) => {
+    const result = await runPipelineUploadCommand('cardforge_prepare_pipeline_upload_submission', {
+      p_actor: contributorId, p_path: uploadedFile.storagePath, p_descriptor: descriptorIdentity, p_request: payload, p_claim: claim,
+    }) as { state?: unknown; token?: unknown };
+    if (result.state !== 'owned' && result.state !== 'pending' && !(result.state === 'submitting' && isPipelineUploadToken(result.token))) {
+      throw new PipelineStoreError('The upload ownership receipt is unreadable. Its source is retained.', 503);
+    }
+    return result;
+  };
+  // An exact confirmed retry does not normalize or upload bytes again.
+  if ((await prepare(false)).state === 'owned') return;
+  await assertUploadedObjectComplete(uploadedFile.storagePath, descriptor.fileSizeBytes);
+  const uploadedBytes = await downloadUploadedObject(uploadedFile.storagePath);
+  if (uploadedBytes.size !== descriptor.fileSizeBytes) throw new PipelineStoreError('The uploaded file bytes changed during validation.', 409);
+  let normalizedBytes: Buffer | null = null;
+  if (descriptor.assetType === 'sets') await assertUploadedSetPackage(uploadedBytes);
+  else normalizedBytes = await validateUploadedAssetBytes(descriptor, uploadedBytes);
+  const sourceContentSha256 = descriptor.assetType === 'imageAssets' && descriptor.extension !== 'svg'
+    ? createHash('sha256').update(Buffer.from(await uploadedBytes.arrayBuffer())).digest('hex') : undefined;
+  const committedRequest = { ...request, ...(sourceContentSha256 ? { source_content_sha256: sourceContentSha256 } : {}) };
+  // Read-only validation may race cleanup. Recheck/commit native ownership
+  // before normalization or submission so exactly one side obtains authority.
+  const commitment = await prepare(true, committedRequest);
+  if (commitment.state === 'owned') return;
+  if (commitment.state !== 'submitting' || !isPipelineUploadToken(commitment.token)) throw new PipelineStoreError('Submission ownership was not confirmed.', 503);
+  if (normalizedBytes) {
+    const { error } = await storage.update(uploadedFile.storagePath, normalizedBytes, { contentType: 'image/svg+xml', cacheControl: '31536000' }).catch(() => ({ error: true }));
+    if (error) throw new PipelineStoreError('Safe SVG storage could not be confirmed. Its submission commitment is retained.', 503);
+    input.sourceFileSizeBytes = normalizedBytes.byteLength;
   }
+  await createPipelineSubmission({ contributorId, contributorEmail, input, uploadToken: commitment.token, sourceContentSha256 });
+  // No compensation on failure: the native insert may have committed even if
+  // its response was lost. Cleanup can never cross this commitment.
 };

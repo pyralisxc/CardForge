@@ -4,6 +4,7 @@ import path from 'path';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
+import { interpretStarterSetPackage } from './lib/interpretStarterSetPackage.mjs';
 import {
   assertPreviewFontPublicationTarget,
   createVerifiedFontLicenseSidecar,
@@ -366,6 +367,7 @@ const collectStaticAssetItems = async (
   existingRegistryByAssetId,
   tombstonedAssetIds,
   referencedAssetPaths,
+  { referencedOnly = false } = {},
 ) => {
   const publicUrlByLocalPath = new Map();
   const rootDirectory = path.join(projectRoot, BOOTSTRAP_ROOT, 'media');
@@ -377,6 +379,7 @@ const collectStaticAssetItems = async (
   const catalogFolders = new Set(Object.keys(registryTypeByFolder));
   const sourceFiles = [...availableFiles, ...fallbackFiles].filter((file) => (
     catalogFolders.has(file.split('/')[0]) || referencedAssetPaths.has(file)
+      || (file.startsWith('site-fallbacks/') && referencedAssetPaths.has(file.slice('site-fallbacks/'.length)))
   ));
   const uploadedByRelativePath = new Map();
   const storageMigrationRelativePaths = new Set();
@@ -387,6 +390,8 @@ const collectStaticAssetItems = async (
     const sidecar = descriptor.kindFolder
       ? await readMetadata(descriptor.kindFolder, descriptor.metadataRelativePath)
       : {};
+    const aliases = normalizeRepositoryPathAliases(sidecar.repositoryPathAliases);
+    if (referencedOnly && ![relativePath, descriptor.catalogPath, ...aliases].some(value => referencedAssetPaths.has(value))) continue;
     sidecarByRelativePath.set(relativePath, sidecar);
     const assetId = typeof sidecar.id === 'string' && sidecar.id.trim()
       ? sidecar.id.trim()
@@ -431,6 +436,7 @@ const collectStaticAssetItems = async (
   const items = [];
   for (const relativePath of sourceFiles) {
     const descriptor = getStaticAssetDescriptor(relativePath);
+    if (referencedOnly && !sidecarByRelativePath.has(relativePath)) continue;
     const sidecar = sidecarByRelativePath.get(relativePath) || {};
     const assetId = typeof sidecar.id === 'string' && sidecar.id.trim()
       ? sidecar.id.trim()
@@ -620,7 +626,60 @@ export const buildStarterSetProject = (definition, template) => {
   return project;
 };
 
-const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
+export const publishStarterSetItem = async (supabase, set, ownerProfile) => {
+  if (set.packageInterpretation?.packageSha256 !== set.packageSha256
+    || set.packageInterpretation?.fileSizeBytes !== set.fileSizeBytes) {
+    throw new Error('Starter Set interpretation does not match the verified object receipt.');
+  }
+  const { error } = await supabase.rpc('cardforge_publish_official_starter_set', {
+    p_asset_id: set.id,
+    p_name: set.name,
+    p_description: set.description,
+    p_package_url: set.packageUrl,
+    p_preview_url: set.previewUrl,
+    p_storage_bucket: ASSET_BUCKET,
+    p_storage_path: set.storagePath,
+    p_file_size_bytes: set.fileSizeBytes,
+    p_package_sha256: set.packageSha256,
+    p_package_interpretation: set.packageInterpretation,
+    p_contributor_id: ownerProfile.clerk_user_id,
+    p_contributor_email: ownerProfile.email,
+    p_specialty_tags: set.specialtyTags,
+    p_use_case_tags: set.useCaseTags,
+    p_source_notes: set.sourceNotes,
+  });
+  if (error) throw error;
+};
+
+// This establishes byte identity only. Native consumer admission still requires
+// a publication-bound interpretation; a digest is not a negative dependency scan.
+export const storeStarterSetPackage = async (supabase, assetId, body) => {
+  if (!/^[a-z0-9][a-z0-9-]{2,119}$/.test(assetId) || !body.byteLength) {
+    throw new Error('Invalid starter Set package identity.');
+  }
+  const packageSha256 = createHash('sha256').update(body).digest('hex');
+  const storagePath = `owner-defaults/sets/${assetId}/${packageSha256}.cardforge`;
+  const bucket = supabase.storage.from(ASSET_BUCKET);
+  const { error: uploadError } = await bucket.upload(storagePath, body, {
+    contentType: 'application/octet-stream',
+    upsert: false,
+  });
+  // A lost response or duplicate is not publication proof. Read the exact object
+  // on both success and failure, and never overwrite/remove a conflicting object.
+  const { data, error } = await bucket.download(storagePath);
+  if (error || !data) {
+    throw new Error('Starter Set package readback unavailable.', { cause: error || uploadError });
+  }
+  const stored = Buffer.from(await data.arrayBuffer());
+  if (stored.byteLength !== body.byteLength
+    || createHash('sha256').update(stored).digest('hex') !== packageSha256) {
+    throw new Error('Starter Set package readback differs from exact source bytes.');
+  }
+  return { storagePath, packageSha256, fileSizeBytes: body.byteLength,
+    packageUrl: bucket.getPublicUrl(storagePath).data.publicUrl };
+};
+
+export const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
   const directory = path.join(projectRoot, BOOTSTRAP_ROOT, 'sets');
   const files = (await walkFiles(directory)).filter((file) => file.endsWith('.json'));
   const items = [];
@@ -645,24 +704,17 @@ const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
       assets,
     };
     const body = await buildDeterministicStarterSetPackage(manifest);
-    const packageSha256 = createHash('sha256').update(body).digest('hex');
-    const storagePath = `owner-defaults/sets/${definition.id}-v${definition.version}.cardforge`;
-    const { error } = await supabase.storage.from(ASSET_BUCKET).upload(storagePath, body, {
-      // The shared bucket intentionally exposes a narrow provider allowlist.
-      // The Pipeline row carries the exact CardForge package type; Storage uses
-      // its accepted generic binary transport type for the same bytes.
-      contentType: 'application/octet-stream',
-      upsert: true,
-    });
-    if (error) throw error;
-    const { data } = supabase.storage.from(ASSET_BUCKET).getPublicUrl(storagePath);
+    const packageInterpretation = await interpretStarterSetPackage(body);
+    const stored = await storeStarterSetPackage(supabase, definition.id, body);
+    if (packageInterpretation.packageSha256 !== stored.packageSha256
+      || packageInterpretation.fileSizeBytes !== stored.fileSizeBytes) {
+      throw new Error('Starter Set source changed between interpretation and readback.');
+    }
     items.push({
       ...definition,
-      packageUrl: data.publicUrl,
+      ...stored,
+      packageInterpretation,
       previewUrl: publicUrlByLocalPath.get(definition.previewUrl) || '',
-      storagePath,
-      fileSizeBytes: body.byteLength,
-      packageSha256,
     });
   }
   return items;
@@ -795,6 +847,115 @@ const publishReviewedFirstPartyFonts = async ({
     console.log('Published verified original Font through Pipeline: ' + candidate.family);
   }
   console.log('Native Pipeline Font result: ' + published + ' new; ' + preserved + ' existing decisions preserved.');
+};
+
+// Shared native migration phase: publication remains owned by main below.
+const migrateStaticCatalogStorage = async (supabase, staticCatalog) => {
+  for (const item of staticCatalog.items.filter((entry) => entry.requires_storage_migration)) {
+    const { error } = await supabase.rpc('cardforge_migrate_pipeline_registry_storage', {
+      p_asset_id: item.asset_id,
+      p_expected_url: item.expected_repository_url,
+      p_url: item.url,
+      p_storage_bucket: item.storage_bucket,
+      p_storage_path: item.storage_path,
+      p_file_size_bytes: item.file_size_bytes,
+      p_source_mime_type: item.source_mime_type,
+    });
+    if (error) throw error;
+    console.log(`Moved ${item.registry_asset_type} into managed Pipeline storage: ${item.name}`);
+  }
+
+};
+
+export const verifyReplayShowcaseBytes = (bytes) => {
+  if (createHash('sha256').update(bytes).digest('hex') !== '768e3823961f337d635b48ce6c4cc05b5af48e2c9bbc967bcf83d702ddb91225'
+    || gitBlobSha(bytes) !== '1d01eb24ac770f8602882c040ecf41bb6629d798') {
+    throw new Error('Historical showcase bytes do not match the reviewed source');
+  }
+};
+
+/**
+ * Backfill existing registry references; the optional local callback owns only
+ * the explicitly authorized fresh-seed showcase creation.
+ * @param {object} supabase
+ * @param {{deferHistoricalPreviewPlaceholders?: boolean, onProgress?: (stage: string) => void, initializeShowcase?: (item: {asset_id: string, [key: string]: unknown}) => Promise<void>}} [options]
+ */
+export const backfillPipelineRegistryMedia = async (supabase, { deferHistoricalPreviewPlaceholders = false, onProgress = () => {}, initializeShowcase } = {}) => {
+  if (initializeShowcase) verifyReplayShowcaseBytes(await fs.readFile(path.join(projectRoot, 'public/site-fallbacks/showcase/playing-cards/ace-of-spades.webp')));
+  onProgress('reading-prefix');
+  const { data: registry, error: registryError } = await supabase.from('cardforge_asset_registry')
+    .select('asset_id,url,storage_bucket,storage_path,file_size_bytes,metadata');
+  if (registryError) throw registryError;
+  const { data: submissions, error: submissionError } = await supabase.from('cardforge_contributor_asset_submissions')
+    .select('source_payload').eq('status', 'published');
+  if (submissionError) throw submissionError;
+  const { data: tombstones, error: tombstoneError } = await supabase.from('cardforge_pipeline_asset_tombstones').select('asset_id');
+  if (tombstoneError) throw tombstoneError;
+  const references = new Set();
+  for (const entry of registry) collectPipelineAssetPaths(entry.metadata, references);
+  for (const entry of submissions) collectPipelineAssetPaths(entry.source_payload, references);
+  onProgress('materializing-media');
+  const catalog = await collectStaticAssetItems(supabase,
+    new Map(registry.map(entry => [entry.asset_id, entry])),
+    new Set(tombstones.map(entry => entry.asset_id)), references, { referencedOnly: true });
+  // Check every dependency before applying a native row change. Missing bytes or
+  // aliases are not permission to replace authored content with an empty value.
+  onProgress('validating-dependencies');
+  const preflightPayloads = submissions.map(row => {
+    const payload = row.source_payload;
+    // Only the exact sample fields removed by the pending September cutover.
+    // This is a validation projection, never a persisted payload rewrite.
+    const placeholder = {
+      'default-name-card-theme': ['CompanyLogo', '/card-assets/images/default-company-logo.svg'],
+      'default-event-badge-theme': ['EventLogo', '/card-assets/images/default-event-logo.svg'],
+    }[payload?.id];
+    if (!deferHistoricalPreviewPlaceholders || !placeholder
+      || payload?.templatePreviewData?.[placeholder[0]] !== placeholder[1]) return payload;
+    return { ...payload, templatePreviewData: { ...payload.templatePreviewData, [placeholder[0]]: null } };
+  });
+  const unresolved = [
+    ...registry.map(row => ({ identity: row.asset_id, owner: 'registry-metadata', value: row.metadata })),
+    ...preflightPayloads.map((value, index) => ({ identity: submissions[index].source_payload?.id ?? 'unknown-template', owner: 'submission-payload', value })),
+  ].flatMap(({ identity, owner, value }) => {
+    const rewritten = rewritePipelineAssetUrls(value, catalog.publicUrlByLocalPath);
+    if (!containsRepositoryAssetUrl(rewritten)) return [];
+    return [{ identity: /^[A-Za-z0-9_-]{1,180}$/.test(identity) ? identity : 'unreported-identity', owner,
+      paths: [...collectPipelineAssetPaths(rewritten)].filter(path => /^[A-Za-z0-9_./-]{1,180}$/.test(path)),
+    }];
+  });
+  if (unresolved.length) {
+    const error = new Error('Historical Pipeline dependency is missing or tombstoned');
+    error.code = 'PIPELINE_DEPENDENCY_MISSING';
+    error.dependencies = unresolved;
+    throw error;
+  }
+  // Verify actual local bytes against Storage before rewriting references.
+  onProgress('verifying-storage-bytes');
+  for (const item of catalog.items) {
+    const local = await fs.readFile(path.join(projectRoot, item.metadata.sourcePath));
+    const { data, error } = await supabase.storage.from(item.storage_bucket).download(item.storage_path);
+    if (error) throw error;
+    const stored = Buffer.from(await data.arrayBuffer());
+    if (!local.equals(stored)) throw new Error(`Pipeline media readback differs: ${item.asset_id}`);
+  }
+  if (initializeShowcase) {
+    const showcase = catalog.items.find(item => item.asset_id === 'showcase-playing-cards-ace-of-spades');
+    if (!showcase) throw new Error('Required historical showcase dependency missing');
+    onProgress('initializing-showcase-identity');
+    await initializeShowcase(showcase);
+  }
+  onProgress('migrating-existing-storage');
+  await migrateStaticCatalogStorage(supabase, catalog);
+  onProgress('rewriting-existing-metadata');
+  for (const entry of registry) {
+    if (!containsRepositoryAssetUrl(entry.metadata)) continue;
+    const { error } = await supabase.rpc('cardforge_migrate_pipeline_registry_metadata_urls', {
+      p_asset_id: entry.asset_id,
+      p_metadata: rewritePipelineAssetUrls(entry.metadata, catalog.publicUrlByLocalPath),
+    });
+    if (error) throw error;
+  }
+  return { verifiedMedia: catalog.items.map(item => ({ assetId: item.asset_id, path: item.storage_path, bytes: item.file_size_bytes })) };
 };
 
 const main = async () => {
@@ -933,19 +1094,7 @@ const main = async () => {
   const starterSets = await collectStarterSetItems(supabase, staticCatalog.publicUrlByLocalPath);
   const canonicalItemByAssetId = new Map(items.map((item) => [item.asset_id, item]));
 
-  for (const item of staticCatalog.items.filter((entry) => entry.requires_storage_migration)) {
-    const { error } = await supabase.rpc('cardforge_migrate_pipeline_registry_storage', {
-      p_asset_id: item.asset_id,
-      p_expected_url: item.expected_repository_url,
-      p_url: item.url,
-      p_storage_bucket: item.storage_bucket,
-      p_storage_path: item.storage_path,
-      p_file_size_bytes: item.file_size_bytes,
-      p_source_mime_type: item.source_mime_type,
-    });
-    if (error) throw error;
-    console.log(`Moved ${item.registry_asset_type} into managed Pipeline storage: ${item.name}`);
-  }
+  await migrateStaticCatalogStorage(supabase, staticCatalog);
 
   for (const entry of existingRegistry || []) {
     if (tombstonedAssetIds.has(entry.asset_id)) continue;
@@ -989,23 +1138,7 @@ const main = async () => {
   }
 
   for (const set of starterSets) {
-    const { error } = await supabase.rpc('cardforge_publish_official_starter_set', {
-      p_asset_id: set.id,
-      p_name: set.name,
-      p_description: set.description,
-      p_package_url: set.packageUrl,
-      p_preview_url: set.previewUrl,
-      p_storage_bucket: ASSET_BUCKET,
-      p_storage_path: set.storagePath,
-      p_file_size_bytes: set.fileSizeBytes,
-      p_package_sha256: set.packageSha256,
-      p_contributor_id: ownerProfile.clerk_user_id,
-      p_contributor_email: OWNER_EMAIL,
-      p_specialty_tags: set.specialtyTags,
-      p_use_case_tags: set.useCaseTags,
-      p_source_notes: set.sourceNotes,
-    });
-    if (error) throw error;
+    await publishStarterSetItem(supabase, set, { ...ownerProfile, email: OWNER_EMAIL });
     console.log(`Published starter Set: ${set.name}`);
   }
 

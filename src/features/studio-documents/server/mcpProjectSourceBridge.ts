@@ -3,9 +3,11 @@ import { createHash } from 'node:crypto';
 import type { StudioAgentAccess } from './studioAgentAccess';
 import { describeAgentBoundaryFailure, type AgentBoundaryFailureMetadata } from '@/shared/boundaryFailure';
 import {
+  ProjectStorageProviderError,
   buildCardForgeProjectSnapshot,
   createCardForgeProjectPackageBlob,
   getGoogleDriveProject,
+  getGoogleDriveProjectSummary,
   GOOGLE_DRIVE_PROJECT_PROVIDER,
   updateGoogleDriveProjectFromServer,
   type ProjectDocumentV1,
@@ -51,6 +53,42 @@ const assertExpectedSource = ({
       409,
     );
   }
+};
+
+/** Read exact saved bytes without creating a Studio document or writing to Drive. */
+export const readConnectedProjectForAgent = async ({
+  access, provider, projectId, expectedProviderRevision, expectedProjectRevision,
+}: {
+  access: StudioAgentAccess;
+  provider: typeof GOOGLE_DRIVE_PROJECT_PROVIDER;
+  projectId: string;
+  expectedProviderRevision: string;
+  expectedProjectRevision?: string;
+}) => {
+  const accountUserId = requireAccountId(access);
+  if (provider !== GOOGLE_DRIVE_PROJECT_PROVIDER) {
+    throw new StudioDocumentStoreError('That connected project provider is unsupported.', 400);
+  }
+  if (!expectedProviderRevision) {
+    throw new StudioDocumentStoreError('Read the exact saved provider revision before inspecting package metadata.', 400);
+  }
+  const source = await getGoogleDriveProject({ ownerUserId: accountUserId, fileId: projectId, expectedProviderRevision });
+  const current = await getGoogleDriveProjectSummary({ ownerUserId: accountUserId, fileId: projectId });
+  if (current.capabilities?.canDownload === false) {
+    throw new ProjectStorageProviderError('Your current Drive role no longer permits reading this saved package.', 403, { kind: 'authorization', nextAction: 'Refresh file access before inspecting it again.' });
+  }
+  if (
+    source.summary.fileId !== projectId || current.fileId !== projectId
+    || source.summary.providerRevision !== expectedProviderRevision
+    || current.providerRevision !== expectedProviderRevision
+    || !source.summary.projectRevision || !/^[a-f0-9]{64}$/u.test(source.summary.projectRevision)
+    || (expectedProjectRevision && source.summary.projectRevision !== expectedProjectRevision)
+    || (current.projectRevision && current.projectRevision !== source.summary.projectRevision)
+    || source.summary.accountId !== current.accountId
+  ) {
+    throw new StudioDocumentStoreError('The saved project changed during inspection. Read its current exact revisions before requesting another preview.', 409);
+  }
+  return { ...source, summary: { ...source.summary, projectRevision: source.summary.projectRevision } };
 };
 
 export const checkoutConnectedProjectForAgent = async ({

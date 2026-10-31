@@ -19,8 +19,9 @@ interface TypographyInspectorPanelProps {
   availableFonts: Array<{ value: string; name: string }>;
   paddingOptions: Array<{ value: string; label: string }>;
   controlClassName: string;
-  onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
-  onUpsertFieldContract: (key: string, updates: Partial<FieldContract>) => void;
+  onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean, historyGroup?: string) => void;
+  onFinishHistoryGroup: () => void;
+  onUpsertFieldContract: (key: string, updates: Partial<FieldContract>, elementUpdates?: Pick<FreeformCardElement, 'textAutoFit' | 'textMinFontSizePx'>) => void;
 }
 
 export function TypographyInspectorPanel({
@@ -30,6 +31,7 @@ export function TypographyInspectorPanel({
   paddingOptions,
   controlClassName,
   onUpdateElement,
+  onFinishHistoryGroup,
   onUpsertFieldContract,
 }: TypographyInspectorPanelProps) {
   return (
@@ -108,7 +110,8 @@ export function TypographyInspectorPanel({
                 max="4"
                 placeholder="1.4"
                 value={element.lineHeight || ''}
-                onChange={(event) => onUpdateElement({ lineHeight: event.target.value || undefined }, false)}
+                onChange={(event) => onUpdateElement({ lineHeight: event.target.value || undefined }, true, `line-height:${element.id}`)}
+                onBlur={onFinishHistoryGroup}
               />
             </div>
             <div>
@@ -123,7 +126,8 @@ export function TypographyInspectorPanel({
                 className={controlClassName}
                 placeholder="0em"
                 value={element.letterSpacing || ''}
-                onChange={(event) => onUpdateElement({ letterSpacing: event.target.value || undefined }, false)}
+                onChange={(event) => onUpdateElement({ letterSpacing: event.target.value || undefined }, true, `letter-spacing:${element.id}`)}
+                onBlur={onFinishHistoryGroup}
               />
             </div>
           </div>
@@ -142,9 +146,8 @@ export function TypographyInspectorPanel({
                       onUpsertFieldContract(boundField, {
                         elementId: element.id,
                         textAutoFit: checked,
-                      });
-                    }
-                    onUpdateElement({ textAutoFit: checked }, false);
+                      }, { textAutoFit: checked });
+                    } else onUpdateElement({ textAutoFit: checked });
                   }}
                 />
               </div>
@@ -152,6 +155,7 @@ export function TypographyInspectorPanel({
             <div>
               <Label htmlFor="element-min-font-size">Min Size (px)</Label>
               <Input
+                onBlur={onFinishHistoryGroup}
                 id="element-min-font-size"
                 type="number"
                 min="6"
@@ -164,9 +168,8 @@ export function TypographyInspectorPanel({
                     onUpsertFieldContract(boundField, {
                       elementId: element.id,
                       minFontSizePx: nextMin,
-                    });
-                  }
-                  onUpdateElement({ textMinFontSizePx: nextMin }, false);
+                    }, { textMinFontSizePx: nextMin });
+                  } else onUpdateElement({ textMinFontSizePx: nextMin }, true, `min-font-size:${element.id}`);
                 }}
               />
             </div>

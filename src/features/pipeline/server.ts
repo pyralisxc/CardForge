@@ -21,3 +21,18 @@ export { classifyPublishedPipelineAsset, readPublishedPipelineClassification } f
 export { readMediaPresentationRevision, createMediaPresentationRevision } from './server/mediaPresentationRevision';
 export { readTemplateReviewBase, readTemplateReviewReceipt, createTemplateReviewRevision } from './server/templateReviewRevision';
 export { readSourceReviewEvidence, recordSourceReviewEvidence } from './server/sourceReviewEvidence';
+
+export { readCatalogTrash, changeCatalogTrash } from './server/catalogTrash';
+export type { CatalogTrashCommand, CatalogTrashSnapshot } from './lib/catalogTrashContract';
+
+export { readExactCandidateReview } from './server/exactCandidateReview';
+
+export { exactCandidateIdentitySchema } from './lib/exactCandidateReview';
+
+export { createStyleReviewRevision, readStyleReviewBase, readStyleReviewReceipt } from './server/styleReviewRevision';
+
+export { verifySelectedPublishedManagedRaster, assertStaticManagedRasterSlot } from './lib/managedRasterAdoption';
+export type { ManagedRasterSelection } from './lib/managedRasterAdoption';
+export { readExactPublishedSource } from './server/exactPublishedSource';
+export { inspectOwnerRevisionDeletion, deleteOwnerRevision } from './server/ownerRevisionDeletionTools';
+export { RevisionDeleteError } from './server/ownerRevisionDeletion';

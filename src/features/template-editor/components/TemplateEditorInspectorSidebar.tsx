@@ -1,4 +1,7 @@
 "use client";
+import { canUseDefaultAsFixedPicture } from '@/features/pipeline/client';
+
+import type { ComponentProps } from 'react';
 
 import { cardFontOptionsToSelectOptions } from '@/domain/rendering';
 import { SHAPE_PRIMITIVE_OPTIONS } from '@/domain/templates';
@@ -29,6 +32,7 @@ type AvailableFonts = ReturnType<typeof cardFontOptionsToSelectOptions>;
 
 interface TemplateEditorInspectorSidebarProps {
   availableFonts: AvailableFonts;
+  managedAdoption?: ComponentProps<typeof ImageInspectorPanel>['managedAdoption'];
   canUploadCustomAssets: boolean;
   commands: TemplateEditorCommands;
   controller: TemplateEditorController;
@@ -41,6 +45,7 @@ interface TemplateEditorInspectorSidebarProps {
 
 export function TemplateEditorInspectorSidebar({
   availableFonts,
+  managedAdoption,
   canUploadCustomAssets,
   commands,
   controller,
@@ -78,16 +83,22 @@ export function TemplateEditorInspectorSidebar({
               variableCardRefs={variables.variableCardRefs}
               onSetActiveVariableKey={variables.setActiveVariableKey}
               onSetRichTextHighlightColor={onRichTextHighlightColorChange}
-              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+              onUpdateElement={(updates, trackHistory,group) => updateElement(selectedElement.id, updates, trackHistory,group)}
+              externalHistory={{undo:controller.undo,redo:controller.redo,canUndo:controller.history.length>0,canRedo:controller.future.length>0,finishGroup:controller.finishHistoryGroup}}
+              onVariableCreated={variables.completeVariableCreation}
+              onVariableRemoved={variables.completeVariableRemoval}
               onAddStructuredRowPattern={variables.addStructuredRowPattern}
               onCreateEditorVariableFromSelection={variables.createVariableFromSelection}
               onFocusVariableCard={variables.focusVariableCard}
               onRemoveSelectedElementVariableContract={variables.removeVariable}
               onRenameSelectedElementVariable={variables.renameVariable}
               onUpsertFieldContract={variables.upsertFieldContract}
+              onUpsertFieldContracts={variables.upsertFieldContracts}
             />
             {elements.canUseImageSource ? (
               <ImageInspectorPanel
+                  canUseAsFixedPicture={canUseDefaultAsFixedPicture(currentTemplate, selectedElement.id)}
+                  managedAdoption={managedAdoption}
                   element={selectedElement}
                   imageAssets={elements.compatibleImageAssets}
                   personalItems={elements.connectedLibraryItems}
@@ -195,7 +206,8 @@ export function TemplateEditorInspectorSidebar({
               availableFonts={availableFonts}
               paddingOptions={PADDING_OPTIONS}
               controlClassName={makerTheme.control}
-              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+              onUpdateElement={(updates, trackHistory, historyGroup) => updateElement(selectedElement.id, updates, trackHistory, historyGroup)}
+              onFinishHistoryGroup={controller.finishHistoryGroup}
               onUpsertFieldContract={variables.upsertFieldContract}
             />
           </InspectorFlowSection>
@@ -229,7 +241,8 @@ export function TemplateEditorInspectorSidebar({
               onHandleAssetUpload={elements.handleAssetUpload}
               onSaveStyle={elements.saveSelectedAppearanceStyle}
               onApplyAppearancePreset={elements.applyAppearancePreset}
-              onUpdateAppearance={(updater, trackHistory) => elements.updateElementAppearance(selectedElement.id, updater, trackHistory)}
+              onUpdateAppearance={(updater, trackHistory, group) => elements.updateElementAppearance(selectedElement.id, updater, trackHistory, group)}
+              onFinishHistoryGroup={controller.finishHistoryGroup}
               personalItems={elements.connectedLibraryItems}
               onAddFromProvider={elements.addConnectedLibraryItems}
               onMaterializePersonal={elements.importConnectedLibraryItem}

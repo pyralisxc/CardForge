@@ -16,3 +16,5 @@ export {
 } from './model/publicShareSettings';
 
 export { createGoogleDriveProjectThumbnail } from './lib/googleDriveProjectThumbnail';
+
+export { applyCardExportWatermark, resolveCardExportWatermark } from './lib/cardPreviewExport';

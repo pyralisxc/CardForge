@@ -16,6 +16,7 @@ interface EnvironmentToolLayerProps {
   children: ReactNode;
   onClose: () => void;
   dirty?: boolean;
+  closeBlocked?: boolean;
   onDirtyCloseRequest?: () => void;
   onCrash?: (error: Error) => void;
   manageHistory?: boolean;
@@ -63,6 +64,7 @@ export function EnvironmentToolLayer({
   children,
   onClose,
   dirty = false,
+  closeBlocked = false,
   onDirtyCloseRequest,
   onCrash,
   manageHistory = true,
@@ -82,6 +84,8 @@ export function EnvironmentToolLayer({
   const [pendingNavigation, setPendingNavigation] = useState<HTMLElement | null>(null);
   const discardNavigationRef = useRef(false);
   const dirtyRef = useRef(dirty);
+  const closeBlockedRef = useRef(closeBlocked);
+  closeBlockedRef.current = closeBlocked;
   const onCloseRef = useRef(onClose);
   const onDirtyCloseRequestRef = useRef(onDirtyCloseRequest);
   dirtyRef.current = dirty;
@@ -89,7 +93,7 @@ export function EnvironmentToolLayer({
   onDirtyCloseRequestRef.current = onDirtyCloseRequest;
 
   const requestClose = useCallback(() => {
-    if (dirtyRef.current) {
+    if (dirtyRef.current || closeBlockedRef.current) {
       onDirtyCloseRequestRef.current?.();
       return;
     }
@@ -97,7 +101,7 @@ export function EnvironmentToolLayer({
   }, []);
 
   const closeFromControl = useCallback(() => {
-    if (dirtyRef.current) {
+    if (dirtyRef.current || closeBlockedRef.current) {
       onDirtyCloseRequestRef.current?.();
       return;
     }
@@ -123,18 +127,19 @@ export function EnvironmentToolLayer({
     if (modal) closeButtonRef.current?.focus();
 
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!isTopToolLayer(id) || !dirtyRef.current || discardNavigationRef.current) return;
+      if (!isTopToolLayer(id) || (!dirtyRef.current && !closeBlockedRef.current) || discardNavigationRef.current) return;
       event.preventDefault();
       event.returnValue = '';
     };
     const onNavigate = (event: MouseEvent) => {
-      if (!isTopToolLayer(id) || !dirtyRef.current || discardNavigationRef.current || !(event.target instanceof Element)) return;
+      if (!isTopToolLayer(id) || (!dirtyRef.current && !closeBlockedRef.current) || discardNavigationRef.current || !(event.target instanceof Element)) return;
       const action = event.target.closest<HTMLElement>('a[href], button, [role="tab"], [role="menuitem"]');
       if (!action || panelRef.current?.contains(action)
         || action.hasAttribute('data-tool-safe-action') || action.dataset.environmentAction?.includes('.close-')
         || action.closest('[role="alertdialog"], [role="dialog"], [data-radix-popper-content-wrapper], [data-desk-context-rail]')) return;
       event.preventDefault();
       event.stopPropagation();
+      if (closeBlockedRef.current) { onDirtyCloseRequestRef.current?.(); return; }
       setPendingNavigation(action);
     };
 
@@ -167,7 +172,7 @@ export function EnvironmentToolLayer({
     };
     const onPopState = () => {
       if (!isTopToolLayer(id)) return;
-      if (dirtyRef.current) {
+      if (dirtyRef.current || closeBlockedRef.current) {
         window.history.pushState({ ...window.history.state, cardforgeToolLayer: id }, '');
         historyOwnedRef.current = true;
         onDirtyCloseRequestRef.current?.();
@@ -225,7 +230,8 @@ export function EnvironmentToolLayer({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Keep editing</AlertDialogCancel>
-          <AlertDialogAction onClick={() => {
+          <AlertDialogAction disabled={closeBlocked} onClick={() => {
+            if (closeBlockedRef.current) { onDirtyCloseRequestRef.current?.(); return; }
             const action = pendingNavigation;
             discardNavigationRef.current = true;
             dirtyRef.current = false;

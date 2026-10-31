@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { TemplateCardFormatSource } from '@/domain/card-formats';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
+import type { TemplateSaveReceipt } from '@/features/template-editor/client';
 import type { ToastFn } from '@/components/ui/use-toast';
 import type { StudioView } from '@/features/project/client/workspace';
 
@@ -24,7 +25,7 @@ type TemplateStudioHandoffOptions = {
   retargetGeneratedCardsBackingTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   /** Kept while the generator-back path is migrated; front retargeting is now Save-impact owned. */
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
-  saveTemplateToLibrary: (template: TCGCardTemplate) => Promise<string>;
+  saveTemplateToLibrary: (template: TCGCardTemplate) => Promise<TemplateSaveReceipt>;
   setGeneratorBackingTemplateId: (templateId: string | null) => void;
   setStudioView: (view: StudioView) => void;
   setTemplateEditorSelectedTemplateId: (templateId: string | null) => void;
@@ -51,7 +52,8 @@ export function useTemplateStudioHandoffs({
 
   const handleSaveTemplate = useCallback(async (template: TCGCardTemplate) => {
     const sourceTemplateId = template.id;
-    const savedTemplateId = await saveTemplateToLibrary(template);
+    const receipt = await saveTemplateToLibrary(template);
+    const savedTemplateId = receipt.id;
     if (template.templateUsage === 'back-preset') {
       const previousBackingTemplateId = pendingGeneratorBackSave?.previousBackingTemplateId
         ?? (activeBackingTemplateId === sourceTemplateId ? sourceTemplateId : null);
@@ -63,7 +65,7 @@ export function useTemplateStudioHandoffs({
       }
       setPendingGeneratorBackSave(null);
     }
-    return savedTemplateId;
+    return receipt;
   }, [activeBackingTemplateId, pendingGeneratorBackSave, saveTemplateToLibrary, storedCards]);
 
   const applyPendingTemplateRetarget = useCallback(() => {

@@ -111,11 +111,10 @@ export const projectPipelineLibrary = (
     const exactPublishedSubmissionId = publishedSubmissionByLineage.get(lineageId);
     const currentPublishedSubmission = (
       exactPublishedSubmissionId
-        ? revisions.find((submission) => submission.id === exactPublishedSubmissionId)
-        : null
-    ) ?? revisions
-      .filter((submission) => submission.status === 'published')
-      .toSorted(compareNewestRevision)[0] ?? null;
+        ? revisions.find((submission) => submission.id === exactPublishedSubmissionId) ?? null
+        : revisions.filter((submission) => submission.status === 'published')
+          .toSorted(compareNewestRevision)[0] ?? null
+    );
     const reviewSubmission = revisions
       .filter(isContributorPipelineReviewable)
       .toSorted(compareStrongestCandidate)[0] ?? null;

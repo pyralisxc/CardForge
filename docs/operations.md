@@ -309,3 +309,19 @@ Use only checks relevant to the release:
 - Search Console discovery after domain/metadata/route changes.
 
 Do not preserve completed deployment IDs, migration walkthroughs, or one-time cutover diaries in this document.
+
+
+### Studio dependency metadata reconciliation
+
+The Owner-authenticated `POST /api/owner/studio-dependencies` action accepts only
+`documentId` and `expectedRevision`. It reads the persisted author and raw payload,
+uses the canonical Studio interpreter, and calls the native exact-payload/revision
+CAS. It changes derived dependency metadata only; it does not advance the authored
+revision, remove content, or accept supplied dependency lists. Unknown content stays
+opaque. A stale revision returns conflict; an unavailable response is not a receipt
+of success. Inspect the native binding before retrying an uncertain operation.
+The returned receipt contains revision, contract version, completeness and reason
+codes, never another author's payload or identity. This source-owner repair does
+not certify Set packages or bypass catalog admission.
+
+Website version release: keep the Preview working batch (initially 0.0.1) explicitly unreleased while the accumulated release is reviewed. Freeze the exact version, notes and candidate SHA in the release packet. After explicit Main approval and verified deployment, the Owner reads the Production editor and saves that exact approved packet with its current record revision, then records the release against the current deployed SHA. Publication derives the real release timestamp and freezes factual fields; later notes corrections remain attributable without changing those facts. This data command does not promote code or authorize Main. Only after the exact Production release is available may the Preview Owner advance to the next working version (initially 0.0.2): the command verifies canonical Production readback and fails closed if Preview notes/candidate changed. Read/reconcile committed or uncertain attempts; never replay a committed write because refresh/activity readback warned. Website Edition rollback changes presentation and cannot erase release records.

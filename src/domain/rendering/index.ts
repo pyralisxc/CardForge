@@ -10,3 +10,4 @@ export * from './structuredRows';
 export * from './textBindings';
 export * from './textContracts';
 export * from './vectorShapes';
+export * from './imageSources';

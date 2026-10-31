@@ -1,21 +1,28 @@
 "use client";
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface ColorFieldProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, trackHistory?: boolean) => void;
   id?: string;
 }
 
 export function ColorField({ value, onChange, id }: ColorFieldProps) {
   const [open, setOpen] = useState(false);
+  const pickerChanged = useRef(false);
+  const finishPickerGesture = () => { pickerChanged.current = false; };
+  const changePickerColor = (next: string) => {
+    const trackHistory = !pickerChanged.current;
+    pickerChanged.current = true;
+    onChange(next, trackHistory);
+  };
   const hex = /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#000000';
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(next) => { finishPickerGesture(); setOpen(next); }}>
       <PopoverTrigger asChild>
         <button
           id={id}
@@ -26,15 +33,26 @@ export function ColorField({ value, onChange, id }: ColorFieldProps) {
         />
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2 bg-[#0d1117] border-[var(--cf-editor-border)]" side="left" align="start">
-        <HexColorPicker color={hex} onChange={onChange} />
+        <HexColorPicker color={hex} onChange={changePickerColor} onChangeEnd={finishPickerGesture}
+          onPointerDownCapture={finishPickerGesture} onPointerCancelCapture={finishPickerGesture}
+          onKeyDownCapture={finishPickerGesture} onBlurCapture={finishPickerGesture} />
         <input
           type="text"
           defaultValue={hex}
           key={hex}
           title="Hex color value"
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              if (/^#[0-9a-fA-F]{6}$/.test(event.currentTarget.value)) onChange(event.currentTarget.value, true);
+            } else if (event.key === 'Escape') {
+              // Restore before the popover closes and blur can commit.
+              event.currentTarget.value = hex;
+            }
+          }}
           onBlur={(event) => {
             if (/^#[0-9a-fA-F]{6}$/.test(event.target.value)) {
-              onChange(event.target.value);
+              onChange(event.target.value, true);
             }
           }}
           className="mt-2 h-7 w-full rounded-[4px] border border-[#2d3340] bg-[#080b10] px-2 text-center font-mono text-xs text-[#d8d1c4] focus:outline-none focus:ring-1 focus:ring-[#d5ad54]"

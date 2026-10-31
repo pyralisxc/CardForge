@@ -1,4 +1,8 @@
 "use client";
+
+import type { TemplateSaveReceipt } from '@/features/template-editor/lib/templateSaveReceipt';
+
+import { managedRasterSlotIssue, type ManagedRasterSelection } from '@/features/pipeline/client';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import Link from 'next/link';
 import { GitPullRequestArrow, LockKeyhole } from 'lucide-react';
@@ -40,14 +44,16 @@ import { useTemplateEditorCommands } from '@/features/template-editor/hooks/useT
 import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig';
 import { createTemplateEditorActions } from '@/features/template-editor/lib/templateEditorActions';
 
+import { TemplatePipelineAttemptRecovery } from './TemplatePipelineAttemptRecovery';
+
 interface CardTemplateMakerProps {
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
-  onSaveTemplate: (template: TCGCardTemplate) => Promise<string>;
-  onSubmitTemplateRevision: (template: TCGCardTemplate) => Promise<void>;
+  onSaveTemplate: (template: TCGCardTemplate) => Promise<TemplateSaveReceipt>;
+  onSubmitTemplateRevision: (template: TCGCardTemplate, selection?: ManagedRasterSelection) => Promise<void>;
   onPrepareTemplateReview?: (template: TCGCardTemplate, isStillCurrent: () => boolean) => Promise<TCGCardTemplate>;
   onSubmitTemplateReview?: (template: TCGCardTemplate) => Promise<void>;
-  onContinueNewTemplateInPipeline: (template: TCGCardTemplate) => Promise<string>;
+  onContinueNewTemplateInPipeline: (template: TCGCardTemplate, selection?: ManagedRasterSelection) => Promise<string>;
   templates: TCGCardTemplate[];
   defaultTemplates: TCGCardTemplate[];
   backFaceTemplates: TCGCardTemplate[];
@@ -135,8 +141,10 @@ export function CardTemplateMaker({
     setSelectedElementId,
     undo,
   } = controller;
-  const latestEditorRef = useRef({ template: currentTemplate, isDirty });
-  latestEditorRef.current = { template: currentTemplate, isDirty };
+  const mountedRef = useRef(false);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+  const latestEditorRef = useRef({ template: currentTemplate, isDirty, isActive });
+  latestEditorRef.current = { template: currentTemplate, isDirty, isActive };
   const isSharedTemplate = currentTemplate.templateSource === 'default';
   const isReviewDraft = Boolean(currentTemplate.templatePipelineContext);
   const [isPreparingReview, setIsPreparingReview] = useState(false);
@@ -146,12 +154,22 @@ export function CardTemplateMaker({
     && currentTemplate.templateLineageId === currentTemplate.templateOriginLineageId;
   const canSubmitExistingRevision = (isSharedTemplate || isSharedLineageDraft) && canSubmitSharedTemplateRevision;
   const canSubmitNewTemplate = !isSharedTemplate && !isSharedLineageDraft && canSubmitSharedTemplateRevision;
+  const [pendingRaster, setPendingRaster] = useState<{ selection: ManagedRasterSelection; name: string; snapshot: string } | null>(null);
+  const rasterSnapshot = JSON.stringify(currentTemplate);
+  const rasterIssue = pendingRaster && (pendingRaster.snapshot !== rasterSnapshot || pendingRaster.selection.elementId !== selectedElement?.id)
+    ? 'The Template or selected slot changed. Clear this pending adoption and choose again before submitting.' : null;
+  const requireRasterSelection = useCallback(() => {
+    if (rasterIssue) throw new Error(rasterIssue);
+    return pendingRaster?.selection;
+  }, [pendingRaster, rasterIssue]);
   const nextTemplateRevision = Number(currentTemplate.templateRevision ?? 0) + 1;
   const variables = useTemplateEditorVariables({ controller, toast });
   const [requestedLibrarySectionId, setRequestedLibrarySectionId] = useState<string | null>(null);
   const [pendingTemplateChange, setPendingTemplateChange] = useState<(() => void) | null>(null);
   const [saveName, setSaveName] = useState('');
   const [contextElement, setContextElement] = useState<FreeformCardElement | null>(null);
+  const [attemptRecoveryReady, setAttemptRecoveryReady] = useState(false);
+  const [hasSavedPipelineAttempts, setHasSavedPipelineAttempts] = useState(false);
   const [isCreatingPipelineDraft, setIsCreatingPipelineDraft] = useState(false);
   const [isSubmittingSharedRevision, setIsSubmittingSharedRevision] = useState(false);
   const wasActiveRef = useRef(isActive);
@@ -196,7 +214,13 @@ export function CardTemplateMaker({
   const openLibrarySection = useCallback((sectionId: string) => { setRequestedLibrarySectionId(sectionId); setMobilePanel('library'); }, [setMobilePanel]);
   const openElementActions = useCallback((element: FreeformCardElement) => { selectElement(element.id); setContextElement(element); }, [selectElement]);
   const openElementInspector = useCallback((element: FreeformCardElement) => { selectElement(element.id); setMobilePanel('inspector'); }, [selectElement, setMobilePanel]);
-  const requestTemplateChange = useCallback((action: () => void) => { if (!isDirty) action(); else setPendingTemplateChange(() => action); }, [isDirty]);
+  const requestTemplateChange = useCallback((action: () => void) => { if (!latestEditorRef.current.isDirty) action(); else setPendingTemplateChange(() => action); }, []);
+  const openPipelineDestination = useCallback((url: string, templateId: string | null) => {
+    // An old request may finish after switching documents or closing Design. Its
+    // retained attempt remains recoverable; it must not navigate the new context.
+    if (!mountedRef.current || !latestEditorRef.current.isActive || latestEditorRef.current.template.id !== templateId) return;
+    requestTemplateChange(() => window.location.assign(url));
+  }, [requestTemplateChange]);
   const commands = useTemplateEditorCommands({
     acceptTemplate,
     beginDraft,
@@ -239,18 +263,21 @@ export function CardTemplateMaker({
     if (isCreatingPipelineDraft) return;
     if (!await commands.saveTemplate()) return;
     setIsCreatingPipelineDraft(true);
-    try { window.location.assign(await onContinueNewTemplateInPipeline(currentTemplate)); }
-    catch (error) { toast({ title: 'Pipeline draft not created', description: error instanceof Error ? error.message : 'Unable to continue this Template in the Pipeline.', variant: 'destructive' }); }
+    try {
+      const destination = await onContinueNewTemplateInPipeline(currentTemplate, requireRasterSelection());
+      openPipelineDestination(destination, currentTemplate.id);
+    }
+    catch (error) { toast({ title: 'Pipeline outcome not confirmed', description: error instanceof Error ? error.message : 'Unable to continue this Template in the Pipeline.', variant: 'destructive' }); }
     finally { setIsCreatingPipelineDraft(false); }
-  }, [commands, currentTemplate, isCreatingPipelineDraft, onContinueNewTemplateInPipeline, toast]);
+  }, [commands, currentTemplate, isCreatingPipelineDraft, onContinueNewTemplateInPipeline, openPipelineDestination, requireRasterSelection, toast]);
   const handleSubmitSharedRevision = useCallback(async () => {
     if (!canSubmitExistingRevision || isSubmittingSharedRevision || isReviewDraft) return;
     if (isDirty && !await commands.saveTemplate()) return;
     setIsSubmittingSharedRevision(true);
-    try { await onSubmitTemplateRevision(currentTemplate); }
+    try { await onSubmitTemplateRevision(currentTemplate, requireRasterSelection()); setPendingRaster(null); }
     catch (error) { toast({ title: canPublishSharedLibrary ? 'Template revision not published' : 'Template revision not submitted', description: error instanceof Error ? error.message : 'Unable to send this Template revision to the Pipeline.', variant: 'destructive' }); }
     finally { setIsSubmittingSharedRevision(false); }
-  }, [canPublishSharedLibrary, canSubmitExistingRevision, commands, currentTemplate, isDirty, isReviewDraft, isSubmittingSharedRevision, onSubmitTemplateRevision, toast]);
+  }, [canPublishSharedLibrary, canSubmitExistingRevision, commands, currentTemplate, isDirty, isReviewDraft, isSubmittingSharedRevision, onSubmitTemplateRevision, requireRasterSelection, toast]);
 
   const handlePrepareReview = useCallback(async () => {
     if (!onPrepareTemplateReview || isPreparingReview || isDirty || !(isSharedTemplate || isSharedLineageDraft) || isReviewDraft) return;
@@ -351,16 +378,26 @@ export function CardTemplateMaker({
         ) : canSubmitNewTemplate ? (
           <div className="cardforge-template-status flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-start gap-2"><GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" /><div><p className="cardforge-template-status-title font-medium text-[var(--cf-accent-text)]">Personal Template · not shared</p><p className="cardforge-template-status-description mt-0.5 leading-5">Save locally as often as you like. Continue in Pipeline carries over the authored design facts, then asks you to complete classification and source details before review.</p></div></div>
-            <Button type="button" size="sm" className="cardforge-template-status-action shrink-0 bg-[#d5ad54] text-[#161007] hover:bg-[var(--cf-accent-strong)]" disabled={isCreatingPipelineDraft || isSavingTemplate} onClick={() => void handleContinueInPipeline()}>{isCreatingPipelineDraft ? 'Opening Pipeline…' : 'Continue in Pipeline'}</Button>
+            <Button type="button" size="sm" className="cardforge-template-status-action shrink-0 bg-[#d5ad54] text-[#161007] hover:bg-[var(--cf-accent-strong)]" disabled={isCreatingPipelineDraft || isSavingTemplate || Boolean(currentTemplate.id && !attemptRecoveryReady)} onClick={() => void handleContinueInPipeline()}>{isCreatingPipelineDraft ? 'Opening Pipeline…' : hasSavedPipelineAttempts ? pendingRaster ? 'Continue selected adoption' : 'Continue current work as a separate submission' : 'Continue in Pipeline'}</Button>
           </div>
         ) : null}
+        {canSubmitNewTemplate && currentTemplate.id ? <TemplatePipelineAttemptRecovery templateId={currentTemplate.id} busy={isCreatingPipelineDraft} onAttemptsChange={setHasSavedPipelineAttempts} onReadyChange={setAttemptRecoveryReady} onOpenDestination={url => openPipelineDestination(url, currentTemplate.id)} /> : null}
+        {pendingRaster ? <div role="status" className="rounded border border-amber-500 p-2 text-sm">
+          Pending managed adoption: {pendingRaster.name}. This picture appears in the Pipeline version only after successful submission. Local Save and export keep your current picture unchanged.
+          {rasterIssue ? <p>{rasterIssue}</p> : null}
+          <Button type="button" variant="outline" size="sm" disabled={isCreatingPipelineDraft || isSubmittingSharedRevision} onClick={() => setPendingRaster(null)}>Clear pending adoption</Button>
+        </div> : null}
         <TemplateCommandPalette open={commandPaletteOpen} selectedElement={selectedElement} showGrid={showGrid} snapToGrid={snapToGrid} previewMode={previewMode} onOpenChange={setCommandPaletteOpen} onAddElement={(type, preset) => { addElement(type, undefined, preset); setMobilePanel('canvas'); }} onDuplicateSelected={duplicateSelected} onDeleteSelected={deleteSelected} saveAction={saveAction!} onShowLibrary={openLibrary} onShowInspector={() => setMobilePanel('inspector')} onShowTemplateSettings={() => openLibrarySection('setup')} onToggleGrid={() => setShowGrid(value => !value)} onToggleSnap={() => setSnapToGrid(value => !value)} onTogglePreview={() => setPreviewMode(value => !value)} />
         <MobileCanvasControls actions={editorActions} isDirty={isDirty} templateName={currentTemplate.name} onOpenInspector={() => setMobilePanel('inspector')} onOpenMenu={openLibrary} />
         <div className="cardforge-maker-grid grid min-h-0 min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
           {contributorFontFaceCss && <style>{contributorFontFaceCss}</style>}
           <TemplateEditorLibrarySidebar backFaceTemplates={backFaceTemplates} canUseProjectFiles={canUseProjectFiles} commands={commands} controller={controller} defaultTemplates={defaultTemplates} elements={elements} fileInputRef={fileInputRef} isCheckoutStarting={isCheckoutStarting} onDeleteTemplate={onDeleteTemplate} onElementAdded={() => setMobilePanel('canvas')} onExportProject={onExportProject} onImportProject={onImportProject} onLoadProject={onLoadProject} onSelectElement={selectElement} onSelectTemplateId={onSelectTemplateForEditing} onStartCheckout={onStartCheckout} projectFileGateMessage={projectFileGateMessage} richTextHighlightColor={richTextHighlightColor} showCardWatermark={showCardWatermark} templates={templates} userTemplates={userTemplates} requestedSectionId={requestedLibrarySectionId} onRequestedSectionHandled={() => setRequestedLibrarySectionId(null)} onClose={() => setMobilePanel('canvas')} />
           <TemplateCanvasStage autoFitCanvas={autoFitCanvas} canvas={canvas} canvasFrameStyle={canvasFrameStyle} canvasRef={canvasRef} currentTemplate={currentTemplate} gridSize={gridSize} rulerUnit={commands.customUnit} rulerPixelsPerUnit={commands.rulerPixelsPerUnit} livePreviewData={livePreviewData} previewMode={previewMode} richTextHighlightColor={richTextHighlightColor} selectedElement={selectedElement} showCardWatermark={showCardWatermark} showGrid={showGrid} stageRef={stageRef} zoom={zoom} onCanvasKeyDown={handleCanvasKeyDown} onClearDepthSelection={clearDepthSelection} onDeselectCanvas={() => setSelectedElementId(null)} onDrop={handleDrop} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onStagePointerDownCapture={handleStagePointerDownCapture} onStagePointerMoveCapture={handleStagePointerMoveCapture} onStagePointerUpCapture={handleStagePointerUpCapture} onStageWheel={handleStageWheel} renderEditableElement={renderEditableElement} />
-          <TemplateEditorInspectorSidebar availableFonts={availableFonts} canUploadCustomAssets={canUploadCustomAssets} commands={commands} controller={controller} elements={elements} onRichTextHighlightColorChange={setRichTextHighlightColorAction} richTextHighlightColor={richTextHighlightColor} variables={variables} onClose={() => setMobilePanel('canvas')} />
+          <TemplateEditorInspectorSidebar managedAdoption={!isReviewDraft && (canSubmitNewTemplate || canSubmitExistingRevision) && selectedElement ? {
+            pendingName: pendingRaster?.selection.elementId === selectedElement.id ? pendingRaster.name : undefined,
+            issue: isCreatingPipelineDraft || isSubmittingSharedRevision ? 'Wait for the current submission outcome.' : managedRasterSlotIssue(currentTemplate, selectedElement.id),
+            onSelect: (selection, name) => setPendingRaster({ selection, name, snapshot: rasterSnapshot }),
+          } : undefined} availableFonts={availableFonts} canUploadCustomAssets={canUploadCustomAssets} commands={commands} controller={controller} elements={elements} onRichTextHighlightColorChange={setRichTextHighlightColorAction} richTextHighlightColor={richTextHighlightColor} variables={variables} onClose={() => setMobilePanel('canvas')} />
         </div>
         <div id="maker-shortcuts-help" role="note" aria-label="Keyboard shortcuts" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--cf-editor-border)] bg-[#080b10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#757d8c]"><span className="text-[#d5ad54]">Shortcuts</span><span>Ctrl+S Save</span><span>Ctrl+Z Undo</span><span>Ctrl+D Duplicate</span><span>Del Remove</span><span>G Grid</span><span>P Preview</span><span>+/- Zoom</span><span>Esc Deselect</span></div>
         <MobileElementActions element={contextElement} onDelete={() => { deleteSelected(); setContextElement(null); }} onDuplicate={() => { duplicateSelected(); setContextElement(null); }} onEdit={() => { if (contextElement) openElementInspector(contextElement); setContextElement(null); }} onOpenChange={(open) => !open && setContextElement(null)} />

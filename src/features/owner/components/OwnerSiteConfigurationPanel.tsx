@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type SetStateAction } from 'react';
+import { PluginDownloadLinks } from '@/features/plugin-distribution/client';
 import { ArrowDown, ArrowUp, Megaphone, Save, Search, Settings2 } from 'lucide-react';
 
 import { useEditorDraft } from '@/components/ui/use-editor-draft';
@@ -196,10 +197,11 @@ export function OwnerSiteConfigurationPanel({
 
   return (
     <section className="space-y-5">
-      <div role="group" aria-label="Site publication" className="sticky top-0 z-10 space-y-2 border border-[var(--cf-border-strong)] bg-[var(--cf-canvas)] p-3 shadow-lg">
-        <p className="text-xs text-[var(--cf-text-subtle)]" role="status">{dirty ? 'Unpublished site settings' : 'No unpublished site settings'}</p>
+      <div role="group" aria-label={onStage ? 'Private edition staging' : 'Site publication'} className="sticky top-0 z-10 space-y-2 border border-[var(--cf-border-strong)] bg-[var(--cf-canvas)] p-3 shadow-lg">
+        <p className="text-xs text-[var(--cf-text-subtle)]" role="status">{onStage ? (dirty ? 'Unstaged private Edition changes' : 'No unstaged private Edition changes') : (dirty ? 'Unpublished site settings' : 'No unpublished site settings')}</p>
         {saveError ? <p role="alert" className="max-w-2xl border border-destructive/45 bg-destructive/10 px-3 py-2 text-sm leading-6 text-destructive">{saveError}</p> : null}
-        <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={saving || needsReadback || !dirty} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? publication.publishingActionLabel : publication.publishActionLabel}</Button>
+        <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={saving || needsReadback || !dirty} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{onStage ? (saving ? 'Staging…' : 'Stage changes') : (saving ? publication.publishingActionLabel : publication.publishActionLabel)}</Button>
+        {onStage ? <p className="text-xs text-[var(--cf-text-subtle)]">Stage changes locally, then Save revision to retain this private Edition. Only Activate saved can change the live site.</p> : null}
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" disabled={saving || !past.length} onClick={() => {
             const previous = past.at(-1); if (!previous) return;
@@ -292,7 +294,8 @@ export function OwnerSiteConfigurationPanel({
       </div>
 
       </fieldset>
-
+      <div className="mt-8"><PluginDownloadLinks scope="studio" allowOwnerAdmission />
+          <PluginDownloadLinks scope="owner" allowOwnerAdmission /></div>
     </section>
   );
 }

@@ -487,21 +487,21 @@ export const ownerSiteConfigurationPublicationOutputSchema = fromJsonSchema({
     settings: ownerSiteConfigurationSchema, receipt: ownerCommittedReceiptSchema },
 });
 
-export const ownerPresentationReadInputSchema = fromJsonSchema<{ area: 'identity' | 'founder' | 'experience' | 'roadmapSettings' | 'roadmapItems' | 'legal' }>({
+export const ownerPresentationReadInputSchema = fromJsonSchema<{ area: 'identity' | 'founder' | 'experience' | 'roadmapSettings' | 'roadmapItems' | 'websiteReleases' | 'legal' }>({
   type: 'object', additionalProperties: false, required: ['area'],
-  properties: { area: { type: 'string', enum: ['identity', 'founder', 'experience', 'roadmapSettings', 'roadmapItems', 'legal'] } },
+  properties: { area: { type: 'string', enum: ['identity', 'founder', 'experience', 'roadmapSettings', 'roadmapItems', 'websiteReleases', 'legal'] } },
 });
 export const ownerPresentationReadOutputSchema = fromJsonSchema({
   type: 'object', additionalProperties: false, required: ['environment', 'area', 'value'],
   properties: { environment: { type: 'string' }, area: { type: 'string' }, value: { type: 'object' } },
 });
 export const ownerPresentationPublishInputSchema = fromJsonSchema<{
-  area: 'identity' | 'founder' | 'experience' | 'roadmapSettings' | 'roadmapStatus' | 'legal'; values: Record<string, unknown>;
+  area: 'identity' | 'founder' | 'experience' | 'roadmapSettings' | 'roadmapStatus' | 'websiteRelease' | 'legal'; values: Record<string, unknown>;
   expectedIdentityVersion?: number; expectedUpdatedAt?: string | null; expectedDocumentVersion?: number;
 }>({
   type: 'object', additionalProperties: false, required: ['area', 'values'],
   properties: {
-    area: { type: 'string', enum: ['identity', 'founder', 'experience', 'roadmapSettings', 'roadmapStatus', 'legal'] },
+    area: { type: 'string', enum: ['identity', 'founder', 'experience', 'roadmapSettings', 'roadmapStatus', 'websiteRelease', 'legal'] },
     values: { type: 'object', minProperties: 1,
       description: 'Complete editable values from get_owner_presentation_editor; omit identityVersion/updatedAt and supply them through the expected revision fields. Native feature validation applies.' },
     expectedIdentityVersion: { type: 'integer', minimum: 1, maximum: 2147483647 },
@@ -512,6 +512,7 @@ export const ownerPresentationPublishInputSchema = fromJsonSchema<{
     { properties: { area: { const: 'identity' } }, required: ['expectedIdentityVersion'], not: { required: ['expectedUpdatedAt'] } },
     { properties: { area: { const: 'founder' } }, required: ['expectedUpdatedAt'], not: { required: ['expectedIdentityVersion'] } },
     { properties: { area: { enum: ['experience', 'roadmapSettings', 'roadmapStatus'] }, expectedUpdatedAt: { type: 'string', minLength: 1 } }, required: ['expectedUpdatedAt'], not: { required: ['expectedIdentityVersion'] } },
+    { properties: { area: { const: 'websiteRelease' } }, required:['expectedUpdatedAt'], not: { required: ['expectedIdentityVersion'] } },
     { properties: { area: { const: 'legal' } }, required: ['expectedIdentityVersion', 'expectedDocumentVersion'], not: { required: ['expectedUpdatedAt'] } },
   ],
 });

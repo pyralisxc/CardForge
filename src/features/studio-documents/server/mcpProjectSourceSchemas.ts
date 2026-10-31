@@ -102,6 +102,16 @@ const projectSummarySchema = {
   properties: {
     accountId: { type: 'string' },
     thumbnailLink: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+    driveId: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+    resourceKey: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+    capabilities: {
+      type: 'object', additionalProperties: false,
+      required: ['canDownload', 'canEdit', 'canModifyContent', 'canTrash', 'canDelete'],
+      properties: {
+        canDownload: { type: 'boolean' }, canEdit: { type: 'boolean' },
+        canModifyContent: { type: 'boolean' }, canTrash: { type: 'boolean' }, canDelete: { type: 'boolean' },
+      },
+    },
     provider: providerSchema,
     fileId: { type: 'string' },
     workId: { anyOf: [{ type: 'string' }, { type: 'null' }] },
@@ -137,6 +147,7 @@ export const connectedProjectListOutputSchema = fromJsonSchema<Record<string, un
   properties: {
     connection: connectionSchema,
     projects: { type: 'array', items: projectSummarySchema },
+    nextPageToken: { anyOf: [{ type: 'string' }, { type: 'null' }] },
     localProjectNote: { type: 'string' },
   },
 });

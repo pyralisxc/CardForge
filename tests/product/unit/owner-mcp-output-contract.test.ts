@@ -21,7 +21,7 @@ vi.mock('@/features/public-site/server/websiteEditionStore', () => ({
   listWebsiteRevisions: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('@/features/legal/server', () => ({ getLegalDocuments: mocks.site }));
-vi.mock('@/features/roadmap/server', () => ({ getRoadmapSettings: mocks.site, getRoadmapAdminItems: mocks.site }));
+vi.mock('@/features/roadmap/server', () => ({ getRoadmapSettings: mocks.site, getRoadmapAdminItems: mocks.site, getWebsiteReleaseRecords:mocks.site }));
 vi.mock('@/features/owner/server/ownerMediaCommands', () => ({ publishOwnerSiteMedia: mocks.publishPresentation, restoreOwnerSiteMedia: mocks.publishPresentation }));
 vi.mock('@/features/public-site/server', async () => ({
   ...(await import('@/features/public-site/model/homepageComposition')),
@@ -44,7 +44,7 @@ vi.mock('@/features/mcp-usage/server', () => ({ getOwnerMcpUsageDashboard: mocks
 }));
 vi.mock('@/features/owner/server/ownerActivityStore', () => ({ getOwnerActivity: vi.fn() }));
 vi.mock('@/features/owner/lib/ownerOperationsStore', () => ({ getOwnerSiteControlPayload: mocks.site, getOwnerOperationsOverviewPayload: mocks.site }));
-vi.mock('@/features/owner/server/ownerSiteCommands', () => ({ publishOwnerSiteContentBlock: mocks.publish, publishOwnerSiteConfigurationField: mocks.publishField, publishOwnerSiteConfigurationPatch: mocks.publishConfiguration, publishOwnerSitePage: mocks.publishPresentation, publishOwnerBusinessIdentity: mocks.publishPresentation, publishOwnerFounderProfile: mocks.publishPresentation, publishOwnerExperienceSettings: mocks.publishPresentation, publishOwnerLegalDocument: mocks.publishPresentation, publishOwnerRoadmapSettings: mocks.publishPresentation, publishOwnerRoadmapStatus: mocks.publishPresentation }));
+vi.mock('@/features/owner/server/ownerSiteCommands', () => ({ publishOwnerSiteContentBlock: mocks.publish, publishOwnerSiteConfigurationField: mocks.publishField, publishOwnerSiteConfigurationPatch: mocks.publishConfiguration, publishOwnerSitePage: mocks.publishPresentation, publishOwnerBusinessIdentity: mocks.publishPresentation, publishOwnerFounderProfile: mocks.publishPresentation, publishOwnerExperienceSettings: mocks.publishPresentation, publishOwnerLegalDocument: mocks.publishPresentation, publishOwnerRoadmapSettings: mocks.publishPresentation, publishOwnerRoadmapStatus: mocks.publishPresentation, publishOwnerWebsiteRelease:mocks.publishPresentation }));
 vi.mock('@/features/owner/server/ownerIntegrationStatus', () => ({ getOwnerIntegrationStatus: mocks.readiness }));
 
 type RegisteredTool = {
@@ -461,4 +461,13 @@ describe('Owner MCP registered output contracts', () => {
     expect(projected.missing).toContain('STRIPE_SUPPORT_MONTHLY_1_PRICE_ID');
     expect(projected.missing.filter((key) => key === 'STRIPE_SECRET_KEY')).toHaveLength(1);
   });
+});
+
+
+it('uses the shared website release command with the exact editor revision',async()=>{
+ const receipt={committed:true,refreshComplete:false,refreshFailures:['updates-page'],activityRecorded:true,retryable:false,nextAction:'reload',message:'Committed; reload.'};
+ mocks.publishPresentation.mockResolvedValue({value:{version:'0.0.1'},receipt});
+ const values={version:'0.0.1',notes:{improvements:[],fixes:[],knownLimits:[]},sourceSha:null,candidateSha:null,operationId:'10000000-0000-4000-8000-000000000001',publish:false};
+ expect(await invoke('publish_owner_presentation',{area:'websiteRelease',values,expectedUpdatedAt:null})).toMatchObject({receipt,area:'websiteRelease',livePublication:false});
+ expect(mocks.publishPresentation).toHaveBeenCalledWith({actor:{userId:'owner',email:'owner@example.com'},input:{...values,expectedUpdatedAt:null}});
 });

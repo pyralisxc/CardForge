@@ -18,7 +18,8 @@ import { useProjectBinaryAssetResolution, useProjectBinaryAssetUrl, useProjectBi
 import { useMemo, type ReactNode } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/domain/templates';
-import { appearanceToStyle, authoredCardFoundationStyle } from '../model/appearance';
+import { AppearanceSurface } from './AppearanceSurface';
+import { appearanceToStyle, authoredCardFoundationStyle, textureLayerStyle } from '../model/appearance';
 import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '../model/elementStyles';
 import { buildTextElementStyle, DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR } from './RichTextContent';
 import { CardTextContent } from './CardTextContent';
@@ -78,7 +79,7 @@ function ProjectBinaryFrame({
       ? style.WebkitMaskImage
       : undefined;
   const resolvedMask = useProjectBinaryAssetValue(maskSource);
-  return <div {...props} data-vector-background-urls={background?.vectorUrls.length ? JSON.stringify(background.vectorUrls) : undefined} data-export-assets-pending={Boolean((style?.backgroundImage && !backgroundImage) || (style?.borderImageSource && !borderImageSource) || (maskSource && !resolvedMask)) || undefined} style={{
+  return <AppearanceSurface {...props} data-vector-background-urls={background?.vectorUrls.length ? JSON.stringify(background.vectorUrls) : undefined} data-export-assets-pending={Boolean((style?.backgroundImage && !backgroundImage) || (style?.borderImageSource && !borderImageSource) || (maskSource && !resolvedMask)) || undefined} style={{
     ...style,
     backgroundImage,
     borderImageSource,
@@ -162,6 +163,7 @@ export function CardPreview({
     overflow: 'hidden',
     isolation: 'isolate',
     color: tb.baseTextColor || undefined,
+    ...textureLayerStyle(templateAppearanceStyle, resolvedCardContentBackground ? 1 : 0),
     backgroundColor: templateAppearanceStyle.backgroundColor || tb.baseBackgroundColor || undefined,
     backgroundImage: [
       resolvedCardContentBackground,
@@ -362,6 +364,9 @@ export function CardPreview({
         }
 
         if (element.type === 'icon') {
+          if (element.iconName === '__cardforge_deleted_media_blank__') {
+            return <ProjectBinaryFrame key={element.id} style={baseStyle} data-freeform-element-id={element.id} />;
+          }
           const iconImageUrl = element.iconImageSource ? replacePlaceholdersLocal(element.iconImageSource, dataToRender, isEditorPreview) : '';
           if (iconImageUrl && (
             iconImageUrl.startsWith('http')
@@ -518,7 +523,7 @@ export function CardPreview({
           position: 'relative',
         }}
       >
-        <div
+        <AppearanceSurface
           className={cn(
             "tcg-card-preview shadow-lg flex flex-col relative overflow-hidden",
             isInteractive ? 'cursor-pointer hover:shadow-primary/50 hover:shadow-md transition-shadow duration-150' : '',
@@ -542,7 +547,7 @@ export function CardPreview({
           {freeformElements}
           {!productionLayer && borderOverlayStyle ? <div aria-hidden="true" data-card-border-overlay style={borderOverlayStyle} /> : null}
           {!productionLayer && interactionOverlay}
-        </div>
+        </AppearanceSurface>
       </div>
       {showSizeInfo && !isPrintMode && (
         <div className="text-xs text-muted-foreground mt-1">

@@ -1,4 +1,6 @@
 "use client";
+import { createPipelineReviewTarget } from '../lib/pipelineReviewTarget';
+import { CatalogTrashControls } from './CatalogTrashControls';
 import { SourceReviewEvidence } from './SourceReviewEvidence';
 
 import { useState } from 'react';
@@ -41,6 +43,8 @@ export interface OwnerEditorialReviewInput {
 }
 
 interface OwnerAssetLibraryPanelProps {
+  focused?: boolean;
+  onRevise?: (submission: PipelineProgramView['submissions'][number]) => void;
   program: PipelineProgramView;
   renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
   query: string;
@@ -76,6 +80,8 @@ const statusOptions: PipelineStatus[] = [
 
 export function OwnerAssetLibraryPanel({
   program,
+  focused = false,
+  onRevise,
   renderTemplateSpecimen,
   query,
   assetTypeFilter,
@@ -92,7 +98,7 @@ export function OwnerAssetLibraryPanel({
   onDeleteRevisionNow,
   onRevisionCreated,
 }: OwnerAssetLibraryPanelProps) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(focused ? program.submissions[0]?.id ?? null : null);
   const [managingId, setManagingId] = useState<string | null>(null);
   const [statusOverride, setStatusOverride] = useState<PipelineStatus | 'automatic'>('automatic');
   const [tierOverride, setTierOverride] = useState<PipelineAccessTierOverride | 'automatic'>('automatic');
@@ -216,7 +222,7 @@ export function OwnerAssetLibraryPanel({
 
   return (
     <div className="mt-7">
-      <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Visual asset library</h3>
+      {!focused ? <><h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Visual asset library</h3>
       <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
         New Templates and revisions have a direct publication decision. Other assets follow the automatic pipeline unless you use Manage for an owner exception.
       </p>
@@ -287,6 +293,7 @@ export function OwnerAssetLibraryPanel({
         <p>Showing {firstItemNumber}-{lastItemNumber} of {program.submissionPage.total} matching assets.</p>
         <p>Page {currentPage} of {totalPages}</p>
       </div>
+      </> : null}
       <div className="mt-4 space-y-3">
         {program.submissions.length === 0 ? (
           <p className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4 text-sm text-[var(--cf-text-muted)]">No pipeline assets match these filters.</p>
@@ -300,6 +307,7 @@ export function OwnerAssetLibraryPanel({
           const editTemplateId = getTemplatePreviewId(submission);
           return (
           <AssetRow
+            compact={focused}
             key={submission.id}
             submission={submission}
             program={program}
@@ -308,7 +316,7 @@ export function OwnerAssetLibraryPanel({
             expanded={expandedId === submission.id}
             editForm={managingId === submission.id ? (
               <div className="mt-4 grid gap-3 border border-[#6f4f28] bg-[var(--cf-surface)] p-4">
-                {submission.status === 'published' && submission.assetType === 'textures' && submission.registryAssetId ? <MediaPresentationRevision assetId={submission.registryAssetId} onCreated={onRevisionCreated ?? (() => undefined)} /> : null}
+                {submission.status === 'published' && submission.assetType === 'textures' && submission.registryAssetId ? <MediaPresentationRevision selectedTarget={focused ? createPipelineReviewTarget(submission) : undefined} assetId={submission.registryAssetId} onCreated={onRevisionCreated ?? (() => undefined)} /> : null}
                 <section className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Editorial readiness</p>
@@ -395,6 +403,7 @@ export function OwnerAssetLibraryPanel({
                   </Button>
                   <Button variant="outline" className="rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" onClick={() => setManagingId(null)}>Cancel</Button>
                 </div>
+                <CatalogTrashControls key={submission.id} submissionId={submission.id} />
                 <div className="border-t border-[var(--cf-border-subtle)] pt-3">
                   <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
                     Retire hides an asset and preserves its votes and publication history. Permanent deletion removes the complete shared asset lineage and cannot be undone.
@@ -445,7 +454,7 @@ export function OwnerAssetLibraryPanel({
                     : `Approve & publish revision ${submission.revisionNumber}`}
               </Button>
             ) : null}
-            {editTemplateId && templatePreviews[editTemplateId] && !isPendingTemplateRevision ? (
+            {!focused && editTemplateId && templatePreviews[editTemplateId] && !isPendingTemplateRevision ? (
               <Button asChild size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]">
                 <a href={`/account?${new URLSearchParams({ section: 'library', scope: 'pipeline', tool: 'design', artifact: editTemplateId, editTemplate: editTemplateId })}`}>
                   <Pencil className="mr-1 h-4 w-4" /> Edit Template
@@ -455,6 +464,8 @@ export function OwnerAssetLibraryPanel({
             <Button size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" onClick={() => setExpandedId((current) => current === submission.id ? null : submission.id)}>
               <Eye className="mr-1 h-4 w-4" /> {isPendingTemplateRevision ? 'Compare revision' : 'Review'}
             </Button>
+            {focused ? <div><Button size="sm" variant="outline" disabled={!onRevise || submission.status !== 'published' || !['templates', 'elementPresets'].includes(submission.assetType) || Boolean(submission.trashedAt || submission.purgeState)} onClick={() => onRevise?.(submission)}>Revise existing</Button>
+              <p className="text-xs">{submission.status !== 'published' ? 'Revision editing starts from the current published base; this selected revision remains under review.' : !['templates', 'elementPresets'].includes(submission.assetType) ? 'This type has no supported Template or style revision editor.' : 'Verify the selected published base before preparing a separate review draft. Opening does not submit or publish.'}</p></div> : null}
             <Button size="sm" variant="outline" className="border-[#8a642f] bg-transparent text-[var(--cf-accent-strong)]" onClick={() => openManager(submission)}>
               <Settings2 className="mr-1 h-4 w-4" /> Manage
             </Button>

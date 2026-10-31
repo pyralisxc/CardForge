@@ -1,8 +1,9 @@
 "use client";
 
+import type { PipelineReviewTarget } from '../lib/pipelineReviewTarget';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { appearanceToStyle } from '@/features/card-rendering/client';
+import { AppearanceSurface, appearanceToStyle } from '@/features/card-rendering/client';
 import { ApiClientError, readApiError, readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import {
   pipelineMediaRevisionAppearance,
@@ -18,12 +19,13 @@ export function MediaPresentationPreview({ sourceUrl, presentation }: {
     <p className="w-full text-xs">Full-strength source fit specimen, not an approval or print proof.</p>
     {[160, 240].map((width) => <div key={width} className="grid gap-1 text-xs">
       <span>{width}px · {presentation.proposed.tileMode} · {presentation.proposed.seamless ? 'seamless claim' : 'not seamless'}</span>
-      {['#f5f0e8', '#15111d'].map((backgroundColor) => <div key={backgroundColor} style={{ ...appearanceToStyle(appearance), width, height: width * 0.7, backgroundColor }} />)}
+      {['#f5f0e8', '#15111d'].map((backgroundColor) => <AppearanceSurface key={backgroundColor} style={{ ...appearanceToStyle(appearance), width, height: width * 0.7, backgroundColor }} />)}
     </div>)}
   </div>;
 }
 
-export function MediaPresentationRevision({ assetId, onCreated }: {
+export function MediaPresentationRevision({ assetId, onCreated, selectedTarget }: {
+  selectedTarget?: PipelineReviewTarget | null;
   assetId: string; onCreated: () => Promise<void> | void;
 }) {
   const [snapshot, setSnapshot] = useState<MediaRevisionSnapshot | null>(null);
@@ -40,6 +42,12 @@ export function MediaPresentationRevision({ assetId, onCreated }: {
       const response = await fetch(`/api/owner/pipeline/media-revisions?assetId=${encodeURIComponent(assetId)}`, { cache: 'no-store' });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Presentation could not be loaded.'));
       const value = await response.json() as MediaRevisionSnapshot;
+      if (selectedTarget !== undefined && (!selectedTarget || selectedTarget.status !== 'published'
+        || value.assetId !== selectedTarget.assetId || value.presentation.parentSubmissionId !== selectedTarget.submissionId
+        || value.presentation.lineageId !== selectedTarget.lineageId
+        || value.presentation.baseRevisionNumber !== (selectedTarget.revisionNumber ?? 0))) {
+        throw new Error('The selected media revision is no longer the current published base. Close and explicitly select the current revision; no newer base was adopted.');
+      }
       setSnapshot(value); setPresentation(value.presentation); setSubmissionKey(crypto.randomUUID()); setAttempted(false); setCanReload(false);
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Presentation is unavailable.'); }
     finally { setBusy(false); }

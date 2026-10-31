@@ -45,8 +45,10 @@ const stretchSvgBackground = (image?: string): string | undefined => {
   return projected === source ? image : `url(${JSON.stringify(projected)})`;
 };
 
-const backgroundLayerCount = (image: string): number => {
-  let count = 1, depth = 0, quote = '';
+export const splitBackgroundLayers = (image: string): string[] => {
+  if (!image) return [];
+  const layers: string[] = [];
+  let start = 0, depth = 0, quote = '';
   for (let index = 0; index < image.length; index += 1) {
     const char = image[index];
     if (char === '\\') { index += 1; continue; }
@@ -54,9 +56,23 @@ const backgroundLayerCount = (image: string): number => {
     if (char === '"' || char === "'") quote = char;
     else if (char === '(') depth += 1;
     else if (char === ')') depth -= 1;
-    else if (char === ',' && depth === 0) count += 1;
+    else if (char === ',' && depth === 0) { layers.push(image.slice(start, index).trim()); start = index + 1; }
   }
-  return count;
+  layers.push(image.slice(start).trim());
+  return layers;
+};
+const backgroundLayerCount = (image: string) => splitBackgroundLayers(image).length;
+type TextureLayerStyle = CSSProperties & { '--cf-texture-layer'?: number; '--cf-texture-strength'?: number };
+export const textureLayerMetadata = (style?: CSSProperties) => {
+  const data = style as TextureLayerStyle | undefined;
+  return data?.['--cf-texture-layer'] === undefined ? undefined : {
+    index: data['--cf-texture-layer'], opacity: data['--cf-texture-strength'] ?? 1,
+  };
+};
+/** Render-only metadata follows the same background list; it never enters authored JSON. */
+export const textureLayerStyle = (style?: CSSProperties, precedingLayers = 0): TextureLayerStyle => {
+  const data = textureLayerMetadata(style);
+  return data ? { '--cf-texture-layer': data.index + precedingLayers, '--cf-texture-strength': data.opacity } : {};
 };
 
 /** An explicit foundation fit owns only that image, not independent material layers. */
@@ -74,6 +90,7 @@ export const authoredCardFoundationStyle = (
     appearance[property] || Array.from({ length: backgroundLayerCount(String(materialImage)) }, () => fallback).join(', ')
   );
   return {
+    ...(materialImage ? textureLayerStyle(appearance, 1) : { '--cf-texture-layer': undefined, '--cf-texture-strength': undefined }),
     backgroundImage: [fittedFoundationImage, materialImage].filter(Boolean).join(', '),
     backgroundSize: [template.cardBackgroundImageFit === 'fill' ? '100% 100%' : template.cardBackgroundImageFit,
       ...(materialImage ? [materialProperty('backgroundSize', 'auto')] : [])].join(', '),
@@ -120,6 +137,7 @@ export const appearanceToStyle = (appearance?: FreeformAppearance): CSSPropertie
     .filter(Boolean)
     .join(', ') || undefined;
   return {
+    ...(textureIsUrl ? { '--cf-texture-layer': tintVector || !asset ? 0 : 1, '--cf-texture-strength': Math.max(0, Math.min(100, material?.texture?.intensity ?? 100)) / 100 } : {}),
     color: material?.textColor,
     backgroundColor: material?.baseColor || material?.fillColor,
     backgroundImage,

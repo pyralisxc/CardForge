@@ -145,7 +145,7 @@ describe('authored back background projections', () => {
     ...overrides,
   });
   const cardFor = (template: TCGCardTemplate): DisplayCard => ({ uniqueId: 'back-card', template, backingTemplate: null, backingTemplateId: null, data: {} });
-  const backgrounds = (html: string) => [...html.matchAll(/style="([^"]*)"/gu)].map(match => match[1]).filter(style => style.includes('background-image:'));
+  const backgrounds = (html: string) => [...html.matchAll(/style="([^"]*)"/gu)].map(match => match[1]).filter(style => style.includes('background-image:') && !style.includes('background-image:none'));
   const surfaces = (template: TCGCardTemplate) => {
     const card = cardFor(template);
     return [
@@ -181,11 +181,16 @@ describe('authored back background projections', () => {
     } });
     for (const html of surfaces(template)) {
       const imageStyles = backgrounds(html);
-      expect(imageStyles).toHaveLength(1);
-      expect(imageStyles[0]).toContain(`background-image:url(${source}), url(https://cdn.example.test/texture.webp), linear-gradient(135deg, #000000 0%, #ffffff 100%), radial-gradient(red, blue)`);
-      expect(imageStyles[0]).toContain('background-size:contain, 72px 72px, auto, auto');
-      expect(imageStyles[0]).toContain('background-repeat:no-repeat, repeat, repeat, repeat');
-      expect(imageStyles[0]).toContain('background-position:center, 0% 0%, 0% 0%, 0% 0%');
+      expect(imageStyles).toHaveLength(4);
+      const images = [`url(${source})`, 'url(https://cdn.example.test/texture.webp)', 'linear-gradient(135deg, #000000 0%, #ffffff 100%)', 'radial-gradient(red, blue)'];
+      const sizes = ['contain', '72px 72px', 'auto', 'auto'];
+      imageStyles.forEach((style, index) => {
+        expect(style).toContain(`background-image:${images[index]}`);
+        expect(style).toContain(`background-size:${sizes[index]}`);
+        expect(style).toContain(`background-repeat:${index === 0 ? 'no-repeat' : 'repeat'}`);
+        expect(style).toContain(`background-position:${index === 0 ? 'center' : '0% 0%'}`);
+        expect(style).toContain(`z-index:${-2-index}`);
+      });
     }
   });
 
@@ -233,12 +238,18 @@ describe('authored back background projections', () => {
         gradient: { type: 'linear', stops: [{ id: 'a', color: '#000000', position: 0 }, { id: 'b', color: '#ffffff', position: 100 }] } },
     } });
     for (const html of surfaces(template)) {
-      const style = backgrounds(html)[0];
-      expect(style).toContain(`background-image:url(${source}), url(${texture}), linear-gradient`);
-      expect(style).toContain('background-size:100% 100%, 72px 72px, auto');
-      expect(style).toContain('background-repeat:no-repeat, repeat, repeat');
-      expect(style).toContain('background-position:center, 0% 0%, 0% 0%');
-      expect(style).toContain('background-blend-mode:multiply');
+      const styles = backgrounds(html);
+      expect(styles).toHaveLength(3);
+      const images = [`url(${source})`, `url(${texture})`, 'linear-gradient'];
+      const sizes = ['100% 100%', '72px 72px', 'auto'];
+      styles.forEach((style, index) => {
+        expect(style).toContain(`background-image:${images[index]}`);
+        expect(style).toContain(`background-size:${sizes[index]}`);
+        expect(style).toContain(`background-repeat:${index === 0 ? 'no-repeat' : 'repeat'}`);
+        expect(style).toContain(`background-position:${index === 0 ? 'center' : '0% 0%'}`);
+        expect(style).toContain('mix-blend-mode:multiply');
+        expect(style).toContain(`z-index:${-2-index}`);
+      });
     }
   });
 

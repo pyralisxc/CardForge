@@ -19,7 +19,7 @@ const setupDatabase = () => {
   const selections = new Map<string, string>();
   const filters: Array<[string, string, unknown]> = [];
   database.from.mockImplementation((table: string) => {
-    let rows: Record<string, unknown>[] = table === 'cardforge_asset_registry'
+    let rows: Record<string, unknown>[] = table === 'cardforge_discoverable_asset_registry'
       ? [registryRow('free-icon', 'free'), registryRow('paid-icon', 'paid'), registryRow('contributor-icon', 'contributor')]
       : table === 'cardforge_contributor_asset_submissions'
         ? ['free-icon', 'paid-icon', 'contributor-icon'].map((id) => ({
@@ -76,7 +76,7 @@ describe('published catalog discovery details', () => {
     };
     stalledQuery.select.mockReturnValue(stalledQuery);
     stalledQuery.in.mockReturnValue(stalledQuery);
-    database.from.mockImplementation((table: string) => table === 'cardforge_asset_registry' ? registryQuery : stalledQuery);
+    database.from.mockImplementation((table: string) => table === 'cardforge_discoverable_asset_registry' ? registryQuery : stalledQuery);
 
     const catalog = getPublishedRegistryContentRows('elementPreset', 'free');
     const expectedFailure = expect(catalog).rejects.toThrow('temporarily unavailable');
@@ -99,7 +99,7 @@ describe('published catalog discovery details', () => {
       expect(item.publicAiDisclosure).toBe(item.id === 'free-icon' ? 'Founder confirms AI-generated artwork using ChatGPT.' : null);
       expect(item).not.toHaveProperty('source_review_evidence');
     }
-    expect(filters).toContainEqual(['cardforge_asset_registry', 'status', 'published']);
+    expect(filters).toContainEqual(['cardforge_discoverable_asset_registry', 'status', 'published']);
     expect(selections.get('cardforge_contributor_asset_submissions')?.split(',')).toEqual([
       'id',
       'lineage_id',

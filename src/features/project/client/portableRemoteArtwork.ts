@@ -1,6 +1,7 @@
 "use client";
 
 import type { CardData } from '@/domain/cards';
+import { COMPLETED_DELETION_BLANK_MEDIA } from '../model/completedDeletionCleanup';
 import { extractPlaceholderKeysFromText, getGeneratorImageFieldKeyForElement, getImageFieldKeyForElement } from '@/domain/rendering';
 import type { AppearanceStylePreset, FreeformAppearance, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import type { ProjectDocumentV1 } from '../model/projectDocument';
@@ -59,7 +60,7 @@ export async function capturePortableRemoteArtwork(source: ProjectDocumentV1) {
   const captured = new Map<string, string>();
   let totalBytes = 0;
   const media = async (value: string | undefined, allowFieldName = false): Promise<string | undefined> => {
-    if (!value || /^(?:data:|cardforge-browser-asset:|cardforge-project-asset:)/u.test(value)) return value;
+    if (!value || value === COMPLETED_DELETION_BLANK_MEDIA || /^(?:data:|cardforge-browser-asset:|cardforge-project-asset:)/u.test(value)) return value;
     if (/url\s*\(/iu.test(value)) throw new ProjectPackageError('Linked CSS artwork cannot be packaged. Import it as an image first.');
     // Compound CSS/bindings cannot carry the codec's whole-value asset reference.
     // Fail explicitly rather than claim an offline package with remote dependencies.
@@ -107,10 +108,36 @@ export async function capturePortableRemoteArtwork(source: ProjectDocumentV1) {
       value.rawCss.borderImageSource = await media(value.rawCss.borderImageSource);
     }
   };
+  // A field contract alone does not activate media. For unscoped contracts
+  // only surviving media consumers (including image-field and template
+  // background bindings) may require remote byte capture.
+  const mediaUse = (value: Partial<TCGCardTemplate>) => {
+    const active = new Set<string>();
+    for (const binding of [value.cardBackgroundImageUrl, value.cardBorderImageSource]) {
+      extractPlaceholderKeysFromText(binding).forEach(key => active.add(key));
+    }
+    for (const item of value.freeformCanvas?.elements ?? []) {
+      if (item.type === 'image' && item.imageSource !== COMPLETED_DELETION_BLANK_MEDIA) {
+        active.add(getImageFieldKeyForElement(item));
+        const contract = getGeneratorImageFieldKeyForElement(value as TCGCardTemplate, item);
+        if (contract) active.add(contract);
+        for (const binding of [item.imageSource, item.content]) extractPlaceholderKeysFromText(binding).forEach(key => active.add(key));
+      }
+      for (const binding of [item.iconImageSource, item.backgroundImageUrl]) {
+        extractPlaceholderKeysFromText(binding).forEach(key => active.add(key));
+      }
+    }
+    return active;
+  };
+  const activeImageContract = (value: Partial<TCGCardTemplate>, contract: { key: string; elementId?: string }) => {
+    if (contract.elementId) return (value.freeformCanvas?.elements ?? []).some(item =>
+      item.id === contract.elementId && item.type === 'image' && item.imageSource !== COMPLETED_DELETION_BLANK_MEDIA);
+    return mediaUse(value).has(contract.key);
+  };
   const element = async (value: Partial<FreeformCardElement>) => {
-    value.imageSource = await media(value.imageSource, true);
-    if (value.type === 'image') {
-      value.content = await media(value.content, true);
+    if (!(value.type === 'image' && value.imageSource === COMPLETED_DELETION_BLANK_MEDIA)) {
+      value.imageSource = await media(value.imageSource, true);
+      if (value.type === 'image') value.content = await media(value.content, true);
     }
     value.iconImageSource = await media(value.iconImageSource);
     value.backgroundImageUrl = await media(value.backgroundImageUrl);
@@ -118,11 +145,14 @@ export async function capturePortableRemoteArtwork(source: ProjectDocumentV1) {
   };
   const data = async (template: TCGCardTemplate, values?: CardData) => {
     if (!values) return;
-    const keys = new Set(template.fieldContracts?.filter((contract) => contract.type === 'image').map((contract) => contract.key));
+    const keys = mediaUse(template);
+    for (const contract of template.fieldContracts ?? []) {
+      if (contract.type === 'image' && activeImageContract(template, contract)) keys.add(contract.key);
+    }
     const textKeys = new Set<string>();
     for (const binding of [template.cardBackgroundImageUrl, template.cardBorderImageSource]) extractPlaceholderKeysFromText(binding).forEach((key) => keys.add(key));
     for (const item of template.freeformCanvas?.elements ?? []) {
-      if (item.type === 'image') {
+      if (item.type === 'image' && item.imageSource !== COMPLETED_DELETION_BLANK_MEDIA) {
         keys.add(getImageFieldKeyForElement(item));
         const contract = getGeneratorImageFieldKeyForElement(template, item);
         if (contract) keys.add(contract);
@@ -143,7 +173,9 @@ export async function capturePortableRemoteArtwork(source: ProjectDocumentV1) {
     value.cardBorderImageSource = await media(value.cardBorderImageSource);
     await appearance(value.appearance);
     for (const item of value.freeformCanvas?.elements ?? []) await element(item);
-    for (const contract of value.fieldContracts ?? []) if (contract.type === 'image') contract.defaultValue = await media(contract.defaultValue);
+    for (const contract of value.fieldContracts ?? []) {
+      if (contract.type === 'image' && activeImageContract(value, contract)) contract.defaultValue = await media(contract.defaultValue);
+    }
   };
   const style = async (value: AppearanceStylePreset) => {
     await appearance(value.appearance);

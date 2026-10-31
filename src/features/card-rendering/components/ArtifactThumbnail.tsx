@@ -14,7 +14,8 @@ import {
 import { normalizeTemplateAppearance, type TCGCardTemplate } from '@/domain/templates';
 import { useProjectBinaryAssetUrl, useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
 
-import { appearanceToStyle, authoredCardFoundationStyle } from '../model/appearance';
+import { AppearanceSurface } from './AppearanceSurface';
+import { appearanceToStyle, authoredCardFoundationStyle, textureLayerStyle } from '../model/appearance';
 
 const appearanceCache = new WeakMap<TCGCardTemplate, ReturnType<typeof appearanceToStyle>>();
 
@@ -60,8 +61,9 @@ function ResolvedArtifactThumbnailImage({ card, face }: { card: DisplayCard; fac
       const areaDifference = (right.width * right.height) - (left.width * left.height);
       return areaDifference || right.zIndex - left.zIndex;
     })[0];
-  const boundValue = image ? data[getImageFieldKeyForElement(image)] : undefined;
-  const authoredSource = image ? replacePlaceholdersLocal(image.imageSource || image.content, data, false) : undefined;
+  const blankImage = image?.imageSource === '__cardforge_deleted_media_blank__';
+  const boundValue = !blankImage && image ? data[getImageFieldKeyForElement(image)] : undefined;
+  const authoredSource = !blankImage && image ? replacePlaceholdersLocal(image.imageSource || image.content, data, false) : undefined;
   const indirectValue = authoredSource ? data[authoredSource] : undefined;
   const heroSource = isImageSource(boundValue)
     ? boundValue
@@ -72,7 +74,8 @@ function ResolvedArtifactThumbnailImage({ card, face }: { card: DisplayCard; fac
         : undefined;
   const heroUrl = useProjectBinaryAssetUrl(heroSource);
 
-  return <span style={{
+  return <AppearanceSurface as="span" style={{
+    ...textureLayerStyle(foundationStyle ?? appearance, foundationStyle ? 0 : authoredBackgroundImage ? 1 : 0),
     position: 'absolute', inset: 0, backgroundImage,
     backgroundPosition: foundationStyle?.backgroundPosition ?? (authoredBackgroundImage ? 'center' : appearance.backgroundPosition || 'center'),
     backgroundRepeat: foundationStyle?.backgroundRepeat ?? (authoredBackgroundImage ? 'no-repeat' : appearance.backgroundRepeat || 'no-repeat'),
@@ -80,7 +83,7 @@ function ResolvedArtifactThumbnailImage({ card, face }: { card: DisplayCard; fac
     backgroundBlendMode: appearance.backgroundBlendMode,
   }}>
     {heroUrl ? <img src={heroUrl} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} /> : null}
-  </span>;
+  </AppearanceSurface>;
 }
 
 /**

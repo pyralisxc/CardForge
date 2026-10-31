@@ -34,14 +34,25 @@ const productDomains = [
 // legal, security, or repository contract under test. This explicit inventory keeps
 // ordinary component/helper composition pins from quietly returning.
 const sourceReaderContracts = [
+  ['tests/product/workflows/website-updates.spec.ts', 'canonical application CSS compiled for actual release notes and Owner editor browser behavior; no implementation source-text assertions'],
+  ['tests/product/unit/site-metadata.test.ts', 'bundled favicon PNG format/dimensions and decoded pixels against its canonical SVG asset; no implementation source-text assertions'],
+  ['tests/product/workflows/managed-raster-authoring.spec.ts', 'canonical CSS and fonts for integrated Template editor/picker browser proof; no source-text assertions'],
+  ['tests/product/workflows/library-context-review.spec.ts', 'canonical application CSS compiled by existing PostCSS/Tailwind for real component visual proof; no source-text assertions'],
+  ['tests/product/workflows/saved-source-preview.spec.ts', 'canonical native source specimen and existing brand watermark browser pixels; no source-text assertions'],
+  ['tests/product/workflows/studio-controls.spec.ts', 'canonical application CSS and bundled fonts for real Studio controls and exported pixel proof; no source-text assertions'],
+  ['tests/product/workflows/style-review-render.spec.ts', 'canonical application CSS and bundled fonts for real component visual proof; no source-text assertions'],
+  ['tests/product/workflows/library-template-identity.spec.ts', 'canonical application CSS compiled by existing PostCSS/Tailwind for real component visual proof; no source-text assertions'],
+  ['tests/product/unit/website-edition-private-stage-labels.test.ts', 'published Owner control labels and private Edition staging action contract'],
   ['tests/infrastructure/agent-efficiency.test.ts', 'repository command and routing contract'],
   ['tests/infrastructure/legacy-server-table-grants.test.ts', 'cross-migration least-privilege contract'],
+  ['tests/infrastructure/pipeline-retention-batch-selection.test.ts', 'native SQL bounded-selection safety and liveness deployment contract; not database runtime proof'],
   ['tests/infrastructure/migration-safety.test.ts', 'forward-only migration and Pipeline publication synchronization contract'],
   ['tests/infrastructure/repository-security.test.ts', 'repository security and secret-hygiene contract'],
   ['tests/product/unit/api-validation.test.ts', 'published asset-metadata artifacts'],
   ['tests/product/unit/cardforge-plugin.test.ts', 'published plugin and submission artifacts'],
   ['tests/product/unit/cardforge-owner-plugin.test.ts', 'published Owner plugin package, endpoint separation, and manifest artifacts'],
   ['tests/product/unit/cardforge-preview-plugin.test.ts', 'derived private plugin artifacts, endpoint/credential isolation, deterministic archives and production immutability'],
+  ['tests/product/unit/plugin-download-page.test.ts', 'public download page landmark, protected plugin presentation, and safe authentication-return contract'],
   ['tests/product/unit/clerk-config.test.ts', 'Clerk middleware security configuration'],
   ['tests/product/unit/element-recipe-catalog.test.ts', 'published recipe catalog artifacts'],
   ['tests/product/unit/mcp-product-hygiene.test.ts', 'published MCP tool, schema, annotation, and skill contract'],
@@ -52,6 +63,7 @@ const sourceReaderContracts = [
   ['tests/product/unit/press-pdf-candidate.test.ts', 'unchanged ICC binaries and complete redistribution notices, plus constructed PDF/pixel contracts; no implementation source reads'],
   ['tests/product/unit/verified-font-candidates.test.ts', 'original local font/OFL fixtures for source verifier behavior; no implementation source reads'],
   ['tests/product/workflows/template-canvas-handoff.spec.ts', 'published official starter Set and Template assets used by the native package builder and browser installation flow'],
+  ['tests/product/workflows/exact-candidate-review.spec.ts', 'actual browser-downloaded exact-candidate PDF bytes; no implementation source reads'],
   ['tests/product/workflows/output-artifacts.spec.ts', 'actual browser-downloaded PNG, ZIP, PDF and Tabletop output bytes; no implementation source reads'],
   ['tests/product/workflows/browser-workspace-recovery.spec.ts', 'native browser recovery downloads and verified package artwork; no implementation source reads'],
 ];

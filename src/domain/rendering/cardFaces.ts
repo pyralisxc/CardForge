@@ -29,6 +29,9 @@ const materializeExplicitImageFieldBindings = (
   let changed = false;
   const elements = canvas.elements.map((element) => {
     if (element.type !== 'image') return element;
+    // Completed-deletion repair explicitly blanks this retained element. Do not
+    // materialize a live per-card image field over its durable blank state.
+    if (element.imageSource === '__cardforge_deleted_media_blank__') return element;
     const contract = imageContractByElementId.get(element.id);
     if (!contract || !hasImageFieldInput(data, contract.key)) return element;
     if (getBoundImageFieldKey(element) === contract.key) return element;

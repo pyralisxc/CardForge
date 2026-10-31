@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import { deleteGoogleDriveProjectCopy } from '@/features/project/client/provider-google-drive';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -52,6 +53,7 @@ import { DeskContextRail } from './DeskContextRail';
 import { DeskQuickActions } from './DeskQuickActions';
 import { DeskOverviewSurface } from './DeskOverviewSurface';
 import { FocusedWorkSurface } from './FocusedWorkSurface';
+import { DeskPipelineTool } from './DeskPipelineTool';
 import { DeskDialogs } from './DeskDialogs';
 import { useDeskController } from '../hooks/useDeskController';
 import styles from './Desk.module.css';
@@ -162,6 +164,8 @@ export function Desk({
   const [generationRevisionScopeIds, setGenerationRevisionScopeIds] = useState<string[]>([]);
   const [designIntent, setDesignIntent] = useState<DesignToolIntent | null>(null);
   const [storageOpen, setStorageOpen] = useState(false);
+  const deletingCopyRef = useRef(false);
+  const [deletingCopy, setDeletingCopy] = useState(false);
   const [artifactEditId, setArtifactEditId] = useState<string | null>(null);
   const [artifactEditDirty, setArtifactEditDirty] = useState(false);
   const [artifactDiscardOpen, setArtifactDiscardOpen] = useState(false);
@@ -239,6 +243,8 @@ export function Desk({
     otherSets,
     pendingDeleteCards,
     pendingDeleteWork,
+    reviewWork,
+    closeReviewWork,
     pipelineSubmitSetId,
     projection,
     publishedSets,
@@ -255,6 +261,7 @@ export function Desk({
     richTextHighlightColor,
     remoteWorkspaceItem,
     runAction,
+    runWorkAction,
     searchRef,
     selectedCard,
     selectedCardIndex,
@@ -462,6 +469,7 @@ export function Desk({
   return (
     <div className={styles.creatorEnvironment} data-desk-arrival-phase={deskArrival.phase}>
       <ArtifactScene ref={artifactSceneRef} activeSetId={focusedLocalSetId}>
+      <div inert={Boolean(reviewWork)} style={{height:"100%",minHeight:0,position:"relative",isolation:"isolate",zIndex:0}}>
       <EnvironmentShell
         ariaLabel="CardForge Desk"
         brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }}
@@ -663,6 +671,8 @@ export function Desk({
             endDrag={endDeskDrag}
             endMarquee={endDeskMarquee}
             shouldSuppressActivation={shouldSuppressActivation}
+            isOwner={experience.owner && experience.signedIn}
+            onRunWorkAction={runWorkAction}
             onSelectWork={selectDeskWork}
             onQueryChange={setQuery}
             onSourceFiltersChange={(sources) => deskViewPreferences.update((current) => ({ ...current, sources }))}
@@ -797,6 +807,8 @@ export function Desk({
           />
         </EnvironmentToolLayer> : null}
       </EnvironmentShell>
+      </div>
+      {reviewWork?.references.pipelineReviewTarget && <DeskPipelineTool key={reviewWork.references.pipelineReviewTarget.submissionId} target={reviewWork.references.pipelineReviewTarget} name={reviewWork.name} owner={experience.owner && experience.signedIn} businessIdentity={businessIdentity} initialContributorAccess={initialContributorAccess} onClose={closeReviewWork} onMutated={()=>projection.refresh()} />}
 
       <WorkLocationDialog
         item={locationItem}
@@ -832,6 +844,7 @@ export function Desk({
         publishedSetsFailure={publishedSetsFailure}
         creatingPublishedSetId={creatingPublishedSetId}
         pendingDeleteWork={pendingDeleteWork}
+        deleteWorkBusy={deletingCopy}
         pendingDeleteCards={pendingDeleteCards}
         dirtyCloseRequested={dirtyCloseRequested}
         dirtyCloseToDesk={dirtyCloseToDesk}
@@ -843,24 +856,28 @@ export function Desk({
         onCreateWork={createWork}
         onCreatePublishedSet={(set) => { void createFromPublishedSet(set); }}
         onRetryPublishedSets={() => { setPublishedSets([]); setPublishedSetsFailure(null); setPublishedSetsLoading(false); openCreateMenu(); }}
-        onDeleteWorkOpenChange={(open) => { if (!open) setPendingDeleteWork(null); }}
+        onDeleteWorkOpenChange={(open) => { if (!open && !deletingCopyRef.current) setPendingDeleteWork(null); }}
         onConfirmDeleteWork={() => {
           const target = pendingDeleteWork;
-          const localId = target?.references.localSetId;
-          if (!target || !localId) {
-            toast({ title: 'Set was not deleted', description: 'This Desk object is not a device-owned Set. Reload its source before trying again.', variant: 'destructive' });
-            setPendingDeleteWork(null);
-            return;
-          }
-          if (!deleteCardSet(localId)) {
-            toast({ title: 'Set was not deleted', description: 'The device Set could not be found. Reload the Desk before trying again.', variant: 'destructive' });
-            setPendingDeleteWork(null);
-            return;
-          }
-          setPendingDeleteWork(null);
-          resetToDesk();
-          projection.refresh();
-          toast({ title: 'Device copy deleted', description: `“${target.name}” was removed from this browser. Other named locations remain unchanged.` });
+          if (!target || deletingCopyRef.current) return;
+          deletingCopyRef.current = true; setDeletingCopy(true);
+          void (async () => {
+            try {
+              const localId = target.references.localSetId;
+              if (localId) {
+                if (!deleteCardSet(localId)) throw new Error('The device Set could not be found. Reload the Desk.');
+                resetToDesk();
+              } else {
+                const { driveFileId, driveProviderRevision, driveProjectRevision } = target.references;
+                if (!driveFileId || !driveProviderRevision || !driveProjectRevision) throw new Error('Reload this Drive copy to obtain its exact current revision before removal.');
+                await deleteGoogleDriveProjectCopy({fileId:driveFileId,providerRevision:driveProviderRevision,projectRevision:driveProjectRevision});
+              }
+              projection.refresh();
+              toast({title:localId ? 'Device copy deleted' : 'Drive copy moved to Trash',description:`Only the selected copy of “${target.name}” was removed. Other locations remain unchanged.`});
+            } catch (error) {
+              toast({title:'Removal was not confirmed',description:error instanceof Error ? error.message : 'Inspect the exact source before any further action.',variant:'destructive'});
+            } finally { deletingCopyRef.current = false; setDeletingCopy(false); setPendingDeleteWork(null); }
+          })();
         }}
         onDeleteCardsOpenChange={(open) => { if (!open) setPendingDeleteCards([]); }}
         onConfirmDeleteCards={() => { removeGeneratedCards(pendingDeleteCards.map((card) => card.uniqueId)); setPendingDeleteCards([]); setSelectedCardIds([]); }}

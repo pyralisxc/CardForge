@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mock = vi.hoisted(() => ({
+  clearBarrier: vi.fn(),
   scope: 'account:creator-1' as string,
   cardSets: [{ id: 'set-1' }],
   writes: [] as Array<{ key: string; value: unknown }>,
@@ -25,6 +26,11 @@ vi.mock('@/features/project/store/workspaceStore', () => ({
 }));
 
 vi.mock('@/features/project/client/googleDriveProjectTransfer', () => ({
+  clearConfirmedGoogleDriveLinkBarrier: mock.clearBarrier,
+  persistGoogleDriveProjectAttachment: async (binding: { workId: string }, namespace: string) => {
+    mock.writes.push({ key: `${namespace}:google-drive-project-binding`, value: { workId: binding.workId } });
+  },
+  serializeGoogleDriveWorkCommitment: (_namespace: string, _workId: string, run: () => Promise<unknown>) => run(),
   getGoogleDriveWorkBinding: vi.fn(async () => mock.currentBinding),
   loadGoogleDriveProjectLibrary: vi.fn(async () => ({ projects: mock.projects })),
 }));
@@ -61,6 +67,7 @@ describe('confirmed Google Drive linkage repair', () => {
     mock.scope = 'account:creator-1';
     mock.cardSets = [{ id: 'set-1' }];
     mock.writes = [];
+    mock.clearBarrier.mockClear();
     mock.currentBinding = null;
     mock.projects = [currentProject()];
   });
@@ -72,6 +79,8 @@ describe('confirmed Google Drive linkage repair', () => {
       accountId: 'google-user-1',
       projectRevision: 'b'.repeat(64),
     });
+    expect(mock.clearBarrier).toHaveBeenCalledOnce();
+    expect(mock.clearBarrier).toHaveBeenCalledWith(expect.objectContaining({ fileId: 'drive-file-12345', workId: 'set-1' }), 'project-assets:account:creator-1');
     expect(mock.writes).toEqual([
       {
         key: 'project-assets:account:creator-1:google-drive-work-binding:set-1',
@@ -107,4 +116,12 @@ describe('confirmed Google Drive linkage repair', () => {
     expect(mock.writes).toHaveLength(0);
     Object.defineProperty(mock, 'scope', { configurable: true, writable: true, value: 'account:creator-1' });
   });
+  it('will not relink a newly independent F2 Set using F’s older confirmed receipt', async () => {
+    mock.currentBinding = { ...receipt(), fileId: 'drive-file-independent-F2' };
+    await expect(repairConfirmedGoogleDriveLink(receipt())).rejects.toThrow(/different Drive file/i);
+    expect(mock.writes).toHaveLength(0);
+    expect(mock.clearBarrier).not.toHaveBeenCalled();
+    expect(mock.currentBinding.fileId).toBe('drive-file-independent-F2');
+  });
+
 });

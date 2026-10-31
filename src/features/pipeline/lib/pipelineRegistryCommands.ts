@@ -13,6 +13,7 @@ import { getUniqueActiveContributorProfileReferenceByEmail } from '@/features/co
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 import { externalizePipelineTemplateAssets } from './pipelineTemplateAssets';
+import { prepareManagedRasterTemplateRevision, readManagedRasterAttempt, type ManagedRasterSelection } from './managedRasterAdoption';
 import { templateReviewPayload } from './templateReview';
 
 export { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
@@ -54,6 +55,7 @@ export interface SubmitTemplateRevisionInput {
   contributorEmail: string | null;
   expectedRevision: number;
   submissionKey: string;
+  managedRasterSelection?: ManagedRasterSelection;
 }
 
 export interface TemplateRevisionResult {
@@ -95,6 +97,7 @@ interface TemplatePipelineDraftInput {
   contributorId: string;
   contributorEmail: string | null;
   submissionKey: string;
+  managedRasterSelection?: ManagedRasterSelection;
 }
 
 export interface PurgePipelineSubmissionInput {
@@ -134,6 +137,15 @@ const throwIfPublicationBusy = (errorMessage?: string, errorCode?: string): void
 };
 
 const throwIfMediaRevisionFailure = (errorMessage?: string): void => {
+  if (errorMessage?.includes('style_review_required')) {
+    throw new PipelineRegistryCommandError('This style already exists. Create a same-lineage Owner review candidate instead of overwriting published content.', 409);
+  }
+  if (errorMessage?.includes('style_review_conflict') || errorMessage?.includes('template_review_conflict')) {
+    throw new PipelineRegistryCommandError('The exact published source or review history changed. Reload and review a new candidate.', 409);
+  }
+  if (errorMessage?.includes('template_review_editorial_required')) {
+    throw new PipelineRegistryCommandError('Approve this exact correction separately before publishing. Publication cannot approve it as a side effect.', 409);
+  }
   if (errorMessage?.includes('pipeline_media_editorial_review_required')) {
     throw new PipelineRegistryCommandError('Review and approve this exact media revision separately before publishing it. Publish cannot approve it as a side effect.', 409);
   }
@@ -300,15 +312,43 @@ const loadTemplatePipelineResult = async (
   };
 };
 
+/** Exact-base Review drafts must retain their own reviewed-base command path. */
+export function assertTemplatePipelineDraftContext(template: TCGCardTemplate): void {
+  if (template.templatePipelineContext) throw new PipelineRegistryCommandError(
+    'This is an exact-base Review draft. Continue through its existing Review submission; managed adoption and new-draft handoff are unsupported for this draft.',
+    409, 'managed_raster_review_unsupported',
+  );
+}
+
+/** Read-only recovery of the original managed request; never revalidates current artwork. */
+export async function readTemplatePipelineDraftAttempt(input: TemplatePipelineDraftInput): Promise<string | null> {
+  assertTemplatePipelineDraftContext(input.template);
+  if (!input.managedRasterSelection) throw new PipelineRegistryCommandError('An exact managed adoption attempt is required.', 400);
+  return (await readManagedRasterAttempt(templateReviewPayload(input.template), input.managedRasterSelection,
+    input.contributorId, input.contributorEmail, input.submissionKey, 'draft', 0)).submissionId;
+}
+
 export const createTemplatePipelineDraft = async ({
   template,
   contributorId,
   contributorEmail,
   submissionKey,
+  managedRasterSelection,
 }: TemplatePipelineDraftInput): Promise<TemplatePipelineDraftResult> => {
+  assertTemplatePipelineDraftContext(template);
   const supabase = requireSupabase();
-  const storedTemplate = await externalizePipelineTemplateAssets(templateReviewPayload(template));
-  const { data: submissionId, error } = await supabase.rpc('cardforge_create_template_pipeline_draft', {
+  const source = templateReviewPayload(template);
+  const attempt = managedRasterSelection
+    ? await readManagedRasterAttempt(source, managedRasterSelection, contributorId, contributorEmail, submissionKey, 'draft', 0)
+    : null;
+  if (attempt?.submissionId) return loadTemplatePipelineResult(attempt.submissionId, 'draft');
+  const prepared = managedRasterSelection
+    ? await prepareManagedRasterTemplateRevision(source as TCGCardTemplate & { id: string }, managedRasterSelection)
+    : null;
+  const storedTemplate = await externalizePipelineTemplateAssets(prepared?.template ?? source);
+  const { data: submissionId, error } = await supabase.rpc(
+    prepared ? 'cardforge_author_template_managed_raster' : 'cardforge_create_template_pipeline_draft', {
+    ...(prepared ? { p_kind: 'draft', p_description: '' , p_expected_revision: 0, p_adoption: { ...prepared.adoption, requestFingerprint: attempt!.requestFingerprint } } : {}),
     p_asset_id: storedTemplate.id,
     p_name: storedTemplate.name,
     p_contributor_id: contributorId,
@@ -368,29 +408,42 @@ const writeTemplateRevision = async ({
   contributorEmail,
   expectedRevision,
   submissionKey,
+  managedRasterSelection,
 }: SubmitTemplateRevisionInput, publishDirectly: boolean): Promise<TemplateRevisionResult> => {
   const supabase = requireSupabase();
-  const storedTemplate = await externalizePipelineTemplateAssets(templateReviewPayload(template));
-  const { data: revisionId, error } = await supabase.rpc(
-    publishDirectly ? 'cardforge_publish_owner_template_revision' : 'cardforge_submit_template_revision',
-    {
-      p_asset_id: storedTemplate.id,
-      p_name: storedTemplate.name,
-      p_description: storedTemplate.templateDescription ?? 'Base card design revision submitted from CardForge Studio.',
-      p_contributor_id: contributorId,
-      p_contributor_email: contributorEmail ?? '',
-      p_template_payload: {
-        ...storedTemplate,
-        templateSource: 'default',
-        templateLibrarySource: 'pipeline',
-        templateRegistryStatus: publishDirectly ? 'published' : 'submitted',
+  const source = templateReviewPayload(template);
+  const attempt = managedRasterSelection
+    ? await readManagedRasterAttempt(source, managedRasterSelection, contributorId, contributorEmail, submissionKey, publishDirectly ? 'owner' : 'submit', expectedRevision)
+    : null;
+  let revisionId: unknown = attempt?.submissionId;
+  if (!revisionId) {
+    const prepared = managedRasterSelection
+      ? await prepareManagedRasterTemplateRevision(source as TCGCardTemplate & { id: string }, managedRasterSelection)
+      : null;
+    const storedTemplate = await externalizePipelineTemplateAssets(prepared?.template ?? source);
+    const { data: createdRevisionId, error } = await supabase.rpc(
+      prepared ? 'cardforge_author_template_managed_raster'
+        : publishDirectly ? 'cardforge_publish_owner_template_revision' : 'cardforge_submit_template_revision',
+      {
+        ...(prepared ? { p_kind: publishDirectly ? 'owner' : 'submit', p_adoption: { ...prepared.adoption, requestFingerprint: attempt!.requestFingerprint } } : {}),
+        p_asset_id: storedTemplate.id,
+        p_name: storedTemplate.name,
+        p_description: storedTemplate.templateDescription ?? 'Base card design revision submitted from CardForge Studio.',
+        p_contributor_id: contributorId,
+        p_contributor_email: contributorEmail ?? '',
+        p_template_payload: {
+          ...storedTemplate,
+          templateSource: 'default',
+          templateLibrarySource: 'pipeline',
+          templateRegistryStatus: publishDirectly ? 'published' : 'submitted',
+        },
+        p_expected_revision: expectedRevision,
+        p_submission_key: submissionKey,
       },
-      p_expected_revision: expectedRevision,
-      p_submission_key: submissionKey,
-    },
-  );
-  if (error || !revisionId) throwTemplateRevisionError(error?.message);
-
+    );
+    if (error || !createdRevisionId) throwTemplateRevisionError(error?.message);
+    revisionId = createdRevisionId;
+  }
   const { data: rows, error: loadError } = await supabase
     .from('cardforge_contributor_asset_submissions')
     .select('id,status,base_revision_number,revision_number,target_registry_asset_id')

@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 import { useUnifiedLibraryView } from '@/features/storage-management/hooks/useUnifiedLibraryView';
 import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
-import { projectPublishedLibraryObjects } from '@/features/storage-management/hooks/useLibrarySharedProjection';
+import { identityCatalog, identityProgram, identitySubmission, mixedAuthorRows } from '../fixtures/libraryTemplateIdentityData';
+import { projectPipelineLibraryObjects, projectPublishedLibraryObjects } from '@/features/storage-management/hooks/useLibrarySharedProjection';
 import { createLibraryDetailRecord, getPipelineRevisionLabel, getSharedLibraryActions } from '@/features/storage-management/components/LibraryObjectPresentation';
 
 const localSet: AccountLibraryItem = {
@@ -24,8 +25,8 @@ const localSet: AccountLibraryItem = {
 
 describe('unified Library view', () => {
   it('does not invent revision 1 for legacy rows and keeps their immutable ids distinguishable', () => {
-    expect(getPipelineRevisionLabel({ id: 'legacy-first-identity', revisionNumber: null })).toBe('Legacy revision · legacy-f');
-    expect(getPipelineRevisionLabel({ id: 'legacy-second-identity', revisionNumber: null })).toBe('Legacy revision · legacy-s');
+    expect(getPipelineRevisionLabel({ id: 'legacy-first-identity', revisionNumber: null })).toBe('Unnumbered submission · legacy-f');
+    expect(getPipelineRevisionLabel({ id: 'legacy-second-identity', revisionNumber: null })).toBe('Unnumbered submission · legacy-s');
     expect(getPipelineRevisionLabel({ id: 'known', revisionNumber: 3 })).toBe('Revision 3');
   });
 
@@ -162,5 +163,57 @@ describe('unified Library view', () => {
     expect(createLibraryDetailRecord(item).meta).toContainEqual(['Studio placement', 'Front foundations']);
     expect(createLibraryDetailRecord(item).meta).toContainEqual(['Design access', 'Available through contextual Design pickers']);
     expect(getSharedLibraryActions(item)).toEqual([]);
+  });
+});
+
+
+describe('displayed revision attribution versus lineage participation', () => {
+  it.each(['A', 'B', 'C'])('keeps author A on displayed revision 1 for viewer %s', viewer => {
+    const pipelineItems = projectPipelineLibraryObjects(identityProgram(mixedAuthorRows(), viewer), identityCatalog());
+    let result: ReturnType<typeof useUnifiedLibraryView>;
+    function Harness() {
+      result = useUnifiedLibraryView({ activeScope: 'pipeline', pipelineAccess: true, sharedType: 'all',
+        projection: { items: [], visibleItems: [], query: '', sort: 'name', failures: [], isLoading: false } as never,
+        shared: { pipelineItems, publishedItems: [] } as never }); return null;
+    }
+    renderToStaticMarkup(createElement(Harness));
+    const item = result!.viewItems[0];
+    expect(item.sourceLabel).toBe(viewer === 'A' ? 'Your revision' : 'Author A');
+    expect(createLibraryDetailRecord(item).meta).toContainEqual(['Lineage participation', viewer === 'C' ? 'Shared Pipeline' : 'You contributed to this lineage']);
+    expect(pipelineItems[0].ownership).toBe(viewer === 'C' ? 'other' : 'mine');
+    expect(pipelineItems[0].editableSubmission?.id ?? null).toBe(viewer === 'B' ? 'candidate-B' : null);
+    expect(pipelineItems[0].retirableSubmission?.id ?? null).toBe(viewer === 'A' ? 'A2' : null);
+  });
+});
+
+
+describe('Library revision pages', () => {
+  it('keeps both revisions from one lineage and every server page row without local re-filtering', () => {
+    const rows = Array.from({ length: 15 }, (_, index) => identitySubmission(`row-${index}`, {
+      lineageId: index < 2 ? 'same-lineage' : `lineage-${index}`,
+      targetRegistryAssetId: index < 2 ? 'same-asset' : `asset-${index}`,
+      status: index === 0 ? 'published' : 'publish_candidate', revisionNumber: index === 0 ? 2 : 3,
+    }));
+    expect(projectPipelineLibraryObjects(identityProgram(rows), null)).toHaveLength(14);
+    const seen: string[] = [];
+    for (const pageRows of [rows.slice(0, 12), rows.slice(12)]) {
+      const items = pageRows.flatMap(row => projectPipelineLibraryObjects(identityProgram([row]), null));
+      const capture: { current?: ReturnType<typeof useUnifiedLibraryView> } = {};
+      function Harness() {
+        capture.current = useUnifiedLibraryView({
+          activeScope: 'pipeline', pipelineAccess: true,
+          projection: { visibleItems: [], items: [], query: 'registry-only-search', sort: 'name' } as never,
+          shared: { publishedItems: [], pipelineItems: [], program: identityProgram(rows) } as never,
+          sharedType: 'unrelated-lineage-filter', revisionPage: { items, total: 15, loading: false, failure: null },
+        });
+        return null;
+      }
+      renderToStaticMarkup(createElement(Harness));
+      expect(capture.current!.viewItems).toHaveLength(pageRows.length);
+      expect(capture.current!.unfilteredScopeItemCount).toBe(15);
+      seen.push(...capture.current!.viewItems.map(item => item.id));
+    }
+    expect(new Set(seen).size).toBe(15);
+    expect(seen.slice(0, 2)).toEqual(['pipeline:submission:row-0', 'pipeline:submission:row-1']);
   });
 });

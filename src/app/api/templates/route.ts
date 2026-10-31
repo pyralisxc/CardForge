@@ -1,4 +1,5 @@
 import type { TCGCardTemplate } from '@/domain/templates';
+import { z } from 'zod';
 import { getCurrentCardforgeEntitlement } from '@/features/account/server';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
@@ -58,6 +59,17 @@ export async function POST(request: Request) {
     }
 
     const template = validation.data as TCGCardTemplate;
+    const selected = (parsedBody.data as Record<string,unknown>).managedRasterSelection;
+    const selection = selected === undefined ? undefined : z.object({
+      registryAssetId: z.string().min(1).max(200),
+      publishedSubmissionId: z.string().uuid(),
+      elementId: z.string().min(1).max(200),
+    }).strict().safeParse(selected);
+    if (selection && !selection.success) {
+      return createApiErrorResponse(400, 'invalid_template_payload', 'Choose an exact published managed raster and image slot.');
+    }
+    // Provenance travels as an explicit action input, never in an authored Template.
+    delete (template as TCGCardTemplate & { managedRasterSelection?: unknown }).managedRasterSelection;
     if (template.templatePipelineContext) {
       return createApiErrorResponse(409, 'template_library_unavailable', 'This saved review draft has a separate exact-revision approval and publication workflow. Submit it for review; browser Save never publishes it.');
     }
@@ -82,6 +94,7 @@ export async function POST(request: Request) {
         ? Number(template.templateRevision)
         : 0,
       submissionKey,
+      managedRasterSelection: selection ? selection.data : undefined,
     };
     const revision = access.isOwner
       ? await publishOwnerTemplateRevision(revisionInput)

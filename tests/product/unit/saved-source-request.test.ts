@@ -1,0 +1,15 @@
+import { beforeEach, expect, it, vi } from 'vitest';
+vi.mock('server-only',()=>({}));
+const mocks=vi.hoisted(()=>({account:vi.fn(),browser:vi.fn(),source:vi.fn(),token:vi.fn()}));
+vi.mock('@/features/account/server',()=>({getAccountToolAccessForUserId:mocks.account,getCurrentAccountToolAccess:mocks.browser,AccountToolAccessError:class extends Error{constructor(m:string,public status:number){super(m);}}}));
+vi.mock('@/features/studio-documents/server/savedSourcePreview',()=>({readSavedSourcePreview:mocks.source}));
+vi.mock('@/features/studio-documents/server/studioDocumentPreviewToken',()=>({readSavedSourcePreviewToken:mocks.token}));
+import {readSourcePreviewRequest} from '@/features/studio-documents/server/sourcePreviewRequest';
+const input={source:{kind:'pipeline',assetId:'asset',submissionId:'11111111-1111-4111-8111-111111111111',lineageId:'22222222-2222-4222-8222-222222222222',selection:'current'},sourceVersion:'a'.repeat(64),operation:'preview'};
+const account={user:{id:'actor'},entitlement:{accessMode:'paid',capabilities:{canExportClean:true}}};
+beforeEach(()=>{vi.clearAllMocks();mocks.account.mockResolvedValue(account);mocks.browser.mockResolvedValue(account);mocks.source.mockResolvedValue({sourceVersion:input.sourceVersion});mocks.token.mockReturnValue({ownerUserId:'actor',request:input});});
+it('keeps signed shared chat branded even for entitled accounts',async()=>expect((await readSourcePreviewRequest(new Request('https://test/api?token=signed'))).branded).toBe(true));
+it('keeps private signed-in browser preview current-viewer based',async()=>{expect((await readSourcePreviewRequest(new Request(`https://test/api?request=${encodeURIComponent(JSON.stringify(input))}`))).branded).toBe(false);expect(mocks.browser).toHaveBeenCalled();});
+it('rejects expired or forged source tokens without reading any source',async()=>{mocks.token.mockReturnValue(null);await expect(readSourcePreviewRequest(new Request('https://test/api?token=forged'))).rejects.toMatchObject({status:404});expect(mocks.source).not.toHaveBeenCalled();});
+it('denies a previously permitted clean export after entitlement expiry',async()=>{mocks.token.mockReturnValue({ownerUserId:'actor',request:{...input,operation:'clean-export'}});mocks.account.mockResolvedValue({...account,entitlement:{accessMode:'free',capabilities:{canExportClean:false}}});await expect(readSourcePreviewRequest(new Request('https://test/api?token=signed'))).rejects.toMatchObject({status:403});expect(mocks.source).not.toHaveBeenCalled();});
+it('does not silently follow a changed source',async()=>{mocks.source.mockResolvedValue({sourceVersion:'b'.repeat(64)});await expect(readSourcePreviewRequest(new Request('https://test/api?token=signed'))).rejects.toMatchObject({status:409});});

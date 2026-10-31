@@ -1,5 +1,9 @@
 "use client";
 
+import type { TemplateSaveReceipt } from '../lib/templateSaveReceipt';
+import { retainTemplatePipelineAttempt, resolveTemplatePipelineAttempt } from '../lib/templatePipelineAttempts';
+import type { ManagedRasterSelection } from '@/features/pipeline/client';
+
 import { useCallback, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 
@@ -48,7 +52,7 @@ interface PendingTemplateSaveInternal {
   scopeIds: string[];
   face: CardFace;
   setId: string | null;
-  resolve: (id: string) => void;
+  resolve: (receipt: TemplateSaveReceipt) => void;
   reject: (error: Error) => void;
 }
 
@@ -77,7 +81,7 @@ const mutateShippedLibrary = async (path: '/api/styles' | '/api/templates' | '/a
   return await response.json() as Record<string, unknown>;
 };
 
-const createSharedLineageDraft = (template: TCGCardTemplate, source: TCGCardTemplate, createId: () => string): TCGCardTemplate => reconstructMinimalTemplateObject({
+export const createSharedLineageDraft = (template: TCGCardTemplate, source: TCGCardTemplate, createId: () => string): TCGCardTemplate => reconstructMinimalTemplateObject({
   ...template,
   id: source.id,
   templateSource: 'user',
@@ -199,7 +203,8 @@ export function useTemplateLibraryActions({
     });
     setTemplateEditorSelectedTemplateId(savedTemplateId);
     if (templateToSave.templateUsage !== 'back-preset') setGeneratorSelectedTemplateId(savedTemplateId);
-    const templateForFile = selectAllTemplates(useProjectStore.getState()).find((candidate) => candidate.id === savedTemplateId);
+    const committed = selectAllTemplates(useProjectStore.getState()).find((candidate) => candidate.id === savedTemplateId);
+    const templateForFile = committed ? reconstructMinimalTemplateObject(committed) : null;
     if (templateForFile?.templateSource === 'user') {
       try {
         const syncResult = await syncAgentTemplateSave(templateForFile);
@@ -210,10 +215,10 @@ export function useTemplateLibraryActions({
         toast({ title: 'Template saved locally; ChatGPT sync failed', description: error instanceof Error ? `${error.message} Your browser copy is safe.` : 'Your browser copy is safe, but CardForge could not update its linked ChatGPT working draft.', variant: 'destructive' });
       }
     }
-    return savedTemplateId;
+    return { id: savedTemplateId, template: templateForFile };
   }, [commitTemplateChange, projectCapabilities.canSubmitTemplateRevisions, setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, toast]);
 
-  const handleSaveTemplate = useCallback(async (template: TCGCardTemplate): Promise<string> => {
+  const handleSaveTemplate = useCallback(async (template: TCGCardTemplate): Promise<TemplateSaveReceipt> => {
     const source = templates.find((candidate) => candidate.id === template.id) ?? null;
     const impact = buildTemplateSaveImpact({ previous: source, next: template, cards: storedCards });
     const face: CardFace = designScope?.face ?? (template.templateUsage === 'back-preset' ? 'back' : 'front');
@@ -232,7 +237,7 @@ export function useTemplateLibraryActions({
       const decision = canSaveShared ? 'shared' : 'fork';
       return await commitSave(pending, decision);
     }
-    return await new Promise<string>((resolve, reject) => {
+    return await new Promise<TemplateSaveReceipt>((resolve, reject) => {
       pendingSaveRef.current = { ...pending, resolve, reject };
       setPendingTemplateSaveImpact({
         templateName: template.name || source?.name || 'Template',
@@ -272,16 +277,17 @@ export function useTemplateLibraryActions({
     setPendingTemplateSaveImpact((current) => current ? { ...current, variantName } : current);
   }, []);
 
-  const handleSubmitTemplateRevision = useCallback(async (template: TCGCardTemplate) => {
+  const handleSubmitTemplateRevision = useCallback(async (template: TCGCardTemplate, managedRasterSelection?: ManagedRasterSelection) => {
     if (!projectCapabilities.canSubmitTemplateRevisions) throw new Error('Template revision submission is not available for this account.');
     const current = selectAllTemplates(useProjectStore.getState()).find((candidate) => candidate.id === template.id) ?? template;
     if (!current.id) throw new Error('Save this Template before submitting a revision.');
     const payload = { ...current, templateSource: 'default' as const, templateLibrarySource: 'pipeline' as const, templateRegistryStatus: 'draft' as const };
-    const fingerprint = JSON.stringify(payload);
+    const request = managedRasterSelection ? { ...payload, managedRasterSelection } : payload;
+    const fingerprint = JSON.stringify(request);
     const previousKey = pendingRevisionKeysRef.current.get(current.id);
     const submissionKey = previousKey?.fingerprint === fingerprint ? previousKey.key : nanoid(32);
     pendingRevisionKeysRef.current.set(current.id, { fingerprint, key: submissionKey });
-    const result = await mutateShippedLibrary('/api/templates', 'POST', payload, 'Unable to submit the Template revision.', { 'Idempotency-Key': submissionKey });
+    const result = await mutateShippedLibrary('/api/templates', 'POST', request, 'Unable to submit the Template revision.', { 'Idempotency-Key': submissionKey });
     const revision = result.revision && typeof result.revision === 'object' ? result.revision as { id?: string; revisionNumber?: number } : null;
     if (projectCapabilities.canPublishSharedLibrary && typeof revision?.revisionNumber === 'number') {
       addOrUpdateTemplate({
@@ -352,13 +358,20 @@ export function useTemplateLibraryActions({
     toast({ title: 'Template review receipt', description: `Revision ${receipt.revisionNumber} · ${receipt.status} · editorial ${receipt.editorialReviewStatus}. The live Template and your browser draft are unchanged.` });
   }, [addOrUpdateTemplate, projectCapabilities.canPublishSharedLibrary, toast]);
 
-  const handleContinueNewTemplateInPipeline = useCallback(async (template: TCGCardTemplate): Promise<string> => {
+  const handleContinueNewTemplateInPipeline = useCallback(async (template: TCGCardTemplate, managedRasterSelection?: ManagedRasterSelection): Promise<string> => {
     if (!projectCapabilities.canSubmitTemplateRevisions || template.templateSource === 'default') throw new Error('Only a contributor or owner can continue a new personal Template in the Pipeline.');
-    const fingerprint = JSON.stringify(template);
+    if (managedRasterSelection) {
+      const attempt = await retainTemplatePipelineAttempt(template, managedRasterSelection);
+      const destination = await resolveTemplatePipelineAttempt(attempt, true);
+      if (!destination) throw new Error('The outcome remains uncertain. Check the saved attempt.');
+      return destination;
+    }
+    const request = template;
+    const fingerprint = JSON.stringify(request);
     const pending = pendingNewTemplateKeysRef.current.get(template.id!);
     const submissionKey = pending?.fingerprint === fingerprint ? pending.key : nanoid(32);
     pendingNewTemplateKeysRef.current.set(template.id!, { fingerprint, key: submissionKey });
-    const result = await mutateShippedLibrary('/api/templates/submissions', 'POST', template, 'Unable to create the Template Pipeline draft.', { 'Idempotency-Key': submissionKey });
+    const result = await mutateShippedLibrary('/api/templates/submissions', 'POST', request, 'Unable to create the Template Pipeline draft.', { 'Idempotency-Key': submissionKey });
     const openInPipelineUrl = typeof result.openInPipelineUrl === 'string' ? result.openInPipelineUrl : null;
     if (!openInPipelineUrl?.startsWith('/account?section=library&scope=pipeline')) throw new Error('The Pipeline draft was created, but its secure handoff link was unavailable.');
     return openInPipelineUrl;

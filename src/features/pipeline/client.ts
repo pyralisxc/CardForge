@@ -16,3 +16,16 @@ export { loadCardForgeStudioBootstrap } from './client/catalog';
 export { loadOwnPublishedPipelineSubmissions } from './client/ownPublished';
 export { OwnPublishedDeskWorkspace } from './components/OwnPublishedDeskWorkspace';
 export { templateReviewBaseSchema, templateReviewReceiptSchema, templateReviewPayload, templateReviewRequestText } from './lib/templateReview';
+
+export type { ExactCandidateSpecimen } from './lib/exactCandidateReview';
+
+export { createPipelineReviewTarget, resolvePipelineReviewTarget, readReviewPublication, type PipelineReviewTarget } from './lib/pipelineReviewTarget';
+
+export { DEFAULT_PIPELINE_PROGRAM_SETTINGS, PIPELINE_STATUSES, PIPELINE_TYPES } from './lib/pipelineItems';
+
+export { canUseDefaultAsFixedPicture, managedRasterSlotIssue, type ManagedRasterSelection } from './lib/managedRasterSelection';
+
+export { PipelineRecipePreview } from './components/PipelineSubmissionRows';
+
+export { MediaPresentationPreview } from './components/MediaPresentationRevision';
+export type { PipelineMediaPresentation } from './lib/pipelineMediaPresentation';
