@@ -46,7 +46,10 @@ import { createTemplateEditorActions } from '@/features/template-editor/lib/temp
 
 import { TemplatePipelineAttemptRecovery } from './TemplatePipelineAttemptRecovery';
 
+import { PipelineSourceFeedback, PublishedSourceFeedback, type PipelineDesignSource } from '@/features/pipeline/client/engagement';
+
 interface CardTemplateMakerProps {
+  pipelineDesignSource?: PipelineDesignSource | null;
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
   onSaveTemplate: (template: TCGCardTemplate) => Promise<TemplateSaveReceipt>;
@@ -82,6 +85,7 @@ interface CardTemplateMakerProps {
 }
 
 export function CardTemplateMaker({
+  pipelineDesignSource,
   canUseProjectFiles,
   showCardWatermark,
   onSaveTemplate,
@@ -345,6 +349,7 @@ export function CardTemplateMaker({
     <TooltipProvider>
       <div className={cn('cardforge-maker-shell min-h-0 overflow-hidden rounded-[10px] border', makerTheme.shell)} data-mobile-panel={mobilePanel}>
         {fontFailure ? <div role="alert" className="border-b border-amber-500/40 p-2 text-sm">{fontFailure} <button type="button" className="underline" onClick={retryFonts}>Retry fonts</button></div> : null}
+        {pipelineDesignSource?.localTemplateId === currentTemplate.id ? <PipelineSourceFeedback key={pipelineDesignSource.submissionId} submissionId={pipelineDesignSource.submissionId} /> : isSharedTemplate && currentTemplate.id ? <PublishedSourceFeedback key={currentTemplate.id} registryAssetId={currentTemplate.id} template={currentTemplate} /> : null}
         <TemplateEditorTopBar actions={editorActions} isDirty={isDirty} toolButtonClassName={makerTheme.toolButton} activeButtonClassName={makerTheme.activeButton} />
         {isSharedTemplate || isSharedLineageDraft ? (
           <div className="cardforge-template-status flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">

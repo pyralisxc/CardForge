@@ -1,5 +1,6 @@
 "use client";
 
+import type { PipelineDesignSource } from '@/features/pipeline/client/engagement';
 import type { Dispatch, SetStateAction } from 'react';
 
 import { useToast } from '@/components/ui/use-toast';
@@ -53,6 +54,7 @@ interface UseAccountLibraryActionsOptions {
   openReview: (item: LibraryViewItem) => void;
   closeContextualTool: () => void;
   openTool: (toolId: LibraryToolId, targetIds?: readonly string[]) => void;
+  setDesignSource?: (source: PipelineDesignSource | null) => void;
   setDesignReturnFocusId: Dispatch<SetStateAction<string | null>>;
   setEditingSubmission: Dispatch<SetStateAction<PipelineSubmission | null>>;
   setLocationItem: Dispatch<SetStateAction<AccountLibraryItem | null>>;
@@ -76,6 +78,7 @@ export function useAccountLibraryActions({
   openReview,
   closeContextualTool,
   openTool,
+  setDesignSource,
   setDesignReturnFocusId,
   setEditingSubmission,
   setLocationItem,
@@ -101,7 +104,8 @@ export function useAccountLibraryActions({
     })] : []),
   ];
 
-  const openDesignTool = (templateId: string, focusReturnId: string) => {
+  const openDesignTool = (templateId: string, focusReturnId: string, submissionId?: string) => {
+    setDesignSource?.(submissionId ? { localTemplateId: templateId, submissionId } : null);
     openTemplateDesign(templateId);
     setDesignReturnFocusId(focusReturnId);
     openTool('design', [templateId]);
@@ -264,7 +268,7 @@ export function useAccountLibraryActions({
         const templateId = installTemplate({ ...item.pipeline.template, id: null }, 'user');
         if (!templateId) throw new Error('CardForge could not prepare this exact revision for Design.');
         toast({ title: 'Exact Pipeline revision prepared', description: `${item.name} is open as a local test copy. The shared revision is unchanged.` });
-        return { kind: 'navigation', href: openDesignTool(templateId, `library-object-${item.id}`), changedIds: [templateId] };
+        return { kind: 'navigation', href: openDesignTool(templateId, `library-object-${item.id}`, item.pipeline.submission.id), changedIds: [templateId] };
       },
       withdrawPipeline: async () => {
         const item = requirePipeline();
