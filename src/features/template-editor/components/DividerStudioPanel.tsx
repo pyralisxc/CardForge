@@ -133,7 +133,7 @@ export function DividerStudioPanel({
             </Select>
           </div>
           {selectedAppearance?.assetRenderMode === 'tint' ? (
-            <div><Label htmlFor="divider-vector-tint" className="text-xs">Tint</Label><ColorField id="divider-vector-tint" value={selectedAppearance.assetTintColor || '#ffffff'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, assetTintColor: value }), false)} /></div>
+            <div><Label htmlFor="divider-vector-tint" className="text-xs">Tint</Label><ColorField key={element.id} id="divider-vector-tint" value={selectedAppearance.assetTintColor || '#ffffff'} onChange={(value, trackHistory) => onUpdateAppearance((appearance) => ({ ...appearance, assetTintColor: value }), trackHistory)} /></div>
           ) : null}
         </div>
       ) : null}

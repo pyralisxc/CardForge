@@ -158,7 +158,7 @@ export function IconInspectorPanel({
             </Select>
           </div>
           {element.iconRenderMode === 'tint' ? (
-            <div><Label htmlFor="element-icon-vector-tint" className="text-xs">Tint</Label><ColorField id="element-icon-vector-tint" value={element.fillColor || '#ffffff'} onChange={(value) => onUpdateElement({ fillColor: value }, false)} /></div>
+            <div><Label htmlFor="element-icon-vector-tint" className="text-xs">Tint</Label><ColorField key={element.id} id="element-icon-vector-tint" value={element.fillColor || '#ffffff'} onChange={(value, trackHistory) => onUpdateElement({ fillColor: value }, trackHistory)} /></div>
           ) : null}
         </div>
       ) : null}
@@ -166,11 +166,11 @@ export function IconInspectorPanel({
         <div className="grid grid-cols-2 gap-2">
           <div>
             <Label htmlFor="element-icon-stroke" className="text-xs">Glyph Stroke</Label>
-            <ColorField id="element-icon-stroke" value={element.strokeColor || element.textColor || '#fbbf24'} onChange={(value) => onUpdateElement({ strokeColor: value, textColor: value }, false)} />
+            <ColorField key={element.id} id="element-icon-stroke" value={element.strokeColor || element.textColor || '#fbbf24'} onChange={(value, trackHistory) => onUpdateElement({ strokeColor: value, textColor: value }, trackHistory)} />
           </div>
           <div>
             <Label htmlFor="element-icon-fill" className="text-xs">Glyph Fill</Label>
-            <ColorField id="element-icon-fill" value={element.fillColor || '#ffffff'} onChange={(value) => onUpdateElement({ fillColor: value }, false)} />
+            <ColorField key={element.id} id="element-icon-fill" value={element.fillColor || '#ffffff'} onChange={(value, trackHistory) => onUpdateElement({ fillColor: value }, trackHistory)} />
           </div>
           <div>
             <Label htmlFor="element-icon-stroke-width" className="text-xs">Line Weight</Label>

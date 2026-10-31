@@ -38,7 +38,8 @@ interface AppearanceStudioPanelProps {
   onHandleAssetUpload: (event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider') => void;
   onSaveStyle?: () => void;
   onApplyAppearancePreset: (style: AppearanceStylePreset) => void;
-  onUpdateAppearance: (updater: (appearance: FreeformAppearance) => FreeformAppearance, trackHistory?: boolean) => void;
+  onUpdateAppearance: (updater: (appearance: FreeformAppearance) => FreeformAppearance, trackHistory?: boolean, historyGroup?: string) => void;
+  onFinishHistoryGroup?: () => void;
   personalItems: readonly PersonalLibraryItem[];
   onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
   onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
@@ -60,13 +61,14 @@ export function AppearanceStudioPanel({
   onSaveStyle,
   onApplyAppearancePreset,
   onUpdateAppearance,
+  onFinishHistoryGroup,
   personalItems,
   onAddFromProvider,
   onMaterializePersonal,
 }: AppearanceStudioPanelProps) {
   const textureAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
-  const textureGestureElementRef = useRef<string | null>(null);
-  const finishTextureGesture = () => { textureGestureElementRef.current = null; };
+  const appearanceGestureRef = useRef<string | null>(null);
+  const finishAppearanceGesture = () => { appearanceGestureRef.current = null; };
   const [styleSearch, setStyleSearch] = useState('');
   const [showAllStyles, setShowAllStyles] = useState(false);
   const normalizedStyleSearch = styleSearch.trim().toLowerCase();
@@ -89,13 +91,17 @@ export function AppearanceStudioPanel({
   const hiddenStyleCount = filteredLocalFills.length + filteredReviewedStyles.length - visibleLocalFills.length - visibleReviewedStyles.length;
 
   const textureStrength = selectedAppearance?.material?.texture?.intensity ?? (selectedAppearance?.material?.texture?.assetSource || selectedAppearance?.material?.texture?.imageSource ? 100 : 0);
-  const updateTextureStrength = (value: number) => {
-    // A pointer gesture records its first change, including drags with pauses.
-    // Native keyboard steps commit independently; no timer or blur is required.
-    const trackHistory = textureGestureElementRef.current !== element.id;
-    textureGestureElementRef.current = element.id;
-    onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, texture: { ...(appearance.material?.texture || { kind: 'grain' }), intensity: value } } }), trackHistory);
+  const updateAppearanceGesture = (property: string, updater: (appearance: FreeformAppearance) => FreeformAppearance) => {
+    // Record the first actual delta, independent of a drag's duration. Each new
+    // pointer/keyboard input boundary starts its own native history checkpoint.
+    const key = `${element.id}:${property}`;
+    const trackHistory = appearanceGestureRef.current !== key;
+    appearanceGestureRef.current = key;
+    onUpdateAppearance(updater, trackHistory);
   };
+  const updateTextureStrength = (value: number) => updateAppearanceGesture('texture', (appearance) => ({
+    ...appearance, material: { ...appearance.material, texture: { ...(appearance.material?.texture || { kind: 'grain' }), intensity: value } },
+  }));
 
   const applyTexture = (asset: CardAssetOption) => onUpdateAppearance((appearance) => ({
     ...appearance,
@@ -230,18 +236,18 @@ export function AppearanceStudioPanel({
       <div className="grid grid-cols-3 gap-2">
         <div>
           <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Fill</Label>
-          <ColorField value={selectedAppearance?.material?.baseColor || 'var(--cf-editor-control)'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, baseColor: value } }), false)} />
+          <ColorField key={`fill:${element.id}`} value={selectedAppearance?.material?.baseColor || 'var(--cf-editor-control)'} onChange={(value, trackHistory) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, baseColor: value } }), trackHistory)} />
         </div>
         {!canUseDividerControls && element.type !== 'image' && (
           <div>
             <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">{element.type === 'icon' ? 'Glyph' : 'Text'}</Label>
-            <ColorField value={selectedAppearance?.material?.textColor || element.textColor || 'var(--cf-accent-text)'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, textColor: value, strokeColor: element.type === 'icon' ? value : appearance.material?.strokeColor } }), false)} />
+            <ColorField key={`text:${element.id}`} value={selectedAppearance?.material?.textColor || element.textColor || 'var(--cf-accent-text)'} onChange={(value, trackHistory) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, textColor: value, strokeColor: element.type === 'icon' ? value : appearance.material?.strokeColor } }), trackHistory)} />
           </div>
         )}
         {canUseDividerControls && (
           <div>
             <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Tint</Label>
-            <ColorField value={selectedAppearance?.border?.color || element.borderColor || '#d5ad54'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, border: { ...appearance.border, kind: appearance.border?.kind || 'solid', color: value } }), false)} />
+            <ColorField key={`tint:${element.id}`} value={selectedAppearance?.border?.color || element.borderColor || '#d5ad54'} onChange={(value, trackHistory) => onUpdateAppearance((appearance) => ({ ...appearance, border: { ...appearance.border, kind: appearance.border?.kind || 'solid', color: value } }), trackHistory)} />
           </div>
         )}
       </div>
@@ -270,7 +276,7 @@ export function AppearanceStudioPanel({
           </div>
           <div>
             <Label htmlFor="appearance-gradient-angle" className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Angle</Label>
-            <Input id="appearance-gradient-angle" className={controlClassName} type="number" value={selectedAppearance?.material?.gradient?.angle ?? 135} onChange={(event) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, gradient: { ...(appearance.material?.gradient || { type: 'linear', stops: [] }), angle: Number(event.target.value) } } }), false)} />
+            <Input id="appearance-gradient-angle" className={controlClassName} type="number" value={selectedAppearance?.material?.gradient?.angle ?? 135} onChange={(event) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, gradient: { ...(appearance.material?.gradient || { type: 'linear', stops: [] }), angle: Number(event.target.value) } } }), true, `gradient-angle:${element.id}`)} onBlur={onFinishHistoryGroup} />
           </div>
         </div>
       )}
@@ -329,18 +335,23 @@ export function AppearanceStudioPanel({
             <div className="mb-1 flex items-center justify-between text-[10px] text-[#8f95a3]"><span>Fill texture</span><span>{textureStrength}%</span></div>
             <Slider aria-label="Fill texture strength" value={[textureStrength]} min={0} max={100} step={1}
               onValueChange={(value) => updateTextureStrength(value[0])}
-              onPointerDownCapture={finishTextureGesture}
-              onKeyDownCapture={finishTextureGesture}
-              onKeyUpCapture={finishTextureGesture}
-              onValueCommit={finishTextureGesture}
-              onPointerCancelCapture={finishTextureGesture}
-              onBlur={finishTextureGesture}
+              onPointerDownCapture={finishAppearanceGesture}
+              onKeyDownCapture={finishAppearanceGesture}
+              onKeyUpCapture={finishAppearanceGesture}
+              onValueCommit={finishAppearanceGesture}
+              onPointerCancelCapture={finishAppearanceGesture}
+              onBlur={finishAppearanceGesture}
             />
           </div>
         )}
         <div>
           <div className="mb-1 flex items-center justify-between text-[10px] text-[#8f95a3]"><span>Glow</span><span>{selectedAppearance?.effects?.glow ?? 0}</span></div>
-          <Slider value={[selectedAppearance?.effects?.glow ?? 0]} min={0} max={60} step={1} onValueChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, effects: { ...appearance.effects, glow: value[0] } }), false)} />
+          <Slider aria-label="Glow strength" value={[selectedAppearance?.effects?.glow ?? 0]} min={0} max={60} step={1}
+            onValueChange={(value) => updateAppearanceGesture('glow', (appearance) => ({ ...appearance, effects: { ...appearance.effects, glow: value[0] } }))}
+            onPointerDownCapture={finishAppearanceGesture} onPointerCancelCapture={finishAppearanceGesture}
+            onKeyDownCapture={finishAppearanceGesture} onKeyUpCapture={finishAppearanceGesture}
+            onValueCommit={finishAppearanceGesture} onBlur={finishAppearanceGesture}
+          />
         </div>
       </div>
     </div>

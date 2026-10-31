@@ -241,7 +241,8 @@ export function TemplateEditorInspectorSidebar({
               onHandleAssetUpload={elements.handleAssetUpload}
               onSaveStyle={elements.saveSelectedAppearanceStyle}
               onApplyAppearancePreset={elements.applyAppearancePreset}
-              onUpdateAppearance={(updater, trackHistory) => elements.updateElementAppearance(selectedElement.id, updater, trackHistory)}
+              onUpdateAppearance={(updater, trackHistory, group) => elements.updateElementAppearance(selectedElement.id, updater, trackHistory, group)}
+              onFinishHistoryGroup={controller.finishHistoryGroup}
               personalItems={elements.connectedLibraryItems}
               onAddFromProvider={elements.addConnectedLibraryItems}
               onMaterializePersonal={elements.importConnectedLibraryItem}
