@@ -6,6 +6,10 @@ const fixture = buildSync({ entryPoints: ['tests/product/fixtures/revisionRecove
   platform: 'browser', format: 'iife', write: false, outfile: join(tmpdir(), 'cardforge-revision-recovery-proof.js'),
   define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
 });
+const ownerFixture = buildSync({ entryPoints: ['tests/product/fixtures/ownerRevisionRecovery.tsx'], bundle: true,
+  platform: 'browser', format: 'iife', write: false, outfile: join(tmpdir(), 'cardforge-owner-revision-recovery-proof.js'),
+  define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
+});
 const first = '00000000-0000-4000-8000-000000000001';
 const second = '00000000-0000-4000-8000-000000000002';
 const snapshot = (submissionId: string, trashed = true) => ({ name: submissionId === first ? 'First exact revision' : 'Second exact revision',
@@ -13,7 +17,7 @@ const snapshot = (submissionId: string, trashed = true) => ({ name: submissionId
     registrySubmissionId: null, revisionHighWater: 2, recoveryVersion: trashed ? '2' : '3', status: 'archived', updatedAt: '2026-10-31T18:00:00Z',
     trashedAt: trashed ? '2026-10-31T18:00:00Z' : null, purgeAfter: trashed ? '2026-11-30T18:00:00Z' : null, held: false },
   retentionDays: 30, trashActor: trashed ? 'contributor' : null, trashReasons: trashed ? ['revision_already_trashed'] : [],
-  restoreReasons: trashed ? [] : ['revision_not_trashed'], canHold: false, publicationRetained: true,
+  restoreReasons: trashed ? [] : ['revision_not_trashed'], canHold: false, publicationRetained: true, sourceUncertainty: 'legacy_destructive_history_unverified',
 });
 async function mount(page: import('@playwright/test').Page) {
   await page.route('**/__revision-recovery-proof', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:system-ui;padding:16px}button{margin:8px;padding:8px}p{overflow-wrap:anywhere}</style><body></body>' }));
@@ -37,6 +41,7 @@ test('@golden revision recovery fences pending reads across exact target and acc
   await expect(page.getByRole('status')).toHaveCount(0);
   await page.getByRole('button', { name: 'Inspect revision recovery' }).click();
   await expect(page.getByRole('button', { name: 'Restore revision to history' })).toBeEnabled();
+  await expect(page.getByText('Recovering this record does not prove its source bytes are present.', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Switch account' }).click();
   await expect(page.getByRole('status')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Restore revision to history' })).toHaveCount(0);
@@ -69,4 +74,33 @@ test('@golden revision recovery requires a new read after uncertainty and ignore
   await expect(page.getByRole('button', { name: 'Move revision to Trash' })).toHaveCount(0);
   await expect(page.getByText('Refreshes: 0', { exact: true })).toBeVisible();
   expect(posts).toBe(2);
+});
+
+test('@golden Owner recovery refreshes native outer revision and deletion affordances', async ({ page }) => {
+  let state = { ...snapshot(first, false).state, status: 'voting' };
+  await page.route('**/api/**', async route => {
+    if (!route.request().url().endsWith('/lifecycle')) return route.abort();
+    if (route.request().method() === 'POST') {
+      const input = route.request().postDataJSON();
+      expect(input.expected).toEqual(state);
+      state = { ...state, status: 'archived', recoveryVersion: String(Number(state.recoveryVersion) + 1),
+        trashedAt: input.action === 'trash' ? '2026-10-31T18:00:00Z' : null,
+        purgeAfter: input.action === 'trash' ? '2026-11-30T18:00:00Z' : null };
+    }
+    return route.fulfill({ json: { ...snapshot(first), name: 'Owner recovery projection', state,
+      publicationRetained: false, trashActor: state.trashedAt ? 'owner' : null,
+      trashReasons: state.trashedAt ? ['revision_already_trashed'] : [], restoreReasons: state.trashedAt ? [] : ['revision_not_trashed'] } });
+  });
+  await page.route('**/__revision-recovery-proof', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' }));
+  await page.goto('/__revision-recovery-proof');
+  for (const file of ownerFixture.outputFiles.filter(file => file.path.endsWith('.css'))) await page.addStyleTag({ content: file.text });
+  await page.addScriptTag({ content: ownerFixture.outputFiles.find(file => file.path.endsWith('.js'))!.text });
+  await page.getByRole('button', { name: 'Manage', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Delete now (one revision)' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Inspect revision recovery' }).click();
+  page.on('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Move revision to Trash' }).click();
+  await expect(page.getByRole('button', { name: 'Delete now (one revision)' })).toBeVisible();
+  await page.getByRole('button', { name: 'Restore revision to history' }).click();
+  await expect(page.getByRole('button', { name: 'Delete now (one revision)' })).toHaveCount(0);
 });

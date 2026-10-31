@@ -13,6 +13,7 @@ const rowSchema = z.object({
   source_storage_path: z.string().nullable(), source_storage_bucket: z.string().nullable(),
   trashed_at: z.string().nullable(), published_at: z.string().nullable(), retention_hold: z.boolean(),
   purge_state: z.string().nullable(), purge_claim_token: z.string().nullable(), purge_claimed_at: z.string().nullable(), owner_purge_requested_at: z.string().nullable(),
+  contributor_lifecycle_state: z.string().nullable(), revision_publication_retained: z.boolean(),
 });
 async function owner(actorUserId: string) {
   const access = await getAccountToolAccessForUserId(actorUserId);
@@ -27,7 +28,7 @@ export async function inspectOwnerRevisionDeletion(actorUserId: string, submissi
   await owner(actorUserId);
   if (!z.string().uuid().safeParse(submissionId).success) throw new PipelineRegistryCommandError('Choose an exact submission UUID.', 400, 'revision_delete_invalid');
   const db = getSupabaseServerClient(); if (!db) throw unavailable();
-  const result = await db.from('cardforge_contributor_asset_submissions').select('id,name,lineage_id,status,source_storage_path,source_storage_bucket,trashed_at,published_at,retention_hold,purge_state,purge_claim_token,purge_claimed_at,owner_purge_requested_at').eq('id', submissionId).maybeSingle();
+  const result = await db.from('cardforge_contributor_asset_submissions').select('id,name,lineage_id,status,source_storage_path,source_storage_bucket,trashed_at,published_at,retention_hold,purge_state,purge_claim_token,purge_claimed_at,owner_purge_requested_at,contributor_lifecycle_state,revision_publication_retained').eq('id', submissionId).maybeSingle();
   if (result.error) throw unavailable();
   if (!result.data) return { submissionId, present: false, eligible: false, reasons: ['revision_absent'], confirmation: null };
   const parsed = rowSchema.safeParse(result.data); if (!parsed.success || parsed.data.id !== submissionId) throw unavailable();
@@ -43,7 +44,8 @@ export async function inspectOwnerRevisionDeletion(actorUserId: string, submissi
   if (!l.success || l.data.id !== s.lineage_id) reasons.push('lineage_unavailable');
   else if (l.data.catalog_trashed_at || l.data.purge_state) reasons.push('catalog_recovery_or_worker_active');
   if (s.status !== 'archived' || !s.trashed_at || !Number.isFinite(Date.parse(s.trashed_at))) reasons.push('not_trashed_archived_revision');
-  if (s.published_at || registry.data.length || events.data.length) reasons.push('publication_history_retained');
+  if (s.published_at || s.status === 'published' || s.contributor_lifecycle_state === 'retired'
+    || s.revision_publication_retained || registry.data.length || events.data.length) reasons.push('publication_history_retained');
   if (s.retention_hold) reasons.push('retention_hold');
   if (s.purge_state || s.purge_claim_token || s.purge_claimed_at || s.owner_purge_requested_at) reasons.push('destructive_attempt_requires_reconciliation');
   if ((s.source_storage_bucket === null) !== (s.source_storage_path === null)) reasons.push('source_identity_incomplete');

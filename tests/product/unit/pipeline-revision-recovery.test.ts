@@ -13,7 +13,7 @@ const state = { scope: 'revision' as const, submissionId: id, lineageId: '550e84
   status: 'archived' as const, updatedAt: '2026-10-31T17:00:00+00:00', trashedAt: '2026-10-31T17:00:00+00:00',
   purgeAfter: '2026-11-30T17:00:00+00:00', held: false };
 const snapshot = { name: 'Exact retained history', state, retentionDays: 30, trashActor: 'contributor', trashReasons: ['revision_already_trashed'],
-  restoreReasons: [], canHold: false, publicationRetained: true };
+  restoreReasons: [], canHold: false, publicationRetained: true, sourceUncertainty: null };
 beforeEach(() => {
   vi.resetAllMocks();
   m.access.mockResolvedValue({ isOwner: false, user: { id: 'native-account-id' } });
@@ -26,6 +26,10 @@ describe('exact revision recovery boundaries', () => {
     expect(m.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_read_revision_recovery', {
       p_submission_id: id, p_actor_user_id: 'native-account-id', p_is_owner: false,
     });
+  });
+  it('accepts an ordinary never-published native receipt with publicationRetained false', async () => {
+    m.rpc.mockResolvedValue({ data: { ...snapshot, publicationRetained: false }, error: null });
+    expect(await readRevisionRecovery('session', id)).toMatchObject({ publicationRetained: false });
   });
   it('rejects inactive or unscoped contributors before private reads', async () => {
     for (const capabilities of [{ active: false, scopes: ['assets.submit'] }, { active: true, scopes: [] }]) {

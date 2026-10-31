@@ -404,7 +404,7 @@ export function OwnerAssetLibraryPanel({
                   </Button>
                   <Button variant="outline" className="rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" onClick={() => setManagingId(null)}>Cancel</Button>
                 </div>
-                <RevisionRecoveryControls key={`revision:${submission.id}`} submissionId={submission.id} actorScope={program.currentContributorIds.join('|')} />
+                <RevisionRecoveryControls key={`revision:${submission.id}`} submissionId={submission.id} actorScope={program.currentContributorIds.join('|')} onChanged={onRevisionCreated} />
                 <CatalogTrashControls key={submission.id} submissionId={submission.id} />
                 <div className="border-t border-[var(--cf-border-subtle)] pt-3">
                   <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">

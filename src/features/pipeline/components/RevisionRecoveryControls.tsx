@@ -66,7 +66,7 @@ function RevisionRecoverySession({ submissionId, onChanged }: { submissionId: st
   };
   return <section aria-label="Revision recovery" className="grid gap-3 border-t border-[var(--cf-border-subtle)] pt-3">
     <h4 className="text-sm font-semibold">Revision Trash</h4>
-    <p className="text-xs">Recover one revision without changing newer work. Restore retains history; publication remains a separate review decision. Independent copies remain usable.</p>
+    <p className="text-xs">Recover one revision without changing newer work. Restore recovers retained records; publication remains a separate review decision. Independent copies remain unchanged.</p>
     <Button size="sm" variant="outline" disabled={busy} onClick={() => void load()}>Inspect revision recovery</Button>
     {error ? <p role="alert">{error}</p> : null}
     {snapshot ? <>
@@ -74,6 +74,7 @@ function RevisionRecoverySession({ submissionId, onChanged }: { submissionId: st
         ? `In Trash${snapshot.state.held ? ' · On hold' : ''}. Recovery deadline: ${snapshot.state.purgeAfter ? new Date(snapshot.state.purgeAfter).toLocaleString() : 'unavailable'}.`
         : 'Retained outside Trash.'}</p>
       <p className="text-xs">{snapshot.publicationRetained ? 'Publication history is retained; this deadline does not authorize physical deletion.' : `Configured recovery period: ${snapshot.retentionDays} days. Permanent deletion requires a separate eligible Owner action or normal retention.`}</p>
+      {snapshot.sourceUncertainty ? <p className="text-xs">Earlier Storage activity remains unverified: {explain(snapshot.sourceUncertainty)}. Recovering this record does not prove its source bytes are present.</p> : <p className="text-xs">This inspection does not verify source bytes. Trash and Restore do not remove files.</p>}
       {(snapshot.state.trashedAt ? snapshot.restoreReasons : snapshot.trashReasons).length ? <ul className="list-disc pl-5 text-xs">
         {(snapshot.state.trashedAt ? snapshot.restoreReasons : snapshot.trashReasons).map(reason => <li key={reason}>{explain(reason)}</li>)}
       </ul> : null}

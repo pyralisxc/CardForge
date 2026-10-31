@@ -35,6 +35,7 @@ export const revisionRecoverySnapshotSchema = z.object({
   restoreReasons: z.array(z.string()),
   canHold: z.boolean(),
   publicationRetained: z.boolean(),
+  sourceUncertainty: z.string().nullable(),
 }).strict();
 
 export type RevisionRecoveryCommand = z.infer<typeof revisionRecoveryCommandSchema>;

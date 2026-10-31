@@ -7,7 +7,7 @@ do $$
 declare
  lineage uuid:=gen_random_uuid(); history uuid:=gen_random_uuid(); live uuid:=gen_random_uuid(); other uuid:=gen_random_uuid();
  snapshot jsonb; trashed jsonb; restored jsonb; stale jsonb; payload jsonb:='{"fixture":"immutable retained content"}';
- published_before integer; highwater integer; current_before uuid; claim uuid; legacy uuid:=gen_random_uuid(); recovered_draft uuid:=gen_random_uuid();
+ published_before integer; highwater integer; current_before uuid; claim uuid; legacy uuid:=gen_random_uuid(); recovered_draft uuid:=gen_random_uuid(); pending_legacy uuid:=gen_random_uuid(); pending_token uuid:=gen_random_uuid();
 begin
  if exists(select 1 from public.cardforge_asset_registry) then raise exception 'revision_recovery_fixture_requires_isolated_empty_catalog'; end if;
  if has_function_privilege('anon','public.cardforge_read_revision_recovery(uuid,text,boolean)','EXECUTE')
@@ -34,10 +34,36 @@ begin
  insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status)
  values(legacy,lineage,'recovery-a','icons','Legacy published history','published');
  snapshot:=public.cardforge_read_revision_recovery(legacy,'recovery-a',false);
- if not(snapshot->>'publicationRetained')::boolean then raise exception 'legacy_publication_evidence_lost'; end if;
+ if (snapshot->>'publicationRetained')::boolean is distinct from true then raise exception 'legacy_publication_evidence_lost'; end if;
  snapshot:=public.cardforge_change_revision_recovery('recovery-a',false,'trash',snapshot->'state');
- if not(snapshot->>'publicationRetained')::boolean then raise exception 'trashed_legacy_history_became_disposable'; end if;
- perform public.cardforge_change_revision_recovery('recovery-a',false,'restore',snapshot->'state');
+ if (snapshot->>'publicationRetained')::boolean is distinct from true then raise exception 'trashed_legacy_history_became_disposable'; end if;
+ update public.cardforge_contributor_asset_submissions set trashed_at=now()-interval '32 days',purge_after=now()-interval '1 day'
+   where id=legacy;
+ if exists(select 1 from public.cardforge_claim_pipeline_revision_purge_owner(legacy,'Legacy published history',null))
+   or exists(select 1 from public.cardforge_claim_pipeline_revision_purge_target(legacy))
+   or exists(select 1 from public.cardforge_claim_pipeline_revision_purges(250) c where c.submission_id=legacy)
+ then raise exception 'legacy_publication_became_purge_eligible'; end if;
+ -- Owner override cannot erase the retained evidence after Trash changed status.
+ update public.cardforge_contributor_asset_submissions set revision_publication_retained=false,
+   contributor_lifecycle_state=null,owner_status_override='archived' where id=legacy;
+ if (select revision_publication_retained from public.cardforge_contributor_asset_submissions where id=legacy) is distinct from true
+   or exists(select 1 from public.cardforge_claim_pipeline_revision_purge_owner(legacy,'Legacy published history',null))
+ then raise exception 'publication_retention_cleared_by_owner_override'; end if;
+ -- A retained preexisting claim cannot finalize even with the exact token.
+ -- This rollback-only row models that boundary without invoking Storage.
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,
+   revision_publication_retained,trashed_at,purge_after,trash_reason,purge_state,purge_claim_token,purge_claimed_at,owner_purge_requested_at)
+ values(pending_legacy,lineage,'recovery-a','icons','Previously retained claim','archived',true,
+   now()-interval '32 days',now()-interval '1 day','withdrawn','pending',pending_token,now(),now());
+ if public.cardforge_finalize_pipeline_revision_purge(pending_legacy,pending_token)
+   or not exists(select 1 from public.cardforge_contributor_asset_submissions where id=pending_legacy)
+ then raise exception 'retained_publication_claim_finalized'; end if;
+ snapshot:=public.cardforge_read_revision_recovery(legacy,'recovery-owner',true);
+
+ perform public.cardforge_change_revision_recovery('recovery-owner',true,'restore',snapshot->'state');
+ snapshot:=public.cardforge_read_revision_recovery(other,'recovery-b',false);
+ if jsonb_typeof(snapshot->'publicationRetained') is distinct from 'boolean' or (snapshot->>'publicationRetained')::boolean is distinct from false then
+   raise exception 'ordinary_revision_publication_flag_not_false'; end if;
  snapshot:=public.cardforge_read_revision_recovery(history,'recovery-a',false);
  if snapshot->'trashReasons'<>'[]'::jsonb then raise exception 'history_not_recoverable: %',snapshot; end if;
  trashed:=public.cardforge_change_revision_recovery('recovery-a',false,'trash',snapshot->'state');
@@ -102,7 +128,7 @@ begin
  select claim_token into claim from public.cardforge_claim_pipeline_revision_purge_owner(other,'Another contributor candidate',null);
  if claim is null then raise exception 'eligible_owner_revision_claim_missing'; end if;
  snapshot:=public.cardforge_read_revision_recovery(other,'recovery-owner',true);
- if not(snapshot->'restoreReasons' ? 'destructive_attempt_requires_reconciliation') or (snapshot->>'canHold')::boolean then
+ if snapshot->>'sourceUncertainty' is distinct from 'revision_purge_committed' or not(snapshot->'restoreReasons' ? 'destructive_attempt_requires_reconciliation') or (snapshot->>'canHold')::boolean then
    raise exception 'claim_recovery_fence_missing'; end if;
  begin
    perform public.cardforge_change_revision_recovery('recovery-owner',true,'restore',snapshot->'state'); raise exception 'claim_restored';

@@ -4,6 +4,7 @@ set local lock_timeout='5s';
 -- Native revision rows own recovery provenance. Legacy rows deliberately retain
 -- unknown provenance: an old withdrawn reason cannot prove absence of moderation.
 alter table public.cardforge_contributor_asset_submissions
+ add column revision_publication_retained boolean not null default false,
  add column revision_recovery_version bigint not null default 0 check (revision_recovery_version>=0),
  add column revision_trash_actor_id text,
  add column revision_trash_actor_role text check (revision_trash_actor_role in ('owner','contributor'));
@@ -14,6 +15,15 @@ begin
  -- Existing updated_at triggers use transaction time; a retained monotonic
  -- row generation prevents restore-to-same-state replay even in one transaction.
  new.revision_recovery_version:=old.revision_recovery_version+1;
+ -- Preserve real retained publication evidence before Trash changes status.
+ -- This certifies no historical date, event, source bytes or render authority.
+ new.revision_publication_retained:=old.revision_publication_retained
+   or old.published_at is not null or old.status='published'
+   or coalesce(old.contributor_lifecycle_state='retired',false)
+   or exists(select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=old.id)
+   or exists(select 1 from public.cardforge_pipeline_publication_events e where e.published_submission_id=old.id);
+ if new.purge_state='pending' and new.revision_publication_retained then
+   raise exception 'pipeline_revision_publication_retained'; end if;
  -- Ordinary rebalance may project archived never-published rows back into
  -- Trash. A recovered contributor lifecycle remains outside Trash unless an
  -- explicit new recovery command supplies its durable actor provenance.
@@ -77,12 +87,12 @@ begin
    or s.revision_trash_actor_id is distinct from p_actor_user_id) then
    recovery:=array_append(recovery,'owner_recovery_required'); end if;
  -- Retention evidence is deliberately broader than render/adoption authority.
- published:=s.published_at is not null or s.status='published' or s.contributor_lifecycle_state='retired'
+ published:=s.revision_publication_retained or s.published_at is not null or s.status='published' or coalesce(s.contributor_lifecycle_state='retired',false)
    or exists(select 1 from public.cardforge_asset_registry registry where registry.contributor_submission_id=s.id)
    or exists(select 1 from public.cardforge_pipeline_publication_events e where e.published_submission_id=s.id);
  return jsonb_build_object('name',s.name,'retentionDays',days,'trashActor',s.revision_trash_actor_role,
  'trashReasons',to_jsonb(entry),'restoreReasons',to_jsonb(recovery),'canHold',p_is_owner and s.trashed_at is not null and cardinality(blocked)=0,
- 'publicationRetained',published,
+ 'publicationRetained',published,'sourceUncertainty',l.catalog_destructive_uncertainty,
  'state',jsonb_build_object('scope','revision','submissionId',s.id,'lineageId',s.lineage_id,'revisionNumber',s.revision_number,
    'registrySubmissionId',r.contributor_submission_id,'revisionHighWater',l.revision_high_water,
    'recoveryVersion',s.revision_recovery_version::text,'status',s.status,'updatedAt',s.updated_at,'trashedAt',s.trashed_at,'purgeAfter',s.purge_after,'held',s.retention_hold));
@@ -160,7 +170,64 @@ returns text language sql stable security invoker set search_path = '' as $$
     'automated_status','owner_status_override','calculated_access_tier','automated_access_tier','owner_access_tier_override',
     'tier_decision_reason','owner_note','decision_reason','editorial_review_status','editorial_review_note',
     'editorial_reviewed_by','editorial_reviewed_at','published_at','purge_state','trashed_at','purge_after',
-    'trash_reason','retention_hold','purge_claimed_at','template_review_context','source_review_evidence','owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256','revision_recovery_version','revision_trash_actor_id','revision_trash_actor_role'])::text)
+    'trash_reason','retention_hold','purge_claimed_at','template_review_context','source_review_evidence','owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256','revision_recovery_version','revision_trash_actor_id','revision_trash_actor_role','revision_publication_retained'])::text)
   from public.cardforge_contributor_asset_submissions as submission where id=p_submission_id;
 $$;
+
+-- Publication retention is repeated at every irreversible boundary. No new
+-- publication date/event is invented, and Owner intent cannot clear evidence.
+create or replace function public.cardforge_claim_pipeline_revision_purge_locked(
+  p_submission_id uuid,p_owner boolean default false,p_expected_name text default null,p_expected_storage_path text default null
+) returns table(submission_id uuid,storage_bucket text,storage_path text,claim_token uuid)
+language plpgsql security invoker set search_path='' as $$
+declare l public.cardforge_pipeline_asset_lineages%rowtype; s public.cardforge_contributor_asset_submissions%rowtype;
+begin
+  select lineage.* into l from public.cardforge_pipeline_asset_lineages lineage
+    where lineage.id=(select r.lineage_id from public.cardforge_contributor_asset_submissions r where r.id=p_submission_id)
+    for update skip locked;
+  if not found or l.catalog_trashed_at is not null or l.purge_state is not null then return; end if;
+  select * into s from public.cardforge_contributor_asset_submissions where id=p_submission_id for update;
+  if not found or s.lineage_id<>l.id or s.trashed_at is null or not isfinite(s.trashed_at) or s.published_at is not null or s.status='published' or s.revision_publication_retained
+    or coalesce(s.contributor_lifecycle_state='retired',false) or s.retention_hold
+    or s.purge_state is not null or s.purge_claim_token is not null or s.purge_claimed_at is not null
+    or s.owner_purge_requested_at is not null
+    or ((s.source_storage_bucket is null)<>(s.source_storage_path is null))
+    or exists(select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id)
+    or exists(select 1 from public.cardforge_pipeline_publication_events e where e.published_submission_id=s.id) then return; end if;
+  -- All retained siblings sharing a reserved source are exact-object owners.
+  -- Reuse takes this same lineage lock and refuses a prior commitment, so neither
+  -- side can establish authority after the other has won.
+  if s.source_storage_path like 'pipeline-owned-v1/%' and (
+    l.upload_state is distinct from 'owned' or l.upload_source_path is distinct from s.source_storage_path
+    or exists(select 1 from public.cardforge_contributor_asset_submissions sibling where sibling.id<>s.id
+      and sibling.source_storage_bucket=s.source_storage_bucket and sibling.source_storage_path=s.source_storage_path)) then return; end if;
+  if p_owner then
+    if s.status<>'archived' or s.name is distinct from p_expected_name
+      or s.source_storage_path is distinct from p_expected_storage_path then return; end if;
+  elsif s.purge_after is null or not isfinite(s.purge_after) or s.purge_after>now() then return;
+  end if;
+  return query update public.cardforge_contributor_asset_submissions r
+    set purge_state='pending',purge_claimed_at=now(),purge_claim_token=gen_random_uuid(),
+      owner_purge_requested_at=case when p_owner then now() else null end,updated_at=now()
+    where r.id=s.id returning r.id,r.source_storage_bucket,r.source_storage_path,r.purge_claim_token;
+end $$;
+
+create or replace function public.cardforge_finalize_pipeline_revision_purge(p_submission_id uuid,p_claim_token uuid)
+returns boolean language plpgsql security invoker set search_path='' as $$
+begin
+ perform 1 from public.cardforge_pipeline_asset_lineages l
+ where l.id=(select s.lineage_id from public.cardforge_contributor_asset_submissions s where s.id=p_submission_id)
+   and l.catalog_trashed_at is null for update;
+ if not found then return false; end if;
+ delete from public.cardforge_contributor_asset_submissions s
+ where s.id=p_submission_id and s.purge_claim_token=p_claim_token and p_claim_token is not null
+   and s.purge_state='pending' and s.trashed_at is not null
+   and (s.purge_after<=now() or s.owner_purge_requested_at is not null)
+   and s.published_at is null and s.status<>'published' and not s.revision_publication_retained
+   and s.contributor_lifecycle_state is distinct from 'retired' and s.retention_hold=false
+   and not exists(select 1 from public.cardforge_asset_registry r where r.contributor_submission_id=s.id)
+   and not exists(select 1 from public.cardforge_pipeline_publication_events e where e.published_submission_id=s.id);
+ return found;
+end $$;
+
 commit;

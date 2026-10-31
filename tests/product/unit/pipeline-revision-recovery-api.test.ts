@@ -13,8 +13,9 @@ const input = { action: 'restore', expected: { submissionId: 'exact-revision' } 
 const post = (body: unknown) => POST(new Request('http://localhost/lifecycle', { method: 'POST', body: JSON.stringify(body) }), context);
 beforeEach(() => { vi.resetAllMocks(); m.access.mockResolvedValue({ user: { id: 'session-account' } }); });
 it('uses session identity for browser reads and mutations', async () => {
-  m.read.mockResolvedValue({ state: 'observed' }); m.change.mockResolvedValue({ state: 'restored' });
-  expect((await GET(new Request('http://localhost'), context)).status).toBe(200);
+  m.read.mockResolvedValue({ state: 'observed', publicationRetained: false }); m.change.mockResolvedValue({ state: 'restored' });
+  const read = await GET(new Request('http://localhost'), context);
+  expect(read.status).toBe(200); expect(await read.json()).toMatchObject({ publicationRetained: false });
   expect(m.read).toHaveBeenCalledExactlyOnceWith('session-account', 'exact-revision');
   expect(await (await post(input)).json()).toEqual({ state: 'restored' });
   expect(m.change).toHaveBeenCalledExactlyOnceWith('session-account', input); expect(m.refresh).toHaveBeenCalledOnce();
