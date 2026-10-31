@@ -1,4 +1,5 @@
 "use client";
+import { PipelineSourceDisclosure } from '@/features/pipeline/client/engagement';
 
 import { useRef, type ChangeEvent } from 'react';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
@@ -78,8 +79,8 @@ export function DividerStudioPanel({
         <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Divider Recipes</Label>
         <div className="grid grid-cols-2 gap-1">
           {dividerPresets.map((preset) => (
+            <div key={preset.id} className="min-w-0">
             <Button
-              key={preset.id}
               type="button"
               variant="outline"
               size="sm"
@@ -92,6 +93,8 @@ export function DividerStudioPanel({
               <span className="mt-1 block w-full truncate text-[#f1dfb4]">{preset.label}</span>
               <PipelineRecipeMeta recipe={preset} />
             </Button>
+            <PipelineSourceDisclosure {...preset.pipelineSource} />
+          </div>
           ))}
         </div>
       </div>

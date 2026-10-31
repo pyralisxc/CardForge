@@ -1,4 +1,5 @@
 "use client";
+import { PipelineSourceDisclosure } from '@/features/pipeline/client/engagement';
 
 import type { ChangeEvent } from 'react';
 import { Image as ImageIcon, Sparkles } from 'lucide-react';
@@ -260,7 +261,7 @@ export function TemplateSettingsPanel({
         </div>
         <div className="grid grid-cols-2 gap-1.5">
           {frameKitRecipes.map((recipe) => (
-            <Tooltip key={recipe.id}>
+            <div key={recipe.id} className="min-w-0"><Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   type="button"
@@ -287,7 +288,7 @@ export function TemplateSettingsPanel({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{getPipelineRecipeTitle(recipe)}</TooltipContent>
-            </Tooltip>
+            </Tooltip><PipelineSourceDisclosure {...recipe.pipelineSource} /></div>
           ))}
         </div>
         </div>

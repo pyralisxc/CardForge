@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { requireOkResponse } from '@/infrastructure/http/clientResponses';
 import type { ManagedRasterSelection } from '@/features/pipeline/client';
+import { DiscoveredAssetSourceFeedback } from '@/features/pipeline/client/engagement';
 import { FolderOpen } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import {
   type LibraryPickerRequest,
   type LibraryPickerResource,
 } from '@/features/library-picker/client';
+import { isLocalOnlyAsset } from '@/features/pipeline/client/assets';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import {
   isPersonalLibraryVisualPickerItem,
@@ -38,7 +40,7 @@ interface TemplateAssetLibraryPickerProps {
 }
 
 const pickerSourceForAsset = (asset: CardAssetOption): LibraryPickerResource['source'] => (
-  asset.librarySource === 'local'
+  isLocalOnlyAsset(asset)
     ? 'project'
     : asset.librarySource === 'contributor'
       ? 'pipeline'
@@ -171,6 +173,12 @@ export function TemplateAssetLibraryPicker({
           const asset = assets.find((candidate) => candidate.id === selection.objectId);
           if (!asset) throw new Error('That Library resource is no longer available. Refresh the Picker and choose again.');
           onApply(asset);
+        }}
+        renderResourceDetails={resource => {
+          const asset = assets.find(candidate => resource.id === `${pickerSourceForAsset(candidate)}:${candidate.id}`);
+          return asset && !isLocalOnlyAsset(asset) && asset.publishedSubmissionId
+            ? <DiscoveredAssetSourceFeedback key={asset.publishedSubmissionId} asset={asset} />
+            : <p className="text-xs">No exact governed Pipeline source is available for this resource.</p>;
         }}
         renderPreview={(resource) => resource.previewUrl ? (
           <ProjectBinaryAssetBackground

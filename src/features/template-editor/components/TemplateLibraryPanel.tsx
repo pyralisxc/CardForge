@@ -1,4 +1,5 @@
 "use client";
+import { PipelineSourceDisclosure } from '@/features/pipeline/client/engagement';
 
 import { useState, type ChangeEvent, type RefObject } from 'react';
 import { Copy, FolderDown, FolderUp, Layers, Lock, Plus, Trash2 } from 'lucide-react';
@@ -175,8 +176,8 @@ export function TemplateLibraryPanel({
         </div>
         <div className="space-y-1.5 pt-1">
           {visibleTemplates.map((template) => (
-            <button
-              key={template.id}
+            <div key={template.id}><button
+
               type="button"
               className="group flex w-full items-center gap-2 rounded-[5px] border border-[var(--cf-editor-border)] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#d5ad54]/70 hover:bg-[#131720]"
               onClick={() => onOpenTemplate(template)}
@@ -187,7 +188,7 @@ export function TemplateLibraryPanel({
                 <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || getTemplateLibraryDescription(template)}</span>
                 <span className="block text-[10px] text-[#9a8f7c]">{getTemplateCardMeasurement(template, 'mm').label}</span>
               </span>
-            </button>
+            </button><PipelineSourceDisclosure registryAssetId={template.templateSource === 'default' ? template.id ?? undefined : undefined} template={template} /></div>
           ))}
           {defaultTemplates.length > quickTemplates.length ? (
             <Button
@@ -207,8 +208,8 @@ export function TemplateLibraryPanel({
               Card Backs
             </p>
             {visibleCardBacks.map((template) => (
-              <button
-                key={template.id}
+              <div key={template.id}><button
+
                 type="button"
                 className="group flex w-full items-center gap-2 rounded-[5px] border border-[var(--cf-editor-border)] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#7dd3fc]/70 hover:bg-[#131720]"
                 onClick={() => onOpenTemplate(template)}
@@ -219,7 +220,7 @@ export function TemplateLibraryPanel({
                   <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || 'Card back'}</span>
                   <span className="block text-[10px] text-[#9a8f7c]">{getTemplateCardMeasurement(template, 'mm').label}</span>
                 </span>
-              </button>
+              </button><PipelineSourceDisclosure registryAssetId={template.templateSource === 'default' ? template.id ?? undefined : undefined} template={template} /></div>
             ))}
             {backFaceTemplates.length > CARD_BACK_QUICK_VIEW_LIMIT ? (
               <Button

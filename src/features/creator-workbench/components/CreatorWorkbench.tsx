@@ -31,7 +31,10 @@ import type { DesignToolIntent } from '../model/designToolIntent';
 
 export type WorkbenchBusinessIdentity = { brandName: string; copyrightHolder: string };
 
+import type { PipelineDesignSource } from '@/features/pipeline/client/engagement';
+
 export interface CreatorWorkbenchProps {
+  pipelineDesignSource?: PipelineDesignSource | null;
   businessIdentity: WorkbenchBusinessIdentity;
   initialContributorAccess: ContributorAccessSessionState;
   onDirtyChange?: (dirty: boolean) => void;
@@ -47,6 +50,7 @@ export interface CreatorWorkbenchProps {
 }
 
 export function CreatorWorkbench({
+  pipelineDesignSource,
   businessIdentity,
   initialContributorAccess,
   onDirtyChange,
@@ -394,6 +398,7 @@ export function CreatorWorkbench({
         <div hidden={studioView !== 'template'} data-testid="layout-studio-panel" data-state={studioView === 'template' ? 'active' : 'inactive'} tabIndex={-1} className="min-h-0 flex-1 space-y-3">
           {generatorBackWorkflow ? <GeneratorBackWorkflowBanner mode={generatorBackWorkflow} onReturn={onReturnToGenerator ?? handleReturnToGenerator} /> : null}
           <CardTemplateMaker
+            pipelineDesignSource={pipelineDesignSource}
             canUseProjectFiles={projectCapabilities.canUseProjectFiles}
             showCardWatermark={showVisibleCardWatermark}
             isActive={studioView === 'template'}

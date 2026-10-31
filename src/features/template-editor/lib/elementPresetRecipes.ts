@@ -44,6 +44,8 @@ export interface ElementPresetApplicability {
 }
 
 export interface ElementPresetRecipe {
+  /** Transient discovery source; never copied into authored element updates. */
+  pipelineSource?: { registryAssetId: string; template?: TCGCardTemplate; style?: AppearanceStylePreset };
   id: string;
   label: string;
   description: string;
@@ -116,6 +118,7 @@ export const createFrameKitPresetRecipes = (templates: TCGCardTemplate[]): Eleme
     && template.templateRegistryStatus === 'published'
   )).map((template) => ({
     id: `frame-kit-${template.id}`,
+    pipelineSource: template.templateSource === 'default' ? { registryAssetId: template.id!, template } : undefined,
     label: template.name,
     description: 'CardForge Library card treatment for the full Template canvas.',
     kind: 'frameKit',
@@ -218,6 +221,7 @@ export const createRecipesFromAppearanceStyles = (styles: AppearanceStylePreset[
     ));
     return {
       id: style.id,
+      pipelineSource: style.librarySource !== 'local' && style.registryStatus === 'published' ? { registryAssetId: style.id, style } : undefined,
       label: style.name,
       description: style.librarySource === 'contributor'
         ? 'Shared contributor appearance preset.'

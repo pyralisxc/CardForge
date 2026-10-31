@@ -1,4 +1,5 @@
 "use client";
+import { PipelineSourceDisclosure } from '@/features/pipeline/client/engagement';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,8 +61,8 @@ export function BorderInspectorPanel({
       <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Edge Recipes</Label>
       <div className="grid grid-cols-2 gap-1">
         {borderPresets.map((preset) => (
+          <div key={preset.id} className="min-w-0">
           <Button
-            key={preset.id}
             type="button"
             variant="outline"
             size="sm"
@@ -83,6 +84,8 @@ export function BorderInspectorPanel({
               <PipelineRecipeMeta recipe={preset} />
             </span>
           </Button>
+            <PipelineSourceDisclosure {...preset.pipelineSource} />
+          </div>
         ))}
       </div>
       <div className="grid grid-cols-2 gap-2">
