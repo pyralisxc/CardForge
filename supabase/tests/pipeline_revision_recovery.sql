@@ -135,4 +135,48 @@ begin
  exception when raise_exception then if sqlerrm<>'revision_recovery_blocked' then raise; end if; end;
  raise notice 'revision recovery: exact ownership, history, stale epoch, moderation, holds and committed-claim assertions passed';
 end $$;
+-- The publication fence is revision-scoped. Preserve the existing separate
+-- confirmed Owner whole-lineage preparation and its exact native tombstone.
+do $$
+declare l uuid:=gen_random_uuid(); current_id uuid:=gen_random_uuid(); history_id uuid:=gen_random_uuid(); receipt jsonb;
+ asset text:='whole-recovery-'||gen_random_uuid()::text;
+begin
+ insert into public.cardforge_pipeline_asset_lineages(id,registry_asset_id,revision_high_water) values(l,asset,2);
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,revision_number)
+ values(current_id,l,'whole-owner-proof','icons','Whole-lineage recovery proof','published',2),
+   (history_id,l,'whole-owner-proof','icons','Whole-lineage retained history','published',1);
+ insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id)
+ values(asset,'Whole-lineage recovery proof','icon','https://example.invalid/whole.svg','published','free','contributor',current_id);
+ -- Capture the history's real prior published state, without an invented date/event.
+ update public.cardforge_contributor_asset_submissions set status='archived',trashed_at=now()-interval '32 days',
+   purge_after=now()-interval '1 day',trash_reason='withdrawn' where id=history_id;
+ if exists(select 1 from public.cardforge_claim_pipeline_revision_purge_owner(history_id,'Whole-lineage retained history',null)) then
+   raise exception 'retained_history_single_revision_claim_admitted'; end if;
+ receipt:=public.cardforge_prepare_contributor_asset_purge(current_id,'Whole-lineage recovery proof');
+ if receipt->>'lineageId' is distinct from l::text
+   or (select count(*) from public.cardforge_contributor_asset_submissions where lineage_id=l and purge_state='pending')<>2
+   or not exists(select 1 from public.cardforge_pipeline_asset_tombstones where lineage_id=l and asset_id=asset
+     and identity_captured_at is not null and deletion_reason='owner_permanent_deletion') then
+   raise exception 'existing_owner_whole_lineage_preparation_blocked'; end if;
+ raise notice 'revision retention: single-revision refusal and existing prepared whole-lineage authority passed';
+end $$;
+
+-- Known protected publication rows must not consume the bounded selection and
+-- starve a later eligible never-published revision. The locked helper rechecks.
+do $$
+declare l uuid; row_id uuid; tail uuid:=gen_random_uuid(); claimed uuid[]; i integer;
+begin
+ for i in 1..4 loop
+   l:=((case when i=4 then 'ffffffff' else '0000000'||i::text end)||substr(gen_random_uuid()::text,9))::uuid;
+   row_id:=case when i=4 then tail else gen_random_uuid() end;
+   insert into public.cardforge_pipeline_asset_lineages(id) values(l);
+   insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,
+     contributor_lifecycle_state,revision_publication_retained,trashed_at,purge_after,trash_reason)
+   values(row_id,l,'batch-retention-proof','icons','Publication-protected prefix',case when i=1 then 'published' else 'archived' end,
+     case when i=2 then 'retired' else null end,i=3,now()-interval '32 days',now()-interval '1 day','expired');
+ end loop;
+ select array_agg(submission_id) into claimed from public.cardforge_claim_pipeline_revision_purges(1);
+ if claimed is distinct from array[tail] then raise exception 'publication_prefix_starved_eligible_tail: %',claimed; end if;
+ raise notice 'revision retention: protected publication prefix skipped before LIMIT; eligible tail claimed';
+end $$;
 rollback;
