@@ -11,6 +11,7 @@ import {
   EnvironmentBoundaryNotice,
   EnvironmentSectionHeading,
   EnvironmentShell,
+  EnvironmentSearch,
   EnvironmentStatus,
   EnvironmentSurfaceHeader,
   EnvironmentToolLayer,
@@ -33,6 +34,7 @@ import {
   ProfileManagementPage,
   buildAccountProfileSnapshot,
   buildAccountProfileUtilityGroups,
+  filterAccountProfileUtilityGroups,
   createAccountProfileOperations,
   type AccountProfileUtility,
   type AccountProfileUtilityTarget,
@@ -94,6 +96,8 @@ export function AccountProfileEnvironment({
   plans = [],
 }: AccountProfileEnvironmentProps) {
   const router = useRouter();
+  const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
   const { user: clerkUser } = useUser();
   const surfaceRef = useRef<HTMLElement | null>(null);
   const [activeUtility, setActiveUtility] = useState<'billing' | 'identity' | 'contributor' | 'owner' | null>(() => (
@@ -165,6 +169,8 @@ export function AccountProfileEnvironment({
     setActiveUtility(initialUtility === 'identity' ? 'identity' : initialUtility === 'contributor' ? 'contributor' : initialUtility === 'owner' ? 'owner' : null);
   }, [checkoutStatus, initialPlanIntent, initialUtility]);
 
+  const visibleGroups = filterAccountProfileUtilityGroups(groups, query);
+
   const openIdentity = () => {
     setActiveUtility('identity');
     requestAnimationFrame(() => document.getElementById('profile-utility-surface')?.focus());
@@ -228,6 +234,7 @@ export function AccountProfileEnvironment({
       detail={null}
       actions={actions}
       accountControl={<PublicAuthControls />}
+      search={<EnvironmentSearch label="Search Profile utilities" value={query} onChange={setQuery} inputRef={searchRef} disabled={Boolean(activeUtility)} />}
       showPrimaryAction={false}
       surfaceRef={surfaceRef}
       statusContent={(
@@ -243,7 +250,7 @@ export function AccountProfileEnvironment({
         </>
       )}
       footerContent={<span>{isSignedIn ? accountEmail : 'Profile controls remain provider-owned'}</span>}
-      onCommand={() => router.push('/account?section=library#library-search')}
+      onCommand={() => searchRef.current?.focus()}
       onAction={runAction}
       onCloseDetail={() => {}}
     >
@@ -282,7 +289,7 @@ export function AccountProfileEnvironment({
             <ContributorProfilePanel access={contributorAccess} presentation="summary" onOpenDetails={() => openUtility('contributor')} />
           </div>
         ) : null}
-        {groups.map((group) => (
+        {visibleGroups.map((group) => (
           <section key={group.id} className="mt-5" aria-labelledby={`profile-${group.id}-heading`}>
             <EnvironmentSectionHeading id={`profile-${group.id}-heading`} title={group.title} meta={`${group.items.length} ${group.items.length === 1 ? 'utility' : 'utilities'}`} />
             {group.items.map((item) => {
@@ -291,6 +298,7 @@ export function AccountProfileEnvironment({
             })}
           </section>
         ))}
+        {!visibleGroups.length ? <p role="status" className="py-4 text-sm text-[var(--cf-text-muted)]">No Profile utilities match this search.</p> : null}
         {activeUtility ? (
           <EnvironmentToolLayer
             id="profile-utility-title"

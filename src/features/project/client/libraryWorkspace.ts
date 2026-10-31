@@ -36,6 +36,7 @@ export function useProjectLibraryWorkspace() {
   const setActiveCardSetId = useProjectStore((state) => state.setActiveCardSetId);
   const setTemplateEditorSelectedTemplateId = useProjectStore((state) => state.setTemplateEditorSelectedTemplateId);
   const setStudioView = useProjectStore((state) => state.setStudioView);
+  const createCardSet = useProjectStore((state) => state.createCardSet);
   const duplicateCardSet = useProjectStore((state) => state.duplicateCardSet);
   const cloneTemplate = useProjectStore((state) => state.cloneTemplate);
   const deleteCardSet = useProjectStore((state) => state.deleteCardSet);
@@ -64,6 +65,7 @@ export function useProjectLibraryWorkspace() {
     displayCards,
     templates,
     actions: {
+      createSet: createCardSet,
       setDefaultTemplatesFromFiles,
       updateSetMetadata: (setId: string, patch: Partial<Omit<CardSetMetadata, 'workflow'>>) => updateCardSetMetadata(setId, patch),
       activateSet: setActiveCardSetId,

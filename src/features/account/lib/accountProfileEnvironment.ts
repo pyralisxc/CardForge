@@ -214,3 +214,12 @@ export function buildAccountProfileUtilityGroups({
 
   return groups;
 }
+
+/** Search the native Profile utilities; provider-owned profile data is not queried. */
+export const filterAccountProfileUtilityGroups = (groups: readonly AccountProfileUtilityGroup[], query: string): readonly AccountProfileUtilityGroup[] => {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (!normalized) return groups;
+  return groups.map(group => ({ ...group, items: group.items.filter(item =>
+    [group.title, item.title, item.summary, item.value, item.status].some(value => value?.toLocaleLowerCase().includes(normalized)),
+  ) })).filter(group => group.items.length);
+};

@@ -14,7 +14,7 @@ import type {
 } from '@/features/marketing-content/model';
 import { CampaignWorkspace } from './CampaignWorkspace';
 
-export function CampaignLibraryWorkspace({ initialCampaignId = null }: { initialCampaignId?: string | null }) {
+export function CampaignLibraryWorkspace({ initialCampaignId = null, onDirtyChange, onCloseBlockedChange, searchQuery, onSearchQueryChange }: { initialCampaignId?: string | null; onDirtyChange?: (dirty: boolean) => void; onCloseBlockedChange?: (reason: string | null) => void; searchQuery?: string; onSearchQueryChange?: (query: string) => void }) {
   const [workspace, setWorkspace] = useState<MarketingContentWorkspaceView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +43,6 @@ export function CampaignLibraryWorkspace({ initialCampaignId = null }: { initial
 
   return <div className="space-y-4" data-library-campaign-workspace>
     {selectedCampaign ? <p role="status" className="border border-[var(--cf-accent)] bg-[var(--cf-surface-inset)] px-3 py-2 text-sm text-[var(--cf-accent-text)]">Opened from Desk: {selectedCampaign.title}</p> : null}
-    <CampaignWorkspace workspace={workspace} initialCampaignId={initialCampaignId} onRefresh={load} />
+    <CampaignWorkspace onDirtyChange={onDirtyChange} onCloseBlockedChange={onCloseBlockedChange} workspace={workspace} searchQuery={searchQuery} onSearchQueryChange={onSearchQueryChange} initialCampaignId={initialCampaignId} onRefresh={load} />
   </div>;
 }
