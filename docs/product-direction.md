@@ -378,13 +378,11 @@ Extend equivalent lineage concepts to revisionable media/fonts/component recipes
 
 ### Removal semantics
 
-Contributor ownership should support safe non-destructive lifecycle actions:
+The Owner may move any Contributor’s exact revision to recoverable Trash; Contributors may Trash only their own exact work. Only the Owner may request early permanent deletion, after Trash and the applicable native ownership, hold, reference and worker checks. Contributors cannot quick-delete content. Normal retention otherwise applies.
 
-- Withdraw own unpublished candidate/revision;
-- Retire own published contribution, subject to dependency/policy checks;
-- Restore/resubmit where policy allows.
+Revision recovery is distinct from whole-lineage catalog recovery. It retains immutable source content, bytes, votes and publication evidence. Contributor Restore is limited to contributor-origin Trash for that exact account; later Owner moderation supersedes it, and legacy Trash with unknown origin requires Owner recovery. Restore returns retained content to archived history, never reopens submitted content for rewriting, republishes it or replaces a newer live pointer. New editable work uses the normal draft/revision workflow. Retention holds and committed destructive attempts remain authoritative. Removing an exact current publication additionally requires proven retained runtime compatibility and native consumer admission.
 
-Never-published work that is declined, withdrawn, expired, or superseded enters recoverable Trash. The Owner controls the minimum review age, inactivity window, Trash recovery window, and retention holds. After recovery expires, a service worker deletes the Storage object first and only then finalizes the database row; missing references and failed Storage deletion keep the record retryable. Previously published revisions remain History with a minimal publication receipt and are never treated as disposable failed content. The currently live registry pointer is never automatically purged or displaced by later dislikes.
+Never-published work that is declined, withdrawn, expired, or superseded enters recoverable Trash. The Owner controls the minimum review age, inactivity window, Trash recovery window, and retention holds. When native retention eligibility is established, the worker removes Storage bytes before finalizing the database row. An uncertain Storage or finalization outcome retains its durable claim for reconciliation; time alone never reissues authority. Previously published revisions retain publication evidence and are never treated as disposable failed content. Their displayed recovery deadline does not authorize physical expiry. The currently live registry pointer is never automatically purged or displaced by later dislikes.
 
 ## Library, Storage, and Source Ownership
 

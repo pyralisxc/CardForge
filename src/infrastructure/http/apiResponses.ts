@@ -8,6 +8,11 @@ import {
 } from '@/shared/boundaryFailure';
 
 export type ApiErrorCode =
+  | 'revision_recovery_invalid'
+  | 'revision_recovery_not_permitted'
+  | 'revision_recovery_not_found'
+  | 'revision_recovery_conflict'
+  | 'revision_recovery_unavailable'
   | 'catalog_trash_invalid'
   | 'candidate_invalid'
   | 'candidate_not_found'
