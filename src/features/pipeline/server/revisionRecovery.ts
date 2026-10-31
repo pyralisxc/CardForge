@@ -1,15 +1,15 @@
 import { z } from 'zod';
 import { getAccountToolAccessForUserId } from '@/features/account/server';
-import { getContributorCapabilities, hasContributionScope } from '@/features/contributor-access/server';
+import { getContributorCapabilities, readContributorCapabilities, hasContributionScope } from '@/features/contributor-access/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { PipelineRegistryCommandError } from '../lib/pipelineRegistryCommandsError';
 import { revisionRecoveryCommandSchema, revisionRecoverySnapshotSchema } from '../lib/revisionRecoveryContract';
 import { RevisionRecoveryError } from '../lib/revisionRecoveryError';
 
-async function actorDatabase(actorUserId: string) {
+async function actorDatabase(actorUserId: string, ensureContribution = false) {
   const access = await getAccountToolAccessForUserId(actorUserId);
   if (!access.isOwner) {
-    const contribution = await getContributorCapabilities(access);
+    const contribution = await (ensureContribution ? getContributorCapabilities(access) : readContributorCapabilities(access));
     if (!contribution.active || !hasContributionScope(contribution.scopes, 'assets.submit')) {
       throw new PipelineRegistryCommandError('Active Contributor access is required.', 403, 'revision_recovery_not_permitted');
     }
@@ -50,7 +50,7 @@ export async function readRevisionRecovery(actorUserId: string, submissionId: st
 export async function changeRevisionRecovery(actorUserId: string, input: unknown) {
   const parsed = revisionRecoveryCommandSchema.safeParse(input);
   if (!parsed.success) throw new PipelineRegistryCommandError('Provide the exact observed revision state.', 400, 'revision_recovery_invalid');
-  const actor = await actorDatabase(actorUserId);
+  const actor = await actorDatabase(actorUserId, true);
   if (parsed.data.action === 'hold' && !actor.isOwner) {
     throw new PipelineRegistryCommandError('Owner access is required to change a retention hold.', 403, 'revision_recovery_not_permitted');
   }

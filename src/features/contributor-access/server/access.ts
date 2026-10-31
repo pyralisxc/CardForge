@@ -27,7 +27,8 @@ export class ContributorAccessError extends Error {
   }
 }
 
-export const getContributorCapabilities = async (
+/** Inspect existing capability state without enrolling or updating a profile. */
+export const readContributorCapabilities = async (
   account: Pick<AccountToolAccess, 'user' | 'entitlement' | 'isOwner'>,
 ): Promise<ContributorAccessProjection> => {
   if (account.isOwner) {
@@ -45,12 +46,6 @@ export const getContributorCapabilities = async (
     return { active: false, scopes: [] };
   }
 
-  await upsertContributorProfile({
-    contributorId: account.user.id,
-    email: account.user.email,
-    firstName: account.user.firstName,
-    lastName: account.user.lastName,
-  });
   const capabilities = await getContributorProfileCapabilities(account.user.id);
   if (capabilities.status !== 'active') {
     return { active: false, scopes: [] };
@@ -65,6 +60,17 @@ export const getContributorCapabilities = async (
       canDraftCampaigns: capabilities.canDraftCampaigns && extendedContributionsEnabled,
     }),
   };
+};
+
+/** Enrollment remains explicit for contribution mutations and established flows. */
+export const getContributorCapabilities = async (
+  account: Pick<AccountToolAccess, 'user' | 'entitlement' | 'isOwner'>,
+): Promise<ContributorAccessProjection> => {
+  if (!account.isOwner && account.entitlement.authorities.contributor) {
+    await upsertContributorProfile({ contributorId: account.user.id, email: account.user.email,
+      firstName: account.user.firstName, lastName: account.user.lastName });
+  }
+  return readContributorCapabilities(account);
 };
 
 export const getCurrentContributorAccess = async (): Promise<ContributorAccess> => {

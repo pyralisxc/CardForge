@@ -4,7 +4,7 @@ vi.mock('@/features/pipeline/server', async () => ({ ...(await import('@/feature
   ...(await import('@/features/pipeline/lib/revisionRecoveryError')),
   ...(await import('@/features/pipeline/lib/pipelineStoreError')), getCurrentPipelineRequestAccess: m.access,
   readRevisionRecovery: m.read, changeRevisionRecovery: m.change, revalidateCardForgeCatalog: m.refresh }));
-vi.mock('@/features/account/server', () => ({ AccountToolAccessError: class extends Error { constructor(public status: number) { super(); } } }));
+vi.mock('@/features/account/server', () => ({ getCurrentAccountToolAccess: m.access, AccountToolAccessError: class extends Error { constructor(public status: number) { super(); } } }));
 import { GET, POST } from '@/app/api/pipeline/[submissionId]/lifecycle/route';
 import { PipelineStoreError } from '@/features/pipeline/lib/pipelineStoreError';
 import { PipelineRegistryCommandError } from '@/features/pipeline/lib/pipelineRegistryCommandsError';

@@ -7,7 +7,7 @@ import { registerAgentTemplateTools } from './mcpAgentTemplateTools';
 import { CARDFORGE_MCP_CONTRACT_VERSION } from './mcpContractVersion';
 import { registerEditableTemplateTools } from './mcpEditableTemplateTools';
 import { registerCardForgePluginSkills } from './mcpPluginSkills';
-import { getMcpStudioAccess } from './mcpStudioAccess';
+import { getMcpStudioAccess, getMcpStudioReadAccess } from './mcpStudioAccess';
 import { createMcpToolError } from './mcpToolError';
 
 const publicOrigin = () => (
@@ -21,6 +21,7 @@ export const cardForgeMcpHandler = createMcpHandler(
       server,
       publicOrigin: publicOrigin(),
       getAccess: getMcpStudioAccess,
+      getReadAccess: getMcpStudioReadAccess,
       toolError: createMcpToolError,
     };
     registerAgentTemplateTools(options);

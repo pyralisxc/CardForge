@@ -1,6 +1,6 @@
 import { parseJsonBodyWithLimit } from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { AccountToolAccessError } from '@/features/account/server';
+import { AccountToolAccessError, getCurrentAccountToolAccess } from '@/features/account/server';
 import { getCurrentPipelineRequestAccess, PipelineRegistryCommandError, PipelineStoreError,
   readRevisionRecovery, changeRevisionRecovery, revalidateCardForgeCatalog, REVISION_RECOVERY_NEXT_ACTION } from '@/features/pipeline/server';
 
@@ -15,7 +15,7 @@ const failure = (error: unknown) => {
 
 export async function GET(_request: Request, { params }: { params: Promise<{ submissionId: string }> }) {
   try {
-    const access = await getCurrentPipelineRequestAccess();
+    const access = await getCurrentAccountToolAccess();
     return createNoStoreJsonResponse(await readRevisionRecovery(access.user.id, (await params).submissionId));
   } catch (error) { return failure(error); }
 }

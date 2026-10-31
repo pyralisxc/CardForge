@@ -3,11 +3,12 @@ import { readRevisionRecovery, changeRevisionRecovery, revalidateCardForgeCatalo
 import type { RevisionRecoveryCommand } from '@/features/pipeline/server';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import type { registerAccountWorkflowTools } from './mcpAccountWorkflowTools';
+import type { getMcpStudioReadAccess } from './mcpStudioAccess';
 
-export function registerRevisionRecoveryTools({ server, getAccess, toolError }: Parameters<typeof registerAccountWorkflowTools>[0]) {
-  const run = async (name: string, input: unknown, action: (actorUserId: string) => Promise<unknown>) => {
+export function registerRevisionRecoveryTools({ server, getAccess, getReadAccess, toolError }: Parameters<typeof registerAccountWorkflowTools>[0] & { getReadAccess: typeof getMcpStudioReadAccess }) {
+  const run = async (name: string, input: unknown, action: (actorUserId: string) => Promise<unknown>, actorAccess = getAccess) => {
     try {
-      const access = await getAccess();
+      const access = await actorAccess();
       return await observeMcpToolExecution({ ownerUserId: access.user.id, toolName: name, input, execute: async () => {
         const result = await action(access.user.id);
         return { content: [{ type: 'text' as const, text: JSON.stringify(result) }], structuredContent: result as Record<string, unknown> };
@@ -19,7 +20,7 @@ export function registerRevisionRecoveryTools({ server, getAccess, toolError }: 
     description: 'Owner or exact original Contributor only. Read revision-scoped identity, current pointer, high-water, Trash epoch, source uncertainty and recovery blockers. Metadata recovery does not prove source bytes are present. Does not grant deletion authority or reveal another Contributor’s private work. Catalog-lineage recovery is separate.',
     inputSchema: fromJsonSchema<{ submissionId: string }>({ type: 'object', additionalProperties: false, required: ['submissionId'], properties: { submissionId: { type: 'string', format: 'uuid' } } }),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, input => run('get_pipeline_revision_recovery', input, actor => readRevisionRecovery(actor, input.submissionId)));
+  }, input => run('get_pipeline_revision_recovery', input, actor => readRevisionRecovery(actor, input.submissionId), getReadAccess));
   server.registerTool('change_pipeline_revision_recovery', {
     title: 'Trash, restore or hold one exact Pipeline revision',
     description: 'Use the exact state from get_pipeline_revision_recovery. Contributors may Trash their own exact work and Restore only their own contributor-origin Trash; Owner moderation and holds remain authoritative. Restore retains immutable archived records and never republishes or replaces a newer live revision. Trash does not remove files or publication history; it does not certify existing source bytes. This tool cannot permanently delete, activate expiry or alter independent copies. After conflict or an uncertain response read state before another action.',

@@ -14,10 +14,10 @@ begin
    or has_function_privilege('authenticated','public.cardforge_change_revision_recovery(text,boolean,text,jsonb,boolean)','EXECUTE') then
    raise exception 'revision_recovery_browser_privilege_regression'; end if;
  insert into public.cardforge_pipeline_asset_lineages(id,registry_asset_id,revision_high_water) values(lineage,'recovery-proof',3);
- insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,revision_number,published_at,source_payload)
- values(history,lineage,'recovery-a','icons','Retained history','archived',1,now()-interval '3 days',payload),
-       (live,lineage,'recovery-b','icons','Newer live','published',2,now()-interval '2 days',null),
-       (other,lineage,'recovery-b','icons','Another contributor candidate','voting',3,null,null);
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status,revision_number,published_at,source_payload)
+ values(history,lineage,'recovery-a','icons','Retained history','archived','approved',1,now()-interval '3 days',payload),
+       (live,lineage,'recovery-b','icons','Newer live','published','approved',2,now()-interval '2 days',null),
+       (other,lineage,'recovery-b','icons','Another contributor candidate','voting','pending',3,null,null);
  insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id)
  values('recovery-proof','Newer live','icon','https://example.invalid/live.svg','published','free','contributor',live);
  select count(*) into published_before from public.cardforge_pipeline_publication_events where lineage_id=lineage;
@@ -31,8 +31,10 @@ begin
  exception when raise_exception then if sqlerrm<>'revision_recovery_not_permitted' then raise; end if; end;
  -- Legacy history can retain published status without timestamp/event. Trash
  -- must keep that retention evidence through the native retired lifecycle.
- insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status)
- values(legacy,lineage,'recovery-a','icons','Legacy published history','published');
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status)
+ values(legacy,lineage,'recovery-a','icons','Legacy published history','published','approved');
+ if (select status from public.cardforge_contributor_asset_submissions where id=legacy) is distinct from 'published' then
+   raise exception 'legacy_fixture_did_not_create_published_status'; end if;
  snapshot:=public.cardforge_read_revision_recovery(legacy,'recovery-a',false);
  if (snapshot->>'publicationRetained')::boolean is distinct from true then raise exception 'legacy_publication_evidence_lost'; end if;
  snapshot:=public.cardforge_change_revision_recovery('recovery-a',false,'trash',snapshot->'state');
@@ -142,9 +144,9 @@ declare l uuid:=gen_random_uuid(); current_id uuid:=gen_random_uuid(); history_i
  asset text:='whole-recovery-'||gen_random_uuid()::text;
 begin
  insert into public.cardforge_pipeline_asset_lineages(id,registry_asset_id,revision_high_water) values(l,asset,2);
- insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,revision_number)
- values(current_id,l,'whole-owner-proof','icons','Whole-lineage recovery proof','published',2),
-   (history_id,l,'whole-owner-proof','icons','Whole-lineage retained history','published',1);
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status,revision_number)
+ values(current_id,l,'whole-owner-proof','icons','Whole-lineage recovery proof','published','approved',2),
+   (history_id,l,'whole-owner-proof','icons','Whole-lineage retained history','published','approved',1);
  insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id)
  values(asset,'Whole-lineage recovery proof','icon','https://example.invalid/whole.svg','published','free','contributor',current_id);
  -- Capture the history's real prior published state, without an invented date/event.
@@ -170,9 +172,9 @@ begin
    l:=((case when i=4 then 'ffffffff' else '0000000'||i::text end)||substr(gen_random_uuid()::text,9))::uuid;
    row_id:=case when i=4 then tail else gen_random_uuid() end;
    insert into public.cardforge_pipeline_asset_lineages(id) values(l);
-   insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,
+   insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status,
      contributor_lifecycle_state,revision_publication_retained,trashed_at,purge_after,trash_reason)
-   values(row_id,l,'batch-retention-proof','icons','Publication-protected prefix',case when i=1 then 'published' else 'archived' end,
+   values(row_id,l,'batch-retention-proof','icons','Publication-protected prefix',case when i=1 then 'published' else 'archived' end,'approved',
      case when i=2 then 'retired' else null end,i=3,now()-interval '32 days',now()-interval '1 day','expired');
  end loop;
  select array_agg(submission_id) into claimed from public.cardforge_claim_pipeline_revision_purges(1);

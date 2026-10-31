@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({ access: vi.fn(), contribution: vi.fn(), db: vi.fn(), rpc: vi.fn() }));
 vi.mock('@/features/account/server', () => ({ getAccountToolAccessForUserId: m.access }));
-vi.mock('@/features/contributor-access/server', () => ({ getContributorCapabilities: m.contribution,
+vi.mock('@/features/contributor-access/server', () => ({ getContributorCapabilities: m.contribution, readContributorCapabilities: m.contribution,
   hasContributionScope: (scopes: string[], scope: string) => scopes.includes(scope) }));
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: m.db }));
 import { readRevisionRecovery, changeRevisionRecovery } from '@/features/pipeline/server/revisionRecovery';
