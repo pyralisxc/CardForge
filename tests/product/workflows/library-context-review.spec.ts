@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import postcss from 'postcss';
 import tailwindcss from 'tailwindcss';
 import tailwindConfig from '../../../tailwind.config';
-const bundle = buildSync({ entryPoints: ['tests/product/fixtures/libraryContextReview.tsx'], bundle: true, platform: 'browser', format: 'iife', write: false,
+const bundle = buildSync({ entryPoints: ['tests/product/fixtures/libraryContextReview.tsx'], bundle: true, minify: true, keepNames: true, platform: 'browser', format: 'iife', write: false,
   outfile: join(tmpdir(), 'library-context-review.js'), define: { 'process.env.NODE_ENV': '"production"', 'process.env.NEXT_RUNTIME': '"browser"', 'process.env': '{}' } });
 const appCss = postcss([tailwindcss(tailwindConfig)]).process((readFileSync('src/app/cardforgePresentation.css', 'utf8') + readFileSync('src/app/globals.css', 'utf8')).replace(/@import ['"]([^'"]+)['"];?/g, (_, path: string) => readFileSync(join('src/app', path), 'utf8')), { from: 'src/app/globals.css' });
 async function mount(page: import('@playwright/test').Page, query = '') {
@@ -487,9 +487,11 @@ for (const width of [390, 1440]) test(`@golden Campaigns search and content reac
   expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
 });
 
-for (const width of [320, 390, 800, 1440]) for (const space of ['desk', 'library', 'profile']) test(`@golden Single shared ${space} rail and keyboard search at ${width}px`, async ({ page }, info) => {
+for (const width of [320, 390, 800, 1440]) test(`@golden Single shared rails and keyboard search across spaces at ${width}px`, async ({ page }, info) => {
   await page.setViewportSize({ width, height: 757 });
-  const evidence = await mount(page, `?rail=${space}`);
+  const evidence = await mount(page, '?rail=desk');
+  for (const space of ['desk', 'library', 'profile']) {
+  if (space !== 'desk') await page.getByRole('link', { name: space === 'library' ? 'Library' : 'Profile', exact: true }).click();
   const rail = page.locator('header[data-has-search="true"]');
   const home = rail.getByRole('link', { name: 'Open the CardForge public site' });
   const search = rail.getByRole('searchbox', { name: `Search ${space}` });
@@ -509,7 +511,8 @@ for (const width of [320, 390, 800, 1440]) for (const space of ['desk', 'library
   await expect(search).toHaveValue(''); await expect(search).toBeFocused();
   await expect(page.getByRole('button', { name: 'Open commands' })).toHaveCount(0);
   await expect(page.getByRole('dialog', { name: 'Actions for this context' })).toHaveCount(0);
-  if (width === 320 || width === 1440) await info.attach('native-rail-synthetic-account', { body: await page.screenshot(), contentType: 'image/png' });
+  if (width === 320 || width === 1440) await info.attach(`native-${space}-rail-synthetic-account`, { body: await page.screenshot(), contentType: 'image/png' });
+  }
   expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
 });
 for (const width of [390, 1440]) test(`@golden Library uses the existing New Set flow without duplicate search or permanent Refresh at ${width}px`, async ({ page }) => {
