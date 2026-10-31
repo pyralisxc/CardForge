@@ -487,6 +487,97 @@ for (const width of [390, 1440]) test(`@golden Campaigns search and content reac
   expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
 });
 
+for (const width of [320, 390, 1440]) test(`@golden Desk second rail keeps controls reachable and state intact at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 844 });
+  const evidence = await mount(page, '?deskActual=1&deskMenu=1&deskSearch=1');
+  const toolbar = page.locator('[data-desk="overview"] [data-desk-toolbar]');
+  const select = toolbar.getByRole('button', { name: 'Select multiple', exact: true });
+  const search = page.getByPlaceholder('Search Desk work');
+  await search.fill('material');
+  if (width < 768) {
+    const filters = toolbar.getByLabel('Open Desk filters', { exact: true });
+    const view = toolbar.getByRole('button', { name: 'Desk view controls', exact: true });
+    const boxes = await Promise.all([filters, select, view].map(async control => {
+      await expect(control).toBeInViewport({ ratio: 1 });
+      return (await control.boundingBox())!;
+    }));
+    const centers = boxes.map(box => box.y + box.height / 2);
+    expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
+    for (const box of boxes) { expect(box.height).toBeGreaterThanOrEqual(44); expect(box.width).toBeGreaterThanOrEqual(44); }
+    expect((await toolbar.boundingBox())!.height).toBeLessThanOrEqual(60);
+    await filters.click();
+    const panel = page.locator('[data-mobile-desk-filters] [aria-label="Desk views and filters"]');
+    await expect(panel).toBeInViewport({ ratio: 1 });
+    await panel.getByRole('button', { name: 'Choose Desk views', exact: true }).click();
+    await page.getByRole('menuitemcheckbox', { name: 'My published', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await filters.click();
+    await select.click();
+    await expect(toolbar.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await view.focus(); await page.keyboard.press('Enter');
+    await expect(page.getByRole('menuitem', { name: 'Fit visible work' })).toBeInViewport({ ratio: 1 });
+    await page.keyboard.press('Escape'); await expect(view).toBeFocused();
+    await filters.click();
+    await panel.getByRole('button', { name: 'Choose Desk views', exact: true }).click();
+    await expect(page.getByRole('menuitemcheckbox', { name: 'My published', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('Escape'); await filters.click();
+    await expect(toolbar.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  } else {
+    await expect(toolbar.getByRole('button', { name: 'Choose Desk views', exact: true })).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: 'Whole Desk', exact: true })).toBeVisible();
+    await select.click();
+    await expect(toolbar.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  }
+  await expect(search).toHaveValue('material');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: info.outputPath('desk-second-rail.png') });
+  await info.attach('native-desk-second-rail', { path: info.outputPath('desk-second-rail.png'), contentType: 'image/png' });
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const width of [320, 390, 1440]) test(`@golden Library second rail keeps full scope labels on one row at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 844 });
+  const evidence = await mount(page, '?campaignActual=1');
+  const scopes = page.getByRole('navigation', { name: 'Library scopes', exact: true });
+  const boxes = [];
+  for (const label of ['Personal', 'Pipeline', 'Published', 'Campaigns']) {
+    const button = scopes.getByRole('button', { name: new RegExp(`^${label}`) });
+    await button.scrollIntoViewIfNeeded();
+    await expect(button).toBeInViewport({ ratio: 1 });
+    const bounds = (await button.boundingBox())!;
+    expect(bounds.height).toBeGreaterThanOrEqual(width < 768 ? 44 : 40);
+    expect(await button.locator('span').evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+    await button.click(); await expect(button).toHaveAttribute('aria-current', 'page');
+    boxes.push(bounds);
+  }
+  const centers = boxes.map(box => box.y + box.height / 2);
+  expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
+  expect((await scopes.boundingBox())!.height).toBeLessThanOrEqual(48);
+  const campaigns = scopes.getByRole('button', { name: /^Campaigns/ });
+  await page.getByRole('searchbox', { name: 'Search campaigns' }).fill('founder');
+  await scopes.getByRole('button', { name: /^Personal/ }).focus();
+  await page.keyboard.press('Enter');
+  await expect(scopes.getByRole('button', { name: /^Personal/ })).toHaveAttribute('aria-current', 'page');
+  await campaigns.focus(); await page.keyboard.press('Enter');
+  await expect(campaigns).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('searchbox', { name: 'Search campaigns' })).toHaveValue('founder');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: info.outputPath('library-second-rail.png') });
+  await info.attach('native-library-second-rail', { path: info.outputPath('library-second-rail.png'), contentType: 'image/png' });
+  if (width === 320) {
+    await page.addStyleTag({ content: 'html { font-size: 200%; }' });
+    expect(await scopes.evaluate(node => node.scrollWidth)).toBeGreaterThan(await scopes.evaluate(node => node.clientWidth));
+    for (const label of ['Personal', 'Campaigns']) {
+      const button = scopes.getByRole('button', { name: new RegExp(`^${label}`) });
+      await button.focus(); await page.keyboard.press('Enter');
+      await expect(button).toBeInViewport({ ratio: 1 });
+      await expect(button).toHaveAttribute('aria-current', 'page');
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  }
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
 for (const width of [320, 390, 800, 1440]) test(`@golden Single shared rails and keyboard search across spaces at ${width}px`, async ({ page }, info) => {
   await page.setViewportSize({ width, height: 757 });
   const evidence = await mount(page, '?rail=desk');

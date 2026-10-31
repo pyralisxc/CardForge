@@ -102,7 +102,9 @@
   .contributeButton { min-width: 0; padding-inline: .45rem; font-size: .68rem; white-space: nowrap; }
   .objectMenu { opacity: 1; }
   .objectFlip { opacity: 1; }
-  .scopeTabs button { align-items: center; padding-inline: .35rem; }
+  .scopeTabs { display: flex; flex: 0 0 auto; overflow-x: auto; }
+  .scopeTabs button { flex: 1 0 auto; min-height: 2.75rem; align-items: center; gap: .35rem; padding-inline: .45rem; white-space: nowrap; }
+  .scopeTabs span { font-size: .72rem; }
   .scopeTabs small { display: none; }
   .collection { margin-top: .45rem; overflow: auto; }
   .collectionHeading > div { display: grid; gap: .1rem; }
