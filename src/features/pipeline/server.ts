@@ -36,3 +36,5 @@ export type { ManagedRasterSelection } from './lib/managedRasterAdoption';
 export { readExactPublishedSource } from './server/exactPublishedSource';
 export { inspectOwnerRevisionDeletion, deleteOwnerRevision } from './server/ownerRevisionDeletionTools';
 export { RevisionDeleteError } from './server/ownerRevisionDeletion';
+export { readRevisionRecovery, changeRevisionRecovery } from './server/revisionRecovery';
+export type { RevisionRecoveryCommand, RevisionRecoverySnapshot } from './lib/revisionRecoveryContract';

@@ -11,6 +11,7 @@ import { getStudioAssetDestinationDefinition } from '@/domain/templates';
 import { AppearanceSurface, appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import { formatContentTaxonomyTag, getSemanticRoleLabel, getPipelineDecisionReasonLabel, getPipelineStatusLabel, isContributorPipelineVoteable } from '@/features/pipeline/client';
 import { MediaPresentationRevision, MediaPresentationPreview } from '@/features/pipeline/client/media-revisions';
+import { RevisionRecoveryControls } from '@/features/pipeline/client/revision-recovery';
 import type { PipelineSubmission } from '@/features/pipeline/client';
 import type { selectAllTemplates } from '@/features/project/client/workspace';
 import { LocalLibraryResourcePreview } from '@/features/project/client/library-resources';
@@ -215,13 +216,14 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
   };
 };
 
-export function PipelineDetailContent({ item, onVoteRevision, canReview, votingId, isSelfVoteBlocked, isOwner = false, onRevisionCreated, onReviewRevision, onEditRevision }: {
+export function PipelineDetailContent({ item, onVoteRevision, canReview, votingId, isSelfVoteBlocked, isOwner = false, currentContributorIds = [], onRevisionCreated, onReviewRevision, onEditRevision }: {
   item: Extract<LibraryViewItem, { scope: 'pipeline' }>;
   onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
   canReview: boolean;
   votingId: string | null;
   isSelfVoteBlocked: (contributorId: string) => boolean;
   isOwner?: boolean;
+  currentContributorIds?: readonly string[];
   onRevisionCreated?: () => Promise<void> | void;
   onReviewRevision?: (submission: PipelineSubmission) => void;
   onEditRevision?: (submission: PipelineSubmission) => void;
@@ -249,6 +251,7 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
         {revision.mediaPresentation ? <details><summary>Inspect exact presentation revision</summary>{revision.sourceUrl
           ? <MediaPresentationPreview sourceUrl={revision.sourceUrl} presentation={revision.mediaPresentation} />
           : <p>Exact source preview requires Owner or original contributor access.</p>}</details> : null}
+        {isOwner || currentContributorIds.includes(revision.contributorId) ? <details><summary>Recover or Trash this revision</summary><RevisionRecoveryControls submissionId={revision.id} actorScope={currentContributorIds.join('|')} /></details> : null}
         {canReview && isContributorPipelineVoteable(revision) ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`}>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>

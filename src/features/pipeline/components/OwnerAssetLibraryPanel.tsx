@@ -1,6 +1,7 @@
 "use client";
 import { createPipelineReviewTarget } from '../lib/pipelineReviewTarget';
 import { CatalogTrashControls } from './CatalogTrashControls';
+import { RevisionRecoveryControls } from './RevisionRecoveryControls';
 import { SourceReviewEvidence } from './SourceReviewEvidence';
 
 import { useState } from 'react';
@@ -403,6 +404,7 @@ export function OwnerAssetLibraryPanel({
                   </Button>
                   <Button variant="outline" className="rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" onClick={() => setManagingId(null)}>Cancel</Button>
                 </div>
+                <RevisionRecoveryControls key={`revision:${submission.id}`} submissionId={submission.id} actorScope={program.currentContributorIds.join('|')} />
                 <CatalogTrashControls key={submission.id} submissionId={submission.id} />
                 <div className="border-t border-[var(--cf-border-subtle)] pt-3">
                   <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
@@ -432,7 +434,7 @@ export function OwnerAssetLibraryPanel({
                       className="rounded-none border-[#8f3e36] bg-transparent text-[#ffb8a8] hover:bg-[#2a120d]"
                       onClick={() => void deletePermanently(submission)}
                     >
-                      <Trash2 className="mr-1 h-4 w-4" /> Delete permanently
+                      <Trash2 className="mr-1 h-4 w-4" /> Delete entire lineage permanently
                     </Button>
                   </div>
                 </div>
