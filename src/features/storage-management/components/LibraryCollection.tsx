@@ -61,6 +61,8 @@ interface LibraryCollectionProps {
   activeLoading: boolean;
   activeScope: LibraryScope;
   campaignTargetId: string | null;
+  onCampaignDirtyChange?: (dirty: boolean) => void;
+  onCampaignCloseBlockedChange?: (reason: string | null) => void;
   campaignNotice?: { kind: 'success' | 'error'; message: string };
   canReview: boolean;
   canSubmit: boolean;
@@ -96,7 +98,7 @@ interface LibraryCollectionProps {
 }
 
 export function LibraryCollection({
-  activeFailure, activeLoading, activeScope, campaignNotice, campaignTargetId, canReview, canSubmit, cardsFor, density,
+  activeFailure, activeLoading, activeScope, onCampaignDirtyChange, onCampaignCloseBlockedChange, campaignNotice, campaignTargetId, canReview, canSubmit, cardsFor, density,
   heartMetrics, heartMetricsFailed, heartMetricsLoading, heartingId, isSignedIn, isSelfVoteBlocked, onDensityChange, onOpenContribution, onOpenDetail, onPersonalAction,
   onPublishedAction, onRefresh, onSharedTypeChange, onToggleHeart, onVote, personalActions, publishedRevisionByLineage, projection,
   scopeDefinition, selection, sharedType, sharedTypes, templateFor, unfilteredScopeItemCount, viewItems, votingId, isOwner,
@@ -106,8 +108,8 @@ export function LibraryCollection({
   return <section className={styles.collection} aria-labelledby="library-collection-heading">
     <div className={styles.collectionHeading}><div><h2 id="library-collection-heading">{scopeDefinition.label}</h2><p>{scopeDefinition.description}</p></div>{activeScope === 'campaigns' ? null : <span>{viewItems.length} {serverFiltered ? 'on this page' : 'shown'}</span>}</div>
     {activeScope === 'campaigns' ? isOwner
-      ? <OwnerMarketingPanel initialNotice={campaignNotice} searchQuery={projection.query} onSearchQueryChange={projection.setQuery} />
-      : <CampaignLibraryWorkspace initialCampaignId={campaignTargetId} searchQuery={projection.query} onSearchQueryChange={projection.setQuery} /> : <>
+      ? <OwnerMarketingPanel onDirtyChange={onCampaignDirtyChange} onCloseBlockedChange={onCampaignCloseBlockedChange} initialNotice={campaignNotice} searchQuery={projection.query} onSearchQueryChange={projection.setQuery} />
+      : <CampaignLibraryWorkspace onDirtyChange={onCampaignDirtyChange} onCloseBlockedChange={onCampaignCloseBlockedChange} initialCampaignId={campaignTargetId} searchQuery={projection.query} onSearchQueryChange={projection.setQuery} /> : <>
       <fieldset disabled={interactionDisabled} className={`${styles.toolbar} min-w-0`} aria-label="Library toolbar">
         {activeScope === 'personal' ? <>
           <MultiSelectionFilterMenu allLabel="All sources" ariaLabel="Filter Library by source" compactLabel="Source" className={styles.filterSelect} values={projection.sourceFilters} onChange={projection.setSourceFilters} options={LIBRARY_SOURCES.map((source) => ({ value: source, label: `${getAccountLibrarySourceLabel(source)} · ${projection.sourceCounts.get(source) ?? 0}` }))} />

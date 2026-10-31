@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,12 +35,16 @@ const emptyCampaign = (strategy: MarketingStrategyRecord): CampaignDraft => ({
 
 export function OwnerMarketingCampaignsWorkspace({
   campaigns,
+  onDirtyChange,
+  onCloseBlockedChange,
   searchQuery = "",
   strategy,
   onSaved,
   onError,
 }: {
   campaigns: MarketingCampaign[];
+  onDirtyChange?: (dirty: boolean) => void;
+  onCloseBlockedChange?: (reason: string | null) => void;
   searchQuery?: string;
   strategy: MarketingStrategyRecord;
   onSaved: () => void;
@@ -51,6 +55,9 @@ export function OwnerMarketingCampaignsWorkspace({
     emptyCampaign(strategy),
   );
   const [busy, setBusy] = useState(false);
+  const dirty = busy || JSON.stringify(draft) !== JSON.stringify(editing ?? emptyCampaign(strategy));
+  useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
+  useEffect(() => { onCloseBlockedChange?.(busy ? 'Wait for the campaign command outcome before starting a Set.' : null); return () => onCloseBlockedChange?.(null); }, [busy, onCloseBlockedChange]);
 
   const query = searchQuery.trim().toLocaleLowerCase();
   const visibleCampaigns = campaigns.filter((campaign) => [campaign.name, campaign.objective, campaign.utmCampaign].some((value) => value.toLocaleLowerCase().includes(query)));
@@ -188,7 +195,7 @@ export function OwnerMarketingCampaignsWorkspace({
           <Button disabled={busy} onClick={() => void save()}>
             {busy ? "Saving..." : "Save campaign"}
           </Button>
-          {editing ? (
+          {editing || dirty ? (
             <Button
               variant="outline"
               onClick={() => {

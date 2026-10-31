@@ -820,7 +820,7 @@ export function useDeskController({
     pendingDeleteCards,
     pendingDeleteWork,
     reviewWork,
-    closeReviewWork: () => { const restore=reviewReturnRef.current; setReviewWork(null); requestAnimationFrame(()=>{ const focus=restore?.focus?.isConnected ? restore.focus : document.getElementById(`set-${restore?.itemId}`) ?? Array.from(document.querySelectorAll<HTMLElement>('[aria-label="Open commands"], [aria-label="Search or type a command"]')).find(node=>node.getClientRects().length>0); focus?.focus({preventScroll:true}); }); },
+    closeReviewWork: () => { const restore=reviewReturnRef.current; setReviewWork(null); requestAnimationFrame(()=>{ const focus=restore?.focus?.isConnected ? restore.focus : document.getElementById(`set-info-${restore?.itemId}`) ?? document.getElementById(`set-${restore?.itemId}`); focus?.focus({preventScroll:true}); }); },
     pipelineSubmitSetId,
     preparingWorkId,
     projection: deskProjection,

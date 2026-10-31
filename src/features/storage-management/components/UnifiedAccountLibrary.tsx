@@ -119,6 +119,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const pipelineAccess = experience.contributor.canSubmit || experience.contributor.canReview || experience.contributor.canPublish;
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
   const { toast } = useToast();
+  const [campaignDirty, setCampaignDirty] = useState(false);
+  const [campaignCloseBlocked, setCampaignCloseBlocked] = useState<string | null>(null);
+  const campaignExitReason = campaignCloseBlocked ?? (campaignDirty ? 'Save or cancel campaign edits before starting a Set.' : undefined);
   const [scope, setScope] = useState<LibraryScope>('personal');
   const campaignAccess = experience.contributor.canDraftCampaigns || experience.owner;
   const activeScope = resolveLibraryScopeForViewer(scope, { contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
@@ -164,6 +167,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   };
   const setStarters = usePublishedSetStarters({ focusCreatedSet, refreshLibrary: projection.refresh });
   const createSet = (design: boolean) => {
+    if (campaignExitReason) { toast({ title: 'Keep campaign work open', description: campaignExitReason }); return; }
     const id = createProjectSet();
     setStarters.setCreateOpen(false);
     focusCreatedSet(id, design);
@@ -404,7 +408,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     activeLoading,
     activeScope,
     activeTool,
-    openCreateSet: setStarters.openCreateMenu,
+    openCreateSet: () => { if (campaignExitReason) { toast({ title: 'Keep campaign work open', description: campaignExitReason }); return; } setStarters.openCreateMenu(); },
     closeDetail,
     createCompatibilityReturnTo: createLibraryCompatibilityReturnTo,
     currentItem,
@@ -509,6 +513,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       )}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
     /> : undefined}
+    primaryDisabledReason={campaignExitReason}
     primaryAction={createLibraryZoneAction('library.create-set', 'New Set')}
     showPrimaryAction={!activeTool}
     actions={actions}
@@ -538,7 +543,10 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
       {activeScope === 'pipeline' && experience.owner && isSignedIn ? <LibraryRevisionQueueControls disabled={Boolean(activeTool)} revisions={revisionsEnabled} queue={revisionQueue} onModeChange={value => { setRevisionMode(value); setSelection(closeEnvironmentDetail); }} /> : null}
       <NewSetDialog createOpen={setStarters.createOpen} onCreateOpenChange={setStarters.setCreateOpen} onCreateWork={createSet} onCreatePublishedSet={set => { void setStarters.createFromPublishedSet(set); }} onRetryPublishedSets={setStarters.openCreateMenu} publishedSets={setStarters.publishedSets} publishedSetsLoading={setStarters.publishedSetsLoading} publishedSetsFailure={setStarters.publishedSetsFailure} creatingPublishedSetId={setStarters.creatingPublishedSetId} />
+      {campaignExitReason ? <p role="status" className="px-3 py-2 text-sm text-[var(--cf-warning)]">{campaignExitReason}</p> : null}
       <LibraryCollection
+        onCampaignDirtyChange={setCampaignDirty}
+        onCampaignCloseBlockedChange={setCampaignCloseBlocked}
         serverFiltered={revisionsEnabled}
         interactionDisabled={Boolean(activeTool)}
         activeFailure={activeFailure}

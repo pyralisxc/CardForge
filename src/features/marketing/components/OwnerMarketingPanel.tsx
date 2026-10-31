@@ -32,10 +32,14 @@ const subtabClassName =
 
 export function OwnerMarketingPanel({
   initialNotice,
+  onDirtyChange,
+  onCloseBlockedChange,
   searchQuery,
   onSearchQueryChange,
 }: {
   initialNotice?: { kind: "success" | "error"; message: string };
+  onDirtyChange?: (dirty: boolean) => void;
+  onCloseBlockedChange?: (reason: string | null) => void;
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
 }) {
@@ -197,7 +201,7 @@ export function OwnerMarketingPanel({
         </TabsList>
 
         <TabsContent value="strategy" className="mt-0">
-          <OwnerMarketingStrategyWorkspace
+          <OwnerMarketingStrategyWorkspace onDirtyChange={onDirtyChange} onCloseBlockedChange={onCloseBlockedChange}
             strategy={marketing.strategy}
             onSaved={(strategy) => {
               setMarketing({ ...marketing, strategy });
@@ -207,7 +211,7 @@ export function OwnerMarketingPanel({
           />
         </TabsContent>
         <TabsContent value="campaigns" className="mt-0">
-          <OwnerMarketingCampaignsWorkspace
+          <OwnerMarketingCampaignsWorkspace onDirtyChange={onDirtyChange} onCloseBlockedChange={onCloseBlockedChange}
             searchQuery={searchQuery}
             campaigns={marketing.campaigns}
             strategy={marketing.strategy}
@@ -219,10 +223,10 @@ export function OwnerMarketingPanel({
           />
         </TabsContent>
         <TabsContent value="content" className="mt-0">
-          <CampaignWorkspace workspace={workspace} onRefresh={load} searchQuery={searchQuery} onSearchQueryChange={onSearchQueryChange} />
+          <CampaignWorkspace onDirtyChange={onDirtyChange} onCloseBlockedChange={onCloseBlockedChange} workspace={workspace} onRefresh={load} searchQuery={searchQuery} onSearchQueryChange={onSearchQueryChange} />
         </TabsContent>
         <TabsContent value="distribution" className="mt-0">
-          <OwnerMarketingDistributionWorkspace
+          <OwnerMarketingDistributionWorkspace onDirtyChange={onDirtyChange} onCloseBlockedChange={onCloseBlockedChange}
             marketing={marketing}
             workspace={workspace}
             onSaved={() => {

@@ -24,10 +24,14 @@ export function CampaignWorkspace({
   workspace,
   initialCampaignId,
   onRefresh,
+  onDirtyChange,
+  onCloseBlockedChange,
   searchQuery,
   onSearchQueryChange,
 }: {
   workspace: MarketingContentWorkspaceView;
+  onDirtyChange?: (dirty: boolean) => void;
+  onCloseBlockedChange?: (reason: string | null) => void;
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
   initialCampaignId?: string | null;
@@ -43,6 +47,9 @@ export function CampaignWorkspace({
   const [draft, setDraft] = useState<CampaignDraft>(createDraft);
   const [editing, setEditing] = useState<SocialCampaign | null>(null);
   const [busy, setBusy] = useState(false);
+  const dirty = showComposer && (busy || JSON.stringify(draft) !== JSON.stringify(editing ? toCampaignDraft(editing) : createDraft()));
+  useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
+  useEffect(() => { onCloseBlockedChange?.(busy ? 'Wait for the campaign command outcome before starting a Set.' : null); return () => onCloseBlockedChange?.(null); }, [busy, onCloseBlockedChange]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const composerRef = useRef<HTMLDivElement>(null);
