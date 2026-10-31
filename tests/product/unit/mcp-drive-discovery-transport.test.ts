@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const provider = vi.hoisted(() => ({ list: vi.fn(), read: vi.fn(), summary: vi.fn(), write: vi.fn(), create: vi.fn() }));
 vi.mock('server-only', () => ({}));
 vi.mock('@/features/project/server', async importOriginal => ({...await importOriginal<object>(),listGoogleDriveProjects:provider.list,getGoogleDriveProject:provider.read,getGoogleDriveProjectSummary:provider.summary,updateGoogleDriveProjectFromServer:provider.write}));
-vi.mock('@/features/studio-documents/server/mcpStudioAccess', () => ({getMcpStudioAccess:async()=>({user:{id:'synthetic-owner'},entitlement:{isSignedIn:true,accountUserId:'synthetic-owner'}})}));
+vi.mock('@/features/studio-documents/server/mcpStudioAccess', () => {
+ const access=async()=>({user:{id:'synthetic-owner'},entitlement:{isSignedIn:true,accountUserId:'synthetic-owner'}});
+ return {getMcpStudioAccess:access,getMcpStudioReadAccess:access};
+});
 vi.mock('@/features/mcp-usage/server', () => ({observeMcpToolExecution:async({execute}:{execute:()=>Promise<unknown>})=>execute()}));
 vi.mock('@/features/studio-documents/server/studioDocumentStore', async importOriginal => ({...await importOriginal<object>(),createStudioDocument:provider.create}));
 import { buildCardForgeProjectSnapshot, encodeCardForgeProjectPackage, decodeCardForgeProjectPackage, hydrateCardForgeProjectSnapshot } from '@/features/project/lib/projectPackageCodec';
