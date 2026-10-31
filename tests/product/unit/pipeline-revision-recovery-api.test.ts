@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({ access: vi.fn(), read: vi.fn(), change: vi.fn(), refresh: vi.fn() }));
 vi.mock('@/features/pipeline/server', async () => ({ ...(await import('@/features/pipeline/lib/pipelineRegistryCommandsError')),
+  ...(await import('@/features/pipeline/lib/revisionRecoveryError')),
   ...(await import('@/features/pipeline/lib/pipelineStoreError')), getCurrentPipelineRequestAccess: m.access,
   readRevisionRecovery: m.read, changeRevisionRecovery: m.change, revalidateCardForgeCatalog: m.refresh }));
 vi.mock('@/features/account/server', () => ({ AccountToolAccessError: class extends Error { constructor(public status: number) { super(); } } }));
@@ -30,4 +31,12 @@ it('does not convert auth, private denial, conflicts or provider failure into re
     expect((await post(input)).status).toBe(status);
   }
   expect(m.change).toHaveBeenCalledTimes(4); expect(m.refresh).not.toHaveBeenCalled();
+});
+
+it('keeps conflict and uncertain HTTP metadata scoped to reconciliation', async () => {
+  for (const status of [409, 503]) {
+    m.change.mockRejectedValueOnce(new PipelineRegistryCommandError('Read retained claims.', status));
+    const body = await (await post(input)).json();
+    expect(body.error).toMatchObject({ retryable: false, nextAction: expect.stringContaining('retained Trash, hold and destructive claim state') });
+  }
 });

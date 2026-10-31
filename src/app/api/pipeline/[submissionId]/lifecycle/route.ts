@@ -2,14 +2,15 @@ import { parseJsonBodyWithLimit } from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { AccountToolAccessError } from '@/features/account/server';
 import { getCurrentPipelineRequestAccess, PipelineRegistryCommandError, PipelineStoreError,
-  readRevisionRecovery, changeRevisionRecovery, revalidateCardForgeCatalog } from '@/features/pipeline/server';
+  readRevisionRecovery, changeRevisionRecovery, revalidateCardForgeCatalog, REVISION_RECOVERY_NEXT_ACTION } from '@/features/pipeline/server';
 
 export const dynamic = 'force-dynamic';
 const failure = (error: unknown) => {
   const status = error instanceof PipelineRegistryCommandError || error instanceof PipelineStoreError || error instanceof AccountToolAccessError ? error.status : 503;
   return createApiErrorResponse(status, status === 401 ? 'sign_in_required' : status === 403 ? 'revision_recovery_not_permitted'
     : status === 404 ? 'revision_recovery_not_found' : status === 409 ? 'revision_recovery_conflict' : status === 400 ? 'revision_recovery_invalid' : 'revision_recovery_unavailable',
-  error instanceof Error ? error.message : 'Revision recovery is unavailable. Read its state before another action.');
+  error instanceof Error ? error.message : 'Revision recovery is unavailable. Read its state before another action.',
+  status === 409 || status >= 500 ? { retryable: false, nextAction: REVISION_RECOVERY_NEXT_ACTION } : undefined);
 };
 
 export async function GET(_request: Request, { params }: { params: Promise<{ submissionId: string }> }) {

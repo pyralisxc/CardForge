@@ -7,7 +7,7 @@ do $$
 declare
  lineage uuid:=gen_random_uuid(); history uuid:=gen_random_uuid(); live uuid:=gen_random_uuid(); other uuid:=gen_random_uuid();
  snapshot jsonb; trashed jsonb; restored jsonb; stale jsonb; payload jsonb:='{"fixture":"immutable retained content"}';
- published_before integer; highwater integer; current_before uuid; claim uuid; legacy uuid:=gen_random_uuid();
+ published_before integer; highwater integer; current_before uuid; claim uuid; legacy uuid:=gen_random_uuid(); recovered_draft uuid:=gen_random_uuid();
 begin
  if exists(select 1 from public.cardforge_asset_registry) then raise exception 'revision_recovery_fixture_requires_isolated_empty_catalog'; end if;
  if has_function_privilege('anon','public.cardforge_read_revision_recovery(uuid,text,boolean)','EXECUTE')
@@ -87,6 +87,17 @@ begin
  trashed:=public.cardforge_change_revision_recovery('recovery-owner',true,'trash',snapshot->'state');
  snapshot:=public.cardforge_read_revision_recovery(other,'recovery-b',false);
  if not (snapshot->'restoreReasons' ? 'owner_recovery_required') then raise exception 'owner_trash_recoverable_by_contributor'; end if;
+ -- Recovery of an unpublished submitted record cannot be undone by the
+ -- archived-to-Trash projection used by ordinary automatic rebalancing.
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status)
+ values(recovered_draft,lineage,'recovery-a','icons','Recoverable submitted content','submitted');
+ snapshot:=public.cardforge_read_revision_recovery(recovered_draft,'recovery-a',false);
+ snapshot:=public.cardforge_change_revision_recovery('recovery-a',false,'trash',snapshot->'state');
+ snapshot:=public.cardforge_change_revision_recovery('recovery-a',false,'restore',snapshot->'state');
+ update public.cardforge_contributor_asset_submissions set trashed_at=now(),purge_after=now()+interval '30 days',trash_reason='withdrawn'
+   where id=recovered_draft;
+ if (select trashed_at from public.cardforge_contributor_asset_submissions where id=recovered_draft) is not null then
+   raise exception 'automatic_projection_retrashed_recovered_content'; end if;
  -- Claim-only proof: no Storage API is invoked by this rollback fixture.
  select claim_token into claim from public.cardforge_claim_pipeline_revision_purge_owner(other,'Another contributor candidate',null);
  if claim is null then raise exception 'eligible_owner_revision_claim_missing'; end if;

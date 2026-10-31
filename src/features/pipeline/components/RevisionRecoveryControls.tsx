@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { revisionRecoverySnapshotSchema, type RevisionRecoveryCommand, type RevisionRecoverySnapshot } from '../lib/revisionRecoveryContract';
@@ -10,6 +10,7 @@ const explain = (reason: string) => ({
   owner_recovery_required: 'Owner recovery is required for moderation or earlier Trash with unverified origin.',
   catalog_recovery_active: 'This lineage has separate catalog recovery in progress.',
   destructive_attempt_requires_reconciliation: 'A deletion has committed or its outcome is uncertain. Recovery requires reconciliation.',
+  retention_hold: 'The Owner retention hold must be removed before restoring this revision.',
   installed_runtime_resolution_unverified: 'Existing installed content needs a verified retained source before this live revision can leave discovery.',
   legacy_destructive_history_unverified: 'Earlier deletion activity requires reconciliation before removing this live revision.',
   pipeline_identity_consumer_requires_resolution: 'Another retained Pipeline object depends on this live identity.',
@@ -19,13 +20,15 @@ const explain = (reason: string) => ({
 }[reason] ?? reason.replaceAll('_', ' '));
 
 /** Exact revision control; lineage projections never provide mutation authority. */
-export function RevisionRecoveryControls({ submissionId, actorScope }: { submissionId: string; actorScope: string }) {
+export function RevisionRecoveryControls({ submissionId, actorScope, onChanged }: { submissionId: string; actorScope: string; onChanged?: () => Promise<void> | void }) {
   // A target/account switch replaces the complete request/state owner before
   // rendering; an old in-flight completion cannot populate the next revision.
-  return <RevisionRecoverySession key={JSON.stringify([actorScope, submissionId])} submissionId={submissionId} />;
+  return <RevisionRecoverySession key={JSON.stringify([actorScope, submissionId])} submissionId={submissionId} onChanged={onChanged} />;
 }
 
-function RevisionRecoverySession({ submissionId }: { submissionId: string }) {
+function RevisionRecoverySession({ submissionId, onChanged }: { submissionId: string; onChanged?: () => Promise<void> | void }) {
+  const active = useRef(true);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const [snapshot, setSnapshot] = useState<RevisionRecoverySnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -40,7 +43,8 @@ function RevisionRecoverySession({ submissionId }: { submissionId: string }) {
     try {
       const response = await fetch(endpoint, { cache: 'no-store' });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Revision recovery is unavailable.'));
-      accept(await response.json());
+      const value = await response.json();
+      if (active.current) accept(value);
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Revision recovery is unavailable.'); }
     finally { setBusy(false); }
   };
@@ -50,7 +54,11 @@ function RevisionRecoverySession({ submissionId }: { submissionId: string }) {
     try {
       const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(command) });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Read revision state before another action.'));
-      accept(await response.json());
+      const value = await response.json();
+      if (!active.current) return;
+      accept(value);
+      // A refresh failure cannot undo an already confirmed recovery command.
+      try { await onChanged?.(); } catch { setError('Recovery committed. Refresh the Library to update its projection.'); }
     } catch (failure) {
       setSnapshot(null);
       setError(failure instanceof Error ? failure.message : 'Read revision state before another action.');

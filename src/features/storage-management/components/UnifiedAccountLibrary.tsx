@@ -487,6 +487,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
       isOwner={experience.owner}
+      currentContributorIds={shared.program?.currentContributorIds ?? []}
       onEditRevision={isSignedIn && experience.contributor.canSubmit ? revision => {
         if (!isSignedIn || !experience.contributor.canSubmit || currentItem.pipeline.ownership !== 'mine'
           || currentItem.pipeline.editableSubmission?.id !== revision.id) return;

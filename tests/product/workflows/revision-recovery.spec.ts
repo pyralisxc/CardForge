@@ -10,7 +10,7 @@ const first = '00000000-0000-4000-8000-000000000001';
 const second = '00000000-0000-4000-8000-000000000002';
 const snapshot = (submissionId: string, trashed = true) => ({ name: submissionId === first ? 'First exact revision' : 'Second exact revision',
   state: { scope: 'revision', submissionId, lineageId: '00000000-0000-4000-8000-000000000003', revisionNumber: 1,
-    registrySubmissionId: null, revisionHighWater: 2, recoveryVersion: '2', status: 'archived', updatedAt: '2026-10-31T18:00:00Z',
+    registrySubmissionId: null, revisionHighWater: 2, recoveryVersion: trashed ? '2' : '3', status: 'archived', updatedAt: '2026-10-31T18:00:00Z',
     trashedAt: trashed ? '2026-10-31T18:00:00Z' : null, purgeAfter: trashed ? '2026-11-30T18:00:00Z' : null, held: false },
   retentionDays: 30, trashActor: trashed ? 'contributor' : null, trashReasons: trashed ? ['revision_already_trashed'] : [],
   restoreReasons: trashed ? [] : ['revision_not_trashed'], canHold: false, publicationRetained: true,
@@ -67,5 +67,6 @@ test('@golden revision recovery requires a new read after uncertainty and ignore
   release!();
   await expect(page.getByRole('status')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Move revision to Trash' })).toHaveCount(0);
+  await expect(page.getByText('Refreshes: 0', { exact: true })).toBeVisible();
   expect(posts).toBe(2);
 });

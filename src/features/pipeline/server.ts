@@ -38,3 +38,4 @@ export { inspectOwnerRevisionDeletion, deleteOwnerRevision } from './server/owne
 export { RevisionDeleteError } from './server/ownerRevisionDeletion';
 export { readRevisionRecovery, changeRevisionRecovery } from './server/revisionRecovery';
 export type { RevisionRecoveryCommand, RevisionRecoverySnapshot } from './lib/revisionRecoveryContract';
+export { RevisionRecoveryError, REVISION_RECOVERY_NEXT_ACTION } from './lib/revisionRecoveryError';

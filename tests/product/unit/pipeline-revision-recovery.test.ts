@@ -38,14 +38,14 @@ describe('exact revision recovery boundaries', () => {
     await expect(changeRevisionRecovery('contributor', { action: 'hold', expected: state, held: true })).rejects.toMatchObject({ status: 403 });
     expect(m.rpc).not.toHaveBeenCalled();
     m.access.mockResolvedValue({ isOwner: true, user: { id: 'native-owner' } });
-    m.rpc.mockResolvedValue({ data: { ...snapshot, state: { ...state, held: true }, canHold: true }, error: null });
+    m.rpc.mockResolvedValue({ data: { ...snapshot, state: { ...state, recoveryVersion: '3', held: true }, canHold: true }, error: null });
     await changeRevisionRecovery('owner', { action: 'hold', expected: state, held: true });
     expect(m.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_change_revision_recovery', {
       p_actor_user_id: 'native-owner', p_is_owner: true, p_action: 'hold', p_expected: state, p_held: true,
     });
   });
   it('retains immutable archived history and a newer current pointer on restore', async () => {
-    m.rpc.mockResolvedValue({ data: { ...snapshot, state: { ...state, trashedAt: null, purgeAfter: null } }, error: null });
+    m.rpc.mockResolvedValue({ data: { ...snapshot, state: { ...state, recoveryVersion: '3', trashedAt: null, purgeAfter: null } }, error: null });
     expect(await changeRevisionRecovery('session', { action: 'restore', expected: state })).toMatchObject({ state: {
       status: 'archived', registrySubmissionId: state.registrySubmissionId, revisionHighWater: 4, trashedAt: null,
     } });

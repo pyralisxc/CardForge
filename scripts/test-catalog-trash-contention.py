@@ -451,6 +451,34 @@ try:
     print('PASS: website release writer COMMIT rejects a queued duplicate version')
 
 
+    # Exact revision recovery uses the same lineage-first, irreversible claim
+    # boundary without changing the separately retained catalog state.
+    recovery_lineage, recovery_current, recovery_old, _ = fixture(a)
+    def revision_state(session):
+        return json.loads(session.run(f"select public.cardforge_read_revision_recovery('{recovery_old}','isolated-owner',true)::text;")[-1])['state']
+    def recover(action, state):
+        return "public.cardforge_change_revision_recovery('isolated-owner',true,'" + action + "','" + json.dumps(state) + "'::jsonb)"
+    a.run('select ' + recover('restore', revision_state(a)) + ';')
+    observed = revision_state(a)
+    a.run('begin;')
+    a.run(f"select 1 from public.cardforge_pipeline_asset_lineages where id='{recovery_lineage}' for update;")
+    expect_busy(b, recover('trash', observed))
+    a.run('rollback;')
+    b.run('begin isolation level repeatable read;')
+    expect_conflict(b, recover('trash', observed), 'revision_recovery_state_changed')
+    b.run('rollback;')
+    a.run('begin;')
+    a.run('select ' + recover('trash', observed) + ';')
+    claim_expression = f"public.cardforge_claim_pipeline_revision_purge_owner('{recovery_old}','Old contention proof',null)"
+    assert b.run('select count(*) from ' + claim_expression + ';')[-1] == '0'
+    a.run('commit;')
+    expect_conflict(b, recover('trash', observed), 'revision_recovery_state_changed')
+    assert b.run('select count(*) from ' + claim_expression + ';')[-1] == '1'
+    committed = revision_state(a)
+    expect_conflict(a, recover('restore', committed), 'revision_recovery_blocked')
+    print('PASS: revision recovery lineage contention, old-snapshot rejection, stale generation and committed claim fences')
+
+
 finally:
     a.close()
     b.close()
