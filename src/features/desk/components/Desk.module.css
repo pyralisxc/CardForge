@@ -1909,11 +1909,11 @@
     top: 0;
     right: 0;
     left: 0;
-    display: grid;
+    display: flex;
     max-width: none;
     flex: 0 0 auto;
     align-items: center;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    flex-wrap: wrap;
     padding: 0.35rem 0.5rem 0.5rem;
     border-right: 0;
     border-left: 0;
@@ -1945,7 +1945,7 @@
     position: static;
     display: block;
     min-width: 0;
-    grid-column: 1;
+    flex: 1 0 auto;
   }
 
   .deskToolbar > button,
@@ -1954,6 +1954,10 @@
     gap: 0.25rem;
     padding-inline: 0.45rem;
     font-size: 0.72rem;
+  }
+
+  .deskToolbar > button {
+    flex: 0 0 auto;
   }
 
   .mobileDeskFilters > summary {
@@ -1970,6 +1974,7 @@
     font-size: 0.72rem;
     font-weight: 600;
     list-style: none;
+    white-space: nowrap;
   }
 
   .mobileDeskFilters > summary::-webkit-details-marker {

@@ -535,6 +535,52 @@ for (const width of [320, 390, 1440]) test(`@golden Desk second rail keeps contr
   expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
 });
 
+test('@golden Desk enlarged text keeps labels and selected-work controls reachable at 320px', async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  const evidence = await mount(page, '?deskActual=1&deskMenu=1&deskSearch=1');
+  const toolbar = page.locator('[data-desk="overview"] [data-desk-toolbar]');
+  const filters = toolbar.getByLabel('Open Desk filters', { exact: true });
+  const view = toolbar.getByRole('button', { name: 'Desk view controls', exact: true });
+  await filters.click();
+  const panel = page.locator('[data-mobile-desk-filters] [aria-label="Desk views and filters"]');
+  await panel.getByRole('button', { name: 'Choose Desk views', exact: true }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'My published', exact: true }).click();
+  await page.keyboard.press('Escape'); await filters.click();
+  await toolbar.getByRole('button', { name: 'Select multiple', exact: true }).click();
+  for (const name of ['Synthetic material revision one', 'Unrelated Bridge Back']) {
+    await page.getByRole('button', { name: new RegExp(`^Select ${name}`) }).click();
+  }
+  const normalFont = await filters.evaluate(node => parseFloat(getComputedStyle(node).fontSize));
+  // Enlarge the actual label text without doubling every unrelated rem-sized
+  // header, source notice and footer in this isolated unavailable-provider fixture.
+  await page.addStyleTag({ content: `[data-desk-toolbar] > button, [data-mobile-desk-filters] > summary, [aria-label="Compact Desk view controls"] button { font-size: ${normalFont * 2}px !important; }` });
+  expect(await filters.evaluate(node => parseFloat(getComputedStyle(node).fontSize))).toBeCloseTo(normalFont * 2, 1);
+  const measurements = await Promise.all([filters, toolbar.getByRole('button', { name: 'Done selecting', exact: true }), view].map(control => control.evaluate(node => {
+    const bounds = node.getBoundingClientRect();
+    const range = document.createRange(); range.selectNodeContents(node);
+    return { label: node.textContent, font: getComputedStyle(node).fontSize, x: bounds.x, width: bounds.width, height: bounds.height,
+      text: Array.from(range.getClientRects()).filter(rect => rect.width && rect.height).map(rect => ({ x: rect.x, right: rect.right })) };
+  })));
+  await info.attach('enlarged-desk-measurements', { body: JSON.stringify(measurements, null, 2), contentType: 'application/json' });
+  console.log('ENLARGED_DESK_MEASUREMENTS', JSON.stringify(measurements));
+  await page.screenshot({ path: info.outputPath('desk-second-rail-enlarged.png') });
+  for (const measurement of measurements) {
+    expect(measurement.width).toBeGreaterThanOrEqual(44); expect(measurement.height).toBeGreaterThanOrEqual(44);
+    expect(measurement.x).toBeGreaterThanOrEqual(0); expect(measurement.x + measurement.width).toBeLessThanOrEqual(320);
+    for (const text of measurement.text) { expect(text.x).toBeGreaterThanOrEqual(measurement.x); expect(text.right).toBeLessThanOrEqual(measurement.x + measurement.width + 1); }
+  }
+  await view.click(); await expect(page.getByRole('menuitem', { name: 'Fit selection', exact: true })).toBeEnabled();
+  await page.keyboard.press('Escape'); await expect(view).toBeFocused();
+  await filters.focus(); await page.keyboard.press('Enter');
+  await expect(panel).toBeInViewport({ ratio: 1 });
+  await expect(panel.getByRole('button', { name: 'Organize 2 Sets', exact: true })).toBeInViewport({ ratio: 1 });
+  await page.keyboard.press('Escape');
+  await toolbar.getByRole('button', { name: 'Done selecting', exact: true }).click();
+  await expect(toolbar.getByRole('button', { name: 'Select multiple', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
 for (const width of [320, 390, 1440]) test(`@golden Library second rail keeps full scope labels on one row at ${width}px`, async ({ page }, info) => {
   await page.setViewportSize({ width, height: 844 });
   const evidence = await mount(page, '?campaignActual=1');
