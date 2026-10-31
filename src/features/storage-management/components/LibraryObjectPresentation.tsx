@@ -276,11 +276,11 @@ export function PublishedRevisionFeedback({ revision, name, canReview, votingId,
   </section>;
 }
 
-export const createLibraryZoneAction = (id: 'library.refresh' | 'library.close-locations' | 'library.close-tool', label: string, loading = false): ActionDescriptor => ({
+export const createLibraryZoneAction = (id: 'library.create-set' | 'library.refresh' | 'library.close-locations' | 'library.close-tool', label: string, loading = false): ActionDescriptor => ({
   id, label, ownerFeature: 'storage-management', supportedObjectKinds: [], supportedSources: [], revisionPolicy: 'none',
   requiredPermission: 'guest', scope: 'zone', hierarchy: 'primary',
   availability: loading ? { kind: 'disabled', reason: 'Library sources are already refreshing.' } : { kind: 'available' },
-  commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: id === 'library.refresh' ? 'refresh-requested' : 'navigation',
+  commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: id === 'library.create-set' ? 'tool-opened' : id === 'library.refresh' ? 'refresh-requested' : 'navigation',
 });
 
 export const createLibraryReviewAction = (): ActionDescriptor => ({

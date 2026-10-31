@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,11 +35,17 @@ const emptyCampaign = (strategy: MarketingStrategyRecord): CampaignDraft => ({
 
 export function OwnerMarketingCampaignsWorkspace({
   campaigns,
+  onDirtyChange,
+  onCloseBlockedChange,
+  searchQuery = "",
   strategy,
   onSaved,
   onError,
 }: {
   campaigns: MarketingCampaign[];
+  onDirtyChange?: (dirty: boolean) => void;
+  onCloseBlockedChange?: (reason: string | null) => void;
+  searchQuery?: string;
   strategy: MarketingStrategyRecord;
   onSaved: () => void;
   onError: (message: string) => void;
@@ -49,6 +55,12 @@ export function OwnerMarketingCampaignsWorkspace({
     emptyCampaign(strategy),
   );
   const [busy, setBusy] = useState(false);
+  const dirty = busy || JSON.stringify(draft) !== JSON.stringify(editing ?? emptyCampaign(strategy));
+  useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
+  useEffect(() => { onCloseBlockedChange?.(busy ? 'Wait for the campaign command outcome before starting a Set.' : null); return () => onCloseBlockedChange?.(null); }, [busy, onCloseBlockedChange]);
+
+  const query = searchQuery.trim().toLocaleLowerCase();
+  const visibleCampaigns = campaigns.filter((campaign) => [campaign.name, campaign.objective, campaign.utmCampaign].some((value) => value.toLocaleLowerCase().includes(query)));
 
   const choose = (campaign: MarketingCampaign) => {
     setEditing(campaign);
@@ -80,7 +92,7 @@ export function OwnerMarketingCampaignsWorkspace({
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.75fr)]">
       <section className="space-y-3">
-        {campaigns.map((campaign) => (
+        {visibleCampaigns.map((campaign) => (
           <button
             type="button"
             key={campaign.id}
@@ -103,6 +115,7 @@ export function OwnerMarketingCampaignsWorkspace({
             </p>
           </button>
         ))}
+        {!visibleCampaigns.length ? <p role="status" className="p-4 text-sm text-[var(--cf-text-muted)]">{query ? "No campaigns match this search." : "No campaigns yet."}</p> : null}
       </section>
       <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
         <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">
@@ -182,7 +195,7 @@ export function OwnerMarketingCampaignsWorkspace({
           <Button disabled={busy} onClick={() => void save()}>
             {busy ? "Saving..." : "Save campaign"}
           </Button>
-          {editing ? (
+          {editing || dirty ? (
             <Button
               variant="outline"
               onClick={() => {

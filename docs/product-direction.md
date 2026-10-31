@@ -619,7 +619,7 @@ CardForge already has much of the lower-level engine:
 - temporary AI documents and MCP collaboration;
 - Pipeline submissions/votes/publication/archive/attribution.
 - a select-first constrained spatial Desk with persistent grouping, shared-object Set opening, reflective organization, and equivalent pointer/touch/keyboard paths;
-- one semantic action runtime presented through Desk, focused work, and the command palette;
+- one semantic action runtime presented through Desk and exact focused-work menus;
 - Personal/Published/Pipeline Library scopes, exact revision editing, contributor withdrawal/retirement, and Content Health;
 - one source-agnostic Library Picker contract used by resource-selecting tools;
 - fault-visible browser recovery, revision-safe Google Drive boundaries, exact checkout return, and independent commercial/authority entitlement axes;

@@ -2,13 +2,12 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { HardDrive, Search } from 'lucide-react';
+import { HardDrive } from 'lucide-react';
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import type { DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
@@ -16,7 +15,7 @@ import { createCardFaceExportRenderer, getExportProfile } from '@/features/card-
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import {
-  ENVIRONMENT_ZONES, EnvironmentBoundaryNotice, EnvironmentShell, EnvironmentStatus, EnvironmentToolLayer,
+  ENVIRONMENT_ZONES, EnvironmentBoundaryNotice, EnvironmentSearch, EnvironmentShell, EnvironmentStatus, EnvironmentToolLayer,
   closeEnvironmentDetail, closeEnvironmentToolSession, createSelectionSession, deriveEnvironmentPresentation, getVisibleEnvironmentZones,
   openEnvironmentDetail, openEnvironmentToolSession, setEnvironmentToolSessionDirty,
   type EnvironmentToolSession, type EnvironmentViewer, type SelectionSession,
@@ -25,9 +24,12 @@ import type { WorkbenchBusinessIdentity } from '@/features/creator-workbench/cli
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
 import { buildPipelineContentHealth, PipelineContentHealthPanel, type PipelineSubmission } from '@/features/pipeline/client';
 import { deleteGoogleDriveProjectCopy } from '@/features/project/client/provider-google-drive';
-import { useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+
+import { NewSetDialog, usePublishedSetStarters } from '@/features/project/client/new-set';
+import { useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
+import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 
 import { useAccountLibraryProjection } from '../hooks/useAccountLibraryProjection';
 import { useAccountLibraryActions } from '../hooks/useAccountLibraryActions';
@@ -46,6 +48,7 @@ import {
   LibraryDetailVisual,
   PipelineDetailContent,
   PublishedRevisionFeedback,
+  createLibraryZoneAction,
   createLibraryDetailRecord as detailRecord,
   pipelineLineageFor,
   type LibraryViewItem,
@@ -116,6 +119,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const pipelineAccess = experience.contributor.canSubmit || experience.contributor.canReview || experience.contributor.canPublish;
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
   const { toast } = useToast();
+  const [campaignDirty, setCampaignDirty] = useState(false);
+  const [campaignCloseBlocked, setCampaignCloseBlocked] = useState<string | null>(null);
+  const campaignExitReason = campaignCloseBlocked ?? (campaignDirty ? 'Save or cancel campaign edits before starting a Set.' : undefined);
   const [scope, setScope] = useState<LibraryScope>('personal');
   const campaignAccess = experience.contributor.canDraftCampaigns || experience.owner;
   const activeScope = resolveLibraryScopeForViewer(scope, { contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
@@ -153,6 +159,19 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const surfaceRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const projectWorkspace = useProjectLibraryWorkspace();
+  const { createSet: createProjectSet, activateSet: activateCreatedSet } = projectWorkspace.actions;
+  const focusCreatedSet = (setId: string, design = false) => {
+    activateCreatedSet(setId);
+    const href = createDeskReturnHref(`set:${setId}`, undefined, createLibraryCompatibilityReturnTo());
+    projection.router.push(design ? `${href}&tool=design` : href);
+  };
+  const setStarters = usePublishedSetStarters({ focusCreatedSet, refreshLibrary: projection.refresh });
+  const createSet = (design: boolean) => {
+    if (campaignExitReason) { toast({ title: 'Keep campaign work open', description: campaignExitReason }); return; }
+    const id = createProjectSet();
+    setStarters.setCreateOpen(false);
+    focusCreatedSet(id, design);
+  };
   const { displayCards, templates, cardSets } = projectWorkspace;
   const { deleteSet, openTemplateDesign } = projectWorkspace.actions;
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
@@ -389,6 +408,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     activeLoading,
     activeScope,
     activeTool,
+    openCreateSet: () => { if (campaignExitReason) { toast({ title: 'Keep campaign work open', description: campaignExitReason }); return; } setStarters.openCreateMenu(); },
     closeDetail,
     createCompatibilityReturnTo: createLibraryCompatibilityReturnTo,
     currentItem,
@@ -493,13 +513,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       )}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
     /> : undefined}
+    primaryDisabledReason={campaignExitReason}
+    primaryAction={createLibraryZoneAction('library.create-set', 'New Set')}
+    showPrimaryAction={!activeTool}
     actions={actions}
     accountControl={<PublicAuthControls />}
-    search={<label className="relative block min-w-0 w-[min(32rem,42vw)] max-w-full">
-      <span className="sr-only">Search {activeScope}</span>
-      <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--cf-text-subtle)]" aria-hidden="true" />
-      <Input disabled={Boolean(activeTool)} ref={searchRef} id="library-global-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} className="h-10 w-full pl-9" placeholder={`Search ${activeScope}`} />
-    </label>}
+    search={<EnvironmentSearch id="library-global-search" label={`Search ${activeScope}`} value={projection.query} onChange={projection.setQuery} inputRef={searchRef} disabled={Boolean(activeTool)} />}
     focusReturnId={selection.focusReturnId ?? undefined}
     surfaceRef={surfaceRef}
     statusContent={<>
@@ -512,20 +531,22 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     onAction={runAction} onCloseDetail={closeDetail}
   >
     <div className={styles.library} data-library-surface data-density={density} data-tool-open={Boolean(activeTool)}>
-      <header className={styles.libraryHeader}>
-        <div><p>Library</p><h1>Your materials and work</h1><span>Browse what you own, what CardForge publishes, and what is moving through review.</span></div>
-      </header>
+      <h1 className="sr-only">Library</h1>
       <nav className={styles.scopeTabs} aria-label="Library scopes">
         {scopeDefinitions.map((definition) => <button key={definition.id} type="button" aria-current={activeScope === definition.id ? 'page' : undefined} disabled={Boolean(activeTool)} onClick={() => chooseScope(definition.id)}><span>{definition.label}</span><small>{definition.owner}</small></button>)}
       </nav>
-      {experience.owner ? <button id="library-pipeline-operations" type="button" disabled={Boolean(activeTool)} className="border px-3 py-2 text-sm" onClick={() => {
+      {experience.owner && activeScope === 'pipeline' ? <button id="library-pipeline-operations" type="button" disabled={Boolean(activeTool)} className="border px-3 py-2 text-sm" onClick={() => {
         reviewReturn.current = { focus: document.activeElement as HTMLElement, scroll: surfaceRef.current?.scrollTop ?? 0 };
         openTool('pipeline-operations');
       }}>Pipeline operations</button> : null}
       {activeScope === 'pipeline' ? <PipelineContentHealthPanel catalog={shared.catalog} onClassified={shared.refresh} health={contentHealth} canRepair={experience.owner} onOpenObject={(objectId) => { const item = viewItems.find((candidate) => candidate.id === `pipeline:${objectId}` || candidate.id === objectId); if (item) openDetail(item); }} /> : null}
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
       {activeScope === 'pipeline' && experience.owner && isSignedIn ? <LibraryRevisionQueueControls disabled={Boolean(activeTool)} revisions={revisionsEnabled} queue={revisionQueue} onModeChange={value => { setRevisionMode(value); setSelection(closeEnvironmentDetail); }} /> : null}
+      <NewSetDialog createOpen={setStarters.createOpen} onCreateOpenChange={setStarters.setCreateOpen} onCreateWork={createSet} onCreatePublishedSet={set => { void setStarters.createFromPublishedSet(set); }} onRetryPublishedSets={setStarters.openCreateMenu} publishedSets={setStarters.publishedSets} publishedSetsLoading={setStarters.publishedSetsLoading} publishedSetsFailure={setStarters.publishedSetsFailure} creatingPublishedSetId={setStarters.creatingPublishedSetId} />
+      {campaignExitReason ? <p role="status" className="px-3 py-2 text-sm text-[var(--cf-warning)]">{campaignExitReason}</p> : null}
       <LibraryCollection
+        onCampaignDirtyChange={setCampaignDirty}
+        onCampaignCloseBlockedChange={setCampaignCloseBlocked}
         serverFiltered={revisionsEnabled}
         interactionDisabled={Boolean(activeTool)}
         activeFailure={activeFailure}
@@ -561,7 +582,6 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         personalActions={personalActions}
         projection={projection}
         scopeDefinition={scopeDefinition}
-        searchRef={searchRef}
         selection={selection}
         sharedType={sharedType}
         sharedTypes={sharedTypes}

@@ -1,3 +1,6 @@
+import type { MarketingContentPackage } from '@/features/marketing-content/client';
+import { PublicAuthControlContent } from '@/features/account/components/PublicAuthControls';
+import { DEFAULT_MARKETING_STRATEGY } from '@/features/marketing/client';
 import { Toaster } from '@/components/ui/toaster';
 import { SearchParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
 import { Desk } from '@/features/desk/components/Desk';
@@ -12,6 +15,8 @@ import { useLibraryRevisionQueue } from '@/features/storage-management/hooks/use
 import { useUnifiedLibraryView } from '@/features/storage-management/hooks/useUnifiedLibraryView';
 import { projectPipelineLibraryObjects } from '@/features/storage-management/hooks/useLibrarySharedProjection';
 import { libraryReviewSelection } from '@/features/storage-management/lib/libraryReviewSelection';
+import { EnvironmentSearch } from '@/features/app-shell/client/environment';
+import { createLibraryZoneAction } from '@/features/storage-management/components/LibraryObjectPresentation';
 import { createSelectionSession } from '@/features/app-shell/client/environment';
 import type { PipelineReviewTarget } from '@/features/pipeline/lib/pipelineReviewTarget';
 import { EnvironmentShell } from '@/features/app-shell/environment/components/EnvironmentShell';
@@ -50,8 +55,8 @@ const program = { configured: true, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   managedStorageBytes: 0, managedFileCount: 0, totalSubmissionCount: rows.length, totalVoteableCount: 0, activeContributorCount: 0,
   assetTypeSummaries: [], contributions: [], currentContributorIds: [],
 } as unknown as PipelineProgramView;
-const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseStylePost?: () => void };
-proof.libraryRequests = [];
+const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseStylePost?: () => void; libraryNavigations: string[] };
+proof.libraryRequests = []; proof.libraryNavigations = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
 const queueCatalog: ReturnType<typeof identityCatalog> = { ...identityCatalog(), pipeline: { items: [] } };
@@ -93,6 +98,9 @@ if (params.has('historyTemplate')) {
     submissionId: queueRows[0].id, lineageId: row.lineageId ?? null, updatedAt: 'registry-epoch',
     previewUrl: null, access: 'free', source: 'official', fileSizeBytes: null }] };
 }
+const marketingStrategy = { ...DEFAULT_MARKETING_STRATEGY, id: 'synthetic-strategy', version: 1, updatedAt: '2026-01-01T00:00:00Z', updatedBy: 'synthetic-owner' };
+const marketingCampaigns = [{ id: 'synthetic-campaign', name: 'Founder Beta Introduction', objective: 'Invite tabletop designers to try their first printable Set.', audienceKey: 'tabletop-designers', offer: 'Create a Set', status: 'active', startsOn: null, endsOn: null, successMetric: 'First completed Set', utmCampaign: 'founder-beta', version: 1, createdBy: 'synthetic-owner', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }];
+const campaignPackage = { id: 'synthetic-package', contributorId: params.has('campaignComposer') ? 'synthetic-owner' : 'synthetic-author', contributorEmail: null, contributorName: 'Synthetic author', title: 'Printable Deck Introduction', objective: 'Explain the printable card workflow', destinationUrl: 'https://cardforges.com', productionNote: '', marketingCampaignId: 'synthetic-campaign', audienceKey: 'tabletop-designers', contentPillar: 'product-proof', funnelStage: 'awareness', contentKind: 'demonstration', callToAction: 'Open Desk', creationSource: 'human', utmContent: '', variants: [{ service: 'facebook', text: 'Synthetic package copy', attachments: [] }], associations: [], status: params.has('campaignComposer') ? 'draft' : 'submitted', requestedPublishAt: null, reviewNote: '', reviewedBy: null, submittedAt: '2026-01-01T00:00:00Z', approvedAt: null, version: 1, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' } satisfies MarketingContentPackage;
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -103,7 +111,9 @@ window.fetch = async (input, init) => {
     if (url === '/api/catalog/studio-bootstrap') return Response.json({...queueCatalog,studioDefaults:{defaultTemplateId:null}});
     if (url !== '/api/catalog' && !url.startsWith('/api/pipeline?') && !url.startsWith('/api/owner/pipeline/')) return Response.json({error:{code:'fixture_unavailable',kind:'unavailable',message:'Provider excluded from isolated Desk proof',retryable:false}},{status:503});
   }
-  if (params.has('queueActual') && (!init?.method || init.method === 'GET')) {
+  if ((params.has('queueActual') || params.has('campaignActual')) && (!init?.method || init.method === 'GET')) {
+    if (url === '/api/owner/marketing') return Response.json({ marketing: { configured: true, strategy: marketingStrategy, campaigns: marketingCampaigns, destinations: [], connections: [], meta: { configured: true, publishingEnabled: false, missing: [] } } });
+    if (url === '/api/marketing-content') return Response.json({ campaigns: { currentUserId: 'synthetic-owner', isOwner: !params.has('campaignContributor'), scopes: params.has('campaignComposer') ? ['campaigns.draft'] : [], campaigns: [campaignPackage], campaignMedia: [], campaignMediaSummary: { mediaCount: 0, protectedBytes: 0, derivativeBytes: 0, unusedMediaCount: 0 }, campaignMediaPage: { total: 0, page: 1, pageSize: 20 }, publishJobs: [], marketingStrategy, marketingCampaigns } });
     if (url === '/api/catalog/studio-bootstrap') return Response.json({ ...queueCatalog, studioDefaults: { defaultTemplateId: null } });
     if (url === '/api/catalog') {
       if (params.has('catalogFailure')) return Response.json({ error: { code: 'catalog_unavailable', kind: 'unavailable', message: 'Catalog unavailable', retryable: true } }, { status: 503 });
@@ -190,21 +200,37 @@ function QueueProof() {
   const close = () => { setTarget(undefined); setDirty(false); setConfirm(false); requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true })); };
   return <main style={{ padding: 12 }}>
     {owner ? <LibraryRevisionQueueControls revisions={revisions} queue={queue} onModeChange={setRevisions} /> : null}
+    <input ref={searchRef} aria-label="Search Library" value={query} onChange={event => setQuery(event.target.value)} />
     <LibraryCollection {...view} serverFiltered={revisions} activeScope="pipeline" campaignTargetId={null} canReview={false} canSubmit={false}
       cardsFor={() => []} density="gallery" heartMetrics={{}} heartMetricsFailed={true} heartMetricsLoading={false} heartingId={null}
       isSignedIn={!params.has('signedOut')} isOwner={owner} isSelfVoteBlocked={() => true} onDensityChange={() => {}}
       onOpenContribution={() => {}} onOpenDetail={item => { if (!owner) return; trigger.current = document.activeElement as HTMLElement; setTarget(libraryReviewSelection(item, queueRows) ?? undefined); }}
       onPersonalAction={() => {}} onPublishedAction={() => {}} onRefresh={queue.refresh} onToggleHeart={() => {}} onVote={() => {}}
       personalActions={() => []} publishedRevisionByLineage={new Map()} projection={projection as never} scopeDefinition={{ label: 'Pipeline', description: 'Synthetic Library revision queue' }}
-      searchRef={searchRef} selection={createSelectionSession()} sharedType="all" sharedTypes={[]} templateFor={() => null} votingId={null} onSharedTypeChange={() => {}} />
+      selection={createSelectionSession()} sharedType="all" sharedTypes={[]} templateFor={() => null} votingId={null} onSharedTypeChange={() => {}} />
     {target ? <EnvironmentToolLayer id="queue-review" title="Review & manage" eyebrow="Library" summary="Exact selected revision" closeLabel="Close revision review" presentation="sheet" onClose={close} dirty={dirty} onDirtyCloseRequest={() => setConfirm(true)}>
       {confirm ? <div role="alertdialog"><button onClick={() => setConfirm(false)}>Keep editing</button><button onClick={close}>Discard changes</button></div> : null}
       <OwnerContributorProgramPanel target={target} onDirtyChange={setDirty} renderTemplateSpecimen={async () => { throw new Error('Not a Template fixture'); }} />
     </EnvironmentToolLayer> : null}
   </main>;
 }
-const mount = document.createElement('div'); document.body.append(mount); const fixtureRouter = { bfcacheId: 'isolated-library', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: () => {}, replace: () => {}, prefetch: async () => {} };
-createRoot(mount).render(<><Toaster />{params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : params.has('queueActual') ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
-  experience={{ signedIn: true, owner: true, plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: false } } as AccountExperienceProjection}
+function RailProof() {
+  const [zone, setZone] = useState<'desk' | 'library' | 'profile'>(() => params.get('rail') as 'desk' | 'library' | 'profile');
+  const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const railRouter = { ...fixtureRouter, push: (href: string) => {
+    const section = new URL(href, location.origin).searchParams.get('section');
+    setZone(section === 'library' || section === 'profile' ? section : 'desk'); setQuery('');
+  } };
+  return <AppRouterContext.Provider value={railRouter}><div onClickCapture={event => {
+    const link = event.target instanceof Element ? event.target.closest('a') : null;
+    if (link instanceof HTMLAnchorElement && new URL(link.href).pathname === '/account') {
+      event.preventDefault(); event.stopPropagation(); railRouter.push(link.href);
+    }
+  }}><EnvironmentShell ariaLabel="Native shared rail proof" brand={{ src: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E', alt: 'Fixture' }} viewer={{ owner: false, signedIn: true, contributor: false }} zones={ENVIRONMENT_ZONES.filter(item => ['desk', 'library', 'profile'].includes(item.id))} activeZone={zone} viewportPolicy="desk" primaryScroll="contained" presentation={{ mode: 'browse', focusDepth: 'zone' }} detail={null} actions={[]} primaryAction={zone === 'profile' ? undefined : createLibraryZoneAction('library.create-set', 'New Set')} showPrimaryAction={zone !== 'profile'} accountControl={params.has('railAuth') ? <PublicAuthControlContent state={params.get('railAuth') === 'connecting' ? 'connecting' : 'signed-out'} returnTo="/account" /> : <button aria-label="Profile" style={{ width: 44, height: 44, flexShrink: 0 }}>P</button>} search={<EnvironmentSearch label={`Search ${zone}`} value={query} onChange={setQuery} inputRef={searchRef} />} onCommand={() => searchRef.current?.focus()} onAction={() => {}} onCloseDetail={() => {}} statusContent="Local storage ready" footerContent="Synthetic account control; no provider session"><p>Native shell layout proof</p></EnvironmentShell></div></AppRouterContext.Provider>;
+}
+const mount = document.createElement('div'); document.body.append(mount); const fixtureRouter = { bfcacheId: 'isolated-library', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: (href: string) => { proof.libraryNavigations.push(href); }, replace: () => {}, prefetch: async () => {} };
+createRoot(mount).render(<><Toaster />{params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
+  experience={{ signedIn: true, owner: !params.has('campaignContributor'), plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: true } } as AccountExperienceProjection}
   businessIdentity={{} as never} persistenceScope="account:isolated-library-fixture" />
 </AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />}</>);
