@@ -1,4 +1,5 @@
 "use client";
+import { PipelineSourceDisclosure } from '@/features/pipeline/client/engagement';
 
 import { useRef } from 'react';
 import type { ChangeEvent } from 'react';
@@ -123,8 +124,8 @@ export function IconInspectorPanel({
             <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Icon Styles</Label>
             <div className="grid grid-cols-3 gap-1">
               {symbolStylePresets.map((preset) => (
+                <div key={preset.id} className="min-w-0">
                 <Button
-                  key={preset.id}
                   type="button"
                   variant="outline"
                   size="sm"
@@ -143,6 +144,8 @@ export function IconInspectorPanel({
                   </span>
                   <PipelineRecipeMeta recipe={preset} />
                 </Button>
+            <PipelineSourceDisclosure {...preset.pipelineSource} />
+          </div>
               ))}
             </div>
           </>

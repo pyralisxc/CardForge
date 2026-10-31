@@ -12,6 +12,7 @@ import {
   type LibraryPickerResource,
 } from '@/features/library-picker/client';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
+import { DiscoveredAssetSourceFeedback } from '@/features/pipeline/client/engagement';
 import { loadCardForgeStudioAssets } from '@/features/pipeline/client/catalog';
 import {
   chooseGoogleDrivePersonalLibraryItems,
@@ -169,6 +170,10 @@ export function BulkRevisionLibraryPicker({ currentCards, fieldKey, fieldLabel, 
             value: values.get(selection.id)!,
           }));
           onPlan(buildBulkResourceRevisionPlan({ existing: currentCards, fieldKey, assignments }));
+        }}
+        renderResourceDetails={resource => {
+          const asset = assets.find(candidate => resource.id === `${sourceForAsset(candidate)}:${candidate.id}`);
+          return asset ? <DiscoveredAssetSourceFeedback key={asset.publishedSubmissionId ?? asset.id} asset={asset} /> : <p className="text-xs">No exact governed Pipeline source is available for this resource.</p>;
         }}
         renderPreview={(resource) => resource.source === 'project' && localResources.find((item) => item.id === resource.id) ? (
           <LocalLibraryResourcePreview resource={localResources.find((item) => item.id === resource.id)!} className="block h-16 w-full rounded object-contain" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
+import { PublishedSourceFeedback } from '@/features/pipeline/client/engagement';
 import { Type } from 'lucide-react';
 import { CARD_FONT_OPTIONS, cardFontFamilyToCss } from '@/domain/rendering';
 
@@ -118,6 +119,7 @@ export function FontLibraryPicker({ availableFonts, targetId, onSelect }: FontLi
           }
           onSelect(selection.objectId);
         }}
+        renderResourceDetails={resource => resource.source === 'published' ? <PublishedSourceFeedback key={resource.id} fontValue={resource.objectId} /> : null}
         renderPreview={(resource) => (
           <div className="flex h-20 flex-col items-center justify-center gap-0.5 overflow-hidden rounded bg-[#07090d] px-1 text-[#e1dbd0]" style={{ fontFamily: cardFontFamilyToCss(resource.objectId) ?? resource.objectId }} aria-hidden="true">
             <span className="max-w-full truncate text-xl">Aa Zz 0123456789</span>

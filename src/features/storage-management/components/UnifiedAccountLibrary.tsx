@@ -1,5 +1,6 @@
 "use client";
 
+import { PIPELINE_ENGAGEMENT_CHANGED, notifyPipelineEngagementChanged, PipelineSourceDisclosure, type PipelineDesignSource } from '@/features/pipeline/client/engagement';
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { HardDrive } from 'lucide-react';
@@ -138,6 +139,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const activeToolSession = toolStack.at(-1) ?? null;
   const activeTool = activeToolSession?.toolId ?? null;
   const toolDirty = activeToolSession?.dirty ?? false;
+  const [designSourceState, setDesignSourceState] = useState<{ scope: string; source: PipelineDesignSource } | null>(null);
+  const designSourceScope = persistenceScope;
+  const designSource = designSourceState?.scope === designSourceScope ? designSourceState.source : null;
+  useEffect(() => { setDesignSourceState(null); }, [designSourceScope]);
+  const setDesignSource = (source: PipelineDesignSource | null) => setDesignSourceState(source ? { scope: designSourceScope, source } : null);
   const [designReturnFocusId, setDesignReturnFocusId] = useState<string | null>(null);
   const [discardToolRequested, setDiscardToolRequested] = useState(false);
   const [contributionTargetSetId, setContributionTargetSetId] = useState<string | null>(null);
@@ -184,6 +190,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     setToolStack(openEnvironmentToolSession([], createLibraryToolSession(toolId, targetIds)));
   };
   const closeTool = () => {
+    setDesignSource(null);
     setToolStack((current) => closeEnvironmentToolSession(current).stack);
   };
   const setToolDirty = (dirty: boolean) => {
@@ -361,6 +368,13 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     return () => { cancelled = true; };
   }, [scopeItems]);
 
+  const refreshShared = shared.refresh;
+  useEffect(() => {
+    const reload = () => { void refreshShared(); };
+    window.addEventListener(PIPELINE_ENGAGEMENT_CHANGED, reload);
+    return () => window.removeEventListener(PIPELINE_ENGAGEMENT_CHANGED, reload);
+  }, [refreshShared]);
+
   const toggleHeart = async (item: LibraryViewItem) => {
     const lineageId = pipelineLineageFor(item);
     if (!lineageId) return;
@@ -378,6 +392,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Pipeline reaction could not be saved.'));
       const { metric } = await response.json() as { metric: { lineageId: string; count: number; hearted: boolean } };
       setHeartMetrics((metrics) => ({ ...metrics, [lineageId]: { count: metric.count, hearted: metric.hearted } }));
+      notifyPipelineEngagementChanged();
     } catch (error) {
       toast({ title: 'Heart was not saved', description: error instanceof Error ? error.message : 'Pipeline reactions are unavailable.', variant: 'destructive' });
     } finally { setHeartingId(null); }
@@ -389,9 +404,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to record this vote.'));
       const { program } = await response.json() as { program: Parameters<typeof shared.acceptProgram>[0] };
       shared.acceptProgram(program);
+      notifyPipelineEngagementChanged();
       if (revisionsEnabled) revisionQueue.refresh();
       toast({ title: 'Vote recorded', description: `${name} has been updated in Forge Review.` });
-      await shared.refresh();
     } catch (error) {
       toast({ title: 'Vote was not recorded', description: error instanceof Error ? error.message : 'Forge Review is unavailable.', variant: 'destructive' });
     } finally { setVotingId(null); }
@@ -422,6 +437,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     refresh,
     closeTool,
     openTool,
+    setDesignSource,
     setDesignReturnFocusId,
     setEditingSubmission,
     setLocationItem,
@@ -543,7 +559,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       {activeScope === 'pipeline' ? <PipelineContentHealthPanel catalog={shared.catalog} onClassified={shared.refresh} health={contentHealth} canRepair={experience.owner} onOpenObject={(objectId) => { const item = viewItems.find((candidate) => candidate.id === `pipeline:${objectId}` || candidate.id === objectId); if (item) openDetail(item); }} /> : null}
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
       {activeScope === 'pipeline' && experience.owner && isSignedIn ? <LibraryRevisionQueueControls disabled={Boolean(activeTool)} revisions={revisionsEnabled} queue={revisionQueue} onModeChange={value => { setRevisionMode(value); setSelection(closeEnvironmentDetail); }} /> : null}
-      <NewSetDialog createOpen={setStarters.createOpen} onCreateOpenChange={setStarters.setCreateOpen} onCreateWork={createSet} onCreatePublishedSet={set => { void setStarters.createFromPublishedSet(set); }} onRetryPublishedSets={setStarters.openCreateMenu} publishedSets={setStarters.publishedSets} publishedSetsLoading={setStarters.publishedSetsLoading} publishedSetsFailure={setStarters.publishedSetsFailure} creatingPublishedSetId={setStarters.creatingPublishedSetId} />
+      <NewSetDialog renderPublishedSetDetails={set => set.submissionId ? <PipelineSourceDisclosure submissionId={set.submissionId} /> : <p className="text-xs">Exact source reactions are unavailable for this starter.</p>} createOpen={setStarters.createOpen} onCreateOpenChange={setStarters.setCreateOpen} onCreateWork={createSet} onCreatePublishedSet={set => { void setStarters.createFromPublishedSet(set); }} onRetryPublishedSets={setStarters.openCreateMenu} publishedSets={setStarters.publishedSets} publishedSetsLoading={setStarters.publishedSetsLoading} publishedSetsFailure={setStarters.publishedSetsFailure} creatingPublishedSetId={setStarters.creatingPublishedSetId} />
       {campaignExitReason ? <p role="status" className="px-3 py-2 text-sm text-[var(--cf-warning)]">{campaignExitReason}</p> : null}
       <LibraryCollection
         onCampaignDirtyChange={setCampaignDirty}
@@ -682,6 +698,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           presentation={activeToolSession?.presentation}
         >
           <LibraryDesignWorkspace
+            key={persistenceScope}
+            pipelineDesignSource={designSource}
             businessIdentity={businessIdentity}
             initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE}
             tool="design"
