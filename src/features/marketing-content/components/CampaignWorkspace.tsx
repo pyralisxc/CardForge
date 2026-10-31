@@ -45,9 +45,11 @@ export function CampaignWorkspace({
     workspace.marketingStrategy,
   ), [workspace.marketingCampaigns, workspace.marketingStrategy]);
   const [draft, setDraft] = useState<CampaignDraft>(createDraft);
+  const [draftBaseline, setDraftBaseline] = useState(draft);
+  const replaceDraft = useCallback((next: CampaignDraft) => { setDraftBaseline(next); setDraft(next); }, []);
   const [editing, setEditing] = useState<SocialCampaign | null>(null);
   const [busy, setBusy] = useState(false);
-  const dirty = showComposer && (busy || JSON.stringify(draft) !== JSON.stringify(editing ? toCampaignDraft(editing) : createDraft()));
+  const dirty = showComposer && (busy || JSON.stringify(draft) !== JSON.stringify(draftBaseline));
   useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
   useEffect(() => { onCloseBlockedChange?.(busy ? 'Wait for the campaign command outcome before starting a Set.' : null); return () => onCloseBlockedChange?.(null); }, [busy, onCloseBlockedChange]);
   const [error, setError] = useState('');
@@ -63,13 +65,13 @@ export function CampaignWorkspace({
 
   const resetComposer = () => {
     setEditing(null);
-    setDraft(createDraft());
+    replaceDraft(createDraft());
     setShowComposer(false);
   };
 
   const editCampaign = (campaign: SocialCampaign) => {
     setEditing(campaign);
-    setDraft(toCampaignDraft(campaign));
+    replaceDraft(toCampaignDraft(campaign));
     setShowComposer(true);
     setError('');
     setMessage('');
@@ -80,7 +82,7 @@ export function CampaignWorkspace({
     openedInitialCampaignId.current = initialCampaignId;
     if (initialCampaignId === 'new') {
       setEditing(null);
-      setDraft(createDraft());
+      replaceDraft(createDraft());
       setShowComposer(true);
       return;
     }
@@ -91,12 +93,12 @@ export function CampaignWorkspace({
       && (campaign.status === 'draft' || campaign.status === 'changes_requested')
     ) {
       setEditing(campaign);
-      setDraft(toCampaignDraft(campaign));
+      replaceDraft(toCampaignDraft(campaign));
       setShowComposer(true);
       setError('');
       setMessage('');
     }
-  }, [workspace.campaigns, workspace.currentUserId, createDraft, initialCampaignId]);
+  }, [workspace.campaigns, workspace.currentUserId, createDraft, initialCampaignId, replaceDraft]);
 
   const saveCampaign = async () => {
     setBusy(true);
@@ -140,7 +142,7 @@ export function CampaignWorkspace({
         {canDraft && !showComposer ? (
           <Button type="button" className="min-h-11" onClick={() => {
             setEditing(null);
-            setDraft(createDraft());
+            replaceDraft(createDraft());
             setShowComposer(true);
           }}>
             <Plus className="mr-2 h-4 w-4" />New campaign package

@@ -632,3 +632,20 @@ test('@golden Unsaved strategy and destination drafts retain a local discard pat
   await expect(create).toBeEnabled();
   expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
 });
+
+for (const editing of [false, true]) test(`@golden Campaign package pristine and reverted draft preserves New Set (editing=${editing})`, async ({ page }) => {
+  const evidence = await mount(page, '?campaignActual=1&campaignContributor=1&campaignComposer=1');
+  await page.getByRole('navigation', { name: 'Library scopes' }).getByRole('button', { name: /Campaigns/ }).click();
+  if (editing) await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  else await page.getByRole('button', { name: 'New campaign package', exact: true }).click();
+  const create = page.getByRole('button', { name: 'New Set', exact: true });
+  const title = page.getByRole('textbox', { name: /^Content title/ });
+  const initial = await title.inputValue();
+  await expect(create).toBeEnabled();
+  await title.fill('Unsaved package title'); await expect(create).toBeDisabled();
+  await expect(title).toHaveValue('Unsaved package title');
+  await title.fill(initial); await expect(create).toBeEnabled();
+  await page.getByRole('searchbox', { name: 'Search campaigns' }).fill('independent view change');
+  await expect(create).toBeEnabled(); await expect(title).toHaveValue(initial);
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
