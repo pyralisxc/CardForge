@@ -70,7 +70,7 @@ export interface CardForgeStudioBootstrapManifest {
   styles: AppearanceStyleLibrary;
   fonts: CardForgeCatalogManifest['fonts'];
   /** Exact publication pointers from the same observation as the displayed resources. */
-  pipeline?: { assetId: string; submissionId: string | null }[];
+  pipeline?: { assetId: string; submissionId: string | null; fontValue?: string }[];
   studioDefaults: {
     defaultTemplateId: string | null;
   };
@@ -131,7 +131,11 @@ const mapStudioBootstrap = async (
     templates: { defaults: templates, userTemplates: [] },
     styles: { version: 1, styles },
     fonts,
-    pipeline: rows.map(row => ({ assetId: row.asset_id, submissionId: row.contributor_submission_id ?? null })),
+    pipeline: rows.map(row => ({
+      assetId: row.asset_id, submissionId: row.contributor_submission_id ?? null,
+      ...(row.asset_type === 'font' && isRoutedTo(row, 'typography.font')
+        ? { fontValue: mapRegistryRowsToFontsPayload([row], configured).fonts[0]?.value } : {}),
+    })),
     studioDefaults: { defaultTemplateId: null },
   };
 };
@@ -171,6 +175,7 @@ export const getCardForgeCatalogManifest = async (
       : {};
     return {
       id: row.asset_id,
+      submissionId: row.contributor_submission_id ?? null,
       name: row.name,
       packageUrl: row.url,
       previewUrl: row.preview_url ?? null,

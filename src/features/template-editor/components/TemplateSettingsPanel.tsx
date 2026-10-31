@@ -140,8 +140,8 @@ export function TemplateSettingsPanel({
           </div>
           <div className="grid gap-1.5">
             {matchingBacks.map((template) => (
-              <Button
-                key={template.id ?? template.name}
+              <div key={template.id ?? template.name}><Button
+
                 type="button"
                 variant="outline"
                 size="sm"
@@ -150,7 +150,7 @@ export function TemplateSettingsPanel({
               >
                 <span className="truncate text-[#f1dfb4]">{template.name}</span>
                 <span className="shrink-0 text-[#9a8f7c]">{getTemplateCardMeasurement(template, 'mm').label}</span>
-              </Button>
+              </Button><PipelineSourceDisclosure registryAssetId={template.templateSource === 'default' ? template.id ?? undefined : undefined} template={template} /></div>
             ))}
           </div>
         </div>

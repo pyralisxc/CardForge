@@ -1,5 +1,5 @@
 import { getCurrentCardforgeUserAccess, resolveCardforgeEntitlementForAccess } from '@/features/account/server';
-import { getContributorCapabilities, hasContributionScope } from '@/features/contributor-access/server';
+import { getContributorProfileCapabilities, resolveContributorScopes, hasContributionScope } from '@/features/contributor-access/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { getPipelineVotePolicy } from '../lib/pipelineStore';
 import { PipelineStoreError } from '../lib/pipelineStoreError';
@@ -14,7 +14,13 @@ export const readPipelineEngagement = async (submissionId: string): Promise<Pipe
   if (!isPipelineLineageId(submissionId)) throw new PipelineStoreError('Choose an exact Pipeline revision.', 400);
   const access = await getCurrentCardforgeUserAccess();
   const entitlement = await resolveCardforgeEntitlementForAccess(access);
-  const contribution = access.user ? await getContributorCapabilities({ user: access.user, entitlement, isOwner: access.ownerAccess.isOwner }) : { active: false, scopes: [] };
+  // Panel reads must never enroll or update a Contributor profile.
+  const profile = access.user && entitlement.authorities.contributor && !access.ownerAccess.isOwner
+    ? await getContributorProfileCapabilities(access.user.id) : null;
+  const contribution = {
+    active: access.ownerAccess.isOwner || profile?.status === 'active',
+    scopes: resolveContributorScopes({ isOwner: access.ownerAccess.isOwner, profileStatus: profile?.status ?? null, canDraftCampaigns: false }),
+  };
   const database = getSupabaseServerClient();
   if (!database) throw new PipelineStoreError('Pipeline reactions are unavailable.', 503);
   // Deliberately excludes authored payloads, source paths and private review evidence.

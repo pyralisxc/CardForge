@@ -68,22 +68,24 @@ export function PipelineSourceFeedback({ submissionId }: { submissionId: string 
 }
 
 /** Resolve only the pointer captured with the Studio bootstrap, never today's latest revision. */
-export function PublishedSourceFeedback({ registryAssetId, template, style }: { registryAssetId: string; template?: TCGCardTemplate; style?: AppearanceStylePreset }) {
+export function PublishedSourceFeedback({ registryAssetId, fontValue, template, style }: { registryAssetId?: string; fontValue?: string; template?: TCGCardTemplate; style?: AppearanceStylePreset }) {
   const revisionId = template?.templateRevisionId;
   const revisionNumber = template?.templateRevision;
   const isTemplate = Boolean(template);
   const styleFingerprint = style ? JSON.stringify(style) : null;
-  const sourceKey = JSON.stringify([registryAssetId, isTemplate, revisionId, revisionNumber, styleFingerprint]);
+  const sourceKey = JSON.stringify([registryAssetId, fontValue, isTemplate, revisionId, revisionNumber, styleFingerprint]);
   const [source, setSource] = useState<{ key: string; submissionId: string | null; error?: string } | null>(null);
   useEffect(() => {
     let cancelled = false;
     void loadCardForgeStudioBootstrap().then(bootstrap => {
       const exactTemplate = !isTemplate || bootstrap.templates.defaults.some(candidate => candidate.id === registryAssetId && candidate.templateRevisionId === revisionId && candidate.templateRevision === revisionNumber);
       const exactStyle = !styleFingerprint || bootstrap.styles.styles.some(candidate => candidate.id === registryAssetId && JSON.stringify(candidate) === styleFingerprint);
-      if (!cancelled) setSource({ key: sourceKey, submissionId: exactTemplate && exactStyle ? bootstrap.pipeline?.find(item => item.assetId === registryAssetId)?.submissionId ?? null : null });
+      // Runtime Font values are lossy; only the explicit observation may bind a raw asset.
+      const matches = bootstrap.pipeline?.filter(item => fontValue ? item.fontValue === fontValue : item.assetId === registryAssetId) ?? [];
+      if (!cancelled) setSource({ key: sourceKey, submissionId: exactTemplate && exactStyle && matches.length === 1 ? matches[0].submissionId : null });
     }).catch(() => { if (!cancelled) setSource({ key: sourceKey, submissionId: null, error: 'Published source reactions are unavailable.' }); });
     return () => { cancelled = true; };
-  }, [registryAssetId, sourceKey, isTemplate, revisionId, revisionNumber, styleFingerprint]);
+  }, [registryAssetId, fontValue, sourceKey, isTemplate, revisionId, revisionNumber, styleFingerprint]);
   if (source?.key !== sourceKey) return <p className="text-xs">Loading Pipeline source…</p>;
   return source.submissionId ? <PipelineSourceFeedback key={source.submissionId} submissionId={source.submissionId} /> : <p className="text-xs">{source.error ?? 'No exact governed Pipeline source is available for this resource.'}</p>;
 }
@@ -104,11 +106,11 @@ export function DiscoveredAssetSourceFeedback({ asset }: { asset: CardAssetOptio
   return observation.submissionId ? <PipelineSourceFeedback key={observation.submissionId} submissionId={observation.submissionId} /> : <p className="text-xs">{observation.error ?? 'No exact governed Pipeline source is available for this resource.'}</p>;
 }
 
-export function PipelineSourceDisclosure({ registryAssetId, template, style }: { registryAssetId?: string; template?: TCGCardTemplate; style?: AppearanceStylePreset }) {
+export function PipelineSourceDisclosure({ registryAssetId, submissionId, template, style }: { registryAssetId?: string; submissionId?: string | null; template?: TCGCardTemplate; style?: AppearanceStylePreset }) {
   const [open, setOpen] = useState(false);
-  if (!registryAssetId) return null;
+  if (!registryAssetId && !submissionId) return null;
   return <div className="text-xs">
     <button type="button" className="min-h-9 underline" aria-expanded={open} onClick={() => setOpen(value => !value)}>Pipeline source reactions</button>
-    {open ? <PublishedSourceFeedback registryAssetId={registryAssetId} template={template} style={style} /> : null}
+    {open ? submissionId ? <PipelineSourceFeedback key={submissionId} submissionId={submissionId} /> : <PublishedSourceFeedback registryAssetId={registryAssetId} template={template} style={style} /> : null}
   </div>;
 }

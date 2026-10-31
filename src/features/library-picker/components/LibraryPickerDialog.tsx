@@ -107,6 +107,8 @@ export function LibraryPickerDialog({ open, request, resources, onOpenChange, on
     optionRefs.current.get(visible[bounded]!.id)?.scrollIntoView({ block: 'nearest' });
   };
 
+  const inspectedResource = resources.find(resource => resource.id === selectedIds.at(-1));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] max-w-3xl border-[#2d3340] bg-[#0b0f15] text-[#d8d1c4]">
@@ -177,7 +179,7 @@ export function LibraryPickerDialog({ open, request, resources, onOpenChange, on
             })}
           </div>
         ) : <div className="rounded-md border border-dashed border-[#2d3340] p-6 text-center text-sm text-[#8f95a3]">No compatible Library objects found.</div>}
-        {renderResourceDetails && selectedIds.length === 1 && resources.find(resource => resource.id === selectedIds[0]) ? <div aria-label="Selected Library resource details">{renderResourceDetails(resources.find(resource => resource.id === selectedIds[0])!)}</div> : null}
+        {renderResourceDetails && inspectedResource ? <div aria-label="Selected Library resource details">{renderResourceDetails(inspectedResource)}</div> : null}
         {errorMessage ? <p className="text-sm text-red-300" role="alert">{errorMessage}</p> : null}
         <DialogFooter>
           <Button type="button" variant="outline" disabled={Boolean(busyActionId)} onClick={() => onOpenChange(false)}>Cancel</Button>
