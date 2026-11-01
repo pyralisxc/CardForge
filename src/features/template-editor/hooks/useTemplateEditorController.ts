@@ -188,6 +188,8 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   const resetTemplate = useCallback((template: TCGCardTemplate) => {
     const pending = pendingIconRef.current;
     if (pending) finishIcon(pending, iconApplyCancellation());
+    // Deliberate new-document navigation invalidates any unconsumed Save handoff.
+    acknowledgedSaveIdentityRef.current = null;
     activeDocumentIdRef.current = template.id;
     setEditorState(resetTemplateEditorState(template));
     setCheckedLayerIds([]);
