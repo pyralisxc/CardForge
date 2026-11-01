@@ -149,7 +149,7 @@ describe('CardForge Studio plugin', () => {
       expect(item.setup).toBeTruthy();
       expect(item.status).toBe('Not run');
     }
-    const packaged = await (await import('../../../../scripts/plugin-package-core.mjs')).buildPluginArchive('studio', 'production');
+    const packaged = await (await import('../../../scripts/plugin-package-core.mjs')).buildPluginArchive('studio', 'production');
     const zip = await JSZip.loadAsync(packaged.bytes);
     const portable = JSON.parse(await zip.file('plugin.json')!.async('string'));
     const codex = JSON.parse(await zip.file('.codex-plugin/plugin.json')!.async('string'));
@@ -166,7 +166,7 @@ describe('CardForge Studio plugin', () => {
     expect(codex.extensions['com.openai'].review.test_cases).toEqual(portable.extensions['com.openai'].review.test_cases);
     expect(listing.logo).toBe('./assets/logo.png');
     expect(listing.composerIcon).toBe('./assets/icon.png');
-    const packet = await (await import('../../../../scripts/plugin-review-packet-core.mjs')).buildStudioReviewerPacket('production','1.0.4');
+    const packet = await (await import('../../../scripts/plugin-review-packet-core.mjs')).buildStudioReviewerPacket('production','1.0.4');
     expect(packet).toContain('P5');
     expect(packet).toContain('N5');
     expect(packet).toContain('Not run');
