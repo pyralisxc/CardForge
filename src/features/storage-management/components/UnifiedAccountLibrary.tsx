@@ -130,6 +130,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const activeScope = resolveLibraryScopeForViewer(scope, { contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
   const shared = useLibrarySharedProjection({ pipelineEnabled: pipelineAccess, activeScope });
   const [sharedTrashMode, setSharedTrashMode] = useState(false);
+  const [sharedTrashRefreshEpoch, setSharedTrashRefreshEpoch] = useState(0);
 
 
   const [revisionMode, setRevisionMode] = useState(false);
@@ -374,7 +375,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       if (focusId) document.getElementById(focusId)?.focus();
     });
   };
-  const refresh = () => { projection.refresh(); void shared.refresh(); if (revisionsEnabled) revisionQueue.refresh(); };
+  const refresh = () => { setSharedTrashRefreshEpoch(value => value + 1); projection.refresh(); void shared.refresh(); if (revisionsEnabled) revisionQueue.refresh(); };
 
   useEffect(() => {
     const lineageIds = [...new Set(scopeItems.flatMap((item) => pipelineLineageFor(item) ? [pipelineLineageFor(item)!] : []))];
@@ -595,7 +596,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           {sharedTrashMode ? 'Return to Pipeline' : 'Browse shared Trash'}
         </button>
       </div> : null}
-      {activeScope === 'pipeline' && isSignedIn && sharedTrashMode ? <SharedPipelineTrashCollection actorScope={JSON.stringify([persistenceScope, isSignedIn, experience.owner, experience.contributor.active])} onOpenAuthorizedRevision={experience.owner ? async item => {
+      {activeScope === 'pipeline' && isSignedIn && sharedTrashMode ? <SharedPipelineTrashCollection refreshEpoch={sharedTrashRefreshEpoch} actorScope={JSON.stringify([persistenceScope, isSignedIn, experience.owner, experience.contributor.active])} onOpenAuthorizedRevision={experience.owner ? async item => {
         if (activeTool || !sharedTrashMode || activeScope !== 'pipeline' || !experience.owner || !isSignedIn) return;
         const requestId = ++sharedTrashRequestEpoch.current;
         const context = sharedTrashSessionKey;
