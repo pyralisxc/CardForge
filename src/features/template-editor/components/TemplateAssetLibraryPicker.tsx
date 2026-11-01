@@ -52,6 +52,27 @@ const sourceLabelForAsset = (asset: CardAssetOption): string => {
   return source === 'project' ? 'This project' : source === 'pipeline' ? 'Contributor Library' : 'CardForge Library';
 };
 
+/**
+ * The visual picker selects one observed resource, not merely an asset ID.
+ * Registry and project entries can reuse an ID across sources/revisions;
+ * never apply a different first ID match from the displayed SVG preview.
+ */
+export function resolveSelectedTemplateAsset(
+  selection: Pick<LibraryPickerResource, 'objectId' | 'source' | 'previewUrl'>,
+  assets: readonly CardAssetOption[],
+): CardAssetOption {
+  const matches = assets.filter(asset => (
+    asset.id === selection.objectId
+    && pickerSourceForAsset(asset) === selection.source
+    && Boolean(asset.url)
+    && asset.url === selection.previewUrl
+  ));
+  if (matches.length !== 1) {
+    throw new Error('The exact selected Library artwork is no longer available or is ambiguous. Refresh the picker and choose again.');
+  }
+  return matches[0]!;
+}
+
 export function TemplateAssetLibraryPicker({
   assets,
   kind,
@@ -146,7 +167,7 @@ export function TemplateAssetLibraryPicker({
         }]}
         onSelect={async (result) => {
           const selection = result.selections[0];
-          if (!selection) return;
+          if (!selection) throw new Error('Choose one Library resource before applying it.');
           if (adopt && managedAdoption) {
             if (managedAdoption.issue) throw new Error(managedAdoption.issue);
             const asset = assets.find(candidate => candidate.id === selection.objectId);
@@ -170,8 +191,7 @@ export function TemplateAssetLibraryPicker({
             onApply(await onMaterializePersonal(item));
             return;
           }
-          const asset = assets.find((candidate) => candidate.id === selection.objectId);
-          if (!asset) throw new Error('That Library resource is no longer available. Refresh the Picker and choose again.');
+          const asset = resolveSelectedTemplateAsset(selection, assets);
           onApply(asset);
         }}
         renderResourceDetails={resource => {
