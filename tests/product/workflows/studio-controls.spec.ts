@@ -278,6 +278,11 @@ test('@golden New front first Save waits for real store receipt before selecting
  await page.getByRole('toolbar',{name:'Library sections'}).getByRole('button',{name:'Templates',exact:true}).click();
  await expect(page.getByRole('button',{name:'Create new front design'})).toBeVisible();
  await page.getByRole('button',{name:'Create new front design'}).click();
+ // The initial synthetic Template has edits; follow the normal visible guard
+ // to discard only that fixture document before starting the new draft.
+ const leaveCurrent=page.getByRole('alertdialog',{name:/Save changes to/});
+ await expect(leaveCurrent).toBeVisible();
+ await leaveCurrent.getByRole('button',{name:'Don’t save',exact:true}).click();
  await page.getByRole('dialog',{name:'Create a Template'}).getByLabel('Template name').fill('QA first Save store contract');
  await page.getByRole('button',{name:'Create and open canvas'}).click();
  await page.getByRole('button',{name:'Elements',exact:true}).click();
