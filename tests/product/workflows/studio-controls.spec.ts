@@ -472,6 +472,27 @@ test('@golden retained same-value Icon confirmation rejects after editor unmount
 });
 
 
+for(const action of ['Reset same Template during Icon apply','Undo during Icon apply','Redo during Icon apply'])test(`@golden ${action} settles superseded Icon confirmation without hanging`,async({page})=>{
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?iconAcknowledgment=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await page.getByRole('button',{name:action,exact:true}).click();
+ await expect(page.getByTestId('ack-result')).toHaveText('rejected');
+ const icon=JSON.parse(await page.getByTestId('ack-icon').textContent()||'{}');
+ expect(icon).toMatchObject({id:'icon',iconName:'Star'});
+ expect(icon.iconImageSource).toBeUndefined();
+ expect(JSON.parse(await page.getByTestId('ack-neighbor').textContent()||'{}')).toMatchObject({content:'Keep neighbor'});
+});
+
 test('@golden Icon confirmation rejects when Template identity changes before commit', async ({page}) => {
  await page.route('**/*',route=>{
   const url=new URL(route.request().url());
