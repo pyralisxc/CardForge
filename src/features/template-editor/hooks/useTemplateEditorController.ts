@@ -37,6 +37,7 @@ import {
 
 type IconApplication = {
   phase: 'pending' | 'acknowledged' | 'cancelled';
+  attempt: number;
   templateId: string;
   elementId: string;
   changes: Pick<FreeformCardElement, 'iconName' | 'iconImageSource' | 'iconRenderMode'>;
@@ -67,6 +68,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   const committedRef = useRef(editorState);
   const controllerAliveRef = useRef(true);
   const pendingIconRef = useRef<IconApplication | null>(null);
+  const nextIconAttemptRef = useRef(0);
   const finishIcon = useCallback((request: IconApplication, error?: Error) => {
     if (pendingIconRef.current !== request) return;
     pendingIconRef.current = null;
@@ -90,6 +92,9 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
       || !element || element.type !== 'icon' || element.locked) {
       return finishIcon(request, iconApplyFailure());
     }
+    // A different concurrent editor commit is not evidence that this Icon
+    // updater ran. Only its marker in the *committed state* can settle it.
+    if (editorState.iconApplicationAttempt !== request.attempt) return;
     finishIcon(request, matchesIconApplication(element, request.changes) ? undefined : iconApplyFailure());
   }, [editorState, finishIcon, initialTemplate.id]);
 
@@ -227,7 +232,8 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     if (matchesIconApplication(current, changes)) return Promise.resolve();
     return new Promise<void>((resolve, reject) => {
       const request: IconApplication = {
-        phase: 'pending', templateId: state.currentTemplate.id!, elementId, changes, resolve, reject, signal,
+        phase: 'pending', attempt: ++nextIconAttemptRef.current,
+        templateId: state.currentTemplate.id!, elementId, changes, resolve, reject, signal,
         abort: () => finishIcon(request, iconApplyCancellation()),
       };
       pendingIconRef.current = request;
@@ -243,11 +249,15 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
         const active = request.phase === 'acknowledged'
           || (request.phase === 'pending' && controllerAliveRef.current
             && pendingIconRef.current === request && !signal?.aborted);
-        if (!active || previous.currentTemplate.id !== request.templateId
-          || previous.selectedElementId !== elementId) return { ...previous };
+        if (!active) return { ...previous };
+        const marked = (next: typeof previous) => ({
+          ...next, iconApplicationAttempt: request.attempt,
+        });
+        if (previous.currentTemplate.id !== request.templateId
+          || previous.selectedElementId !== elementId) return marked(previous);
         const canvas = getTemplateEditorCanvas(previous.currentTemplate);
         const element = canvas?.elements.find(candidate => candidate.id === elementId);
-        if (!canvas || !element || element.type !== 'icon' || element.locked) return { ...previous };
+        if (!canvas || !element || element.type !== 'icon' || element.locked) return marked(previous);
         const next = commitTemplateEditorState(previous, template => ({
           ...template,
           freeformCanvas: reconstructFreeformCanvas({
@@ -256,7 +266,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
               ? { ...candidate, ...changes } : candidate),
           }),
         }), true);
-        return next === previous ? { ...previous } : next;
+        return marked(next);
       });
     });
   }, [finishIcon]);
