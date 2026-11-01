@@ -1,4 +1,6 @@
-import { buildPipelineProgramView, type PipelineProgramView } from './pipelineProgram';
+import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
+import { PipelineStoreError } from './pipelineStoreError';
+import { buildPipelineProgramView, type SharedPipelineTrashPage, type PipelineProgramView } from './pipelineProgram';
 import { fetchPipelineSubmissionPage } from './pipelineProjections';
 import { getPipelineProgramContext } from './pipelineStore';
 
@@ -99,4 +101,24 @@ export const getOwnPublishedPipelineSubmissions = async (
   if (pageCount <= 1) return firstPage.submissions;
   const remaining = await Promise.all(Array.from({ length: pageCount - 1 }, (_, index) => loadPage(index + 2)));
   return [firstPage, ...remaining].flatMap((page) => page.submissions);
+};
+
+export const getSharedPipelineTrashPage = async (
+  currentUserId: string,
+  query: Omit<import('./pipelineProjections').PipelineListQuery, 'scope' | 'trash'> = {},
+): Promise<SharedPipelineTrashPage> => {
+  // The native shared scope rejects private/unknown rows before counts and
+  // pagination. No Contributor enrollment or reviewer scope is required to read.
+  if (!getSupabaseServerClient()) throw new PipelineStoreError('Shared Pipeline Trash is unavailable.', 503);
+  const result = await fetchPipelineSubmissionPage({
+    currentUserId, profiles: [], includeRegistryRecipePayloads: false, allowSelfVoting: true,
+    query: { ...query, scope: 'shared', trash: 'trashed' },
+  });
+  return { total: result.total, page: result.page, pageSize: result.pageSize, items: result.submissions.map(row => ({
+    id: row.id, lineageId: row.lineageId, assetType: row.assetType, name: row.name,
+    description: row.description, status: row.status, revisionNumber: row.revisionNumber,
+    trashedAt: row.trashedAt, purgeAfter: row.purgeAfter, trashActorRole: row.trashActorRole,
+    trashPreviousStatus: row.trashPreviousStatus, publicationRetained: row.publicationRetained,
+    positiveVotes: row.positiveVotes, negativeVotes: row.negativeVotes,
+  })) };
 };

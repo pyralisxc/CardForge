@@ -612,3 +612,13 @@ export const mapPipelineSubmissionRow = (
 });
 
 export { buildPipelineProgramView, projectPipelineProgramForViewer } from './pipelineProgramView';
+/** Public shared-Trash metadata only; never a source/specimen or mutation grant. */
+export interface SharedPipelineTrashPage {
+  items: Array<Pick<PipelineSubmission,
+    'id' | 'lineageId' | 'assetType' | 'name' | 'description' | 'status' | 'revisionNumber'
+    | 'trashedAt' | 'purgeAfter' | 'trashActorRole' | 'trashPreviousStatus'
+    | 'publicationRetained' | 'positiveVotes' | 'negativeVotes'>>;
+  total: number;
+  page: number;
+  pageSize: number;
+}
