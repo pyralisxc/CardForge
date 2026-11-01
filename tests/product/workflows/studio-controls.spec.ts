@@ -468,6 +468,9 @@ test('@golden new unsaved Template accepts Icon SVG without a matching persisted
  await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
  await page.getByRole('button',{name:'Begin unsaved personal Template'}).click();
  await expect(page.getByTestId('draft-template-id')).toHaveText('draft-new-personal-template');
+ await expect(page.getByTestId('draft-selected-element-id')).toHaveText('neighbor');
+ await page.getByRole('button',{name:'Select Icon Layer',exact:true}).click();
+ await expect(page.getByTestId('draft-selected-element-id')).toHaveText('icon');
  await page.getByRole('button',{name:'Apply published SVG to unsaved Template'}).click();
  await expect(page.getByTestId('draft-apply-status')).toHaveText('applied');
  expect(JSON.parse(await page.getByTestId('draft-icon').textContent()||'{}')).toMatchObject({
