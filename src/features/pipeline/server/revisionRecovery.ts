@@ -63,11 +63,17 @@ export async function changeRevisionRecovery(actorUserId: string, input: unknown
   const { data, error } = response;
   if (error) throw nativeError(error);
   const result = receipt(data, expected.submissionId);
+  // Native rebalance/registry sync owns publication ordinal and live-pointer
+  // eligibility. The receipt only proves that any changed pointer targets the
+  // exact restored revision; it cannot reconstruct the prior pointer's rank.
+  const pointerValid = result.state.registrySubmissionId === expected.registrySubmissionId
+    || (action === 'restore' && result.state.status === 'published'
+      && result.state.registrySubmissionId === expected.submissionId);
   if (result.state.lineageId !== expected.lineageId || result.state.revisionNumber !== expected.revisionNumber
-    || result.state.registrySubmissionId !== expected.registrySubmissionId || result.state.revisionHighWater !== expected.revisionHighWater
+    || !pointerValid || result.state.revisionHighWater !== expected.revisionHighWater
     || BigInt(result.state.recoveryVersion) <= BigInt(expected.recoveryVersion)
     || (action === 'trash' && !result.state.trashedAt)
-    || (action === 'restore' && (result.state.trashedAt !== null || result.state.status !== 'archived'))
+    || (action === 'restore' && (result.state.trashedAt !== null || !['draft', 'voting', 'publish_candidate', 'published', 'archived'].includes(result.state.status)))
     || (action === 'hold' && (result.state.held !== parsed.data.held || result.state.trashedAt !== expected.trashedAt))) throw unavailable();
   return result;
 }
