@@ -65,7 +65,7 @@ export async function buildPluginArchive(product, environment) {
   if (product === 'studio') {
     const cases = JSON.parse((await content(root, 'REVIEW_CASES.json')).toString('utf8'));
     if (cases.version !== manifest.version || cases.positive.length !== 5 || cases.negative.length !== 5 || [...cases.positive,...cases.negative].some(item => !item.description?.trim() || !item.prompt?.trim() || /[\r\n]/u.test(item.prompt)) || cases.positive.some(item => !item.tools_triggered?.trim() || !item.expected_behavior?.trim())) throw new Error('Studio review cases must match the version with five valid positive and five negative cases');
-    const review = { positive: cases.positive.map(({description, prompt, tools_triggered, expected_behavior}) => ({description,prompt,tools_triggered,expected_behavior})), negative: cases.negative.slice(0,3).map(({description,prompt,setup,expected_behavior}) => ({description: `${description}. Setup: ${setup} Expected behavior: ${expected_behavior}`,prompt})) };
+    const review = { positive: cases.positive.map(({description, prompt, tools_triggered, expected_behavior, setup}) => ({description: `${description}. Setup: ${setup}`,prompt,tools_triggered,expected_behavior})), negative: cases.negative.slice(0,3).map(({description,prompt,setup,expected_behavior}) => ({description: `${description}. Setup: ${setup} Expected behavior: ${expected_behavior}`,prompt})) };
     manifest.extensions ??= {};
     manifest.extensions['com.openai'] = { review: { test_cases: review } };
   }

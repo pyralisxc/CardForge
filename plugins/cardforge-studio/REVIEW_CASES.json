@@ -14,10 +14,10 @@
     {
       "id": "P2",
       "description": "Create an editable fantasy card template and preview it",
-      "prompt": "Create an editable fantasy spell card Template with an editable title and rules and preview it.",
-      "tools_triggered": "create_editable_template, preview_template_draft",
-      "expected_behavior": "Create a private revision-bound Template and show its native rendered preview without publishing.",
-      "setup": "No prior document required; this case creates the first private fixture in the session.",
+      "prompt": "Create an editable fantasy spell card Template, make title and rules editable, attach the 1x1 PNG review fixture to the planned main-art slot, and show its preview.",
+      "tools_triggered": "create_editable_template, attach_template_artwork, preview_template_draft",
+      "expected_behavior": "Private Template revision advances; attached artwork binds the returned planned main-art requirement, and a native preview plus exact-revision Studio link is returned without public publication.",
+      "setup": "No prior document required; this case creates the first private fixture in the session. After creation, use its returned main-art requirement id, binding element.image, mimeType image/png and raw base64 iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZxQAAAAASUVORK5CYII=.",
       "status": "Not run"
     },
     {
@@ -32,10 +32,10 @@
     {
       "id": "P4",
       "description": "Build a three-card Set from the current template",
-      "prompt": "Using my current Template, make a three-card rock-paper-scissors Set with distinct rules, then preview the Set.",
+      "prompt": "Using the editable Template, make a three-card rock-paper-scissors Set with distinct rules and the three review-fixture artwork URLs, then preview all cards.",
       "tools_triggered": "upsert_card_set, get_card_generation_contract, upsert_cards, preview_card_set",
-      "expected_behavior": "Create three stable card identities with distinct content and native Set preview; do not publish.",
-      "setup": "Use the private fixture document created earlier in the same session.",
+      "expected_behavior": "Three stable card IDs have distinct copy and artwork assignments; preview reports each source as resolved, unresolved, template fallback or placeholder rather than claiming missing bytes were embedded.",
+      "setup": "Reuse the private editable Template from this session. Use these three public fixture URLs in card order: https://cardforges.com/site-fallbacks/showcase/creatures/emberclaw-whelp.webp, https://cardforges.com/site-fallbacks/showcase/creatures/moonveil-stag.webp, https://cardforges.com/site-fallbacks/showcase/creatures/mossback-guardian.webp. Use only returned editable field keys and stable card IDs.",
       "status": "Not run"
     },
     {
