@@ -143,7 +143,6 @@ export function useTemplateLibraryActions({
   deleteTemplate,
   projectCapabilities,
   setGeneratorSelectedTemplateId,
-  setTemplateEditorSelectedTemplateId,
   storedCards,
   templates,
   toast,
@@ -218,7 +217,7 @@ export function useTemplateLibraryActions({
       }
     }
     return { id: savedTemplateId, template: templateForFile };
-  }, [commitTemplateChange, projectCapabilities.canSubmitTemplateRevisions, setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, toast]);
+  }, [commitTemplateChange, projectCapabilities.canSubmitTemplateRevisions, setGeneratorSelectedTemplateId, toast]);
 
   const handleSaveTemplate = useCallback(async (template: TCGCardTemplate): Promise<TemplateSaveReceipt> => {
     const source = templates.find((candidate) => candidate.id === template.id) ?? null;
