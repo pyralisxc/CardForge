@@ -63,8 +63,12 @@ export async function changeRevisionRecovery(actorUserId: string, input: unknown
   const { data, error } = response;
   if (error) throw nativeError(error);
   const result = receipt(data, expected.submissionId);
+  // A never-published exact revision may receive its first registry binding when
+  // ordinary Restore eligibility publishes it. Any foreign or replaced pointer remains invalid.
+  const firstPublication = action === 'restore' && expected.registrySubmissionId === null
+    && result.state.status === 'published' && result.state.registrySubmissionId === expected.submissionId;
   if (result.state.lineageId !== expected.lineageId || result.state.revisionNumber !== expected.revisionNumber
-    || result.state.registrySubmissionId !== expected.registrySubmissionId || result.state.revisionHighWater !== expected.revisionHighWater
+    || (!firstPublication && result.state.registrySubmissionId !== expected.registrySubmissionId) || result.state.revisionHighWater !== expected.revisionHighWater
     || BigInt(result.state.recoveryVersion) <= BigInt(expected.recoveryVersion)
     || (action === 'trash' && !result.state.trashedAt)
     || (action === 'restore' && (result.state.trashedAt !== null || !['draft', 'voting', 'publish_candidate', 'published', 'archived'].includes(result.state.status)))
