@@ -26,7 +26,7 @@ begin
  owner_status_override,owner_access_tier_override,calculated_access_tier,editorial_review_status,registry_asset_id,target_registry_asset_id,revision_number,published_at,source_url,submitted_at)
  values(current_id,catalog_l,'author','author@example.invalid','icons','Catalog current','published','published','free','free','approved',asset,asset,2,now(),'https://example.invalid/catalog.svg',now()),
  (active_id,active_l,'author','author@example.invalid','icons','Active control','published','published','free','free','approved',active_asset,active_asset,1,now(),'https://example.invalid/active.svg',now()-interval '3 days'),
- (history_id,history_l,'author','author@example.invalid','icons','Archive is not Trash','archived','archived','hidden','hidden','approved','history-'||history_l,'history-'||history_l,1,now()-interval '5 days',null,now()-interval '5 days');
+ (history_id,history_l,'author','author@example.invalid','icons','Archive is not Trash','archived','archived','hidden','hidden','approved',null,'history-'||history_l,1,now()-interval '5 days',null,now()-interval '5 days');
  update public.cardforge_asset_registry set contributor_submission_id=current_id where asset_id=asset;
  update public.cardforge_asset_registry set contributor_submission_id=active_id where asset_id=active_asset;
  -- A revision already in recoverable Trash can share a lineage with catalog
@@ -35,7 +35,7 @@ begin
  registry_asset_id,target_registry_asset_id,revision_number,published_at,trashed_at,purge_after,trash_reason,
  revision_trash_actor_role,revision_trash_actor_id,revision_trash_previous_status,revision_publication_retained,submitted_at)
  values(historical_id,catalog_l,'author','icons','Catalog history','archived','archived',asset,asset,1,now()-interval '1 day',now()-interval '1 hour',now()+interval '29 days','withdrawn','contributor','author','published',true,now()-interval '1 day'),
- (revision_id,revision_l,'author','textures','Revision-only recovery','archived','archived','revision-'||revision_l,'revision-'||revision_l,1,now()-interval '2 days',now()-interval '2 hours',now()+interval '29 days','withdrawn','contributor','author','published',true,now()-interval '2 days');
+ (revision_id,revision_l,'author','textures','Revision-only recovery','archived','archived',null,'revision-'||revision_l,1,now()-interval '2 days',now()-interval '2 hours',now()+interval '29 days','withdrawn','contributor','author','published',true,now()-interval '2 days');
  insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,contributor_email,asset_type,name,status,owner_status_override,submitted_at)
  values(draft_id,catalog_l,'private-author','private-only@example.invalid','icons','Private sibling draft','draft','draft',now()),
  (private_id,catalog_l,'private-author','private-only@example.invalid','icons','Private unknown archive','archived','archived',now()),
