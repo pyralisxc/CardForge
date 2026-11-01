@@ -14,7 +14,7 @@ This file is the reusable source for the OpenAI plugin listing and review. It co
 - Logo source: `https://cardforges.com/brand/cardforge-studio/favicon.svg`
 - Category: Design
 - Requested availability: public, wherever ChatGPT plugins and CardForge's providers are available; a CardForge account is required because temporary working documents and connected-project authorizations are private to the linked account.
-- Short description: Design cards and generate complete card sets.
+- Short description: Design cards and card sets
 - Long description: Design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review exact CardForge-rendered outputs natively in chat, and continue everything in CardForge Studio. Contributor publication tools remain a separate optional workflow.
 
 Starter prompts:
@@ -23,7 +23,7 @@ Starter prompts:
 2. Turn this list into a complete CardForge card set.
 3. Add unique artwork and review my existing card set.
 
-Hardening release notes for 1.0.2: CardForge Studio is an authenticated integration for editable Templates and complete card Sets with revision-safe temporary working documents and connected-project commits. This release aligns every strict structured-output contract with its runtime payload, preserves Google Drive work identity, returns exact-revision Studio links, and confirms browser installation before reporting a revision as acknowledged. Template and Set review returns response-budgeted native PNG displays derived only from immutable revision-bound canonical artifacts, without iframe preview widgets. displayImages distinguishes byte-identical canonical images from reduced displays; full canonical artifact metadata and exact-revision Studio links remain separate and unchanged.
+Historical hardening release notes for 1.0.2: CardForge Studio is an authenticated integration for editable Templates and complete card Sets with revision-safe temporary working documents and connected-project commits. This release aligns every strict structured-output contract with its runtime payload, preserves Google Drive work identity, returns exact-revision Studio links, and confirms browser installation before reporting a revision as acknowledged. Template and Set review returns response-budgeted native PNG displays derived only from immutable revision-bound canonical artifacts, without iframe preview widgets. displayImages distinguishes byte-identical canonical images from reduced displays; full canonical artifact metadata and exact-revision Studio links remain separate and unchanged.
 
 ## Authentication and reviewer fixture
 
@@ -47,69 +47,15 @@ Connected-project commits are revision-conditional. `commit_project` requires th
 
 Template and Set preview tools do not register iframe/widget output templates. They return response-budgeted native MCP `image/png` displays derived only from CardForge's canonical renderer, plus separate revision-bound Studio URLs. The complete tool result is bounded across all selected images, text and structured metadata; displayImages reports canonical versus reduced bytes and actual display dimensions/size. Reduction preserves aspect ratio and alpha, without replacing cached canonical artifacts. Static creative review therefore requires no frame-domain or widget CSP permissions.
 
-## Positive review cases
+## Human reviewer cases and evidence
 
-### Positive 1 — discover the native workflow
+The canonical, versioned source for all **five positive and five negative** capability cases is `REVIEW_CASES.json`. The existing deterministic package builder maps P1–P5 and N1–N3 into `extensions.com.openai.review.test_cases` in the portable and Codex plugin manifests. N4–N5 remain in the downloadable human packet; the initial MCP portal accepts exactly 5+3 cases.
 
-- Fixture: the authenticated reviewer account; no saved content is required.
-- Prompt: “What can CardForge help me make, and which built-in assets should I reuse for a fantasy spell card?”
-- Expected tools: `get_studio_creation_guide`, then `search_studio_library`.
-- Expected result: a CardForge-native plan using returned library assets; no document is created until the user confirms or delegates the production plan.
+Download the **human review packet** alongside the matching Studio ZIP at `/downloads`; it records environment/version, prerequisite account and install steps, each prompt, tool expectations, observable outcomes, and an explicit **Not run** status until real execution evidence exists. That packet does not go inside the runtime ZIP.
 
-### Positive 2 — create, revise, attach, and preview one Template
+The negative capability examples concern unsupported fulfillment, payment, ungoverned public publication, cross-account private access and infrastructure deployment. Auth 401, stale-revision conflicts and invalid artwork remain separate error/recovery invariants, not substitutes for capability negatives.
 
-- Fixture: use `mimeType: image/png` and raw base64 `iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZxQAAAAASUVORK5CYII=` when calling `attach_template_artwork`; use the returned planned asset requirement id and `binding: element.image`.
-- Prompt: “Create an editable poker-size fantasy spell Template, make the title and rules editable, attach the review-fixture artwork to the planned main-art slot, and show me a preview.”
-- Expected tools: `create_editable_template`, `attach_template_artwork`, `preview_template_draft`; use `update_editable_template` only when a material revision is requested.
-- Expected result: one private document whose revision advances, artwork reports its exact native binding, the rendered PNG appears in chat, and the separate Studio URL targets the exact revision.
-
-### Positive 3 — resume and revise a private Template
-
-- Fixture: first create a private editable Template in the same review session, then use the returned document id for this case.
-- Prompt: “List my editable Templates, reopen the one we just made, change its title to OpenAI Review Fixture, and show me the revised preview.”
-- Expected tools: `list_editable_templates`, `get_editable_template`, `update_editable_template`, `preview_template_draft`.
-- Expected result: the existing accepted plan remains locked, the same private document advances by one revision, and the preview and Studio URL target that exact revision; no Contributor Pipeline draft is created.
-
-### Positive 4 — build and inspect a bulk set with artwork
-
-- Fixture: create a private editable Template in this review session or reuse the still-active document from Positive 2 or 3. Use these public artwork URLs in order: `https://cardforges.com/site-fallbacks/showcase/creatures/emberclaw-whelp.webp`, `https://cardforges.com/site-fallbacks/showcase/creatures/moonveil-stag.webp`, and `https://cardforges.com/site-fallbacks/showcase/creatures/mossback-guardian.webp`.
-- Prompt: “Use the editable Template in this session to make a three-card rock-paper-scissors set with distinct rules and the three review-fixture artwork URLs, then review it.”
-- Expected tools: `create_editable_template` when no active document exists, then `upsert_card_set`, `get_card_generation_contract`, `upsert_cards`, and `preview_card_set`.
-- Expected result: the agent uses only returned field keys, reuses stable set/card IDs, stores artwork in the bulk transaction, and reports each image as resolved, unresolved, template fallback, or placeholder.
-
-### Positive 5 — verify browser installation state
-
-- Fixture: reuse the current private working document from Positive 2, 3, or 4 and open its exact-revision Studio link in the same linked CardForge account.
-- Prompt: “Check whether the latest revision is actually applied in CardForge Studio.”
-- Expected tools: `get_agent_install_status` after the reviewer opens and applies the revision-bound Studio link.
-- Expected result: the response includes the exact current revision, `currentRevisionApplied: true`, `installPending: false`, and the matching `lastInstalledRevision`; a failed browser acknowledgement must remain pending rather than being reported as applied.
-
-## Additional internal acceptance outside directory review cases
-
-Keep these as release acceptance without submitting them as extra MCP review cases:
-
-- **Temporary Set resume:** reuse the working document from Positive 4, call `list_agent_working_documents` and `get_card_generation_contract`, and verify only the linked account's retained private work is returned.
-- **Connected-project round trip:** with a dedicated non-sensitive Google Drive fixture, call `list_connected_projects` and `checkout_project`; only after an explicit reviewed change exercise `commit_project` with exact working-document, provider, and CardForge project revisions. Checkout must leave the Drive source unchanged and stale commit must fail closed.
-
-## Negative review cases
-
-### Negative 1 — signed-out access fails closed
-
-- Action: connect to `https://cardforges.com/mcp` without a CardForge OAuth token.
-- Why it should not complete: the request has no linked CardForge identity, so returning tools or data could expose private account content.
-- Expected result: HTTP 401 with OAuth discovery information; no tool result or private identifier is returned.
-
-### Negative 2 — a stale revision cannot overwrite newer work
-
-- Action: call `update_editable_template`, an upsert tool, or `commit_project` with an expected revision older than the current working-document or provider/project revision.
-- Why it should not complete: accepting a stale write could silently overwrite or remove newer work.
-- Expected result: a conflict response instructs the client to reload the current revision; the current working document and provider project remain unchanged.
-
-### Negative 3 — invalid artwork cannot masquerade as resolved
-
-- Action: send an invalid/unresolvable artwork value or target a structural locked-frame field rather than a returned editable image key.
-- Why it should not complete: unresolved media and structural frame fields cannot truthfully become editable embedded card artwork.
-- Expected result: validation rejects the write or the preview explicitly reports `unresolved`, `template_fallback`, or `placeholder`; it never reports successful embedded artwork for an unresolved value.
+The actual reviewer video/demo and credential entry are owner tasks. No demo URL, login or policy approval is inferred from this package; secure credentials must be entered only in the official portal. Submission/public publication remains separately gated.
 
 ## Domain verification
 

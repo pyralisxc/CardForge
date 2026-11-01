@@ -35,5 +35,5 @@ export async function buildStudioReviewerPacket(environment, version) {
     'Publisher must supply the genuine reviewer video/demo URL and secure reviewer access through the official portal. Neither is generated here.',
     'Confirm publication targeting, any commerce declaration, public brand-asset review, and final listing fields with the publisher before submission.',
     'This packet is not evidence of portal submission, video completion, policy approval, or public publication.', '');
-  return lines.join('\\n').replaceAll('\\\\n','\\n');
+  return lines.join('\\n');
 }
