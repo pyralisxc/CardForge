@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { prepareTemplateForLibrarySave } from '@/features/template-editor/client';
 import { CardTemplateMaker } from '@/features/template-editor/components/CardTemplateMaker';
 import { EnvironmentToolLayer } from '@/features/app-shell/environment/components/EnvironmentToolLayer';
+import { LibraryPickerDialog } from '@/features/library-picker/components/LibraryPickerDialog';
 import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import { initializeCardDataFromTemplate } from '@/features/card-generator/client';
 import { renderCardToPngBlob } from '@/features/card-generator/lib/cardPreviewExport';
@@ -88,6 +89,23 @@ function ControllerBatchProof() {
   </>;
 }
 
+
+function PickerSessionProof() {
+  const [open,setOpen] = useState(false);
+  const [result,setResult] = useState('idle');
+  const completion = useRef<null|{resolve:()=>void;reject:(error:Error)=>void}>(null);
+  return <>
+    <button onClick={()=>setOpen(true)}>Open chooser</button>
+    <button onClick={()=>completion.current?.resolve()}>Finish earlier success</button>
+    <button onClick={()=>completion.current?.reject(new Error('Previous session failed'))}>Finish earlier failure</button>
+    <output data-testid="picker-session-result">{result}</output>
+    <LibraryPickerDialog open={open} onOpenChange={setOpen}
+      request={{purpose:'template.icon-source',title:'Choose icon',acceptedKinds:['icon'],acceptedRoles:['icon'],sources:['published'],selectionMode:'single',target:{kind:'template-element',ids:['icon']},requiresProjectMaterialization:false}}
+      resources={[{id:'published:test',objectId:'test',name:'Test published icon',kind:'icon',role:'icon',source:'published',sourceLabel:'CardForge',materialization:'reference'}]}
+      onSelect={async(_selected,_signal)=>new Promise<void>((resolve,reject)=>{completion.current={resolve:()=>{setResult('late success');resolve();},reject:(error)=>{setResult('late failure');reject(error);}};})}
+    />
+  </>;
+}
 function ControllerIconApplicationProof() {
   const source: TCGCardTemplate = {
     ...initial, id: 'icon-confirmation-proof',
@@ -118,7 +136,8 @@ function ControllerIconApplicationProof() {
 }
 const params = new URLSearchParams(location.search);
 createRoot(document.body.appendChild(document.createElement('div'))).render(
-  params.has('iconAcknowledgment') ? <ControllerIconApplicationProof/>
+  params.has('pickerSession') ? <PickerSessionProof/>
+  : params.has('iconAcknowledgment') ? <ControllerIconApplicationProof/>
   : params.has('controllerBatch') ? <ControllerBatchProof/>
   : params.has('accountToolLayer') ? (
     <EnvironmentToolLayer
