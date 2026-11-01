@@ -2,8 +2,8 @@ begin;
 set local lock_timeout='5s';
 -- Operational provenance belongs to the existing exact revision, not a new queue.
 alter table public.cardforge_contributor_asset_submissions
- drop constraint cardforge_contributor_asset_submissions_revision_trash_actor_role_check,
- add constraint cardforge_contributor_asset_submissions_revision_trash_actor_role_check
+ drop constraint cardforge_contributor_asset_sub_revision_trash_actor_role_check,
+ add constraint cardforge_revision_trash_actor_role_check
  check (revision_trash_actor_role in ('owner','contributor','voting')),
  add column revision_trash_previous_status text,
  add column revision_vote_trash_fingerprint text;
