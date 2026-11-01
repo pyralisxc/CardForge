@@ -87,9 +87,39 @@ function ControllerBatchProof() {
     <output data-testid="batch-history">{controller.history.length}</output>
   </>;
 }
+
+function ControllerIconApplicationProof() {
+  const source: TCGCardTemplate = {
+    ...initial, id: 'icon-confirmation-proof',
+    freeformCanvas: {width:630,height:880,elements:[
+      {id:'icon',type:'icon',name:'Icon',iconName:'Star',x:10,y:10,width:72,height:72,zIndex:3},
+      {id:'neighbor',type:'text',name:'Neighbor',content:'Keep neighbor',x:180,y:30,width:150,height:40,zIndex:4},
+    ]},
+  };
+  const controller = useTemplateEditorController(source);
+  const [result,setResult] = useState('idle');
+  const perform = (sourceValue:string) => {
+    setResult('pending');
+    void controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:sourceValue,iconRenderMode:'original'})
+      .then(()=>setResult('applied'))
+      .catch(()=>setResult('rejected'));
+  };
+  return <>
+    <button onClick={()=>perform('/asymmetric.svg')}>Apply Icon with acknowledgment</button>
+    <button onClick={()=>controller.updateElement('icon',{locked:true})}>Lock Icon</button>
+    <button onClick={()=>controller.updateElement('icon',{locked:false})}>Unlock Icon</button>
+    <button onClick={()=>controller.updateElement('icon',{rotation:30})}>Change geometry</button>
+    <button onClick={()=>controller.updateCanvas({elements:controller.canvas.elements.filter(element=>element.id!=='icon')})}>Delete Icon</button>
+    <output data-testid="ack-result">{result}</output>
+    <output data-testid="ack-history">{controller.history.length}</output>
+    <output data-testid="ack-icon">{JSON.stringify(controller.canvas.elements.find(element=>element.id==='icon'))}</output>
+    <output data-testid="ack-neighbor">{JSON.stringify(controller.canvas.elements.find(element=>element.id==='neighbor'))}</output>
+  </>;
+}
 const params = new URLSearchParams(location.search);
 createRoot(document.body.appendChild(document.createElement('div'))).render(
-  params.has('controllerBatch') ? <ControllerBatchProof/>
+  params.has('iconAcknowledgment') ? <ControllerIconApplicationProof/>
+  : params.has('controllerBatch') ? <ControllerBatchProof/>
   : params.has('accountToolLayer') ? (
     <EnvironmentToolLayer
       id="library-design-title"
