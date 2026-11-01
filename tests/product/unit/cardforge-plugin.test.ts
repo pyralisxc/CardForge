@@ -163,6 +163,14 @@ describe('CardForge Studio plugin', () => {
     for (const prompt of listing.defaultPrompt) expect(prompt.length).toBeLessThanOrEqual(128);
     expect(portable.extensions['com.openai'].review.test_cases.positive).toHaveLength(5);
     expect(portable.extensions['com.openai'].review.test_cases.negative).toHaveLength(3);
+    expect(listing.category).toBe('Creativity');
+    for (const [index, negative] of portable.extensions['com.openai'].review.test_cases.negative.entries()) {
+      expect(negative.description).toContain(cases.negative[index].setup);
+      expect(negative.description).toContain(cases.negative[index].expected_behavior);
+      expect(negative).not.toHaveProperty('setup');
+      expect(negative).not.toHaveProperty('expected_behavior');
+    }
+    expect(cases.positive[1].setup).toContain('creates the first private fixture');
     expect(codex.extensions['com.openai'].review.test_cases).toEqual(portable.extensions['com.openai'].review.test_cases);
     expect(listing.logo).toBe('./assets/logo.png');
     expect(listing.composerIcon).toBe('./assets/icon.png');
