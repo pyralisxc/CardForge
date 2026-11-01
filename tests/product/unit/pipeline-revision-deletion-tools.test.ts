@@ -11,9 +11,25 @@ const id = '550e8400-e29b-41d4-a716-446655440000';
 const lineage = '550e8400-e29b-41d4-a716-446655440001';
 const input = { submissionId: id, name: 'Synthetic exact revision', storagePath: 'synthetic/source.png' };
 const initial = { id, name: input.name, lineage_id: lineage, status: 'archived', source_storage_path: input.storagePath, source_storage_bucket: 'cardforge-contributor-assets', trashed_at: '2026-10-30T00:00:00Z', published_at: null, retention_hold: false, purge_state: null, purge_claim_token: null, purge_claimed_at: null, owner_purge_requested_at: null, contributor_lifecycle_state: null, revision_publication_retained: false };
+// Native registry identity is asset_id; unlike submission/lineage rows it has no id column.
+const registryRow = { asset_id: 'synthetic-catalog-asset', contributor_submission_id: id };
 function database(row: unknown = initial, overrides: Record<string, unknown> = {}) {
   const values: Record<string, unknown> = { cardforge_contributor_asset_submissions: row, cardforge_asset_registry: [], cardforge_pipeline_publication_events: [], cardforge_pipeline_asset_lineages: { id: lineage, catalog_trashed_at: null, purge_state: null }, ...overrides };
-  const from = vi.fn((table: string) => { const q = { select: vi.fn(() => q), eq: vi.fn(() => q), limit: vi.fn(async () => ({ data: values[table], error: null })), maybeSingle: vi.fn(async () => ({ data: values[table], error: null })) }; return q; });
+  const from = vi.fn((table: string) => {
+    let columns: string[] = []; const filters: Array<[string, unknown]> = [];
+    const result = () => {
+      if (table !== 'cardforge_asset_registry') return { data: values[table], error: null };
+      const invalid = [...columns, ...filters.map(([column]) => column)].find(column => !(column in registryRow));
+      if (invalid) return { data: null, error: { code: '42703', message: `column cardforge_asset_registry.${invalid} does not exist` } };
+      const rows = values[table] as Array<Record<string, unknown>>;
+      return { data: rows.filter(row => filters.every(([column, value]) => row[column] === value))
+        .map(row => Object.fromEntries(columns.map(column => [column, row[column]]))), error: null };
+    };
+    const q = { select: vi.fn((projection: string) => { columns = projection.split(','); return q; }),
+      eq: vi.fn((column: string, value: unknown) => { filters.push([column, value]); return q; }),
+      limit: vi.fn(async () => result()), maybeSingle: vi.fn(async () => result()) };
+    return q;
+  });
   m.db.mockReturnValue({ from }); return from;
 }
 beforeEach(() => { vi.resetAllMocks(); m.access.mockResolvedValue({ isOwner: true, email: 'owner@example.invalid' }); database(); });
@@ -26,6 +42,11 @@ describe('exact Owner deletion discovery and command', () => {
   });
   it('returns exact observed name/path without claiming or deleting', async () => {
     expect(await inspectOwnerRevisionDeletion('owner', id)).toEqual({ submissionId: id, present: true, eligible: true, reasons: [], confirmation: input });
+    expect(m.remove).not.toHaveBeenCalled();
+  });
+  it('reads an existing submitted revision against the native registry schema without inferring deletion permission', async () => {
+    database({ ...initial, status: 'submitted', trashed_at: null });
+    expect(await inspectOwnerRevisionDeletion('owner', id)).toMatchObject({ present: true, eligible: false, reasons: ['not_trashed_archived_revision'], confirmation: input });
     expect(m.remove).not.toHaveBeenCalled();
   });
   it.each([
@@ -41,9 +62,15 @@ describe('exact Owner deletion discovery and command', () => {
   });
   it('keeps registry and historical publication references blocked, and missing rows unconfirmed', async () => {
     for (const table of ['cardforge_asset_registry', 'cardforge_pipeline_publication_events']) {
-      database(initial, { [table]: [{ id }] }); expect(await inspectOwnerRevisionDeletion('owner', id)).toMatchObject({ eligible: false, reasons: ['publication_history_retained'] });
+      database(initial, { [table]: [table === 'cardforge_asset_registry' ? registryRow : { published_submission_id: id }] });
+      expect(await inspectOwnerRevisionDeletion('owner', id)).toMatchObject({ eligible: false, reasons: ['publication_history_retained'] });
     }
     database(null); expect(await inspectOwnerRevisionDeletion('owner', id)).toMatchObject({ present: false, eligible: false, reasons: ['revision_absent'] });
+  });
+  it('checks only registry references to the exact inspected revision', async () => {
+    database(initial, { cardforge_asset_registry: [{ ...registryRow, contributor_submission_id: lineage }] });
+    expect(await inspectOwnerRevisionDeletion('owner', id)).toMatchObject({ present: true, eligible: true, reasons: [] });
+    expect(m.remove).not.toHaveBeenCalled();
   });
   it('validates exact input and never accepts caller eligibility or a generic path deletion', async () => {
     for (const value of [{ ...input, submissionId: 'not-uuid' }, { ...input, eligible: true }, { storagePath: input.storagePath }]) await expect(deleteOwnerRevision('owner', value)).rejects.toMatchObject({ status: 400 });
