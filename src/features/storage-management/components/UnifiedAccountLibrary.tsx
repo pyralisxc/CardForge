@@ -568,7 +568,21 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           {sharedTrashMode ? 'Return to Pipeline' : 'Browse shared Trash'}
         </button>
       </div> : null}
-      {activeScope === 'pipeline' && isSignedIn && sharedTrashMode ? <SharedPipelineTrashCollection onOpenAuthorizedRevision={experience.owner ? item => { revisionQueue.setTrash('trashed'); revisionQueue.setAssetType(item.assetType); revisionQueue.setStatus('all'); projection.setQuery(item.name); setRevisionMode(true); setSharedTrashMode(false); setSelection(closeEnvironmentDetail); } : undefined} /> : <LibraryCollection
+      {activeScope === 'pipeline' && isSignedIn && sharedTrashMode ? <SharedPipelineTrashCollection onOpenAuthorizedRevision={experience.owner ? async item => {
+        if (activeTool) return;
+        try {
+          const response = await fetch('/api/pipeline/library?trash=trashed', { cache: 'no-store' });
+          if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Exact revision is unavailable.'));
+          const payload = await response.json() as { program: { submissions: PipelineSubmission[]; votingQueue: PipelineSubmission[] } };
+          const exact = [...payload.program.submissions, ...payload.program.votingQueue].find(row => row.id === item.id && row.lineageId === item.lineageId && row.trashedAt);
+          const target = exact ? createPipelineReviewTarget(exact) : null;
+          if (!target) throw new Error('This exact trashed revision is unavailable to your Owner account. Refresh before retrying.');
+          reviewReturn.current = { focus: document.activeElement instanceof HTMLElement ? document.activeElement : null, scroll: surfaceRef.current?.scrollTop ?? 0 };
+          setReviewTarget(target); setRevisionKind(null); openTool('review-manage', [target.lineageId, target.submissionId]);
+        } catch (error) {
+          toast({ title: 'Exact revision unavailable', description: error instanceof Error ? error.message : 'Refresh Library.', variant: 'destructive' });
+        }
+      } : undefined} /> : <LibraryCollection
         onCampaignDirtyChange={setCampaignDirty}
         onCampaignCloseBlockedChange={setCampaignCloseBlocked}
         serverFiltered={revisionsEnabled}

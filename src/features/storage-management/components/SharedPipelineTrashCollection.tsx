@@ -14,7 +14,7 @@ type SharedTrashItem = {
 };
 type SharedTrashPage = { total: number; page: number; pageSize: number; items: SharedTrashItem[] };
 
-export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision }: { onOpenAuthorizedRevision?: (item: SharedTrashItem) => void }) {
+export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision }: { onOpenAuthorizedRevision?: (item: SharedTrashItem) => Promise<void> }) {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [result, setResult] = useState<SharedTrashPage | null>(null);
@@ -49,9 +49,9 @@ export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision }: { on
       <div className="flex flex-wrap justify-between gap-2"><strong>{item.name}</strong><span className="text-sm">In Trash</span></div>
       <p className="text-sm text-[var(--cf-text-muted)]">{item.assetType} · {item.revisionNumber === null ? 'Unnumbered revision' : `Revision ${item.revisionNumber}`} · {item.status}</p>
       {item.description ? <p className="text-sm">{item.description}</p> : null}
-      <p className="text-xs text-[var(--cf-text-muted)]">Submission {item.id} · Retained until {item.purgeAfter ? new Date(item.purgeAfter).toLocaleDateString() : 'unspecified'}</p>
+      <p className="text-xs text-[var(--cf-text-muted)]">Submission {item.id} · Recovery deadline {item.purgeAfter ? new Date(item.purgeAfter).toLocaleDateString() : 'unavailable'}{item.publicationRetained ? ' · Publication history remains retained' : ''}</p>
       <p className="text-xs">Votes: {item.positiveVotes} up · {item.negativeVotes} down. Voting and Restore require their own eligibility checks.</p>
-      {onOpenAuthorizedRevision ? <button type="button" className="justify-self-start min-h-11 border border-[var(--cf-border)] px-3 text-sm" onClick={() => onOpenAuthorizedRevision(item)}>Find exact revision in Owner queue</button> : <p className="text-xs text-[var(--cf-text-muted)]">For voting or your own recovery options, use the authorized Pipeline account controls. Shared browsing alone grants no action.</p>}
+      {onOpenAuthorizedRevision ? <button type="button" className="justify-self-start min-h-11 border border-[var(--cf-border)] px-3 text-sm" onClick={() => onOpenAuthorizedRevision(item)}>Manage exact revision</button> : <p className="text-xs text-[var(--cf-text-muted)]">For voting or your own recovery options, use the authorized Pipeline account controls. Shared browsing alone grants no action.</p>}
     </article>)}</div>
     <div className="flex gap-2">
       <button type="button" className="min-h-11 border px-3" disabled={loading || page <= 1} onClick={() => setPage(value => value - 1)}>Previous</button>
