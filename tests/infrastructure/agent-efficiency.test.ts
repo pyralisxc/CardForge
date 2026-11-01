@@ -1,16 +1,30 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp, rm } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import {
   buildAffectedVerification,
+  collectChangedPaths,
   classifyChangedPath,
   specializedJobsForPath,
 } from '../../scripts/report-affected-verification.mjs';
 import { compactFailureTail, formatCiSummary } from '../../scripts/run-ci-check.mjs';
 
 describe('agent verification routing', () => {
+  it('fails when the verification base is unavailable instead of reporting an empty diff', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'cardforge-verify-base-'));
+    try {
+      execFileSync('git', ['init', '-q'], { cwd: root });
+      execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '--allow-empty', '-qm', 'fixture'], { cwd: root });
+      expect(() => collectChangedPaths(root, 'missing-verification-base')).toThrow(/Unable to compare verification base/);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it('routes a feature change to its exact owner, focused tests, and relevant documentation', async () => {
     const result = await buildAffectedVerification({
       root: process.cwd(),
