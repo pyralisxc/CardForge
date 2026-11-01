@@ -807,3 +807,27 @@ for (const editing of [false, true]) test(`@golden Campaign package pristine and
   await expect(create).toBeEnabled(); await expect(title).toHaveValue(initial);
   expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
 });
+
+for (const denied of [false, true]) test(`@golden signed-in shared Trash exact Contributor controls (denied=${denied})`, async ({ page }) => {
+  const evidence = await mount(page, `?queueActual=1&scope=pipeline&sharedTrashProof=1${denied ? '&sharedDenied=1' : ''}`);
+  await page.getByRole('button', { name: 'Browse shared Trash' }).click();
+  const shared = page.getByRole('region', { name: 'Shared Pipeline Trash' }).or(page.getByRole('generic', { name: 'Shared Pipeline Trash' }));
+  await expect(page.getByText('Recoverable shared card back')).toBeVisible();
+  await expect(page.getByText('Recovery deadline', { exact: false })).toBeVisible();
+  await expect(page.getByText('Publication history remains retained', { exact: false })).toBeVisible();
+  await expect(page.getByText('private draft secret')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Manage exact revision' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Exact voting & recovery options' }).click();
+  await expect(page.getByLabel('Pipeline source feedback')).toBeVisible();
+  await expect(page.getByLabel('Revision recovery')).toBeVisible();
+  await page.getByRole('button', { name: 'Inspect revision recovery' }).click();
+  await expect(page.getByRole('button', { name: 'Restore' })).toBeDisabled();
+  if (denied) {
+    await expect(page.getByRole('button', { name: 'Like 2' })).toBeDisabled();
+  } else {
+    await page.getByRole('button', { name: 'Like 2' }).click();
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { libraryRequests: Array<{ url: string; method: string; body?: string }> }).libraryRequests.some(value => value.url.endsWith('/vote') && value.body?.includes('positive')))).toBe(true);
+  }
+  expect(evidence.errors).toEqual([]);
+  expect(evidence.mutations.filter(value => value.includes('/lifecycle'))).toEqual([]);
+});

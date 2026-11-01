@@ -103,6 +103,39 @@ const marketingCampaigns = [{ id: 'synthetic-campaign', name: 'Founder Beta Intr
 const campaignPackage = { id: 'synthetic-package', contributorId: params.has('campaignComposer') ? 'synthetic-owner' : 'synthetic-author', contributorEmail: null, contributorName: 'Synthetic author', title: 'Printable Deck Introduction', objective: 'Explain the printable card workflow', destinationUrl: 'https://cardforges.com', productionNote: '', marketingCampaignId: 'synthetic-campaign', audienceKey: 'tabletop-designers', contentPillar: 'product-proof', funnelStage: 'awareness', contentKind: 'demonstration', callToAction: 'Open Desk', creationSource: 'human', utmContent: '', variants: [{ service: 'facebook', text: 'Synthetic package copy', attachments: [] }], associations: [], status: params.has('campaignComposer') ? 'draft' : 'submitted', requestedPublishAt: null, reviewNote: '', reviewedBy: null, submittedAt: '2026-01-01T00:00:00Z', approvedAt: null, version: 1, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' } satisfies MarketingContentPackage;
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
+  if (params.has('sharedTrashProof')) {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    const method = init?.method ?? 'GET';
+    if (url.startsWith('/api/pipeline/library?scope=shared&trash=trashed')) return Response.json({ sharedTrash: {
+      total: 1, page: 1, pageSize: 12, items: [{ id: row.id, lineageId: row.lineageId, name: 'Recoverable shared card back',
+        description: 'Public description', assetType: 'elementPresets', status: 'archived', revisionNumber: 1,
+        trashedAt: '2026-10-31T18:00:00Z', purgeAfter: '2026-11-30T18:00:00Z',
+        trashActorRole: 'contributor', trashPreviousStatus: 'voting', publicationRetained: true,
+        positiveVotes: 2, negativeVotes: 1 }] } });
+    if (url === '/api/pipeline/library') return Response.json({ program: { ...program, submissions: [] } });
+    if (url.includes('/api/pipeline/') && url.endsWith('/engagement')) return Response.json({ engagement: {
+      submissionId: row.id, lineageId: row.lineageId, name: 'Recoverable shared card back',
+      revisionNumber: 1, status: 'archived', trashedAt: '2026-10-31T18:00:00Z', purgeState: null,
+      positiveVotes: 2, negativeVotes: 1, currentUserVote: null,
+      voteIssue: params.has('sharedDenied') ? 'Voting not permitted' : null, heart: null, heartIssue: null } });
+    if (url.endsWith('/lifecycle')) {
+      if (method === 'POST') { proof.libraryRequests.push({ url, method, body: String(init?.body ?? '') }); return Response.json({ error: { message: 'Not permitted' } }, { status: 403 }); }
+      return Response.json({ name: 'Recoverable shared card back', state: {
+        scope: 'revision', submissionId: row.id, lineageId: row.lineageId, revisionNumber: 1,
+        registrySubmissionId: null, revisionHighWater: 2, recoveryVersion: '2', status: 'archived',
+        updatedAt: '2026-10-31T18:00:00Z', trashedAt: '2026-10-31T18:00:00Z',
+        purgeAfter: '2026-11-30T18:00:00Z', held: false },
+        retentionDays: 30, trashActor: 'owner', trashReasons: ['revision_already_trashed'],
+        restoreReasons: ['owner_recovery_required'], canHold: false,
+        publicationRetained: true, sourceUncertainty: null });
+    }
+    if (url.endsWith('/vote') && method === 'POST') {
+      proof.libraryRequests.push({ url, method, body: String(init?.body ?? '') });
+      return params.has('sharedDenied') ? Response.json({ error: { message: 'Voting not permitted' } }, { status: 403 }) : Response.json({ voteValue: 'positive' });
+    }
+    if (url.startsWith('/api/pipeline/hearts?')) return Response.json({ metrics: [] });
+    if (url === '/api/catalog') return Response.json(queueCatalog);
+  }
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   if (params.has('deskActual') && (!init?.method || init.method === 'GET')) {
     if (params.has('deskSearch') && url === '/api/catalog') return Response.json(queueCatalog);
@@ -231,6 +264,6 @@ function RailProof() {
 }
 const mount = document.createElement('div'); document.body.append(mount); const fixtureRouter = { bfcacheId: 'isolated-library', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: (href: string) => { proof.libraryNavigations.push(href); }, replace: () => {}, prefetch: async () => {} };
 createRoot(mount).render(<><Toaster />{params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
-  experience={{ signedIn: true, owner: !params.has('campaignContributor'), plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: true } } as AccountExperienceProjection}
+  experience={{ signedIn: true, owner: !params.has('campaignContributor') && !params.has('sharedTrashProof'), plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: true } } as AccountExperienceProjection}
   businessIdentity={{} as never} persistenceScope="account:isolated-library-fixture" />
 </AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />}</>);
