@@ -170,7 +170,7 @@ describe('CardForge Studio plugin', () => {
     expect(packet).toContain('P5');
     expect(packet).toContain('N5');
     expect(packet).toContain('Not run');
-    expect(packet).not.toMatch(/password\\s*[:=]\\s*\\S+/i);
+    expect(packet).not.toContain('password:');
     expect(submission).toContain('https://cardforges.com/mcp');
     expect(submission).toContain('https://cardforges.com/contact?kind=support');
     expect(submission).toContain('https://cardforges.com/privacy');

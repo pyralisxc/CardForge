@@ -243,9 +243,16 @@ The former reusable QA accounts were retired. Do not recreate them for generic c
 
 ## ChatGPT plugin publication
 
+### Repeatable owned plugin packaging gate
+
+Classify each owned distribution before applying requirements: public MCP app, private role-restricted MCP app, skills-only plugin or server-only connector. Do not impose public MCP submission/video/test-case fields on skills-only or private-only packages. Never alter third-party installed plugins as part of this gate.
+
+For CardForge runtime ZIPs, keep one canonical manifest/skills source and the existing allowlisted deterministic builder. Validate the exact product/version/environment and endpoint, host-specific portable/Codex projections, bounded listing text and HTTPS URLs, real square PNG brand assets, no source/tests/secrets/environment files, stable checksums, and exact retained-history identity. Make current-version human instructions/review evidence available separately through the existing download authorization (never inside the runtime ZIP). Studio public MCP review requires its generated 5+3 manifest subset and 5+5 full human case packet; keep Not run until executed and leave video/portal credentials to the publisher. Owner remains Owner-only and is not silently publicly submitted. Every change to package bytes uses a new proposed version and normal Preview CI/inspection/review; building or installing does not create an entitlement, release, or portal submission. No new release system or test framework is established.
+
+
 The packaged integration is `plugins/cardforge-studio`, authored by Cameron Locke, and connects to `https://cardforges.com/mcp`. Public plan names, pricing copy, feature lines, visibility, and MCP capacity targets remain Profile owner-operation content; the plugin must not introduce a parallel tier catalog or access toggle.
 
-`plugins/cardforge-studio/SUBMISSION.md` is the reusable portal listing and review-case source. Keep it aligned with the packaged manifest, live MCP annotations, exact CSP, and current production behavior. Reviewer credentials and the OpenAI challenge token must never be committed.
+`plugins/cardforge-studio/SUBMISSION.md` retains maintained publisher facts and review instructions; `plugins/cardforge-studio/REVIEW_CASES.json` is the canonical versioned source for five positive and five negative human cases. The existing shared ZIP builder embeds exactly five positive/three negative initial MCP review cases into portable/Codex metadata; the human review packet (all 5+5, explicit Not run evidence) downloads next to the current Studio ZIP through the existing role-checked route. No demo URL, reviewer credentials, commerce facts or public publication is presumed. Reviewer credentials and the OpenAI challenge token must never be committed.
 
 Assistant draft retention is also controlled by the plan records in Profile owner operations. Defaults are Free 12 hours, Creator 24 hours, and Designer/owner/contributor 48 hours. A document open or update refreshes activity; Account listing does not. Expiration and manual deletion use a 24-hour recoverable trash window.
 

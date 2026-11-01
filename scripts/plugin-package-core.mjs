@@ -58,13 +58,13 @@ export async function buildPluginArchive(product, environment) {
   manifest.interface.websiteURL = origin;
   const listing = manifest.interface;
   if (listing) {
-    if (listing.displayName.length > 30 || listing.shortDescription.length > 30 || listing.longDescription.length > 4000 || listing.developerName.length > 80 || listing.defaultPrompt.length > 3 || listing.defaultPrompt.some(value => !value || value.length > 128 || /[\\r\\n]/u.test(value))) throw new Error('Plugin listing exceeds platform limits');
+    if (listing.displayName.length > 30 || listing.shortDescription.length > 30 || listing.longDescription.length > 4000 || listing.developerName.length > 80 || listing.defaultPrompt.length > 3 || new Set(listing.defaultPrompt).size !== listing.defaultPrompt.length || listing.defaultPrompt.some(value => !value.trim() || value.length > 128 || value.includes(String.fromCharCode(10)) || value.includes(String.fromCharCode(13)))) throw new Error('Plugin listing exceeds platform limits');
     for (const key of ['websiteURL','supportURL','privacyPolicyURL','termsOfServiceURL']) if (!String(listing[key] ?? '').startsWith('https://') || listing[key].length > 1024) throw new Error('Invalid plugin listing URL: ' + key);
   }
   const files = new Map();
   if (product === 'studio') {
     const cases = JSON.parse((await content(root, 'REVIEW_CASES.json')).toString('utf8'));
-    if (cases.version !== manifest.version || cases.positive.length !== 5 || cases.negative.length !== 5) throw new Error('Studio review cases must match the version with five positive and five negative cases');
+    if (cases.version !== manifest.version || cases.positive.length !== 5 || cases.negative.length !== 5 || [...cases.positive,...cases.negative].some(item => !item.description?.trim() || !item.prompt?.trim() || /[\r\n]/u.test(item.prompt)) || cases.positive.some(item => !item.tools_triggered?.trim() || !item.expected_behavior?.trim())) throw new Error('Studio review cases must match the version with five valid positive and five negative cases');
     const review = { positive: cases.positive.map(({description, prompt, tools_triggered, expected_behavior}) => ({description,prompt,tools_triggered,expected_behavior})), negative: cases.negative.slice(0,3).map(({description,prompt}) => ({description,prompt})) };
     manifest.extensions ??= {};
     manifest.extensions['com.openai'] = { review: { test_cases: review } };

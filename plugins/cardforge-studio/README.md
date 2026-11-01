@@ -16,12 +16,14 @@ The publishable archive is built from an explicit allowlist and contains only:
 
 - `.codex-plugin/plugin.json`
 - `.mcp.json`
+- Portable `plugin.json` and `mcp.json`
+- Brand `icon.svg`, `assets/logo.png`, and `assets/icon.png`
 - `skills/create-editable-template/SKILL.md`
 - `skills/create-cards-and-sets/SKILL.md`
 
-`SUBMISSION.md` remains the store/reviewer listing source in Git, but it is not part of the runtime install archive. The package always targets the canonical production MCP endpoint at `https://cardforges.com/mcp`.
+`SUBMISSION.md` retains publisher submission instructions and policy context; `REVIEW_CASES.json` is the canonical structured source for the five positive/five negative human review cases. Both remain outside the runtime install archive. The builder embeds the official five-positive/three-negative initial MCP subset into both manifests. The Downloads page provides a separate human review packet for the current version. The package always targets the canonical production MCP endpoint at `https://cardforges.com/mcp`.
 
-The product test suite builds and extracts the real ZIP in a clean temporary directory to verify its contents, relative references, skill bytes, endpoint, and deterministic output.
+The product test suite builds and extracts the real ZIP in a clean temporary directory to verify its allowlist, relative references, skill bytes, exact endpoint, listing assets, structured review case subset and deterministic checksum. Version 1.0.4 is a proposed candidate; the retained 1.0.3 release is never rewritten in place.
 
 ## Private Preview connection
 
