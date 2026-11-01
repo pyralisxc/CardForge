@@ -21,6 +21,7 @@ import { isSvgAssetSource } from '@/domain/templates/vectorAssets';
 
 interface IconInspectorPanelProps {
   element: FreeformCardElement;
+  templateId: string | null;
   iconOptions: string[];
   iconAssets: CardAssetOption[];
   canUploadCustomAssets: boolean;
@@ -29,6 +30,7 @@ interface IconInspectorPanelProps {
   buttonClassName: string;
   onApplyPreset: (preset: ElementPresetRecipe) => void;
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
+  onApplyIconSelection: (changes: Pick<FreeformCardElement, 'iconName' | 'iconImageSource' | 'iconRenderMode'>, signal: AbortSignal, expectedTemplateId: string | null) => Promise<void>;
   onHandleFileUpload: (event: ChangeEvent<HTMLInputElement>, apply: (dataUri: string) => void) => void;
   onHandleAssetUpload: (event: ChangeEvent<HTMLInputElement>, kind: 'icon') => void;
   personalItems: readonly PersonalLibraryItem[];
@@ -38,6 +40,7 @@ interface IconInspectorPanelProps {
 
 export function IconInspectorPanel({
   element,
+  templateId,
   iconOptions,
   iconAssets,
   canUploadCustomAssets,
@@ -46,6 +49,7 @@ export function IconInspectorPanel({
   buttonClassName,
   onApplyPreset,
   onUpdateElement,
+  onApplyIconSelection,
   onHandleFileUpload,
   onHandleAssetUpload,
   personalItems,
@@ -97,6 +101,7 @@ export function IconInspectorPanel({
           <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Icon Source Assets</Label>
           <TemplateAssetLibraryPicker
             assets={iconAssets}
+            applicationTemplateId={templateId}
             kind="icon"
             label="an icon"
             personalItems={personalItems}
@@ -104,9 +109,9 @@ export function IconInspectorPanel({
             providerRole="icon"
             target={{ kind: 'template-element', ids: [element.id] }}
             onAddFromProvider={onAddFromProvider}
-            onApply={(asset) => onUpdateElement(refilledIcon(asset.url))}
+            onApply={(asset, signal, expectedTemplateId) => onApplyIconSelection(refilledIcon(asset.url), signal, expectedTemplateId ?? null)}
             builtInOptions={iconOptions.map((icon) => ({ name: icon, value: icon }))}
-            onApplyBuiltIn={(iconName) => onUpdateElement({ iconName, iconImageSource: undefined, iconRenderMode: undefined })}
+            onApplyBuiltIn={(iconName, signal, expectedTemplateId) => onApplyIconSelection({ iconName, iconImageSource: undefined, iconRenderMode: undefined }, signal, expectedTemplateId ?? null)}
             onMaterializePersonal={onMaterializePersonal}
           />
           <Tooltip>

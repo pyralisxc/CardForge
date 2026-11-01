@@ -9,6 +9,8 @@ import {
   type LibraryPickerResource,
 } from '@/features/library-picker/client';
 import { isPersonalLibraryVisualPickerItem } from '@/features/personal-library/client';
+import { resolveSelectedTemplateAsset } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
+import type { CardAssetOption } from '@/domain/templates';
 
 const request: LibraryPickerRequest = {
   purpose: 'template.image-source',
@@ -48,6 +50,28 @@ describe('Library Picker contract', () => {
     expect(() => createLibraryPickerResult(request, resources, ['pipeline:removed'])).toThrow('changed or is no longer compatible');
     expect(() => createLibraryPickerResult(request, resources, ['published:icon-1'])).toThrow('changed or is no longer compatible');
     expect(createLibraryPickerResult(request, resources, []).selections).toEqual([]);
+  });
+
+
+  it('applies the exact published SVG URL shown in the picker even when asset IDs repeat', () => {
+    const original: CardAssetOption = {
+      id: 'arcane-overlay', name: 'Old unbound overlay', kind: 'icon', url: '',
+      librarySource: 'contributor', allowedTargets: ['icon'], tileMode: 'contain', seamless: false,
+    };
+    const published: CardAssetOption = {
+      id: 'arcane-overlay', name: 'Arcane Corner Overlay', kind: 'icon',
+      url: 'https://example.com/public/arcane-corner-overlay.svg',
+      librarySource: 'contributor', allowedTargets: ['icon'], tileMode: 'contain', seamless: false,
+      publishedSubmissionId: 'published-exact',
+    };
+    const selected = {
+      objectId: 'arcane-overlay', source: 'pipeline' as const,
+      previewUrl: published.url,
+    };
+    expect([original, published].find(asset => asset.id === selected.objectId)).toBe(original);
+    expect(resolveSelectedTemplateAsset(selected, [original, published])).toBe(published);
+    expect(() => resolveSelectedTemplateAsset({...selected, previewUrl:'https://other.test/different.svg'}, [original, published])).toThrow('exact selected');
+    expect(() => resolveSelectedTemplateAsset(selected, [published, {...published}])).toThrow('ambiguous');
   });
 
   it('rejects multiple selections for a single-selection request', () => {

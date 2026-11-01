@@ -1,7 +1,12 @@
-import { useRef, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { prepareTemplateForLibrarySave } from '@/features/template-editor/client';
 import { CardTemplateMaker } from '@/features/template-editor/components/CardTemplateMaker';
+import { EnvironmentToolLayer } from '@/features/app-shell/environment/components/EnvironmentToolLayer';
+import { LibraryPickerDialog } from '@/features/library-picker/components/LibraryPickerDialog';
+import { TemplateAssetLibraryPicker } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
+import type { CardAssetOption } from '@/domain/templates';
+import type { PersonalLibraryItem } from '@/features/personal-library/client';
 import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import { initializeCardDataFromTemplate } from '@/features/card-generator/client';
 import { renderCardToPngBlob } from '@/features/card-generator/lib/cardPreviewExport';
@@ -86,6 +91,209 @@ function ControllerBatchProof() {
     <output data-testid="batch-history">{controller.history.length}</output>
   </>;
 }
+
+
+function PickerSessionProof() {
+  const [open,setOpen] = useState(false);
+  const [result,setResult] = useState('idle');
+  const completion = useRef<null|{resolve:()=>void;reject:(error:Error)=>void}>(null);
+  const count = useRef(0);
+  const failEarlier = new URLSearchParams(location.search).has('failEarlier');
+  const onSelect = () => {
+    ++count.current;
+    if (count.current === 2) {
+      // An ordinary second confirmation settles the prior session while
+      // the reopened chooser is still awaiting its own completion.
+      if (failEarlier) completion.current?.reject(new Error('Previous session failed'));
+      else completion.current?.resolve();
+      setResult('previous settled');
+    }
+    return new Promise<void>((resolve,reject)=>{
+      completion.current={resolve,reject};
+    });
+  };
+  return <>
+    <button onClick={()=>setOpen(true)}>Open chooser</button>
+    <output data-testid="picker-session-result">{result}</output>
+    <LibraryPickerDialog open={open} onOpenChange={setOpen}
+      request={{purpose:'template.icon-source',title:'Choose icon',acceptedKinds:['icon'],acceptedRoles:['icon'],sources:['published'],selectionMode:'single',target:{kind:'template-element',ids:['icon']},requiresProjectMaterialization:false}}
+      resources={[{id:'published:test',objectId:'test',name:'Test published icon',kind:'icon',role:'icon',source:'published',sourceLabel:'CardForge',materialization:'reference'}]}
+      onSelect={onSelect}
+    />
+  </>;
+}
+
+let retainedIconCallback: ReturnType<typeof useTemplateEditorController>['applyIconSelection'] | null = null;
+function MountedRetainedIcon() {
+  const source: TCGCardTemplate = {
+    ...initial,id:'retained-icon-proof',freeformCanvas:{width:630,height:880,elements:[
+      {id:'icon',type:'icon',name:'Icon',iconName:'Star',x:10,y:10,width:72,height:72,zIndex:1},
+    ]},
+  };
+  const controller = useTemplateEditorController(source);
+  useEffect(() => { retainedIconCallback = controller.applyIconSelection; }, [controller.applyIconSelection]);
+  return <output data-testid="retained-mounted">mounted</output>;
+}
+function RetainedIconUnmountProof() {
+  const [mounted,setMounted] = useState(true);
+  const [status,setStatus] = useState('idle');
+  const applyAfterUnmount = () => {
+    const callback = retainedIconCallback;
+    if (!callback) {setStatus('missing');return;}
+    void callback('icon',{iconName:'Star',iconImageSource:undefined,iconRenderMode:undefined})
+      .then(()=>setStatus('incorrect-success'))
+      .catch(()=>setStatus('rejected'));
+  };
+  return <>
+    <button onClick={()=>setMounted(false)}>Unmount Icon controller</button>
+    <button onClick={applyAfterUnmount}>Invoke retained same-value Icon callback</button>
+    <output data-testid="retained-status">{status}</output>
+    {mounted?<MountedRetainedIcon/>:null}
+  </>;
+}
+function DelayedPersonalIconContextProof() {
+  const base: TCGCardTemplate = {
+    ...initial, id:'personal-A',
+    freeformCanvas:{width:630,height:880,elements:[
+      {id:'icon',type:'icon',name:'Icon',iconName:'Star',x:10,y:10,width:72,height:72,zIndex:1},
+      {id:'neighbor',type:'text',name:'Neighbor',content:'Keep neighbor',x:180,y:30,width:120,height:35,zIndex:2},
+    ]},
+  };
+  const [activeTemplate,setActiveTemplate] = useState(base);
+  const materializeRef = useRef<null | (()=>void)>(null);
+  const controller=useTemplateEditorController(activeTemplate);
+  useEffect(() => {
+    if (activeTemplate.id !== 'personal-B' || controller.currentTemplate.id !== 'personal-B') return;
+    const finish = materializeRef.current;
+    materializeRef.current = null;
+    finish?.();
+  }, [activeTemplate.id, controller.currentTemplate.id]);
+  const item:PersonalLibraryItem={
+    id:'personal-art',provider:'google-drive',providerFileId:'synthetic-file',providerRevision:'1',
+    displayName:'Delayed personal SVG',mimeType:'image/svg+xml',role:'icon',byteSize:300,
+    providerModifiedAt:'2026-01-01T00:00:00.000Z',providerWebViewLink:null,
+    contentHash:null,lastVerifiedAt:'2026-01-01T00:00:00.000Z',
+    createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-01-01T00:00:00.000Z',
+  };
+  const asset:CardAssetOption={
+    id:'materialized-art',name:'Delayed personal SVG',url:'/asymmetric.svg',kind:'icon',
+    librarySource:'local',tileMode:'contain',seamless:false,allowedTargets:['icon'],
+  };
+  return <>
+    <output data-testid="personal-context-initial">{activeTemplate.id}</output>
+    <TemplateAssetLibraryPicker assets={[]} applicationTemplateId={controller.currentTemplate.id}
+      kind="icon" label="an icon" personalItems={[item]} personalRoles={['icon']}
+      providerRole="icon" target={{kind:'template-element',ids:['icon']}}
+      onAddFromProvider={async()=>undefined}
+      onMaterializePersonal={async()=>{
+        // B changes the actual controller initialTemplate prop before A resolves.
+        setActiveTemplate({...base,id:'personal-B'});
+        await new Promise<void>(resolve => { materializeRef.current = resolve; });
+        return asset;
+      }}
+      onApply={(chosen,signal,expectedId)=>controller.applyIconSelection('icon',{
+        iconName:undefined,iconImageSource:chosen.url,iconRenderMode:'original',
+      },signal,expectedId)}
+    />
+    <output data-testid="personal-context-template">{controller.currentTemplate.id}</output>
+    <output data-testid="personal-context-icon">{JSON.stringify(controller.selectedElement)}</output>
+  </>;
+}
+function ControllerIconApplicationProof() {
+  const source: TCGCardTemplate = {
+    ...initial, id: 'icon-confirmation-proof',
+    freeformCanvas: {width:630,height:880,elements:[
+      {id:'icon',type:'icon',name:'Icon',iconName:'Star',x:10,y:10,width:72,height:72,zIndex:3},
+      {id:'neighbor',type:'text',name:'Neighbor',content:'Keep neighbor',x:180,y:30,width:150,height:40,zIndex:4},
+    ]},
+  };
+  const controller = useTemplateEditorController(source);
+  const [result,setResult] = useState('idle');
+  const [race,setRace] = useState('idle');
+  const raceConfirmations = () => {
+    setRace('pending');
+    const first = controller.applyIconSelection('icon', {iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+    const second = controller.applyIconSelection('icon', {iconName:'Star',iconImageSource:undefined,iconRenderMode:undefined});
+    void Promise.allSettled([first, second]).then(results => setRace(results.map(result => result.status).join(',')));
+  };
+  const perform = (sourceValue:string) => {
+    setResult('pending');
+    void controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:sourceValue,iconRenderMode:'original'})
+      .then(()=>setResult('applied'))
+      .catch(()=>setResult('rejected'));
+  };
+  return <>
+    <button onClick={()=>perform('/asymmetric.svg')}>Apply Icon with acknowledgment</button>
+    <button onClick={raceConfirmations}>Race Arcane then original Star</button>
+    <button onClick={() => {
+      setResult('pending');
+      // A lower-priority unrelated update queued before the Icon update forces
+      // React to rebase/replay the Icon updater after its first commit.
+      startTransition(() => controller.updateElement('neighbor', {content:'Updated neighbor'}));
+      const pickerClose = new AbortController();
+      void controller.applyIconSelection('icon', {
+        iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original',
+      },pickerClose.signal).then(() => {
+        // This mirrors LibraryPickerDialog closing after committed acknowledgment.
+        pickerClose.abort();
+        setResult('applied');
+      }).catch(() => setResult('rejected'));
+    }}>Apply Icon during lower-priority neighbor edit</button>
+    <output data-testid="ack-race">{race}</output>
+    <button onClick={()=>{
+      setResult('pending');
+      const pending=controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+      controller.resetTemplate(source);
+      void pending.then(()=>setResult('incorrect-success')).catch(()=>setResult('rejected'));
+    }}>Reset same Template during Icon apply</button>
+    <button onClick={()=>{
+      setResult('pending');
+      const pending=controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+      controller.undo();
+      void pending.then(()=>setResult('incorrect-success')).catch(()=>setResult('rejected'));
+    }}>Undo during Icon apply</button>
+    <button onClick={()=>{
+      setResult('pending');
+      const pending=controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+      controller.redo();
+      void pending.then(()=>setResult('incorrect-success')).catch(()=>setResult('rejected'));
+    }}>Redo during Icon apply</button>
+    <button onClick={()=>controller.updateElement('icon',{locked:true})}>Lock Icon</button>
+    <button onClick={()=>controller.updateElement('icon',{locked:false})}>Unlock Icon</button>
+    <button onClick={()=>controller.updateElement('icon',{rotation:30})}>Change geometry</button>
+    <button onClick={()=>controller.updateCanvas({elements:controller.canvas.elements.filter(element=>element.id!=='icon')})}>Delete Icon</button>
+    <button onClick={()=>{
+      setResult('pending');
+      const pending=controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+      controller.resetTemplate({...source,id:'other-template',freeformCanvas:{...source.freeformCanvas!,elements:source.freeformCanvas!.elements.map(element=>({...element}))}});
+      void pending.then(()=>setResult('incorrect-success')).catch(()=>setResult('rejected'));
+    }}>Switch Template during Icon apply</button>
+    <output data-testid="ack-result">{result}</output>
+    <output data-testid="ack-history">{controller.history.length}</output>
+    <output data-testid="ack-icon">{JSON.stringify(controller.canvas.elements.find(element=>element.id==='icon'))}</output>
+    <output data-testid="ack-neighbor">{JSON.stringify(controller.canvas.elements.find(element=>element.id==='neighbor'))}</output>
+  </>;
+}
+const params = new URLSearchParams(location.search);
 createRoot(document.body.appendChild(document.createElement('div'))).render(
-  new URLSearchParams(location.search).has('controllerBatch') ? <ControllerBatchProof/> : <Fixture/>
+  params.has('delayedPersonal') ? <DelayedPersonalIconContextProof/>
+  : params.has('retainedIcon') ? <RetainedIconUnmountProof/>
+  : params.has('pickerSession') ? <PickerSessionProof/>
+  : params.has('iconAcknowledgment') ? <ControllerIconApplicationProof/>
+  : params.has('controllerBatch') ? <ControllerBatchProof/>
+  : params.has('accountToolLayer') ? (
+    <EnvironmentToolLayer
+      id="library-design-title"
+      eyebrow="Library tool"
+      title="Design Template"
+      summary="Existing Device-only Design"
+      closeLabel="Close Design"
+      onClose={() => undefined}
+      dirty
+      presentation="sheet"
+      manageHistory={false}
+    >
+      <Fixture/>
+    </EnvironmentToolLayer>
+  ) : <Fixture/>
 );

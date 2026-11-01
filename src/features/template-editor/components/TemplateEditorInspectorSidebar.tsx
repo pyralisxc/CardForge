@@ -126,6 +126,7 @@ export function TemplateEditorInspectorSidebar({
           >
             <IconInspectorPanel
               element={selectedElement}
+              templateId={currentTemplate.id}
               iconOptions={ICON_OPTIONS}
               iconAssets={elements.compatibleIconAssets}
               canUploadCustomAssets={canUploadCustomAssets}
@@ -134,6 +135,7 @@ export function TemplateEditorInspectorSidebar({
               buttonClassName={makerTheme.button}
               onApplyPreset={elements.applyElementPresetRecipe}
               onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+              onApplyIconSelection={(changes, signal, expectedTemplateId) => controller.applyIconSelection(selectedElement.id, changes, signal, expectedTemplateId)}
               onHandleFileUpload={commands.handleFileUpload}
               onHandleAssetUpload={elements.handleAssetUpload}
               personalItems={elements.connectedLibraryItems}
