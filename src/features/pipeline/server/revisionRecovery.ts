@@ -59,6 +59,7 @@ export async function changeRevisionRecovery(actorUserId: string, input: unknown
   try { response = await actor.db.rpc('cardforge_change_revision_recovery', {
     p_actor_user_id: actor.actorUserId, p_is_owner: actor.isOwner, p_action: action,
     p_expected: expected, p_held: action === 'hold' ? parsed.data.held : null,
+    ...(action === 'trash' && parsed.data.confirmation ? { p_confirmation: parsed.data.confirmation } : {}),
   }); } catch { throw unavailable(); }
   const { data, error } = response;
   if (error) throw nativeError(error);
@@ -71,7 +72,8 @@ export async function changeRevisionRecovery(actorUserId: string, input: unknown
       && result.state.registrySubmissionId === expected.submissionId);
   if (result.state.lineageId !== expected.lineageId || result.state.revisionNumber !== expected.revisionNumber
     || !pointerValid || result.state.revisionHighWater !== expected.revisionHighWater
-    || BigInt(result.state.recoveryVersion) <= BigInt(expected.recoveryVersion)
+    || !(BigInt(result.state.recoveryVersion) > BigInt(expected.recoveryVersion)
+      || action === 'hold' && parsed.data.held === expected.held && result.state.recoveryVersion === expected.recoveryVersion && result.state.updatedAt === expected.updatedAt)
     || (action === 'trash' && !result.state.trashedAt)
     || (action === 'restore' && (result.state.trashedAt !== null || !['draft', 'voting', 'publish_candidate', 'published', 'archived'].includes(result.state.status)))
     || (action === 'hold' && (result.state.held !== parsed.data.held || result.state.trashedAt !== expected.trashedAt))) throw unavailable();

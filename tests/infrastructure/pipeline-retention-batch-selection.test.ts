@@ -41,8 +41,10 @@ const commandDefinitions = readdirSync(directory).filter(name => name.endsWith('
   .flatMap(name => [...readFileSync(resolve(directory, name), 'utf8').matchAll(
     /create (?:or replace )?function public\.cardforge_change_catalog_trash\([\s\S]*?\$\$;/gi,
   )].map(match => match[0]));
-const commandDefinition = commandDefinitions.at(-1)!;
+const commandDefinition = commandDefinitions.findLast(definition => definition.includes('p_confirmation text')) ?? commandDefinitions.at(-1)!;
 it('fails fast instead of waiting on a lineage while holding SHARE table locks', () => {
+  const adapter = commandDefinitions.at(-1)!;
+  if (adapter !== commandDefinition) expect(adapter).toContain('public.cardforge_change_catalog_trash(p_actor_user_id,p_action,p_expected,p_held,null)');
   const beforeSnapshot = commandDefinition.slice(0, commandDefinition.indexOf('snapshot:=public.cardforge_read_catalog_trash(target)'));
   expect(beforeSnapshot).toContain('in share mode nowait;');
   expect(beforeSnapshot).toContain('for update nowait;');

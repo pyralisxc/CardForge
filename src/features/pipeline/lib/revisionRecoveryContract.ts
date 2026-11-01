@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dependencyImpactSchema } from './dependencyImpactContract';
 
 const timestamp = z.string().datetime({ offset: true });
 export const revisionRecoveryStateSchema = z.object({
@@ -14,10 +15,11 @@ export const revisionRecoveryStateSchema = z.object({
   trashedAt: timestamp.nullable(),
   purgeAfter: timestamp.nullable(),
   held: z.boolean(),
+  impactFingerprint: z.string().regex(/^[a-f0-9]{64}$/u).optional(),
 }).strict();
 
 export const revisionRecoveryCommandSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('trash'), expected: revisionRecoveryStateSchema }).strict(),
+  z.object({ action: z.literal('trash'), expected: revisionRecoveryStateSchema, confirmation: z.string().regex(/^[a-f0-9]{64}$/u).optional() }).strict(),
   z.object({ action: z.literal('restore'), expected: revisionRecoveryStateSchema }).strict(),
   z.object({ action: z.literal('hold'), expected: revisionRecoveryStateSchema, held: z.boolean() }).strict(),
 ]).superRefine((command, context) => {
@@ -27,6 +29,7 @@ export const revisionRecoveryCommandSchema = z.discriminatedUnion('action', [
 });
 
 export const revisionRecoverySnapshotSchema = z.object({
+  impact: dependencyImpactSchema.optional(),
   name: z.string().min(1),
   state: revisionRecoveryStateSchema,
   retentionDays: z.number().int().positive(),

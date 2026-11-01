@@ -27,6 +27,15 @@ const semanticFacetLabels = (item: LibraryViewItem): string[] => {
   ];
 };
 
+export const toPipelineLibraryViewItem = (item: ReturnType<typeof useLibrarySharedProjection>['pipelineItems'][number], revisionMode = false): LibraryViewItem => ({
+    id: revisionMode ? `pipeline:submission:${item.submission.id}` : `pipeline:${item.submission.targetRegistryAssetId ?? item.submission.registryAssetId ?? item.submission.id}`,
+    scope: 'pipeline', name: item.submission.name, kindLabel: item.kindLabel,
+    sourceLabel: item.displayedRevisionOwnership === 'mine' ? 'Your revision' : item.submission.contributorDisplayName ?? 'Shared Pipeline',
+    statusLabel: item.statusLabel, summary: item.submission.description || `${item.kindLabel} in Forge Review.`,
+    updatedAt: item.submission.updatedAt ?? item.submission.submittedAt, sizeBytes: item.submission.sourceFileSizeBytes,
+    previewUrl: item.previewUrl, fontFamily: item.fontFamily, pipeline: item,
+  });
+
 export function useUnifiedLibraryView({
   activeScope,
   pipelineAccess,
@@ -63,14 +72,7 @@ export function useUnifiedLibraryView({
     statusLabel: item.accessLabel, summary: item.description || `${item.kindLabel} from the current ${item.accessLabel}.`, updatedAt: null,
     sizeBytes: item.sizeBytes, previewUrl: item.previewUrl, fontFamily: item.fontFamily, published: item,
   })), [shared.publishedItems]);
-  const pipelineItems = useMemo<LibraryViewItem[]>(() => (revisionItems ?? shared.pipelineItems).map((item) => ({
-    id: revisionItems ? `pipeline:submission:${item.submission.id}` : `pipeline:${item.submission.targetRegistryAssetId ?? item.submission.registryAssetId ?? item.submission.id}`,
-    scope: 'pipeline', name: item.submission.name, kindLabel: item.kindLabel,
-    sourceLabel: item.displayedRevisionOwnership === 'mine' ? 'Your revision' : item.submission.contributorDisplayName ?? 'Shared Pipeline',
-    statusLabel: item.statusLabel, summary: item.submission.description || `${item.kindLabel} in Forge Review.`,
-    updatedAt: item.submission.updatedAt ?? item.submission.submittedAt, sizeBytes: item.submission.sourceFileSizeBytes,
-    previewUrl: item.previewUrl, fontFamily: item.fontFamily, pipeline: item,
-  })), [shared.pipelineItems, revisionItems]);
+  const pipelineItems = useMemo<LibraryViewItem[]>(() => (revisionItems ?? shared.pipelineItems).map(item => toPipelineLibraryViewItem(item, Boolean(revisionItems))), [shared.pipelineItems, revisionItems]);
 
   const contributorPublishedItems = useMemo(() => pipelineItems.filter((item) => (
     item.scope === 'pipeline' && item.pipeline.ownership === 'mine' && item.pipeline.submission.status === 'published'
