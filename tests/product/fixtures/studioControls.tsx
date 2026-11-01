@@ -162,6 +162,12 @@ function DelayedPersonalIconContextProof() {
   const [activeTemplate,setActiveTemplate] = useState(base);
   const materializeRef = useRef<null | (()=>void)>(null);
   const controller=useTemplateEditorController(activeTemplate);
+  useEffect(() => {
+    if (activeTemplate.id !== 'personal-B' || controller.currentTemplate.id !== 'personal-B') return;
+    const finish = materializeRef.current;
+    materializeRef.current = null;
+    finish?.();
+  }, [activeTemplate.id, controller.currentTemplate.id]);
   const item:PersonalLibraryItem={
     id:'personal-art',provider:'google-drive',providerFileId:'synthetic-file',providerRevision:'1',
     displayName:'Delayed personal SVG',mimeType:'image/svg+xml',role:'icon',byteSize:300,
@@ -174,7 +180,6 @@ function DelayedPersonalIconContextProof() {
     librarySource:'local',tileMode:'contain',seamless:false,allowedTargets:['icon'],
   };
   return <>
-    <button onClick={()=>materializeRef.current?.()}>Finish personal materialization</button>
     <output data-testid="personal-context-initial">{activeTemplate.id}</output>
     <TemplateAssetLibraryPicker assets={[]} applicationTemplateId={controller.currentTemplate.id}
       kind="icon" label="an icon" personalItems={[item]} personalRoles={['icon']}
