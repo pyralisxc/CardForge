@@ -235,6 +235,24 @@ function ControllerIconApplicationProof() {
       }).catch(() => setResult('rejected'));
     }}>Apply Icon during lower-priority neighbor edit</button>
     <output data-testid="ack-race">{race}</output>
+    <button onClick={()=>{
+      setResult('pending');
+      const pending=controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+      controller.resetTemplate(source);
+      void pending.then(()=>setResult('incorrect-success')).catch(()=>setResult('rejected'));
+    }}>Reset same Template during Icon apply</button>
+    <button onClick={()=>{
+      setResult('pending');
+      const pending=controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+      controller.undo();
+      void pending.then(()=>setResult('incorrect-success')).catch(()=>setResult('rejected'));
+    }}>Undo during Icon apply</button>
+    <button onClick={()=>{
+      setResult('pending');
+      const pending=controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+      controller.redo();
+      void pending.then(()=>setResult('incorrect-success')).catch(()=>setResult('rejected'));
+    }}>Redo during Icon apply</button>
     <button onClick={()=>controller.updateElement('icon',{locked:true})}>Lock Icon</button>
     <button onClick={()=>controller.updateElement('icon',{locked:false})}>Unlock Icon</button>
     <button onClick={()=>controller.updateElement('icon',{rotation:30})}>Change geometry</button>
