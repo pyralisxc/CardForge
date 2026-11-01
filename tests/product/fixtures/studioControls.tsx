@@ -222,9 +222,14 @@ function ControllerIconApplicationProof() {
       // A lower-priority unrelated update queued before the Icon update forces
       // React to rebase/replay the Icon updater after its first commit.
       startTransition(() => controller.updateElement('neighbor', {content:'Updated neighbor'}));
+      const pickerClose = new AbortController();
       void controller.applyIconSelection('icon', {
         iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original',
-      }).then(() => setResult('applied')).catch(() => setResult('rejected'));
+      },pickerClose.signal).then(() => {
+        // This mirrors LibraryPickerDialog closing after committed acknowledgment.
+        pickerClose.abort();
+        setResult('applied');
+      }).catch(() => setResult('rejected'));
     }}>Apply Icon during lower-priority neighbor edit</button>
     <output data-testid="ack-race">{race}</output>
     <button onClick={()=>controller.updateElement('icon',{locked:true})}>Lock Icon</button>
