@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { prepareTemplateForLibrarySave } from '@/features/template-editor/client';
 import { CardTemplateMaker } from '@/features/template-editor/components/CardTemplateMaker';
+import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import { initializeCardDataFromTemplate } from '@/features/card-generator/client';
 import { renderCardToPngBlob } from '@/features/card-generator/lib/cardPreviewExport';
 import { CardPreview } from '@/features/card-rendering/client';
@@ -64,4 +65,27 @@ function Fixture() {
       onStartCheckout={noop} appearanceStyles={[]} onSaveAppearanceStyle={()=>''} onReturnToTemplateMaker={noop} />}
     <Toaster /></>;
 }
-createRoot(document.body.appendChild(document.createElement('div'))).render(<Fixture/>);
+function ControllerBatchProof() {
+  const source: TCGCardTemplate = {
+    ...initial, id: 'svg-batch-proof',
+    freeformCanvas: { width: 630, height: 880, elements: [
+      { id: 'icon', type: 'icon', name: 'Test icon', iconName: 'Sparkles', x: 30, y: 30, width: 100, height: 100, zIndex: 1 },
+      { id: 'neighbor', type: 'text', name: 'Neighbor', content: 'Keep neighbor', x: 200, y: 30, width: 100, height: 40, zIndex: 2 },
+    ] },
+  };
+  const controller = useTemplateEditorController(source);
+  return <>
+    <button onClick={() => {
+      // Two updates scheduled before React has rendered the first. Previously,
+      // updateElement's captured canvas list discarded the SVG source here.
+      controller.updateElement('icon', { iconName: undefined, iconImageSource: '/asymmetric.svg', iconRenderMode: 'original' });
+      controller.updateElement('icon', { rotation: 30 });
+    }}>Apply paired icon updates</button>
+    <output data-testid="batch-icon">{JSON.stringify(controller.canvas.elements.find(element => element.id === 'icon'))}</output>
+    <output data-testid="batch-neighbor">{JSON.stringify(controller.canvas.elements.find(element => element.id === 'neighbor'))}</output>
+    <output data-testid="batch-history">{controller.history.length}</output>
+  </>;
+}
+createRoot(document.body.appendChild(document.createElement('div'))).render(
+  new URLSearchParams(location.search).has('controllerBatch') ? <ControllerBatchProof/> : <Fixture/>
+);
