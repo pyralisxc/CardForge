@@ -34,7 +34,7 @@ export async function inspectOwnerRevisionDeletion(actorUserId: string, submissi
   const parsed = rowSchema.safeParse(result.data); if (!parsed.success || parsed.data.id !== submissionId) throw unavailable();
   const s = parsed.data;
   const [registry, events, lineage] = await Promise.all([
-    db.from('cardforge_asset_registry').select('id').eq('contributor_submission_id', submissionId).limit(1),
+    db.from('cardforge_asset_registry').select('asset_id').eq('contributor_submission_id', submissionId).limit(1),
     db.from('cardforge_pipeline_publication_events').select('published_submission_id').eq('published_submission_id', submissionId).limit(1),
     db.from('cardforge_pipeline_asset_lineages').select('id,catalog_trashed_at,purge_state').eq('id', s.lineage_id ?? '').maybeSingle(),
   ]);
