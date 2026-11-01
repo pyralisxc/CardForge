@@ -4,6 +4,7 @@ import type { DisplayCard } from '@/domain/rendering';
 import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 
 import {
+  areTabletopSimulatorAspectRatiosCompatible,
   createCardZipExportItems,
   createPrintProductionManifest,
   createTabletopSimulatorSheets,
@@ -155,6 +156,46 @@ describe('zip export helpers', () => {
       label: 'High detail',
       renderDpi: 330,
     });
+  });
+
+  it.each(['standard', 'high-detail'] as const)('keeps mixed-format %s sheets contiguous without reordering cards', (quality) => {
+    const sizes = ['63:88', '88:63', '63:88', '100:100', '100:100', '63:88'];
+    const cards = sizes.map((aspectRatio, index) => makeCard({
+      uniqueId: `order-${index + 1}`,
+      template: { id: `face-${index}`, name: 'Face', aspectRatio },
+    }));
+    const sheets = createTabletopSimulatorSheets(cards, quality);
+    expect(sheets.map((sheet) => sheet.cards.map((entry) => entry.sourceIndex))).toEqual([[0], [1], [2], [3, 4], [5]]);
+    expect(sheets.flatMap((sheet) => sheet.cards.map((entry) => entry.card.uniqueId))).toEqual(cards.map((card) => card.uniqueId));
+    expect(sheets.every((sheet) => sheet.cards.every((entry, index) => entry.sheetCardIndex === index))).toBe(true);
+    const manifest = createTabletopSimulatorManifest(sheets, sheets.map((sheet) => ({
+      sheetIndex: sheet.sheetIndex, cardWidthPx: 300, cardHeightPx: 400,
+    })));
+    expect(manifest.sheets.flatMap((sheet) => sheet.cards.map((entry) => entry.sourceIndex))).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it.each(['standard', 'high-detail'] as const)('keeps same-ratio sizes and correct back slots in %s', (quality) => {
+    const card = makeCard({ backingTemplate: {
+      id: 'matching-back', name: 'Back', aspectRatio: '63:88', templateUsage: 'back-preset',
+    } });
+    const cards = Array.from({ length: quality === 'standard' ? 70 : 20 }, (_, index) => makeCard({
+      ...card, uniqueId: `card-${index + 1}`,
+      template: { id: `face-${index}`, name: 'Face', aspectRatio: index % 2 ? '126:176' : '63:88' },
+    }));
+    const sheets = createTabletopSimulatorSheets(cards, quality);
+    expect(sheets).toHaveLength(2);
+    expect(sheets[0].hasBacks).toBe(true);
+    expect(sheets[0].cards.length).toBe(getTabletopSimulatorExportPreset(quality).grid.cardsPerSheet);
+    expect(sheets[1].cards[0].sourceIndex).toBe(getTabletopSimulatorExportPreset(quality).grid.cardsPerSheet);
+    expect(areTabletopSimulatorAspectRatiosCompatible(630, 880, 880, 630)).toBe(false);
+    expect(areTabletopSimulatorAspectRatiosCompatible(630, 880, 631, 880)).toBe(true);
+  });
+
+  it('rejects an authored front/back shape mismatch without silently scaling either face', () => {
+    const incompatible = makeCard({ backingTemplate: {
+      id: 'square-back', name: 'Square Back', aspectRatio: '1:1', templateUsage: 'back-preset',
+    } });
+    expect(() => createTabletopSimulatorSheets([incompatible])).toThrow(/Card 1 has a back with a different shape/);
   });
 
   it('keeps large Tabletop Simulator sheets inside the recommended texture boundary', () => {

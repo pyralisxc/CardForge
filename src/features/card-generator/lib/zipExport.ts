@@ -93,6 +93,7 @@ export interface TabletopSimulatorManifestSheet {
   cardHeightPx: number;
   cards: Array<{
     number: number;
+    sourceIndex: number;
     name: string;
     uniqueId: string;
     hasBack: boolean;
@@ -246,24 +247,43 @@ export const createPrintProductionManifest = (
   }),
 });
 
+// Allows raster rounding and near-identical authored formats, but never an
+// orientation or meaningful shape change. The same guard applies to real pixels.
+export const areTabletopSimulatorAspectRatiosCompatible = (
+  firstWidth: number, firstHeight: number, nextWidth: number, nextHeight: number
+): boolean => (
+  firstWidth > 0 && firstHeight > 0 && nextWidth > 0 && nextHeight > 0
+  && Math.abs(firstWidth / firstHeight - nextWidth / nextHeight) <= 0.005
+);
+
 export const createTabletopSimulatorSheets = (
   cards: DisplayCard[],
   quality: TabletopSimulatorExportQuality = 'standard'
 ): TabletopSimulatorSheet[] => {
   const grid = getTabletopSimulatorExportPreset(quality).grid;
   const sheets: TabletopSimulatorSheet[] = [];
-  for (let start = 0; start < cards.length; start += grid.cardsPerSheet) {
-    const slice = cards.slice(start, start + grid.cardsPerSheet);
-    sheets.push({
-      sheetIndex: sheets.length,
-      grid,
-      cards: slice.map((card, index) => ({
-        card,
-        sourceIndex: start + index,
-        sheetCardIndex: index,
-      })),
-      hasBacks: slice.some(hasCardBacking),
-    });
+  // TTS slices each image into uniform grid cells. Only adjacent compatible
+  // cards may share a sheet: global geometry buckets would reorder the Set.
+  let current: TabletopSimulatorSheet | null = null;
+  for (const [sourceIndex, card] of cards.entries()) {
+    const front = getTemplateProductionGeometryMm(getCardFaceTemplate(card, 'front'));
+    if (hasCardBacking(card)) {
+      const back = getTemplateProductionGeometryMm(getCardFaceTemplate(card, 'back'));
+      if (!areTabletopSimulatorAspectRatiosCompatible(front.trimWidthMm, front.trimHeightMm, back.trimWidthMm, back.trimHeightMm)) {
+        throw new Error(`Card ${sourceIndex + 1} has a back with a different shape from its front. Tabletop Simulator requires matching front/back proportions; edit the backing Template before exporting.`);
+      }
+    }
+    const first = current?.cards[0]?.card;
+    const firstGeometry = first && getTemplateProductionGeometryMm(getCardFaceTemplate(first, 'front'));
+    if (!current || current.cards.length === grid.cardsPerSheet
+      || !firstGeometry || !areTabletopSimulatorAspectRatiosCompatible(
+        firstGeometry.trimWidthMm, firstGeometry.trimHeightMm, front.trimWidthMm, front.trimHeightMm
+      )) {
+      current = { sheetIndex: sheets.length, grid, cards: [], hasBacks: false };
+      sheets.push(current);
+    }
+    current.cards.push({ card, sourceIndex, sheetCardIndex: current.cards.length });
+    current.hasBacks ||= hasCardBacking(card);
   }
   return sheets;
 };
@@ -285,7 +305,8 @@ export const createTabletopSimulatorManifest = (
     notes: [
       'Upload the exported sheet images to a public or local source that Tabletop Simulator can access.',
       `Use ${grid.columns} columns and ${grid.rows} rows. CardForge reserves the final grid slot so each sheet contains at most ${grid.cardsPerSheet} playable cards.`,
-      'If a back sheet is present, use it as the matching custom deck back for that numbered sheet.',
+      'Import these numbered sheets in order to preserve the authored Set order; a new sheet begins whenever card proportions change.',
+      'For a matching back sheet, enable Unique Backs in the TTS Custom Deck import. Back is Hidden can use the back instead of the reserved final face slot.',
     ],
     sheets: sheets.map((sheet) => {
       const renderedSize = sizesBySheetIndex.get(sheet.sheetIndex);
@@ -304,6 +325,7 @@ export const createTabletopSimulatorManifest = (
         cardHeightPx: renderedSize.cardHeightPx,
         cards: sheet.cards.map((item) => ({
           number: item.sheetCardIndex + 1,
+          sourceIndex: item.sourceIndex + 1,
           name: String(item.card.data?.cardName || item.card.data?.name || `Card ${item.sourceIndex + 1}`),
           uniqueId: item.card.uniqueId,
           hasBack: hasCardBacking(item.card),

@@ -10,6 +10,7 @@ import {
 
 import type { useToast } from '@/components/ui/use-toast';
 import {
+  areTabletopSimulatorAspectRatiosCompatible,
   createCardZipExportItems,
   createPrintProductionManifest,
   createTabletopSimulatorManifest,
@@ -281,7 +282,15 @@ export function useCardZipExportActions({
   ) => {
     if (generatedDisplayCards.length === 0) return;
     const preset = getTabletopSimulatorExportPreset(quality);
-    const sheets = createTabletopSimulatorSheets(generatedDisplayCards, quality);
+    // Reject incompatible authored fronts/backs before allocating a ZIP or
+    // reporting a partial export. All creator-owned card data stays unchanged.
+    let sheets: ReturnType<typeof createTabletopSimulatorSheets>;
+    try {
+      sheets = createTabletopSimulatorSheets(generatedDisplayCards, quality);
+    } catch (error) {
+      toast({ title: 'Tabletop Simulator export blocked', description: error instanceof Error ? error.message : 'Card geometry is incompatible.', variant: 'destructive' });
+      return;
+    }
     const totalRenderJobs = sheets.reduce((total, sheet) => total + 1 + (sheet.hasBacks ? 1 : 0), 0);
     setZipExportKind('tabletop-simulator');
     setIsZipExporting(true);
@@ -308,6 +317,19 @@ export function useCardZipExportActions({
         const firstBitmap = await createImageBitmap(firstBlob);
         const cellSize = requestedCellSize
           ?? getTabletopSimulatorCardCellSize(firstBitmap.width, firstBitmap.height, sheet.grid);
+        const verifyShape = (bitmap: ImageBitmap, index: number) => {
+          if (!areTabletopSimulatorAspectRatiosCompatible(
+            cellSize.cardWidthPx, cellSize.cardHeightPx, bitmap.width, bitmap.height
+          )) {
+            throw new Error(`Card ${sheet.cards[index].sourceIndex + 1} ${face} pixels do not match this TTS sheet's proportions. No ZIP was exported; verify the authored face format.`);
+          }
+        };
+        try {
+          verifyShape(firstBitmap, 0);
+        } catch (error) {
+          firstBitmap.close();
+          throw error;
+        }
         const sheetCanvas = document.createElement('canvas');
         sheetCanvas.width = cellSize.sheetWidthPx;
         sheetCanvas.height = cellSize.sheetHeightPx;
@@ -331,6 +353,7 @@ export function useCardZipExportActions({
           const column = item.sheetCardIndex % sheet.grid.columns;
           const row = Math.floor(item.sheetCardIndex / sheet.grid.columns);
           try {
+            verifyShape(bitmap, i);
             context.drawImage(
               bitmap,
               column * cellSize.cardWidthPx,
@@ -384,8 +407,10 @@ export function useCardZipExportActions({
           '',
           'Use each front PNG as a Custom Deck face sheet in Tabletop Simulator.',
           `Set Width to ${preset.grid.columns} and Height to ${preset.grid.rows}. Each sheet contains at most ${preset.grid.cardsPerSheet} playable cards.`,
-          'If a matching back PNG exists, use it as the custom deck back image for that sheet.',
-          'The JSON manifest lists card numbers and CardForge card ids.',
+          'Import sheets in their numbered order to preserve the authored card order across portrait, landscape and square cards.',
+          'When a back PNG is present, use it as Back and enable Unique Backs so each card keeps its corresponding back.',
+          'Enable Back is Hidden to use the back instead of the reserved last face-grid slot.',
+          'The JSON manifest lists each card slot, original Set position and CardForge ID.',
           ...(canExportClean ? [] : ['This free-tier proof export includes the CardForge watermark on every card face.']),
         ].join('\n')
       );
