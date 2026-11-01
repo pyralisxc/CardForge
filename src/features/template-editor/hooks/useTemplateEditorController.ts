@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
   arrangeCanvasSelection,
@@ -35,6 +35,26 @@ import {
   reconstructMinimalTemplate,
 } from '@/domain/templates';
 
+type IconApplication = {
+  templateId: string;
+  elementId: string;
+  changes: Pick<FreeformCardElement, 'iconName' | 'iconImageSource' | 'iconRenderMode'>;
+  resolve: () => void;
+  reject: (reason: Error) => void;
+  signal?: AbortSignal;
+  abort: () => void;
+};
+
+const iconApplyCancellation = () => new DOMException('Icon selection was cancelled.', 'AbortError');
+const iconApplyFailure = () => new Error('The selected Icon was not applied. Keep this Template open, select its layer, and try again.');
+
+const matchesIconApplication = (
+  element: FreeformCardElement,
+  changes: IconApplication['changes'],
+) => element.iconName === changes.iconName
+  && element.iconImageSource === changes.iconImageSource
+  && element.iconRenderMode === changes.iconRenderMode;
+
 type TemplateUpdater = (template: TCGCardTemplate) => TCGCardTemplate;
 
 export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
@@ -42,6 +62,39 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   const [checkedLayerIds, setCheckedLayerIds] = useState<string[]>([]);
   const initialTemplateRef = useRef(initialTemplate);
   initialTemplateRef.current = initialTemplate;
+  // One in-flight Icon confirmation owned by this controller, not a second editor store.
+  const committedRef = useRef(editorState);
+  const pendingIconRef = useRef<IconApplication | null>(null);
+  const finishIcon = useCallback((request: IconApplication, error?: Error) => {
+    if (pendingIconRef.current !== request) return;
+    pendingIconRef.current = null;
+    request.signal?.removeEventListener('abort', request.abort);
+    if (error) request.reject(error);
+    else request.resolve();
+  }, []);
+
+  useLayoutEffect(() => {
+    committedRef.current = editorState;
+    const request = pendingIconRef.current;
+    if (!request) return;
+    const element = getTemplateEditorCanvas(editorState.currentTemplate)?.elements.find(
+      candidate => candidate.id === request.elementId,
+    );
+    if (request.signal?.aborted) return finishIcon(request, iconApplyCancellation());
+    if (initialTemplate.id !== request.templateId
+      || editorState.currentTemplate.id !== request.templateId
+      || editorState.selectedElementId !== request.elementId
+      || !element || element.type !== 'icon' || element.locked) {
+      return finishIcon(request, iconApplyFailure());
+    }
+    finishIcon(request, matchesIconApplication(element, request.changes) ? undefined : iconApplyFailure());
+  }, [editorState, finishIcon, initialTemplate.id]);
+
+  useEffect(() => () => {
+    const request = pendingIconRef.current;
+    if (request) finishIcon(request, iconApplyCancellation());
+  }, [finishIcon]);
+
 
   useEffect(() => {
     setEditorState(resetTemplateEditorState(initialTemplateRef.current));
@@ -145,6 +198,49 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
       };
     }, trackHistory, undefined, historyGroup);
   }, [commitTemplate]);
+
+  const applyIconSelection = useCallback((
+    elementId: string,
+    changes: IconApplication['changes'],
+    signal?: AbortSignal,
+  ): Promise<void> => {
+    const state = committedRef.current;
+    const current = getTemplateEditorCanvas(state.currentTemplate)?.elements.find(candidate => candidate.id === elementId);
+    if (signal?.aborted) return Promise.reject(iconApplyCancellation());
+    if (state.currentTemplate.id !== initialTemplateRef.current.id || state.selectedElementId !== elementId
+      || !current || current.type !== 'icon' || current.locked) return Promise.reject(iconApplyFailure());
+    if (matchesIconApplication(current, changes)) return Promise.resolve();
+
+    const older = pendingIconRef.current;
+    if (older) finishIcon(older, iconApplyCancellation());
+    return new Promise<void>((resolve, reject) => {
+      const request: IconApplication = {
+        templateId: state.currentTemplate.id!, elementId, changes, resolve, reject, signal,
+        abort: () => finishIcon(request, iconApplyCancellation()),
+      };
+      pendingIconRef.current = request;
+      signal?.addEventListener('abort', request.abort, { once: true });
+      // A React updater is not confirmation. The layout effect reads the *committed*
+      // controller state. Return a new envelope for rejected/no-op updates so
+      // missing/locked targets are also checked without adding history or dirt.
+      setEditorState(previous => {
+        if (signal?.aborted || previous.currentTemplate.id !== request.templateId
+          || previous.selectedElementId !== elementId) return { ...previous };
+        const canvas = getTemplateEditorCanvas(previous.currentTemplate);
+        const element = canvas?.elements.find(candidate => candidate.id === elementId);
+        if (!canvas || !element || element.type !== 'icon' || element.locked) return { ...previous };
+        const next = commitTemplateEditorState(previous, template => ({
+          ...template,
+          freeformCanvas: reconstructFreeformCanvas({
+            ...canvas,
+            elements: canvas.elements.map(candidate => candidate.id === elementId
+              ? { ...candidate, ...changes } : candidate),
+          }),
+        }), true);
+        return next === previous ? { ...previous } : next;
+      });
+    });
+  }, [finishIcon]);
 
   const recordTemplateHistory = useCallback((template?: TCGCardTemplate) => {
     setEditorState((previous) => recordTemplateEditorHistory(previous, template ?? previous.currentTemplate));
@@ -298,6 +394,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     ungroupSelected,
     updateCanvas,
     updateElement,
+    applyIconSelection,
     updateTemplate,
     arrangeSelected,
   };
