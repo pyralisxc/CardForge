@@ -232,7 +232,8 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
       // controller state. Return a new envelope for rejected/no-op updates so
       // missing/locked targets are also checked without adding history or dirt.
       setEditorState(previous => {
-        if (signal?.aborted || previous.currentTemplate.id !== request.templateId
+        if (!controllerAliveRef.current || pendingIconRef.current !== request || signal?.aborted
+          || previous.currentTemplate.id !== request.templateId
           || previous.selectedElementId !== elementId) return { ...previous };
         const canvas = getTemplateEditorCanvas(previous.currentTemplate);
         const element = canvas?.elements.find(candidate => candidate.id === elementId);
