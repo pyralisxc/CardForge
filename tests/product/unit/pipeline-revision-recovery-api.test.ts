@@ -20,7 +20,7 @@ it('uses session identity for browser reads and mutations', async () => {
   expect(await (await post(input)).json()).toEqual({ state: 'restored' });
   expect(m.change).toHaveBeenCalledExactlyOnceWith('session-account', input); expect(m.refresh).toHaveBeenCalledOnce();
 });
-it.each(['draft', 'voting', 'publish_candidate'])('revalidates after an ordinary-eligibility Restore receipt (%s)', async status => {
+it.each(['draft', 'voting', 'publish_candidate', 'published', 'archived'])('revalidates after an ordinary-eligibility Restore receipt (%s)', async status => {
   m.change.mockResolvedValue({ state: { status, trashedAt: null, recoveryVersion: '3' } });
   const response = await post(input);
   expect(response.status).toBe(200);
