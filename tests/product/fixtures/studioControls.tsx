@@ -79,7 +79,7 @@ function Fixture() {
       selectedTemplateIdForEditing={selectedId} onSelectTemplateForEditing={selectForEditing} canUseProjectFiles canSubmitSharedTemplateRevision canPublishSharedLibrary={false}
       showCardWatermark={false} canUploadCustomAssets={false} isActive isCheckoutStarting={false} fileInputRef={file}
       onDirtyChange={setDirty}
-      onSaveTemplate={async t=>{const params=new URLSearchParams(location.search);if(params.has('rejectSave'))throw new Error('Synthetic local persistence refusal');if(params.has('delayedSave'))await new Promise<void>(resolve=>setFinishSave(()=>resolve));const prepared=params.has('normalizedSave')?prepareTemplateForLibrarySave(t,true,()=> 'saved-revision',templates.find(row=>row.id===t.id)):t;const snapshot={...prepared,id:params.has('realStoreSave')?prepared.id!:params.has('forkSave')?'synthetic-fork':t.id!};
+      onSaveTemplate={async t=>{const params=new URLSearchParams(location.search);if(params.has('rejectSave'))throw new Error('Synthetic local persistence refusal');if(params.has('delayedSave'))await new Promise<void>(resolve=>setFinishSave(()=>resolve));const prepared=params.has('realStoreSave')?prepareTemplateForLibrarySave(t,true,()=> 'persisted-new-front',templates.find(row=>row.id===t.id)):params.has('normalizedSave')?prepareTemplateForLibrarySave(t,true,()=> 'saved-revision',templates.find(row=>row.id===t.id)):t;const snapshot={...prepared,id:params.has('realStoreSave')?prepared.id!:params.has('forkSave')?'synthetic-fork':t.id!};
       if(params.has('realStoreSave')) {
         // Exercise the same canonical Zustand commit used by Studio Library Save,
         // including its explicit receipt-owned editor selection contract.
