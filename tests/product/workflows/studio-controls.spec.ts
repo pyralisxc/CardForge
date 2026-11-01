@@ -491,6 +491,28 @@ test('@golden Icon confirmation rejects when Template identity changes before co
  expect(JSON.parse(await page.getByTestId('ack-neighbor').textContent()||'{}')).toMatchObject({content:'Keep neighbor'});
 });
 
+test('@golden committed Icon survives lower-priority neighbor rebase after acknowledgment',async({page})=>{
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?iconAcknowledgment=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await page.getByRole('button',{name:'Apply Icon during lower-priority neighbor edit'}).click();
+ await expect(page.getByTestId('ack-result')).toHaveText('applied');
+ await expect.poll(async()=>JSON.parse(await page.getByTestId('ack-neighbor').textContent()||'{}').content).toBe('Updated neighbor');
+ expect(JSON.parse(await page.getByTestId('ack-icon').textContent()||'{}')).toMatchObject({
+  iconImageSource:'/asymmetric.svg',iconRenderMode:'original',
+ });
+ await expect(page.getByTestId('ack-history')).toHaveText('2');
+});
+
 test('@golden same-batch Arcane then current Star rejects second confirmation without overtaking queued Icon', async ({page}) => {
  await page.route('**/*',route=>{
   const url=new URL(route.request().url());
