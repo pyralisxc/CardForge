@@ -209,10 +209,9 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     if (signal?.aborted) return Promise.reject(iconApplyCancellation());
     if (state.currentTemplate.id !== initialTemplateRef.current.id || state.selectedElementId !== elementId
       || !current || current.type !== 'icon' || current.locked) return Promise.reject(iconApplyFailure());
-    if (matchesIconApplication(current, changes)) return Promise.resolve();
-
     const older = pendingIconRef.current;
     if (older) finishIcon(older, iconApplyCancellation());
+    if (matchesIconApplication(current, changes)) return Promise.resolve();
     return new Promise<void>((resolve, reject) => {
       const request: IconApplication = {
         templateId: state.currentTemplate.id!, elementId, changes, resolve, reject, signal,
