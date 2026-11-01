@@ -401,6 +401,33 @@ for (const accountToolLayer of [false, true]) test(`@golden captured unique Arca
 });
 
 
+
+test('@golden Icon acknowledgment resolves only after canonical commit, same-value no history, locked target rejects', async ({page}) => {
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?iconAcknowledgment=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await page.getByRole('button',{name:'Apply Icon with acknowledgment'}).click();
+ await expect(page.getByTestId('ack-result')).toHaveText('applied');
+ expect(JSON.parse(await page.getByTestId('ack-icon').textContent()||'{}')).toMatchObject({iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+ const history=await page.getByTestId('ack-history').textContent();
+ await page.getByRole('button',{name:'Apply Icon with acknowledgment'}).click();
+ await expect(page.getByTestId('ack-result')).toHaveText('applied');
+ await expect(page.getByTestId('ack-history')).toHaveText(history!);
+ await page.getByRole('button',{name:'Lock Icon'}).click();
+ await page.getByRole('button',{name:'Apply Icon with acknowledgment'}).click();
+ await expect(page.getByTestId('ack-result')).toHaveText('rejected');
+ expect(JSON.parse(await page.getByTestId('ack-neighbor').textContent()||'{}')).toMatchObject({content:'Keep neighbor'});
+});
+
 test('@golden compact 500px dirty Library Design keeps selected Icon when switching captured Arcane SVGs', async ({page}) => {
  await page.setViewportSize({width:500,height:960});
  await mountHistoryProof(page,'?capturedCatalog=1&accountToolLayer=1');
