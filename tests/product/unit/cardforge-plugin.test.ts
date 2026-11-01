@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import JSZip from 'jszip';
+import sharp from 'sharp';
 
 import { describe, expect, it } from 'vitest';
 
@@ -171,6 +172,12 @@ describe('CardForge Studio plugin', () => {
       expect(negative).not.toHaveProperty('expected_behavior');
     }
     expect(cases.positive[1].setup).toContain('creates the first private fixture');
+    const embeddedPng = cases.positive[1].setup.match(/raw base64 ([A-Za-z0-9+/=]+)/)?.[1];
+    expect(embeddedPng).toBeTruthy();
+    const decoded = await sharp(Buffer.from(embeddedPng!, 'base64')).raw().toBuffer({ resolveWithObject: true });
+    expect(decoded.info.width).toBe(2);
+    expect(decoded.info.height).toBe(2);
+    expect(decoded.data.length).toBeGreaterThan(0);
     expect(codex.extensions['com.openai'].review.test_cases).toEqual(portable.extensions['com.openai'].review.test_cases);
     expect(listing.logo).toBe('./assets/logo.png');
     expect(listing.composerIcon).toBe('./assets/icon.png');
