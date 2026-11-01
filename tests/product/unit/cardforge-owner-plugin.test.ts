@@ -81,7 +81,7 @@ describe('CardForge Owner plugin', () => {
       'utf8',
     );
 
-    expect(manifest).toContain('Operate the CardForge property');
+    expect(manifest).toContain('Inspect and operate CardForge');
     expect(tools).toContain("'get_owner_site_snapshot'");
     expect(tools).toContain("'get_owner_provider_readiness'");
     expect(tools).toContain("'get_owner_activity'");
