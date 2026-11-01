@@ -312,10 +312,13 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     // The only authorized identity handoff is an acknowledged Save for this
     // same working document. Unrelated navigation retains reset semantics.
     const workingId = committedRef.current.currentTemplate.id;
-    acknowledgedSaveIdentityRef.current = submitted.id && saved.id && submitted.id !== saved.id
-      && workingId === submitted.id
-      ? { fromId: submitted.id, toId: saved.id }
-      : null;
+    // A same-ID Save may happen while the first draft→persisted handoff still
+    // waits for the parent selection to catch up (newer edits kept it on draft).
+    // Do not erase that acknowledged handoff until the parent effect consumes it.
+    if (submitted.id && saved.id && submitted.id !== saved.id
+      && workingId === submitted.id) {
+      acknowledgedSaveIdentityRef.current = { fromId: submitted.id, toId: saved.id };
+    }
     setEditorState(previous => acceptSavedTemplateEditorState(previous, submitted, saved));
   }, []);
 
