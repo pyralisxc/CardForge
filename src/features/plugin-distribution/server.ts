@@ -28,3 +28,5 @@ export async function pluginDownloadAccess(product: PluginProduct, environment: 
 
 /** Server presentation gate only; download APIs separately authorize every artifact. */
 export { mayShowOwnerDownloads } from './lib/ownerDownloadVisibility';
+
+export { buildStudioReviewerPacket } from '../../../scripts/plugin-review-packet-core.mjs';
