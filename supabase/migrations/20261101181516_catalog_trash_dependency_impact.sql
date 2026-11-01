@@ -5,14 +5,47 @@ set local lock_timeout='5s';
 -- treat a printable URL in text as a runtime dependency.
 create function public.cardforge_catalog_known_reference(p jsonb,ids text[],sources text[],field text default '',depth integer default 0)
 returns boolean language plpgsql immutable security invoker set search_path='' as $$
-declare k text; v jsonb; value text; source text;
+declare k text; v jsonb; value text; source text; t jsonb; e jsonb; data jsonb; image_key text; candidate text; parts text[];
 begin
  if depth>80 then return false; end if;
+ -- The immutable Set manifest stores v2 card envelopes; the renderer's
+ -- compatibility boundary unwraps them to the same runtime card data.
+ if p->>'version'='2' and jsonb_typeof(p->'artifacts')='array' then
+  p:=p||jsonb_build_object('storedCards',(select coalesce(jsonb_agg(a->'card'),'[]'::jsonb) from jsonb_array_elements(p->'artifacts') a where a->>'artifactType'='card'));
+ end if;
  if jsonb_typeof(p)='object' then
+  -- CardPreview resolves image data through a selected image element, never
+  -- through arbitrary card text or metadata. The native projection only
+  -- follows observed image keys; unresolved expressions remain coverage.
+  if jsonb_typeof(p->'userTemplates')='array' or jsonb_typeof(p->'freeformCanvas')='object' then
+   for t in select * from jsonb_array_elements(case when jsonb_typeof(p->'userTemplates')='array' then p->'userTemplates' else jsonb_build_array(p) end) loop
+    for e in select * from jsonb_array_elements(case when jsonb_typeof(t->'freeformCanvas'->'elements')='array' then t->'freeformCanvas'->'elements' else '[]'::jsonb end) loop
+     if e->>'type'<>'image' then continue; end if;
+     image_key:=null;
+     if lower(btrim(coalesce(e->>'imageSource',''))) !~ '^(data:|cardforge-studio-asset://|embedded://)' then
+      foreach candidate in array array[e->>'imageSource',e->>'content'] loop
+       parts:=regexp_match(candidate,'\{\{\s*([A-Za-z_][A-Za-z0-9_.-]*)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}');
+       if parts is not null then image_key:=parts[1]; exit;
+       elsif btrim(candidate) ~ '^[a-zA-Z0-9_-]+$' then image_key:=btrim(candidate); exit; end if;
+      end loop;
+     end if;
+     if image_key is null then image_key:='image_'||coalesce(nullif(btrim(regexp_replace(lower(coalesce(e->>'name','image')),'[^a-z0-9]+','_','g'),'_'),''),'image')||'_'||coalesce(nullif(btrim(regexp_replace(lower(coalesce(e->>'id','layer')),'[^a-z0-9]+','_','g'),'_'),''),'layer'); end if;
+     for data in select coalesce(t->'templatePreviewData','{}'::jsonb)
+      union all select c->'data' from jsonb_array_elements(case when jsonb_typeof(p->'storedCards')='array' then p->'storedCards' else '[]'::jsonb end) c where c->>'templateId'=t->>'id'
+      union all select c->'backingData' from jsonb_array_elements(case when jsonb_typeof(p->'storedCards')='array' then p->'storedCards' else '[]'::jsonb end) c where c->>'backingTemplateId'=t->>'id' loop
+      if public.cardforge_catalog_known_reference(jsonb_build_object('imageSource',data->image_key,'iconImageSource',data->coalesce(e->>'imageSource',e->>'content')),ids,sources,'',depth+1) then return true; end if;
+     end loop;
+    end loop;
+   end loop;
+  end if;
   for k,v in select * from jsonb_each(p) loop
    if k in ('name','label','title','description','contributorName','templateDescription','metadata','mcpOperationReceipts','exportSettings','organization') then continue; end if;
    if k='content' and coalesce(p->>'type','')<>'image' then continue; end if;
-   if public.cardforge_catalog_known_reference(v,ids,sources,case when k in ('content','defaultValue','example') and p->>'type'='image' then 'imageSource' else k end,depth+1) then return true; end if;
+   -- Walk only supported runtime structures. Unknown extensions are opaque,
+   -- not evidence that their url/src/source strings render this asset.
+   if jsonb_typeof(v) in ('object','array') and k not in ('userTemplates','appearanceStyles','storedCards','cardSets','freeformCanvas','elements','appearance','material','texture','border','effects','rawCss','gradient','stops','updates','templateUpdates','fieldContracts','customAssets','customFonts','source_payload','sourceManifest','project','assetId','registryAssetId','templateIds','templateId','backingTemplateId','templateLineageId','templateRevisionId','templateOriginLineageId','templateOriginRevisionId','styleId','presetId','lineageId','parentSubmissionId','imageSource','backgroundImage') and field<>'__assetDescriptors' then continue; end if;
+   if k in ('url','src','source','previewUrl','preview_url','assetUrl','dataUrl') and field<>'__assetDescriptors' then continue; end if;
+   if public.cardforge_catalog_known_reference(v,ids,sources,case when k in ('customAssets','customFonts') or (field='__assetDescriptors' and jsonb_typeof(v) in ('array','object')) then '__assetDescriptors' when k in ('content','defaultValue','example') and p->>'type'='image' then 'imageSource' else k end,depth+1) then return true; end if;
   end loop;
  elsif jsonb_typeof(p)='array' then
   for v in select * from jsonb_array_elements(p) loop
@@ -65,8 +98,8 @@ with aliases as (
  select rows.*,
  public.cardforge_catalog_known_reference(payload,a.ids,a.sources)
  or public.cardforge_catalog_known_reference(jsonb_build_object('imageSource',coalesce(version->'registry'->>4,submission->>'preview_url')),a.ids,a.sources)
- or (origin='studio' and public.cardforge_studio_dependency_binding_valid(payload,revision,binding) and public.cardforge_catalog_known_dependencies(binding->'references',a.ids,a.sources))
- or (public.cardforge_set_dependency_binding_valid(submission) and public.cardforge_catalog_known_dependencies(binding->'references',a.ids,a.sources))
+ or (origin='studio' and public.cardforge_studio_dependency_binding_valid(payload,revision,binding) and binding->'complete'='true'::jsonb and public.cardforge_catalog_known_dependencies(binding->'references',a.ids,a.sources))
+ or (public.cardforge_set_dependency_binding_valid(submission) and (public.cardforge_catalog_known_reference(binding->'sourceManifest'->'project',a.ids,a.sources) or (binding->'complete'='true'::jsonb and public.cardforge_catalog_known_dependencies(binding->'references',a.ids,a.sources))))
  or (public.cardforge_raster_binding_valid(submission) and (binding->'managedRaster'->>'assetId'=any(a.ids) or binding->'managedRaster'->>'lineageId'=any(a.ids) or binding->'managedRaster'->>'submissionId'=any(a.ids))) as known
  from rows cross join aliases a
 )
@@ -111,7 +144,7 @@ select coalesce(jsonb_agg(jsonb_build_object('objectId',c.lineage_id,'objectName
 from unavailable u cross join consumers c
 where public.cardforge_catalog_known_reference(c.payload,u.ids,u.sources)
  or public.cardforge_catalog_known_reference(jsonb_build_object('imageSource',c.preview_url),u.ids,u.sources)
- or (public.cardforge_set_dependency_binding_valid(c.submission) and public.cardforge_catalog_known_dependencies(c.binding->'references',u.ids,u.sources))
+ or (public.cardforge_set_dependency_binding_valid(c.submission) and (public.cardforge_catalog_known_reference(c.binding->'sourceManifest'->'project',u.ids,u.sources) or (c.binding->'complete'='true'::jsonb and public.cardforge_catalog_known_dependencies(c.binding->'references',u.ids,u.sources))))
  or (public.cardforge_raster_binding_valid(c.submission) and (c.binding->'managedRaster'->>'assetId'=any(u.ids) or c.binding->'managedRaster'->>'lineageId'=any(u.ids) or c.binding->'managedRaster'->>'submissionId'=any(u.ids)));
 $$;
 create or replace function public.cardforge_read_catalog_trash(p_submission_id uuid)
@@ -418,9 +451,9 @@ begin
    old_mentions:=false;
    if tg_op='UPDATE' then old_mentions:=(case when target.catalog_claim_token is not null or target.catalog_claimed_at is not null then public.cardforge_catalog_consumer_mentions(old.document_payload,ids,aliases) else public.cardforge_catalog_known_reference(old.document_payload,ids,aliases) end)
      or (public.cardforge_studio_dependency_binding_valid(old.document_payload,old.revision,old.catalog_dependencies)
-       and (case when target.catalog_claim_token is not null or target.catalog_claimed_at is not null then public.cardforge_studio_dependencies_mention(old.catalog_dependencies->'references',ids,aliases) else public.cardforge_catalog_known_dependencies(old.catalog_dependencies->'references',ids,aliases) end)); end if;
+       and (case when target.catalog_claim_token is not null or target.catalog_claimed_at is not null then public.cardforge_studio_dependencies_mention(old.catalog_dependencies->'references',ids,aliases) else (old.catalog_dependencies->'complete'='true'::jsonb and public.cardforge_catalog_known_dependencies(old.catalog_dependencies->'references',ids,aliases)) end)); end if;
    if ((case when target.catalog_claim_token is not null or target.catalog_claimed_at is not null then public.cardforge_catalog_consumer_mentions(new.document_payload,ids,aliases) else public.cardforge_catalog_known_reference(new.document_payload,ids,aliases) end)
-     or (case when target.catalog_claim_token is not null or target.catalog_claimed_at is not null then public.cardforge_studio_dependencies_mention(new.catalog_dependencies->'references',ids,aliases) else public.cardforge_catalog_known_dependencies(new.catalog_dependencies->'references',ids,aliases) end)) and not old_mentions then
+     or (case when target.catalog_claim_token is not null or target.catalog_claimed_at is not null then public.cardforge_studio_dependencies_mention(new.catalog_dependencies->'references',ids,aliases) else (new.catalog_dependencies->'complete'='true'::jsonb and public.cardforge_catalog_known_dependencies(new.catalog_dependencies->'references',ids,aliases)) end)) and not old_mentions then
      raise exception 'studio_catalog_reference_unavailable';
    end if;
  end loop;
@@ -443,9 +476,9 @@ begin
   if not public.cardforge_set_dependency_binding_valid(p_source)
     or ((target.catalog_claim_token is not null or target.catalog_claimed_at is not null) and p_source->'catalog_dependencies'->'complete' is distinct from 'true'::jsonb) then raise exception 'set_catalog_dependency_unverified'; end if;
   prior_mentions:=(case when target.catalog_claim_token is not null or target.catalog_claimed_at is not null then public.cardforge_catalog_consumer_mentions(p_prior,ids,aliases) else public.cardforge_catalog_known_reference(p_prior,ids,aliases) end)
-   or (public.cardforge_set_dependency_binding_valid(p_prior) and (case when target.catalog_claim_token is not null or target.catalog_claimed_at is not null then public.cardforge_studio_dependencies_mention(p_prior->'catalog_dependencies'->'references',ids,aliases) else public.cardforge_catalog_known_dependencies(p_prior->'catalog_dependencies'->'references',ids,aliases) end));
+   or (public.cardforge_set_dependency_binding_valid(p_prior) and (case when target.catalog_claim_token is not null or target.catalog_claimed_at is not null then public.cardforge_studio_dependencies_mention(p_prior->'catalog_dependencies'->'references',ids,aliases) else (public.cardforge_catalog_known_reference(p_prior->'catalog_dependencies'->'sourceManifest'->'project',ids,aliases) or (p_prior->'catalog_dependencies'->'complete'='true'::jsonb and public.cardforge_catalog_known_dependencies(p_prior->'catalog_dependencies'->'references',ids,aliases))) end));
   if ((case when target.catalog_claim_token is not null or target.catalog_claimed_at is not null then public.cardforge_catalog_consumer_mentions(p_source,ids,aliases) else public.cardforge_catalog_known_reference(p_source,ids,aliases) end)
-    or (case when target.catalog_claim_token is not null or target.catalog_claimed_at is not null then public.cardforge_studio_dependencies_mention(p_source->'catalog_dependencies'->'references',ids,aliases) else public.cardforge_catalog_known_dependencies(p_source->'catalog_dependencies'->'references',ids,aliases) end)) and not coalesce(prior_mentions,false)
+    or (case when target.catalog_claim_token is not null or target.catalog_claimed_at is not null then public.cardforge_studio_dependencies_mention(p_source->'catalog_dependencies'->'references',ids,aliases) else (public.cardforge_catalog_known_reference(p_source->'catalog_dependencies'->'sourceManifest'->'project',ids,aliases) or (p_source->'catalog_dependencies'->'complete'='true'::jsonb and public.cardforge_catalog_known_dependencies(p_source->'catalog_dependencies'->'references',ids,aliases))) end)) and not coalesce(prior_mentions,false)
     then raise exception 'set_catalog_reference_unavailable'; end if;
  end loop;
 end $$;

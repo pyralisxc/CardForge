@@ -36,8 +36,8 @@ begin
  or (select updated_at from public.cardforge_contributor_asset_submissions where id=target) is distinct from initial_updated
  then raise exception 'global_restore_churned_unrelated_recovery_state'; end if;
  -- Keep unrelated dynamic/external data: its coverage is not target dependence.
- payload:=jsonb_build_object('version',1,'userTemplates',jsonb_build_array(jsonb_build_object('id','unrelated','name','Unrelated','aspectRatio','2:3','templatePreviewData',jsonb_build_object('title','{{name}}'),'cardBackgroundImageUrl',source||'.other')));
- proof:=jsonb_build_object('contractVersion',1,'sourcePayload',payload,'complete',false,'references',jsonb_build_object('identities','[]'::jsonb,'sources',jsonb_build_array(source||'.other')),'opaqueReasons',jsonb_build_array('dynamic_binding','external_or_unbound_source'));
+ payload:=jsonb_build_object('version',1,'metadata',jsonb_build_object('url',source,'src',source,'source',source),'unknownExtension',jsonb_build_object('url',source),'userTemplates',jsonb_build_array(jsonb_build_object('id','unrelated','name','Unrelated','aspectRatio','2:3','templatePreviewData',jsonb_build_object('title','{{name}}'),'cardBackgroundImageUrl',source||'.other')));
+ proof:=jsonb_build_object('contractVersion',1,'sourcePayload',payload,'complete',false,'references',jsonb_build_object('identities','[]'::jsonb,'sources',jsonb_build_array(source||'.other',source)),'opaqueReasons',jsonb_build_array('dynamic_binding','external_or_unbound_source'));
  insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies) values(unrelated,'private-other','Private unrelated',payload,proof);
  snap:=public.cardforge_read_catalog_trash(target);
  if jsonb_array_length(snap->'recoveryReasons')<>0 or (snap->'impact'->>'affectedCount')::int<>0
@@ -45,6 +45,20 @@ begin
  -- A literal in printable text is not artwork, even if legacy diagnostics
  -- conservatively report it. Source owner interpretation supplies typed refs.
  template:=jsonb_build_object('id','impact-consumer','name','Consumer','aspectRatio','2:3','freeformCanvas',jsonb_build_object('width',300,'height',450,'elements',jsonb_build_array(jsonb_build_object('id','image','name','Image','type','image','x',0,'y',0,'width',100,'height',100,'zIndex',0,'imageSource',source))));
+
+ -- Match native renderer image-key ownership on direct Template previews,
+ -- v1 card data and v2 portable front/back card envelopes.
+ payload:=jsonb_set(template,'{freeformCanvas,elements,0,imageSource}','"prefix-{{art}}"');
+ payload:=payload||jsonb_build_object('templatePreviewData',jsonb_build_object('art',source));
+ if not public.cardforge_catalog_known_reference(payload,array[asset],array[source]) then raise exception 'direct_template_preview_binding_missed'; end if;
+ payload:=jsonb_set(template,'{freeformCanvas,elements,0,imageSource}',to_jsonb('{{art:"fallback"}}'::text));
+ proof:=jsonb_build_object('version',2,'userTemplates',jsonb_build_array(payload),'artifacts',jsonb_build_array(jsonb_build_object('artifactType','card','card',jsonb_build_object('templateId','other','backingTemplateId','impact-consumer','data',jsonb_build_object('art','unrelated'),'backingData',jsonb_build_object('art',source)))));
+ if not public.cardforge_catalog_known_reference(proof,array[asset],array[source]) then raise exception 'portable_back_card_data_binding_missed'; end if;
+ proof:=jsonb_build_object('version',1,'userTemplates',jsonb_build_array(payload),'storedCards',jsonb_build_array(jsonb_build_object('templateId','impact-consumer','data',jsonb_build_object('art',source))));
+ if not public.cardforge_catalog_known_reference(proof,array[asset],array[source]) then raise exception 'runtime_front_card_data_binding_missed'; end if;
+ payload:=jsonb_set(jsonb_set(template,'{freeformCanvas,elements,0,imageSource}','"data:image/png;base64,AA"'),'{freeformCanvas,elements,0,content}','"staleArt"');
+ payload:=payload||jsonb_build_object('templatePreviewData',jsonb_build_object('staleArt',source));
+ if public.cardforge_catalog_known_reference(payload,array[asset],array[source]) then raise exception 'persisted_image_stale_content_created_phantom_binding'; end if;
  payload:=jsonb_build_object('version',1,'userTemplates',jsonb_build_array(template));
  proof:=jsonb_build_object('contractVersion',1,'sourcePayload',payload,'complete',false,'references',jsonb_build_object('identities','[]'::jsonb,'sources',jsonb_build_array(source)),'opaqueReasons',jsonb_build_array('external_or_unbound_source'));
  insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies) values(private_doc,'private-other','Private dependent',payload,proof);
@@ -87,7 +101,7 @@ begin
  update public.cardforge_studio_documents set revision=revision+1,catalog_dependencies=proof where id=private_doc;
  select revision into document_revision from public.cardforge_studio_documents where id=unrelated;
  select document_payload into payload from public.cardforge_studio_documents where id=unrelated;
- proof:=jsonb_build_object('contractVersion',1,'sourcePayload',payload,'complete',false,'references',jsonb_build_object('identities','[]'::jsonb,'sources',jsonb_build_array(source||'.other')),'opaqueReasons',jsonb_build_array('dynamic_binding','external_or_unbound_source'));
+ proof:=jsonb_build_object('contractVersion',1,'sourcePayload',payload,'complete',false,'references',jsonb_build_object('identities','[]'::jsonb,'sources',jsonb_build_array(source||'.other',source)),'opaqueReasons',jsonb_build_array('dynamic_binding','external_or_unbound_source'));
  update public.cardforge_studio_documents set revision=document_revision+1,catalog_dependencies=proof where id=unrelated;
  -- Removing one retained reference remains possible even while unrelated
  -- external content keeps the document interpretation incomplete.
