@@ -199,6 +199,31 @@ function DelayedPersonalIconContextProof() {
     <output data-testid="personal-context-icon">{JSON.stringify(controller.selectedElement)}</output>
   </>;
 }
+function UnsavedDraftIconProof() {
+  const initialTemplate:TCGCardTemplate = {
+    ...initial,id:'saved-source',freeformCanvas:{width:630,height:880,elements:[
+      {id:'icon',type:'icon',name:'Icon Layer',iconName:'Sparkles',x:279,y:404,width:72,height:72,zIndex:3},
+      {id:'neighbor',type:'text',name:'Neighbor',content:'Keep neighbor',x:20,y:20,width:140,height:35,zIndex:1},
+    ]},
+  };
+  const controller=useTemplateEditorController(initialTemplate);
+  const [status,setStatus]=useState('idle');
+  return <>
+    <button onClick={()=>controller.resetTemplate({...initialTemplate,id:'draft-new-personal-template'})}>Begin unsaved personal Template</button>
+    <button onClick={()=>{
+      setStatus('pending');
+      void controller.applyIconSelection('icon',{
+        iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original',
+      },undefined,controller.currentTemplate.id)
+        .then(()=>setStatus('applied')).catch(()=>setStatus('rejected'));
+    }}>Apply published SVG to unsaved Template</button>
+    <output data-testid="draft-template-id">{controller.currentTemplate.id}</output>
+    <output data-testid="draft-apply-status">{status}</output>
+    <output data-testid="draft-icon">{JSON.stringify(controller.selectedElement)}</output>
+    <output data-testid="draft-neighbor">{JSON.stringify(controller.canvas.elements.find(e=>e.id==='neighbor'))}</output>
+    <output data-testid="draft-history">{controller.history.length}</output>
+  </>;
+}
 function ControllerIconApplicationProof() {
   const source: TCGCardTemplate = {
     ...initial, id: 'icon-confirmation-proof',
@@ -280,6 +305,7 @@ createRoot(document.body.appendChild(document.createElement('div'))).render(
   : params.has('retainedIcon') ? <RetainedIconUnmountProof/>
   : params.has('pickerSession') ? <PickerSessionProof/>
   : params.has('iconAcknowledgment') ? <ControllerIconApplicationProof/>
+  : params.has('unsavedDraftIcon') ? <UnsavedDraftIconProof/>
   : params.has('controllerBatch') ? <ControllerBatchProof/>
   : params.has('accountToolLayer') ? (
     <EnvironmentToolLayer
