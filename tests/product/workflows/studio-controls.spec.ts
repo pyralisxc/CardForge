@@ -269,6 +269,27 @@ test('@golden edits made while local Save is pending survive its earlier snapsho
  const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved.freeformCanvas.elements.find((element:{type:string})=>element.type==='text').content).toBe('Saved snapshot');
 });
 
+test('@golden first persisted Template identity keeps selected Icon and Undo history',async({page})=>{
+ await page.setViewportSize({width:1440,height:960});
+ await mountHistoryProof(page,'?forkSave=1&saveIdentityContinuity=1');
+ await page.getByRole('button',{name:'Elements',exact:true}).click();
+ await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
+ await expect(page.getByText('Current icon: Sparkles')).toBeVisible();
+ await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
+ await page.getByRole('option',{name:/^Star\\b/}).click();
+ await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');
+ expect(saved.id).toBe('synthetic-fork');
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Undo',exact:true}).first()).toBeEnabled();
+ await page.getByRole('button',{name:'Undo',exact:true}).first().click();
+ await expect(page.getByText('Current icon: Sparkles')).toBeVisible();
+ await page.getByRole('button',{name:'Redo',exact:true}).first().click();
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+});
+
 test('@golden a saved fork adopts its returned identity without overwriting edits made after commit',async({page})=>{
  await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?forkSave=1&postCommitDelay=1');
  const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Saved fork snapshot');await page.getByRole('button',{name:'Save',exact:true}).click();
