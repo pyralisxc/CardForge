@@ -91,7 +91,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     finishIcon(request, matchesIconApplication(element, request.changes) ? undefined : iconApplyFailure());
   }, [editorState, finishIcon, initialTemplate.id]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // Strict Mode replays setup after cleanup; a retained callback must reject
     // only while this controller is actually unmounted.
     controllerAliveRef.current = true;
