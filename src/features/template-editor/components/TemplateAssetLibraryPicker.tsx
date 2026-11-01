@@ -32,10 +32,10 @@ interface TemplateAssetLibraryPickerProps {
   providerRole: PersonalLibraryRole;
   target: LibraryPickerRequest['target'];
   onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
-  onApply: (asset: CardAssetOption) => void;
+  onApply: (asset: CardAssetOption, signal: AbortSignal) => void | Promise<void>;
   managedAdoption?: { pendingName?: string; issue: string | null; onSelect: (selection: ManagedRasterSelection, name: string) => void };
   builtInOptions?: readonly { name: string; value: string }[];
-  onApplyBuiltIn?: (value: string) => void;
+  onApplyBuiltIn?: (value: string, signal: AbortSignal) => void | Promise<void>;
   onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
 }
 
@@ -165,7 +165,7 @@ export function TemplateAssetLibraryPicker({
           description: 'Google Drive owns file selection. CardForge indexes the chosen file in My Library.',
           onInvoke: () => onAddFromProvider(providerRole),
         }]}
-        onSelect={async (result) => {
+        onSelect={async (result, signal) => {
           const selection = result.selections[0];
           if (!selection) throw new Error('Choose one Library resource before applying it.');
           if (adopt && managedAdoption) {
@@ -182,17 +182,17 @@ export function TemplateAssetLibraryPicker({
             return;
           }
           if (selection.id.startsWith(`published:built-in-${kind}:`) && onApplyBuiltIn) {
-            onApplyBuiltIn(selection.objectId);
+            await onApplyBuiltIn(selection.objectId, signal);
             return;
           }
           if (selection.source === 'personal') {
             const item = personalItems.find((candidate) => candidate.id === selection.objectId);
             if (!item) throw new Error('That personal Library item is no longer available. Refresh the Picker and choose again.');
-            onApply(await onMaterializePersonal(item));
+            await onApply(await onMaterializePersonal(item), signal);
             return;
           }
           const asset = resolveSelectedTemplateAsset(selection, assets);
-          onApply(asset);
+          await onApply(asset, signal);
         }}
         renderResourceDetails={resource => {
           const asset = assets.find(candidate => resource.id === `${pickerSourceForAsset(candidate)}:${candidate.id}`);
