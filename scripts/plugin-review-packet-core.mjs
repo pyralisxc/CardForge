@@ -24,7 +24,7 @@ export async function buildStudioReviewerPacket(environment, version) {
   ];
   for (const [label, items] of [['Positive',source.positive],['Negative',source.negative]]) {
     for (const item of items) {
-      lines.push('',`### ${label} ${item.id.slice(1)} — ${item.description}`,`- Setup: ${item.setup}`,`- Prompt: ${item.prompt}`);
+      lines.push('',`### ${label} ${item.id} — ${item.description}`,`- Setup: ${item.setup}`,`- Prompt: ${item.prompt}`);
       if (label === 'Positive') lines.push(`- Expected tools: ${item.tools_triggered}`);
       lines.push(`- Expected behavior: ${item.expected_behavior}`, '- Status: Not run', '- Observed result / evidence: Pending human execution');
     }
