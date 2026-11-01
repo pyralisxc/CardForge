@@ -64,6 +64,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   initialTemplateRef.current = initialTemplate;
   // One in-flight Icon confirmation owned by this controller, not a second editor store.
   const committedRef = useRef(editorState);
+  const controllerAliveRef = useRef(true);
   const pendingIconRef = useRef<IconApplication | null>(null);
   const finishIcon = useCallback((request: IconApplication, error?: Error) => {
     if (pendingIconRef.current !== request) return;
@@ -90,9 +91,15 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     finishIcon(request, matchesIconApplication(element, request.changes) ? undefined : iconApplyFailure());
   }, [editorState, finishIcon, initialTemplate.id]);
 
-  useEffect(() => () => {
-    const request = pendingIconRef.current;
-    if (request) finishIcon(request, iconApplyCancellation());
+  useEffect(() => {
+    // Strict Mode replays setup after cleanup; a retained callback must reject
+    // only while this controller is actually unmounted.
+    controllerAliveRef.current = true;
+    return () => {
+      controllerAliveRef.current = false;
+      const request = pendingIconRef.current;
+      if (request) finishIcon(request, iconApplyCancellation());
+    };
   }, [finishIcon]);
 
 
@@ -204,6 +211,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     changes: IconApplication['changes'],
     signal?: AbortSignal,
   ): Promise<void> => {
+    if (!controllerAliveRef.current) return Promise.reject(iconApplyCancellation());
     const state = committedRef.current;
     const current = getTemplateEditorCanvas(state.currentTemplate)?.elements.find(candidate => candidate.id === elementId);
     if (signal?.aborted) return Promise.reject(iconApplyCancellation());
