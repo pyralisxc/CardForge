@@ -115,6 +115,7 @@ export const getSharedPipelineTrashPage = async (
     query: { ...query, scope: 'shared', trash: 'trashed' },
   });
   return { total: result.total, page: result.page, pageSize: result.pageSize, items: result.submissions.map(row => ({
+    ownedByViewer: row.contributorId === currentUserId,
     id: row.id, lineageId: row.lineageId, assetType: row.assetType, name: row.name,
     description: row.description, status: row.status, revisionNumber: row.revisionNumber,
     trashedAt: row.trashedAt, purgeAfter: row.purgeAfter, trashActorRole: row.trashActorRole,

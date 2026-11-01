@@ -13,9 +13,9 @@ begin
  free_asset_minimum_positive_vote_percent=50,paid_asset_minimum_positive_vote_percent=75,
  review_minimum_age_days=0,trash_retention_days=30 where id='default';
  insert into public.cardforge_pipeline_asset_lineages(id,revision_high_water) values(l,1),(ml,1);
- insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,revision_number)
- values(a,l,'trash-author','icons','Vote Trash proof','voting',1),
- (manual,ml,'trash-author','icons','Manual Trash proof','voting',1);
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,revision_number,source_url)
+ values(a,l,'trash-author','icons','Vote Trash proof','voting',1,'https://example.invalid/vote-trash.svg'),
+ (manual,ml,'trash-author','icons','Manual Trash proof','voting',1,'https://example.invalid/manual-trash.svg');
  private_id:=public.cardforge_create_template_pipeline_draft('private-trash-'||pl::text,'Private Trash proof','trash-author','',jsonb_build_object('id','private-trash-'||pl::text,'name','Private Trash proof'),'private-'||pl::text);
  select lineage_id into pl from public.cardforge_contributor_asset_submissions where id=private_id;
  content_version:=public.cardforge_media_parent_content_version(a);

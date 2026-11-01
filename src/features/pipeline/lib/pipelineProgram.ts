@@ -617,7 +617,7 @@ export interface SharedPipelineTrashPage {
   items: Array<Pick<PipelineSubmission,
     'id' | 'lineageId' | 'assetType' | 'name' | 'description' | 'status' | 'revisionNumber'
     | 'trashedAt' | 'purgeAfter' | 'trashActorRole' | 'trashPreviousStatus'
-    | 'publicationRetained' | 'positiveVotes' | 'negativeVotes'>>;
+    | 'publicationRetained' | 'positiveVotes' | 'negativeVotes'> & { ownedByViewer: boolean }>;
   total: number;
   page: number;
   pageSize: number;

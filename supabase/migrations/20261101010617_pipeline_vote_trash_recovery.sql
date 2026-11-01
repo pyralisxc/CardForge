@@ -413,6 +413,7 @@ begin
 
   if exists(select 1 from public.cardforge_pipeline_asset_lineages l where l.id=target_lineage and (l.purge_state is not null or l.catalog_claim_token is not null or l.catalog_claimed_at is not null)) then raise exception 'contributor_asset_vote_not_permitted'; end if;
 
+  if submission.purge_claim_token is not null or submission.purge_claimed_at is not null or submission.owner_purge_requested_at is not null then raise exception 'contributor_asset_vote_not_permitted'; end if;
   if submission.trashed_at is not null and (not coalesce((submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status not in ('draft','rejected')),false) or submission.purge_claim_token is not null or submission.purge_claimed_at is not null or submission.owner_purge_requested_at is not null) then raise exception 'contributor_asset_vote_not_permitted'; end if;
   if submission.status = 'draft' then
     raise exception 'contributor_asset_vote_not_permitted';
