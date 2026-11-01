@@ -145,7 +145,7 @@ describe('agent verification routing', () => {
     expect(scripts['smoke:hosted']).toBe('playwright test --config playwright.hosted.config.ts --workers=1');
     expect(scripts['verify:full']).not.toContain('playwright');
     expect(ci).toContain('browser-golden:');
-    expect(ci).toContain('fetch-depth: 2');
+    expect(ci).toMatch(/  browser-golden:\\n    runs-on: ubuntu-latest\\n    timeout-minutes: 20\\n    steps:\\n      - uses: actions\\/checkout@[^\\n]+\\n        with:\\n          fetch-depth: 0\\n/);
     expect(ci).toContain('--github-output');
     expect(ci).toContain('npx playwright install --with-deps chromium');
     expect(ci).toContain('npm run smoke:golden');
