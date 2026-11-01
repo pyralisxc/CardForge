@@ -5,6 +5,7 @@ import { createPrintProductionPreflight } from '@/features/card-generator/lib/pr
 
 import {
   areTabletopSimulatorAspectRatiosCompatible,
+  assertTabletopSimulatorRenderedFaceAspect,
   createCardZipExportItems,
   createPrintProductionManifest,
   createTabletopSimulatorSheets,
@@ -212,6 +213,16 @@ describe('zip export helpers', () => {
       id: 'square-back', name: 'Square Back', aspectRatio: '1:1', templateUsage: 'back-preset',
     } });
     expect(() => createTabletopSimulatorSheets([incompatible])).toThrow(/Card 1 has a back with a different shape/);
+  });
+
+  it('rejects an incompatible later rendered bitmap before drawing or reporting ZIP success', () => {
+    const cell = getTabletopSimulatorCardCellSize(630, 880);
+    expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: 630, height: 880 }, 0, 'front')).not.toThrow();
+    expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: 880, height: 630 }, 1, 'front'))
+      .toThrow(/Card 2 front pixels do not match this TTS sheet's proportions. No ZIP was exported/);
+    expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: 800, height: 800 }, 2, 'back'))
+      .toThrow(/Card 3 back pixels do not match this TTS sheet's proportions/);
+    expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: 631, height: 880 }, 3, 'front')).not.toThrow();
   });
 
   it('keeps large Tabletop Simulator sheets inside the recommended texture boundary', () => {

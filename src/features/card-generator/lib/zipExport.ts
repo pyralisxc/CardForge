@@ -257,6 +257,19 @@ export const areTabletopSimulatorAspectRatiosCompatible = (
   && Math.abs(firstWidth / firstHeight - nextWidth / nextHeight) <= 0.005
 );
 
+export const assertTabletopSimulatorRenderedFaceAspect = (
+  cell: Pick<TabletopSimulatorCardCellSize, 'cardWidthPx' | 'cardHeightPx'>,
+  bitmap: Pick<ImageBitmap, 'width' | 'height'>,
+  sourceIndex: number,
+  face: 'front' | 'back',
+): void => {
+  if (!areTabletopSimulatorAspectRatiosCompatible(
+    cell.cardWidthPx, cell.cardHeightPx, bitmap.width, bitmap.height
+  )) {
+    throw new Error(`Card ${sourceIndex + 1} ${face} pixels do not match this TTS sheet's proportions. No ZIP was exported; verify the authored face format.`);
+  }
+};
+
 export const createTabletopSimulatorSheets = (
   cards: DisplayCard[],
   quality: TabletopSimulatorExportQuality = 'standard'

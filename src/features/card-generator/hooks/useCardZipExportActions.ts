@@ -10,7 +10,7 @@ import {
 
 import type { useToast } from '@/components/ui/use-toast';
 import {
-  areTabletopSimulatorAspectRatiosCompatible,
+  assertTabletopSimulatorRenderedFaceAspect,
   createCardZipExportItems,
   createPrintProductionManifest,
   createTabletopSimulatorManifest,
@@ -317,67 +317,64 @@ export function useCardZipExportActions({
         const firstBitmap = await createImageBitmap(firstBlob);
         const cellSize = requestedCellSize
           ?? getTabletopSimulatorCardCellSize(firstBitmap.width, firstBitmap.height, sheet.grid);
-        const verifyShape = (bitmap: ImageBitmap, index: number) => {
-          if (!areTabletopSimulatorAspectRatiosCompatible(
-            cellSize.cardWidthPx, cellSize.cardHeightPx, bitmap.width, bitmap.height
-          )) {
-            throw new Error(`Card ${sheet.cards[index].sourceIndex + 1} ${face} pixels do not match this TTS sheet's proportions. No ZIP was exported; verify the authored face format.`);
-          }
-        };
         try {
-          verifyShape(firstBitmap, 0);
+          assertTabletopSimulatorRenderedFaceAspect(cellSize, firstBitmap, sheet.cards[0].sourceIndex, face);
         } catch (error) {
           firstBitmap.close();
           throw error;
         }
         const sheetCanvas = document.createElement('canvas');
-        sheetCanvas.width = cellSize.sheetWidthPx;
-        sheetCanvas.height = cellSize.sheetHeightPx;
-        const context = sheetCanvas.getContext('2d');
-        if (!context) throw new Error('Unable to create Tabletop Simulator spritesheet canvas.');
-        context.fillStyle = '#ffffff';
-        context.fillRect(0, 0, sheetCanvas.width, sheetCanvas.height);
-        context.imageSmoothingEnabled = true;
-        context.imageSmoothingQuality = 'high';
+        // Own backing storage from allocation through every render/encoding failure.
+        // A rejected later bitmap must release the full 4K sheet immediately.
         try {
-          context.drawImage(firstBitmap, 0, 0, cellSize.cardWidthPx, cellSize.cardHeightPx);
-        } finally {
-          firstBitmap.close();
-        }
-
-        for (let i = 1; i < sheet.cards.length; i++) {
-          const item = sheet.cards[i];
-          const cardFace = face === 'back' && hasCardBacking(item.card) ? 'back' : 'front';
-          const blob = await renderer.renderToBlob(item.card, cardFace);
-          const bitmap = await createImageBitmap(blob);
-          const column = item.sheetCardIndex % sheet.grid.columns;
-          const row = Math.floor(item.sheetCardIndex / sheet.grid.columns);
-          try {
-            verifyShape(bitmap, i);
-            context.drawImage(
-              bitmap,
-              column * cellSize.cardWidthPx,
-              row * cellSize.cardHeightPx,
-              cellSize.cardWidthPx,
-              cellSize.cardHeightPx
-            );
-          } finally {
-            bitmap.close();
+          sheetCanvas.width = cellSize.sheetWidthPx;
+          sheetCanvas.height = cellSize.sheetHeightPx;
+          const context = sheetCanvas.getContext('2d');
+          if (!context) {
+            firstBitmap.close();
+            throw new Error('Unable to create Tabletop Simulator spritesheet canvas.');
           }
-        }
+          context.fillStyle = '#ffffff';
+          context.fillRect(0, 0, sheetCanvas.width, sheetCanvas.height);
+          context.imageSmoothingEnabled = true;
+          context.imageSmoothingQuality = 'high';
+          try {
+            context.drawImage(firstBitmap, 0, 0, cellSize.cardWidthPx, cellSize.cardHeightPx);
+          } finally {
+            firstBitmap.close();
+          }
 
-        let sheetBlob: Blob | null;
-        try {
-          sheetBlob = await new Promise<Blob | null>((resolve) => sheetCanvas.toBlob(resolve, 'image/png'));
+          for (let i = 1; i < sheet.cards.length; i++) {
+            const item = sheet.cards[i];
+            const cardFace = face === 'back' && hasCardBacking(item.card) ? 'back' : 'front';
+            const blob = await renderer.renderToBlob(item.card, cardFace);
+            const bitmap = await createImageBitmap(blob);
+            const column = item.sheetCardIndex % sheet.grid.columns;
+            const row = Math.floor(item.sheetCardIndex / sheet.grid.columns);
+            try {
+              assertTabletopSimulatorRenderedFaceAspect(cellSize, bitmap, item.sourceIndex, face);
+              context.drawImage(
+                bitmap,
+                column * cellSize.cardWidthPx,
+                row * cellSize.cardHeightPx,
+                cellSize.cardWidthPx,
+                cellSize.cardHeightPx
+              );
+            } finally {
+              bitmap.close();
+            }
+          }
+
+          const sheetBlob = await new Promise<Blob | null>((resolve) => sheetCanvas.toBlob(resolve, 'image/png'));
+          if (!sheetBlob) throw new Error('Tabletop Simulator spritesheet did not produce a PNG blob.');
+          folder.file(getTabletopSimulatorSheetFileName(sheet, face), sheetBlob);
+          completed += 1;
+          setZipProgress({ done: completed, total: totalRenderJobs });
+          return cellSize;
         } finally {
           sheetCanvas.width = 0;
           sheetCanvas.height = 0;
         }
-        if (!sheetBlob) throw new Error('Tabletop Simulator spritesheet did not produce a PNG blob.');
-        folder.file(getTabletopSimulatorSheetFileName(sheet, face), sheetBlob);
-        completed += 1;
-        setZipProgress({ done: completed, total: totalRenderJobs });
-        return cellSize;
       };
 
       try {
