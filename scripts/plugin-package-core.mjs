@@ -57,6 +57,13 @@ export async function buildPluginArchive(product, environment) {
   manifest.homepage = origin + (product === 'studio' ? '/studio' : '');
   manifest.interface.websiteURL = origin;
   const files = new Map();
+  if (product === 'studio') {
+    const cases = JSON.parse((await content(root, 'REVIEW_CASES.json')).toString('utf8'));
+    if (cases.version !== manifest.version || cases.positive.length !== 5 || cases.negative.length !== 5) throw new Error('Studio review cases must match the version with five positive and five negative cases');
+    const review = { positive: cases.positive.map(({description, prompt, tools_triggered, expected_behavior}) => ({description,prompt,tools_triggered,expected_behavior})), negative: cases.negative.slice(0,3).map(({description,prompt}) => ({description,prompt})) };
+    manifest.extensions ??= {};
+    manifest.extensions['com.openai'] = { review: { test_cases: review } };
+  }
   for (const file of spec.skills) files.set(file, await content(root, file));
   const json = (object) => Buffer.from(JSON.stringify(object, null, 2) + '\n');
   files.set('.codex-plugin/plugin.json', json(manifest));
@@ -65,13 +72,18 @@ export async function buildPluginArchive(product, environment) {
     $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
     name, version: manifest.version, description: manifest.description,
     author: manifest.author, homepage: manifest.homepage, repository: manifest.repository,
-    keywords: manifest.keywords, extensions: { 'com.openai': { interface: manifest.interface } },
+    keywords: manifest.keywords, extensions: { 'com.openai': { interface: manifest.interface, ...(manifest.extensions?.['com.openai'] ?? {}) } },
   }));
   files.set('mcp.json', json({
     $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
     mcpServers: { [name]: { type: 'streamable-http', url: origin + spec.endpoint } },
   }));
   files.set('icon.svg', safe(await readFile(path.join(ROOT, 'public/brand/cardforge-studio/favicon.svg')), 'icon.svg'));
+  if (product === 'studio') {
+    const icon = await readFile(path.join(ROOT, 'public/brand/cardforge-studio/favicon.png'));
+    files.set('assets/logo.png', icon);
+    files.set('assets/icon.png', icon);
+  }
   const zip = new JSZip();
   // Keep the established foldered Preview package shape. Production keeps
   // its existing flat-root shape, now including the portable host projection.

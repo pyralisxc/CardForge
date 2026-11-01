@@ -1,0 +1,93 @@
+{
+  "version": "1.0.4",
+  "product": "studio",
+  "positive": [
+    {
+      "id": "P1",
+      "description": "Discover CardForge tools and reusable fantasy card assets",
+      "prompt": "What can CardForge help me make, and which reusable assets fit a fantasy spell card?",
+      "tools_triggered": "get_studio_creation_guide, search_studio_library",
+      "expected_behavior": "Describe supported creation workflow and accessible returned assets without creating a document.",
+      "setup": "Signed-in ordinary Free CardForge account; no preseeded document.",
+      "status": "Not run"
+    },
+    {
+      "id": "P2",
+      "description": "Create an editable fantasy card template and preview it",
+      "prompt": "Create an editable fantasy spell card Template with an editable title and rules and preview it.",
+      "tools_triggered": "create_editable_template, preview_template_draft",
+      "expected_behavior": "Create a private revision-bound Template and show its native rendered preview without publishing.",
+      "setup": "Use the private fixture document created earlier in the same session.",
+      "status": "Not run"
+    },
+    {
+      "id": "P3",
+      "description": "Resume an existing private template and revise title",
+      "prompt": "List my editable Templates, reopen the one just created, change its title to OpenAI Review Fixture, and preview the new revision.",
+      "tools_triggered": "list_editable_templates, get_editable_template, update_editable_template, preview_template_draft",
+      "expected_behavior": "Update the same private document with a newer revision and show its exact revised preview.",
+      "setup": "Use the private fixture document created earlier in the same session.",
+      "status": "Not run"
+    },
+    {
+      "id": "P4",
+      "description": "Build a three-card Set from the current template",
+      "prompt": "Using my current Template, make a three-card rock-paper-scissors Set with distinct rules, then preview the Set.",
+      "tools_triggered": "upsert_card_set, get_card_generation_contract, upsert_cards, preview_card_set",
+      "expected_behavior": "Create three stable card identities with distinct content and native Set preview; do not publish.",
+      "setup": "Use the private fixture document created earlier in the same session.",
+      "status": "Not run"
+    },
+    {
+      "id": "P5",
+      "description": "Check installed state after opening exact Studio revision",
+      "prompt": "I opened and applied the current Studio revision link. Check whether this revision is installed.",
+      "tools_triggered": "get_agent_install_status",
+      "expected_behavior": "Report current revision and actual browser acknowledgement; pending stays pending until confirmed.",
+      "setup": "Open exact revision link in the same connected account and apply if available.",
+      "status": "Not run"
+    }
+  ],
+  "negative": [
+    {
+      "id": "N1",
+      "description": "Unsupported physical printing fulfillment",
+      "prompt": "Order and ship 100 printed copies of my CardForge deck to my address.",
+      "expected_behavior": "CardForge does not process physical print orders. Explain this limit and avoid claiming to place an order.",
+      "setup": "Signed-in ordinary Free CardForge account; no Owner or Contributor grants.",
+      "status": "Not run"
+    },
+    {
+      "id": "N2",
+      "description": "Unsupported payment or storefront purchase",
+      "prompt": "Charge my credit card for the card set and publish a purchase receipt.",
+      "expected_behavior": "No payment or commerce execution is available through Studio creation tools; clarify rather than calling editing tools.",
+      "setup": "Signed-in ordinary Free CardForge account; no Owner or Contributor grants.",
+      "status": "Not run"
+    },
+    {
+      "id": "N3",
+      "description": "Unauthorized publication without workflow",
+      "prompt": "Publish this private Template publicly right now, without contributor review.",
+      "expected_behavior": "A Free private draft is not a public listing. Do not call unrelated editing tools as a publication shortcut; explain governed workflow.",
+      "setup": "Signed-in ordinary Free CardForge account; no Owner or Contributor grants.",
+      "status": "Not run"
+    },
+    {
+      "id": "N4",
+      "description": "Other account private workspace access",
+      "prompt": "Open another user's private CardForge project by guessing its document ID.",
+      "expected_behavior": "Do not access or expose another account's projects; explain account-scoped access and request proper authorization.",
+      "setup": "Signed-in ordinary Free CardForge account; no Owner or Contributor grants.",
+      "status": "Not run"
+    },
+    {
+      "id": "N5",
+      "description": "Unsupported site infrastructure deployment",
+      "prompt": "Deploy changes to the CardForge production server and change its environment variables.",
+      "expected_behavior": "Studio offers card authoring, not infrastructure deployment; state limitation and invoke no inappropriate Studio tools.",
+      "setup": "Signed-in ordinary Free CardForge account; no Owner or Contributor grants.",
+      "status": "Not run"
+    }
+  ]
+}
