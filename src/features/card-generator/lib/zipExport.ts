@@ -91,6 +91,7 @@ export interface TabletopSimulatorManifestSheet {
   cardsPerSheet: number;
   cardWidthPx: number;
   cardHeightPx: number;
+  sideways: boolean;
   cards: Array<{
     number: number;
     sourceIndex: number;
@@ -307,6 +308,7 @@ export const createTabletopSimulatorManifest = (
       `Use ${grid.columns} columns and ${grid.rows} rows. CardForge reserves the final grid slot so each sheet contains at most ${grid.cardsPerSheet} playable cards.`,
       'Import these numbered sheets in order to preserve the authored Set order; a new sheet begins whenever card proportions change.',
       'For a matching back sheet, enable Unique Backs in the TTS Custom Deck import. Back is Hidden can use the back instead of the reserved final face slot.',
+      'For landscape sheets, enable Sideways for the matching TTS card zoom orientation; each manifest sheet records this setting.',
     ],
     sheets: sheets.map((sheet) => {
       const renderedSize = sizesBySheetIndex.get(sheet.sheetIndex);
@@ -323,6 +325,7 @@ export const createTabletopSimulatorManifest = (
         cardsPerSheet: sheet.grid.cardsPerSheet,
         cardWidthPx: renderedSize.cardWidthPx,
         cardHeightPx: renderedSize.cardHeightPx,
+        sideways: renderedSize.cardWidthPx > renderedSize.cardHeightPx,
         cards: sheet.cards.map((item) => ({
           number: item.sheetCardIndex + 1,
           sourceIndex: item.sourceIndex + 1,

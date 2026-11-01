@@ -172,6 +172,7 @@ describe('zip export helpers', () => {
       sheetIndex: sheet.sheetIndex, cardWidthPx: 300, cardHeightPx: 400,
     })));
     expect(manifest.sheets.flatMap((sheet) => sheet.cards.map((entry) => entry.sourceIndex))).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(manifest.sheets.every((sheet) => sheet.cards.length <= getTabletopSimulatorExportPreset(quality).grid.cardsPerSheet)).toBe(true);
   });
 
   it.each(['standard', 'high-detail'] as const)('keeps same-ratio sizes and correct back slots in %s', (quality) => {
@@ -189,6 +190,21 @@ describe('zip export helpers', () => {
     expect(sheets[1].cards[0].sourceIndex).toBe(getTabletopSimulatorExportPreset(quality).grid.cardsPerSheet);
     expect(areTabletopSimulatorAspectRatiosCompatible(630, 880, 880, 630)).toBe(false);
     expect(areTabletopSimulatorAspectRatiosCompatible(630, 880, 631, 880)).toBe(true);
+  });
+
+  it('preserves landscape-first Set order, landscape import metadata and matching front/back mapping', () => {
+    const portrait = makeCard({ uniqueId: 'p', template: { id: 'p', name: 'Portrait', aspectRatio: '63:88' } });
+    const landscape = makeCard({ uniqueId: 'l', template: { id: 'l', name: 'Landscape', aspectRatio: '88:63' } });
+    const sheets = createTabletopSimulatorSheets([landscape, portrait, landscape], 'standard');
+    const manifest = createTabletopSimulatorManifest(sheets, [
+      { sheetIndex: 0, cardWidthPx: 572, cardHeightPx: 409 },
+      { sheetIndex: 1, cardWidthPx: 409, cardHeightPx: 572 },
+      { sheetIndex: 2, cardWidthPx: 572, cardHeightPx: 409 },
+    ]);
+    expect(manifest.sheets.map((sheet) => sheet.sideways)).toEqual([true, false, true]);
+    expect(manifest.sheets.map((sheet) => sheet.cards[0].uniqueId)).toEqual(['l', 'p', 'l']);
+    expect(manifest.sheets.map((sheet) => sheet.cards[0].sourceIndex)).toEqual([1, 2, 3]);
+    expect(manifest.sheets.map((sheet) => sheet.cards[0].number)).toEqual([1, 1, 1]);
   });
 
   it('rejects an authored front/back shape mismatch without silently scaling either face', () => {

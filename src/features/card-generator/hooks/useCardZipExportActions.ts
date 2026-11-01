@@ -410,6 +410,7 @@ export function useCardZipExportActions({
           'Import sheets in their numbered order to preserve the authored card order across portrait, landscape and square cards.',
           'When a back PNG is present, use it as Back and enable Unique Backs so each card keeps its corresponding back.',
           'Enable Back is Hidden to use the back instead of the reserved last face-grid slot.',
+          'Set Sideways for landscape sheets (see sideways per sheet in the manifest); TTS uses that setting for landscape ALT zoom.',
           'The JSON manifest lists each card slot, original Set position and CardForge ID.',
           ...(canExportClean ? [] : ['This free-tier proof export includes the CardForge watermark on every card face.']),
         ].join('\n')
