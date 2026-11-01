@@ -318,9 +318,27 @@ test('@golden delayed first Save keeps newer edits and permits subsequent Icon s
  await page.getByRole('button',{name:'Use selection',exact:true}).click();
  await expect(page.getByText('Current icon: Star')).toBeVisible();
  await expect(editor).toHaveText('Newer authored draft');
+ const firstSaved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');
+ expect(firstSaved.id).toBe('synthetic-fork');
+ expect(firstSaved.freeformCanvas.elements.find((e:{type:string})=>e.type==='text').content).toBe('Saved fork snapshot');
+ // The first Save intentionally left the parent pointing at the old draft
+ // while newer edits continued. A second same-ID Save must not consume the
+ // pending draft→persisted identity acknowledgment before parent synchronization.
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();
+ await page.getByRole('button',{name:'Finish local Save'}).click();
+ await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ await expect(editor).toHaveText('Newer authored draft');
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Undo',exact:true}).first()).toBeEnabled();
+ await page.getByRole('button',{name:'Undo',exact:true}).first().click();
+ await expect(page.getByText('Current icon: Sparkles')).toBeVisible();
+ await expect(editor).toHaveText('Newer authored draft');
+ await page.getByRole('button',{name:'Redo',exact:true}).first().click();
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
  const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');
  expect(saved.id).toBe('synthetic-fork');
- expect(saved.freeformCanvas.elements.find((e:{type:string})=>e.type==='text').content).toBe('Saved fork snapshot');
+ expect(saved.freeformCanvas.elements.find((e:{type:string})=>e.type==='text').content).toBe('Newer authored draft');
 });
 
 test('@golden structured-row creation and multi-field mode changes are atomic Template history operations',async({page})=>{
