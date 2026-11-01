@@ -189,10 +189,11 @@ CREATE OR REPLACE FUNCTION public.cardforge_rebalance_contributor_asset_pipeline
 AS $function$
 declare
   changed_count integer := 0;
-  entry_clock timestamptz := clock_timestamp();
+  entry_clock timestamptz;
   submission_id uuid;
 begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('cardforge-contributor-pipeline', 0));
+  entry_clock := clock_timestamp();
 
   with totals as (
     select submission.id,
