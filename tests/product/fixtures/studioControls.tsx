@@ -4,6 +4,9 @@ import { prepareTemplateForLibrarySave } from '@/features/template-editor/client
 import { CardTemplateMaker } from '@/features/template-editor/components/CardTemplateMaker';
 import { EnvironmentToolLayer } from '@/features/app-shell/environment/components/EnvironmentToolLayer';
 import { LibraryPickerDialog } from '@/features/library-picker/components/LibraryPickerDialog';
+import { TemplateAssetLibraryPicker } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
+import type { CardAssetOption } from '@/domain/templates';
+import type { PersonalLibraryItem } from '@/features/personal-library/client';
 import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import { initializeCardDataFromTemplate } from '@/features/card-generator/client';
 import { renderCardToPngBlob } from '@/features/card-generator/lib/cardPreviewExport';
@@ -148,6 +151,46 @@ function RetainedIconUnmountProof() {
     {mounted?<MountedRetainedIcon/>:null}
   </>;
 }
+function DelayedPersonalIconContextProof() {
+  const base: TCGCardTemplate = {
+    ...initial, id:'personal-A',
+    freeformCanvas:{width:630,height:880,elements:[
+      {id:'icon',type:'icon',name:'Icon',iconName:'Star',x:10,y:10,width:72,height:72,zIndex:1},
+      {id:'neighbor',type:'text',name:'Neighbor',content:'Keep neighbor',x:180,y:30,width:120,height:35,zIndex:2},
+    ]},
+  };
+  const controller=useTemplateEditorController(base);
+  const item:PersonalLibraryItem={
+    id:'personal-art',provider:'google-drive',providerFileId:'synthetic-file',providerRevision:'1',
+    displayName:'Delayed personal SVG',mimeType:'image/svg+xml',role:'icon',byteSize:300,
+    providerModifiedAt:'2026-01-01T00:00:00.000Z',providerWebViewLink:null,
+    contentHash:null,lastVerifiedAt:'2026-01-01T00:00:00.000Z',
+    createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-01-01T00:00:00.000Z',
+  };
+  const asset:CardAssetOption={
+    id:'materialized-art',name:'Delayed personal SVG',url:'/asymmetric.svg',kind:'icon',
+    librarySource:'local',tileMode:'contain',seamless:false,allowedTargets:['icon'],
+  };
+  return <>
+    <TemplateAssetLibraryPicker assets={[]} applicationTemplateId={controller.currentTemplate.id}
+      kind="icon" label="an icon" personalItems={[item]} personalRoles={['icon']}
+      providerRole="icon" target={{kind:'template-element',ids:['icon']}}
+      onAddFromProvider={async()=>undefined}
+      onMaterializePersonal={async()=>{
+        // The original A confirmation has already begun; B intentionally reuses
+        // the selected Icon id while materialization is awaiting completion.
+        controller.resetTemplate({...base,id:'personal-B'});
+        await Promise.resolve();
+        return asset;
+      }}
+      onApply={(chosen,signal,expectedId)=>controller.applyIconSelection('icon',{
+        iconName:undefined,iconImageSource:chosen.url,iconRenderMode:'original',
+      },signal,expectedId)}
+    />
+    <output data-testid="personal-context-template">{controller.currentTemplate.id}</output>
+    <output data-testid="personal-context-icon">{JSON.stringify(controller.selectedElement)}</output>
+  </>;
+}
 function ControllerIconApplicationProof() {
   const source: TCGCardTemplate = {
     ...initial, id: 'icon-confirmation-proof',
@@ -193,7 +236,8 @@ function ControllerIconApplicationProof() {
 }
 const params = new URLSearchParams(location.search);
 createRoot(document.body.appendChild(document.createElement('div'))).render(
-  params.has('retainedIcon') ? <RetainedIconUnmountProof/>
+  params.has('delayedPersonal') ? <DelayedPersonalIconContextProof/>
+  : params.has('retainedIcon') ? <RetainedIconUnmountProof/>
   : params.has('pickerSession') ? <PickerSessionProof/>
   : params.has('iconAcknowledgment') ? <ControllerIconApplicationProof/>
   : params.has('controllerBatch') ? <ControllerBatchProof/>
