@@ -430,6 +430,28 @@ for(const failEarlier of [false,true])test(`@golden dismissed Icon chooser ignor
  await expect(page.getByText('Previous session failed')).toHaveCount(0);
 });
 
+test('@golden delayed personal materialization cannot apply A Icon to B with same element id',async({page})=>{
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?delayedPersonal=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await expect(page.getByTestId('personal-context-template')).toHaveText('personal-A');
+ await page.getByRole('button',{name:'Choose from Library'}).click();
+ await page.getByRole('option',{name:/Delayed personal SVG/}).click();
+ await page.getByRole('button',{name:'Use selection'}).click();
+ await expect(page.getByTestId('personal-context-template')).toHaveText('personal-B');
+ await expect(page.getByRole('dialog',{name:/Choose an icon/})).toBeVisible();
+ await expect(page.getByRole('alert')).toContainText('selected Icon was not applied');
+ const element=JSON.parse(await page.getByTestId('personal-context-icon').textContent()||'{}');
+ expect(element).toMatchObject({id:'icon',iconName:'Star'});
+ expect(element.iconImageSource).toBeUndefined();
+});
+
 test('@golden retained same-value Icon confirmation rejects after editor unmount', async ({page}) => {
  await page.route('**/*',route=>{
   const url=new URL(route.request().url());
