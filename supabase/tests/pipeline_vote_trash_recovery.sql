@@ -165,7 +165,11 @@ begin
  select shared_metadata into public_metadata from public.cardforge_list_contributor_asset_submission_ids('free-viewer','shared','',null,null,null,'all',true,1,50,'trashed') where submission_id=current_id;
  if public_metadata->>'id' is distinct from current_id::text
  or public_metadata->>'ownedByViewer' is distinct from 'false'
- or (select count(*) from jsonb_object_keys(public_metadata)) is distinct from 15::bigint
+ or (select count(*) from jsonb_object_keys(public_metadata)) is distinct from 19::bigint
+ or public_metadata-array['id','lineageId','assetType','name','description','status','revisionNumber','trashedAt','purgeAfter','trashActorRole','trashPreviousStatus','publicationRetained','positiveVotes','negativeVotes','ownedByViewer','catalogTrashedAt','catalogPurgeAfter','catalogRetentionHold','catalogSubmissionId']<>'{}'::jsonb
+ or public_metadata->>'catalogTrashedAt' is not null or public_metadata->>'catalogPurgeAfter' is not null
+ or public_metadata->'catalogRetentionHold' is distinct from 'false'::jsonb
+ or public_metadata->>'catalogSubmissionId' is distinct from current_id::text
  or public_metadata ?| array['source_payload','source_url','contributor_id','contributor_email','owner_note']
  then raise exception 'shared_trash_metadata_not_exact_or_private_payload_exposed: %',public_metadata; end if;
 
