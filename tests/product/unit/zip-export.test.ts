@@ -225,6 +225,27 @@ describe('zip export helpers', () => {
     expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: 631, height: 880 }, 3, 'front')).not.toThrow();
   });
 
+  it.each(['standard', 'high-detail'] as const)(
+    'accepts normal 120×40 mm wide-format cell rounding in %s while rejecting a different shape',
+    (quality) => {
+      const sourceWidth = Math.round(120 / 25.4 * getTabletopSimulatorExportProfile(quality).dpi);
+      const sourceHeight = Math.round(40 / 25.4 * getTabletopSimulatorExportProfile(quality).dpi);
+      const grid = getTabletopSimulatorExportPreset(quality).grid;
+      const cell = getTabletopSimulatorCardCellSize(sourceWidth, sourceHeight, grid);
+      if (quality === 'standard') {
+        expect({ sourceWidth, sourceHeight }).toEqual({ sourceWidth: 780, sourceHeight: 260 });
+        expect({ width: cell.cardWidthPx, height: cell.cardHeightPx }).toEqual({ width: 409, height: 136 });
+        // 779px is also a legitimate source-raster rounding variant.
+        expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: 779, height: 260 }, 0, 'front')).not.toThrow();
+      }
+      expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: sourceWidth, height: sourceHeight }, 0, 'front')).not.toThrow();
+      expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: sourceHeight, height: sourceWidth }, 1, 'back'))
+        .toThrow(/Card 2 back pixels do not match/);
+      expect(cell.sheetWidthPx).toBeLessThanOrEqual(4096);
+      expect(cell.sheetHeightPx).toBeLessThanOrEqual(4096);
+    }
+  );
+
   it('keeps large Tabletop Simulator sheets inside the recommended texture boundary', () => {
     const cell = getTabletopSimulatorCardCellSize(3012, 3897);
 

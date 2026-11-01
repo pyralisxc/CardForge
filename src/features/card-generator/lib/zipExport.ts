@@ -248,8 +248,8 @@ export const createPrintProductionManifest = (
   }),
 });
 
-// Allows raster rounding and near-identical authored formats, but never an
-// orientation or meaningful shape change. The same guard applies to real pixels.
+// Authored format compatibility is independent of raster rounding. A meaningful
+// format change starts a new contiguous sheet rather than stretching artwork.
 export const areTabletopSimulatorAspectRatiosCompatible = (
   firstWidth: number, firstHeight: number, nextWidth: number, nextHeight: number
 ): boolean => (
@@ -263,9 +263,21 @@ export const assertTabletopSimulatorRenderedFaceAspect = (
   sourceIndex: number,
   face: 'front' | 'back',
 ): void => {
-  if (!areTabletopSimulatorAspectRatiosCompatible(
-    cell.cardWidthPx, cell.cardHeightPx, bitmap.width, bitmap.height
-  )) {
+  // The 4K sheet helper floors both scaled cell dimensions (up to one
+  // pixel lost on each axis). The source raster also rounds each dimension
+  // to the nearest pixel. Accept only aspect intervals that can overlap
+  // under those two quantizations; a fixed ratio epsilon rejects valid
+  // wide cards such as 779×260 -> 409×136.
+  const cellMinRatio = cell.cardWidthPx / (cell.cardHeightPx + 1);
+  const cellMaxRatio = (cell.cardWidthPx + 1) / cell.cardHeightPx;
+  const bitmapMinRatio = (bitmap.width - 0.5) / (bitmap.height + 0.5);
+  const bitmapMaxRatio = (bitmap.width + 0.5) / (bitmap.height - 0.5);
+  if (
+    cell.cardWidthPx <= 0 || cell.cardHeightPx <= 0
+    || bitmap.width <= 0 || bitmap.height <= 0
+    || bitmap.height <= 0.5
+    || bitmapMaxRatio < cellMinRatio || bitmapMinRatio > cellMaxRatio
+  ) {
     throw new Error(`Card ${sourceIndex + 1} ${face} pixels do not match this TTS sheet's proportions. No ZIP was exported; verify the authored face format.`);
   }
 };
