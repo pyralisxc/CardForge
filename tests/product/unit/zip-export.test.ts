@@ -4,6 +4,8 @@ import type { DisplayCard } from '@/domain/rendering';
 import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 
 import {
+  areTabletopSimulatorAspectRatiosCompatible,
+  assertTabletopSimulatorRenderedFaceAspect,
   createCardZipExportItems,
   createPrintProductionManifest,
   createTabletopSimulatorSheets,
@@ -156,6 +158,95 @@ describe('zip export helpers', () => {
       renderDpi: 330,
     });
   });
+
+  it.each(['standard', 'high-detail'] as const)('keeps mixed-format %s sheets contiguous without reordering cards', (quality) => {
+    const sizes = ['63:88', '88:63', '63:88', '100:100', '100:100', '63:88'];
+    const cards = sizes.map((aspectRatio, index) => makeCard({
+      uniqueId: `order-${index + 1}`,
+      template: { id: `face-${index}`, name: 'Face', aspectRatio },
+    }));
+    const sheets = createTabletopSimulatorSheets(cards, quality);
+    expect(sheets.map((sheet) => sheet.cards.map((entry) => entry.sourceIndex))).toEqual([[0], [1], [2], [3, 4], [5]]);
+    expect(sheets.flatMap((sheet) => sheet.cards.map((entry) => entry.card.uniqueId))).toEqual(cards.map((card) => card.uniqueId));
+    expect(sheets.every((sheet) => sheet.cards.every((entry, index) => entry.sheetCardIndex === index))).toBe(true);
+    const manifest = createTabletopSimulatorManifest(sheets, sheets.map((sheet) => ({
+      sheetIndex: sheet.sheetIndex, cardWidthPx: 300, cardHeightPx: 400,
+    })));
+    expect(manifest.sheets.flatMap((sheet) => sheet.cards.map((entry) => entry.sourceIndex))).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(manifest.sheets.every((sheet) => sheet.cards.length <= getTabletopSimulatorExportPreset(quality).grid.cardsPerSheet)).toBe(true);
+  });
+
+  it.each(['standard', 'high-detail'] as const)('keeps same-ratio sizes and correct back slots in %s', (quality) => {
+    const card = makeCard({ backingTemplate: {
+      id: 'matching-back', name: 'Back', aspectRatio: '63:88', templateUsage: 'back-preset',
+      freeformCanvas: { width: 630, height: 880, elements: [] },
+    } });
+    const cards = Array.from({ length: quality === 'standard' ? 70 : 20 }, (_, index) => makeCard({
+      ...card, uniqueId: `card-${index + 1}`,
+      template: { id: `face-${index}`, name: 'Face', aspectRatio: index % 2 ? '126:176' : '63:88' },
+    }));
+    const sheets = createTabletopSimulatorSheets(cards, quality);
+    expect(sheets).toHaveLength(2);
+    expect(sheets[0].hasBacks).toBe(true);
+    expect(sheets[0].cards.length).toBe(getTabletopSimulatorExportPreset(quality).grid.cardsPerSheet);
+    expect(sheets[1].cards[0].sourceIndex).toBe(getTabletopSimulatorExportPreset(quality).grid.cardsPerSheet);
+    expect(areTabletopSimulatorAspectRatiosCompatible(630, 880, 880, 630)).toBe(false);
+    expect(areTabletopSimulatorAspectRatiosCompatible(630, 880, 631, 880)).toBe(true);
+  });
+
+  it('preserves landscape-first Set order, landscape import metadata and matching front/back mapping', () => {
+    const portrait = makeCard({ uniqueId: 'p', template: { id: 'p', name: 'Portrait', aspectRatio: '63:88' } });
+    const landscape = makeCard({ uniqueId: 'l', template: { id: 'l', name: 'Landscape', aspectRatio: '88:63' } });
+    const sheets = createTabletopSimulatorSheets([landscape, portrait, landscape], 'standard');
+    const manifest = createTabletopSimulatorManifest(sheets, [
+      { sheetIndex: 0, cardWidthPx: 572, cardHeightPx: 409 },
+      { sheetIndex: 1, cardWidthPx: 409, cardHeightPx: 572 },
+      { sheetIndex: 2, cardWidthPx: 572, cardHeightPx: 409 },
+    ]);
+    expect(manifest.sheets.map((sheet) => sheet.sideways)).toEqual([true, false, true]);
+    expect(manifest.sheets.map((sheet) => sheet.cards[0].uniqueId)).toEqual(['l', 'p', 'l']);
+    expect(manifest.sheets.map((sheet) => sheet.cards[0].sourceIndex)).toEqual([1, 2, 3]);
+    expect(manifest.sheets.map((sheet) => sheet.cards[0].number)).toEqual([1, 1, 1]);
+  });
+
+  it('rejects an authored front/back shape mismatch without silently scaling either face', () => {
+    const incompatible = makeCard({ backingTemplate: {
+      id: 'square-back', name: 'Square Back', aspectRatio: '1:1', templateUsage: 'back-preset',
+      freeformCanvas: { width: 800, height: 800, elements: [] },
+    } });
+    expect(() => createTabletopSimulatorSheets([incompatible])).toThrow(/Card 1 has a back with a different shape/);
+  });
+
+  it('rejects an incompatible later rendered bitmap before drawing or reporting ZIP success', () => {
+    const cell = getTabletopSimulatorCardCellSize(630, 880);
+    expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: 630, height: 880 }, 0, 'front')).not.toThrow();
+    expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: 880, height: 630 }, 1, 'front'))
+      .toThrow(/Card 2 front pixels do not match this TTS sheet's proportions. No ZIP was exported/);
+    expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: 800, height: 800 }, 2, 'back'))
+      .toThrow(/Card 3 back pixels do not match this TTS sheet's proportions/);
+    expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: 631, height: 880 }, 3, 'front')).not.toThrow();
+  });
+
+  it.each(['standard', 'high-detail'] as const)(
+    'accepts normal 120×40 mm wide-format cell rounding in %s while rejecting a different shape',
+    (quality) => {
+      const sourceWidth = Math.round(120 / 25.4 * getTabletopSimulatorExportProfile(quality).dpi);
+      const sourceHeight = Math.round(40 / 25.4 * getTabletopSimulatorExportProfile(quality).dpi);
+      const grid = getTabletopSimulatorExportPreset(quality).grid;
+      const cell = getTabletopSimulatorCardCellSize(sourceWidth, sourceHeight, grid);
+      if (quality === 'standard') {
+        expect({ sourceWidth, sourceHeight }).toEqual({ sourceWidth: 780, sourceHeight: 260 });
+        expect({ width: cell.cardWidthPx, height: cell.cardHeightPx }).toEqual({ width: 409, height: 136 });
+        // 779px is also a legitimate source-raster rounding variant.
+        expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: 779, height: 260 }, 0, 'front')).not.toThrow();
+      }
+      expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: sourceWidth, height: sourceHeight }, 0, 'front')).not.toThrow();
+      expect(() => assertTabletopSimulatorRenderedFaceAspect(cell, { width: sourceHeight, height: sourceWidth }, 1, 'back'))
+        .toThrow(/Card 2 back pixels do not match/);
+      expect(cell.sheetWidthPx).toBeLessThanOrEqual(4096);
+      expect(cell.sheetHeightPx).toBeLessThanOrEqual(4096);
+    }
+  );
 
   it('keeps large Tabletop Simulator sheets inside the recommended texture boundary', () => {
     const cell = getTabletopSimulatorCardCellSize(3012, 3897);
