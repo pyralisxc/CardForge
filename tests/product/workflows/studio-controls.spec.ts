@@ -446,7 +446,6 @@ test('@golden delayed personal materialization cannot apply A Icon to B with sam
  await page.getByRole('button',{name:'Use selection'}).click();
  await expect(page.getByTestId('personal-context-initial')).toHaveText('personal-B');
  await expect(page.getByTestId('personal-context-template')).toHaveText('personal-B');
- await page.getByRole('button',{name:'Finish personal materialization'}).click();
  await expect(page.getByRole('dialog',{name:/Choose an icon/})).toBeVisible();
  await expect(page.getByRole('alert')).toContainText('selected Icon was not applied');
  const element=JSON.parse(await page.getByTestId('personal-context-icon').textContent()||'{}');
