@@ -280,6 +280,7 @@ test('@golden first persisted Template identity keeps selected Icon and Undo his
  await page.getByRole('button',{name:'Use selection',exact:true}).click();
  await expect(page.getByText('Current icon: Star')).toBeVisible();
  await page.getByRole('button',{name:'Save',exact:true}).click();
+ await expect(page.getByTestId('saved')).toContainText('synthetic-fork');
  const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');
  expect(saved.id).toBe('synthetic-fork');
  await expect(page.getByText('Current icon: Star')).toBeVisible();
