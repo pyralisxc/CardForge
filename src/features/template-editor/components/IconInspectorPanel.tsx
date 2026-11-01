@@ -29,6 +29,7 @@ interface IconInspectorPanelProps {
   buttonClassName: string;
   onApplyPreset: (preset: ElementPresetRecipe) => void;
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
+  onApplyIconSelection: (changes: Pick<FreeformCardElement, 'iconName' | 'iconImageSource' | 'iconRenderMode'>, signal: AbortSignal) => Promise<void>;
   onHandleFileUpload: (event: ChangeEvent<HTMLInputElement>, apply: (dataUri: string) => void) => void;
   onHandleAssetUpload: (event: ChangeEvent<HTMLInputElement>, kind: 'icon') => void;
   personalItems: readonly PersonalLibraryItem[];
@@ -46,6 +47,7 @@ export function IconInspectorPanel({
   buttonClassName,
   onApplyPreset,
   onUpdateElement,
+  onApplyIconSelection,
   onHandleFileUpload,
   onHandleAssetUpload,
   personalItems,
@@ -104,9 +106,9 @@ export function IconInspectorPanel({
             providerRole="icon"
             target={{ kind: 'template-element', ids: [element.id] }}
             onAddFromProvider={onAddFromProvider}
-            onApply={(asset) => onUpdateElement(refilledIcon(asset.url))}
+            onApply={(asset, signal) => onApplyIconSelection(refilledIcon(asset.url), signal)}
             builtInOptions={iconOptions.map((icon) => ({ name: icon, value: icon }))}
-            onApplyBuiltIn={(iconName) => onUpdateElement({ iconName, iconImageSource: undefined, iconRenderMode: undefined })}
+            onApplyBuiltIn={(iconName, signal) => onApplyIconSelection({ iconName, iconImageSource: undefined, iconRenderMode: undefined }, signal)}
             onMaterializePersonal={onMaterializePersonal}
           />
           <Tooltip>
