@@ -56,12 +56,12 @@ describe('Library Picker contract', () => {
   it('applies the exact published SVG URL shown in the picker even when asset IDs repeat', () => {
     const original: CardAssetOption = {
       id: 'arcane-overlay', name: 'Old unbound overlay', kind: 'icon', url: '',
-      librarySource: 'contributor', allowedTargets: ['icon'],
+      librarySource: 'contributor', allowedTargets: ['icon'], tileMode: 'contain', seamless: false,
     };
     const published: CardAssetOption = {
       id: 'arcane-overlay', name: 'Arcane Corner Overlay', kind: 'icon',
       url: 'https://example.com/public/arcane-corner-overlay.svg',
-      librarySource: 'contributor', allowedTargets: ['icon'],
+      librarySource: 'contributor', allowedTargets: ['icon'], tileMode: 'contain', seamless: false,
       publishedSubmissionId: 'published-exact',
     };
     const selected = {
