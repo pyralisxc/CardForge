@@ -69,6 +69,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   // invalidate it and reset from the incoming Template.
   const activeDocumentIdRef = useRef(initialTemplate.id);
   const syncedInitialIdRef = useRef(initialTemplate.id);
+  const acknowledgedSaveIdentityRef = useRef<{ fromId: string; toId: string } | null>(null);
   // One in-flight Icon confirmation owned by this controller, not a second editor store.
   const committedRef = useRef(editorState);
   const controllerAliveRef = useRef(true);
@@ -117,8 +118,19 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
 
 
   useEffect(() => {
-    syncedInitialIdRef.current = initialTemplateRef.current.id;
-    activeDocumentIdRef.current = initialTemplateRef.current.id;
+    const nextId = initialTemplateRef.current.id;
+    const savedIdentity = acknowledgedSaveIdentityRef.current;
+    acknowledgedSaveIdentityRef.current = null;
+    // Persisting the *same* working draft under its new library ID is not
+    // switching to another Template. acceptSavedTemplate already reconciled
+    // every authored history snapshot and the selected layer.
+    const isAcknowledgedPersistence = Boolean(savedIdentity
+      && savedIdentity.fromId === syncedInitialIdRef.current
+      && savedIdentity.toId === nextId
+      && committedRef.current.currentTemplate.id === nextId);
+    syncedInitialIdRef.current = nextId;
+    activeDocumentIdRef.current = nextId;
+    if (isAcknowledgedPersistence) return;
     setEditorState(resetTemplateEditorState(initialTemplateRef.current));
     setCheckedLayerIds([]);
   }, [initialTemplate.id]);
@@ -288,6 +300,13 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   }, []);
 
   const acceptSavedTemplate = useCallback((submitted: TCGCardTemplate, saved: TCGCardTemplate) => {
+    // The only authorized identity handoff is an acknowledged Save for this
+    // same working document. Unrelated navigation retains reset semantics.
+    const workingId = committedRef.current.currentTemplate.id;
+    acknowledgedSaveIdentityRef.current = submitted.id && saved.id && submitted.id !== saved.id
+      && workingId === submitted.id
+      ? { fromId: submitted.id, toId: saved.id }
+      : null;
     setEditorState(previous => acceptSavedTemplateEditorState(previous, submitted, saved));
   }, []);
 
