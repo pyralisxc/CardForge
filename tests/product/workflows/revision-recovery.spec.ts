@@ -104,3 +104,36 @@ test('@golden Owner recovery refreshes native outer revision and deletion afford
   await page.getByRole('button', { name: 'Restore' }).click();
   await expect(page.getByRole('button', { name: 'Delete now (one revision)' })).toHaveCount(0);
 });
+
+
+test('@golden effective catalog Trash restores the exact current catalog before independent historical revision recovery', async ({ page }) => {
+  const calls: string[] = [];
+  const state = { identity: { lineageId: '00000000-0000-4000-8000-000000000003', submissionId: second, registrySubmissionId: second, revisionHighWater: 2 },
+    trashedAt: '2026-11-01T18:00:00Z', purgeAfter: '2026-12-01T18:00:00Z', held: false };
+  await page.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    calls.push(`${route.request().method()} ${path}`);
+    if (path === `/api/pipeline/${second}/catalog-trash`) {
+      const restored = route.request().method() === 'POST';
+      if (restored) expect(route.request().postDataJSON()).toEqual({ action: 'restore', expected: state });
+      return route.fulfill({ json: { name: 'Exact current catalog', state: restored ? { ...state, trashedAt: null, purgeAfter: null } : state,
+        retentionDays: 30, entryReasons: [], reasons: [] } });
+    }
+    if (path === `/api/pipeline/${first}/lifecycle`) return route.fulfill({ json: snapshot(first) });
+    return route.abort();
+  });
+  await page.route('**/__revision-recovery-proof?catalogRecovery=1', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' }));
+  await page.goto('/__revision-recovery-proof?catalogRecovery=1');
+  for (const file of ownerFixture.outputFiles.filter(file => file.path.endsWith('.css'))) await page.addStyleTag({ content: file.text });
+  await page.addScriptTag({ content: ownerFixture.outputFiles.find(file => file.path.endsWith('.js'))!.text });
+  await page.getByRole('button', { name: 'Manage', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Inspect revision recovery' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Refresh recovery state', exact: true }).click();
+  await page.getByRole('button', { name: 'Restore', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Inspect revision recovery' })).toBeVisible();
+  await page.getByRole('button', { name: 'Inspect revision recovery' }).click();
+  await expect(page.getByRole('button', { name: 'Restore', exact: true })).toBeVisible();
+  expect(calls.filter(call => /catalog-trash|lifecycle/.test(call))).toEqual([
+    `GET /api/pipeline/${second}/catalog-trash`, `POST /api/pipeline/${second}/catalog-trash`, `GET /api/pipeline/${first}/lifecycle`,
+  ]);
+});
