@@ -40,6 +40,11 @@ export function useLibraryRevisionQueue({ enabled, query, catalog, catalogLoadin
     return () => controller.abort();
   }, [ready, query, assetType, status, trash, page, requestKey]);
   const program = ready && result?.key === requestKey ? result.program : null;
+  useEffect(() => {
+    if (!program) return;
+    const maxPage = Math.max(1, Math.ceil(program.submissionPage.total / 12));
+    if (page > maxPage) setPosition({ key: filterKey, page: maxPage });
+  }, [program, page, filterKey]);
   const items = useMemo(() => program ? program.submissions.flatMap(submission => projectPipelineLibraryObjects({
     ...program, submissions: [submission], votingQueue: [],
   }, catalog)) : [], [program, catalog]);

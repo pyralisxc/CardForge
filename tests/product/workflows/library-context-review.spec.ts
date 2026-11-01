@@ -324,7 +324,7 @@ for (const width of [390, 1440]) for (const missing of [false, true]) test(`@gol
   await reviewAction.scrollIntoViewIfNeeded();
   const geometry = await reviewAction.evaluate(button => {
     const bounds = button.getBoundingClientRect();
-    const summary = [...button.closest('li')!.querySelectorAll('summary')].find(node => node.textContent === 'Recover or Trash this revision')!;
+    const summary = [...button.closest('li')!.querySelectorAll('summary')].find(node => node.textContent === 'Trash & recovery options')!;
     const recovery = summary.getBoundingClientRect();
     const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
     return { action: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
