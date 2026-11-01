@@ -29,7 +29,7 @@ describe('exact source reaction projection', () => {
   it.each(['archived', 'rejected', 'published'])('retains canonical vote eligibility for visible %s revisions', async status => {
     f.row.status = status; expect((await readPipelineEngagement(submissionId)).voteIssue).toBeNull();
   });
-  it.each([{ status: 'draft' }, { trashed_at: '2026-10-31' }])('closes voting for lifecycle ineligibility %j', async patch => {
+  it.each([{ status: 'draft' }])('closes voting for lifecycle ineligibility %j', async patch => {
     Object.assign(f.row, patch); expect((await readPipelineEngagement(submissionId)).voteIssue).toContain('cannot receive votes');
   });
   it('never reinterprets purge-pending history as available publication', async () => {

@@ -52,6 +52,7 @@ export async function GET(request: Request) {
           includeRegistryRecipePayloads: true,
           submissionQuery: {
             scope: 'all',
+            trash: url.searchParams.get('trash') ?? 'active',
             query: url.searchParams.get('query') ?? '',
             assetType: url.searchParams.get('assetType') ?? 'all',
             status: url.searchParams.get('status') ?? 'all',
@@ -60,6 +61,7 @@ export async function GET(request: Request) {
           },
           votingQuery: {
             scope: 'review',
+            trash: url.searchParams.get('reviewTrash') ?? 'active',
             query: url.searchParams.get('reviewQuery') ?? '',
             assetType: url.searchParams.get('reviewAssetType') ?? 'all',
             status: url.searchParams.get('reviewStatus') ?? 'all',

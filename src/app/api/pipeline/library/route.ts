@@ -11,7 +11,7 @@ import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request?: Request) {
   const timing = createServerTimingTracker();
   try {
     const access = await timing.track('contributor_access', getCurrentPipelineRequestAccess);
@@ -19,7 +19,7 @@ export async function GET() {
     const program = await timing.track('library_program', () => getPipelineLibraryProgramView(
       access.user.id,
       getPipelineContributorIds(access.user.id),
-      { includeRegistryRecipePayloads: access.isOwner },
+      { includeRegistryRecipePayloads: access.isOwner, trash: request ? new URL(request.url).searchParams.get('trash') ?? 'active' : 'active' },
     ));
     const response = createNoStoreJsonResponse({
       ownerAccess: access.ownerAccess,

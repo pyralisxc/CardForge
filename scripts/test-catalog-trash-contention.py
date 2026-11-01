@@ -458,6 +458,7 @@ try:
         return json.loads(session.run(f"select public.cardforge_read_revision_recovery('{recovery_old}','isolated-owner',true)::text;")[-1])['state']
     def recover(action, state):
         return "public.cardforge_change_revision_recovery('isolated-owner',true,'" + action + "','" + json.dumps(state) + "'::jsonb)"
+    a.run(f"update public.cardforge_contributor_asset_submissions set revision_trash_previous_status='voting' where id='{recovery_old}';")
     a.run('select ' + recover('restore', revision_state(a)) + ';')
     observed = revision_state(a)
     a.run('begin;')

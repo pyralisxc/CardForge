@@ -80,7 +80,7 @@ begin
  restored:=public.cardforge_change_revision_recovery('recovery-a',false,'restore',trashed->'state');
  if restored->'state'->>'status'<>'archived' or restored->'state'->>'trashedAt' is not null
    or (select source_payload from public.cardforge_contributor_asset_submissions where id=history) is distinct from payload
-   or (select contributor_lifecycle_state from public.cardforge_contributor_asset_submissions where id=history)<>'retired'
+   or (select contributor_lifecycle_state from public.cardforge_contributor_asset_submissions where id=history) is not null
    or (select contributor_submission_id from public.cardforge_asset_registry where asset_id='recovery-proof')<>current_before
    or (select revision_high_water from public.cardforge_pipeline_asset_lineages where id=lineage)<>highwater
    or (select count(*) from public.cardforge_pipeline_publication_events where lineage_id=lineage)<>published_before
@@ -115,15 +115,14 @@ begin
  trashed:=public.cardforge_change_revision_recovery('recovery-owner',true,'trash',snapshot->'state');
  snapshot:=public.cardforge_read_revision_recovery(other,'recovery-b',false);
  if not (snapshot->'restoreReasons' ? 'owner_recovery_required') then raise exception 'owner_trash_recoverable_by_contributor'; end if;
- -- Recovery of an unpublished submitted record cannot be undone by the
- -- archived-to-Trash projection used by ordinary automatic rebalancing.
+ -- A restored submitted revision re-enters ordinary policy without being
+ -- immediately re-trashed by an identical decision.
  insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status)
  values(recovered_draft,lineage,'recovery-a','icons','Recoverable submitted content','submitted');
  snapshot:=public.cardforge_read_revision_recovery(recovered_draft,'recovery-a',false);
  snapshot:=public.cardforge_change_revision_recovery('recovery-a',false,'trash',snapshot->'state');
  snapshot:=public.cardforge_change_revision_recovery('recovery-a',false,'restore',snapshot->'state');
- update public.cardforge_contributor_asset_submissions set trashed_at=now(),purge_after=now()+interval '30 days',trash_reason='withdrawn'
-   where id=recovered_draft;
+ perform public.cardforge_rebalance_contributor_asset_pipeline(null);
  if (select trashed_at from public.cardforge_contributor_asset_submissions where id=recovered_draft) is not null then
    raise exception 'automatic_projection_retrashed_recovered_content'; end if;
  -- Claim-only proof: no Storage API is invoked by this rollback fixture.
