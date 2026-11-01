@@ -1,4 +1,4 @@
-import { startTransition, useRef, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { prepareTemplateForLibrarySave } from '@/features/template-editor/client';
 import { CardTemplateMaker } from '@/features/template-editor/components/CardTemplateMaker';
@@ -131,7 +131,7 @@ function MountedRetainedIcon() {
     ]},
   };
   const controller = useTemplateEditorController(source);
-  retainedIconCallback = controller.applyIconSelection;
+  useEffect(() => { retainedIconCallback = controller.applyIconSelection; }, [controller.applyIconSelection]);
   return <output data-testid="retained-mounted">mounted</output>;
 }
 function RetainedIconUnmountProof() {
