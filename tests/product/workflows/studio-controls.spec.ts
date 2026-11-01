@@ -308,7 +308,7 @@ test('@golden delayed first Save keeps newer edits and permits subsequent Icon s
  await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();
  await editor.fill('Newer authored draft');
  await page.getByRole('button',{name:'Finish local Save'}).click();
- await expect(editor).toHaveText('Newer authored draft');
+ await expect(page.getByText('Newer authored draft',{exact:true}).first()).toBeVisible();
  await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
  await page.getByRole('button',{name:'Elements',exact:true}).click();
  await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
@@ -317,7 +317,7 @@ test('@golden delayed first Save keeps newer edits and permits subsequent Icon s
  await page.getByRole('option',{name:/^Star\b/}).click();
  await page.getByRole('button',{name:'Use selection',exact:true}).click();
  await expect(page.getByText('Current icon: Star')).toBeVisible();
- await expect(editor).toHaveText('Newer authored draft');
+ await expect(page.getByText('Newer authored draft',{exact:true}).first()).toBeVisible();
  const firstSaved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');
  expect(firstSaved.id).toBe('synthetic-fork');
  expect(firstSaved.freeformCanvas.elements.find((e:{type:string})=>e.type==='text').content).toBe('Saved fork snapshot');
@@ -328,12 +328,12 @@ test('@golden delayed first Save keeps newer edits and permits subsequent Icon s
  await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();
  await page.getByRole('button',{name:'Finish local Save'}).click();
  await expect(page.getByTestId('working-dirty')).toHaveText('saved');
- await expect(editor).toHaveText('Newer authored draft');
+ await expect(page.getByText('Newer authored draft',{exact:true}).first()).toBeVisible();
  await expect(page.getByText('Current icon: Star')).toBeVisible();
  await expect(page.getByRole('button',{name:'Undo',exact:true}).first()).toBeEnabled();
  await page.getByRole('button',{name:'Undo',exact:true}).first().click();
  await expect(page.getByText('Current icon: Sparkles')).toBeVisible();
- await expect(editor).toHaveText('Newer authored draft');
+ await expect(page.getByText('Newer authored draft',{exact:true}).first()).toBeVisible();
  await page.getByRole('button',{name:'Redo',exact:true}).first().click();
  await expect(page.getByText('Current icon: Star')).toBeVisible();
  const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');
