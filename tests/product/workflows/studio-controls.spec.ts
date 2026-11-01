@@ -402,6 +402,37 @@ for (const accountToolLayer of [false, true]) test(`@golden captured unique Arca
 
 
 
+
+test('@golden a dismissed Icon chooser cannot close or show errors in a reopened session', async ({page}) => {
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?pickerSession=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ const open=async()=>{await page.getByRole('button',{name:'Open chooser'}).click();await expect(page.getByRole('dialog',{name:'Choose icon'})).toBeVisible();};
+ await open();
+ await page.getByRole('option',{name:'Test published icon'}).click();
+ await page.getByRole('button',{name:'Use selection'}).click();
+ await page.keyboard.press('Escape');
+ await expect(page.getByRole('dialog',{name:'Choose icon'})).toHaveCount(0);
+ await open();
+ await page.getByRole('button',{name:'Finish earlier success'}).click();
+ await expect(page.getByRole('dialog',{name:'Choose icon'})).toBeVisible();
+ await expect(page.getByRole('alert',{name:'Previous session failed'})).toHaveCount(0);
+ await page.keyboard.press('Escape');
+ await open();
+ await page.getByRole('option',{name:'Test published icon'}).click();
+ await page.getByRole('button',{name:'Use selection'}).click();
+ await page.keyboard.press('Escape');
+ await open();
+ await page.getByRole('button',{name:'Finish earlier failure'}).click();
+ await expect(page.getByRole('dialog',{name:'Choose icon'})).toBeVisible();
+ await expect(page.getByText('Previous session failed')).toHaveCount(0);
+});
 test('@golden Icon acknowledgment resolves only after canonical commit, same-value no history, locked target rejects', async ({page}) => {
  await page.route('**/*',route=>{
   const url=new URL(route.request().url());
