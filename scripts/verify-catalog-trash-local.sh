@@ -141,6 +141,8 @@ psql_local -f "$root/supabase/tests/pipeline_revision_recovery.sql" > "$proof/re
 psql_local -f "$root/supabase/tests/pipeline_vote_trash_recovery.sql" > "$proof/vote-trash-recovery.log" 2>&1 || { cat "$proof/vote-trash-recovery.log"; exit 1; }
 cat "$proof/revision-recovery.log" "$proof/vote-trash-recovery.log"
 psql_local -f "$root/supabase/tests/catalog_trash_dependency_impact.sql" > "$proof/dependency-impact.log" 2>&1 || { cat "$proof/dependency-impact.log"; exit 1; }
+psql_local -f "$root/supabase/tests/catalog_template_fragment_identity.sql" > "$proof/template-fragment-identity.log" 2>&1 || { cat "$proof/template-fragment-identity.log"; exit 1; }
+cat "$proof/template-fragment-identity.log"
 psql_local -f "$root/supabase/tests/effective_pipeline_trash_projection.sql" > "$proof/effective-trash-projection.log" 2>&1 || { cat "$proof/effective-trash-projection.log"; exit 1; }
 psql_local -f "$root/supabase/tests/finite_decimal_template_aspect_ratio.sql" > "$proof/finite-decimal-ratio.log" 2>&1 || { cat "$proof/finite-decimal-ratio.log"; exit 1; }
 cat "$proof/dependency-impact.log"
