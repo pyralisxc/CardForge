@@ -179,6 +179,12 @@ function ControllerIconApplicationProof() {
     <button onClick={()=>controller.updateElement('icon',{locked:false})}>Unlock Icon</button>
     <button onClick={()=>controller.updateElement('icon',{rotation:30})}>Change geometry</button>
     <button onClick={()=>controller.updateCanvas({elements:controller.canvas.elements.filter(element=>element.id!=='icon')})}>Delete Icon</button>
+    <button onClick={()=>{
+      setResult('pending');
+      const pending=controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+      controller.resetTemplate({...source,id:'other-template',freeformCanvas:{...source.freeformCanvas!,elements:source.freeformCanvas!.elements.map(element=>({...element}))}});
+      void pending.then(()=>setResult('incorrect-success')).catch(()=>setResult('rejected'));
+    }}>Switch Template during Icon apply</button>
     <output data-testid="ack-result">{result}</output>
     <output data-testid="ack-history">{controller.history.length}</output>
     <output data-testid="ack-icon">{JSON.stringify(controller.canvas.elements.find(element=>element.id==='icon'))}</output>
