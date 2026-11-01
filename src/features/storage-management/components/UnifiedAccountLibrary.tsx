@@ -44,6 +44,7 @@ import {
 } from '../model/libraryScopes';
 import { useLibraryRevisionQueue } from '../hooks/useLibraryRevisionQueue';
 import { LibraryRevisionQueueControls } from './LibraryRevisionQueueControls';
+import { SharedPipelineTrashCollection } from './SharedPipelineTrashCollection';
 import { LibraryCollection } from './LibraryCollection';
 import {
   LibraryDetailVisual,
@@ -127,6 +128,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const campaignAccess = experience.contributor.canDraftCampaigns || experience.owner;
   const activeScope = resolveLibraryScopeForViewer(scope, { contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
   const shared = useLibrarySharedProjection({ pipelineEnabled: pipelineAccess, activeScope });
+  const [sharedTrashMode, setSharedTrashMode] = useState(false);
   const [revisionMode, setRevisionMode] = useState(false);
   const revisionsEnabled = activeScope === 'pipeline' && experience.owner && isSignedIn && revisionMode;
   const revisionQueue = useLibraryRevisionQueue({ enabled: revisionsEnabled, query: projection.query, catalog: shared.catalog, catalogLoading: shared.catalogLoading, catalogFailure: shared.catalogFailure });
@@ -561,7 +563,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       {activeScope === 'pipeline' && experience.owner && isSignedIn ? <LibraryRevisionQueueControls disabled={Boolean(activeTool)} revisions={revisionsEnabled} queue={revisionQueue} onModeChange={value => { setRevisionMode(value); setSelection(closeEnvironmentDetail); }} /> : null}
       <NewSetDialog renderPublishedSetDetails={set => set.submissionId ? <PipelineSourceDisclosure submissionId={set.submissionId} /> : <p className="text-xs">Exact source reactions are unavailable for this starter.</p>} createOpen={setStarters.createOpen} onCreateOpenChange={setStarters.setCreateOpen} onCreateWork={createSet} onCreatePublishedSet={set => { void setStarters.createFromPublishedSet(set); }} onRetryPublishedSets={setStarters.openCreateMenu} publishedSets={setStarters.publishedSets} publishedSetsLoading={setStarters.publishedSetsLoading} publishedSetsFailure={setStarters.publishedSetsFailure} creatingPublishedSetId={setStarters.creatingPublishedSetId} />
       {campaignExitReason ? <p role="status" className="px-3 py-2 text-sm text-[var(--cf-warning)]">{campaignExitReason}</p> : null}
-      <LibraryCollection
+      {activeScope === 'pipeline' && isSignedIn ? <div className="flex flex-wrap items-center gap-2 px-3 py-2" aria-label="Shared Pipeline discovery">
+        <button type="button" disabled={Boolean(activeTool)} aria-pressed={sharedTrashMode} className="border border-[var(--cf-border)] px-3 py-2 text-sm" onClick={() => { setSharedTrashMode(value => !value); setSelection(closeEnvironmentDetail); }}>
+          {sharedTrashMode ? 'Return to Pipeline' : 'Browse shared Trash'}
+        </button>
+      </div> : null}
+      {activeScope === 'pipeline' && isSignedIn && sharedTrashMode ? <SharedPipelineTrashCollection /> : <LibraryCollection
         onCampaignDirtyChange={setCampaignDirty}
         onCampaignCloseBlockedChange={setCampaignCloseBlocked}
         serverFiltered={revisionsEnabled}
@@ -606,7 +613,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         unfilteredScopeItemCount={unfilteredScopeItemCount}
         viewItems={viewItems}
         votingId={votingId}
-      />
+      />}
       {(activeTool === 'review-manage' || activeTool === 'pipeline-operations' || activeTool === 'revise-existing') ? (
         <EnvironmentToolLayer id="library-pipeline-context" eyebrow="Library Pipeline tool"
           title={activeTool === 'pipeline-operations' ? 'Pipeline operations' : activeTool === 'revise-existing' ? 'Revise existing' : 'Review & manage'}
