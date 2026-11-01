@@ -5,7 +5,7 @@ set local lock_timeout='5s';
 set local statement_timeout='45s';
 do $$
 declare
- a uuid:=gen_random_uuid(); manual uuid:=gen_random_uuid(); private_id uuid:=gen_random_uuid();
+ a uuid:=gen_random_uuid(); sibling uuid:=gen_random_uuid(); manual uuid:=gen_random_uuid(); private_id uuid:=gen_random_uuid();
  l uuid:=gen_random_uuid(); ml uuid:=gen_random_uuid(); pl uuid:=gen_random_uuid();
  snap jsonb; epoch timestamptz; deadline timestamptz; content_version text; total bigint;
 begin
@@ -58,6 +58,20 @@ begin
  perform public.cardforge_rebalance_contributor_asset_pipeline(null);
  if (select trashed_at from public.cardforge_contributor_asset_submissions where id=a) is not null then raise exception 'same_decision_or_unrelated_cap_retrashed_restore'; end if;
  if public.cardforge_media_parent_content_version(a) is distinct from content_version then raise exception 'lifecycle_changed_authored_content_version'; end if;
+ -- Positive preference still moves once within the lineage, including while
+ -- the first exact revision is in Trash. Other authorship never becomes ours.
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,revision_number,source_url,target_registry_asset_id)
+ values(sibling,l,'other-author','icons','Sibling preference proof','voting',2,'https://example.invalid/vote-sibling.svg',(select registry_asset_id from public.cardforge_pipeline_asset_lineages where id=l));
+ perform public.cardforge_cast_contributor_asset_vote(a,'preference-mover','positive');
+ select trashed_at into epoch from public.cardforge_contributor_asset_submissions where id=a;
+ perform public.cardforge_cast_contributor_asset_vote(sibling,'preference-mover','positive');
+ if exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=a and contributor_id='preference-mover' and vote_value='positive')
+ or not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=sibling and contributor_id='preference-mover' and vote_value='positive')
+ or (select trashed_at from public.cardforge_contributor_asset_submissions where id=a) is distinct from epoch
+ then raise exception 'positive_preference_or_retained_epoch_changed_incorrectly'; end if;
+ begin
+ perform public.cardforge_read_revision_recovery(sibling,'trash-author',false); raise exception 'sibling_authorship_granted_recovery';
+ exception when raise_exception then if sqlerrm<>'revision_recovery_not_permitted' then raise; end if; end;
  -- Owner moderation is not undone by votes or Contributor restore.
  snap:=public.cardforge_read_revision_recovery(manual,'owner',true);
  snap:=public.cardforge_change_revision_recovery('owner',true,'trash',snap->'state');
