@@ -381,9 +381,9 @@ test('@golden same-batch SVG source and geometry edits retain both controller up
 });
 
 
-test('@golden captured unique published Arcane catalog selection from existing Star layer', async ({page}) => {
+for (const accountToolLayer of [false, true]) test(`@golden captured unique Arcane catalog selection with ${accountToolLayer ? 'Account Library dirty tool layer' : 'direct Studio fixture'}`, async ({page}) => {
  await page.setViewportSize({width:1440,height:960});
- await mountHistoryProof(page,'?capturedCatalog=1');
+ await mountHistoryProof(page,accountToolLayer?'?capturedCatalog=1&accountToolLayer=1':'?capturedCatalog=1');
  await page.getByRole('button',{name:'Elements',exact:true}).click();
  await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
  const select=async(name:RegExp|string)=>{
