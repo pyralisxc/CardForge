@@ -159,7 +159,9 @@ function DelayedPersonalIconContextProof() {
       {id:'neighbor',type:'text',name:'Neighbor',content:'Keep neighbor',x:180,y:30,width:120,height:35,zIndex:2},
     ]},
   };
-  const controller=useTemplateEditorController(base);
+  const [activeTemplate,setActiveTemplate] = useState(base);
+  const materializeRef = useRef<null | (()=>void)>(null);
+  const controller=useTemplateEditorController(activeTemplate);
   const item:PersonalLibraryItem={
     id:'personal-art',provider:'google-drive',providerFileId:'synthetic-file',providerRevision:'1',
     displayName:'Delayed personal SVG',mimeType:'image/svg+xml',role:'icon',byteSize:300,
@@ -172,15 +174,16 @@ function DelayedPersonalIconContextProof() {
     librarySource:'local',tileMode:'contain',seamless:false,allowedTargets:['icon'],
   };
   return <>
+    <button onClick={()=>materializeRef.current?.()}>Finish personal materialization</button>
+    <output data-testid="personal-context-initial">{activeTemplate.id}</output>
     <TemplateAssetLibraryPicker assets={[]} applicationTemplateId={controller.currentTemplate.id}
       kind="icon" label="an icon" personalItems={[item]} personalRoles={['icon']}
       providerRole="icon" target={{kind:'template-element',ids:['icon']}}
       onAddFromProvider={async()=>undefined}
       onMaterializePersonal={async()=>{
-        // The original A confirmation has already begun; B intentionally reuses
-        // the selected Icon id while materialization is awaiting completion.
-        controller.resetTemplate({...base,id:'personal-B'});
-        await Promise.resolve();
+        // B changes the actual controller initialTemplate prop before A resolves.
+        setActiveTemplate({...base,id:'personal-B'});
+        await new Promise<void>(resolve => { materializeRef.current = resolve; });
         return asset;
       }}
       onApply={(chosen,signal,expectedId)=>controller.applyIconSelection('icon',{
