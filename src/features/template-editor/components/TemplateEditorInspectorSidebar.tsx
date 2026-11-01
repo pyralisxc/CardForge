@@ -134,6 +134,7 @@ export function TemplateEditorInspectorSidebar({
               buttonClassName={makerTheme.button}
               onApplyPreset={elements.applyElementPresetRecipe}
               onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+              onApplyIconSelection={(changes, signal) => controller.applyIconSelection(selectedElement.id, changes, signal)}
               onHandleFileUpload={commands.handleFileUpload}
               onHandleAssetUpload={elements.handleAssetUpload}
               personalItems={elements.connectedLibraryItems}
