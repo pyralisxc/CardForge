@@ -503,15 +503,22 @@ try:
     vote_worker.start()
     wait_deadline = time.monotonic() + 5
     while True:
-        # pg_stat_activity is cached within the holding transaction. Invalidate
-        # only that observation snapshot so a later advisory wait is visible.
-        waiting = a.run(f"select pg_stat_clear_snapshot(); select coalesce(wait_event,'none') from pg_stat_activity where pid={peer_pid};")[-1]
-        if waiting == 'advisory':
-            assert a.run(f"select pg_backend_pid()=any(pg_blocking_pids({peer_pid}));")[-1] == 't', 'vote blocked behind a different transaction'
+        # Observe the lock manager directly under service_role. Activity fields
+        # for another postgres-owned backend can be NULL without stats grants;
+        # neither a missing wait_event nor a timer proves serialization.
+        waiting = a.run(f"""select exists(
+          select 1 from pg_locks pending join pg_locks holder
+            on holder.locktype=pending.locktype and holder.database=pending.database
+              and holder.classid=pending.classid and holder.objid=pending.objid
+              and holder.objsubid=pending.objsubid
+          where pending.pid={peer_pid} and pending.locktype='advisory' and not pending.granted
+            and holder.pid=pg_backend_pid() and holder.granted)
+          and pg_backend_pid()=any(pg_blocking_pids({peer_pid}));""")[-1]
+        if waiting == 't':
             break
         assert not vote_errors, 'vote failed before restore COMMIT: ' + str(vote_errors)
         assert vote_worker.is_alive(), 'vote completed without waiting for restore COMMIT: ' + str(vote_output)
-        assert time.monotonic() < wait_deadline, 'vote did not wait for restore advisory lock; observed ' + waiting
+        assert time.monotonic() < wait_deadline, 'vote did not wait for exact restore advisory lock; observed ' + waiting
         time.sleep(.02)
     a.run('commit;')
     vote_worker.join(timeout=10)
