@@ -36,6 +36,7 @@ import {
 } from '@/domain/templates';
 
 type IconApplication = {
+  phase: 'pending' | 'acknowledged' | 'cancelled';
   templateId: string;
   elementId: string;
   changes: Pick<FreeformCardElement, 'iconName' | 'iconImageSource' | 'iconRenderMode'>;
@@ -69,6 +70,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   const finishIcon = useCallback((request: IconApplication, error?: Error) => {
     if (pendingIconRef.current !== request) return;
     pendingIconRef.current = null;
+    request.phase = error ? 'cancelled' : 'acknowledged';
     request.signal?.removeEventListener('abort', request.abort);
     if (error) request.reject(error);
     else request.resolve();
@@ -225,7 +227,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     if (matchesIconApplication(current, changes)) return Promise.resolve();
     return new Promise<void>((resolve, reject) => {
       const request: IconApplication = {
-        templateId: state.currentTemplate.id!, elementId, changes, resolve, reject, signal,
+        phase: 'pending', templateId: state.currentTemplate.id!, elementId, changes, resolve, reject, signal,
         abort: () => finishIcon(request, iconApplyCancellation()),
       };
       pendingIconRef.current = request;
@@ -234,8 +236,14 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
       // controller state. Return a new envelope for rejected/no-op updates so
       // missing/locked targets are also checked without adding history or dirt.
       setEditorState(previous => {
-        if (!controllerAliveRef.current || pendingIconRef.current !== request || signal?.aborted
-          || previous.currentTemplate.id !== request.templateId
+        // React can replay this updater when a lower-priority change rebases.
+        // An acknowledged commit must remain replayable even after picker close
+        // aborts its signal or clears the pending pointer. Only an uncommitted
+        // cancellation may suppress the write.
+        const active = request.phase === 'acknowledged'
+          || (request.phase === 'pending' && controllerAliveRef.current
+            && pendingIconRef.current === request && !signal?.aborted);
+        if (!active || previous.currentTemplate.id !== request.templateId
           || previous.selectedElementId !== elementId) return { ...previous };
         const canvas = getTemplateEditorCanvas(previous.currentTemplate);
         const element = canvas?.elements.find(candidate => candidate.id === elementId);
