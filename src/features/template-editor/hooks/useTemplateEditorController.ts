@@ -157,9 +157,11 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   }, []);
 
   const resetTemplate = useCallback((template: TCGCardTemplate) => {
+    const pending = pendingIconRef.current;
+    if (pending) finishIcon(pending, iconApplyCancellation());
     setEditorState(resetTemplateEditorState(template));
     setCheckedLayerIds([]);
-  }, []);
+  }, [finishIcon]);
 
   const updateTemplate = useCallback((updates: Partial<TCGCardTemplate>, trackHistory = true) => {
     commitTemplate((template) => ({ ...template, ...updates }), trackHistory);
@@ -282,12 +284,16 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   const finishHistoryGroup = useCallback(() => setEditorState(previous => previous.historyGroup ? { ...previous, historyGroup: undefined } : previous), []);
 
   const undo = useCallback(() => {
+    const pending = pendingIconRef.current;
+    if (pending) finishIcon(pending, iconApplyCancellation());
     setEditorState(undoTemplateEditorState);
-  }, []);
+  }, [finishIcon]);
 
   const redo = useCallback(() => {
+    const pending = pendingIconRef.current;
+    if (pending) finishIcon(pending, iconApplyCancellation());
     setEditorState(redoTemplateEditorState);
-  }, []);
+  }, [finishIcon]);
 
   const setSelectedElementId: Dispatch<SetStateAction<string | null>> = useCallback((nextValue) => {
     setEditorState((previous) => selectTemplateEditorElement(
