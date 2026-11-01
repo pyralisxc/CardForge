@@ -137,8 +137,8 @@ psql_local -f "$root/supabase/tests/pipeline_upload_commitments.sql" > "$proof/u
 psql_local -f "$root/supabase/tests/managed_raster_adoption.sql" > "$proof/raster-adoption.log" 2>&1 || { cat "$proof/raster-adoption.log"; exit 1; } || { cat "$proof/upload-commitments.log"; exit 1; }
 cat "$proof/raster-adoption.log"
 cat "$proof/upload-commitments.log"
-psql_local -f "$root/supabase/tests/pipeline_revision_recovery.sql" > "$proof/revision-recovery.log" 2>&1 || { cat "$proof/revision-recovery.log"; exit 1; }
+psql_local -f "$root/supabase/tests/pipeline_revision_recovery.sql" > "$proof/revision-recovery.log" 2>&1 || { cat "$proof/revision-recovery.log" "$proof/vote-trash-recovery.log"; exit 1; }
 psql_local -f "$root/supabase/tests/pipeline_vote_trash_recovery.sql" > "$proof/vote-trash-recovery.log" 2>&1 || { cat "$proof/vote-trash-recovery.log"; exit 1; }
-cat "$proof/revision-recovery.log"
+cat "$proof/revision-recovery.log" "$proof/vote-trash-recovery.log"
 CARDFORGE_LOCAL_DB_CONTAINER="$cid" python3 "$root/scripts/test-catalog-trash-contention.py" > "$proof/contention.log" 2>&1 || { cat "$proof/contention.log"; exit 1; }
 cat "$proof/fixture.log" "$proof/contention.log"
