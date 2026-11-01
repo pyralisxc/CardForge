@@ -324,17 +324,16 @@ for (const width of [390, 1440]) for (const missing of [false, true]) test(`@gol
   await reviewAction.scrollIntoViewIfNeeded();
   const geometry = await reviewAction.evaluate(button => {
     const bounds = button.getBoundingClientRect();
-    const summary = [...button.closest('li')!.querySelectorAll('summary')].find(node => node.textContent === 'Recover or Trash this revision')!;
+    const summary = [...button.closest('li')!.querySelectorAll('summary')].find(node => node.textContent === 'Trash & recovery options')!;
     const recovery = summary.getBoundingClientRect();
     const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
     return { action: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
       recovery: { x: recovery.x, y: recovery.y, width: recovery.width, height: recovery.height },
       hit: hit?.textContent, reachable: hit === button || button.contains(hit) };
   });
-  console.log('REVISION_RECOVERY_POINTER_GEOMETRY', JSON.stringify(geometry));
   await info.attach('revision-recovery-pointer-geometry', { body: JSON.stringify(geometry), contentType: 'application/json' });
   expect(geometry.reachable).toBe(true);
-  const recoverySummary = reviewAction.locator('xpath=ancestor::li[1]').getByText('Recover or Trash this revision', { exact: true });
+  const recoverySummary = reviewAction.locator('xpath=ancestor::li[1]').getByText('Trash & recovery options', { exact: true });
   await recoverySummary.click();
   await expect(reviewAction.locator('xpath=ancestor::li[1]').getByRole('button', { name: 'Inspect revision recovery' })).toBeVisible();
   await recoverySummary.click();
@@ -806,4 +805,29 @@ for (const editing of [false, true]) test(`@golden Campaign package pristine and
   await page.getByRole('searchbox', { name: 'Search campaigns' }).fill('independent view change');
   await expect(create).toBeEnabled(); await expect(title).toHaveValue(initial);
   expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const denied of [false, true]) test(`@golden signed-in shared Trash exact Contributor controls (denied=${denied})`, async ({ page }) => {
+  const evidence = await mount(page, `?queueActual=1&scope=pipeline&sharedTrashProof=1${denied ? '&sharedDenied=1' : ''}`);
+  await page.getByRole('button', { name: 'Browse shared Trash' }).click();
+  await expect(page.getByText('Recoverable shared card back')).toBeVisible();
+  await expect(page.getByText('Shared contribution · In Trash')).toBeVisible();
+  await expect(page.getByText('Recovery deadline', { exact: false })).toBeVisible();
+  await expect(page.getByText('Publication history remains retained', { exact: false })).toBeVisible();
+  await expect(page.getByText('private draft secret')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Manage exact revision' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Exact voting & recovery options' }).click();
+  await expect(page.getByLabel('Pipeline source feedback')).toBeVisible();
+  await expect(page.getByLabel('Revision recovery')).toBeVisible();
+  await page.getByRole('button', { name: 'Inspect revision recovery' }).click();
+  await expect(page.getByRole('button', { name: 'Restore' })).toBeDisabled();
+  if (denied) {
+    await expect(page.getByRole('button', { name: 'Like 2' })).toBeDisabled();
+  } else {
+    await page.getByRole('button', { name: 'Like 2' }).click();
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { libraryRequests: Array<{ url: string; method: string }> }).libraryRequests.filter(value => value.url.includes('/api/pipeline/library?scope=shared&trash=trashed')).length)).toBeGreaterThan(1);
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { libraryRequests: Array<{ url: string; method: string; body?: string }> }).libraryRequests.some(value => value.url.endsWith('/vote') && value.body?.includes('positive')))).toBe(true);
+  }
+  expect(evidence.errors).toEqual([]);
+  expect(evidence.mutations.filter(value => value.includes('/lifecycle'))).toEqual([]);
 });

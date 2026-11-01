@@ -40,11 +40,11 @@ test('@golden revision recovery fences pending reads across exact target and acc
   release!();
   await expect(page.getByRole('status')).toHaveCount(0);
   await page.getByRole('button', { name: 'Inspect revision recovery' }).click();
-  await expect(page.getByRole('button', { name: 'Restore revision to history' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Restore' })).toBeEnabled();
   await expect(page.getByText('Recovering this record does not prove its source bytes are present.', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Switch account' }).click();
   await expect(page.getByRole('status')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Restore revision to history' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Restore' })).toHaveCount(0);
 });
 test('@golden revision recovery requires a new read after uncertainty and ignores old account mutation receipts', async ({ page }) => {
   let posts = 0;
@@ -62,12 +62,12 @@ test('@golden revision recovery requires a new read after uncertainty and ignore
   });
   await mount(page);
   await page.getByRole('button', { name: 'Inspect revision recovery' }).click();
-  await page.getByRole('button', { name: 'Restore revision to history' }).click();
+  await page.getByRole('button', { name: 'Restore' }).click();
   await expect(page.getByRole('alert')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Restore revision to history' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Restore' })).toHaveCount(0);
   expect(posts).toBe(1);
   await page.getByRole('button', { name: 'Inspect revision recovery' }).click();
-  await page.getByRole('button', { name: 'Restore revision to history' }).click();
+  await page.getByRole('button', { name: 'Restore' }).click();
   await page.getByRole('button', { name: 'Switch account' }).click();
   release!();
   await expect(page.getByRole('status')).toHaveCount(0);
@@ -101,6 +101,6 @@ test('@golden Owner recovery refreshes native outer revision and deletion afford
   page.on('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Move revision to Trash' }).click();
   await expect(page.getByRole('button', { name: 'Delete now (one revision)' })).toBeVisible();
-  await page.getByRole('button', { name: 'Restore revision to history' }).click();
+  await page.getByRole('button', { name: 'Restore' }).click();
   await expect(page.getByRole('button', { name: 'Delete now (one revision)' })).toHaveCount(0);
 });
