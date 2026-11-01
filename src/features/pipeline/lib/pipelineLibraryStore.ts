@@ -1,7 +1,5 @@
-import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { PipelineStoreError } from './pipelineStoreError';
 import { buildPipelineProgramView, type SharedPipelineTrashPage, type PipelineProgramView } from './pipelineProgram';
-import { fetchPipelineSubmissionPage } from './pipelineProjections';
+import { fetchPipelineSubmissionPage, fetchSharedPipelineTrashMetadataPage } from './pipelineProjections';
 import { getPipelineProgramContext } from './pipelineStore';
 
 type ProgramContext = Awaited<ReturnType<typeof getPipelineProgramContext>>;
@@ -103,23 +101,7 @@ export const getOwnPublishedPipelineSubmissions = async (
   return [firstPage, ...remaining].flatMap((page) => page.submissions);
 };
 
-export const getSharedPipelineTrashPage = async (
+export const getSharedPipelineTrashPage = (
   currentUserId: string,
   query: Omit<import('./pipelineProjections').PipelineListQuery, 'scope' | 'trash'> = {},
-): Promise<SharedPipelineTrashPage> => {
-  // The native shared scope rejects private/unknown rows before counts and
-  // pagination. No Contributor enrollment or reviewer scope is required to read.
-  if (!getSupabaseServerClient()) throw new PipelineStoreError('Shared Pipeline Trash is unavailable.', 503);
-  const result = await fetchPipelineSubmissionPage({
-    currentUserId, profiles: [], includeRegistryRecipePayloads: false, allowSelfVoting: true,
-    query: { ...query, scope: 'shared', trash: 'trashed' },
-  });
-  return { total: result.total, page: result.page, pageSize: result.pageSize, items: result.submissions.map(row => ({
-    ownedByViewer: row.contributorId === currentUserId,
-    id: row.id, lineageId: row.lineageId, assetType: row.assetType, name: row.name,
-    description: row.description, status: row.status, revisionNumber: row.revisionNumber,
-    trashedAt: row.trashedAt, purgeAfter: row.purgeAfter, trashActorRole: row.trashActorRole,
-    trashPreviousStatus: row.trashPreviousStatus, publicationRetained: row.publicationRetained,
-    positiveVotes: row.positiveVotes, negativeVotes: row.negativeVotes,
-  })) };
-};
+): Promise<SharedPipelineTrashPage> => fetchSharedPipelineTrashMetadataPage(currentUserId, query);

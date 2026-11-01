@@ -25,6 +25,8 @@ describe('server-owned Trash paging', () => {
     expect(isPipelineRevisionVisibleToContributor({ ...row, viewerId: 'author' })).toBe(true);
     expect(isPipelineRevisionVisibleToContributor({ ...row, owner: true })).toBe(true);
     expect(isPipelineRevisionVisibleToContributor({ ...row, trashPreviousStatus: 'voting' })).toBe(true);
+    expect(isPipelineRevisionVisibleToContributor({ ...row, status: 'rejected', trashPreviousStatus: 'voting' })).toBe(true);
+    expect(isPipelineRevisionVisibleToContributor({ ...row, status: 'rejected', trashedAt: null, trashPreviousStatus: 'voting' })).toBe(false);
     expect(isSharedPipelineTrash({ ...row, publicationRetained: true })).toBe(true);
     expect(isPipelineRevisionVisibleToContributor({ ...row, status: 'submitted', trashedAt: null, trashPreviousStatus: 'draft' })).toBe(true);
   });

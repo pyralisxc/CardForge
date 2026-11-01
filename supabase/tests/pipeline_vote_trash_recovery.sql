@@ -3,6 +3,7 @@ begin;
 set local role service_role;
 set local lock_timeout='5s';
 set local statement_timeout='45s';
+savepoint feedback_recovery_fixture;
 do $$
 declare
  a uuid:=gen_random_uuid(); sibling uuid:=gen_random_uuid(); manual uuid:=gen_random_uuid(); private_id uuid:=gen_random_uuid();
@@ -76,6 +77,12 @@ begin
  snap:=public.cardforge_read_revision_recovery(manual,'owner',true);
  snap:=public.cardforge_change_revision_recovery('owner',true,'trash',snap->'state');
  epoch:=(snap->'state'->>'trashedAt')::timestamptz;
+ -- A known shared revision stays browseable/votable even when Owner moderation
+ -- marks its independent review status rejected. No restore authority is granted.
+ update public.cardforge_contributor_asset_submissions set status='rejected',owner_status_override='rejected' where id=manual;
+ if not exists(select 1 from public.cardforge_list_contributor_asset_submission_ids('free-viewer','shared','',null,null,null,'all',true,1,50,'trashed') where submission_id=manual)
+ then raise exception 'owner_rejected_shared_trash_not_browseable'; end if;
+
  perform public.cardforge_cast_contributor_asset_vote(manual,'positive-one','positive');
  perform public.cardforge_cast_contributor_asset_vote(manual,'positive-two','positive');
  if (select trashed_at from public.cardforge_contributor_asset_submissions where id=manual) is distinct from epoch then raise exception 'votes_reversed_owner_trash'; end if;
@@ -107,13 +114,23 @@ begin
  raise notice 'PASS vote Trash: shared feedback, 30-day epoch, retry stability, hold, automatic and own recovery, Owner moderation, private query/vote/heart isolation and content-version stability';
 end $$;
 
+-- Discard only the preceding synthetic records, including its intentionally
+-- incomplete private Template. It must not become an opaque consumer of the
+-- independent current-publication fixture; production admission stays strict.
+rollback to savepoint feedback_recovery_fixture;
+release savepoint feedback_recovery_fixture;
+
 -- Qualifying negative feedback may retire an eligible exact current publication;
 -- retained consumers, newer publications and physical-retention fences survive.
 do $$
 declare l uuid:=gen_random_uuid(); current_id uuid:=gen_random_uuid(); newer_id uuid:=gen_random_uuid();
  asset text:='vote-current-'||gen_random_uuid()::text; original_date timestamptz:=now()-interval '2 days';
- events_before integer;
+ events_before integer; public_metadata jsonb;
 begin
+ if exists(select 1 from public.cardforge_asset_registry) or exists(select 1 from public.cardforge_contributor_asset_submissions) then raise exception 'current_vote_fixture_requires_isolated_empty_inventory'; end if;
+ update public.cardforge_contributor_program_settings set minimum_votes_for_grading=2,
+ free_asset_minimum_positive_vote_percent=50,paid_asset_minimum_positive_vote_percent=75,
+ review_minimum_age_days=0,trash_retention_days=30 where id='default';
  insert into public.cardforge_pipeline_asset_lineages(id,registry_asset_id,revision_high_water) values(l,asset,1);
  insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source)
  values(asset,'Vote current proof','icon','https://example.invalid/vote-current.svg','published','free','contributor');
@@ -121,7 +138,7 @@ begin
  editorial_review_status,calculated_access_tier,registry_asset_id,target_registry_asset_id,revision_number,published_at,source_url)
  values(current_id,l,'current-author','icons','Vote current proof','published','approved','free',asset,asset,1,original_date,'https://example.invalid/vote-current.svg');
  update public.cardforge_asset_registry set contributor_submission_id=current_id where asset_id=asset;
- if cardinality(public.cardforge_catalog_trash_entry_reasons(l))<>0 then raise exception 'current_vote_fixture_not_safely_retirable'; end if;
+ if cardinality(public.cardforge_catalog_trash_entry_reasons(l))<>0 then raise exception 'current_vote_fixture_not_safely_retirable: %',public.cardforge_catalog_trash_entry_reasons(l); end if;
  perform public.cardforge_cast_contributor_asset_vote(current_id,'current-negative-one','negative');
  perform public.cardforge_cast_contributor_asset_vote(current_id,'current-negative-two','negative');
  if not exists(select 1 from public.cardforge_contributor_asset_submissions where id=current_id and trashed_at is not null and revision_trash_actor_role='voting' and revision_publication_retained and published_at=original_date)
@@ -130,6 +147,13 @@ begin
  if exists(select 1 from public.cardforge_claim_pipeline_revision_purge_owner(current_id,'Vote current proof',null)) then raise exception 'vote_retirement_erased_publication_retention'; end if;
  if not exists(select 1 from public.cardforge_list_contributor_asset_submission_ids('free-viewer','shared','',null,null,null,'all',true,1,50,'trashed') where submission_id=current_id)
  then raise exception 'shared_trashed_publication_not_visible_to_free_viewer'; end if;
+ select shared_metadata into public_metadata from public.cardforge_list_contributor_asset_submission_ids('free-viewer','shared','',null,null,null,'all',true,1,50,'trashed') where submission_id=current_id;
+ if public_metadata->>'id' is distinct from current_id::text
+ or public_metadata->>'ownedByViewer' is distinct from 'false'
+ or (select count(*) from jsonb_object_keys(public_metadata)) is distinct from 15::bigint
+ or public_metadata ?| array['source_payload','source_url','contributor_id','contributor_email','owner_note']
+ then raise exception 'shared_trash_metadata_not_exact_or_private_payload_exposed: %',public_metadata; end if;
+
  -- A newer live pointer wins even when votes recover the original exact row.
  insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,
  editorial_review_status,calculated_access_tier,registry_asset_id,target_registry_asset_id,revision_number,published_at,source_url)

@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { isSharedPipelineTrash } from './pipelineVisibility';
 import {
   PIPELINE_STATUSES,
   PIPELINE_TYPES,
@@ -9,6 +11,7 @@ import {
 import {
   mapPipelineSubmissionRow,
   type PipelineProgramAggregate,
+  type SharedPipelineTrashPage,
   type PipelineSubmission,
   type PipelineSubmissionRow,
 } from './pipelineProgram';
@@ -186,23 +189,14 @@ const normalizeListQuery = (query: PipelineListQuery): Required<PipelineListQuer
   pageSize: Math.min(50, Math.max(1, Math.floor(query.pageSize ?? 12))),
 });
 
-export const fetchPipelineSubmissionPage = async ({
-  currentUserId,
-  profiles,
-  includeRegistryRecipePayloads,
-  allowSelfVoting,
-  query,
-}: {
-  currentUserId: string;
-  profiles: ContributorProfileRow[];
-  includeRegistryRecipePayloads: boolean;
-  allowSelfVoting: boolean;
-  query: PipelineListQuery;
-}): Promise<{ submissions: PipelineSubmission[]; total: number; page: number; pageSize: number }> => {
+const readPipelinePage = async (currentUserId: string, allowSelfVoting: boolean, query: PipelineListQuery) => {
   const supabase = getSupabaseServerClient();
   const normalized = normalizeListQuery(query);
   if (!['active', 'trashed', 'all'].includes(normalized.trash)) throw new PipelineStoreError('Choose a supported Trash filter.', 400);
-  if (!supabase) return { submissions: [], total: 0, page: normalized.page, pageSize: normalized.pageSize };
+  if (!supabase) {
+    if (normalized.scope === 'shared') throw new PipelineStoreError('Shared Pipeline Trash is unavailable.', 503);
+    return { rows: [], total: 0, page: normalized.page, pageSize: normalized.pageSize };
+  }
   const { data, error } = await supabase.rpc('cardforge_list_contributor_asset_submission_ids', {
     p_current_user_id: currentUserId,
     p_scope: normalized.scope,
@@ -216,13 +210,42 @@ export const fetchPipelineSubmissionPage = async ({
     p_page: normalized.page,
     p_page_size: normalized.pageSize,
   });
-  if (error) throw new PipelineStoreError('Unable to load Pipeline submissions.', 500);
-  const rows = (data ?? []) as Array<{ submission_id?: unknown; total_count?: unknown }>;
-  const ids = rows.flatMap((row) => typeof row.submission_id === 'string' ? [row.submission_id] : []);
-  return {
-    submissions: await fetchSubmissionRows(currentUserId, ids, profiles, includeRegistryRecipePayloads),
-    total: rows.length > 0 ? asCount(rows[0].total_count) : 0,
-    page: normalized.page,
-    pageSize: normalized.pageSize,
-  };
+  if (error) throw new PipelineStoreError('Unable to load Pipeline submissions.', normalized.scope === 'shared' ? 503 : 500);
+  if (normalized.scope === 'shared' && (!Array.isArray(data) || data.length === 0
+    || data.some(row => !row || typeof row !== 'object' || !Number.isSafeInteger(Number(row.total_count))
+      || row.total_count === null || row.total_count === undefined || Number(row.total_count) < 0))) {
+    throw new PipelineStoreError('Shared Pipeline Trash is unavailable.', 503);
+  }
+  const rows = (data ?? []) as Array<{ submission_id?: unknown; total_count?: unknown; shared_metadata?: unknown }>;
+  return { rows, total: rows.length ? asCount(rows[0].total_count) : 0, page: normalized.page, pageSize: normalized.pageSize };
+};
+
+export const fetchPipelineSubmissionPage = async ({ currentUserId, profiles, includeRegistryRecipePayloads, allowSelfVoting, query }: {
+  currentUserId: string; profiles: ContributorProfileRow[]; includeRegistryRecipePayloads: boolean;
+  allowSelfVoting: boolean; query: PipelineListQuery;
+}): Promise<{ submissions: PipelineSubmission[]; total: number; page: number; pageSize: number }> => {
+  const { rows, ...page } = await readPipelinePage(currentUserId, allowSelfVoting, query);
+  const ids = rows.flatMap(row => typeof row.submission_id === 'string' ? [row.submission_id] : []);
+  return { ...page, submissions: await fetchSubmissionRows(currentUserId, ids, profiles, includeRegistryRecipePayloads) };
+};
+
+const sharedTrashMetadata = z.object({
+  id: z.string().uuid(), lineageId: z.string().uuid().nullable(), assetType: z.enum(PIPELINE_TYPES),
+  name: z.string(), description: z.string(), status: z.enum(PIPELINE_STATUSES),
+  revisionNumber: z.number().int().nonnegative().nullable(),
+  trashedAt: z.string().datetime({ offset: true }), purgeAfter: z.string().datetime({ offset: true }).nullable(),
+  trashActorRole: z.enum(['owner', 'contributor', 'voting']).nullable(), trashPreviousStatus: z.enum(PIPELINE_STATUSES).nullable(),
+  publicationRetained: z.boolean(), positiveVotes: z.number().int().nonnegative(), negativeVotes: z.number().int().nonnegative(),
+  ownedByViewer: z.boolean(),
+}).strict();
+
+export const fetchSharedPipelineTrashMetadataPage = async (currentUserId: string, query: Omit<PipelineListQuery, 'scope' | 'trash'>): Promise<SharedPipelineTrashPage> => {
+  const { rows, ...page } = await readPipelinePage(currentUserId, true, { ...query, scope: 'shared', trash: 'trashed' });
+  const items = rows.flatMap(row => {
+    if (row.submission_id === null && row.shared_metadata === null) return []; // Empty requested page retains its native filtered count.
+    const parsed = sharedTrashMetadata.safeParse(row.shared_metadata);
+    if (!parsed.success || parsed.data.id !== row.submission_id || parsed.data.status === 'draft' || !isSharedPipelineTrash(parsed.data)) throw new PipelineStoreError('Shared Pipeline Trash metadata is unavailable or changed.', 503);
+    return [{ ...parsed.data, lineageId: parsed.data.lineageId ?? undefined }];
+  });
+  return { ...page, items };
 };

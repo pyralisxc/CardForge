@@ -1,16 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const f = vi.hoisted(() => ({ page: vi.fn(), access: vi.fn(), reviewAccess: vi.fn() }));
-vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({}) }));
-vi.mock('@/features/pipeline/lib/pipelineProjections', () => ({ fetchPipelineSubmissionPage: f.page }));
-vi.mock('@/features/pipeline/lib/pipelineStore', () => ({ getPipelineProgramContext: vi.fn() }));
+const f = vi.hoisted(() => ({ rpc: vi.fn(), from: vi.fn() }));
+vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ rpc: f.rpc, from: f.from }) }));
 import { getSharedPipelineTrashPage } from '@/features/pipeline/lib/pipelineLibraryStore';
-beforeEach(() => f.page.mockReset().mockResolvedValue({ total: 1, page: 2, pageSize: 12, submissions: [{ id: 'exact', contributorId: 'free-viewer', lineageId: 'lineage', assetType: 'icons', name: 'Shared Trash', description: 'Shared description', status: 'archived', revisionNumber: 1, trashedAt: '2026-11-01', purgeAfter: '2026-12-01', trashActorRole: 'owner', trashActorId: 'private-owner-id', trashPreviousStatus: 'published', publicationRetained: true, positiveVotes: 1, negativeVotes: 2, contributorEmail: 'private@example.invalid', sourcePayload: { private: true }, sourceStoragePath: 'private/path', sourceUrl: 'https://private.invalid', sourceNotes: 'private creator notes', editorialReviewNote: 'private review' }] }));
-describe('shared Trash metadata projection', () => {
- it('uses native shared scope and exact paging without granting reviewer or source access', async () => {
+const id = '10000000-0000-4000-8000-000000000001';
+const metadata = { id, lineageId: '20000000-0000-4000-8000-000000000001', assetType: 'icons', name: 'Shared Trash', description: 'Shared description', status: 'archived', revisionNumber: 1, trashedAt: '2026-11-01T00:00:00Z', purgeAfter: '2026-12-01T00:00:00Z', trashActorRole: 'owner', trashPreviousStatus: 'published', publicationRetained: true, positiveVotes: 1, negativeVotes: 2, ownedByViewer: true };
+beforeEach(() => { vi.resetAllMocks(); f.rpc.mockResolvedValue({ data: [{ submission_id: id, total_count: 1, shared_metadata: metadata }], error: null }); f.from.mockImplementation(() => { throw new Error('Shared discovery must not load private submission payloads'); }); });
+describe('shared Trash native metadata projection', () => {
+ it('uses the atomic native metadata and exact paging without private payload hydration', async () => {
   const result = await getSharedPipelineTrashPage('free-viewer', { page: 2, pageSize: 12 });
-  expect(f.page).toHaveBeenCalledWith(expect.objectContaining({ currentUserId: 'free-viewer', profiles: [], query: { scope: 'shared', trash: 'trashed', page: 2, pageSize: 12 } }));
-  expect(result.items[0]).toMatchObject({ id: 'exact', revisionNumber: 1, trashActorRole: 'owner', ownedByViewer: true });
-  expect(JSON.stringify(result)).not.toMatch(/private|sourcePayload|sourceUrl|trashActorId|contributorEmail|sourceStorage|editorialReview|submissions/);
+  expect(f.rpc).toHaveBeenCalledWith('cardforge_list_contributor_asset_submission_ids', expect.objectContaining({ p_current_user_id: 'free-viewer', p_scope: 'shared', p_trash_state: 'trashed', p_page: 2, p_page_size: 12 }));
+  expect(result.items).toEqual([metadata]); expect(f.from).not.toHaveBeenCalled();
   expect(result).toMatchObject({ total: 1, page: 2, pageSize: 12 });
+ });
+ it.each([{ ...metadata, source_payload: { private: true } }, { ...metadata, id: '10000000-0000-4000-8000-000000000002' }, { ...metadata, status: 'draft' }, { ...metadata, trashPreviousStatus: null, publicationRetained: false }])('refuses incompatible, private or unproven metadata', async invalid => {
+  f.rpc.mockResolvedValue({ data: [{ submission_id: id, total_count: 1, shared_metadata: invalid }], error: null });
+  await expect(getSharedPipelineTrashPage('free-viewer')).rejects.toMatchObject({ status: 503 }); expect(f.from).not.toHaveBeenCalled();
+ });
+ it('retains count on an empty requested page and distinguishes unavailable output from empty', async () => {
+  f.rpc.mockResolvedValue({ data: [{ submission_id: null, total_count: 1, shared_metadata: null }], error: null });
+  expect(await getSharedPipelineTrashPage('free-viewer', { page: 99 })).toEqual({ items: [], total: 1, page: 99, pageSize: 12 });
+  f.rpc.mockResolvedValue({ data: [], error: null }); await expect(getSharedPipelineTrashPage('free-viewer')).rejects.toMatchObject({ status: 503 });
  });
 });

@@ -28,5 +28,7 @@ export const isPipelineRevisionVisibleToContributor = ({
   if (purgeState) return false;
   if (owner) return true;
   if (!contributor || !viewerId) return false;
-  return contributorId === viewerId || !CONTRIBUTOR_HIDDEN_STATUSES.has(status) && isSharedPipelineTrash(trash);
+  if (contributorId === viewerId) return true;
+  if (status === 'draft') return false;
+  return trash.trashedAt ? isSharedPipelineTrash(trash) : !CONTRIBUTOR_HIDDEN_STATUSES.has(status);
 };

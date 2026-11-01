@@ -468,14 +468,23 @@ create or replace function public.cardforge_list_contributor_asset_submission_id
   p_page_size integer default 12,
   p_trash_state text default 'active'
 )
-returns table (submission_id uuid, total_count bigint)
+returns table (submission_id uuid, total_count bigint, shared_metadata jsonb)
 language sql
 stable
 security invoker
 set search_path = ''
 as $$
   with filtered as (
-    select submission.id, submission.submitted_at
+    select submission.id, submission.submitted_at,
+      case when p_scope='shared' then jsonb_build_object(
+        'id',submission.id,'lineageId',submission.lineage_id,'assetType',submission.asset_type,
+        'name',submission.name,'description',coalesce(submission.description,''),'status',submission.status,
+        'revisionNumber',submission.revision_number,'trashedAt',submission.trashed_at,
+        'purgeAfter',submission.purge_after,'trashActorRole',submission.revision_trash_actor_role,
+        'trashPreviousStatus',submission.revision_trash_previous_status,
+        'publicationRetained',submission.revision_publication_retained,
+        'positiveVotes',submission.positive_votes,'negativeVotes',submission.negative_votes,
+        'ownedByViewer',submission.contributor_id=p_current_user_id) else null end as shared_metadata
     from public.cardforge_contributor_asset_submissions as submission
     left join public.cardforge_contributor_asset_votes as current_vote
       on current_vote.submission_id = submission.id
@@ -483,14 +492,14 @@ as $$
     where coalesce(p_scope, 'all') in ('all', 'own', 'review', 'shared')
       and (
         coalesce(p_scope, 'all') = 'all'
-        or (p_scope='shared' and submission.status not in ('draft','rejected') and submission.trashed_at is not null and coalesce(
+        or (p_scope='shared' and submission.status<>'draft' and submission.trashed_at is not null and coalesce(
           submission.revision_publication_retained or submission.published_at is not null
           or submission.revision_trash_actor_role='voting'
           or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published'),false))
         or (p_scope = 'own' and submission.contributor_id = p_current_user_id)
         or (
           p_scope = 'review'
-          and submission.status not in ('draft', 'rejected')
+          and (submission.status not in ('draft', 'rejected') or (submission.status<>'draft' and submission.trashed_at is not null and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false)))
           and (coalesce(p_allow_self_voting, false) or submission.contributor_id <> p_current_user_id)
         )
       )
@@ -517,9 +526,9 @@ as $$
   ), totals as (
     select count(*)::bigint as total_count from filtered
   )
-  select slice.id, totals.total_count
+  select slice.id, totals.total_count, slice.shared_metadata
   from totals left join lateral (
-    select filtered.id, filtered.submitted_at from filtered
+    select filtered.id, filtered.submitted_at, filtered.shared_metadata from filtered
     order by filtered.submitted_at desc, filtered.id desc
     offset (greatest(coalesce(p_page, 1), 1)::bigint - 1)
       * least(greatest(coalesce(p_page_size, 12), 1), 50)
@@ -600,7 +609,7 @@ begin
             and (
               p_owner
               or submission.contributor_id = p_account_id
-              or (submission.status not in ('draft', 'rejected') and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false))
+              or (submission.status<>'draft' and (submission.status<>'rejected' or submission.trashed_at is not null) and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false))
             )
         )
       )
@@ -638,7 +647,7 @@ begin
             and (
               p_owner
               or submission.contributor_id = p_account_id
-              or (submission.status not in ('draft', 'rejected') and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false))
+              or (submission.status<>'draft' and (submission.status<>'rejected' or submission.trashed_at is not null) and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false))
             )
         )
       )
