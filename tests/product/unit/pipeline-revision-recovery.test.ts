@@ -112,3 +112,9 @@ describe('exact revision recovery boundaries', () => {
     }
   });
 });
+
+it('accepts a confirmed no-op hold without fabricating a recovery generation', async () => {
+ m.access.mockResolvedValue({ isOwner: true, user: { id: 'native-owner' } });
+ m.rpc.mockResolvedValue({ data: { ...snapshot, canHold: true }, error: null });
+ expect(await changeRevisionRecovery('owner', { action: 'hold', expected: state, held: false })).toMatchObject({ state });
+});

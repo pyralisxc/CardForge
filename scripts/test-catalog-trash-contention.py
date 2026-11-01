@@ -53,18 +53,18 @@ class Session:
             self.process.wait(timeout=5)
 
 
-def fixture(session):
+def fixture(session, source='https://example.invalid/retained.svg'):
     lineage, current, old = (str(uuid.uuid4()) for _ in range(3))
     asset = 'contention-' + lineage
     session.run(f"""
       insert into public.cardforge_pipeline_asset_lineages(id,registry_asset_id,revision_high_water) values('{lineage}','{asset}',2);
       insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source)
-        values('{asset}','Contention proof','icon','https://example.invalid/retained.svg','published','free','contributor');
+        values('{asset}','Contention proof','icon','{source}','published','free','contributor');
       insert into public.cardforge_contributor_asset_submissions
         (id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status,calculated_access_tier,
           registry_asset_id,target_registry_asset_id,revision_number,published_at,source_url,trashed_at,purge_after,trash_reason)
         values('{current}','{lineage}','isolated-contention','icons','Contention proof','published','approved','free','{asset}','{asset}',2,now(),
-          'https://example.invalid/retained.svg',null,null,null),
+          '{source}',null,null,null),
         ('{old}','{lineage}','isolated-contention','icons','Old contention proof','archived','approved','hidden','{asset}','{asset}',1,null,
           'https://example.invalid/old.svg',now()-interval '32 days',now()-interval '2 days','expired');
       update public.cardforge_asset_registry set contributor_submission_id='{current}' where asset_id='{asset}';
@@ -118,7 +118,7 @@ try:
     a.run(set_insert('set-writer-' + consumer, consumer, ['contention-' + lineage]) + ';')
     expect_busy(b, command('trash', state))
     a.run('commit;')
-    expect_conflict(b, command('trash', state), 'catalog_trash_dependency_blocked')
+    expect_conflict(b, command('trash', state), 'catalog_trash_state_changed')
     a.run(f"delete from public.cardforge_contributor_asset_submissions where id='{consumer}';")
     print('PASS: Set writer wins; committed typed identity blocks Trash')
 
@@ -202,7 +202,7 @@ try:
     a.run(f"update public.cardforge_studio_documents set document_payload={payload},catalog_dependencies={proof},revision=revision+1 where id='{document}';")
     expect_busy(b, command('trash', state))
     a.run('commit;')
-    expect_conflict(b, command('trash', state), 'catalog_trash_dependency_blocked')
+    expect_conflict(b, command('trash', state), 'catalog_trash_state_changed')
     a.run(f"delete from public.cardforge_studio_documents where id='{document}';")
     print('PASS: Studio writer wins; committed dependency prevents Trash')
 
@@ -303,7 +303,7 @@ try:
     a.run('commit;')
     reasons = json.loads(b.run(f"select public.cardforge_read_catalog_trash('{current}')::text;")[-1])['entryReasons']
     assert 'pipeline_identity_consumer_requires_resolution' in reasons
-    expect_conflict(b, command('trash', state), 'catalog_trash_dependency_blocked')
+    expect_conflict(b, command('trash', state), 'catalog_trash_state_changed')
     a.run(f"delete from public.cardforge_asset_registry where asset_id='{consumer}';")
     print('PASS: concurrent registry consumer write blocks Move; committed target reference is observed')
 
@@ -390,7 +390,7 @@ try:
 
     # Writer-first commit: the exact bound consumer must block the real command.
     state = json.loads(a.run(f"select public.cardforge_read_catalog_trash('{raster_submission}')::text;")[-1])['state']
-    expect_conflict(a, command('trash', state), 'catalog_trash_dependency_blocked')
+    expect_conflict(a, command('trash', state), 'catalog_trash_state_changed')
     # Disposable fixture cleanup only; never invoked on a hosted target.
     a.run(f"delete from public.cardforge_contributor_asset_submissions where id='{adopted_id}';")
     state = json.loads(a.run(f"select public.cardforge_read_catalog_trash('{raster_submission}')::text;")[-1])['state']
@@ -542,6 +542,27 @@ try:
     expect_conflict(b, f"public.cardforge_cast_contributor_asset_vote('{claim_id}','vote-peer','positive')", 'contributor_asset_not_found')
     assert a.run(f"select count(*) from public.cardforge_contributor_asset_votes where submission_id='{claim_id}';")[-1] == '0'
     print('PASS: committed exact claim excludes later vote without removing Storage or finalizing')
+
+    # A real queued consumer writer and recoverable Move share table/lineage
+    # locks. Its committed exact reference invalidates the old consent digest.
+    impact_source = 'https://example.invalid/impact-' + uuid.uuid4().hex + '.svg'
+    impact_lineage, impact_current, _, impact_state = fixture(a, impact_source)
+    impact_doc = str(uuid.uuid4())
+    impact_payload = {"version": 1, "userTemplates": [{"id": "impact-race", "name": "Impact race", "aspectRatio": "2:3", "cardBackgroundImageUrl": impact_source}]}
+    # Trusted native interpretation fixture only, not TS decoder/hosted proof.
+    impact_request = {"contractVersion": 1, "sourcePayload": impact_payload, "complete": True,
+                      "references": {"identities": [], "sources": [impact_source]}, "opaqueReasons": []}
+    a.run('begin;')
+    a.run("insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies) values('" + impact_doc + "','impact-private','Impact race','" + json.dumps(impact_payload) + "'::jsonb,'" + json.dumps(impact_request) + "'::jsonb);")
+    expect_busy(b, command('trash', impact_state))
+    a.run('commit;')
+    expect_conflict(b, command('trash', impact_state), 'catalog_trash_state_changed')
+    refreshed = json.loads(b.run(f"select public.cardforge_read_catalog_trash('{impact_current}')::text;")[-1])
+    assert refreshed['impact']['affectedCount'] >= 1
+    explicit_move = "public.cardforge_change_catalog_trash('isolated-owner','trash','" + json.dumps(refreshed['state']) + "'::jsonb,null,'" + refreshed['impact']['fingerprint'] + "')"
+    b.run('select ' + explicit_move + ';')
+    assert b.run(f"select catalog_trashed_at is not null from public.cardforge_pipeline_asset_lineages where id='{impact_lineage}';")[-1] == 't'
+    print('PASS: consumer writer COMMIT invalidates old impact consent; fresh exact confirmation permits recoverable Move')
 
 
 finally:

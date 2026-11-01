@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
+import { DependencyImpactPreview, impactConfirmationText } from './DependencyImpactPreview';
 import { Button } from '@/components/ui/button';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { revisionRecoverySnapshotSchema, type RevisionRecoveryCommand, type RevisionRecoverySnapshot } from '../lib/revisionRecoveryContract';
@@ -49,7 +50,7 @@ function RevisionRecoverySession({ submissionId, onChanged }: { submissionId: st
     finally { setBusy(false); }
   };
   const change = async (command: RevisionRecoveryCommand) => {
-    if (command.action === 'trash' && !window.confirm(`Move only “${snapshot?.name}” revision ${snapshot?.state.revisionNumber ?? submissionId} to recoverable Trash? Its source and history will be retained.`)) return;
+    if (command.action === 'trash' && !window.confirm(`Move only “${snapshot?.name}” revision ${snapshot?.state.revisionNumber ?? submissionId} to recoverable Trash? Its source and history will be retained.${impactConfirmationText(snapshot?.impact)}`)) return;
     setBusy(true); setError('');
     try {
       const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(command) });
@@ -78,10 +79,11 @@ function RevisionRecoverySession({ submissionId, onChanged }: { submissionId: st
       {(snapshot.state.trashedAt ? snapshot.restoreReasons : snapshot.trashReasons).length ? <ul className="list-disc pl-5 text-xs">
         {(snapshot.state.trashedAt ? snapshot.restoreReasons : snapshot.trashReasons).map(reason => <li key={reason}>{explain(reason)}</li>)}
       </ul> : null}
+      <DependencyImpactPreview impact={snapshot.impact} />
       <div className="flex flex-wrap gap-2">
         {snapshot.state.trashedAt
           ? <Button size="sm" disabled={busy || snapshot.restoreReasons.length > 0} onClick={() => void change({ action: 'restore', expected: snapshot.state })}>Restore</Button>
-          : <Button size="sm" disabled={busy || snapshot.trashReasons.length > 0} onClick={() => void change({ action: 'trash', expected: snapshot.state })}>Move revision to Trash</Button>}
+          : <Button size="sm" disabled={busy || snapshot.trashReasons.length > 0} onClick={() => void change({ action: 'trash', expected: snapshot.state, confirmation: snapshot.state.impactFingerprint })}>Move revision to Trash</Button>}
         {snapshot.canHold ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void change({ action: 'hold', expected: snapshot.state, held: !snapshot.state.held })}>{snapshot.state.held ? 'Remove revision hold' : 'Hold revision'}</Button> : null}
       </div>
     </> : null}

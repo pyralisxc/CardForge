@@ -59,6 +59,16 @@ describe('Pipeline content health', () => {
     expect(markup).toContain('submit an exact-lineage revision');
   });
 
+  it('uses read-through program findings without manufacturing editorial revisions', () => {
+    const program = programWith({ editorialReviewStatus: 'approved' });
+    program.dependencyImpacts = [{ objectId: 'exact-lineage', submissionId: 'exact-revision', objectName: 'Affected work', sourceAssetId: 'source', sourceAssetName: 'Source' }];
+    const health = buildPipelineContentHealth({ catalog: null, program });
+    expect(health.issues).toContainEqual(expect.objectContaining({ code: 'dependency-unavailable', objectId: 'exact-lineage', submissionId: 'exact-revision' }));
+    expect(health.editorial.reviseCount).toBe(0);
+    program.dependencyImpacts = [];
+    expect(buildPipelineContentHealth({ catalog: null, program }).issues.some(issue => issue.code === 'dependency-unavailable')).toBe(false);
+  });
+
   it.each(['textures', 'dividers', 'icons', 'imageAssets', 'elementPresets', 'fonts', 'templates', 'sets'] as const)('uses the same General resource policy in health and review for %s', (assetType) => {
     const program = programWith({ assetType, specialtyTags: ['general'], useCaseTags: [] });
     const requiresUseCase = assetType === 'templates' || assetType === 'sets';

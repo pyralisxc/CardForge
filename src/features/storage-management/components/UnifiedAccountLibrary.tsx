@@ -36,7 +36,7 @@ import { useAccountLibraryProjection } from '../hooks/useAccountLibraryProjectio
 import { useAccountLibraryActions } from '../hooks/useAccountLibraryActions';
 import { useLibrarySharedProjection } from '../hooks/useLibrarySharedProjection';
 import { useLibraryReturnContext } from '../hooks/useLibraryReturnContext';
-import { useUnifiedLibraryView } from '../hooks/useUnifiedLibraryView';
+import { useUnifiedLibraryView, toPipelineLibraryViewItem } from '../hooks/useUnifiedLibraryView';
 import type { AccountLibraryItem } from '../model/accountLibrary';
 import {
   getLibraryScopeDefinitions, resolveLibraryScopeForViewer,
@@ -314,6 +314,20 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     reviewReturn.current = { focus: document.activeElement instanceof HTMLElement ? document.activeElement : null, focusId: selection.focusReturnId ?? `library-object-${item.id}`, scroll: surfaceRef.current?.scrollTop ?? 0 };
     setReviewTarget(target); setRevisionKind(null); openTool('review-manage', [target.lineageId, target.submissionId]);
   };
+  const openHealthObject = (objectId: string, submissionId?: string) => {
+    const matches = (candidate: LibraryViewItem) => candidate.id === objectId
+      || candidate.scope === 'pipeline' && (candidate.pipeline.submission.lineageId === objectId
+        || candidate.pipeline.submission.registryAssetId === objectId || candidate.pipeline.submission.targetRegistryAssetId === objectId)
+      || candidate.scope === 'published' && (candidate.published.lineageId === objectId || candidate.published.id === objectId);
+    const item = scopeItems.find(matches) ?? shared.pipelineItems.map(item => toPipelineLibraryViewItem(item)).find(matches);
+    if (!item) { toast({ title: 'Object unavailable', description: 'Refresh the Library before opening this finding.' }); return; }
+    if (!submissionId) { openDetail(item); return; }
+    const revision = [...(shared.program?.submissions ?? []), ...(shared.program?.votingQueue ?? [])]
+      .find(candidate => candidate.id === submissionId && candidate.lineageId === objectId);
+    if (!revision) { toast({ title: 'Revision unavailable', description: 'The exact affected revision is no longer loaded. Refresh before continuing.' }); return; }
+    try { openReview(item, revision); }
+    catch (error) { toast({ title: 'Revision unavailable', description: error instanceof Error ? error.message : 'Refresh Library.' }); }
+  };
   const closeContextualTool = () => {
     closeTool(); setReviewTarget(null); setRevisionKind(null); setToolCloseBlocked(null);
     const restore = reviewReturn.current;
@@ -565,7 +579,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         reviewReturn.current = { focus: document.activeElement as HTMLElement, scroll: surfaceRef.current?.scrollTop ?? 0 };
         openTool('pipeline-operations');
       }}>Pipeline operations</button> : null}
-      {activeScope === 'pipeline' ? <PipelineContentHealthPanel catalog={shared.catalog} onClassified={shared.refresh} health={contentHealth} canRepair={experience.owner} onOpenObject={(objectId) => { const item = viewItems.find((candidate) => candidate.id === `pipeline:${objectId}` || candidate.id === objectId); if (item) openDetail(item); }} /> : null}
+      {activeScope === 'pipeline' ? <PipelineContentHealthPanel catalog={shared.catalog} onClassified={shared.refresh} health={contentHealth} canRepair={experience.owner} onOpenObject={openHealthObject} /> : null}
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
       {activeScope === 'pipeline' && experience.owner && isSignedIn ? <LibraryRevisionQueueControls disabled={Boolean(activeTool)} revisions={revisionsEnabled} queue={revisionQueue} onModeChange={value => { setRevisionMode(value); setSelection(closeEnvironmentDetail); }} /> : null}
       <NewSetDialog renderPublishedSetDetails={set => set.submissionId ? <PipelineSourceDisclosure submissionId={set.submissionId} /> : <p className="text-xs">Exact source reactions are unavailable for this starter.</p>} createOpen={setStarters.createOpen} onCreateOpenChange={setStarters.setCreateOpen} onCreateWork={createSet} onCreatePublishedSet={set => { void setStarters.createFromPublishedSet(set); }} onRetryPublishedSets={setStarters.openCreateMenu} publishedSets={setStarters.publishedSets} publishedSetsLoading={setStarters.publishedSetsLoading} publishedSetsFailure={setStarters.publishedSetsFailure} creatingPublishedSetId={setStarters.creatingPublishedSetId} />

@@ -1,5 +1,6 @@
 import { buildPipelineProgramView, type SharedPipelineTrashPage, type PipelineProgramView } from './pipelineProgram';
 import { fetchPipelineSubmissionPage, fetchSharedPipelineTrashMetadataPage } from './pipelineProjections';
+import { readPipelineDependencyHealth } from './pipelineDependencyHealth';
 import { getPipelineProgramContext } from './pipelineStore';
 
 type ProgramContext = Awaited<ReturnType<typeof getPipelineProgramContext>>;
@@ -48,7 +49,7 @@ export const getPipelineLibraryProgramView = async (
   { includeRegistryRecipePayloads = false, trash = 'active' }: { includeRegistryRecipePayloads?: boolean; trash?: string } = {},
 ): Promise<PipelineProgramView> => {
   const context = await getPipelineProgramContext(currentUserId);
-  const [submissionPage, votingPage] = await Promise.all([
+  const [submissionPage, votingPage, dependencyImpacts] = await Promise.all([
     fetchAllPipelineSubmissions({
       currentUserId,
       profiles: context.profiles,
@@ -65,8 +66,9 @@ export const getPipelineLibraryProgramView = async (
       scope: 'review',
       trash,
     }),
+    readPipelineDependencyHealth(),
   ]);
-  return buildPipelineProgramView({
+  return { dependencyImpacts, ...buildPipelineProgramView({
     ...context,
     currentUserId,
     currentContributorIds,
@@ -74,7 +76,7 @@ export const getPipelineLibraryProgramView = async (
     votingQueue: votingPage.submissions,
     submissionPage,
     votingPage,
-  });
+  }) };
 };
 
 /**

@@ -8,7 +8,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { PipelineContentHealth } from '../lib/pipelineContentHealth';
 
-export function PipelineContentHealthPanel({ health, canRepair, onOpenObject, catalog, onClassified }: { health: PipelineContentHealth; canRepair: boolean; onOpenObject: (objectId: string) => void; catalog?: CardForgeCatalogManifest | null; onClassified?: () => Promise<void> }) {
+export function PipelineContentHealthPanel({ health, canRepair, onOpenObject, catalog, onClassified }: { health: PipelineContentHealth; canRepair: boolean; onOpenObject: (objectId: string, submissionId?: string) => void; catalog?: CardForgeCatalogManifest | null; onClassified?: () => Promise<void> }) {
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
   const downloadReview = () => {
     const url = URL.createObjectURL(new Blob([JSON.stringify({ ...health.review, technicalIssues: health.issues, editorial: health.editorial }, null, 2)], { type: 'application/json' }));
@@ -44,7 +44,7 @@ export function PipelineContentHealthPanel({ health, canRepair, onOpenObject, ca
       <div role="region" aria-label="All content health findings" tabIndex={0} className="grid max-h-[32rem] gap-2 overflow-y-auto">
       {health.issues.map((issue, index) => {
         const asset = catalog?.pipeline?.items.find((item) => item.id === issue.objectId || item.lineageId === issue.objectId);
-        return <article key={`${issue.code}:${issue.objectId}:${index}`} className="flex flex-wrap items-start justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-xs"><div><p className={issue.severity === 'error' ? 'font-semibold text-[var(--cf-danger)]' : 'font-semibold text-[var(--cf-warning)]'}>{issue.objectName} · {issue.code.replaceAll('-', ' ')}</p><p className="mt-1 text-[var(--cf-text-muted)]">{issue.message} {issue.repair}</p></div>{canRepair && onClassified && issue.code === 'missing-taxonomy' && asset ? <Button type="button" size="sm" variant="outline" onClick={() => setEditingAssetId(asset.id)}>Edit classification</Button> : null}{canRepair && issue.objectId ? <Button type="button" size="sm" variant="outline" onClick={() => onOpenObject(issue.objectId!)}>Open object</Button> : null}</article>;
+        return <article key={`${issue.code}:${issue.objectId}:${index}`} className="flex flex-wrap items-start justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-xs"><div><p className={issue.severity === 'error' ? 'font-semibold text-[var(--cf-danger)]' : 'font-semibold text-[var(--cf-warning)]'}>{issue.objectName} · {issue.code.replaceAll('-', ' ')}</p><p className="mt-1 text-[var(--cf-text-muted)]">{issue.message} {issue.repair}</p></div>{canRepair && onClassified && issue.code === 'missing-taxonomy' && asset ? <Button type="button" size="sm" variant="outline" onClick={() => setEditingAssetId(asset.id)}>Edit classification</Button> : null}{canRepair && issue.objectId ? <Button type="button" size="sm" variant="outline" onClick={() => issue.submissionId ? onOpenObject(issue.objectId!, issue.submissionId) : onOpenObject(issue.objectId!)}>Open object</Button> : null}</article>;
       })}
       </div>
       {!health.issues.length ? <p className="text-sm text-[var(--cf-text-muted)]">Technical health is clear for the projected published objects. Editorial readiness above remains independently authoritative for publication quality.</p> : null}

@@ -13,6 +13,7 @@ export type PipelineContentHealthSeverity = 'error' | 'warning';
 export interface PipelineDependencyImpactFinding {
   /** An exact, authorized affected Pipeline object; never a guessed identity. */
   objectId: string;
+  submissionId?: string;
   objectName: string;
   sourceAssetId: string;
   sourceAssetName: string;
@@ -22,6 +23,7 @@ export interface PipelineContentHealthIssue {
   code: 'missing-lineage' | 'missing-route' | 'invalid-route' | 'route-content-mismatch' | 'retired-source' | 'unsafe-vector-route' | 'missing-taxonomy' | 'missing-preview' | 'missing-source' | 'duplicate-name' | 'invalid-package' | 'inferred-format' | 'legacy-revision' | 'dependency-unavailable';
   severity: PipelineContentHealthSeverity;
   objectId: string | null;
+  submissionId?: string;
   objectName: string;
   message: string;
   repair: string;
@@ -50,7 +52,7 @@ export interface PipelineContentHealth {
 export const buildPipelineContentHealth = ({
   catalog,
   program,
-  dependencyImpacts = [],
+  dependencyImpacts = program?.dependencyImpacts ?? [],
 }: {
   catalog: CardForgeCatalogManifest | null;
   program: PipelineProgramView | null;
@@ -135,7 +137,7 @@ export const buildPipelineContentHealth = ({
   });
   for (const impact of dependencyImpacts) {
     issues.push({ code: 'dependency-unavailable', severity: 'warning', objectId: impact.objectId,
-      objectName: impact.objectName, message: `Referenced shared asset “${impact.sourceAssetName}” is unavailable for new insertion.`,
+      objectName: impact.objectName, submissionId: impact.submissionId, message: `Referenced shared asset “${impact.sourceAssetName}” is unavailable for new insertion.`,
       repair: 'Open the affected object and submit an exact-lineage revision if its authored reference needs updating. The existing copy is not automatically changed.' });
   }
   return {
