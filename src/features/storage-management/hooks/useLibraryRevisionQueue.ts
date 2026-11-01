@@ -12,7 +12,8 @@ export function useLibraryRevisionQueue({ enabled, query, catalog, catalogLoadin
 }) {
   const [assetType, setAssetType] = useState('all');
   const [status, setStatus] = useState('all');
-  const filterKey = JSON.stringify([query, assetType, status]);
+  const [trash, setTrash] = useState<'active' | 'trashed' | 'all'>('active');
+  const filterKey = JSON.stringify([query, assetType, status, trash]);
   const [position, setPosition] = useState({ key: filterKey, page: 1 });
   const page = position.key === filterKey ? position.page : 1;
   useEffect(() => {
@@ -26,7 +27,7 @@ export function useLibraryRevisionQueue({ enabled, query, catalog, catalogLoadin
   useEffect(() => {
     if (!ready) { setResult(null); return; }
     const controller = new AbortController();
-    const params = new URLSearchParams({ query, assetType, status, page: String(page), pageSize: '12' });
+    const params = new URLSearchParams({ query, assetType, status, reviewTrash: trash, page: String(page), pageSize: '12' });
     void fetch(`/api/pipeline?${params}`, { cache: 'no-store', signal: controller.signal })
       .then(async response => {
         if (!response.ok) throw await readApiError(response, 'Pipeline revisions are unavailable.');
@@ -37,7 +38,7 @@ export function useLibraryRevisionQueue({ enabled, query, catalog, catalogLoadin
         if (!controller.signal.aborted) setResult({ key: requestKey, program: null, failure: sharedFailure(error, 'Pipeline revisions are unavailable.') });
       });
     return () => controller.abort();
-  }, [ready, query, assetType, status, page, requestKey]);
+  }, [ready, query, assetType, status, trash, page, requestKey]);
   const program = ready && result?.key === requestKey ? result.program : null;
   const items = useMemo(() => program ? program.submissions.flatMap(submission => projectPipelineLibraryObjects({
     ...program, submissions: [submission], votingQueue: [],
@@ -46,7 +47,7 @@ export function useLibraryRevisionQueue({ enabled, query, catalog, catalogLoadin
     items, total: program?.submissionPage.total ?? 0, page, pageSize: 12,
     loading: enabled && !catalogFailure && (!ready || result?.key !== requestKey),
     failure: enabled ? catalogFailure ?? (result?.key === requestKey ? result.failure : null) : null,
-    assetType, setAssetType, status, setStatus,
+    assetType, setAssetType, status, setStatus, trash, setTrash,
     setPage: (next: number) => setPosition({ key: filterKey, page: Math.max(1, next) }), refresh,
   };
 }
