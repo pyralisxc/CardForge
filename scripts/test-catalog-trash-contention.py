@@ -458,6 +458,7 @@ try:
         return json.loads(session.run(f"select public.cardforge_read_revision_recovery('{recovery_old}','isolated-owner',true)::text;")[-1])['state']
     def recover(action, state):
         return "public.cardforge_change_revision_recovery('isolated-owner',true,'" + action + "','" + json.dumps(state) + "'::jsonb)"
+    a.run(f"update public.cardforge_contributor_asset_submissions set revision_trash_previous_status='voting' where id='{recovery_old}';")
     a.run('select ' + recover('restore', revision_state(a)) + ';')
     observed = revision_state(a)
     a.run('begin;')
@@ -477,6 +478,70 @@ try:
     committed = revision_state(a)
     expect_conflict(a, recover('restore', committed), 'revision_recovery_blocked')
     print('PASS: revision recovery lineage contention, old-snapshot rejection, stale generation and committed claim fences')
+
+
+    # The same native advisory/lineage lock order serializes vote against restore.
+    vote_id, vote_lineage = str(uuid.uuid4()), str(uuid.uuid4())
+    a.run(f"""insert into public.cardforge_pipeline_asset_lineages(id,revision_high_water) values('{vote_lineage}',1);
+      insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,
+        trashed_at,purge_after,trash_reason,revision_trash_actor_role,revision_trash_actor_id,revision_trash_previous_status)
+      values('{vote_id}','{vote_lineage}','vote-author','icons','Vote restore contention','archived',
+        now(),now()+interval '30 days','withdrawn','contributor','vote-author','voting');""")
+    before_vote = json.loads(a.run(f"select public.cardforge_read_revision_recovery('{vote_id}','vote-author',false)::text;")[-1])['state']
+    a.run('begin;')
+    a.run("select public.cardforge_change_revision_recovery('vote-author',false,'restore','" + json.dumps(before_vote) + "'::jsonb);")
+    vote_output = []
+    vote_errors = []
+    b.run("set statement_timeout='10s';")
+    peer_pid = b.run('select pg_backend_pid();')[-1]
+    def cast_after_restore():
+        try:
+            vote_output.extend(b.run(f"select public.cardforge_cast_contributor_asset_vote('{vote_id}','vote-peer','positive');"))
+        except Exception as error:
+            vote_errors.append(str(error))
+    vote_worker = threading.Thread(target=cast_after_restore)
+    vote_worker.start()
+    wait_deadline = time.monotonic() + 5
+    while True:
+        # Observe the lock manager directly under service_role. Activity fields
+        # for another postgres-owned backend can be NULL without stats grants;
+        # neither a missing wait_event nor a timer proves serialization.
+        waiting = a.run(f"""select exists(
+          select 1 from pg_locks pending join pg_locks holder
+            on holder.locktype=pending.locktype and holder.database=pending.database
+              and holder.classid=pending.classid and holder.objid=pending.objid
+              and holder.objsubid=pending.objsubid
+          where pending.pid={peer_pid} and pending.locktype='advisory' and not pending.granted
+            and holder.pid=pg_backend_pid() and holder.granted)
+          and pg_backend_pid()=any(pg_blocking_pids({peer_pid}));""")[-1]
+        if waiting == 't':
+            break
+        assert not vote_errors, 'vote failed before restore COMMIT: ' + str(vote_errors)
+        assert vote_worker.is_alive(), 'vote completed without waiting for restore COMMIT: ' + str(vote_output)
+        assert time.monotonic() < wait_deadline, 'vote did not wait for exact restore advisory lock; observed ' + waiting
+        time.sleep(.02)
+    a.run('commit;')
+    vote_worker.join(timeout=10)
+    assert not vote_worker.is_alive() and not vote_errors and vote_output
+    assert a.run(f"select count(*) from public.cardforge_contributor_asset_votes where submission_id='{vote_id}' and contributor_id='vote-peer';")[-1] == '1'
+    expect_conflict(a, "public.cardforge_change_revision_recovery('vote-author',false,'restore','" + json.dumps(before_vote) + "'::jsonb)", 'revision_recovery_state_changed')
+    print('PASS: vote waits for restore COMMIT, records once and rejects stale recovery evidence')
+
+    # An already committed native claim wins over later feedback. No Storage
+    # operation or finalizer executes in this proof.
+    claim_id, claim_lineage = str(uuid.uuid4()), str(uuid.uuid4())
+    a.run(f"""insert into public.cardforge_pipeline_asset_lineages(id,revision_high_water) values('{claim_lineage}',1);
+      insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,
+        trashed_at,purge_after,trash_reason,revision_trash_actor_role,revision_trash_actor_id,revision_trash_previous_status)
+      values('{claim_id}','{claim_lineage}','vote-author','icons','Vote claim contention','archived',
+        now(),now()+interval '30 days','withdrawn','contributor','vote-author','voting');""")
+    a.run('begin;')
+    assert a.run(f"select count(*) from public.cardforge_claim_pipeline_revision_purge_owner('{claim_id}','Vote claim contention',null);")[-1] == '1'
+    # The claim transaction itself owns the exact row/lineage until COMMIT.
+    a.run('commit;')
+    expect_conflict(b, f"public.cardforge_cast_contributor_asset_vote('{claim_id}','vote-peer','positive')", 'contributor_asset_not_found')
+    assert a.run(f"select count(*) from public.cardforge_contributor_asset_votes where submission_id='{claim_id}';")[-1] == '0'
+    print('PASS: committed exact claim excludes later vote without removing Storage or finalizing')
 
 
 finally:

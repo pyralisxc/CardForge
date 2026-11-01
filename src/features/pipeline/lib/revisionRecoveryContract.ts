@@ -30,7 +30,7 @@ export const revisionRecoverySnapshotSchema = z.object({
   name: z.string().min(1),
   state: revisionRecoveryStateSchema,
   retentionDays: z.number().int().positive(),
-  trashActor: z.enum(['owner', 'contributor']).nullable(),
+  trashActor: z.enum(['owner', 'contributor', 'voting']).nullable(),
   trashReasons: z.array(z.string()),
   restoreReasons: z.array(z.string()),
   canHold: z.boolean(),

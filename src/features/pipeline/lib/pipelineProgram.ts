@@ -127,6 +127,10 @@ export interface PipelineSubmission {
   revisionNumber: number | null;
   publishedAt: string | null;
   purgeState: 'pending' | null;
+  publicationRetained?: boolean;
+  trashActorRole?: 'owner' | 'contributor' | 'voting' | null;
+  trashActorId?: string | null;
+  trashPreviousStatus?: PipelineStatus | null;
   trashedAt?: string | null;
   purgeAfter?: string | null;
   trashReason?: 'declined' | 'withdrawn' | 'expired' | 'superseded' | null;
@@ -261,6 +265,10 @@ export interface PipelineSubmissionRow {
   revision_number: number | null;
   published_at: string | null;
   purge_state: unknown;
+  revision_publication_retained?: boolean;
+  revision_trash_actor_role?: unknown;
+  revision_trash_actor_id?: string | null;
+  revision_trash_previous_status?: unknown;
   trashed_at?: string | null;
   purge_after?: string | null;
   trash_reason?: unknown;
@@ -589,6 +597,10 @@ export const mapPipelineSubmissionRow = (
   revisionNumber: row.revision_number,
   publishedAt: row.published_at,
   purgeState: row.purge_state === 'pending' ? 'pending' : null,
+  publicationRetained: row.revision_publication_retained === true,
+  trashActorRole: row.revision_trash_actor_role === 'owner' || row.revision_trash_actor_role === 'contributor' || row.revision_trash_actor_role === 'voting' ? row.revision_trash_actor_role : null,
+  trashActorId: row.revision_trash_actor_id ?? null,
+  trashPreviousStatus: isContributorAssetStatus(row.revision_trash_previous_status) ? row.revision_trash_previous_status : null,
   trashedAt: row.trashed_at ?? null,
   purgeAfter: row.purge_after ?? null,
   trashReason: row.trash_reason === 'declined' || row.trash_reason === 'withdrawn'
@@ -600,3 +612,13 @@ export const mapPipelineSubmissionRow = (
 });
 
 export { buildPipelineProgramView, projectPipelineProgramForViewer } from './pipelineProgramView';
+/** Public shared-Trash metadata only; never a source/specimen or mutation grant. */
+export interface SharedPipelineTrashPage {
+  items: Array<Pick<PipelineSubmission,
+    'id' | 'lineageId' | 'assetType' | 'name' | 'description' | 'status' | 'revisionNumber'
+    | 'trashedAt' | 'purgeAfter' | 'trashActorRole' | 'trashPreviousStatus'
+    | 'publicationRetained' | 'positiveVotes' | 'negativeVotes'> & { ownedByViewer: boolean }>;
+  total: number;
+  page: number;
+  pageSize: number;
+}

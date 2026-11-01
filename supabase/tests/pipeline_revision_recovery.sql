@@ -14,12 +14,13 @@ begin
    or has_function_privilege('authenticated','public.cardforge_change_revision_recovery(text,boolean,text,jsonb,boolean)','EXECUTE') then
    raise exception 'revision_recovery_browser_privilege_regression'; end if;
  insert into public.cardforge_pipeline_asset_lineages(id,registry_asset_id,revision_high_water) values(lineage,'recovery-proof',3);
- insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status,revision_number,published_at,source_payload)
- values(history,lineage,'recovery-a','icons','Retained history','archived','approved',1,now()-interval '3 days',payload),
-       (live,lineage,'recovery-b','icons','Newer live','published','approved',2,now()-interval '2 days',null),
-       (other,lineage,'recovery-b','icons','Another contributor candidate','voting','pending',3,null,null);
- insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id)
- values('recovery-proof','Newer live','icon','https://example.invalid/live.svg','published','free','contributor',live);
+ insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source)
+ values('recovery-proof','Newer live','icon','https://example.invalid/live.svg','published','free','contributor');
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status,revision_number,published_at,source_payload,source_url,registry_asset_id,target_registry_asset_id)
+ values(history,lineage,'recovery-a','icons','Retained history','archived','approved',1,now()-interval '3 days',payload,'https://example.invalid/recovery-history.svg','recovery-proof','recovery-proof'),
+       (live,lineage,'recovery-b','icons','Newer live','published','approved',2,now()-interval '2 days',null,'https://example.invalid/live.svg','recovery-proof','recovery-proof'),
+       (other,lineage,'recovery-b','icons','Another contributor candidate','voting','pending',3,null,null,'https://example.invalid/recovery-candidate.svg',null,'recovery-proof');
+ update public.cardforge_asset_registry set contributor_submission_id=live where asset_id='recovery-proof';
  select count(*) into published_before from public.cardforge_pipeline_publication_events where lineage_id=lineage;
  select contributor_submission_id into current_before from public.cardforge_asset_registry where asset_id='recovery-proof';
  select revision_high_water into highwater from public.cardforge_pipeline_asset_lineages where id=lineage;
@@ -78,13 +79,14 @@ begin
    perform public.cardforge_change_revision_recovery('recovery-a',false,'hold',trashed->'state',true); raise exception 'contributor_hold_admitted';
  exception when raise_exception then if sqlerrm<>'revision_recovery_not_permitted' then raise; end if; end;
  restored:=public.cardforge_change_revision_recovery('recovery-a',false,'restore',trashed->'state');
- if restored->'state'->>'status'<>'archived' or restored->'state'->>'trashedAt' is not null
+ if restored->'state'->>'status' not in ('archived','voting','publish_candidate') or restored->'state'->>'trashedAt' is not null
    or (select source_payload from public.cardforge_contributor_asset_submissions where id=history) is distinct from payload
-   or (select contributor_lifecycle_state from public.cardforge_contributor_asset_submissions where id=history)<>'retired'
-   or (select contributor_submission_id from public.cardforge_asset_registry where asset_id='recovery-proof')<>current_before
-   or (select revision_high_water from public.cardforge_pipeline_asset_lineages where id=lineage)<>highwater
-   or (select count(*) from public.cardforge_pipeline_publication_events where lineage_id=lineage)<>published_before
- then raise exception 'restore_rewrote_or_republished_history'; end if;
+   or (select contributor_lifecycle_state from public.cardforge_contributor_asset_submissions where id=history) is not null
+   or not exists(select 1 from public.cardforge_asset_registry where asset_id='recovery-proof' and status='published' and access_tier='free')
+   or (select contributor_submission_id from public.cardforge_asset_registry where asset_id='recovery-proof') is distinct from current_before
+   or (select revision_high_water from public.cardforge_pipeline_asset_lineages where id=lineage) is distinct from highwater
+   or (select count(*) from public.cardforge_pipeline_publication_events where lineage_id=lineage) is distinct from published_before
+ then raise exception 'restore_rewrote_or_republished_history: receipt=%, lifecycle=%, pointer=%, highwater=%, events=%',restored,(select contributor_lifecycle_state from public.cardforge_contributor_asset_submissions where id=history),(select contributor_submission_id from public.cardforge_asset_registry where asset_id='recovery-proof'),(select revision_high_water from public.cardforge_pipeline_asset_lineages where id=lineage),(select count(*) from public.cardforge_pipeline_publication_events where lineage_id=lineage); end if;
  begin
    perform public.cardforge_change_revision_recovery('recovery-a',false,'trash',snapshot->'state'); raise exception 'stale_trash_admitted';
  exception when raise_exception then if sqlerrm<>'revision_recovery_state_changed' then raise; end if; end;
@@ -115,15 +117,14 @@ begin
  trashed:=public.cardforge_change_revision_recovery('recovery-owner',true,'trash',snapshot->'state');
  snapshot:=public.cardforge_read_revision_recovery(other,'recovery-b',false);
  if not (snapshot->'restoreReasons' ? 'owner_recovery_required') then raise exception 'owner_trash_recoverable_by_contributor'; end if;
- -- Recovery of an unpublished submitted record cannot be undone by the
- -- archived-to-Trash projection used by ordinary automatic rebalancing.
+ -- A restored submitted revision re-enters ordinary policy without being
+ -- immediately re-trashed by an identical decision.
  insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status)
  values(recovered_draft,lineage,'recovery-a','icons','Recoverable submitted content','submitted');
  snapshot:=public.cardforge_read_revision_recovery(recovered_draft,'recovery-a',false);
  snapshot:=public.cardforge_change_revision_recovery('recovery-a',false,'trash',snapshot->'state');
  snapshot:=public.cardforge_change_revision_recovery('recovery-a',false,'restore',snapshot->'state');
- update public.cardforge_contributor_asset_submissions set trashed_at=now(),purge_after=now()+interval '30 days',trash_reason='withdrawn'
-   where id=recovered_draft;
+ perform public.cardforge_rebalance_contributor_asset_pipeline(null);
  if (select trashed_at from public.cardforge_contributor_asset_submissions where id=recovered_draft) is not null then
    raise exception 'automatic_projection_retrashed_recovered_content'; end if;
  -- Claim-only proof: no Storage API is invoked by this rollback fixture.
