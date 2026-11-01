@@ -210,6 +210,7 @@ function UnsavedDraftIconProof() {
   const [status,setStatus]=useState('idle');
   return <>
     <button onClick={()=>controller.resetTemplate({...initialTemplate,id:'draft-new-personal-template'})}>Begin unsaved personal Template</button>
+    <button onClick={()=>controller.selectElement('icon')}>Select Icon Layer</button>
     <button onClick={()=>{
       setStatus('pending');
       void controller.applyIconSelection('icon',{
@@ -218,6 +219,7 @@ function UnsavedDraftIconProof() {
         .then(()=>setStatus('applied')).catch(()=>setStatus('rejected'));
     }}>Apply published SVG to unsaved Template</button>
     <output data-testid="draft-template-id">{controller.currentTemplate.id}</output>
+    <output data-testid="draft-selected-element-id">{controller.selectedElementId}</output>
     <output data-testid="draft-apply-status">{status}</output>
     <output data-testid="draft-icon">{JSON.stringify(controller.selectedElement)}</output>
     <output data-testid="draft-neighbor">{JSON.stringify(controller.canvas.elements.find(e=>e.id==='neighbor'))}</output>
