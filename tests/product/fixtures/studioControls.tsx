@@ -108,6 +108,35 @@ function PickerSessionProof() {
     />
   </>;
 }
+
+let retainedIconCallback: ReturnType<typeof useTemplateEditorController>['applyIconSelection'] | null = null;
+function MountedRetainedIcon() {
+  const source: TCGCardTemplate = {
+    ...initial,id:'retained-icon-proof',freeformCanvas:{width:630,height:880,elements:[
+      {id:'icon',type:'icon',name:'Icon',iconName:'Star',x:10,y:10,width:72,height:72,zIndex:1},
+    ]},
+  };
+  const controller = useTemplateEditorController(source);
+  retainedIconCallback = controller.applyIconSelection;
+  return <output data-testid="retained-mounted">mounted</output>;
+}
+function RetainedIconUnmountProof() {
+  const [mounted,setMounted] = useState(true);
+  const [status,setStatus] = useState('idle');
+  const applyAfterUnmount = () => {
+    const callback = retainedIconCallback;
+    if (!callback) {setStatus('missing');return;}
+    void callback('icon',{iconName:'Star',iconImageSource:undefined,iconRenderMode:undefined})
+      .then(()=>setStatus('incorrect-success'))
+      .catch(()=>setStatus('rejected'));
+  };
+  return <>
+    <button onClick={()=>setMounted(false)}>Unmount Icon controller</button>
+    <button onClick={applyAfterUnmount}>Invoke retained same-value Icon callback</button>
+    <output data-testid="retained-status">{status}</output>
+    {mounted?<MountedRetainedIcon/>:null}
+  </>;
+}
 function ControllerIconApplicationProof() {
   const source: TCGCardTemplate = {
     ...initial, id: 'icon-confirmation-proof',
@@ -147,7 +176,8 @@ function ControllerIconApplicationProof() {
 }
 const params = new URLSearchParams(location.search);
 createRoot(document.body.appendChild(document.createElement('div'))).render(
-  params.has('pickerSession') ? <PickerSessionProof/>
+  params.has('retainedIcon') ? <RetainedIconUnmountProof/>
+  : params.has('pickerSession') ? <PickerSessionProof/>
   : params.has('iconAcknowledgment') ? <ControllerIconApplicationProof/>
   : params.has('controllerBatch') ? <ControllerBatchProof/>
   : params.has('accountToolLayer') ? (
