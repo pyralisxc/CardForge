@@ -75,6 +75,7 @@ export function OwnerContributorProgramPanel({
         query: '',
         assetType: 'all',
         status: 'all',
+        trash: target ? 'all' : 'active',
         page: '1',
         pageSize: target ? '50' : '12',
       });

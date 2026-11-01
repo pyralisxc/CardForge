@@ -27,7 +27,7 @@ export function useLibraryRevisionQueue({ enabled, query, catalog, catalogLoadin
   useEffect(() => {
     if (!ready) { setResult(null); return; }
     const controller = new AbortController();
-    const params = new URLSearchParams({ query, assetType, status, reviewTrash: trash, page: String(page), pageSize: '12' });
+    const params = new URLSearchParams({ query, assetType, status, trash, page: String(page), pageSize: '12' });
     void fetch(`/api/pipeline?${params}`, { cache: 'no-store', signal: controller.signal })
       .then(async response => {
         if (!response.ok) throw await readApiError(response, 'Pipeline revisions are unavailable.');
