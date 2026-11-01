@@ -390,7 +390,7 @@ try:
 
     # Writer-first commit: the exact bound consumer must block the real command.
     state = json.loads(a.run(f"select public.cardforge_read_catalog_trash('{raster_submission}')::text;")[-1])['state']
-    expect_conflict(a, command('trash', state), 'catalog_trash_state_changed')
+    expect_conflict(a, command('trash', state), 'catalog_trash_dependency_blocked')
     # Disposable fixture cleanup only; never invoked on a hosted target.
     a.run(f"delete from public.cardforge_contributor_asset_submissions where id='{adopted_id}';")
     state = json.loads(a.run(f"select public.cardforge_read_catalog_trash('{raster_submission}')::text;")[-1])['state']

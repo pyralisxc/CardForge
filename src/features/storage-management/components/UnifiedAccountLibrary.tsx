@@ -325,6 +325,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     const revision = [...(shared.program?.submissions ?? []), ...(shared.program?.votingQueue ?? [])]
       .find(candidate => candidate.id === submissionId && candidate.lineageId === objectId);
     if (!revision) { toast({ title: 'Revision unavailable', description: 'The exact affected revision is no longer loaded. Refresh before continuing.' }); return; }
+    if (!experience.owner) {
+      if (item.scope === 'pipeline' && item.pipeline.submission.id === submissionId) openDetail(item);
+      else toast({ title: 'Revision unavailable', description: 'Refresh before opening this exact affected revision.' });
+      return;
+    }
     try { openReview(item, revision); }
     catch (error) { toast({ title: 'Revision unavailable', description: error instanceof Error ? error.message : 'Refresh Library.' }); }
   };
@@ -579,7 +584,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         reviewReturn.current = { focus: document.activeElement as HTMLElement, scroll: surfaceRef.current?.scrollTop ?? 0 };
         openTool('pipeline-operations');
       }}>Pipeline operations</button> : null}
-      {activeScope === 'pipeline' ? <PipelineContentHealthPanel catalog={shared.catalog} onClassified={shared.refresh} health={contentHealth} canRepair={experience.owner} onOpenObject={openHealthObject} /> : null}
+      {activeScope === 'pipeline' ? <PipelineContentHealthPanel catalog={shared.catalog} onClassified={shared.refresh} health={contentHealth} canRepair={experience.owner} canOpenObject={experience.owner || experience.contributor.canReview} onOpenObject={openHealthObject} /> : null}
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
       {activeScope === 'pipeline' && experience.owner && isSignedIn ? <LibraryRevisionQueueControls disabled={Boolean(activeTool)} revisions={revisionsEnabled} queue={revisionQueue} onModeChange={value => { setRevisionMode(value); setSelection(closeEnvironmentDetail); }} /> : null}
       <NewSetDialog renderPublishedSetDetails={set => set.submissionId ? <PipelineSourceDisclosure submissionId={set.submissionId} /> : <p className="text-xs">Exact source reactions are unavailable for this starter.</p>} createOpen={setStarters.createOpen} onCreateOpenChange={setStarters.setCreateOpen} onCreateWork={createSet} onCreatePublishedSet={set => { void setStarters.createFromPublishedSet(set); }} onRetryPublishedSets={setStarters.openCreateMenu} publishedSets={setStarters.publishedSets} publishedSetsLoading={setStarters.publishedSetsLoading} publishedSetsFailure={setStarters.publishedSetsFailure} creatingPublishedSetId={setStarters.creatingPublishedSetId} />

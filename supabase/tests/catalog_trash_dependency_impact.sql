@@ -12,6 +12,11 @@ declare
  source text:='https://example.invalid/'||l::text||'.svg'; payload jsonb; template jsonb; proof jsonb; snap jsonb; changed jsonb; before_payload jsonb;
  initial_version bigint; initial_updated timestamptz; draft uuid; document_revision integer;
 begin
+ -- Non-rendering canonical metadata never becomes an exact affected object.
+ if public.cardforge_catalog_known_reference(jsonb_build_object('metadata',jsonb_build_object('url',source,'src',source,'source',source),'mcpOperationReceipts',jsonb_build_array(jsonb_build_object('url',source))),array[asset],array[source])
+ then raise exception 'nonrendering_metadata_became_exact_dependency'; end if;
+ if not public.cardforge_catalog_known_reference(jsonb_build_object('appearance',jsonb_build_object('rawCss',jsonb_build_object('backgroundImage','url('||chr(39)||source||chr(39)||')'))),array[asset],array[source])
+ then raise exception 'single_quoted_css_image_not_recognized'; end if;
  if exists(select 1 from public.cardforge_asset_registry) then raise exception 'impact_fixture_requires_isolated_empty_catalog'; end if;
  insert into public.cardforge_pipeline_asset_lineages(id,registry_asset_id,revision_high_water) values(l,asset,1),(consumer_l,consumer_asset,1),(other_l,other_asset,1);
  insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source)
@@ -31,8 +36,8 @@ begin
  or (select updated_at from public.cardforge_contributor_asset_submissions where id=target) is distinct from initial_updated
  then raise exception 'global_restore_churned_unrelated_recovery_state'; end if;
  -- Keep unrelated dynamic/external data: its coverage is not target dependence.
- payload:=jsonb_build_object('version',1,'userTemplates',jsonb_build_array(jsonb_build_object('id','unrelated','name','Unrelated','aspectRatio','2:3','templatePreviewData',jsonb_build_object('title','{{name}}'),'cardBackgroundImageUrl','https://example.invalid/unrelated.png')));
- proof:=jsonb_build_object('contractVersion',1,'sourcePayload',payload,'complete',false,'references',jsonb_build_object('identities','[]'::jsonb,'sources',jsonb_build_array('https://example.invalid/unrelated.png')),'opaqueReasons',jsonb_build_array('dynamic_binding','external_or_unbound_source'));
+ payload:=jsonb_build_object('version',1,'userTemplates',jsonb_build_array(jsonb_build_object('id','unrelated','name','Unrelated','aspectRatio','2:3','templatePreviewData',jsonb_build_object('title','{{name}}'),'cardBackgroundImageUrl',source||'.other')));
+ proof:=jsonb_build_object('contractVersion',1,'sourcePayload',payload,'complete',false,'references',jsonb_build_object('identities','[]'::jsonb,'sources',jsonb_build_array(source||'.other')),'opaqueReasons',jsonb_build_array('dynamic_binding','external_or_unbound_source'));
  insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies) values(unrelated,'private-other','Private unrelated',payload,proof);
  snap:=public.cardforge_read_catalog_trash(target);
  if jsonb_array_length(snap->'recoveryReasons')<>0 or (snap->'impact'->>'affectedCount')::int<>0
@@ -82,7 +87,7 @@ begin
  update public.cardforge_studio_documents set revision=revision+1,catalog_dependencies=proof where id=private_doc;
  select revision into document_revision from public.cardforge_studio_documents where id=unrelated;
  select document_payload into payload from public.cardforge_studio_documents where id=unrelated;
- proof:=jsonb_build_object('contractVersion',1,'sourcePayload',payload,'complete',false,'references',jsonb_build_object('identities','[]'::jsonb,'sources',jsonb_build_array('https://example.invalid/unrelated.png')),'opaqueReasons',jsonb_build_array('dynamic_binding','external_or_unbound_source'));
+ proof:=jsonb_build_object('contractVersion',1,'sourcePayload',payload,'complete',false,'references',jsonb_build_object('identities','[]'::jsonb,'sources',jsonb_build_array(source||'.other')),'opaqueReasons',jsonb_build_array('dynamic_binding','external_or_unbound_source'));
  update public.cardforge_studio_documents set revision=document_revision+1,catalog_dependencies=proof where id=unrelated;
  -- Removing one retained reference remains possible even while unrelated
  -- external content keeps the document interpretation incomplete.

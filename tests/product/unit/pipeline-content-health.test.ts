@@ -69,6 +69,15 @@ describe('Pipeline content health', () => {
     expect(buildPipelineContentHealth({ catalog: null, program }).issues.some(issue => issue.code === 'dependency-unavailable')).toBe(false);
   });
 
+  it('offers ordinary read-only Open without exposing Owner repair commands', () => {
+    const health = buildPipelineContentHealth({ catalog: null, program: programWith() });
+    health.issues.push({ code: 'dependency-unavailable', severity: 'warning', objectId: 'exact', objectName: 'Affected work', message: 'Unavailable', repair: 'Inspect its dependency' });
+    const markup = renderToStaticMarkup(createElement(PipelineContentHealthPanel, { health, canRepair: false, canOpenObject: true, onOpenObject: () => undefined }));
+    expect(markup).toContain('Open object');
+    expect(markup).not.toContain('Download content review');
+    expect(markup).not.toContain('Edit published classification');
+  });
+
   it.each(['textures', 'dividers', 'icons', 'imageAssets', 'elementPresets', 'fonts', 'templates', 'sets'] as const)('uses the same General resource policy in health and review for %s', (assetType) => {
     const program = programWith({ assetType, specialtyTags: ['general'], useCaseTags: [] });
     const requiresUseCase = assetType === 'templates' || assetType === 'sets';
