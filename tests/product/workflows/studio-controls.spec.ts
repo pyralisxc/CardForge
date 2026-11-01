@@ -276,7 +276,7 @@ test('@golden first persisted Template identity keeps selected Icon and Undo his
  await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
  await expect(page.getByText('Current icon: Sparkles')).toBeVisible();
  await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
- await page.getByRole('option',{name:/^Star\\b/}).click();
+ await page.getByRole('option',{name:/^Star\b/}).click();
  await page.getByRole('button',{name:'Use selection',exact:true}).click();
  await expect(page.getByText('Current icon: Star')).toBeVisible();
  await page.getByRole('button',{name:'Save',exact:true}).click();
