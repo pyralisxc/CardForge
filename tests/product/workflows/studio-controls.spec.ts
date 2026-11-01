@@ -273,6 +273,10 @@ test('@golden New front first Save waits for real store receipt before selecting
  await page.setViewportSize({width:1440,height:960});
  await mountHistoryProof(page,'?realStoreSave=1&postCommitDelay=1');
  await expect(page.getByTestId('fixture-parent-selection')).toHaveText('synthetic-local');
+ // The Library panel persists its last active section. Navigate visibly to
+ // Templates before using New front, exactly as the user does.
+ await page.getByRole('toolbar',{name:'Library sections'}).getByRole('button',{name:'Templates',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Create new front design'})).toBeVisible();
  await page.getByRole('button',{name:'Create new front design'}).click();
  await page.getByRole('dialog',{name:'Create a Template'}).getByLabel('Template name').fill('QA first Save store contract');
  await page.getByRole('button',{name:'Create and open canvas'}).click();
