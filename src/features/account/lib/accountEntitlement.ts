@@ -179,6 +179,19 @@ export const resolveAccountAccessMode = ({
   return 'free';
 };
 
+/**
+ * Do not admit a local export from provisional Free/Contributor capabilities.
+ * The browser's signed-in flag is itself unresolved until the account fetch
+ * finishes, so it must not bypass this gate.
+ */
+export const isExportEntitlementUnresolved = ({
+  authConfigured,
+  entitlementStatus,
+}: {
+  authConfigured: boolean;
+  entitlementStatus: 'loading' | 'ready' | 'unavailable';
+}): boolean => authConfigured && entitlementStatus !== 'ready';
+
 export const resolveAccountEntitlement = ({
   accountUserId = null,
   authConfigured,

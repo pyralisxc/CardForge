@@ -134,13 +134,19 @@ export function ExportControlsPanel({
 
   const tabletopSummary = useMemo(() => {
     const preset = getTabletopSimulatorExportPreset(tabletopQuality);
-    const sheets = createTabletopSimulatorSheets(generatedDisplayCards, tabletopQuality);
+    let sheets: ReturnType<typeof createTabletopSimulatorSheets> = [];
+    let geometryError: string | null = null;
+    try {
+      sheets = createTabletopSimulatorSheets(generatedDisplayCards, tabletopQuality);
+    } catch (error) {
+      geometryError = error instanceof Error ? error.message : 'Card face geometry is incompatible.';
+    }
     const textureCount = sheets.reduce(
       (count, sheet) => count + 1 + (sheet.hasBacks ? 1 : 0),
       0
     );
     if (!firstCard) {
-      return { preset, sheets, textureCount, cellSize: null };
+      return { preset, sheets, textureCount, cellSize: null, geometryError };
     }
     const profile = getTabletopSimulatorExportProfile(tabletopQuality);
     const sourceSize = getCardExportDimensionsPx(firstCard, profile.dpi);
@@ -149,7 +155,7 @@ export function ExportControlsPanel({
       sourceSize.heightPx * profile.canvasPixelRatio,
       preset.grid
     );
-    return { preset, sheets, textureCount, cellSize };
+    return { preset, sheets, textureCount, cellSize, geometryError };
   }, [firstCard, generatedDisplayCards, tabletopQuality]);
 
   const progressPercent = zipProgress && zipProgress.total > 0
@@ -171,8 +177,8 @@ export function ExportControlsPanel({
         <CardContent className="space-y-4">
           {generatedDisplayCards.length > 0 ? (
             <div className="rounded-md border bg-muted/40 p-3 text-xs">
-              <p className="font-semibold text-foreground">{isEntitlementPending ? 'Checking account access…' : exportEntitlementLabel}</p>
-              <p className="mt-1 text-muted-foreground">{isEntitlementPending ? 'CardForge is confirming your download access before it applies watermark or project-file rules.' : exportEntitlementMessage}</p>
+              <p className="font-semibold text-foreground">{exportEntitlementLabel}</p>
+              <p className="mt-1 text-muted-foreground">{exportEntitlementMessage}</p>
               <p className="mt-2 text-muted-foreground">
                 CardForge builds exports locally, then your browser saves the single finished file to its configured download location. No server copy is created.
               </p>
@@ -487,7 +493,13 @@ export function ExportControlsPanel({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">{tabletopSummary.preset.description}</p>
-              {tabletopSummary.cellSize ? (
+              {tabletopSummary.geometryError ? (
+                <p role="alert" className="text-xs text-[var(--cf-danger)]">{tabletopSummary.geometryError}</p>
+              ) : null}
+              {!tabletopSummary.geometryError && tabletopSummary.sheets.length > 1 ? (
+                <p className="text-xs text-muted-foreground">Cards retain their authored order. Different portrait, landscape or square proportions start a new numbered sheet; import the sheets in order.</p>
+              ) : null}
+              {tabletopSummary.cellSize && !tabletopSummary.geometryError ? (
                 <p className="text-xs font-medium text-foreground">
                   {tabletopSummary.sheets.length} deck {tabletopSummary.sheets.length === 1 ? 'sheet' : 'sheets'} and {tabletopSummary.textureCount} PNG {tabletopSummary.textureCount === 1 ? 'texture' : 'textures'} with backs; approximately {tabletopSummary.cellSize.cardWidthPx} × {tabletopSummary.cellSize.cardHeightPx}px per card for the first template.
                 </p>
@@ -496,7 +508,7 @@ export function ExportControlsPanel({
             <Button
               variant="outline"
               onClick={() => onExportTabletopSimulatorSpritesheets(tabletopQuality)}
-              disabled={exportsDisabled}
+              disabled={exportsDisabled || Boolean(tabletopSummary.geometryError)}
               className="w-full gap-2"
             >
               <Gamepad2 className="h-4 w-4" />

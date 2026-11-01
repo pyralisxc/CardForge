@@ -11,13 +11,16 @@ export function LibraryRevisionQueueControls({ revisions, onModeChange, queue, d
       <option value="lineages">Lineages</option><option value="revisions">All revisions · Owner</option>
     </select></label>
     {revisions ? <>
+      <label>Lifecycle <select className="max-w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-2 text-sm text-[var(--cf-accent-text)]" aria-label="Revision lifecycle view" value={queue.trash} onChange={event => queue.setTrash(event.target.value as 'active' | 'trashed' | 'all')}>
+        <option value="active">Active</option><option value="trashed">Trash</option><option value="all">All including Trash</option>
+      </select></label>
       <label>Type <select className="max-w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-2 text-sm text-[var(--cf-accent-text)]" aria-label="Revision type" value={queue.assetType} onChange={event => queue.setAssetType(event.target.value)}>
         <option value="all">All types</option>{PIPELINE_TYPES.map(type => <option key={type} value={type}>{getPipelineTypeLabel(type)}</option>)}
       </select></label>
       <label>Status <select className="max-w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-2 text-sm text-[var(--cf-accent-text)]" aria-label="Revision status" value={queue.status} onChange={event => queue.setStatus(event.target.value)}>
         <option value="all">All statuses</option>{PIPELINE_STATUSES.map(status => <option key={status} value={status}>{getPipelineStatusLabel(status)}</option>)}
       </select></label>
-      <span role="status">{queue.loading ? 'Loading revisions…' : `${queue.total} matching revisions · Page ${queue.page} of ${Math.max(1, Math.ceil(queue.total / queue.pageSize))}`}</span>
+      <span role="status">{queue.loading ? 'Loading revisions…' : `${queue.total} ${queue.trash === 'trashed' ? 'trashed revisions' : 'matching revisions'} · Page ${queue.page} of ${Math.max(1, Math.ceil(queue.total / queue.pageSize))}`}</span>
       <button type="button" disabled={queue.loading || queue.page <= 1} onClick={() => queue.setPage(queue.page - 1)}>Previous revisions</button>
       <button type="button" disabled={queue.loading || queue.page * queue.pageSize >= queue.total} onClick={() => queue.setPage(queue.page + 1)}>Next revisions</button>
     </> : null}

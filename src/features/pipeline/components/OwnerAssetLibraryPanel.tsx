@@ -1,6 +1,8 @@
 "use client";
+import { getPipelineTrashState } from '../lib/pipelineTrash';
 import { createPipelineReviewTarget } from '../lib/pipelineReviewTarget';
 import { CatalogTrashControls } from './CatalogTrashControls';
+import { RevisionRecoveryControls } from './RevisionRecoveryControls';
 import { SourceReviewEvidence } from './SourceReviewEvidence';
 
 import { useState } from 'react';
@@ -403,7 +405,8 @@ export function OwnerAssetLibraryPanel({
                   </Button>
                   <Button variant="outline" className="rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" onClick={() => setManagingId(null)}>Cancel</Button>
                 </div>
-                <CatalogTrashControls key={submission.id} submissionId={submission.id} />
+                {getPipelineTrashState(submission).scope === 'catalog' ? <p className="text-xs">Owner catalog Trash must be restored before exact revision recovery is available.</p> : <RevisionRecoveryControls key={`revision:${submission.id}`} submissionId={submission.id} actorScope={program.currentContributorIds.join('|')} onChanged={onRevisionCreated} />}
+                {getPipelineTrashState(submission).scope === 'catalog' && !submission.catalogSubmissionId ? <p className="text-xs">The exact current catalog identity is unavailable. Refresh before recovery.</p> : <CatalogTrashControls key={submission.id} submissionId={submission.catalogSubmissionId ?? submission.id} onChanged={onRevisionCreated} />}
                 <div className="border-t border-[var(--cf-border-subtle)] pt-3">
                   <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
                     Retire hides an asset and preserves its votes and publication history. Permanent deletion removes the complete shared asset lineage and cannot be undone.
@@ -432,7 +435,7 @@ export function OwnerAssetLibraryPanel({
                       className="rounded-none border-[#8f3e36] bg-transparent text-[#ffb8a8] hover:bg-[#2a120d]"
                       onClick={() => void deletePermanently(submission)}
                     >
-                      <Trash2 className="mr-1 h-4 w-4" /> Delete permanently
+                      <Trash2 className="mr-1 h-4 w-4" /> Delete entire lineage permanently
                     </Button>
                   </div>
                 </div>
@@ -464,7 +467,7 @@ export function OwnerAssetLibraryPanel({
             <Button size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" onClick={() => setExpandedId((current) => current === submission.id ? null : submission.id)}>
               <Eye className="mr-1 h-4 w-4" /> {isPendingTemplateRevision ? 'Compare revision' : 'Review'}
             </Button>
-            {focused ? <div><Button size="sm" variant="outline" disabled={!onRevise || submission.status !== 'published' || !['templates', 'elementPresets'].includes(submission.assetType) || Boolean(submission.trashedAt || submission.purgeState)} onClick={() => onRevise?.(submission)}>Revise existing</Button>
+            {focused ? <div><Button size="sm" variant="outline" disabled={!onRevise || submission.status !== 'published' || !['templates', 'elementPresets'].includes(submission.assetType) || Boolean(getPipelineTrashState(submission).trashed || submission.purgeState)} onClick={() => onRevise?.(submission)}>Revise existing</Button>
               <p className="text-xs">{submission.status !== 'published' ? 'Revision editing starts from the current published base; this selected revision remains under review.' : !['templates', 'elementPresets'].includes(submission.assetType) ? 'This type has no supported Template or style revision editor.' : 'Verify the selected published base before preparing a separate review draft. Opening does not submit or publish.'}</p></div> : null}
             <Button size="sm" variant="outline" className="border-[#8a642f] bg-transparent text-[var(--cf-accent-strong)]" onClick={() => openManager(submission)}>
               <Settings2 className="mr-1 h-4 w-4" /> Manage

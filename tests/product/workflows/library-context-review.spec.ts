@@ -311,8 +311,8 @@ test('@golden actual Library keeps revision context through dirty close and clea
 });
 
 
-for (const missing of [false, true]) test(`@golden historical Template keeps source and publication labels (missing=${missing})`, async ({ page }, info) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+for (const width of [390, 1440]) for (const missing of [false, true]) test(`@golden historical Template keeps source and publication labels (missing=${missing}) at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 900 });
   const evidence = await mount(page, `?queueActual=1&scope=pipeline&historyTemplate=1${missing ? '&missingHistory=1' : ''}`);
   await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
   await page.getByRole('button', { name: 'Next revisions' }).click();
@@ -320,7 +320,24 @@ for (const missing of [false, true]) test(`@golden historical Template keeps sou
   const history = page.getByLabel('Pipeline review details');
   await expect(history.getByText('History', { exact: true })).toBeVisible();
   await expect(history.getByText('Live', { exact: true })).toHaveCount(0);
-  await history.getByRole('button', { name: 'Review & manage Revision 1', exact: true }).click();
+  const reviewAction = history.getByRole('button', { name: 'Review & manage Revision 1', exact: true });
+  await reviewAction.scrollIntoViewIfNeeded();
+  const geometry = await reviewAction.evaluate(button => {
+    const bounds = button.getBoundingClientRect();
+    const summary = [...button.closest('li')!.querySelectorAll('summary')].find(node => node.textContent === 'Trash & recovery options')!;
+    const recovery = summary.getBoundingClientRect();
+    const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    return { action: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+      recovery: { x: recovery.x, y: recovery.y, width: recovery.width, height: recovery.height },
+      hit: hit?.textContent, reachable: hit === button || button.contains(hit) };
+  });
+  await info.attach('revision-recovery-pointer-geometry', { body: JSON.stringify(geometry), contentType: 'application/json' });
+  expect(geometry.reachable).toBe(true);
+  const recoverySummary = reviewAction.locator('xpath=ancestor::li[1]').getByText('Trash & recovery options', { exact: true });
+  await recoverySummary.click();
+  await expect(reviewAction.locator('xpath=ancestor::li[1]').getByRole('button', { name: 'Inspect revision recovery' })).toBeVisible();
+  await recoverySummary.click();
+  await reviewAction.click();
   const review = page.getByLabel('Exact revision governance');
   await expect(review).toContainText('10000000-0000-4000-8000-000000000015');
   await expect(review.getByText('Current live catalog payload', { exact: false })).toHaveCount(0);
@@ -484,6 +501,143 @@ for (const width of [390, 1440]) test(`@golden Campaigns search and content reac
   await card.scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath('campaigns.png') });
   await info.attach('actual-components-local-campaigns', { path: info.outputPath('campaigns.png'), contentType: 'image/png' });
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const width of [320, 390, 1440]) test(`@golden Desk second rail keeps controls reachable and state intact at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 844 });
+  const evidence = await mount(page, '?deskActual=1&deskMenu=1&deskSearch=1');
+  const toolbar = page.locator('[data-desk="overview"] [data-desk-toolbar]');
+  const select = toolbar.getByRole('button', { name: 'Select multiple', exact: true });
+  const search = page.getByPlaceholder('Search Desk work');
+  await search.fill('material');
+  if (width < 768) {
+    const filters = toolbar.getByLabel('Open Desk filters', { exact: true });
+    const view = toolbar.getByRole('button', { name: 'Desk view controls', exact: true });
+    const boxes = await Promise.all([filters, select, view].map(async control => {
+      await expect(control).toBeInViewport({ ratio: 1 });
+      return (await control.boundingBox())!;
+    }));
+    const centers = boxes.map(box => box.y + box.height / 2);
+    expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
+    for (const box of boxes) { expect(box.height).toBeGreaterThanOrEqual(44); expect(box.width).toBeGreaterThanOrEqual(44); }
+    expect((await toolbar.boundingBox())!.height).toBeLessThanOrEqual(60);
+    await filters.click();
+    const panel = page.locator('[data-mobile-desk-filters] [aria-label="Desk views and filters"]');
+    await expect(panel).toBeInViewport({ ratio: 1 });
+    await panel.getByRole('button', { name: 'Choose Desk views', exact: true }).click();
+    await page.getByRole('menuitemcheckbox', { name: 'My published', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await filters.click();
+    await select.click();
+    await expect(toolbar.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await view.focus(); await page.keyboard.press('Enter');
+    await expect(page.getByRole('menuitem', { name: 'Fit visible work' })).toBeInViewport({ ratio: 1 });
+    await page.keyboard.press('Escape'); await expect(view).toBeFocused();
+    await filters.click();
+    await panel.getByRole('button', { name: 'Choose Desk views', exact: true }).click();
+    await expect(page.getByRole('menuitemcheckbox', { name: 'My published', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('Escape'); await filters.click();
+    await expect(toolbar.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  } else {
+    await expect(toolbar.getByRole('button', { name: 'Choose Desk views', exact: true })).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: 'Whole Desk', exact: true })).toBeVisible();
+    await select.click();
+    await expect(toolbar.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  }
+  await expect(search).toHaveValue('material');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: info.outputPath('desk-second-rail.png') });
+  await info.attach('native-desk-second-rail', { path: info.outputPath('desk-second-rail.png'), contentType: 'image/png' });
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+test('@golden Desk enlarged text keeps labels and selected-work controls reachable at 320px', async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  const evidence = await mount(page, '?deskActual=1&deskMenu=1&deskSearch=1');
+  const toolbar = page.locator('[data-desk="overview"] [data-desk-toolbar]');
+  const filters = toolbar.getByLabel('Open Desk filters', { exact: true });
+  const view = toolbar.getByRole('button', { name: 'Desk view controls', exact: true });
+  await filters.click();
+  const panel = page.locator('[data-mobile-desk-filters] [aria-label="Desk views and filters"]');
+  await panel.getByRole('button', { name: 'Choose Desk views', exact: true }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'My published', exact: true }).click();
+  await page.keyboard.press('Escape'); await filters.click();
+  await toolbar.getByRole('button', { name: 'Select multiple', exact: true }).click();
+  for (const name of ['Synthetic material revision one', 'Unrelated Bridge Back']) {
+    await page.getByRole('button', { name: new RegExp(`^Select ${name}`) }).click();
+  }
+  const normalFont = await filters.evaluate(node => parseFloat(getComputedStyle(node).fontSize));
+  // Enlarge the actual label text without doubling every unrelated rem-sized
+  // header, source notice and footer in this isolated unavailable-provider fixture.
+  await page.addStyleTag({ content: `[data-desk-toolbar] > button, [data-mobile-desk-filters] > summary, [aria-label="Compact Desk view controls"] button { font-size: ${normalFont * 2}px !important; }` });
+  expect(await filters.evaluate(node => parseFloat(getComputedStyle(node).fontSize))).toBeCloseTo(normalFont * 2, 1);
+  const measurements = await Promise.all([filters, toolbar.getByRole('button', { name: 'Done selecting', exact: true }), view].map(control => control.evaluate(node => {
+    const bounds = node.getBoundingClientRect();
+    const range = document.createRange(); range.selectNodeContents(node);
+    return { label: node.textContent, font: getComputedStyle(node).fontSize, x: bounds.x, width: bounds.width, height: bounds.height,
+      text: Array.from(range.getClientRects()).filter(rect => rect.width && rect.height).map(rect => ({ x: rect.x, right: rect.right })) };
+  })));
+  await info.attach('enlarged-desk-measurements', { body: JSON.stringify(measurements, null, 2), contentType: 'application/json' });
+  console.log('ENLARGED_DESK_MEASUREMENTS', JSON.stringify(measurements));
+  await page.screenshot({ path: info.outputPath('desk-second-rail-enlarged.png') });
+  for (const measurement of measurements) {
+    expect(measurement.width).toBeGreaterThanOrEqual(44); expect(measurement.height).toBeGreaterThanOrEqual(44);
+    expect(measurement.x).toBeGreaterThanOrEqual(0); expect(measurement.x + measurement.width).toBeLessThanOrEqual(320);
+    for (const text of measurement.text) { expect(text.x).toBeGreaterThanOrEqual(measurement.x); expect(text.right).toBeLessThanOrEqual(measurement.x + measurement.width + 1); }
+  }
+  await view.click(); await expect(page.getByRole('menuitem', { name: 'Fit selection', exact: true })).toBeEnabled();
+  await page.keyboard.press('Escape'); await expect(view).toBeFocused();
+  await filters.focus(); await page.keyboard.press('Enter');
+  await expect(panel).toBeInViewport({ ratio: 1 });
+  await expect(panel.getByRole('button', { name: 'Organize 2 Sets', exact: true })).toBeInViewport({ ratio: 1 });
+  await page.keyboard.press('Escape');
+  await toolbar.getByRole('button', { name: 'Done selecting', exact: true }).click();
+  await expect(toolbar.getByRole('button', { name: 'Select multiple', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const width of [320, 390, 1440]) test(`@golden Library second rail keeps full scope labels on one row at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 844 });
+  const evidence = await mount(page, '?campaignActual=1');
+  const scopes = page.getByRole('navigation', { name: 'Library scopes', exact: true });
+  const boxes = [];
+  for (const label of ['Personal', 'Pipeline', 'Published', 'Campaigns']) {
+    const button = scopes.getByRole('button', { name: new RegExp(`^${label}`) });
+    await button.scrollIntoViewIfNeeded();
+    await expect(button).toBeInViewport({ ratio: 1 });
+    const bounds = (await button.boundingBox())!;
+    expect(bounds.height).toBeGreaterThanOrEqual(width < 768 ? 44 : 40);
+    expect(await button.locator('span').evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+    await button.click(); await expect(button).toHaveAttribute('aria-current', 'page');
+    boxes.push(bounds);
+  }
+  const centers = boxes.map(box => box.y + box.height / 2);
+  expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
+  expect((await scopes.boundingBox())!.height).toBeLessThanOrEqual(48);
+  const campaigns = scopes.getByRole('button', { name: /^Campaigns/ });
+  await page.getByRole('searchbox', { name: 'Search campaigns' }).fill('founder');
+  await scopes.getByRole('button', { name: /^Personal/ }).focus();
+  await page.keyboard.press('Enter');
+  await expect(scopes.getByRole('button', { name: /^Personal/ })).toHaveAttribute('aria-current', 'page');
+  await campaigns.focus(); await page.keyboard.press('Enter');
+  await expect(campaigns).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('searchbox', { name: 'Search campaigns' })).toHaveValue('founder');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: info.outputPath('library-second-rail.png') });
+  await info.attach('native-library-second-rail', { path: info.outputPath('library-second-rail.png'), contentType: 'image/png' });
+  if (width === 320) {
+    await page.addStyleTag({ content: 'html { font-size: 200%; }' });
+    expect(await scopes.evaluate(node => node.scrollWidth)).toBeGreaterThan(await scopes.evaluate(node => node.clientWidth));
+    for (const label of ['Personal', 'Campaigns']) {
+      const button = scopes.getByRole('button', { name: new RegExp(`^${label}`) });
+      await button.focus(); await page.keyboard.press('Enter');
+      await expect(button).toBeInViewport({ ratio: 1 });
+      await expect(button).toHaveAttribute('aria-current', 'page');
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  }
   expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
 });
 
@@ -651,4 +805,54 @@ for (const editing of [false, true]) test(`@golden Campaign package pristine and
   await page.getByRole('searchbox', { name: 'Search campaigns' }).fill('independent view change');
   await expect(create).toBeEnabled(); await expect(title).toHaveValue(initial);
   expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const denied of [false, true]) test(`@golden signed-in shared Trash exact Contributor controls (denied=${denied})`, async ({ page }) => {
+  const evidence = await mount(page, `?queueActual=1&scope=pipeline&sharedTrashProof=1${denied ? '&sharedDenied=1' : ''}`);
+  await page.getByRole('button', { name: 'Browse shared Trash' }).click();
+  await expect(page.getByText('Recoverable shared card back')).toBeVisible();
+  await expect(page.getByText('Shared contribution · In Trash')).toBeVisible();
+  await expect(page.getByText('Recovery deadline', { exact: false })).toBeVisible();
+  await expect(page.getByText('Publication history remains retained', { exact: false })).toBeVisible();
+  await expect(page.getByText('private draft secret')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Manage exact revision' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Exact voting & recovery options' }).click();
+  await expect(page.getByLabel('Pipeline source feedback')).toBeVisible();
+  await expect(page.getByLabel('Revision recovery')).toBeVisible();
+  await page.getByRole('button', { name: 'Inspect revision recovery' }).click();
+  await expect(page.getByRole('button', { name: 'Restore' })).toBeDisabled();
+  if (denied) {
+    await expect(page.getByRole('button', { name: 'Like 2' })).toBeDisabled();
+  } else {
+    await page.getByRole('button', { name: 'Like 2' }).click();
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { libraryRequests: Array<{ url: string; method: string }> }).libraryRequests.filter(value => value.url.includes('/api/pipeline/library?scope=shared&trash=trashed')).length)).toBeGreaterThan(1);
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { libraryRequests: Array<{ url: string; method: string; body?: string }> }).libraryRequests.some(value => value.url.endsWith('/vote') && value.body?.includes('positive')))).toBe(true);
+  }
+  expect(evidence.errors).toEqual([]);
+  expect(evidence.mutations.filter(value => value.includes('/lifecycle'))).toEqual([]);
+});
+
+
+test('@golden catalog Trash survives Owner revision filters and exact Manage handoff', async ({ page }) => {
+  const evidence = await mount(page, '?queue=1&catalogTrashProof=1');
+  await page.getByRole('combobox', { name: 'Pipeline discovery mode' }).selectOption('revisions');
+  await expect(page.getByRole('status').filter({ hasText: '1 matching revisions' })).toBeVisible();
+  await expect(page.getByText('Catalog-trashed exact icon', { exact: true })).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'Revision lifecycle view' }).selectOption('all');
+  await expect(page.getByRole('status').filter({ hasText: '2 matching revisions' })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Revision lifecycle view' }).selectOption('trashed');
+  await expect(page.getByRole('status').filter({ hasText: '1 trashed revisions' })).toBeVisible();
+  await page.locator('[id="library-object-pipeline:submission:10000000-0000-4000-8000-000000000001"]').click();
+  const panel = page.getByLabel('Exact revision governance');
+  await expect(panel).toContainText('10000000-0000-4000-8000-000000000001');
+  await panel.getByRole('button', { name: 'Manage', exact: true }).click();
+  const recovery = panel.getByLabel('Catalog recovery');
+  await recovery.getByRole('button', { name: 'Refresh recovery state' }).click();
+  await expect(recovery.getByRole('button', { name: 'Restore', exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => (window as unknown as { libraryRequests: {url:string;method:string}[] }).libraryRequests)).toEqual(expect.arrayContaining([
+    expect.objectContaining({ url: expect.stringContaining('trash=trashed') }),
+    expect.objectContaining({ url: expect.stringContaining('trash=all') }),
+    expect.objectContaining({ url: '/api/pipeline/10000000-0000-4000-8000-000000000001/catalog-trash', method: 'GET' }),
+  ]));
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });

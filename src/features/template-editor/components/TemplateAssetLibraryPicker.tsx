@@ -32,10 +32,11 @@ interface TemplateAssetLibraryPickerProps {
   providerRole: PersonalLibraryRole;
   target: LibraryPickerRequest['target'];
   onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
-  onApply: (asset: CardAssetOption) => void;
+  onApply: (asset: CardAssetOption, signal: AbortSignal, expectedTemplateId?: string | null) => void | Promise<void>;
+  applicationTemplateId?: string | null;
   managedAdoption?: { pendingName?: string; issue: string | null; onSelect: (selection: ManagedRasterSelection, name: string) => void };
   builtInOptions?: readonly { name: string; value: string }[];
-  onApplyBuiltIn?: (value: string) => void;
+  onApplyBuiltIn?: (value: string, signal: AbortSignal, expectedTemplateId?: string | null) => void | Promise<void>;
   onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
 }
 
@@ -52,6 +53,27 @@ const sourceLabelForAsset = (asset: CardAssetOption): string => {
   return source === 'project' ? 'This project' : source === 'pipeline' ? 'Contributor Library' : 'CardForge Library';
 };
 
+/**
+ * The visual picker selects one observed resource, not merely an asset ID.
+ * Registry and project entries can reuse an ID across sources/revisions;
+ * never apply a different first ID match from the displayed SVG preview.
+ */
+export function resolveSelectedTemplateAsset(
+  selection: Pick<LibraryPickerResource, 'objectId' | 'source' | 'previewUrl'>,
+  assets: readonly CardAssetOption[],
+): CardAssetOption {
+  const matches = assets.filter(asset => (
+    asset.id === selection.objectId
+    && pickerSourceForAsset(asset) === selection.source
+    && Boolean(asset.url)
+    && asset.url === selection.previewUrl
+  ));
+  if (matches.length !== 1) {
+    throw new Error('The exact selected Library artwork is no longer available or is ambiguous. Refresh the picker and choose again.');
+  }
+  return matches[0]!;
+}
+
 export function TemplateAssetLibraryPicker({
   assets,
   kind,
@@ -62,6 +84,7 @@ export function TemplateAssetLibraryPicker({
   target,
   onAddFromProvider,
   onApply,
+  applicationTemplateId,
   managedAdoption,
   builtInOptions = [],
   onApplyBuiltIn,
@@ -144,9 +167,11 @@ export function TemplateAssetLibraryPicker({
           description: 'Google Drive owns file selection. CardForge indexes the chosen file in My Library.',
           onInvoke: () => onAddFromProvider(providerRole),
         }]}
-        onSelect={async (result) => {
+        onSelect={async (result, signal) => {
+          // Capture Design context before potentially asynchronous personal materialization.
+          const expectedTemplateId = applicationTemplateId;
           const selection = result.selections[0];
-          if (!selection) return;
+          if (!selection) throw new Error('Choose one Library resource before applying it.');
           if (adopt && managedAdoption) {
             if (managedAdoption.issue) throw new Error(managedAdoption.issue);
             const asset = assets.find(candidate => candidate.id === selection.objectId);
@@ -161,18 +186,19 @@ export function TemplateAssetLibraryPicker({
             return;
           }
           if (selection.id.startsWith(`published:built-in-${kind}:`) && onApplyBuiltIn) {
-            onApplyBuiltIn(selection.objectId);
+            await onApplyBuiltIn(selection.objectId, signal, expectedTemplateId);
             return;
           }
           if (selection.source === 'personal') {
             const item = personalItems.find((candidate) => candidate.id === selection.objectId);
             if (!item) throw new Error('That personal Library item is no longer available. Refresh the Picker and choose again.');
-            onApply(await onMaterializePersonal(item));
+            const materialized = await onMaterializePersonal(item);
+            if (signal.aborted) return;
+            await onApply(materialized, signal, expectedTemplateId);
             return;
           }
-          const asset = assets.find((candidate) => candidate.id === selection.objectId);
-          if (!asset) throw new Error('That Library resource is no longer available. Refresh the Picker and choose again.');
-          onApply(asset);
+          const asset = resolveSelectedTemplateAsset(selection, assets);
+          await onApply(asset, signal, expectedTemplateId);
         }}
         renderResourceDetails={resource => {
           const asset = assets.find(candidate => resource.id === `${pickerSourceForAsset(candidate)}:${candidate.id}`);

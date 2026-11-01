@@ -49,6 +49,7 @@ export async function changeCatalogTrash(actorUserId: string, input: unknown) {
   const {data, error} = await db.rpc('cardforge_change_catalog_trash', {
     p_actor_user_id:actorUserId, p_action:action, p_expected:expected,
     p_held:action === 'hold' ? command.data.held : null,
+    ...(action === 'trash' && command.data.confirmation ? { p_confirmation: command.data.confirmation } : {}),
   });
   if (error) throw nativeError(error);
   const receipt = catalogTrashSnapshotSchema.safeParse(data);

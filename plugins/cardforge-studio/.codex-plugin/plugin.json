@@ -1,6 +1,6 @@
 {
   "name": "cardforge-studio",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Design editable cards and complete sets with ChatGPT using native CardForge rendering and revision-safe collaboration.",
   "author": {
     "name": "Cameron Locke",
@@ -20,10 +20,10 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "CardForge Studio",
-    "shortDescription": "Design cards and generate complete card sets",
+    "shortDescription": "Design cards and card sets",
     "longDescription": "Design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review exact CardForge-rendered outputs natively in chat, and continue everything in CardForge Studio. Contributor publication tools remain a separate optional workflow.",
     "developerName": "Cameron Locke",
-    "category": "Design",
+    "category": "Creativity",
     "capabilities": [
       "Write"
     ],
@@ -35,6 +35,9 @@
       "Turn this list into a complete CardForge card set.",
       "Add unique artwork and review my existing card set."
     ],
-    "brandColor": "#8A5A2B"
+    "brandColor": "#8A5A2B",
+    "supportURL": "https://cardforges.com/contact?kind=support",
+    "logo": "./assets/logo.png",
+    "composerIcon": "./assets/icon.png"
   }
 }

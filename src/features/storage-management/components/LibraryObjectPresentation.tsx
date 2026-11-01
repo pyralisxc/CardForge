@@ -9,8 +9,9 @@ import { hasCardBacking } from '@/domain/rendering';
 import type { ActionDescriptor, EnvironmentDetailRecord, EnvironmentStatusTone } from '@/features/app-shell/client/environment';
 import { getStudioAssetDestinationDefinition } from '@/domain/templates';
 import { AppearanceSurface, appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
-import { formatContentTaxonomyTag, getSemanticRoleLabel, getPipelineDecisionReasonLabel, getPipelineStatusLabel, isContributorPipelineVoteable } from '@/features/pipeline/client';
+import { formatContentTaxonomyTag, getSemanticRoleLabel, getPipelineDecisionReasonLabel, getPipelineStatusLabel, isContributorPipelineVoteable, getPipelineTrashState } from '@/features/pipeline/client';
 import { MediaPresentationRevision, MediaPresentationPreview } from '@/features/pipeline/client/media-revisions';
+import { RevisionRecoveryControls, CatalogTrashControls } from '@/features/pipeline/client/revision-recovery';
 import type { PipelineSubmission } from '@/features/pipeline/client';
 import type { selectAllTemplates } from '@/features/project/client/workspace';
 import { LocalLibraryResourcePreview } from '@/features/project/client/library-resources';
@@ -186,13 +187,13 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
   return {
     id: item.id, kind: 'pipeline-asset', eyebrow: `${item.kindLabel} · Pipeline`, title: item.name,
     summary: item.summary, status: item.statusLabel,
-    tone: item.pipeline.submission.status === 'rejected' ? 'danger' : item.pipeline.submission.status === 'published' ? 'success' : 'warning',
+    tone: getPipelineTrashState(displayedRevision).trashed ? 'warning' : item.pipeline.submission.status === 'rejected' ? 'danger' : item.pipeline.submission.status === 'published' ? 'success' : 'warning',
     actionSources: [{ id: `${item.id}:pipeline`, label: 'Forge Review', source: 'provider-native', currentRevisionAvailable: true }],
     meta: [
       ['Displayed revision contributor', item.pipeline.submission.contributorDisplayName ?? item.pipeline.submission.contributorEmail ?? 'CardForge contributor'],
       ['Lineage participation', item.pipeline.ownership === 'mine' ? 'You contributed to this lineage' : 'Shared Pipeline'],
       ['Lifecycle', item.statusLabel],
-      ['Review', displayedRevision.trashedAt ? 'Unavailable in Trash' : isContributorPipelineVoteable(displayedRevision) ? 'Revision feedback available' : 'Voting begins after submission'],
+      ['Review', isContributorPipelineVoteable(displayedRevision) ? 'Revision feedback available' : 'Voting begins after submission'],
       ['Displayed revision', getPipelineRevisionLabel(item.pipeline.submission)],
       ...(item.pipeline.currentPublishedSubmission ? [['Published revision', getPipelineRevisionLabel(item.pipeline.currentPublishedSubmission)] as const] : []),
       ...(reviewSubmission ? [['Reviewing revision', getPipelineRevisionLabel(reviewSubmission)] as const] : []),
@@ -215,13 +216,14 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
   };
 };
 
-export function PipelineDetailContent({ item, onVoteRevision, canReview, votingId, isSelfVoteBlocked, isOwner = false, onRevisionCreated, onReviewRevision, onEditRevision }: {
+export function PipelineDetailContent({ item, onVoteRevision, canReview, votingId, isSelfVoteBlocked, isOwner = false, currentContributorIds = [], onRevisionCreated, onReviewRevision, onEditRevision }: {
   item: Extract<LibraryViewItem, { scope: 'pipeline' }>;
   onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
   canReview: boolean;
   votingId: string | null;
   isSelfVoteBlocked: (contributorId: string) => boolean;
   isOwner?: boolean;
+  currentContributorIds?: readonly string[];
   onRevisionCreated?: () => Promise<void> | void;
   onReviewRevision?: (submission: PipelineSubmission) => void;
   onEditRevision?: (submission: PipelineSubmission) => void;
@@ -235,7 +237,8 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
     {submission.tierDecisionReason || submission.decisionReason ? <div><h3>Placement</h3><p>{getPipelineDecisionReasonLabel(submission.tierDecisionReason ?? submission.decisionReason)}</p></div> : null}
     <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((revision) => {
       const selfVoteBlocked = isSelfVoteBlocked(revision.contributorId);
-      const revisionRole = revision.trashedAt
+      const trash = getPipelineTrashState(revision);
+      const revisionRole = trash.trashed
         ? 'Trash'
         : item.pipeline.currentPublishedSubmission?.id === revision.id
           ? 'Live'
@@ -249,6 +252,12 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
         {revision.mediaPresentation ? <details><summary>Inspect exact presentation revision</summary>{revision.sourceUrl
           ? <MediaPresentationPreview sourceUrl={revision.sourceUrl} presentation={revision.mediaPresentation} />
           : <p>Exact source preview requires Owner or original contributor access.</p>}</details> : null}
+        {trash.scope === 'catalog' ? isOwner && trash.catalogSubmissionId
+          ? <CatalogTrashControls submissionId={trash.catalogSubmissionId} onChanged={onRevisionCreated} />
+          : <p className="text-xs">Owner catalog Trash is active. An Owner must restore this catalog before revision recovery is available.</p>
+          : isOwner || currentContributorIds.includes(revision.contributorId) ? trash.trashed
+            ? <RevisionRecoveryControls submissionId={revision.id} actorScope={`${isOwner}:${currentContributorIds.join('|')}`} onChanged={onRevisionCreated} />
+            : <details><summary>Trash &amp; recovery options</summary><RevisionRecoveryControls submissionId={revision.id} actorScope={`${isOwner}:${currentContributorIds.join('|')}`} onChanged={onRevisionCreated} /></details> : null}
         {canReview && isContributorPipelineVoteable(revision) ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`}>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>

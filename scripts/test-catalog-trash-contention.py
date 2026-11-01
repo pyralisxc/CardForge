@@ -53,18 +53,18 @@ class Session:
             self.process.wait(timeout=5)
 
 
-def fixture(session):
+def fixture(session, source='https://example.invalid/retained.svg'):
     lineage, current, old = (str(uuid.uuid4()) for _ in range(3))
     asset = 'contention-' + lineage
     session.run(f"""
       insert into public.cardforge_pipeline_asset_lineages(id,registry_asset_id,revision_high_water) values('{lineage}','{asset}',2);
       insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source)
-        values('{asset}','Contention proof','icon','https://example.invalid/retained.svg','published','free','contributor');
+        values('{asset}','Contention proof','icon','{source}','published','free','contributor');
       insert into public.cardforge_contributor_asset_submissions
         (id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status,calculated_access_tier,
           registry_asset_id,target_registry_asset_id,revision_number,published_at,source_url,trashed_at,purge_after,trash_reason)
         values('{current}','{lineage}','isolated-contention','icons','Contention proof','published','approved','free','{asset}','{asset}',2,now(),
-          'https://example.invalid/retained.svg',null,null,null),
+          '{source}',null,null,null),
         ('{old}','{lineage}','isolated-contention','icons','Old contention proof','archived','approved','hidden','{asset}','{asset}',1,null,
           'https://example.invalid/old.svg',now()-interval '32 days',now()-interval '2 days','expired');
       update public.cardforge_asset_registry set contributor_submission_id='{current}' where asset_id='{asset}';
@@ -118,7 +118,7 @@ try:
     a.run(set_insert('set-writer-' + consumer, consumer, ['contention-' + lineage]) + ';')
     expect_busy(b, command('trash', state))
     a.run('commit;')
-    expect_conflict(b, command('trash', state), 'catalog_trash_dependency_blocked')
+    expect_conflict(b, command('trash', state), 'catalog_trash_state_changed')
     a.run(f"delete from public.cardforge_contributor_asset_submissions where id='{consumer}';")
     print('PASS: Set writer wins; committed typed identity blocks Trash')
 
@@ -202,7 +202,7 @@ try:
     a.run(f"update public.cardforge_studio_documents set document_payload={payload},catalog_dependencies={proof},revision=revision+1 where id='{document}';")
     expect_busy(b, command('trash', state))
     a.run('commit;')
-    expect_conflict(b, command('trash', state), 'catalog_trash_dependency_blocked')
+    expect_conflict(b, command('trash', state), 'catalog_trash_state_changed')
     a.run(f"delete from public.cardforge_studio_documents where id='{document}';")
     print('PASS: Studio writer wins; committed dependency prevents Trash')
 
@@ -303,7 +303,7 @@ try:
     a.run('commit;')
     reasons = json.loads(b.run(f"select public.cardforge_read_catalog_trash('{current}')::text;")[-1])['entryReasons']
     assert 'pipeline_identity_consumer_requires_resolution' in reasons
-    expect_conflict(b, command('trash', state), 'catalog_trash_dependency_blocked')
+    expect_conflict(b, command('trash', state), 'catalog_trash_state_changed')
     a.run(f"delete from public.cardforge_asset_registry where asset_id='{consumer}';")
     print('PASS: concurrent registry consumer write blocks Move; committed target reference is observed')
 
@@ -449,6 +449,120 @@ try:
     assert a.run("select count(*) from public.cardforge_roadmap_items where release_version='98.0.1';")[-1] == '1'
     a.run("delete from public.cardforge_roadmap_items where release_version='98.0.1';")
     print('PASS: website release writer COMMIT rejects a queued duplicate version')
+
+
+    # Exact revision recovery uses the same lineage-first, irreversible claim
+    # boundary without changing the separately retained catalog state.
+    recovery_lineage, recovery_current, recovery_old, _ = fixture(a)
+    def revision_state(session):
+        return json.loads(session.run(f"select public.cardforge_read_revision_recovery('{recovery_old}','isolated-owner',true)::text;")[-1])['state']
+    def recover(action, state):
+        return "public.cardforge_change_revision_recovery('isolated-owner',true,'" + action + "','" + json.dumps(state) + "'::jsonb)"
+    a.run(f"update public.cardforge_contributor_asset_submissions set revision_trash_previous_status='voting' where id='{recovery_old}';")
+    a.run('select ' + recover('restore', revision_state(a)) + ';')
+    observed = revision_state(a)
+    a.run('begin;')
+    a.run(f"select 1 from public.cardforge_pipeline_asset_lineages where id='{recovery_lineage}' for update;")
+    expect_busy(b, recover('trash', observed))
+    a.run('rollback;')
+    b.run('begin isolation level repeatable read;')
+    expect_conflict(b, recover('trash', observed), 'revision_recovery_state_changed')
+    b.run('rollback;')
+    a.run('begin;')
+    a.run('select ' + recover('trash', observed) + ';')
+    claim_expression = f"public.cardforge_claim_pipeline_revision_purge_owner('{recovery_old}','Old contention proof',null)"
+    assert b.run('select count(*) from ' + claim_expression + ';')[-1] == '0'
+    a.run('commit;')
+    expect_conflict(b, recover('trash', observed), 'revision_recovery_state_changed')
+    assert b.run('select count(*) from ' + claim_expression + ';')[-1] == '1'
+    committed = revision_state(a)
+    expect_conflict(a, recover('restore', committed), 'revision_recovery_blocked')
+    print('PASS: revision recovery lineage contention, old-snapshot rejection, stale generation and committed claim fences')
+
+
+    # The same native advisory/lineage lock order serializes vote against restore.
+    vote_id, vote_lineage = str(uuid.uuid4()), str(uuid.uuid4())
+    a.run(f"""insert into public.cardforge_pipeline_asset_lineages(id,revision_high_water) values('{vote_lineage}',1);
+      insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,
+        trashed_at,purge_after,trash_reason,revision_trash_actor_role,revision_trash_actor_id,revision_trash_previous_status)
+      values('{vote_id}','{vote_lineage}','vote-author','icons','Vote restore contention','archived',
+        now(),now()+interval '30 days','withdrawn','contributor','vote-author','voting');""")
+    before_vote = json.loads(a.run(f"select public.cardforge_read_revision_recovery('{vote_id}','vote-author',false)::text;")[-1])['state']
+    a.run('begin;')
+    a.run("select public.cardforge_change_revision_recovery('vote-author',false,'restore','" + json.dumps(before_vote) + "'::jsonb);")
+    vote_output = []
+    vote_errors = []
+    b.run("set statement_timeout='10s';")
+    peer_pid = b.run('select pg_backend_pid();')[-1]
+    def cast_after_restore():
+        try:
+            vote_output.extend(b.run(f"select public.cardforge_cast_contributor_asset_vote('{vote_id}','vote-peer','positive');"))
+        except Exception as error:
+            vote_errors.append(str(error))
+    vote_worker = threading.Thread(target=cast_after_restore)
+    vote_worker.start()
+    wait_deadline = time.monotonic() + 5
+    while True:
+        # Observe the lock manager directly under service_role. Activity fields
+        # for another postgres-owned backend can be NULL without stats grants;
+        # neither a missing wait_event nor a timer proves serialization.
+        waiting = a.run(f"""select exists(
+          select 1 from pg_locks pending join pg_locks holder
+            on holder.locktype=pending.locktype and holder.database=pending.database
+              and holder.classid=pending.classid and holder.objid=pending.objid
+              and holder.objsubid=pending.objsubid
+          where pending.pid={peer_pid} and pending.locktype='advisory' and not pending.granted
+            and holder.pid=pg_backend_pid() and holder.granted)
+          and pg_backend_pid()=any(pg_blocking_pids({peer_pid}));""")[-1]
+        if waiting == 't':
+            break
+        assert not vote_errors, 'vote failed before restore COMMIT: ' + str(vote_errors)
+        assert vote_worker.is_alive(), 'vote completed without waiting for restore COMMIT: ' + str(vote_output)
+        assert time.monotonic() < wait_deadline, 'vote did not wait for exact restore advisory lock; observed ' + waiting
+        time.sleep(.02)
+    a.run('commit;')
+    vote_worker.join(timeout=10)
+    assert not vote_worker.is_alive() and not vote_errors and vote_output
+    assert a.run(f"select count(*) from public.cardforge_contributor_asset_votes where submission_id='{vote_id}' and contributor_id='vote-peer';")[-1] == '1'
+    expect_conflict(a, "public.cardforge_change_revision_recovery('vote-author',false,'restore','" + json.dumps(before_vote) + "'::jsonb)", 'revision_recovery_state_changed')
+    print('PASS: vote waits for restore COMMIT, records once and rejects stale recovery evidence')
+
+    # An already committed native claim wins over later feedback. No Storage
+    # operation or finalizer executes in this proof.
+    claim_id, claim_lineage = str(uuid.uuid4()), str(uuid.uuid4())
+    a.run(f"""insert into public.cardforge_pipeline_asset_lineages(id,revision_high_water) values('{claim_lineage}',1);
+      insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,
+        trashed_at,purge_after,trash_reason,revision_trash_actor_role,revision_trash_actor_id,revision_trash_previous_status)
+      values('{claim_id}','{claim_lineage}','vote-author','icons','Vote claim contention','archived',
+        now(),now()+interval '30 days','withdrawn','contributor','vote-author','voting');""")
+    a.run('begin;')
+    assert a.run(f"select count(*) from public.cardforge_claim_pipeline_revision_purge_owner('{claim_id}','Vote claim contention',null);")[-1] == '1'
+    # The claim transaction itself owns the exact row/lineage until COMMIT.
+    a.run('commit;')
+    expect_conflict(b, f"public.cardforge_cast_contributor_asset_vote('{claim_id}','vote-peer','positive')", 'contributor_asset_not_found')
+    assert a.run(f"select count(*) from public.cardforge_contributor_asset_votes where submission_id='{claim_id}';")[-1] == '0'
+    print('PASS: committed exact claim excludes later vote without removing Storage or finalizing')
+
+    # A real queued consumer writer and recoverable Move share table/lineage
+    # locks. Its committed exact reference invalidates the old consent digest.
+    impact_source = 'https://example.invalid/impact-' + uuid.uuid4().hex + '.svg'
+    impact_lineage, impact_current, _, impact_state = fixture(a, impact_source)
+    impact_doc = str(uuid.uuid4())
+    impact_payload = {"version": 1, "userTemplates": [{"id": "impact-race", "name": "Impact race", "aspectRatio": "2:3", "cardBackgroundImageUrl": impact_source}]}
+    # Trusted native interpretation fixture only, not TS decoder/hosted proof.
+    impact_request = {"contractVersion": 1, "sourcePayload": impact_payload, "complete": True,
+                      "references": {"identities": [], "sources": [impact_source]}, "opaqueReasons": []}
+    a.run('begin;')
+    a.run("insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies) values('" + impact_doc + "','impact-private','Impact race','" + json.dumps(impact_payload) + "'::jsonb,'" + json.dumps(impact_request) + "'::jsonb);")
+    expect_busy(b, command('trash', impact_state))
+    a.run('commit;')
+    expect_conflict(b, command('trash', impact_state), 'catalog_trash_state_changed')
+    refreshed = json.loads(b.run(f"select public.cardforge_read_catalog_trash('{impact_current}')::text;")[-1])
+    assert refreshed['impact']['affectedCount'] >= 1
+    explicit_move = "public.cardforge_change_catalog_trash('isolated-owner','trash','" + json.dumps(refreshed['state']) + "'::jsonb,null,'" + refreshed['impact']['fingerprint'] + "')"
+    b.run('select ' + explicit_move + ';')
+    assert b.run(f"select catalog_trashed_at is not null from public.cardforge_pipeline_asset_lineages where id='{impact_lineage}';")[-1] == 't'
+    print('PASS: consumer writer COMMIT invalidates old impact consent; fresh exact confirmation permits recoverable Move')
 
 
 finally:

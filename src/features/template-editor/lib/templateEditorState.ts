@@ -9,6 +9,8 @@ export interface TemplateEditorSnapshot {
 }
 
 export interface TemplateEditorState extends TemplateEditorSnapshot {
+  /** Ephemeral controller-local Icon confirmation attempt; never persisted or included in history. */
+  iconApplicationAttempt?: number;
   history: TemplateEditorSnapshot[];
   future: TemplateEditorSnapshot[];
   historyGroup?: { key: string; at: number };

@@ -91,12 +91,21 @@ for(const width of [390,1440]) test(`@golden Studio controls preserve selected g
   expect(unexpected).toEqual([]);
 });
 
+const capturedArcaneOverlayUrl = 'https://mpmmhjjhdxjedbmuctiv.supabase.co/storage/v1/object/public/cardforge-contributor-assets/user_3E8tWL7j6mQ7NuBBKrCmcr0DiSg/parts/1779783337564-forge-demo-202605260814-corner-overlay-SN3udQtA.svg';
+const capturedArcaneStarUrl = 'https://mjdugheniazuiqoefnnb.supabase.co/storage/v1/object/public/cardforge-contributor-assets/owner-defaults/icons/arcane-star.svg';
+const capturedArcaneIcons = [
+  {id:'arcane-star',name:'Arcane Star',kind:'icon',url:capturedArcaneStarUrl,librarySource:'contributor',sourceKind:'pipeline-owner-import',publishedSubmissionId:'7154aaaf-2ef5-4cbc-95ce-700f852d20bc',revision:1,tileMode:'contain',seamless:false,allowedTargets:['icon'],studioDestinations:['element.icon']},
+  {id:'developer-parts-2fadc9bf-659a-40fa-a893-be5ba27e43b5',name:'Arcane Corner Overlay',kind:'icon',url:capturedArcaneOverlayUrl,librarySource:'contributor',publishedSubmissionId:'011a7fa4-23d6-4f17-aa06-c886bc40dc47',revision:1,tileMode:'contain',seamless:false,allowedTargets:['icon'],studioDestinations:['element.icon']},
+];
+
 async function mountHistoryProof(page:import('@playwright/test').Page,query='',svgIcon=false,fillTexture=false) {
+ const capturedCatalog = new URLSearchParams(query).has('capturedCatalog');
  await page.route('**/*',route=>{const url=new URL(route.request().url());
   if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0"></body></html>'});
   if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
-  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:fillTexture?[{id:'history-ink',name:'Synthetic history Ink',url:'/history-ink.svg',kind:'texture',tileMode:'repeat',seamless:true,allowedTargets:['shape']}]:[],dividers:svgIcon?[{id:'asymmetric-divider',name:'Synthetic asymmetric divider',url:'/asymmetric.svg',kind:'divider',tileMode:'stretch',seamless:false,allowedTargets:['divider'],defaultWidth:450,defaultHeight:230}]:[],icons:svgIcon?[{id:'asymmetric-icon',name:'Synthetic asymmetric SVG',url:'/asymmetric.svg',kind:'icon',tileMode:'contain',seamless:false,allowedTargets:['icon']}]:[],imageAssets:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:fillTexture?[{id:'history-ink',name:'Synthetic history Ink',url:'/history-ink.svg',kind:'texture',tileMode:'repeat',seamless:true,allowedTargets:['shape']}]:[],dividers:svgIcon?[{id:'asymmetric-divider',name:'Synthetic asymmetric divider',url:'/asymmetric.svg',kind:'divider',tileMode:'stretch',seamless:false,allowedTargets:['divider'],defaultWidth:450,defaultHeight:230}]:[],icons:capturedCatalog?capturedArcaneIcons:svgIcon?[{id:'asymmetric-icon',name:'Legacy same-ID icon',url:'',kind:'icon',librarySource:'published',studioDestinations:['element.icon'],allowedTargets:['icon']},{id:'asymmetric-icon',name:'Synthetic asymmetric SVG',url:'/asymmetric.svg',kind:'icon',librarySource:'contributor',publishedSubmissionId:'synthetic-published-icon',studioDestinations:['element.icon'],tileMode:'contain',seamless:false,allowedTargets:['icon']}]:[],imageAssets:[]}}});
   if(fillTexture&&url.pathname==='/history-ink.svg')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#000"/></svg>'});
+  if(capturedCatalog&&(url.href===capturedArcaneOverlayUrl||url.href===capturedArcaneStarUrl))return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150"><path d="M0 0H150V150H0Z" fill="#f00"/></svg>'});
   if(svgIcon&&url.pathname==='/asymmetric.svg')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><path d="M0 0H50V100H0Z" fill="#ff0000"/><path d="M50 50H100V100H50Z" fill="#0000ff"/></svg>'});
   if(url.pathname==='/api/templates/submissions')return route.fulfill({json:{contributorId:'synthetic-actor'}});
   if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
@@ -260,12 +269,76 @@ test('@golden edits made while local Save is pending survive its earlier snapsho
  const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved.freeformCanvas.elements.find((element:{type:string})=>element.type==='text').content).toBe('Saved snapshot');
 });
 
+test('@golden first persisted Template identity keeps selected Icon and Undo history',async({page})=>{
+ await page.setViewportSize({width:1440,height:960});
+ await mountHistoryProof(page,'?forkSave=1&saveIdentityContinuity=1');
+ await page.getByRole('button',{name:'Elements',exact:true}).click();
+ await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
+ await expect(page.getByText('Current icon: Sparkles')).toBeVisible();
+ await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
+ await page.getByRole('option',{name:/^Star\b/}).click();
+ await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ await expect(page.getByTestId('saved')).toContainText('synthetic-fork');
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');
+ expect(saved.id).toBe('synthetic-fork');
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Undo',exact:true}).first()).toBeEnabled();
+ await page.getByRole('button',{name:'Undo',exact:true}).first().click();
+ await expect(page.getByText('Current icon: Sparkles')).toBeVisible();
+ await page.getByRole('button',{name:'Redo',exact:true}).first().click();
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+});
+
 test('@golden a saved fork adopts its returned identity without overwriting edits made after commit',async({page})=>{
  await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?forkSave=1&postCommitDelay=1');
  const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Saved fork snapshot');await page.getByRole('button',{name:'Save',exact:true}).click();
  await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();await expect(editor).toHaveText('Saved fork snapshot');await editor.fill('Newer fork draft');
  await page.getByRole('button',{name:'Finish local Save'}).click();await expect(editor).toHaveText('Newer fork draft');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
  const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved.id).toBe('synthetic-fork');expect(saved.freeformCanvas.elements.find((element:{type:string})=>element.type==='text').content).toBe('Saved fork snapshot');
+});
+
+test('@golden delayed first Save keeps newer edits and permits subsequent Icon selection on saved identity',async({page})=>{
+ await page.setViewportSize({width:1440,height:960});
+ await mountHistoryProof(page,'?forkSave=1&postCommitDelay=1&saveIdentityContinuity=1');
+ const editor=page.locator('.tiptap[contenteditable="true"]');
+ await editor.fill('Saved fork snapshot');
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();
+ await editor.fill('Newer authored draft');
+ await page.getByRole('button',{name:'Finish local Save'}).click();
+ await expect(editor).toHaveText('Newer authored draft');
+ await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+ await page.getByRole('button',{name:'Elements',exact:true}).click();
+ await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
+ await expect(page.getByText('Current icon: Sparkles')).toBeVisible();
+ await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
+ await page.getByRole('option',{name:/^Star\b/}).click();
+ await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await expect(page.getByText('Newer authored draft',{exact:true}).first()).toBeVisible();
+ const firstSaved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');
+ expect(firstSaved.id).toBe('synthetic-fork');
+ expect(firstSaved.freeformCanvas.elements.find((e:{type:string})=>e.type==='text').content).toBe('Saved fork snapshot');
+ // The first Save intentionally left the parent pointing at the old draft
+ // while newer edits continued. A second same-ID Save must not consume the
+ // pending draft→persisted identity acknowledgment before parent synchronization.
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();
+ await page.getByRole('button',{name:'Finish local Save'}).click();
+ await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ await expect(page.getByText('Newer authored draft',{exact:true}).first()).toBeVisible();
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Undo',exact:true}).first()).toBeEnabled();
+ await page.getByRole('button',{name:'Undo',exact:true}).first().click();
+ await expect(page.getByText('Current icon: Sparkles')).toBeVisible();
+ await expect(page.getByText('Newer authored draft',{exact:true}).first()).toBeVisible();
+ await page.getByRole('button',{name:'Redo',exact:true}).first().click();
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');
+ expect(saved.id).toBe('synthetic-fork');
+ expect(saved.freeformCanvas.elements.find((e:{type:string})=>e.type==='text').content).toBe('Newer authored draft');
 });
 
 test('@golden structured-row creation and multi-field mode changes are atomic Template history operations',async({page})=>{
@@ -315,7 +388,7 @@ for(const width of [390,1440])test(`@golden native SVG tint and asymmetric flips
  if(width<1024){await page.getByRole('button',{name:'Close inspector',exact:true}).click();await page.getByRole('button',{name:'Open editor menu',exact:true}).click();}
  await page.getByRole('button',{name:'Elements',exact:true}).click();await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
  if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
- await page.getByRole('button',{name:'Choose from Library',exact:true}).click();await page.getByRole('option',{name:/Synthetic asymmetric SVG/}).click();await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ await page.getByRole('button',{name:'Choose from Library',exact:true}).click();await page.getByRole('option',{name:/Synthetic asymmetric SVG/}).click();await expect(page.locator('[id="library-picker-option-pipeline:asymmetric-icon"]')).toHaveAttribute('aria-selected','true');await page.getByRole('button',{name:'Use selection',exact:true}).click();await expect(page.getByText('Current icon: Custom source')).toBeVisible();
  await expect(page.getByLabel('Vector color',{exact:true})).toContainText('Original');
  await page.getByRole('button',{name:'Layout',exact:true}).click();
  for(const [label,value] of [['x','180'],['y','250'],['width','200'],['height','200']])await page.getByLabel(label,{exact:true}).fill(value);
@@ -346,4 +419,282 @@ for(const width of [390,1440])test(`@golden native SVG tint and asymmetric flips
  await page.locator(`[data-cardforge-editor-overlay="true"][data-freeform-element-id="${iconId}"]`).click();if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
  await page.getByRole('button',{name:'Symbol',exact:true}).click();await expect(page.getByLabel('Vector color',{exact:true})).toContainText('Original');await saveAndProve('reopened-original-flip-xy','original',true,true,false);
  expect(await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'))).toBe(stored);
+});
+
+
+test('@golden same-batch SVG source and geometry edits retain both controller updates', async ({page}) => {
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/__studio-history') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body></body></html>' });
+    if (url.pathname === '/api/catalog/studio-bootstrap') return route.fulfill({ json: { fonts: {fonts:[]}, templates:{templates:[]}, styles:{styles:[]} } });
+    if (url.pathname === '/api/catalog/studio-assets') return route.fulfill({ json: { assets: { textures:[], dividers:[], icons:[], imageAssets:[] } } });
+    if (url.pathname.startsWith('/fonts/')) return route.fulfill({ body: readFileSync(join('public', url.pathname)) });
+    return route.abort();
+  });
+  await page.goto('/__studio-history?controllerBatch');
+  await page.addStyleTag({content:(await css).css});
+  for (const file of bundle.outputFiles.filter(file => file.path.endsWith('.css'))) await page.addStyleTag({content:file.text});
+  await page.addScriptTag({content:bundle.outputFiles.find(file => file.path.endsWith('.js'))!.text});
+  await page.getByRole('button', {name:'Apply paired icon updates'}).click();
+  const icon = JSON.parse(await page.getByTestId('batch-icon').textContent() || '{}');
+  const neighbor = JSON.parse(await page.getByTestId('batch-neighbor').textContent() || '{}');
+  expect(icon).toMatchObject({ id:'icon', iconImageSource:'/asymmetric.svg', iconRenderMode:'original', rotation:30 });
+  expect(icon.iconName).toBeUndefined();
+  expect(neighbor).toMatchObject({ id:'neighbor', content:'Keep neighbor' });
+  expect(await page.getByTestId('batch-history').textContent()).toBe('2');
+});
+
+
+for (const accountToolLayer of [false, true]) test(`@golden captured unique Arcane catalog selection with ${accountToolLayer ? 'Account Library dirty tool layer' : 'direct Studio fixture'}`, async ({page}) => {
+ await page.setViewportSize({width:1440,height:960});
+ await mountHistoryProof(page,accountToolLayer?'?capturedCatalog=1&accountToolLayer=1':'?capturedCatalog=1');
+ await page.getByRole('button',{name:'Elements',exact:true}).click();
+ await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
+ const select=async(name:RegExp|string)=>{
+  await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
+  await page.getByRole('option',{name}).click();
+  await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ };
+ await select(/^Star\b/);
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await select(/Arcane Corner Overlay/);
+ await expect(page.getByText('Current icon: Custom source')).toBeVisible();
+ await expect(page.getByPlaceholder('Uploaded icon URL or {{symbolUrl}}')).toHaveValue(capturedArcaneOverlayUrl);
+ await expect(page.getByLabel('Vector color',{exact:true})).toContainText('Original');
+ await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+});
+
+
+
+
+for(const failEarlier of [false,true])test(`@golden dismissed Icon chooser ignores stale ${failEarlier?'failure':'success'} after reopening`,async({page})=>{
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?pickerSession=1'+(failEarlier?'&failEarlier=1':''));
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ const open=async()=>{
+  await page.getByRole('button',{name:'Open chooser'}).click();
+  await expect(page.getByRole('dialog',{name:'Choose icon'})).toBeVisible();
+ };
+ await open();
+ await page.getByRole('option',{name:'Test published icon'}).click();
+ await page.getByRole('button',{name:'Use selection'}).click();
+ await page.keyboard.press('Escape');
+ await expect(page.getByRole('dialog',{name:'Choose icon'})).toHaveCount(0);
+ await open();
+ await page.getByRole('option',{name:'Test published icon'}).click();
+ await page.getByRole('button',{name:'Use selection'}).click();
+ await expect(page.getByTestId('picker-session-result')).toHaveText('previous settled');
+ await expect(page.getByRole('dialog',{name:'Choose icon'})).toBeVisible();
+ await expect(page.getByText('Previous session failed')).toHaveCount(0);
+});
+
+test('@golden delayed personal materialization cannot apply A Icon to B with same element id',async({page})=>{
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?delayedPersonal=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await expect(page.getByTestId('personal-context-template')).toHaveText('personal-A');
+ await page.getByRole('button',{name:'Choose from Library'}).click();
+ await page.getByRole('option',{name:/Delayed personal SVG/}).click();
+ await page.getByRole('button',{name:'Use selection'}).click();
+ await expect(page.getByTestId('personal-context-initial')).toHaveText('personal-B');
+ await expect(page.getByTestId('personal-context-template')).toHaveText('personal-B');
+ await expect(page.getByRole('dialog',{name:/Choose an icon/})).toBeVisible();
+ await expect(page.getByRole('alert')).toContainText('selected Icon was not applied');
+ const element=JSON.parse(await page.getByTestId('personal-context-icon').textContent()||'{}');
+ expect(element).toMatchObject({id:'icon',iconName:'Star'});
+ expect(element.iconImageSource).toBeUndefined();
+});
+
+test('@golden new unsaved Template accepts Icon SVG without a matching persisted initial Template',async({page})=>{
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?unsavedDraftIcon=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await page.getByRole('button',{name:'Begin unsaved personal Template'}).click();
+ await expect(page.getByTestId('draft-template-id')).toHaveText('draft-new-personal-template');
+ await expect(page.getByTestId('draft-selected-element-id')).toHaveText('neighbor');
+ await page.getByRole('button',{name:'Select Icon Layer',exact:true}).click();
+ await expect(page.getByTestId('draft-selected-element-id')).toHaveText('icon');
+ await page.getByRole('button',{name:'Apply published SVG to unsaved Template'}).click();
+ await expect(page.getByTestId('draft-apply-status')).toHaveText('applied');
+ expect(JSON.parse(await page.getByTestId('draft-icon').textContent()||'{}')).toMatchObject({
+  id:'icon',iconImageSource:'/asymmetric.svg',iconRenderMode:'original',
+ });
+ expect(JSON.parse(await page.getByTestId('draft-neighbor').textContent()||'{}')).toMatchObject({
+  id:'neighbor',content:'Keep neighbor',
+ });
+ await expect(page.getByTestId('draft-history')).toHaveText('1');
+});
+
+test('@golden retained same-value Icon confirmation rejects after editor unmount', async ({page}) => {
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?retainedIcon=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await expect(page.getByTestId('retained-mounted')).toHaveText('mounted');
+ await page.getByRole('button',{name:'Unmount Icon controller'}).click();
+ await expect(page.getByTestId('retained-mounted')).toHaveCount(0);
+ await page.getByRole('button',{name:'Invoke retained same-value Icon callback'}).click();
+ await expect(page.getByTestId('retained-status')).toHaveText('rejected');
+});
+
+
+for(const action of ['Reset same Template during Icon apply','Undo during Icon apply','Redo during Icon apply'])test(`@golden ${action} settles superseded Icon confirmation without hanging`,async({page})=>{
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?iconAcknowledgment=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await page.getByRole('button',{name:action,exact:true}).click();
+ await expect(page.getByTestId('ack-result')).toHaveText('rejected');
+ const icon=JSON.parse(await page.getByTestId('ack-icon').textContent()||'{}');
+ expect(icon).toMatchObject({id:'icon',iconName:'Star'});
+ expect(icon.iconImageSource).toBeUndefined();
+ expect(JSON.parse(await page.getByTestId('ack-neighbor').textContent()||'{}')).toMatchObject({content:'Keep neighbor'});
+});
+
+test('@golden Icon confirmation rejects when Template identity changes before commit', async ({page}) => {
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?iconAcknowledgment=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await page.getByRole('button',{name:'Switch Template during Icon apply'}).click();
+ await expect(page.getByTestId('ack-result')).toHaveText('rejected');
+ const icon=JSON.parse(await page.getByTestId('ack-icon').textContent()||'{}');
+ expect(icon).toMatchObject({iconName:'Star'});
+ expect(icon.iconImageSource).toBeUndefined();
+ expect(JSON.parse(await page.getByTestId('ack-neighbor').textContent()||'{}')).toMatchObject({content:'Keep neighbor'});
+});
+
+test('@golden committed Icon survives lower-priority neighbor rebase after acknowledgment',async({page})=>{
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?iconAcknowledgment=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await page.getByRole('button',{name:'Apply Icon during lower-priority neighbor edit'}).click();
+ await expect(page.getByTestId('ack-result')).toHaveText('applied');
+ await expect.poll(async()=>JSON.parse(await page.getByTestId('ack-neighbor').textContent()||'{}').content).toBe('Updated neighbor');
+ expect(JSON.parse(await page.getByTestId('ack-icon').textContent()||'{}')).toMatchObject({
+  iconImageSource:'/asymmetric.svg',iconRenderMode:'original',
+ });
+ await expect(page.getByTestId('ack-history')).toHaveText('2');
+});
+
+test('@golden same-batch Arcane then current Star rejects second confirmation without overtaking queued Icon', async ({page}) => {
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?iconAcknowledgment=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await page.getByRole('button',{name:'Race Arcane then original Star'}).click();
+ await expect(page.getByTestId('ack-race')).toHaveText('fulfilled,rejected');
+ expect(JSON.parse(await page.getByTestId('ack-icon').textContent()||'{}')).toMatchObject({iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+ await expect(page.getByTestId('ack-history')).toHaveText('1');
+ expect(JSON.parse(await page.getByTestId('ack-neighbor').textContent()||'{}')).toMatchObject({content:'Keep neighbor'});
+});
+
+test('@golden Icon acknowledgment resolves only after canonical commit, same-value no history, locked target rejects', async ({page}) => {
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?iconAcknowledgment=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await page.getByRole('button',{name:'Apply Icon with acknowledgment'}).click();
+ await expect(page.getByTestId('ack-result')).toHaveText('applied');
+ expect(JSON.parse(await page.getByTestId('ack-icon').textContent()||'{}')).toMatchObject({iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+ const history=await page.getByTestId('ack-history').textContent();
+ await page.getByRole('button',{name:'Apply Icon with acknowledgment'}).click();
+ await expect(page.getByTestId('ack-result')).toHaveText('applied');
+ await expect(page.getByTestId('ack-history')).toHaveText(history!);
+ await page.getByRole('button',{name:'Lock Icon',exact:true}).click();
+ await page.getByRole('button',{name:'Apply Icon with acknowledgment'}).click();
+ await expect(page.getByTestId('ack-result')).toHaveText('rejected');
+ expect(JSON.parse(await page.getByTestId('ack-neighbor').textContent()||'{}')).toMatchObject({content:'Keep neighbor'});
+});
+
+test('@golden compact 500px dirty Library Design keeps selected Icon when switching captured Arcane SVGs', async ({page}) => {
+ await page.setViewportSize({width:500,height:960});
+ await mountHistoryProof(page,'?capturedCatalog=1&accountToolLayer=1');
+ await page.getByRole('button',{name:'Close inspector',exact:true}).click();
+ await page.getByRole('button',{name:'Open editor menu',exact:true}).click();
+ await page.getByRole('button',{name:'Elements',exact:true}).click();
+ await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
+ await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
+ const choose=async(name:RegExp)=>{
+   await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
+   await page.getByRole('option',{name}).click();
+   await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ };
+ await choose(/^Star\b/);
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await choose(/Arcane Corner Overlay/);
+ await expect(page.getByPlaceholder('Uploaded icon URL or {{symbolUrl}}')).toHaveValue(capturedArcaneOverlayUrl);
+ await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+ await choose(/Arcane Star/);
+ await expect(page.getByPlaceholder('Uploaded icon URL or {{symbolUrl}}')).toHaveValue(capturedArcaneStarUrl);
+ await expect(page.getByText('Current icon: Custom source')).toBeVisible();
+ await expect(page.getByLabel('Vector color',{exact:true})).toContainText('Original');
+ await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
 });

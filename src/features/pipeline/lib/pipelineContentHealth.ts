@@ -10,10 +10,20 @@ import { buildPipelineContentReview, type PipelineContentReview } from './pipeli
 
 export type PipelineContentHealthSeverity = 'error' | 'warning';
 
+export interface PipelineDependencyImpactFinding {
+  /** An exact, authorized affected Pipeline object; never a guessed identity. */
+  objectId: string;
+  submissionId?: string;
+  objectName: string;
+  sourceAssetId: string;
+  sourceAssetName: string;
+}
+
 export interface PipelineContentHealthIssue {
-  code: 'missing-lineage' | 'missing-route' | 'invalid-route' | 'route-content-mismatch' | 'retired-source' | 'unsafe-vector-route' | 'missing-taxonomy' | 'missing-preview' | 'missing-source' | 'duplicate-name' | 'invalid-package' | 'inferred-format' | 'legacy-revision';
+  code: 'missing-lineage' | 'missing-route' | 'invalid-route' | 'route-content-mismatch' | 'retired-source' | 'unsafe-vector-route' | 'missing-taxonomy' | 'missing-preview' | 'missing-source' | 'duplicate-name' | 'invalid-package' | 'inferred-format' | 'legacy-revision' | 'dependency-unavailable';
   severity: PipelineContentHealthSeverity;
   objectId: string | null;
+  submissionId?: string;
   objectName: string;
   message: string;
   repair: string;
@@ -42,9 +52,12 @@ export interface PipelineContentHealth {
 export const buildPipelineContentHealth = ({
   catalog,
   program,
+  dependencyImpacts = program?.dependencyImpacts ?? [],
 }: {
   catalog: CardForgeCatalogManifest | null;
   program: PipelineProgramView | null;
+  /** Exact confirmed impacts supplied by an authorized dependency owner. */
+  dependencyImpacts?: PipelineDependencyImpactFinding[];
 }): PipelineContentHealth => {
   const issues: PipelineContentHealthIssue[] = [];
   const review = buildPipelineContentReview(program);
@@ -122,6 +135,11 @@ export const buildPipelineContentHealth = ({
     if (entry.template?.proposedFormatMetadata) issues.push({ code: 'inferred-format', severity: 'warning', objectId, objectName: entry.name, message: 'Template physical size currently relies on legacy inference.', repair: 'Review the proposed explicit format in the content review download and compare rendered output before publishing a revision.' });
     if (entry.revisionNeedsReview) issues.push({ code: 'legacy-revision', severity: 'warning', objectId, objectName: entry.name, message: 'Published submission has no explicit revision number; legacy readers remain supported.', repair: 'Inspect its immutable lineage before creating the next revision. Do not assign a guessed revision number.' });
   });
+  for (const impact of dependencyImpacts) {
+    issues.push({ code: 'dependency-unavailable', severity: 'warning', objectId: impact.objectId,
+      objectName: impact.objectName, submissionId: impact.submissionId, message: `Referenced shared asset “${impact.sourceAssetName}” is unavailable for new insertion.`,
+      repair: 'Open the affected object and submit an exact-lineage revision if its authored reference needs updating. The existing copy is not automatically changed.' });
+  }
   return {
     checkedCount: published.length,
     errors: issues.filter((issue) => issue.severity === 'error').length,

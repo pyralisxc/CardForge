@@ -29,3 +29,7 @@ export { PipelineRecipePreview } from './components/PipelineSubmissionRows';
 
 export { MediaPresentationPreview } from './components/MediaPresentationRevision';
 export type { PipelineMediaPresentation } from './lib/pipelineMediaPresentation';
+
+export type { SharedPipelineTrashPage } from './lib/pipelineProgram';
+
+export { getPipelineTrashState, type PipelineTrashFacts } from './lib/pipelineTrash';

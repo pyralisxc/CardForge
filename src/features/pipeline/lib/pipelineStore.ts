@@ -195,7 +195,7 @@ export const getPipelineVotePolicy = async (
     fetchContributorSettings(),
     supabase
       .from('cardforge_contributor_asset_submissions')
-      .select('contributor_id,status,purge_state')
+      .select('contributor_id,status,purge_state,trashed_at,revision_publication_retained,published_at,revision_trash_actor_role,revision_trash_previous_status')
       .eq('id', submissionId)
       .limit(1),
   ]);
@@ -205,7 +205,7 @@ export const getPipelineVotePolicy = async (
     throw new PipelineStoreError('Unable to load vote rules for this submission.', 500);
   }
 
-  const row = data?.[0] as { contributor_id?: string | null; status?: PipelineStatus | null; purge_state?: 'pending' | null } | undefined;
+  const row = data?.[0] as { contributor_id?: string | null; status?: PipelineStatus | null; purge_state?: 'pending' | null; revision_trash_previous_status?: PipelineStatus | null; trashed_at?: string | null; revision_publication_retained?: boolean; published_at?: string | null; revision_trash_actor_role?: string | null } | undefined;
   return {
     allowContributorSelfVoting: settings.allowContributorSelfVoting,
     submissionContributorId: row?.contributor_id ?? null,
@@ -213,6 +213,7 @@ export const getPipelineVotePolicy = async (
     visibleToViewer: Boolean(row?.contributor_id && row.status && isPipelineRevisionVisibleToContributor({
       contributorId: row.contributor_id,
       status: row.status,
+      trashPreviousStatus: row.revision_trash_previous_status, trashedAt: row.trashed_at, publicationRetained: row.revision_publication_retained, publishedAt: row.published_at, trashActorRole: row.revision_trash_actor_role,
       purgeState: row.purge_state ?? null,
       viewerId: viewer.viewerId,
       contributor: viewer.contributor,

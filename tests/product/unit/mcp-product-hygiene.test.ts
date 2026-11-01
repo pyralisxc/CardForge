@@ -169,17 +169,17 @@ describe('CardForge MCP and plugin product hygiene', () => {
   it('keeps the package release compatible with its independently versioned MCP server contract', () => {
     // Plugin packaging may release independently of the MCP protocol.
     // Breaking server contract revisions must still be reflected in the package's major version.
-    expect(CARDFORGE_MCP_CONTRACT_VERSION).toBe('1.0.7');
-    expect(plugin.version).toBe('1.0.3');
-    // Compatible additive recovery diagnostics; packaging and skills remain unchanged.
+    expect(CARDFORGE_MCP_CONTRACT_VERSION).toBe('1.0.10');
+    expect(plugin.version).toBe('1.0.4');
+    // Plugin packaging has advanced independently; the server contract remains unchanged.
     expect({ package: plugin.version, mcpContract: CARDFORGE_MCP_CONTRACT_VERSION }).toEqual({
-      package: '1.0.3', mcpContract: '1.0.7',
+      package: '1.0.4', mcpContract: '1.0.10',
     });
   });
 
   it('presents CardForge as a card-making product rather than a contributor Template utility', () => {
     expect(plugin.description).toContain('complete sets');
-    expect(plugin.interface.shortDescription).toBe('Design cards and generate complete card sets');
+    expect(plugin.interface.shortDescription).toBe('Design cards and card sets');
     expect(plugin.interface.longDescription).toContain('bulk-generate');
     expect(plugin.interface.defaultPrompt).toContain('Turn this list into a complete CardForge card set.');
     expect(plugin.interface.defaultPrompt.join(' ')).not.toContain('Forge Review');

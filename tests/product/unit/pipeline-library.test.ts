@@ -186,7 +186,7 @@ describe('Pipeline Library projection', () => {
     expect(isContributorPipelineVoteable(submission('history', { status: 'archived', publishedAt: '2026-08-22T12:00:00.000Z' }))).toBe(true);
     expect(isContributorPipelineVoteable(submission('rejected', { status: 'rejected' }))).toBe(true);
     expect(isContributorPipelineVoteable(submission('draft', { status: 'draft' }))).toBe(false);
-    expect(isContributorPipelineVoteable(submission('trash', { status: 'archived', trashedAt: '2026-08-24T12:00:00.000Z' }))).toBe(false);
+    expect(isContributorPipelineVoteable(submission('trash', { status: 'archived', trashedAt: '2026-08-24T12:00:00.000Z', trashPreviousStatus: 'voting' }))).toBe(true);
   });
 
   it('admits only real image previews and rejects packages, fonts, and structured endpoints', () => {

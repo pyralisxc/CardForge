@@ -25,12 +25,12 @@ export const readPipelineEngagement = async (submissionId: string): Promise<Pipe
   if (!database) throw new PipelineStoreError('Pipeline reactions are unavailable.', 503);
   // Deliberately excludes authored payloads, source paths and private review evidence.
   const { data, error } = await database.from('cardforge_contributor_asset_submissions')
-    .select('id,lineage_id,contributor_id,name,revision_number,status,trashed_at,purge_state,positive_votes,negative_votes')
+    .select('id,lineage_id,contributor_id,name,revision_number,status,published_at,revision_publication_retained,revision_trash_actor_role,revision_trash_previous_status,trashed_at,purge_state,positive_votes,negative_votes')
     .eq('id', submissionId).limit(1);
   if (error) throw new PipelineStoreError('Pipeline reactions are unavailable.', 503);
-  const row = data?.[0] as { id: string; lineage_id: string | null; contributor_id: string; name: string; revision_number: number | null; status: PipelineSubmission['status']; trashed_at: string | null; purge_state: 'pending' | null; positive_votes: number; negative_votes: number } | undefined;
+  const row = data?.[0] as { id: string; lineage_id: string | null; contributor_id: string; name: string; revision_number: number | null; status: PipelineSubmission['status']; published_at?: string | null; revision_publication_retained?: boolean; revision_trash_actor_role?: string | null; revision_trash_previous_status?: PipelineSubmission['status'] | null; trashed_at: string | null; purge_state: 'pending' | null; positive_votes: number; negative_votes: number } | undefined;
   if (!row) throw new PipelineStoreError('This exact Pipeline revision was not found.', 404);
-  const contributorVisible = isPipelineRevisionVisibleToContributor({ contributorId: row.contributor_id, status: row.status, purgeState: row.purge_state, viewerId: access.user?.id ?? null, contributor: contribution.active, owner: access.ownerAccess.isOwner });
+  const contributorVisible = isPipelineRevisionVisibleToContributor({ contributorId: row.contributor_id, status: row.status, trashPreviousStatus: row.revision_trash_previous_status, publicationRetained: row.revision_publication_retained, publishedAt: row.published_at, trashActorRole: row.revision_trash_actor_role, trashedAt: row.trashed_at, purgeState: row.purge_state, viewerId: access.user?.id ?? null, contributor: contribution.active, owner: access.ownerAccess.isOwner });
   if (!contributorVisible) {
     const publication = await database.from('cardforge_discoverable_asset_registry').select('asset_id')
       .eq('contributor_submission_id', submissionId).eq('status', 'published')
@@ -43,7 +43,7 @@ export const readPipelineEngagement = async (submissionId: string): Promise<Pipe
   const voteIssue = !access.user ? 'Sign in with Contributor review access to like or dislike.'
     : !canReview ? 'Contributor review access is required to like or dislike.'
       : !policy?.visibleToViewer ? 'This exact revision is not available for review.'
-        : !isContributorPipelineVoteable({ status: row.status, trashedAt: row.trashed_at, purgeState: row.purge_state } as PipelineSubmission) ? 'Draft, Trash and purging revisions cannot receive votes.'
+        : !isContributorPipelineVoteable({ status: row.status, trashPreviousStatus: row.revision_trash_previous_status, publicationRetained: row.revision_publication_retained, publishedAt: row.published_at, trashActorRole: row.revision_trash_actor_role, trashedAt: row.trashed_at, purgeState: row.purge_state } as PipelineSubmission) ? 'Private drafts and purging revisions cannot receive votes.'
           : policy.submissionContributorId === access.user.id && !policy.allowContributorSelfVoting ? 'Contributor self-voting is disabled by the owner.' : null;
   let currentUserVote: PipelineEngagement['currentUserVote'] = null;
   if (canReview && access.user) {

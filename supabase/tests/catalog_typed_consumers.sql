@@ -212,6 +212,7 @@ begin
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'studio_identity_consumer_requires_resolution') then raise exception 'independent_studio_reference_missed'; end if;
  delete from public.cardforge_studio_documents where id=document_id;
  -- Positive admission still does not authorize expiry or skip exact-state CAS.
+ snapshot:=public.cardforge_read_catalog_trash(target);
  next_state:=public.cardforge_change_catalog_trash('typed-owner','trash',snapshot->'state');
  if next_state->'reasons'='[]'::jsonb then raise exception 'typed_scan_enabled_physical_expiry'; end if;
  begin

@@ -85,6 +85,9 @@ export const createLibraryPickerResult = (
 ): LibraryPickerResult => {
   const compatible = new Map(getCompatibleLibraryPickerResources(request, resources).map((resource) => [resource.id, resource]));
   const selections = [...new Set(selectedIds)].map((id) => compatible.get(id)).filter((resource): resource is LibraryPickerResource => Boolean(resource));
+  if (selectedIds.length > 0 && selections.length !== new Set(selectedIds).size) {
+    throw new Error('The selected Library resource changed or is no longer compatible. Choose it again.');
+  }
   if (request.selectionMode === 'single' && selections.length > 1) {
     throw new Error('This Library request accepts one object.');
   }

@@ -109,6 +109,7 @@ export function PluginDownloadLinks({ scope, allowOwnerAdmission = false }: { sc
           {allowOwnerAdmission && (release.admissionAvailable
             ? <button type="button" className="ml-4 underline disabled:opacity-50" disabled={admitting !== null || !release.appSha} onClick={() => void admit(environment,release)}>{admitting === environment ? 'Admitting…' : 'Retain verified Preview release'}</button>
             : <p className="text-xs">Release admission is available only on a verified Preview deployment.</p>)}
+          {scope === 'studio' && <a className="ml-4 underline" href={'/api/plugin-downloads?' + new URLSearchParams({product:'studio',environment,packet:'1',version:release.version})}>Download human review packet</a>}
           {downloadFailure && <p role="alert">{downloadFailure.message}</p>}
           {failure && <p role="alert">{failure.message} {failure.status === 401 && <Link className="underline" href={createAuthRouteHref('/sign-in', scope === 'owner' ? '/?ownerSite=editions' : '/downloads')}>Sign in</Link>}</p>}
           <div className="mt-3"><button type="button" className="underline" onClick={() => void loadHistory(environment)}>View retained versions</button>

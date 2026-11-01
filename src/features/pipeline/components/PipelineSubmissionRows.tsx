@@ -1,4 +1,5 @@
 "use client";
+import { getPipelineTrashState } from '../lib/pipelineTrash';
 
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -280,7 +281,7 @@ export function AssetRow({
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-medium text-[var(--cf-accent-text)]">{submission.name}</p>
             <span className="border border-[var(--cf-border)] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[var(--cf-accent)]">
-              Status: {getPipelineStatusLabel(submission.status)}
+              Status: {getPipelineTrashState(submission).trashed ? 'Trash' : getPipelineStatusLabel(submission.status)}
             </span>
             <span className="border border-[#35445a] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#b9d5ff]">
               By: {getContributorLabel(submission)}

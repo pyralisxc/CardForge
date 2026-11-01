@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import { DependencyImpactPreview, impactConfirmationText } from './DependencyImpactPreview';
 import { Button } from '@/components/ui/button';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import type { CatalogTrashCommand, CatalogTrashSnapshot } from '../lib/catalogTrashContract';
@@ -30,7 +31,7 @@ const inventoryConditionLabel = (condition: string) => ({
   unsupported_payload_kind: 'This payload kind has no supported complete native dependency inspection.',
 }[condition] ?? condition);
 
-export function CatalogTrashControls({ submissionId }: { submissionId: string }) {
+export function CatalogTrashControls({ submissionId, onChanged }: { submissionId: string; onChanged?: () => Promise<void> | void }) {
   const [snapshot, setSnapshot] = useState<CatalogTrashSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -45,12 +46,13 @@ export function CatalogTrashControls({ submissionId }: { submissionId: string })
     finally { setBusy(false); }
   };
   const change = async (command: CatalogTrashCommand) => {
-    if (command.action === 'trash' && !window.confirm(`Move “${snapshot?.name}” to recoverable Trash? Discovery will be hidden; existing bytes remain. This is not permanent deletion.`)) return;
+    if (command.action === 'trash' && !window.confirm(`Move “${snapshot?.name}” to recoverable Trash? Discovery will be hidden; existing bytes remain. This is not permanent deletion.${impactConfirmationText(snapshot?.impact)}`)) return;
     setBusy(true); setError('');
     try {
       const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(command) });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'The outcome is unconfirmed. Refresh recovery state before retrying.'));
       setSnapshot(await response.json());
+      try { await onChanged?.(); } catch { setError('Recovery committed. Refresh the Library to update its projection.'); }
     } catch (failure) {
       setSnapshot(null); // No automatic retry with a potentially stale state.
       setError(failure instanceof Error ? failure.message : 'Read recovery state before retrying.');
@@ -63,20 +65,21 @@ export function CatalogTrashControls({ submissionId }: { submissionId: string })
     {error ? <p role="alert" className="text-sm">{error}</p> : null}
     {snapshot ? <>
       <p role="status" className="text-sm">{snapshot.state.trashedAt ? `In Trash${snapshot.state.held ? ' · On hold' : ''}. Recovery deadline: ${new Date(snapshot.state.purgeAfter!).toLocaleString()}.` : `Not in Trash. Configured recovery period: ${snapshot.retentionDays} days.`}</p>
-      <ul className="list-disc pl-5 text-xs">{[...(!snapshot.state.trashedAt ? snapshot.entryReasons : []), ...snapshot.reasons].map(reason => <li key={reason}>{reasonLabel(reason)}</li>)}</ul>
+      <ul className="list-disc pl-5 text-xs">{[...(!snapshot.state.trashedAt ? (snapshot.recoveryReasons ?? snapshot.entryReasons) : []), ...snapshot.reasons].map(reason => <li key={reason}>{reasonLabel(reason)}</li>)}</ul>
       {snapshot.inventoryDetails?.length ? <details className="text-xs">
-        <summary>Consumer inventory blockers ({snapshot.inventoryDetails.length})</summary>
-        <p>Read-only diagnostic identities. These observations do not authorize Trash or clear any safety hold.</p>
+        <summary>Dependency coverage diagnostics ({snapshot.inventoryDetails.length})</summary>
+        <p>Conservative coverage and erasure diagnostics. The impact preview and recovery blockers above govern reversible Trash; these observations do not authorize physical deletion or clear a hold.</p>
         <ul className="grid gap-2 break-words">{snapshot.inventoryDetails.map(detail => <li key={`${detail.origin}:${detail.recordId}`}>
           <span>{detail.origin} · {detail.payloadKind} · {detail.recordId}</span>
           <ul className="list-disc pl-5">{detail.conditions.map(condition => <li key={condition}>{inventoryConditionLabel(condition)}</li>)}</ul>
         </li>)}</ul>
       </details> : null}
+      <DependencyImpactPreview impact={snapshot.impact} />
       <div className="flex flex-wrap gap-2">
         {snapshot.state.trashedAt ? <>
           <Button size="sm" disabled={busy} onClick={() => void change({ action: 'restore', expected: snapshot.state })}>Restore</Button>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => void change({ action: 'hold', expected: snapshot.state, held: !snapshot.state.held })}>{snapshot.state.held ? 'Remove hold' : 'Hold'}</Button>
-        </> : <Button size="sm" disabled={busy || snapshot.entryReasons.length > 0} onClick={() => void change({ action: 'trash', expected: snapshot.state })}>Move to Trash</Button>}
+        </> : <Button size="sm" disabled={busy || (snapshot.recoveryReasons ?? snapshot.entryReasons).length > 0} onClick={() => void change({ action: 'trash', expected: snapshot.state, confirmation: snapshot.state.impactFingerprint })}>Move to Trash</Button>}
       </div>
     </> : null}
   </section>;

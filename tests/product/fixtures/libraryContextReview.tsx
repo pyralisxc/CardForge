@@ -98,11 +98,58 @@ if (params.has('historyTemplate')) {
     submissionId: queueRows[0].id, lineageId: row.lineageId ?? null, updatedAt: 'registry-epoch',
     previewUrl: null, access: 'free', source: 'official', fileSizeBytes: null }] };
 }
+if (params.has('catalogTrashProof')) {
+  queueRows.splice(2);
+  Object.assign(queueRows[0], { name: 'Catalog-trashed exact icon', assetType: 'icons', requestedStudioDestination: 'element.icon',
+    catalogTrashedAt: '2026-11-01T20:42:50Z', catalogPurgeAfter: '2026-12-01T20:42:50Z', catalogRetentionHold: false,
+    catalogSubmissionId: queueRows[0].id });
+  Object.assign(queueRows[1], { name: 'Private draft control', status: 'draft', registryAssetId: null, targetRegistryAssetId: 'private-draft-control', lineageId: '20000000-0000-4000-8000-000000000099' });
+}
 const marketingStrategy = { ...DEFAULT_MARKETING_STRATEGY, id: 'synthetic-strategy', version: 1, updatedAt: '2026-01-01T00:00:00Z', updatedBy: 'synthetic-owner' };
 const marketingCampaigns = [{ id: 'synthetic-campaign', name: 'Founder Beta Introduction', objective: 'Invite tabletop designers to try their first printable Set.', audienceKey: 'tabletop-designers', offer: 'Create a Set', status: 'active', startsOn: null, endsOn: null, successMetric: 'First completed Set', utmCampaign: 'founder-beta', version: 1, createdBy: 'synthetic-owner', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }];
 const campaignPackage = { id: 'synthetic-package', contributorId: params.has('campaignComposer') ? 'synthetic-owner' : 'synthetic-author', contributorEmail: null, contributorName: 'Synthetic author', title: 'Printable Deck Introduction', objective: 'Explain the printable card workflow', destinationUrl: 'https://cardforges.com', productionNote: '', marketingCampaignId: 'synthetic-campaign', audienceKey: 'tabletop-designers', contentPillar: 'product-proof', funnelStage: 'awareness', contentKind: 'demonstration', callToAction: 'Open Desk', creationSource: 'human', utmContent: '', variants: [{ service: 'facebook', text: 'Synthetic package copy', attachments: [] }], associations: [], status: params.has('campaignComposer') ? 'draft' : 'submitted', requestedPublishAt: null, reviewNote: '', reviewedBy: null, submittedAt: '2026-01-01T00:00:00Z', approvedAt: null, version: 1, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' } satisfies MarketingContentPackage;
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
+  if (params.has('catalogTrashProof') && String(input).endsWith('/catalog-trash')) {
+    proof.libraryRequests.push({ url: String(input), method: init?.method ?? 'GET' });
+    if (init?.method && init.method !== 'GET') throw new Error('Read-only recovery reachability proof must not mutate');
+    return Response.json({ name: queueRows[0].name, retentionDays: 30, entryReasons: [], reasons: [],
+      state: { trashedAt: queueRows[0].catalogTrashedAt, purgeAfter: queueRows[0].catalogPurgeAfter, held: false,
+        submissionId: queueRows[0].id, impactFingerprint: 'fixture-fresh-impact' } });
+  }
+  if (params.has('sharedTrashProof')) {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    const method = init?.method ?? 'GET';
+    if (url.startsWith('/api/pipeline/library?scope=shared&trash=trashed')) { proof.libraryRequests.push({url,method:'GET'}); return Response.json({ sharedTrash: {
+      total: 1, page: 1, pageSize: 12, items: [{ id: row.id, lineageId: row.lineageId, name: 'Recoverable shared card back',
+        description: 'Public description', assetType: 'elementPresets', status: 'archived', revisionNumber: 1,
+        trashedAt: '2026-10-31T18:00:00Z', purgeAfter: '2026-11-30T18:00:00Z',
+        trashActorRole: 'contributor', trashPreviousStatus: 'voting', publicationRetained: true,
+        positiveVotes: 2, negativeVotes: 1, ownedByViewer: false }] } }); }
+    if (url === '/api/pipeline/library') return Response.json({ program: { ...program, submissions: [] } });
+    if (url.startsWith('/api/pipeline/engagement?')) return Response.json({
+      submissionId: row.id, lineageId: row.lineageId, name: 'Recoverable shared card back',
+      revisionNumber: 1, status: 'archived', trashedAt: '2026-10-31T18:00:00Z', purgeState: null,
+      positiveVotes: 2, negativeVotes: 1, currentUserVote: null,
+      voteIssue: params.has('sharedDenied') ? 'Voting not permitted' : null, heart: null, heartIssue: null });
+    if (url.endsWith('/lifecycle')) {
+      if (method === 'POST') { proof.libraryRequests.push({ url, method, body: String(init?.body ?? '') }); return Response.json({ error: { message: 'Not permitted' } }, { status: 403 }); }
+      return Response.json({ name: 'Recoverable shared card back', state: {
+        scope: 'revision', submissionId: row.id, lineageId: row.lineageId, revisionNumber: 1,
+        registrySubmissionId: null, revisionHighWater: 2, recoveryVersion: '2', status: 'archived',
+        updatedAt: '2026-10-31T18:00:00Z', trashedAt: '2026-10-31T18:00:00Z',
+        purgeAfter: '2026-11-30T18:00:00Z', held: false },
+        retentionDays: 30, trashActor: 'owner', trashReasons: ['revision_already_trashed'],
+        restoreReasons: ['owner_recovery_required'], canHold: false,
+        publicationRetained: true, sourceUncertainty: null });
+    }
+    if (url.endsWith('/vote') && method === 'POST') {
+      proof.libraryRequests.push({ url, method, body: String(init?.body ?? '') });
+      return params.has('sharedDenied') ? Response.json({ error: { message: 'Voting not permitted' } }, { status: 403 }) : Response.json({ voteValue: 'positive' });
+    }
+    if (url.startsWith('/api/pipeline/hearts?')) return Response.json({ metrics: [] });
+    if (url === '/api/catalog') return Response.json(queueCatalog);
+  }
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   if (params.has('deskActual') && (!init?.method || init.method === 'GET')) {
     if (params.has('deskSearch') && url === '/api/catalog') return Response.json(queueCatalog);
@@ -149,7 +196,9 @@ window.fetch = async (input, init) => {
       proof.libraryRequests.push({ url, method: 'GET' });
       const filters = new URL(url, location.origin).searchParams;
       const query = (filters.get('query') ?? '').toLowerCase();
-      const filtered = queueRows.filter(row => (!filters.get('assetType') || filters.get('assetType') === 'all' || row.assetType === filters.get('assetType'))
+      const filtered = queueRows.filter(row => (!params.has('catalogTrashProof') || (filters.get('trash') ?? 'active') === 'all'
+          || ((filters.get('trash') ?? 'active') === 'trashed') === Boolean(row.catalogTrashedAt || row.trashedAt))
+        && (!filters.get('assetType') || filters.get('assetType') === 'all' || row.assetType === filters.get('assetType'))
         && (!filters.get('status') || filters.get('status') === 'all' || row.status === filters.get('status'))
         && [row.name, row.description, row.contributorDisplayName, row.registryAssetId].join(' ').toLowerCase().includes(query));
       const page = Number(filters.get('page') ?? 1); const pageSize = Number(filters.get('pageSize') ?? 12);
@@ -231,6 +280,6 @@ function RailProof() {
 }
 const mount = document.createElement('div'); document.body.append(mount); const fixtureRouter = { bfcacheId: 'isolated-library', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: (href: string) => { proof.libraryNavigations.push(href); }, replace: () => {}, prefetch: async () => {} };
 createRoot(mount).render(<><Toaster />{params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
-  experience={{ signedIn: true, owner: !params.has('campaignContributor'), plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: true } } as AccountExperienceProjection}
+  experience={{ signedIn: true, owner: !params.has('campaignContributor') && !params.has('sharedTrashProof'), plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: true } } as AccountExperienceProjection}
   businessIdentity={{} as never} persistenceScope="account:isolated-library-fixture" />
 </AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />}</>);
