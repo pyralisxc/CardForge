@@ -93,22 +93,17 @@ function ControllerBatchProof() {
 function PickerSessionProof() {
   const [open,setOpen] = useState(false);
   const [result,setResult] = useState('idle');
-  const [race,setRace] = useState('idle');
-  const raceConfirmations = () => {
-    setRace('pending');
-    const first = controller.applyIconSelection('icon', {iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
-    const second = controller.applyIconSelection('icon', {iconName:'Star',iconImageSource:undefined,iconRenderMode:undefined});
-    void Promise.allSettled([first, second]).then(results => setRace(results.map(result => result.status).join(',')));
-  };
   const completion = useRef<null|{resolve:()=>void;reject:(error:Error)=>void}>(null);
   return <>
     <button onClick={()=>setOpen(true)}>Open chooser</button>
-    <button onClick={()=>completion.current?.resolve()}>Finish earlier success</button>
-    <button onClick={()=>completion.current?.reject(new Error('Previous session failed'))}>Finish earlier failure</button>
     <output data-testid="picker-session-result">{result}</output>
     <LibraryPickerDialog open={open} onOpenChange={setOpen}
       request={{purpose:'template.icon-source',title:'Choose icon',acceptedKinds:['icon'],acceptedRoles:['icon'],sources:['published'],selectionMode:'single',target:{kind:'template-element',ids:['icon']},requiresProjectMaterialization:false}}
       resources={[{id:'published:test',objectId:'test',name:'Test published icon',kind:'icon',role:'icon',source:'published',sourceLabel:'CardForge',materialization:'reference'}]}
+      sourceActions={[
+        {id:'finish-success',label:'Finish earlier success',onInvoke:()=>completion.current?.resolve()},
+        {id:'finish-failure',label:'Finish earlier failure',onInvoke:()=>completion.current?.reject(new Error('Previous session failed'))},
+      ]}
       onSelect={async(_selected,_signal)=>new Promise<void>((resolve,reject)=>{completion.current={resolve:()=>{setResult('late success');resolve();},reject:(error)=>{setResult('late failure');reject(error);}};})}
     />
   </>;
@@ -123,6 +118,13 @@ function ControllerIconApplicationProof() {
   };
   const controller = useTemplateEditorController(source);
   const [result,setResult] = useState('idle');
+  const [race,setRace] = useState('idle');
+  const raceConfirmations = () => {
+    setRace('pending');
+    const first = controller.applyIconSelection('icon', {iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+    const second = controller.applyIconSelection('icon', {iconName:'Star',iconImageSource:undefined,iconRenderMode:undefined});
+    void Promise.allSettled([first, second]).then(results => setRace(results.map(result => result.status).join(',')));
+  };
   const perform = (sourceValue:string) => {
     setResult('pending');
     void controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:sourceValue,iconRenderMode:'original'})
