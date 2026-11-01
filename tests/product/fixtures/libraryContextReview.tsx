@@ -106,12 +106,12 @@ window.fetch = async (input, init) => {
   if (params.has('sharedTrashProof')) {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const method = init?.method ?? 'GET';
-    if (url.startsWith('/api/pipeline/library?scope=shared&trash=trashed')) return Response.json({ sharedTrash: {
+    if (url.startsWith('/api/pipeline/library?scope=shared&trash=trashed')) { proof.libraryRequests.push({url,method:'GET'}); return Response.json({ sharedTrash: {
       total: 1, page: 1, pageSize: 12, items: [{ id: row.id, lineageId: row.lineageId, name: 'Recoverable shared card back',
         description: 'Public description', assetType: 'elementPresets', status: 'archived', revisionNumber: 1,
         trashedAt: '2026-10-31T18:00:00Z', purgeAfter: '2026-11-30T18:00:00Z',
         trashActorRole: 'contributor', trashPreviousStatus: 'voting', publicationRetained: true,
-        positiveVotes: 2, negativeVotes: 1 }] } });
+        positiveVotes: 2, negativeVotes: 1 }] } }); }
     if (url === '/api/pipeline/library') return Response.json({ program: { ...program, submissions: [] } });
     if (url.startsWith('/api/pipeline/engagement?')) return Response.json({
       submissionId: row.id, lineageId: row.lineageId, name: 'Recoverable shared card back',

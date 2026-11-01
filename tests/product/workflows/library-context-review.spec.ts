@@ -825,6 +825,7 @@ for (const denied of [false, true]) test(`@golden signed-in shared Trash exact C
     await expect(page.getByRole('button', { name: 'Like 2' })).toBeDisabled();
   } else {
     await page.getByRole('button', { name: 'Like 2' }).click();
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { libraryRequests: Array<{ url: string; method: string }> }).libraryRequests.filter(value => value.url.includes('/api/pipeline/library?scope=shared&trash=trashed')).length)).toBeGreaterThan(1);
     await expect.poll(() => page.evaluate(() => (window as typeof window & { libraryRequests: Array<{ url: string; method: string; body?: string }> }).libraryRequests.some(value => value.url.endsWith('/vote') && value.body?.includes('positive')))).toBe(true);
   }
   expect(evidence.errors).toEqual([]);
