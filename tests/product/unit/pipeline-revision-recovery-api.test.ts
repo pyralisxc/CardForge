@@ -20,6 +20,13 @@ it('uses session identity for browser reads and mutations', async () => {
   expect(await (await post(input)).json()).toEqual({ state: 'restored' });
   expect(m.change).toHaveBeenCalledExactlyOnceWith('session-account', input); expect(m.refresh).toHaveBeenCalledOnce();
 });
+it.each(['draft', 'voting', 'publish_candidate'])('revalidates after an ordinary-eligibility Restore receipt (%s)', async status => {
+  m.change.mockResolvedValue({ state: { status, trashedAt: null, recoveryVersion: '3' } });
+  const response = await post(input);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ state: { status, trashedAt: null } });
+  expect(m.refresh).toHaveBeenCalledOnce();
+});
 it('rejects route mismatch and malformed input before the native boundary', async () => {
   for (const body of [null, {}, { expected: { submissionId: 'other' } }]) expect((await post(body)).status).toBe(400);
   expect(m.change).not.toHaveBeenCalled();
