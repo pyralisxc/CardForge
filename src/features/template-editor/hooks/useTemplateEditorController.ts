@@ -323,10 +323,10 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
       } else if (syncedInitialIdRef.current !== saved.id
         && activeDocumentIdRef.current === saved.id
         && !acknowledgedSaveIdentityRef.current) {
-        // New front beginDraft already owns the draft ID, but the parent still
-        // selects the previously persisted Template. This verified first Save
-        // authorizes that parent to catch up without treating it as navigation.
-        acknowledgedSaveIdentityRef.current = { fromId: syncedInitialIdRef.current, toId: saved.id };
+        // New front beginDraft already owns this working draft ID, even if
+        // the parent still selects an earlier Template (or starts with null).
+        // Record the verified working identity, not the stale parent identity.
+        acknowledgedSaveIdentityRef.current = { fromId: submitted.id, toId: saved.id };
       }
     }
     setEditorState(previous => acceptSavedTemplateEditorState(previous, submitted, saved));
