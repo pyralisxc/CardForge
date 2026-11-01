@@ -38,6 +38,6 @@ describe('download page public shell and access presentation', () => {
     expect(source).toContain("packet:'1'");
     // Direct ZIP links bypass checksum-header/blob validation; metadata-only
     // reviewer packets are permitted through the same authorized GET route.
-    expect(source).not.toMatch(/href=\\{[^}]*download=1/u);
+    expect(source.split('href={').slice(1).every(fragment => !fragment.slice(0, 250).includes("download: '1'") && !fragment.slice(0, 250).includes('download=1'))).toBe(true);
   });
 });
