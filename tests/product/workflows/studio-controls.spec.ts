@@ -575,7 +575,7 @@ test('@golden Icon acknowledgment resolves only after canonical commit, same-val
  await page.getByRole('button',{name:'Apply Icon with acknowledgment'}).click();
  await expect(page.getByTestId('ack-result')).toHaveText('applied');
  await expect(page.getByTestId('ack-history')).toHaveText(history!);
- await page.getByRole('button',{name:'Lock Icon'}).click();
+ await page.getByRole('button',{name:'Lock Icon',exact:true}).click();
  await page.getByRole('button',{name:'Apply Icon with acknowledgment'}).click();
  await expect(page.getByTestId('ack-result')).toHaveText('rejected');
  expect(JSON.parse(await page.getByTestId('ack-neighbor').textContent()||'{}')).toMatchObject({content:'Keep neighbor'});
