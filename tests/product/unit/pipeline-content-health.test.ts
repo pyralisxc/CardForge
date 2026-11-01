@@ -40,6 +40,25 @@ const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgr
 };
 
 describe('Pipeline content health', () => {
+  it('routes only confirmed dependency impact into technical Open findings without changing editorial counts', () => {
+    const program = programWith({ editorialReviewStatus: 'approved' });
+    const baseline = buildPipelineContentHealth({ catalog: null, program });
+    const health = buildPipelineContentHealth({ catalog: null, program, dependencyImpacts: [{
+      objectId: 'affected-lineage', objectName: 'Affected work', sourceAssetId: 'trashed-icon',
+      sourceAssetName: 'Retired icon',
+    }] });
+    expect(health.issues).toContainEqual(expect.objectContaining({
+      code: 'dependency-unavailable', objectId: 'affected-lineage', severity: 'warning',
+    }));
+    expect(health.editorial).toEqual(baseline.editorial);
+    const markup = renderToStaticMarkup(createElement(PipelineContentHealthPanel, {
+      health, canRepair: true, onOpenObject: () => undefined,
+    }));
+    expect(markup).toContain('Affected work');
+    expect(markup).toContain('Open object');
+    expect(markup).toContain('submit an exact-lineage revision');
+  });
+
   it.each(['textures', 'dividers', 'icons', 'imageAssets', 'elementPresets', 'fonts', 'templates', 'sets'] as const)('uses the same General resource policy in health and review for %s', (assetType) => {
     const program = programWith({ assetType, specialtyTags: ['general'], useCaseTags: [] });
     const requiresUseCase = assetType === 'templates' || assetType === 'sets';
