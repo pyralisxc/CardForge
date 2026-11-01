@@ -177,8 +177,8 @@ export function ExportControlsPanel({
         <CardContent className="space-y-4">
           {generatedDisplayCards.length > 0 ? (
             <div className="rounded-md border bg-muted/40 p-3 text-xs">
-              <p className="font-semibold text-foreground">{isEntitlementPending ? 'Checking account access…' : exportEntitlementLabel}</p>
-              <p className="mt-1 text-muted-foreground">{isEntitlementPending ? 'CardForge is confirming your download access before it applies watermark or project-file rules.' : exportEntitlementMessage}</p>
+              <p className="font-semibold text-foreground">{exportEntitlementLabel}</p>
+              <p className="mt-1 text-muted-foreground">{exportEntitlementMessage}</p>
               <p className="mt-2 text-muted-foreground">
                 CardForge builds exports locally, then your browser saves the single finished file to its configured download location. No server copy is created.
               </p>

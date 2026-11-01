@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { formatAccessExpiration, STUDIO_GUIDE_STORAGE_KEY } from '@/features/creator-workbench/lib/studioPresentation';
 import { useToast } from '@/components/ui/use-toast';
 
-import { useAccountEntitlement } from '@/features/account/client/entitlement';
+import { isExportEntitlementUnresolved, useAccountEntitlement } from '@/features/account/client/entitlement';
 import { useSafeCurrentReturnPath } from '@/infrastructure/auth/useSafeCurrentReturnPath';
 import { hasContributionScope, useContributorAccess, type ContributorAccessSessionState } from '@/features/contributor-access/client';
 import { StudioFirstRunGuide } from '@/features/creator-workbench/components/StudioFirstRunGuide';
@@ -74,9 +74,9 @@ export function CreatorWorkbench({
     isOwner: accountEntitlement.ownerAccess.isOwner,
     sessionKey: accountEntitlement.isSignedIn ? accountEntitlement.accountUserId : null,
   });
-  const isEntitlementPending = accountEntitlement.authConfigured
-    && accountEntitlement.isSignedIn
-    && accountEntitlement.entitlementStatus === 'loading';
+  // Output must wait for authoritative entitlement even while sign-in itself
+  // is still hydrating. Failed verification also blocks download admission.
+  const isEntitlementPending = isExportEntitlementUnresolved(accountEntitlement);
   const canSubmitTemplateRevisions = hasContributionScope(contributorAccess.scopes, 'library.submit');
   const canPublishSharedLibrary = hasContributionScope(contributorAccess.scopes, 'library.publish');
   const projectCapabilities = accountEntitlement.capabilities;
@@ -84,11 +84,19 @@ export function CreatorWorkbench({
   const exportEntitlementCopy = accountEntitlement.copy;
   const exportGateMessage = isEntitlementPending ? null : accountEntitlement.copy.gateMessage;
   const projectFileGateMessage = accountEntitlement.copy.projectFileGateMessage;
-  const exportEntitlementLabel = accountEntitlement.authConfigured ? exportEntitlementCopy.modeLabel : 'Local setup mode';
+  const exportEntitlementLabel = accountEntitlement.entitlementStatus === 'unavailable'
+    ? 'Account access unavailable'
+    : accountEntitlement.entitlementStatus === 'loading' && accountEntitlement.authConfigured
+      ? 'Checking account access…'
+      : accountEntitlement.authConfigured ? exportEntitlementCopy.modeLabel : 'Local setup mode';
   const accessExpiresOn = formatAccessExpiration(accountEntitlement.accessExpiresAt);
-  const exportEntitlementMessage = accountEntitlement.authConfigured
-    ? accessExpiresOn ? `${exportEntitlementCopy.panelMessage} Your access is active through ${accessExpiresOn}.` : exportEntitlementCopy.panelMessage
-    : 'Clerk sign-in is not fully configured. Local development can still validate export behavior, but real free, paid, and Contributor account testing starts after adding CLERK_SECRET_KEY.';
+  const exportEntitlementMessage = accountEntitlement.entitlementStatus === 'unavailable'
+    ? 'CardForge could not verify your download access. Refresh account access before downloading; no provisional watermark choice was used.'
+    : accountEntitlement.entitlementStatus === 'loading' && accountEntitlement.authConfigured
+      ? 'CardForge is confirming your download access before choosing watermark rules.'
+      : accountEntitlement.authConfigured
+        ? accessExpiresOn ? `${exportEntitlementCopy.panelMessage} Your access is active through ${accessExpiresOn}.` : exportEntitlementCopy.panelMessage
+        : 'Clerk sign-in is not fully configured. Local development can still validate export behavior, but real free, paid, and Contributor account testing starts after adding CLERK_SECRET_KEY.';
   const canUploadCustomAssets = canUploadCustomLocalAssets({ authConfigured: accountEntitlement.authConfigured, isSignedIn: accountEntitlement.isSignedIn });
 
   const {

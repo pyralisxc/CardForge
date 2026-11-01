@@ -2,11 +2,22 @@ import { describe, expect, it } from 'vitest';
 
 import {
   isClerkAuthConfigured,
+  isExportEntitlementUnresolved,
   resolveAccountAccessMode,
   resolveAccountEntitlement,
 } from '@/features/account/lib/accountEntitlement';
 
 describe('accountEntitlement', () => {
+  it('blocks export admission until account entitlement is authoritative, even before sign-in hydrates', () => {
+    // The initial account state may say signed out/Free while a signed-in
+    // Contributor entitlement is still being fetched; it is not export proof.
+    expect(isExportEntitlementUnresolved({ authConfigured: true, entitlementStatus: 'loading' })).toBe(true);
+    expect(isExportEntitlementUnresolved({ authConfigured: true, entitlementStatus: 'unavailable' })).toBe(true);
+    expect(isExportEntitlementUnresolved({ authConfigured: true, entitlementStatus: 'ready' })).toBe(false);
+    // Preserve the explicit local-development behavior without Clerk.
+    expect(isExportEntitlementUnresolved({ authConfigured: false, entitlementStatus: 'loading' })).toBe(false);
+  });
+
   it('detects Clerk only when both public and secret keys are configured', () => {
     expect(isClerkAuthConfigured({
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_123',
