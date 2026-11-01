@@ -66,7 +66,7 @@ function RevisionRecoverySession({ submissionId, onChanged }: { submissionId: st
   };
   return <section aria-label="Revision recovery" className="grid gap-3 border-t border-[var(--cf-border-subtle)] pt-3">
     <h4 className="text-sm font-semibold">Revision Trash</h4>
-    <p className="text-xs">Recover one revision without changing newer work. Restore recovers retained records; publication remains a separate review decision. Independent copies remain unchanged.</p>
+    <p className="text-xs">Recover one revision without changing newer work. Restore returns this revision to its ordinary eligibility under the existing publication policy. It does not replace newer live work or change independent copies.</p>
     <Button size="sm" variant="outline" disabled={busy} onClick={() => void load()}>Inspect revision recovery</Button>
     {error ? <p role="alert">{error}</p> : null}
     {snapshot ? <>
@@ -80,7 +80,7 @@ function RevisionRecoverySession({ submissionId, onChanged }: { submissionId: st
       </ul> : null}
       <div className="flex flex-wrap gap-2">
         {snapshot.state.trashedAt
-          ? <Button size="sm" disabled={busy || snapshot.restoreReasons.length > 0} onClick={() => void change({ action: 'restore', expected: snapshot.state })}>Restore revision to history</Button>
+          ? <Button size="sm" disabled={busy || snapshot.restoreReasons.length > 0} onClick={() => void change({ action: 'restore', expected: snapshot.state })}>Restore</Button>
           : <Button size="sm" disabled={busy || snapshot.trashReasons.length > 0} onClick={() => void change({ action: 'trash', expected: snapshot.state })}>Move revision to Trash</Button>}
         {snapshot.canHold ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void change({ action: 'hold', expected: snapshot.state, held: !snapshot.state.held })}>{snapshot.state.held ? 'Remove revision hold' : 'Hold revision'}</Button> : null}
       </div>
