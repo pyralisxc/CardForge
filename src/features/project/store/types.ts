@@ -11,6 +11,8 @@ export interface TemplateCommitChangeInput {
   face?: CardFace;
   removedFieldKeys?: readonly string[];
   setId?: string | null;
+  /** Editor Save reconciles the receipt before changing selection; other callers retain existing selection behavior. */
+  deferEditorSelectionUntilReceipt?: boolean;
 }
 
 export interface TemplateSlice {

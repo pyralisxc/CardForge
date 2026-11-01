@@ -317,9 +317,17 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     // A same-ID Save may happen while the first draft→persisted handoff still
     // waits for the parent selection to catch up (newer edits kept it on draft).
     // Do not erase that acknowledged handoff until the parent effect consumes it.
-    if (submitted.id && saved.id && submitted.id !== saved.id
-      && workingId === submitted.id) {
-      acknowledgedSaveIdentityRef.current = { fromId: submitted.id, toId: saved.id };
+    if (submitted.id && saved.id && workingId === submitted.id) {
+      if (submitted.id !== saved.id) {
+        acknowledgedSaveIdentityRef.current = { fromId: submitted.id, toId: saved.id };
+      } else if (syncedInitialIdRef.current !== saved.id
+        && activeDocumentIdRef.current === saved.id
+        && !acknowledgedSaveIdentityRef.current) {
+        // New front beginDraft already owns this working draft ID, even if
+        // the parent still selects an earlier Template (or starts with null).
+        // Record the verified working identity, not the stale parent identity.
+        acknowledgedSaveIdentityRef.current = { fromId: submitted.id, toId: saved.id };
+      }
     }
     setEditorState(previous => acceptSavedTemplateEditorState(previous, submitted, saved));
   }, []);

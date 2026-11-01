@@ -78,10 +78,14 @@ export function PublishedSourceFeedback({ registryAssetId, fontValue, template, 
   useEffect(() => {
     let cancelled = false;
     void loadCardForgeStudioBootstrap().then(bootstrap => {
+      if (!Array.isArray(bootstrap.pipeline)) {
+        if (!cancelled) setSource({ key: sourceKey, submissionId: null, error: 'Published source reactions are unavailable. The catalog source information is incomplete.' });
+        return;
+      }
       const exactTemplate = !isTemplate || bootstrap.templates.defaults.some(candidate => candidate.id === registryAssetId && candidate.templateRevisionId === revisionId && candidate.templateRevision === revisionNumber);
       const exactStyle = !styleFingerprint || bootstrap.styles.styles.some(candidate => candidate.id === registryAssetId && JSON.stringify(candidate) === styleFingerprint);
       // Runtime Font values are lossy; only the explicit observation may bind a raw asset.
-      const matches = bootstrap.pipeline?.filter(item => fontValue ? item.fontValue === fontValue : item.assetId === registryAssetId) ?? [];
+      const matches = bootstrap.pipeline.filter(item => fontValue ? item.fontValue === fontValue : item.assetId === registryAssetId);
       if (!cancelled) setSource({ key: sourceKey, submissionId: exactTemplate && exactStyle && matches.length === 1 ? matches[0].submissionId : null });
     }).catch(() => { if (!cancelled) setSource({ key: sourceKey, submissionId: null, error: 'Published source reactions are unavailable.' }); });
     return () => { cancelled = true; };

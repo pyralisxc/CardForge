@@ -221,8 +221,8 @@ export const collectChangedPaths = (root, explicitBase) => {
   try {
     runGit(root, ['rev-parse', '--verify', base]);
     addOutput(runGit(root, ['diff', '--name-only', `${base}...HEAD`]));
-  } catch {
-    runGit(root, ['rev-parse', '--verify', 'HEAD']);
+  } catch (error) {
+    throw new Error(`Unable to compare verification base ${base} with HEAD; ensure the base and merge history are fetched.`, { cause: error });
   }
   addOutput(runGit(root, ['diff', '--name-only', 'HEAD']));
   addOutput(runGit(root, ['ls-files', '--others', '--exclude-standard']));
