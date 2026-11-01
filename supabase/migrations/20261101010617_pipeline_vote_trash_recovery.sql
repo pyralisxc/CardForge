@@ -482,7 +482,7 @@ as $$
         'revisionNumber',submission.revision_number,'trashedAt',submission.trashed_at,
         'purgeAfter',submission.purge_after,'trashActorRole',submission.revision_trash_actor_role,
         'trashPreviousStatus',submission.revision_trash_previous_status,
-        'publicationRetained',submission.revision_publication_retained,
+        'publicationRetained',submission.revision_publication_retained or submission.published_at is not null,
         'positiveVotes',submission.positive_votes,'negativeVotes',submission.negative_votes,
         'ownedByViewer',submission.contributor_id=p_current_user_id) else null end as shared_metadata
     from public.cardforge_contributor_asset_submissions as submission

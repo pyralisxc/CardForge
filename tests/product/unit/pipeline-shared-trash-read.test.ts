@@ -16,6 +16,12 @@ describe('shared Trash native metadata projection', () => {
   f.rpc.mockResolvedValue({ data: [{ submission_id: id, total_count: 1, shared_metadata: invalid }], error: null });
   await expect(getSharedPipelineTrashPage('free-viewer')).rejects.toMatchObject({ status: 503 }); expect(f.from).not.toHaveBeenCalled();
  });
+ it('accepts a sanitized legacy publication observation without origin or a private timestamp field', async () => {
+  const legacy = { ...metadata, publicationRetained: true, trashPreviousStatus: null, trashActorRole: null };
+  f.rpc.mockResolvedValue({ data: [{ submission_id: id, total_count: 1, shared_metadata: legacy }], error: null });
+  expect((await getSharedPipelineTrashPage('free-viewer')).items).toEqual([legacy]);
+  expect(f.from).not.toHaveBeenCalled();
+ });
  it('retains count on an empty requested page and distinguishes unavailable output from empty', async () => {
   f.rpc.mockResolvedValue({ data: [{ submission_id: null, total_count: 1, shared_metadata: null }], error: null });
   expect(await getSharedPipelineTrashPage('free-viewer', { page: 99 })).toEqual({ items: [], total: 1, page: 99, pageSize: 12 });

@@ -8,6 +8,7 @@ do $$
 declare
  a uuid:=gen_random_uuid(); sibling uuid:=gen_random_uuid(); manual uuid:=gen_random_uuid(); private_id uuid:=gen_random_uuid();
  l uuid:=gen_random_uuid(); ml uuid:=gen_random_uuid(); pl uuid:=gen_random_uuid();
+ legacy_id uuid:=gen_random_uuid(); unknown_id uuid:=gen_random_uuid(); legacy_lineage uuid:=gen_random_uuid(); metadata jsonb;
  snap jsonb; epoch timestamptz; deadline timestamptz; content_version text; total bigint;
 begin
  update public.cardforge_contributor_program_settings set minimum_votes_for_grading=2,
@@ -111,6 +112,20 @@ begin
  perform public.cardforge_submit_template_pipeline_draft(private_id,'trash-author','Private Trash proof','Native resubmission after recovery','https://example.invalid/private','Fixture evidence',array['games'],array['tcg'],'template.front');
  if not exists(select 1 from public.cardforge_list_contributor_asset_submission_ids('peer','review','',null,null,null,'all',true,1,50,'active') where submission_id=private_id)
  then raise exception 'legitimate_resubmission_remained_private'; end if;
+ -- Legacy entry is retained only through its real publication timestamp;
+ -- insertion deliberately preserves the old default-false flag and absent origin.
+ insert into public.cardforge_pipeline_asset_lineages(id,revision_high_water) values(legacy_lineage,2);
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,revision_number,published_at,trashed_at,purge_after,source_url)
+ values(legacy_id,legacy_lineage,'legacy-author','icons','Legacy published Trash','archived',1,now()-interval '40 days',now(),now()+interval '30 days','https://example.invalid/legacy-trash.svg'),
+ (unknown_id,legacy_lineage,'legacy-author','icons','Unknown sharing Trash','archived',2,null,now(),now()+interval '30 days','https://example.invalid/unknown-trash.svg');
+ if (select revision_publication_retained from public.cardforge_contributor_asset_submissions where id=legacy_id) is distinct from false
+ then raise exception 'legacy_fixture_not_default_false'; end if;
+ select shared_metadata into metadata from public.cardforge_list_contributor_asset_submission_ids('free-viewer','shared','',null,null,null,'all',true,1,50,'trashed') where submission_id=legacy_id;
+ if metadata->>'publicationRetained' is distinct from 'true'
+ or metadata->>'id' is distinct from legacy_id::text or metadata ? 'publishedAt'
+ then raise exception 'legacy_publication_observation_lost_or_private_field_added: %',metadata; end if;
+ if exists(select 1 from public.cardforge_list_contributor_asset_submission_ids('free-viewer','shared','',null,null,null,'all',true,1,50,'trashed') where submission_id=unknown_id)
+ then raise exception 'unknown_legacy_sharing_became_public'; end if;
  raise notice 'PASS vote Trash: shared feedback, 30-day epoch, retry stability, hold, automatic and own recovery, Owner moderation, private query/vote/heart isolation and content-version stability';
 end $$;
 
