@@ -35,6 +35,9 @@ describe('download page public shell and access presentation', () => {
     expect(source).toContain("await fetch('/api/plugin-downloads?'");
     expect(source).toContain("response.headers.get('X-Checksum-SHA256')");
     expect(source).toContain('URL.createObjectURL(blob)');
-    expect(source).not.toContain('href={\'/api/plugin-downloads?');
+    expect(source).toContain("packet:'1'");
+    // Direct ZIP links bypass checksum-header/blob validation; metadata-only
+    // reviewer packets are permitted through the same authorized GET route.
+    expect(source).not.toMatch(/href=\\{[^}]*download=1/u);
   });
 });
