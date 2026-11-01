@@ -63,10 +63,4 @@ begin
  return false;
 end $$;
 
--- Private inventory stays inside the native service boundary. Public/service
--- projections below decide which exact metadata the actor may receive.
-create function public.cardforge_catalog_known_dependencies(refs jsonb,ids text[],sources text[])
-returns boolean language sql immutable security invoker set search_path='' as $$
- select public.cardforge_catalog_known_reference(jsonb_build_object('assetId',refs->'identities','imageSource',refs->'sources','backgroundImage',refs->'sources'),ids,sources);
-$$;
 commit;
