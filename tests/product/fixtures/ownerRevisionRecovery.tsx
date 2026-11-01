@@ -7,9 +7,13 @@ import { identityProgram, identitySubmission } from './libraryTemplateIdentityDa
 const id = '00000000-0000-4000-8000-000000000001';
 function Fixture() {
   const [refreshes, setRefreshes] = useState(0);
-  const trashed = refreshes % 2 === 1;
+  const catalogProof = new URLSearchParams(window.location.search).has('catalogRecovery');
+  const trashed = catalogProof || refreshes % 2 === 1;
   const row = identitySubmission(id, { assetType: 'icons', semanticRole: 'icon', requestedStudioDestination: 'element.icon',
-    name: 'Owner recovery projection', status: refreshes === 0 ? 'voting' : 'archived', publishedAt: null,
+    name: 'Owner recovery projection', status: catalogProof ? 'archived' : refreshes === 0 ? 'voting' : 'archived', publishedAt: catalogProof ? '2026-10-30T18:00:00Z' : null,
+    catalogTrashedAt: catalogProof && refreshes === 0 ? '2026-11-01T18:00:00Z' : null,
+    catalogPurgeAfter: catalogProof && refreshes === 0 ? '2026-12-01T18:00:00Z' : null,
+    catalogRetentionHold: false, catalogSubmissionId: catalogProof ? '00000000-0000-4000-8000-000000000002' : null,
     trashedAt: trashed ? '2026-10-31T18:00:00Z' : null, purgeAfter: trashed ? '2026-11-30T18:00:00Z' : null });
   const program = { ...identityProgram([row], 'native-owner'), configured: true,
     submissionPage: { page: 1, pageSize: 50, total: 1 }, managedStorageBytes: 0, managedFileCount: 0, totalSubmissionCount: 1,

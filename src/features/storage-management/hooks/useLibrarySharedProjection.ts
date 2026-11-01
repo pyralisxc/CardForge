@@ -1,4 +1,5 @@
 "use client";
+import { getPipelineTrashState } from '@/features/pipeline/client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -302,7 +303,7 @@ export const projectPipelineLibraryObjects = (
       revisions: item.revisions,
       currentPublishedSubmission: item.currentPublishedSubmission,
       kindLabel: getPipelineTypeLabel(item.submission.assetType, { plural: false }),
-      statusLabel: getPipelineStatusLabel(item.submission.status),
+      statusLabel: getPipelineTrashState(item.submission).trashed ? 'Trash' : getPipelineStatusLabel(item.submission.status),
       ownership: item.ownership,
       displayedRevisionOwnership: program.currentContributorIds.includes(item.submission.contributorId) ? 'mine' : 'other',
       reviewState: item.reviewState,

@@ -131,6 +131,10 @@ export interface PipelineSubmission {
   trashActorRole?: 'owner' | 'contributor' | 'voting' | null;
   trashActorId?: string | null;
   trashPreviousStatus?: PipelineStatus | null;
+  catalogTrashedAt?: string | null;
+  catalogPurgeAfter?: string | null;
+  catalogRetentionHold?: boolean;
+  catalogSubmissionId?: string | null;
   trashedAt?: string | null;
   purgeAfter?: string | null;
   trashReason?: 'declined' | 'withdrawn' | 'expired' | 'superseded' | null;
@@ -270,6 +274,11 @@ export interface PipelineSubmissionRow {
   revision_trash_actor_role?: unknown;
   revision_trash_actor_id?: string | null;
   revision_trash_previous_status?: unknown;
+  catalog_trashed_at?: string | null;
+  catalog_purge_after?: string | null;
+  catalog_retention_hold?: boolean;
+  catalog_submission_id?: string | null;
+  catalog_source_published?: boolean;
   trashed_at?: string | null;
   purge_after?: string | null;
   trash_reason?: unknown;
@@ -598,10 +607,14 @@ export const mapPipelineSubmissionRow = (
   revisionNumber: row.revision_number,
   publishedAt: row.published_at,
   purgeState: row.purge_state === 'pending' ? 'pending' : null,
-  publicationRetained: row.revision_publication_retained === true,
+  publicationRetained: row.revision_publication_retained === true || Boolean(row.published_at) || row.catalog_source_published === true,
   trashActorRole: row.revision_trash_actor_role === 'owner' || row.revision_trash_actor_role === 'contributor' || row.revision_trash_actor_role === 'voting' ? row.revision_trash_actor_role : null,
   trashActorId: row.revision_trash_actor_id ?? null,
   trashPreviousStatus: isContributorAssetStatus(row.revision_trash_previous_status) ? row.revision_trash_previous_status : null,
+  catalogTrashedAt: row.catalog_trashed_at ?? null,
+  catalogPurgeAfter: row.catalog_purge_after ?? null,
+  catalogRetentionHold: row.catalog_retention_hold === true,
+  catalogSubmissionId: row.catalog_submission_id ?? null,
   trashedAt: row.trashed_at ?? null,
   purgeAfter: row.purge_after ?? null,
   trashReason: row.trash_reason === 'declined' || row.trash_reason === 'withdrawn'
@@ -617,6 +630,7 @@ export { buildPipelineProgramView, projectPipelineProgramForViewer } from './pip
 export interface SharedPipelineTrashPage {
   items: Array<Pick<PipelineSubmission,
     'id' | 'lineageId' | 'assetType' | 'name' | 'description' | 'status' | 'revisionNumber'
+    | 'catalogTrashedAt' | 'catalogPurgeAfter' | 'catalogRetentionHold' | 'catalogSubmissionId'
     | 'trashedAt' | 'purgeAfter' | 'trashActorRole' | 'trashPreviousStatus'
     | 'publicationRetained' | 'positiveVotes' | 'negativeVotes'> & { ownedByViewer: boolean }>;
   total: number;

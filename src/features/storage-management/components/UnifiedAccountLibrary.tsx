@@ -1,4 +1,5 @@
 "use client";
+import { getPipelineTrashState } from '@/features/pipeline/client';
 
 import { PIPELINE_ENGAGEMENT_CHANGED, notifyPipelineEngagementChanged, PipelineSourceDisclosure, type PipelineDesignSource } from '@/features/pipeline/client/engagement';
 import dynamic from 'next/dynamic';
@@ -603,7 +604,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Exact revision is unavailable.'));
           const payload = await response.json() as { program: { submissions: PipelineSubmission[]; votingQueue: PipelineSubmission[] } };
           if (requestId !== sharedTrashRequestEpoch.current || sharedTrashContext.current !== context) return;
-          const exact = [...payload.program.submissions, ...payload.program.votingQueue].find(row => row.id === item.id && row.lineageId === item.lineageId && row.trashedAt);
+          const exact = [...payload.program.submissions, ...payload.program.votingQueue].find(row => row.id === item.id && row.lineageId === item.lineageId && getPipelineTrashState(row).trashed);
           const target = exact ? createPipelineReviewTarget(exact) : null;
           if (!target) throw new Error('This exact trashed revision is unavailable to your Owner account. Refresh before retrying.');
           reviewReturn.current = { focus: document.activeElement instanceof HTMLElement ? document.activeElement : null, scroll: surfaceRef.current?.scrollTop ?? 0 };

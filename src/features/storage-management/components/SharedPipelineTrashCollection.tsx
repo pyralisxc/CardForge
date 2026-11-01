@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { PIPELINE_ENGAGEMENT_CHANGED } from '@/features/pipeline/client/engagement';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { PipelineSourceFeedback } from '@/features/pipeline/client/engagement';
+import { getPipelineTrashState } from '@/features/pipeline/client';
 import { RevisionRecoveryControls } from '@/features/pipeline/client/revision-recovery';
 
 // The shared endpoint intentionally returns public metadata, not a template,
@@ -10,6 +11,7 @@ import { RevisionRecoveryControls } from '@/features/pipeline/client/revision-re
 type SharedTrashItem = {
   id: string; lineageId: string | null; name: string; description: string | null;
   assetType: string; status: string; revisionNumber: number | null;
+  catalogTrashedAt?: string | null; catalogPurgeAfter?: string | null; catalogRetentionHold?: boolean; catalogSubmissionId?: string | null;
   trashedAt: string | null; purgeAfter: string | null;
   trashActorRole: 'owner' | 'contributor' | 'voting' | null;
   trashPreviousStatus: string | null; publicationRetained: boolean;
@@ -53,12 +55,12 @@ export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision, actorS
     {result?.items.length === 0 ? <p>No matching shared Trash items.</p> : null}
     <div className="grid gap-2">{result?.items.map(item => <article key={item.id} className="grid gap-1 border border-[var(--cf-border)] p-3">
       <div className="flex flex-wrap justify-between gap-2"><strong>{item.name}</strong><span className="text-sm">{item.ownedByViewer ? 'Your contribution' : 'Shared contribution'} · In Trash</span></div>
-      <p className="text-sm text-[var(--cf-text-muted)]">{item.assetType} · {item.revisionNumber === null ? 'Unnumbered revision' : `Revision ${item.revisionNumber}`} · {item.status}</p>
+      <p className="text-sm text-[var(--cf-text-muted)]">{item.assetType} · {item.revisionNumber === null ? 'Unnumbered revision' : `Revision ${item.revisionNumber}`} · {getPipelineTrashState(item).scope === 'catalog' ? 'Owner catalog Trash' : 'Revision Trash'}</p>
       {item.description ? <p className="text-sm">{item.description}</p> : null}
-      <p className="text-xs text-[var(--cf-text-muted)]">Submission {item.id} · Recovery deadline {item.purgeAfter ? new Date(item.purgeAfter).toLocaleDateString() : 'unavailable'}{item.publicationRetained ? ' · Publication history remains retained' : ''}</p>
+      <p className="text-xs text-[var(--cf-text-muted)]">Submission {item.id} · Recovery deadline {getPipelineTrashState(item).purgeAfter ? new Date(getPipelineTrashState(item).purgeAfter!).toLocaleDateString() : 'unavailable'}{item.publicationRetained ? ' · Publication history remains retained' : ''}</p>
       <p className="text-xs">Votes: {item.positiveVotes} up · {item.negativeVotes} down. Voting and Restore require their own eligibility checks.</p>
       {onOpenAuthorizedRevision ? <button type="button" className="justify-self-start min-h-11 border border-[var(--cf-border)] px-3 text-sm" onClick={() => onOpenAuthorizedRevision(item)}>Manage exact revision</button> : <button type="button" className="justify-self-start min-h-11 border border-[var(--cf-border)] px-3 text-sm" aria-expanded={expandedId === item.id} onClick={() => setExpandedId(current => current === item.id ? null : item.id)}>Exact voting &amp; recovery options</button>}
-      {expandedId === item.id ? <div className="grid gap-2" aria-label={`Exact options for ${item.id}`}><p className="text-xs">These controls separately verify your eligibility for submission {item.id}. Shared discovery grants neither permission.</p><PipelineSourceFeedback key={item.id} submissionId={item.id} /><RevisionRecoveryControls submissionId={item.id} actorScope={`${actorScope}:${item.id}`} onChanged={() => setRefresh(value => value + 1)} /></div> : null}
+      {expandedId === item.id ? <div className="grid gap-2" aria-label={`Exact options for ${item.id}`}><p className="text-xs">These controls separately verify your eligibility for submission {item.id}. Shared discovery grants neither permission.</p><PipelineSourceFeedback key={item.id} submissionId={item.id} />{getPipelineTrashState(item).scope === 'catalog' ? <p className="text-xs">Owner catalog Trash is active. Only an Owner can restore the catalog; revision recovery cannot remove this state.</p> : <RevisionRecoveryControls submissionId={item.id} actorScope={`${actorScope}:${item.id}`} onChanged={() => setRefresh(value => value + 1)} />}</div> : null}
     </article>)}</div>
     <div className="flex gap-2">
       <button type="button" className="min-h-11 border px-3" disabled={loading || page <= 1} onClick={() => setPage(value => value - 1)}>Previous</button>
