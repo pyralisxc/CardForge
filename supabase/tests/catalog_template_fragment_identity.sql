@@ -15,8 +15,9 @@ begin
    jsonb_build_object('imageSource', template_b), '{}'::text[], array[template_a]) then
    raise exception 'distinct_template_fragment_false_dependency';
  end if;
- -- Registry preview_url is passed as a scalar with its trusted field,
- -- not traversed through an arbitrary object whose previewUrl is skipped.
+ -- Exercise the scalar imageSource field used by the native preview-image
+ -- wrapper (jsonb_build_object('imageSource', preview_url)); arbitrary
+ -- previewUrl object traversal is intentionally skipped.
  if not public.cardforge_catalog_known_reference(
    to_jsonb(template_a), '{}'::text[], array[template_a], 'imageSource') then
    raise exception 'exact_template_preview_scalar_not_detected';
