@@ -308,7 +308,7 @@ test('@golden delayed first Save keeps newer edits and permits subsequent Icon s
  await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();
  await editor.fill('Newer authored draft');
  await page.getByRole('button',{name:'Finish local Save'}).click();
- await expect(page.getByText('Newer authored draft',{exact:true}).first()).toBeVisible();
+ await expect(editor).toHaveText('Newer authored draft');
  await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
  await page.getByRole('button',{name:'Elements',exact:true}).click();
  await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
