@@ -66,13 +66,23 @@ describe('exact revision recovery boundaries', () => {
   });
   it.each([
     ['foreign first binding', null, '550e8400-e29b-41d4-a716-446655440099', 'published'],
-    ['newer live pointer displaced', state.registrySubmissionId, id, 'published'],
+    ['foreign target substituted', state.registrySubmissionId, '550e8400-e29b-41d4-a716-446655440099', 'published'],
     ['new binding without publication', null, id, 'voting'],
   ] as const)('rejects %s without claiming Restore success', async (_label, previous, next, status) => {
     const expected = { ...state, registrySubmissionId: previous };
     m.rpc.mockResolvedValue({ data: { ...snapshot, state: { ...expected, status, registrySubmissionId: next,
       recoveryVersion: '3', trashedAt: null, purgeAfter: null } }, error: null });
     await expect(changeRevisionRecovery('session', { action: 'restore', expected })).rejects.toMatchObject({ status: 503 });
+    expect(m.rpc).toHaveBeenCalledOnce();
+  });
+  it('accepts native promotion from older retained pointer to exact restored publication', async () => {
+    const older = '550e8400-e29b-41d4-a716-446655440099';
+    const expected = { ...state, registrySubmissionId: older };
+    m.rpc.mockResolvedValue({ data: { ...snapshot, state: { ...expected, registrySubmissionId: id,
+      status: 'published', recoveryVersion: '3', trashedAt: null, purgeAfter: null } }, error: null });
+    expect(await changeRevisionRecovery('session', { action: 'restore', expected })).toMatchObject({
+      state: { registrySubmissionId: id, status: 'published', revisionHighWater: 4 },
+    });
     expect(m.rpc).toHaveBeenCalledOnce();
   });
   it.each([
