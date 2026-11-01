@@ -115,9 +115,9 @@ begin
  -- Legacy entry is retained only through its real publication timestamp;
  -- insertion deliberately preserves the old default-false flag and absent origin.
  insert into public.cardforge_pipeline_asset_lineages(id,revision_high_water) values(legacy_lineage,2);
- insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,revision_number,published_at,trashed_at,purge_after,source_url)
- values(legacy_id,legacy_lineage,'legacy-author','icons','Legacy published Trash','archived',1,now()-interval '40 days',now(),now()+interval '30 days','https://example.invalid/legacy-trash.svg'),
- (unknown_id,legacy_lineage,'legacy-author','icons','Unknown sharing Trash','archived',2,null,now(),now()+interval '30 days','https://example.invalid/unknown-trash.svg');
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,revision_number,published_at,trashed_at,purge_after,trash_reason,source_url)
+ values(legacy_id,legacy_lineage,'legacy-author','icons','Legacy published Trash','archived',1,now()-interval '40 days',now(),now()+interval '30 days','expired','https://example.invalid/legacy-trash.svg'),
+ (unknown_id,legacy_lineage,'legacy-author','icons','Unknown sharing Trash','archived',2,null,now(),now()+interval '30 days','expired','https://example.invalid/unknown-trash.svg');
  if (select revision_publication_retained from public.cardforge_contributor_asset_submissions where id=legacy_id) is distinct from false
  then raise exception 'legacy_fixture_not_default_false'; end if;
  select shared_metadata into metadata from public.cardforge_list_contributor_asset_submission_ids('free-viewer','shared','',null,null,null,'all',true,1,50,'trashed') where submission_id=legacy_id;
