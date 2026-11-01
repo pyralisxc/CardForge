@@ -44,6 +44,12 @@ describe('Library Picker contract', () => {
     });
   });
 
+  it('rejects stale or incompatible selected identities rather than reporting a successful empty choice', () => {
+    expect(() => createLibraryPickerResult(request, resources, ['pipeline:removed'])).toThrow('changed or is no longer compatible');
+    expect(() => createLibraryPickerResult(request, resources, ['published:icon-1'])).toThrow('changed or is no longer compatible');
+    expect(createLibraryPickerResult(request, resources, []).selections).toEqual([]);
+  });
+
   it('rejects multiple selections for a single-selection request', () => {
     expect(() => createLibraryPickerResult(request, resources, ['project:image-1', 'pipeline:image-2:r3'])).toThrow('accepts one object');
   });
