@@ -129,7 +129,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const activeScope = resolveLibraryScopeForViewer(scope, { contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
   const shared = useLibrarySharedProjection({ pipelineEnabled: pipelineAccess, activeScope });
   const [sharedTrashMode, setSharedTrashMode] = useState(false);
-  const sharedTrashSessionKey = JSON.stringify([activeScope, isSignedIn, experience.owner, persistenceScope, sharedTrashMode, activeTool]);
+
 
   const [revisionMode, setRevisionMode] = useState(false);
   const revisionsEnabled = activeScope === 'pipeline' && experience.owner && isSignedIn && revisionMode;
@@ -142,6 +142,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   ));
   const activeToolSession = toolStack.at(-1) ?? null;
   const activeTool = activeToolSession?.toolId ?? null;
+  const sharedTrashSessionKey = JSON.stringify([activeScope, isSignedIn, experience.owner, persistenceScope, sharedTrashMode, activeTool]);
   const toolDirty = activeToolSession?.dirty ?? false;
   const [designSourceState, setDesignSourceState] = useState<{ scope: string; source: PipelineDesignSource } | null>(null);
   const designSourceScope = persistenceScope;

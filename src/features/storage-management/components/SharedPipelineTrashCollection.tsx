@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PIPELINE_ENGAGEMENT_CHANGED } from '@/features/pipeline/client/engagement';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { PipelineSourceFeedback } from '@/features/pipeline/client/engagement';
