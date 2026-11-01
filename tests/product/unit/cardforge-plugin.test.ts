@@ -127,7 +127,7 @@ describe('CardForge Studio plugin', () => {
     expect(privacy?.body).toContain('aggregate MCP usage');
   });
 
-  it('keeps a reviewer-ready submission source without committing credentials', () => {
+  it('keeps a reviewer-ready submission source without committing credentials', async () => {
     const submission = readFileSync(
       resolve(process.cwd(), 'plugins/cardforge-studio/SUBMISSION.md'),
       'utf8',
