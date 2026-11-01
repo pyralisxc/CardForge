@@ -98,11 +98,25 @@ if (params.has('historyTemplate')) {
     submissionId: queueRows[0].id, lineageId: row.lineageId ?? null, updatedAt: 'registry-epoch',
     previewUrl: null, access: 'free', source: 'official', fileSizeBytes: null }] };
 }
+if (params.has('catalogTrashProof')) {
+  queueRows.splice(2);
+  Object.assign(queueRows[0], { name: 'Catalog-trashed exact icon', assetType: 'icons', requestedStudioDestination: 'element.icon',
+    catalogTrashedAt: '2026-11-01T20:42:50Z', catalogPurgeAfter: '2026-12-01T20:42:50Z', catalogRetentionHold: false,
+    catalogSubmissionId: queueRows[0].id });
+  Object.assign(queueRows[1], { name: 'Private draft control', status: 'draft', registryAssetId: null, targetRegistryAssetId: 'private-draft-control', lineageId: '20000000-0000-4000-8000-000000000099' });
+}
 const marketingStrategy = { ...DEFAULT_MARKETING_STRATEGY, id: 'synthetic-strategy', version: 1, updatedAt: '2026-01-01T00:00:00Z', updatedBy: 'synthetic-owner' };
 const marketingCampaigns = [{ id: 'synthetic-campaign', name: 'Founder Beta Introduction', objective: 'Invite tabletop designers to try their first printable Set.', audienceKey: 'tabletop-designers', offer: 'Create a Set', status: 'active', startsOn: null, endsOn: null, successMetric: 'First completed Set', utmCampaign: 'founder-beta', version: 1, createdBy: 'synthetic-owner', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }];
 const campaignPackage = { id: 'synthetic-package', contributorId: params.has('campaignComposer') ? 'synthetic-owner' : 'synthetic-author', contributorEmail: null, contributorName: 'Synthetic author', title: 'Printable Deck Introduction', objective: 'Explain the printable card workflow', destinationUrl: 'https://cardforges.com', productionNote: '', marketingCampaignId: 'synthetic-campaign', audienceKey: 'tabletop-designers', contentPillar: 'product-proof', funnelStage: 'awareness', contentKind: 'demonstration', callToAction: 'Open Desk', creationSource: 'human', utmContent: '', variants: [{ service: 'facebook', text: 'Synthetic package copy', attachments: [] }], associations: [], status: params.has('campaignComposer') ? 'draft' : 'submitted', requestedPublishAt: null, reviewNote: '', reviewedBy: null, submittedAt: '2026-01-01T00:00:00Z', approvedAt: null, version: 1, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' } satisfies MarketingContentPackage;
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
+  if (params.has('catalogTrashProof') && String(input).endsWith('/catalog-trash')) {
+    proof.libraryRequests.push({ url: String(input), method: init?.method ?? 'GET' });
+    if (init?.method && init.method !== 'GET') throw new Error('Read-only recovery reachability proof must not mutate');
+    return Response.json({ name: queueRows[0].name, retentionDays: 30, entryReasons: [], reasons: [],
+      state: { trashedAt: queueRows[0].catalogTrashedAt, purgeAfter: queueRows[0].catalogPurgeAfter, held: false,
+        submissionId: queueRows[0].id, impactFingerprint: 'fixture-fresh-impact' } });
+  }
   if (params.has('sharedTrashProof')) {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const method = init?.method ?? 'GET';
@@ -182,7 +196,9 @@ window.fetch = async (input, init) => {
       proof.libraryRequests.push({ url, method: 'GET' });
       const filters = new URL(url, location.origin).searchParams;
       const query = (filters.get('query') ?? '').toLowerCase();
-      const filtered = queueRows.filter(row => (!filters.get('assetType') || filters.get('assetType') === 'all' || row.assetType === filters.get('assetType'))
+      const filtered = queueRows.filter(row => (!params.has('catalogTrashProof') || (filters.get('trash') ?? 'active') === 'all'
+          || ((filters.get('trash') ?? 'active') === 'trashed') === Boolean(row.catalogTrashedAt || row.trashedAt))
+        && (!filters.get('assetType') || filters.get('assetType') === 'all' || row.assetType === filters.get('assetType'))
         && (!filters.get('status') || filters.get('status') === 'all' || row.status === filters.get('status'))
         && [row.name, row.description, row.contributorDisplayName, row.registryAssetId].join(' ').toLowerCase().includes(query));
       const page = Number(filters.get('page') ?? 1); const pageSize = Number(filters.get('pageSize') ?? 12);

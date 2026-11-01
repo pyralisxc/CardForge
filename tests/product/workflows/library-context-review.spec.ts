@@ -831,3 +831,28 @@ for (const denied of [false, true]) test(`@golden signed-in shared Trash exact C
   expect(evidence.errors).toEqual([]);
   expect(evidence.mutations.filter(value => value.includes('/lifecycle'))).toEqual([]);
 });
+
+
+test('@golden catalog Trash survives Owner revision filters and exact Manage handoff', async ({ page }) => {
+  const evidence = await mount(page, '?queue=1&catalogTrashProof=1');
+  await page.getByRole('combobox', { name: 'Pipeline discovery mode' }).selectOption('revisions');
+  await expect(page.getByRole('status').filter({ hasText: '1 matching revisions' })).toBeVisible();
+  await expect(page.getByText('Catalog-trashed exact icon', { exact: true })).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'Revision lifecycle view' }).selectOption('all');
+  await expect(page.getByRole('status').filter({ hasText: '2 matching revisions' })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Revision lifecycle view' }).selectOption('trashed');
+  await expect(page.getByRole('status').filter({ hasText: '1 trashed revisions' })).toBeVisible();
+  await page.locator('[id="library-object-pipeline:submission:10000000-0000-4000-8000-000000000001"]').click();
+  const panel = page.getByLabel('Exact revision governance');
+  await expect(panel).toContainText('10000000-0000-4000-8000-000000000001');
+  await panel.getByRole('button', { name: 'Manage', exact: true }).click();
+  const recovery = panel.getByLabel('Catalog recovery');
+  await recovery.getByRole('button', { name: 'Refresh recovery state' }).click();
+  await expect(recovery.getByRole('button', { name: 'Restore', exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => (window as unknown as { libraryRequests: {url:string;method:string}[] }).libraryRequests)).toEqual(expect.arrayContaining([
+    expect.objectContaining({ url: expect.stringContaining('trash=trashed') }),
+    expect.objectContaining({ url: expect.stringContaining('trash=all') }),
+    expect.objectContaining({ url: '/api/pipeline/10000000-0000-4000-8000-000000000001/catalog-trash', method: 'GET' }),
+  ]));
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
