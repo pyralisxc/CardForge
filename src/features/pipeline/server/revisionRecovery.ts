@@ -67,7 +67,7 @@ export async function changeRevisionRecovery(actorUserId: string, input: unknown
     || result.state.registrySubmissionId !== expected.registrySubmissionId || result.state.revisionHighWater !== expected.revisionHighWater
     || BigInt(result.state.recoveryVersion) <= BigInt(expected.recoveryVersion)
     || (action === 'trash' && !result.state.trashedAt)
-    || (action === 'restore' && (result.state.trashedAt !== null || result.state.status !== 'archived'))
+    || (action === 'restore' && (result.state.trashedAt !== null || !['draft', 'voting', 'publish_candidate'].includes(result.state.status)))
     || (action === 'hold' && (result.state.held !== parsed.data.held || result.state.trashedAt !== expected.trashedAt))) throw unavailable();
   return result;
 }
