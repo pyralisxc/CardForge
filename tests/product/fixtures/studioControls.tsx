@@ -94,17 +94,28 @@ function PickerSessionProof() {
   const [open,setOpen] = useState(false);
   const [result,setResult] = useState('idle');
   const completion = useRef<null|{resolve:()=>void;reject:(error:Error)=>void}>(null);
+  const count = useRef(0);
+  const failEarlier = new URLSearchParams(location.search).has('failEarlier');
+  const onSelect = () => {
+    ++count.current;
+    if (count.current === 2) {
+      // An ordinary second confirmation settles the prior session while
+      // the reopened chooser is still awaiting its own completion.
+      if (failEarlier) completion.current?.reject(new Error('Previous session failed'));
+      else completion.current?.resolve();
+      setResult('previous settled');
+    }
+    return new Promise<void>((resolve,reject)=>{
+      completion.current={resolve,reject};
+    });
+  };
   return <>
     <button onClick={()=>setOpen(true)}>Open chooser</button>
     <output data-testid="picker-session-result">{result}</output>
     <LibraryPickerDialog open={open} onOpenChange={setOpen}
       request={{purpose:'template.icon-source',title:'Choose icon',acceptedKinds:['icon'],acceptedRoles:['icon'],sources:['published'],selectionMode:'single',target:{kind:'template-element',ids:['icon']},requiresProjectMaterialization:false}}
       resources={[{id:'published:test',objectId:'test',name:'Test published icon',kind:'icon',role:'icon',source:'published',sourceLabel:'CardForge',materialization:'reference'}]}
-      sourceActions={[
-        {id:'finish-success',label:'Finish earlier success',onInvoke:()=>completion.current?.resolve()},
-        {id:'finish-failure',label:'Finish earlier failure',onInvoke:()=>completion.current?.reject(new Error('Previous session failed'))},
-      ]}
-      onSelect={async(_selected,_signal)=>new Promise<void>((resolve,reject)=>{completion.current={resolve:()=>{setResult('late success');resolve();},reject:(error)=>{setResult('late failure');reject(error);}};})}
+      onSelect={onSelect}
     />
   </>;
 }
