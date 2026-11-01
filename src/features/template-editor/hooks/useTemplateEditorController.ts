@@ -128,12 +128,23 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     trackHistory = true,
     historyGroup?: string,
   ) => {
-    updateCanvas({
-      elements: canvas.elements.map((element) => (
-        element.id === elementId ? { ...element, ...updates } : element
-      )),
+    // Apply against the latest queued Template state, not the render-time canvas
+    // snapshot. Library selection and inspector edits can complete in the same
+    // React batch; neither may overwrite the other's already-queued element edits.
+    commitTemplate((template) => {
+      const activeCanvas = getTemplateEditorCanvas(template) || createDefaultFreeformCanvas();
+      if (!activeCanvas.elements.some((element) => element.id === elementId)) return template;
+      return {
+        ...template,
+        freeformCanvas: reconstructFreeformCanvas({
+          ...activeCanvas,
+          elements: activeCanvas.elements.map((element) => (
+            element.id === elementId ? { ...element, ...updates } : element
+          )),
+        }),
+      };
     }, trackHistory, undefined, historyGroup);
-  }, [canvas.elements, updateCanvas]);
+  }, [commitTemplate]);
 
   const recordTemplateHistory = useCallback((template?: TCGCardTemplate) => {
     setEditorState((previous) => recordTemplateEditorHistory(previous, template ?? previous.currentTemplate));

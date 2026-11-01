@@ -95,7 +95,7 @@ async function mountHistoryProof(page:import('@playwright/test').Page,query='',s
  await page.route('**/*',route=>{const url=new URL(route.request().url());
   if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0"></body></html>'});
   if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
-  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:fillTexture?[{id:'history-ink',name:'Synthetic history Ink',url:'/history-ink.svg',kind:'texture',tileMode:'repeat',seamless:true,allowedTargets:['shape']}]:[],dividers:svgIcon?[{id:'asymmetric-divider',name:'Synthetic asymmetric divider',url:'/asymmetric.svg',kind:'divider',tileMode:'stretch',seamless:false,allowedTargets:['divider'],defaultWidth:450,defaultHeight:230}]:[],icons:svgIcon?[{id:'asymmetric-icon',name:'Synthetic asymmetric SVG',url:'/asymmetric.svg',kind:'icon',tileMode:'contain',seamless:false,allowedTargets:['icon']}]:[],imageAssets:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:fillTexture?[{id:'history-ink',name:'Synthetic history Ink',url:'/history-ink.svg',kind:'texture',tileMode:'repeat',seamless:true,allowedTargets:['shape']}]:[],dividers:svgIcon?[{id:'asymmetric-divider',name:'Synthetic asymmetric divider',url:'/asymmetric.svg',kind:'divider',tileMode:'stretch',seamless:false,allowedTargets:['divider'],defaultWidth:450,defaultHeight:230}]:[],icons:svgIcon?[{id:'asymmetric-icon',name:'Synthetic asymmetric SVG',url:'/asymmetric.svg',kind:'icon',librarySource:'contributor',publishedSubmissionId:'synthetic-published-icon',studioDestinations:['element.icon'],tileMode:'contain',seamless:false,allowedTargets:['icon']}]:[],imageAssets:[]}}});
   if(fillTexture&&url.pathname==='/history-ink.svg')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#000"/></svg>'});
   if(svgIcon&&url.pathname==='/asymmetric.svg')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><path d="M0 0H50V100H0Z" fill="#ff0000"/><path d="M50 50H100V100H50Z" fill="#0000ff"/></svg>'});
   if(url.pathname==='/api/templates/submissions')return route.fulfill({json:{contributorId:'synthetic-actor'}});
@@ -315,7 +315,7 @@ for(const width of [390,1440])test(`@golden native SVG tint and asymmetric flips
  if(width<1024){await page.getByRole('button',{name:'Close inspector',exact:true}).click();await page.getByRole('button',{name:'Open editor menu',exact:true}).click();}
  await page.getByRole('button',{name:'Elements',exact:true}).click();await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
  if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
- await page.getByRole('button',{name:'Choose from Library',exact:true}).click();await page.getByRole('option',{name:/Synthetic asymmetric SVG/}).click();await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ await page.getByRole('button',{name:'Choose from Library',exact:true}).click();await page.getByRole('option',{name:/Synthetic asymmetric SVG/}).click();await expect(page.locator('[id="library-picker-option-pipeline:asymmetric-icon"]')).toHaveAttribute('aria-selected','true');await page.getByRole('button',{name:'Use selection',exact:true}).click();await expect(page.getByText('Current icon: Custom source')).toBeVisible();
  await expect(page.getByLabel('Vector color',{exact:true})).toContainText('Original');
  await page.getByRole('button',{name:'Layout',exact:true}).click();
  for(const [label,value] of [['x','180'],['y','250'],['width','200'],['height','200']])await page.getByLabel(label,{exact:true}).fill(value);
@@ -346,4 +346,27 @@ for(const width of [390,1440])test(`@golden native SVG tint and asymmetric flips
  await page.locator(`[data-cardforge-editor-overlay="true"][data-freeform-element-id="${iconId}"]`).click();if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
  await page.getByRole('button',{name:'Symbol',exact:true}).click();await expect(page.getByLabel('Vector color',{exact:true})).toContainText('Original');await saveAndProve('reopened-original-flip-xy','original',true,true,false);
  expect(await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'))).toBe(stored);
+});
+
+
+test('@golden same-batch SVG source and geometry edits retain both controller updates', async ({page}) => {
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/__studio-history') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body></body></html>' });
+    if (url.pathname === '/api/catalog/studio-bootstrap') return route.fulfill({ json: { fonts: {fonts:[]}, templates:{templates:[]}, styles:{styles:[]} } });
+    if (url.pathname === '/api/catalog/studio-assets') return route.fulfill({ json: { assets: { textures:[], dividers:[], icons:[], imageAssets:[] } } });
+    if (url.pathname.startsWith('/fonts/')) return route.fulfill({ body: readFileSync(join('public', url.pathname)) });
+    return route.abort();
+  });
+  await page.goto('/__studio-history?controllerBatch');
+  await page.addStyleTag({content:(await css).css});
+  for (const file of bundle.outputFiles.filter(file => file.path.endsWith('.css'))) await page.addStyleTag({content:file.text});
+  await page.addScriptTag({content:bundle.outputFiles.find(file => file.path.endsWith('.js'))!.text});
+  await page.getByRole('button', {name:'Apply paired icon updates'}).click();
+  const icon = JSON.parse(await page.getByTestId('batch-icon').textContent() || '{}');
+  const neighbor = JSON.parse(await page.getByTestId('batch-neighbor').textContent() || '{}');
+  expect(icon).toMatchObject({ id:'icon', iconImageSource:'/asymmetric.svg', iconRenderMode:'original', rotation:30 });
+  expect(icon.iconName).toBeUndefined();
+  expect(neighbor).toMatchObject({ id:'neighbor', content:'Keep neighbor' });
+  expect(await page.getByTestId('batch-history').textContent()).toBe('2');
 });
