@@ -2,7 +2,7 @@ export const isSharedPipelineTrash = (row: {
   trashedAt?: string | null; trashPreviousStatus?: string | null; publicationRetained?: boolean;
   publishedAt?: string | null; trashActorRole?: string | null;
 }): boolean => !row.trashedAt || Boolean(row.publicationRetained || row.publishedAt || row.trashActorRole === 'voting'
-  || row.trashPreviousStatus && !['draft', 'rejected'].includes(row.trashPreviousStatus));
+  || row.trashPreviousStatus && ['submitted', 'voting', 'publish_candidate', 'published'].includes(row.trashPreviousStatus));
 
 import type { PipelineStatus } from './pipelineItems';
 

@@ -81,9 +81,9 @@ begin
  if restored->'state'->>'status' not in ('archived','voting','publish_candidate') or restored->'state'->>'trashedAt' is not null
    or (select source_payload from public.cardforge_contributor_asset_submissions where id=history) is distinct from payload
    or (select contributor_lifecycle_state from public.cardforge_contributor_asset_submissions where id=history) is not null
-   or (select contributor_submission_id from public.cardforge_asset_registry where asset_id='recovery-proof')<>current_before
-   or (select revision_high_water from public.cardforge_pipeline_asset_lineages where id=lineage)<>highwater
-   or (select count(*) from public.cardforge_pipeline_publication_events where lineage_id=lineage)<>published_before
+   or (select contributor_submission_id from public.cardforge_asset_registry where asset_id='recovery-proof') is distinct from current_before
+   or (select revision_high_water from public.cardforge_pipeline_asset_lineages where id=lineage) is distinct from highwater
+   or (select count(*) from public.cardforge_pipeline_publication_events where lineage_id=lineage) is distinct from published_before
  then raise exception 'restore_rewrote_or_republished_history: receipt=%, lifecycle=%, pointer=%, highwater=%, events=%',restored,(select contributor_lifecycle_state from public.cardforge_contributor_asset_submissions where id=history),(select contributor_submission_id from public.cardforge_asset_registry where asset_id='recovery-proof'),(select revision_high_water from public.cardforge_pipeline_asset_lineages where id=lineage),(select count(*) from public.cardforge_pipeline_publication_events where lineage_id=lineage); end if;
  begin
    perform public.cardforge_change_revision_recovery('recovery-a',false,'trash',snapshot->'state'); raise exception 'stale_trash_admitted';

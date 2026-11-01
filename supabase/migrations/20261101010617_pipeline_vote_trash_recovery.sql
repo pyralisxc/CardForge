@@ -5,7 +5,7 @@ alter table public.cardforge_contributor_asset_submissions
  drop constraint cardforge_contributor_asset_sub_revision_trash_actor_role_check,
  add constraint cardforge_revision_trash_actor_role_check
  check (revision_trash_actor_role in ('owner','contributor','voting')),
- add column revision_trash_previous_status text,
+ add column revision_trash_previous_status text check (revision_trash_previous_status in ('draft','submitted','voting','publish_candidate','published','archived','rejected')),
  add column revision_vote_trash_fingerprint text;
 
 create function public.cardforge_revision_vote_decision_fingerprint(p_id uuid)
@@ -114,7 +114,7 @@ begin
  published:=s.revision_publication_retained or s.published_at is not null or s.status='published' or coalesce(s.contributor_lifecycle_state='retired',false)
    or exists(select 1 from public.cardforge_asset_registry registry where registry.contributor_submission_id=s.id)
    or exists(select 1 from public.cardforge_pipeline_publication_events e where e.published_submission_id=s.id);
- if s.trashed_at is not null and s.revision_trash_previous_status is null and not published and s.revision_trash_actor_role is distinct from 'voting' then recovery:=array_append(recovery,'prior_visibility_unavailable'); end if;
+ if s.trashed_at is not null and (s.revision_trash_previous_status is null or s.revision_trash_previous_status='archived') and not published and s.revision_trash_actor_role is distinct from 'voting' then recovery:=array_append(recovery,'prior_visibility_unavailable'); end if;
  return jsonb_build_object('name',s.name,'retentionDays',days,'trashActor',s.revision_trash_actor_role,
  'trashReasons',to_jsonb(entry),'restoreReasons',to_jsonb(recovery),'canHold',p_is_owner and s.trashed_at is not null and cardinality(blocked)=0,
  'publicationRetained',published,'sourceUncertainty',l.catalog_destructive_uncertainty,
@@ -415,7 +415,7 @@ begin
   if exists(select 1 from public.cardforge_pipeline_asset_lineages l where l.id=target_lineage and (l.purge_state is not null or l.catalog_claim_token is not null or l.catalog_claimed_at is not null)) then raise exception 'contributor_asset_vote_not_permitted'; end if;
 
   if submission.purge_claim_token is not null or submission.purge_claimed_at is not null or submission.owner_purge_requested_at is not null then raise exception 'contributor_asset_vote_not_permitted'; end if;
-  if submission.trashed_at is not null and (not coalesce((submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status not in ('draft','rejected')),false) or submission.purge_claim_token is not null or submission.purge_claimed_at is not null or submission.owner_purge_requested_at is not null) then raise exception 'contributor_asset_vote_not_permitted'; end if;
+  if submission.trashed_at is not null and (not coalesce((submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false) or submission.purge_claim_token is not null or submission.purge_claimed_at is not null or submission.owner_purge_requested_at is not null) then raise exception 'contributor_asset_vote_not_permitted'; end if;
   if submission.status = 'draft' then
     raise exception 'contributor_asset_vote_not_permitted';
   end if;
@@ -486,7 +486,7 @@ as $$
         or (p_scope='shared' and submission.status not in ('draft','rejected') and submission.trashed_at is not null and coalesce(
           submission.revision_publication_retained or submission.published_at is not null
           or submission.revision_trash_actor_role='voting'
-          or submission.revision_trash_previous_status not in ('draft','rejected'),false))
+          or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published'),false))
         or (p_scope = 'own' and submission.contributor_id = p_current_user_id)
         or (
           p_scope = 'review'
@@ -497,7 +497,7 @@ as $$
       and coalesce(p_trash_state,'active') in ('all','active','trashed')
       and (p_trash_state='all' or p_trash_state='active' and submission.trashed_at is null or p_trash_state='trashed' and submission.trashed_at is not null)
       and submission.purge_state is null
-      and (p_scope<>'review' or coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status not in ('draft','rejected')),false))
+      and (p_scope<>'review' or coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false))
       and (p_asset_type is null or submission.asset_type = p_asset_type)
       and (p_status is null or submission.status = p_status)
       and (p_tier is null or submission.calculated_access_tier = p_tier)
@@ -514,16 +514,18 @@ as $$
         or (p_vote_filter = 'upvoted' and current_vote.vote_value = 'positive')
         or (p_vote_filter = 'downvoted' and current_vote.vote_value = 'negative')
       )
-  ), numbered as (
-    select filtered.id, filtered.submitted_at, count(*) over ()::bigint as total_count
-    from filtered
+  ), totals as (
+    select count(*)::bigint as total_count from filtered
   )
-  select numbered.id, numbered.total_count
-  from numbered
-  order by numbered.submitted_at desc, numbered.id desc
-  offset (greatest(coalesce(p_page, 1), 1) - 1)
-    * least(greatest(coalesce(p_page_size, 12), 1), 50)
-  limit least(greatest(coalesce(p_page_size, 12), 1), 50);
+  select slice.id, totals.total_count
+  from totals left join lateral (
+    select filtered.id, filtered.submitted_at from filtered
+    order by filtered.submitted_at desc, filtered.id desc
+    offset (greatest(coalesce(p_page, 1), 1)::bigint - 1)
+      * least(greatest(coalesce(p_page_size, 12), 1), 50)
+    limit least(greatest(coalesce(p_page_size, 12), 1), 50)
+  ) slice on true
+  order by slice.submitted_at desc, slice.id desc;
 $$;
 
 revoke all on function public.cardforge_list_contributor_asset_submission_ids(text,text,text,text,text,text,text,boolean,integer,integer,text) from public,anon,authenticated;
@@ -598,7 +600,7 @@ begin
             and (
               p_owner
               or submission.contributor_id = p_account_id
-              or (submission.status not in ('draft', 'rejected') and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status not in ('draft','rejected')),false))
+              or (submission.status not in ('draft', 'rejected') and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false))
             )
         )
       )
@@ -636,7 +638,7 @@ begin
             and (
               p_owner
               or submission.contributor_id = p_account_id
-              or (submission.status not in ('draft', 'rejected') and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status not in ('draft','rejected')),false))
+              or (submission.status not in ('draft', 'rejected') and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false))
             )
         )
       )

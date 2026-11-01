@@ -22,14 +22,16 @@ begin
  perform public.cardforge_cast_contributor_asset_vote(a,'negative-one','negative');
  perform public.cardforge_cast_contributor_asset_vote(a,'negative-two','negative');
  select trashed_at,purge_after into epoch,deadline from public.cardforge_contributor_asset_submissions where id=a;
- if epoch is null or deadline-epoch<>interval '30 days'
- or (select revision_trash_actor_role from public.cardforge_contributor_asset_submissions where id=a)<>'voting'
+ if epoch is null or deadline-epoch is distinct from interval '30 days'
+ or (select revision_trash_actor_role from public.cardforge_contributor_asset_submissions where id=a) is distinct from 'voting'
  then raise exception 'vote_decline_missing_single_thirty_day_epoch'; end if;
  perform public.cardforge_cast_contributor_asset_vote(a,'negative-two','negative');
  perform public.cardforge_rebalance_contributor_asset_pipeline(null);
  if exists(select 1 from public.cardforge_contributor_asset_submissions where id=a and (trashed_at<>epoch or purge_after<>deadline)) then raise exception 'retry_reset_trash_clock'; end if;
  select total_count into total from public.cardforge_list_contributor_asset_submission_ids('peer','review','','icons',null,null,'all',true,1,1,'trashed') where submission_id=a;
- if total<>1 then raise exception 'trash_query_count_not_filtered_before_pagination'; end if;
+ if total is distinct from 1 then raise exception 'trash_query_count_not_filtered_before_pagination'; end if;
+ select total_count into total from public.cardforge_list_contributor_asset_submission_ids('peer','review','','icons',null,null,'all',true,99,1,'trashed');
+ if total is distinct from 1 then raise exception 'empty_page_lost_filtered_count'; end if;
  if exists(select 1 from public.cardforge_list_contributor_asset_submission_ids('peer','review','','icons',null,null,'all',true,1,50,'active') where submission_id=a) then raise exception 'active_query_included_trash'; end if;
  -- A hold permits feedback but prevents automatic restoration.
  snap:=public.cardforge_read_revision_recovery(a,'owner',true);
@@ -41,6 +43,9 @@ begin
  perform public.cardforge_change_revision_recovery('owner',true,'hold',snap->'state',false);
  perform public.cardforge_rebalance_contributor_asset_pipeline(null);
  if (select trashed_at from public.cardforge_contributor_asset_submissions where id=a) is not null then raise exception 'eligible_vote_trash_not_recovered'; end if;
+ -- The first successful publication may allocate its canonical registry
+ -- binding. Compare subsequent lifecycle-only changes against that exact base.
+ content_version:=public.cardforge_media_parent_content_version(a);
  -- A second genuine entry gets a new epoch. Explicit restoration does not
  -- immediately oscillate from identical votes or unrelated capacity changes.
  perform public.cardforge_cast_contributor_asset_vote(a,'positive-one','negative');
@@ -81,7 +86,7 @@ begin
  perform public.cardforge_set_pipeline_heart(pl,'peer',true,'contributor',true,false); raise exception 'private_trash_heart_admitted';
  exception when raise_exception then if sqlerrm<>'pipeline_reaction_not_permitted' then raise; end if; end;
  snap:=public.cardforge_change_revision_recovery('trash-author',false,'restore',snap->'state');
- if snap->'state'->>'status'<>'draft' then raise exception 'private_restore_became_shared'; end if;
+ if snap->'state'->>'status' is distinct from 'draft' then raise exception 'private_restore_became_shared'; end if;
  perform public.cardforge_submit_template_pipeline_draft(private_id,'trash-author','Private Trash proof','Native resubmission after recovery','https://example.invalid/private','Fixture evidence',array['games'],array['tcg'],'template.front');
  if not exists(select 1 from public.cardforge_list_contributor_asset_submission_ids('peer','review','',null,null,null,'all',true,1,50,'active') where submission_id=private_id)
  then raise exception 'legitimate_resubmission_remained_private'; end if;
@@ -120,9 +125,9 @@ begin
  perform public.cardforge_cast_contributor_asset_vote(current_id,'current-positive-one','positive');
  perform public.cardforge_cast_contributor_asset_vote(current_id,'current-positive-two','positive');
  if (select trashed_at from public.cardforge_contributor_asset_submissions where id=current_id) is not null
- or (select contributor_submission_id from public.cardforge_asset_registry where asset_id=asset)<>newer_id
- or (select published_at from public.cardforge_contributor_asset_submissions where id=current_id)<>original_date
- or (select count(*) from public.cardforge_pipeline_publication_events where lineage_id=l)<>events_before
+ or (select contributor_submission_id from public.cardforge_asset_registry where asset_id=asset) is distinct from newer_id
+ or (select published_at from public.cardforge_contributor_asset_submissions where id=current_id) is distinct from original_date
+ or (select count(*) from public.cardforge_pipeline_publication_events where lineage_id=l) is distinct from events_before
  then raise exception 'vote_recovery_replaced_newer_publication_or_invented_history'; end if;
  raise notice 'PASS vote Trash: exact current negative retirement, shared Free discovery, retained publication and newer-pointer recovery fences';
 end $$;

@@ -10,6 +10,10 @@ describe('server-owned Trash paging', () => {
     await request(trash);
     expect(f.rpc).toHaveBeenCalledWith('cardforge_list_contributor_asset_submission_ids', expect.objectContaining({ p_trash_state: trash ?? 'active', p_scope: 'review', p_page: 2, p_page_size: 12 }));
   });
+  it('retains the filtered count when a concurrent change leaves the requested page empty', async () => {
+    f.rpc.mockResolvedValue({ data: [{ submission_id: null, total_count: 1 }], error: null });
+    expect(await request('trashed')).toMatchObject({ submissions: [], total: 1, page: 2 });
+  });
   it('rejects an unsupported dimension without reading a page', async () => {
     await expect(request('private-everything')).rejects.toMatchObject({ status: 400 }); expect(f.rpc).not.toHaveBeenCalled();
   });
@@ -17,6 +21,7 @@ describe('server-owned Trash paging', () => {
     const row = { contributorId: 'author', status: 'archived' as const, purgeState: null, viewerId: 'peer', contributor: true, owner: false, trashedAt: '2026-11-01T00:00:00Z' };
     expect(isPipelineRevisionVisibleToContributor({ ...row, trashPreviousStatus: 'draft' })).toBe(false);
     expect(isPipelineRevisionVisibleToContributor(row)).toBe(false);
+    expect(isPipelineRevisionVisibleToContributor({ ...row, trashPreviousStatus: 'archived' })).toBe(false);
     expect(isPipelineRevisionVisibleToContributor({ ...row, viewerId: 'author' })).toBe(true);
     expect(isPipelineRevisionVisibleToContributor({ ...row, owner: true })).toBe(true);
     expect(isPipelineRevisionVisibleToContributor({ ...row, trashPreviousStatus: 'voting' })).toBe(true);
