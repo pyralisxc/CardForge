@@ -55,6 +55,26 @@ describe('exact revision recovery boundaries', () => {
     } });
     expect(m.rpc).toHaveBeenCalledOnce();
   });
+  it('accepts exact first publication binding after Restore without changing revision or high-water', async () => {
+    const expected = { ...state, registrySubmissionId: null };
+    m.rpc.mockResolvedValue({ data: { ...snapshot, state: { ...expected, status: 'published', registrySubmissionId: id,
+      recoveryVersion: '3', trashedAt: null, purgeAfter: null } }, error: null });
+    expect(await changeRevisionRecovery('session', { action: 'restore', expected })).toMatchObject({ state: {
+      registrySubmissionId: id, status: 'published', revisionHighWater: expected.revisionHighWater,
+    } });
+    expect(m.rpc).toHaveBeenCalledOnce();
+  });
+  it.each([
+    ['foreign first binding', null, '550e8400-e29b-41d4-a716-446655440099', 'published'],
+    ['newer live pointer displaced', state.registrySubmissionId, id, 'published'],
+    ['new binding without publication', null, id, 'voting'],
+  ] as const)('rejects %s without claiming Restore success', async (_label, previous, next, status) => {
+    const expected = { ...state, registrySubmissionId: previous };
+    m.rpc.mockResolvedValue({ data: { ...snapshot, state: { ...expected, status, registrySubmissionId: next,
+      recoveryVersion: '3', trashedAt: null, purgeAfter: null } }, error: null });
+    await expect(changeRevisionRecovery('session', { action: 'restore', expected })).rejects.toMatchObject({ status: 503 });
+    expect(m.rpc).toHaveBeenCalledOnce();
+  });
   it.each([
     ['revision_recovery_not_permitted', 403], ['revision_recovery_not_found', 404],
     ['revision_recovery_state_changed', 409], ['revision_recovery_blocked', 409],
