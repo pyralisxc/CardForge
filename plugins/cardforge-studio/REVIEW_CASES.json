@@ -14,10 +14,10 @@
     {
       "id": "P2",
       "description": "Create an editable fantasy card template and preview it",
-      "prompt": "Create an editable fantasy spell card Template, make title and rules editable, attach the 1x1 PNG review fixture to the planned main-art slot, and show its preview.",
+      "prompt": "Create an editable fantasy spell card Template, make title and rules editable, attach the 2x2 PNG review fixture to the planned main-art slot, and show its preview.",
       "tools_triggered": "create_editable_template, attach_template_artwork, preview_template_draft",
       "expected_behavior": "Private Template revision advances; attached artwork binds the returned planned main-art requirement, and a native preview plus exact-revision Studio link is returned without public publication.",
-      "setup": "No prior document required; this case creates the first private fixture in the session. After creation, use its returned main-art requirement id, binding element.image, mimeType image/png and raw base64 iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZxQAAAAASUVORK5CYII=.",
+      "setup": "No prior document required; this case creates the first private fixture in the session. After creation, use its returned main-art requirement id, binding element.image, mimeType image/png and raw base64 iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGOscNvCwMDAxMDAwMDAAAARRgF2YEvuywAAAABJRU5ErkJggg==.",
       "status": "Not run"
     },
     {
