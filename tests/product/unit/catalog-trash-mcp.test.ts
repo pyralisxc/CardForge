@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ read: vi.fn(), change: vi.fn(), invalidate: vi.fn() }));
-vi.mock('@/features/pipeline/server', () => ({ readCatalogTrash: mocks.read, changeCatalogTrash: mocks.change, revalidateCardForgeCatalog: mocks.invalidate }));
+vi.mock('@/features/pipeline/server', async () => ({ readCatalogTrash: mocks.read, changeCatalogTrash: mocks.change, revalidateCardForgeCatalog: mocks.invalidate, ...(await vi.importActual('@/features/pipeline/lib/dependencyImpactContract')) }));
 vi.mock('@/features/mcp-usage/server', () => ({ observeMcpToolExecution: ({ execute }: { execute: () => unknown }) => execute() }));
 import { registerCatalogTrashTools } from '@/features/studio-documents/server/mcpCatalogTrashTools';
 type Options = Parameters<typeof registerCatalogTrashTools>[0];

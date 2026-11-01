@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dependencyImpactSchema } from './dependencyImpactContract';
 
 // Browser and Studio MCP commands carry only native identities and the exact
 // observed catalog state. Dependency evidence must come from the database,
@@ -19,6 +20,7 @@ export const catalogTrashExpectedStateSchema = z.object({
   trashedAt: timestamp.nullable(),
   purgeAfter: timestamp.nullable(),
   held: z.boolean(),
+  impactFingerprint: z.string().regex(/^[a-f0-9]{64}$/u).optional(),
 }).strict().superRefine((state, context) => {
   if ((state.trashedAt === null) !== (state.purgeAfter === null)) {
     context.addIssue({ code: 'custom', message: 'Incomplete catalog recovery state' });
@@ -32,7 +34,7 @@ export const catalogTrashExpectedStateSchema = z.object({
 });
 
 export const catalogTrashCommandSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('trash'), expected: catalogTrashExpectedStateSchema }).strict(),
+  z.object({ action: z.literal('trash'), expected: catalogTrashExpectedStateSchema, confirmation: z.string().regex(/^[a-f0-9]{64}$/u).optional() }).strict(),
   z.object({ action: z.literal('restore'), expected: catalogTrashExpectedStateSchema }).strict(),
   z.object({ action: z.literal('hold'), expected: catalogTrashExpectedStateSchema, held: z.boolean() }).strict(),
 ]).superRefine((command, context) => {
@@ -53,6 +55,8 @@ export const catalogTrashInventoryDetailSchema = z.object({
 }).strict();
 
 export const catalogTrashSnapshotSchema = z.object({
+  impact: dependencyImpactSchema.optional(),
+  recoveryReasons: z.array(z.string()).optional(),
   name: z.string().min(1),
   state: catalogTrashExpectedStateSchema,
   retentionDays: z.number().int().positive(),

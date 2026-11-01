@@ -140,6 +140,7 @@ export interface PipelineSubmission {
 }
 
 export interface PipelineProgramView {
+  dependencyImpacts?: import('./pipelineContentHealth').PipelineDependencyImpactFinding[];
   configured: boolean;
   settings: PipelineProgramSettings;
   currentUserId: string;

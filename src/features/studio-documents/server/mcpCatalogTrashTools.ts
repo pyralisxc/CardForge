@@ -1,3 +1,4 @@
+import { dependencyImpactJsonSchema } from '@/features/pipeline/server';
 import { fromJsonSchema } from '@modelcontextprotocol/server';
 import { changeCatalogTrash, readCatalogTrash, revalidateCardForgeCatalog } from '@/features/pipeline/server';
 import type { CatalogTrashCommand, CatalogTrashSnapshot } from '@/features/pipeline/server';
@@ -6,7 +7,7 @@ import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 
 const snapshotOutputSchema = fromJsonSchema<CatalogTrashSnapshot>({
   type: 'object', additionalProperties: false, required: ['name', 'state', 'retentionDays', 'reasons', 'entryReasons'],
-  properties: { name: { type: 'string' }, state: { type: 'object' }, retentionDays: { type: 'integer' },
+  properties: { impact: dependencyImpactJsonSchema, recoveryReasons: { type: 'array', items: { type: 'string' } }, name: { type: 'string' }, state: { type: 'object' }, retentionDays: { type: 'integer' },
     reasons: { type: 'array', items: { type: 'string' } }, entryReasons: { type: 'array', items: { type: 'string' } },
     inventoryDetails: { type: 'array', items: { type: 'object', additionalProperties: false,
       required: ['origin', 'recordId', 'payloadKind', 'conditions'], properties: {
@@ -30,24 +31,24 @@ export function registerCatalogTrashTools({ server, getAccess, toolError }: Para
   };
   server.registerTool('get_catalog_trash', {
     title: 'Inspect Owner catalog recovery',
-    description: 'Owner only. Read exact lineage/current revision/high-water and recovery state, entry blockers, configured retention and blocked physical-expiry status. This is not deletion permission or proof that cleanup will run. Storage resources are not standalone catalog identities.',
+    description: 'Owner only. Read exact lineage/current revision/high-water, recoveryReasons, known impact preview and retention. recoveryReasons govern reversible removal; entryReasons/inventoryDetails retain conservative erasure diagnostics and do not turn unrelated coverage warnings into target dependencies. Aggregate MCP usage is recorded. This is not deletion permission or proof that cleanup will run. Storage resources are not standalone catalog identities.',
     inputSchema: fromJsonSchema<{ submissionId: string }>({ type: 'object', additionalProperties: false, required: ['submissionId'], properties: { submissionId: { type: 'string', format: 'uuid' } } }),
     outputSchema: snapshotOutputSchema,
-    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, input => run('get_catalog_trash', input, userId => readCatalogTrash(userId, input.submissionId)));
   server.registerTool('change_catalog_trash', {
     title: 'Move, restore or hold Owner catalog Trash',
-    description: 'Owner only. Use the exact state from get_catalog_trash. Move hides discovery and retains bytes, subject to native consumer and prior-worker checks. Restore and Hold are blocked after destructive commitment. This tool cannot purge, activate a scheduler, or remove independent downloaded copies. On conflict or uncertain outcome read state before any new request.',
+    description: 'Owner only. Use the exact state from get_catalog_trash. Review the impact preview; when confirmationRequired is true, explicitly confirm that impact by supplying confirmation equal to its fingerprint. Fresh native evidence is rechecked under locks. Coverage warnings are not absence proof or physical-deletion authority. Move hides discovery and retains bytes, subject to native consumer and prior-worker checks. Restore and Hold are blocked after destructive commitment. This tool cannot purge, activate a scheduler, or remove independent downloaded copies. On conflict or uncertain outcome read state before any new request.',
     inputSchema: fromJsonSchema<CatalogTrashCommand>({
       type: 'object', additionalProperties: false, required: ['action', 'expected'],
       properties: {
-        action: { type: 'string', enum: ['trash', 'restore', 'hold'] }, held: { type: 'boolean' },
+        action: { type: 'string', enum: ['trash', 'restore', 'hold'] }, held: { type: 'boolean' }, confirmation: { type: 'string', pattern: '^[a-f0-9]{64}$' },
         expected: { type: 'object', additionalProperties: false, required: ['identity', 'trashedAt', 'purgeAfter', 'held'], properties: {
           identity: { type: 'object', additionalProperties: false, required: ['lineageId', 'submissionId', 'registrySubmissionId', 'revisionHighWater'], properties: {
             lineageId: { type: 'string', format: 'uuid' }, submissionId: { type: 'string', format: 'uuid' },
             registrySubmissionId: { type: ['string', 'null'], format: 'uuid' }, revisionHighWater: { type: 'integer', minimum: 0 },
           } },
-          trashedAt: { type: ['string', 'null'], format: 'date-time' }, purgeAfter: { type: ['string', 'null'], format: 'date-time' }, held: { type: 'boolean' },
+          trashedAt: { type: ['string', 'null'], format: 'date-time' }, purgeAfter: { type: ['string', 'null'], format: 'date-time' }, held: { type: 'boolean' }, impactFingerprint: { type: 'string', pattern: '^[a-f0-9]{64}$' },
         } },
       },
     }),

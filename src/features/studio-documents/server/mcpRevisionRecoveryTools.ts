@@ -23,9 +23,9 @@ export function registerRevisionRecoveryTools({ server, getAccess, getReadAccess
   }, input => run('get_pipeline_revision_recovery', input, actor => readRevisionRecovery(actor, input.submissionId), getReadAccess));
   server.registerTool('change_pipeline_revision_recovery', {
     title: 'Trash, restore or hold one exact Pipeline revision',
-    description: 'Use the exact state from get_pipeline_revision_recovery. Contributors may Trash their own exact work and Restore their own Contributor- or vote-origin Trash; Owner moderation and holds remain authoritative. Restore preserves immutable records and returns ordinary review/voting/publication eligibility without replacing a newer live revision. Manual Trash is never automatically restored by votes. Trash does not remove files or publication history; it does not certify existing source bytes. This tool cannot permanently delete, activate expiry or alter independent copies. After conflict or an uncertain response read state before another action.',
+    description: 'Use the exact state from get_pipeline_revision_recovery. Review exact known impacts and redacted private counts. For Trash with confirmationRequired, explicitly confirm the displayed impact by sending confirmation equal to its fingerprint; stale evidence is rejected under native locks. Contributors may Trash their own exact work and Restore their own Contributor- or vote-origin Trash; Owner moderation and holds remain authoritative. Restore preserves immutable records and returns ordinary review/voting/publication eligibility without replacing a newer live revision. Manual Trash is never automatically restored by votes. Trash does not remove files or publication history; it does not certify existing source bytes. This tool cannot permanently delete, activate expiry or alter independent copies. After conflict or an uncertain response read state before another action.',
     inputSchema: fromJsonSchema<RevisionRecoveryCommand>({ type: 'object', additionalProperties: false, required: ['action', 'expected'], properties: {
-      action: { type: 'string', enum: ['trash', 'restore', 'hold'] }, held: { type: 'boolean' },
+      action: { type: 'string', enum: ['trash', 'restore', 'hold'] }, held: { type: 'boolean' }, confirmation: { type: 'string', pattern: '^[a-f0-9]{64}$' },
       expected: { type: 'object', additionalProperties: false,
         required: ['scope','submissionId','lineageId','revisionNumber','registrySubmissionId','revisionHighWater','recoveryVersion','status','updatedAt','trashedAt','purgeAfter','held'], properties: {
           scope: { type: 'string', const: 'revision' }, submissionId: { type: 'string', format: 'uuid' }, lineageId: { type: 'string', format: 'uuid' },
@@ -33,7 +33,7 @@ export function registerRevisionRecoveryTools({ server, getAccess, getReadAccess
           revisionHighWater: { type: 'integer', minimum: 0 }, status: { type: 'string', enum: ['draft','submitted','voting','publish_candidate','published','archived','rejected'] },
           recoveryVersion: { type: 'string', pattern: '^(0|[1-9][0-9]*)$', maxLength: 19 },
           updatedAt: { type: 'string', format: 'date-time' }, trashedAt: { type: ['string','null'], format: 'date-time' },
-          purgeAfter: { type: ['string','null'], format: 'date-time' }, held: { type: 'boolean' },
+          purgeAfter: { type: ['string','null'], format: 'date-time' }, held: { type: 'boolean' }, impactFingerprint: { type: 'string', pattern: '^[a-f0-9]{64}$' },
         } },
     } }),
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
