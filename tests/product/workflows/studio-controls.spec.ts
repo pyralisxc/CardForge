@@ -433,6 +433,27 @@ test('@golden a dismissed Icon chooser cannot close or show errors in a reopened
  await expect(page.getByRole('dialog',{name:'Choose icon'})).toBeVisible();
  await expect(page.getByText('Previous session failed')).toHaveCount(0);
 });
+
+test('@golden same-batch Arcane then current Star rejects second confirmation without overtaking queued Icon', async ({page}) => {
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?iconAcknowledgment=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await page.getByRole('button',{name:'Race Arcane then original Star'}).click();
+ await expect(page.getByTestId('ack-race')).toHaveText('fulfilled,rejected');
+ expect(JSON.parse(await page.getByTestId('ack-icon').textContent()||'{}')).toMatchObject({iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+ await expect(page.getByTestId('ack-history')).toHaveText('1');
+ expect(JSON.parse(await page.getByTestId('ack-neighbor').textContent()||'{}')).toMatchObject({content:'Keep neighbor'});
+});
+
 test('@golden Icon acknowledgment resolves only after canonical commit, same-value no history, locked target rejects', async ({page}) => {
  await page.route('**/*',route=>{
   const url=new URL(route.request().url());
