@@ -48,10 +48,10 @@ describe('exact revision recovery boundaries', () => {
       p_actor_user_id: 'native-owner', p_is_owner: true, p_action: 'hold', p_expected: state, p_held: true,
     });
   });
-  it('retains immutable archived history and a newer current pointer on restore', async () => {
-    m.rpc.mockResolvedValue({ data: { ...snapshot, state: { ...state, recoveryVersion: '3', trashedAt: null, purgeAfter: null } }, error: null });
+  it.each(['draft', 'voting', 'publish_candidate'] as const)('accepts committed Restore into ordinary eligibility (%s) without replacing identity', async status => {
+    m.rpc.mockResolvedValue({ data: { ...snapshot, state: { ...state, status, recoveryVersion: '3', trashedAt: null, purgeAfter: null } }, error: null });
     expect(await changeRevisionRecovery('session', { action: 'restore', expected: state })).toMatchObject({ state: {
-      status: 'archived', registrySubmissionId: state.registrySubmissionId, revisionHighWater: 4, trashedAt: null,
+      status, registrySubmissionId: state.registrySubmissionId, revisionHighWater: 4, recoveryVersion: '3', trashedAt: null,
     } });
     expect(m.rpc).toHaveBeenCalledOnce();
   });
@@ -66,7 +66,8 @@ describe('exact revision recovery boundaries', () => {
     expect(m.rpc).toHaveBeenCalledOnce();
   });
   it('does not confirm malformed receipts, republishing, or changed lineage/current identity', async () => {
-    for (const result of [null, { ...snapshot, state: { ...state, status: 'published', trashedAt: null } },
+    for (const result of [null, { ...snapshot, state: { ...state, status: 'published', recoveryVersion: '3', trashedAt: null } },
+      { ...snapshot, state: { ...state, status: 'archived', recoveryVersion: '3', trashedAt: null } },
       { ...snapshot, state: { ...state, registrySubmissionId: null, trashedAt: null } },
       { ...snapshot, state: { ...state, revisionHighWater: 5, trashedAt: null } }]) {
       m.rpc.mockResolvedValue({ data: result, error: null });
