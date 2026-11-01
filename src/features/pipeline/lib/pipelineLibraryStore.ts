@@ -1,5 +1,5 @@
-import { buildPipelineProgramView, type PipelineProgramView } from './pipelineProgram';
-import { fetchPipelineSubmissionPage } from './pipelineProjections';
+import { buildPipelineProgramView, type SharedPipelineTrashPage, type PipelineProgramView } from './pipelineProgram';
+import { fetchPipelineSubmissionPage, fetchSharedPipelineTrashMetadataPage } from './pipelineProjections';
 import { getPipelineProgramContext } from './pipelineStore';
 
 type ProgramContext = Awaited<ReturnType<typeof getPipelineProgramContext>>;
@@ -100,3 +100,8 @@ export const getOwnPublishedPipelineSubmissions = async (
   const remaining = await Promise.all(Array.from({ length: pageCount - 1 }, (_, index) => loadPage(index + 2)));
   return [firstPage, ...remaining].flatMap((page) => page.submissions);
 };
+
+export const getSharedPipelineTrashPage = (
+  currentUserId: string,
+  query: Omit<import('./pipelineProjections').PipelineListQuery, 'scope' | 'trash'> = {},
+): Promise<SharedPipelineTrashPage> => fetchSharedPipelineTrashMetadataPage(currentUserId, query);

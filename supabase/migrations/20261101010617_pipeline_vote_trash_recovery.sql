@@ -2,10 +2,10 @@ begin;
 set local lock_timeout='5s';
 -- Operational provenance belongs to the existing exact revision, not a new queue.
 alter table public.cardforge_contributor_asset_submissions
- drop constraint cardforge_contributor_asset_submissions_revision_trash_actor_role_check,
- add constraint cardforge_contributor_asset_submissions_revision_trash_actor_role_check
+ drop constraint cardforge_contributor_asset_sub_revision_trash_actor_role_check,
+ add constraint cardforge_revision_trash_actor_role_check
  check (revision_trash_actor_role in ('owner','contributor','voting')),
- add column revision_trash_previous_status text,
+ add column revision_trash_previous_status text check (revision_trash_previous_status in ('draft','submitted','voting','publish_candidate','published','archived','rejected')),
  add column revision_vote_trash_fingerprint text;
 
 create function public.cardforge_revision_vote_decision_fingerprint(p_id uuid)
@@ -105,7 +105,6 @@ begin
  entry:=blocked||entry;
  if s.trashed_at is not null then entry:=array_append(entry,'revision_already_trashed'); end if;
  recovery:=blocked;
- if s.trashed_at is not null and s.revision_trash_previous_status is null and not s.revision_publication_retained and s.published_at is null and s.revision_trash_actor_role is distinct from 'voting' then recovery:=array_append(recovery,'prior_visibility_unavailable'); end if;
  if s.retention_hold then recovery:=array_append(recovery,'retention_hold'); end if;
  if s.trashed_at is null then recovery:=array_append(recovery,'revision_not_trashed'); end if;
  if not p_is_owner and (s.revision_trash_actor_role is distinct from 'voting' and (s.revision_trash_actor_role is distinct from 'contributor'
@@ -115,6 +114,7 @@ begin
  published:=s.revision_publication_retained or s.published_at is not null or s.status='published' or coalesce(s.contributor_lifecycle_state='retired',false)
    or exists(select 1 from public.cardforge_asset_registry registry where registry.contributor_submission_id=s.id)
    or exists(select 1 from public.cardforge_pipeline_publication_events e where e.published_submission_id=s.id);
+ if s.trashed_at is not null and (s.revision_trash_previous_status is null or s.revision_trash_previous_status='archived') and not published and s.revision_trash_actor_role is distinct from 'voting' then recovery:=array_append(recovery,'prior_visibility_unavailable'); end if;
  return jsonb_build_object('name',s.name,'retentionDays',days,'trashActor',s.revision_trash_actor_role,
  'trashReasons',to_jsonb(entry),'restoreReasons',to_jsonb(recovery),'canHold',p_is_owner and s.trashed_at is not null and cardinality(blocked)=0,
  'publicationRetained',published,'sourceUncertainty',l.catalog_destructive_uncertainty,
@@ -189,9 +189,11 @@ CREATE OR REPLACE FUNCTION public.cardforge_rebalance_contributor_asset_pipeline
 AS $function$
 declare
   changed_count integer := 0;
+  entry_clock timestamptz;
   submission_id uuid;
 begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('cardforge-contributor-pipeline', 0));
+  entry_clock := clock_timestamp();
 
   with totals as (
     select submission.id,
@@ -214,6 +216,20 @@ begin
     or submission.quality_score <> totals.quality_score
   );
 
+  -- Only vote-driven current-publication removal needs retained-consumer
+  -- admission. Stabilize the same native owners used by explicit recovery.
+  if exists(select 1 from public.cardforge_contributor_asset_submissions v
+    join public.cardforge_asset_registry live on live.contributor_submission_id=v.id and live.status='published'
+    cross join public.cardforge_contributor_program_settings cfg
+    where cfg.id='default' and v.trashed_at is null and v.purge_state is null
+      and v.positive_votes+v.negative_votes>=cfg.minimum_votes_for_grading
+      and v.quality_score<cfg.free_asset_minimum_positive_vote_percent
+      and v.submitted_at<=now()-make_interval(days=>cfg.review_minimum_age_days)) then
+    if current_setting('transaction_isolation')<>'read committed' then raise exception 'revision_recovery_state_changed'; end if;
+    lock table public.cardforge_contributor_asset_submissions,public.cardforge_asset_registry,
+      public.cardforge_studio_documents in share mode nowait;
+  end if;
+
   with settings as (
     select * from public.cardforge_contributor_program_settings where id = 'default'
   ), scored as (
@@ -233,6 +249,12 @@ begin
       submission.submitted_at <= pg_catalog.now() - pg_catalog.make_interval(days => settings.review_minimum_age_days) as review_age_met,
       registry.asset_id is not null as is_current_publication,
       registry.access_tier as current_access_tier,
+      case when registry.asset_id is not null
+        and submission.positive_votes+submission.negative_votes>=settings.minimum_votes_for_grading
+        and submission.quality_score<settings.free_asset_minimum_positive_vote_percent
+        and submission.submitted_at<=now()-make_interval(days=>settings.review_minimum_age_days)
+        then cardinality(public.cardforge_catalog_trash_entry_reasons(submission.lineage_id))=0
+        else true end as can_vote_trash,
       exists (select 1 from public.cardforge_asset_registry as live
         where live.status = 'published' and live.contributor_submission_id is not null
           and live.contributor_submission_id <> submission.id
@@ -265,7 +287,7 @@ begin
   ), decisions as (
     select ranked.id, ranked.quality_score, ranked.trash_retention_days,
       case
-        when ranked.is_current_publication then 'published'
+        when ranked.is_current_publication and (ranked.total_votes<ranked.minimum_votes or not ranked.review_age_met or ranked.quality_score>=ranked.free_threshold or not ranked.can_vote_trash) then 'published'
         when (ranked.asset_type = 'templates' and ranked.base_revision_number = 0 or ranked.lineage_already_live) then 'publish_candidate'
         when ranked.total_votes < ranked.minimum_votes then 'voting'
         when not ranked.review_age_met then 'publish_candidate'
@@ -292,7 +314,8 @@ begin
         else 'contributor'
       end as automated_access_tier,
       case
-        when ranked.is_current_publication then 'current_publication_protected'
+        when ranked.is_current_publication and not ranked.can_vote_trash then 'vote_trash_blocked'
+        when ranked.is_current_publication and (ranked.total_votes<ranked.minimum_votes or not ranked.review_age_met or ranked.quality_score>=ranked.free_threshold or not ranked.can_vote_trash) then 'current_publication_protected'
         when (ranked.asset_type = 'templates' and ranked.base_revision_number = 0 or ranked.lineage_already_live) then 'revision_ready_for_owner'
         when ranked.total_votes < ranked.minimum_votes then 'needs_more_votes'
         when not ranked.review_age_met then 'minimum_review_age'
@@ -333,18 +356,23 @@ begin
       contributor_lifecycle_state=case when submission.revision_trash_actor_role='voting' and effective.effective_status not in ('archived','rejected') then null else submission.contributor_lifecycle_state end,
       published_at = case when effective.effective_status = 'published' and submission.status <> 'published'
         then coalesce(submission.published_at,pg_catalog.now()) else submission.published_at end,
-      trashed_at = case when effective.effective_status = 'archived' and submission.published_at is null
-        then coalesce(submission.trashed_at, pg_catalog.now())
+      trashed_at = case when effective.effective_status = 'archived' and effective.automatic_reason='below_free_threshold'
+        then coalesce(submission.trashed_at, entry_clock)
         when effective.effective_status not in ('archived', 'rejected') then null else submission.trashed_at end,
-      trash_reason = case when effective.effective_status = 'archived' and submission.published_at is null
+      trash_reason = case when effective.effective_status = 'archived' and effective.automatic_reason='below_free_threshold'
         then coalesce(submission.trash_reason, 'declined')
         when effective.effective_status not in ('archived', 'rejected') then null else submission.trash_reason end,
-      purge_after = case when effective.effective_status = 'archived' and submission.published_at is null
-        then coalesce(submission.purge_after, pg_catalog.now() + pg_catalog.make_interval(days => effective.trash_retention_days))
+      purge_after = case when effective.effective_status = 'archived' and effective.automatic_reason='below_free_threshold'
+        then coalesce(submission.purge_after, entry_clock + pg_catalog.make_interval(days => effective.trash_retention_days))
         when effective.effective_status not in ('archived', 'rejected') then null else submission.purge_after end
   from effective where effective.id = submission.id;
 
   get diagnostics changed_count = row_count;
+  -- Retain the pointer and source bytes as history; remove only discoverability.
+  update public.cardforge_asset_registry registry set status='archived',access_tier='hidden',updated_at=now()
+    from public.cardforge_contributor_asset_submissions revision
+    where registry.contributor_submission_id=revision.id and revision.trashed_at is not null
+      and revision.revision_trash_actor_role='voting' and registry.status='published';
   for submission_id in
     select submission.id from public.cardforge_contributor_asset_submissions as submission
     where submission.purge_state is null and submission.trashed_at is null
@@ -386,7 +414,8 @@ begin
 
   if exists(select 1 from public.cardforge_pipeline_asset_lineages l where l.id=target_lineage and (l.purge_state is not null or l.catalog_claim_token is not null or l.catalog_claimed_at is not null)) then raise exception 'contributor_asset_vote_not_permitted'; end if;
 
-  if submission.trashed_at is not null and (not coalesce((submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status not in ('draft','rejected')),false) or submission.purge_claim_token is not null or submission.purge_claimed_at is not null or submission.owner_purge_requested_at is not null) then raise exception 'contributor_asset_vote_not_permitted'; end if;
+  if submission.purge_claim_token is not null or submission.purge_claimed_at is not null or submission.owner_purge_requested_at is not null then raise exception 'contributor_asset_vote_not_permitted'; end if;
+  if submission.trashed_at is not null and (not coalesce((submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false) or submission.purge_claim_token is not null or submission.purge_claimed_at is not null or submission.owner_purge_requested_at is not null) then raise exception 'contributor_asset_vote_not_permitted'; end if;
   if submission.status = 'draft' then
     raise exception 'contributor_asset_vote_not_permitted';
   end if;
@@ -439,39 +468,52 @@ create or replace function public.cardforge_list_contributor_asset_submission_id
   p_page_size integer default 12,
   p_trash_state text default 'active'
 )
-returns table (submission_id uuid, total_count bigint)
+returns table (submission_id uuid, total_count bigint, shared_metadata jsonb)
 language sql
 stable
 security invoker
 set search_path = ''
 as $$
   with filtered as (
-    select submission.id, submission.submitted_at
+    select submission.id, submission.submitted_at,
+      case when p_scope='shared' then jsonb_build_object(
+        'id',submission.id,'lineageId',submission.lineage_id,'assetType',submission.asset_type,
+        'name',submission.name,'description',coalesce(submission.description,''),'status',submission.status,
+        'revisionNumber',submission.revision_number,'trashedAt',submission.trashed_at,
+        'purgeAfter',submission.purge_after,'trashActorRole',submission.revision_trash_actor_role,
+        'trashPreviousStatus',submission.revision_trash_previous_status,
+        'publicationRetained',submission.revision_publication_retained or submission.published_at is not null,
+        'positiveVotes',submission.positive_votes,'negativeVotes',submission.negative_votes,
+        'ownedByViewer',submission.contributor_id=p_current_user_id) else null end as shared_metadata
     from public.cardforge_contributor_asset_submissions as submission
     left join public.cardforge_contributor_asset_votes as current_vote
       on current_vote.submission_id = submission.id
       and current_vote.contributor_id = p_current_user_id
-    where coalesce(p_scope, 'all') in ('all', 'own', 'review')
+    where coalesce(p_scope, 'all') in ('all', 'own', 'review', 'shared')
       and (
         coalesce(p_scope, 'all') = 'all'
+        or (p_scope='shared' and submission.status<>'draft' and submission.trashed_at is not null and coalesce(
+          submission.revision_publication_retained or submission.published_at is not null
+          or submission.revision_trash_actor_role='voting'
+          or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published'),false))
         or (p_scope = 'own' and submission.contributor_id = p_current_user_id)
         or (
           p_scope = 'review'
-          and submission.status not in ('draft', 'rejected')
+          and (submission.status not in ('draft', 'rejected') or (submission.status<>'draft' and submission.trashed_at is not null and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false)))
           and (coalesce(p_allow_self_voting, false) or submission.contributor_id <> p_current_user_id)
         )
       )
       and coalesce(p_trash_state,'active') in ('all','active','trashed')
       and (p_trash_state='all' or p_trash_state='active' and submission.trashed_at is null or p_trash_state='trashed' and submission.trashed_at is not null)
       and submission.purge_state is null
-      and (p_scope<>'review' or coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status not in ('draft','rejected')),false))
+      and (p_scope<>'review' or coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false))
       and (p_asset_type is null or submission.asset_type = p_asset_type)
       and (p_status is null or submission.status = p_status)
       and (p_tier is null or submission.calculated_access_tier = p_tier)
       and (
         coalesce(nullif(pg_catalog.btrim(p_query), ''), '') = ''
         or pg_catalog.lower(pg_catalog.concat_ws(
-          ' ', submission.name, submission.description, submission.contributor_email,
+          ' ', submission.name, submission.description, case when p_scope='shared' then null else submission.contributor_email end,
           submission.registry_asset_id, submission.target_registry_asset_id
         )) like '%' || pg_catalog.lower(pg_catalog.btrim(p_query)) || '%'
       )
@@ -481,16 +523,18 @@ as $$
         or (p_vote_filter = 'upvoted' and current_vote.vote_value = 'positive')
         or (p_vote_filter = 'downvoted' and current_vote.vote_value = 'negative')
       )
-  ), numbered as (
-    select filtered.id, filtered.submitted_at, count(*) over ()::bigint as total_count
-    from filtered
+  ), totals as (
+    select count(*)::bigint as total_count from filtered
   )
-  select numbered.id, numbered.total_count
-  from numbered
-  order by numbered.submitted_at desc, numbered.id desc
-  offset (greatest(coalesce(p_page, 1), 1) - 1)
-    * least(greatest(coalesce(p_page_size, 12), 1), 50)
-  limit least(greatest(coalesce(p_page_size, 12), 1), 50);
+  select slice.id, totals.total_count, slice.shared_metadata
+  from totals left join lateral (
+    select filtered.id, filtered.submitted_at, filtered.shared_metadata from filtered
+    order by filtered.submitted_at desc, filtered.id desc
+    offset (greatest(coalesce(p_page, 1), 1)::bigint - 1)
+      * least(greatest(coalesce(p_page_size, 12), 1), 50)
+    limit least(greatest(coalesce(p_page_size, 12), 1), 50)
+  ) slice on true
+  order by slice.submitted_at desc, slice.id desc;
 $$;
 
 revoke all on function public.cardforge_list_contributor_asset_submission_ids(text,text,text,text,text,text,text,boolean,integer,integer,text) from public,anon,authenticated;
@@ -565,7 +609,7 @@ begin
             and (
               p_owner
               or submission.contributor_id = p_account_id
-              or (submission.status not in ('draft', 'rejected') and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status not in ('draft','rejected')),false))
+              or (submission.status<>'draft' and (submission.status<>'rejected' or submission.trashed_at is not null) and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false))
             )
         )
       )
@@ -603,7 +647,7 @@ begin
             and (
               p_owner
               or submission.contributor_id = p_account_id
-              or (submission.status not in ('draft', 'rejected') and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status not in ('draft','rejected')),false))
+              or (submission.status<>'draft' and (submission.status<>'rejected' or submission.trashed_at is not null) and coalesce((submission.trashed_at is null or submission.revision_publication_retained or submission.published_at is not null or submission.revision_trash_actor_role='voting' or submission.revision_trash_previous_status in ('submitted','voting','publish_candidate','published')),false))
             )
         )
       )

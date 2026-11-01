@@ -2,7 +2,7 @@ export const isSharedPipelineTrash = (row: {
   trashedAt?: string | null; trashPreviousStatus?: string | null; publicationRetained?: boolean;
   publishedAt?: string | null; trashActorRole?: string | null;
 }): boolean => !row.trashedAt || Boolean(row.publicationRetained || row.publishedAt || row.trashActorRole === 'voting'
-  || row.trashPreviousStatus && !['draft', 'rejected'].includes(row.trashPreviousStatus));
+  || row.trashPreviousStatus && ['submitted', 'voting', 'publish_candidate', 'published'].includes(row.trashPreviousStatus));
 
 import type { PipelineStatus } from './pipelineItems';
 
@@ -28,5 +28,7 @@ export const isPipelineRevisionVisibleToContributor = ({
   if (purgeState) return false;
   if (owner) return true;
   if (!contributor || !viewerId) return false;
-  return contributorId === viewerId || !CONTRIBUTOR_HIDDEN_STATUSES.has(status) && isSharedPipelineTrash(trash);
+  if (contributorId === viewerId) return true;
+  if (status === 'draft') return false;
+  return trash.trashedAt ? isSharedPipelineTrash(trash) : !CONTRIBUTOR_HIDDEN_STATUSES.has(status);
 };
