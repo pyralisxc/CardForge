@@ -201,7 +201,9 @@ export function useTemplateLibraryActions({
       removedFieldKeys: impact.removedFieldKeys,
       setId,
     });
-    setTemplateEditorSelectedTemplateId(savedTemplateId);
+    // Persist first; the active editor must acknowledge the saved document
+    // before its selected Template id changes. Premature selection resets the
+    // canonical controller and discards the unsaved draft's selection/history.
     if (templateToSave.templateUsage !== 'back-preset') setGeneratorSelectedTemplateId(savedTemplateId);
     const committed = selectAllTemplates(useProjectStore.getState()).find((candidate) => candidate.id === savedTemplateId);
     const templateForFile = committed ? reconstructMinimalTemplateObject(committed) : null;
