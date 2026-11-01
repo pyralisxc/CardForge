@@ -434,6 +434,24 @@ test('@golden a dismissed Icon chooser cannot close or show errors in a reopened
  await expect(page.getByText('Previous session failed')).toHaveCount(0);
 });
 
+
+test('@golden retained same-value Icon confirmation rejects after editor unmount', async ({page}) => {
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?retainedIcon=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await expect(page.getByTestId('retained-mounted')).toHaveText('mounted');
+ await page.getByRole('button',{name:'Unmount Icon controller'}).click();
+ await expect(page.getByTestId('retained-mounted')).toHaveCount(0);
+ await page.getByRole('button',{name:'Invoke retained same-value Icon callback'}).click();
+ await expect(page.getByTestId('retained-status')).toHaveText('rejected');
+});
+
 test('@golden same-batch Arcane then current Star rejects second confirmation without overtaking queued Icon', async ({page}) => {
  await page.route('**/*',route=>{
   const url=new URL(route.request().url());
