@@ -12,7 +12,7 @@ This file is the reusable source for the OpenAI plugin listing and review. It co
 - Privacy policy: `https://cardforges.com/privacy`
 - Terms of service: `https://cardforges.com/terms`
 - Logo source: `https://cardforges.com/brand/cardforge-studio/favicon.svg`
-- Category: Design
+- Category: Creativity
 - Requested availability: public, wherever ChatGPT plugins and CardForge's providers are available; a CardForge account is required because temporary working documents and connected-project authorizations are private to the linked account.
 - Short description: Design cards and card sets
 - Long description: Design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review exact CardForge-rendered outputs natively in chat, and continue everything in CardForge Studio. Contributor publication tools remain a separate optional workflow.
