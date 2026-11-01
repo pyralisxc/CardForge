@@ -179,6 +179,7 @@ describe('zip export helpers', () => {
   it.each(['standard', 'high-detail'] as const)('keeps same-ratio sizes and correct back slots in %s', (quality) => {
     const card = makeCard({ backingTemplate: {
       id: 'matching-back', name: 'Back', aspectRatio: '63:88', templateUsage: 'back-preset',
+      freeformCanvas: { width: 630, height: 880, elements: [] },
     } });
     const cards = Array.from({ length: quality === 'standard' ? 70 : 20 }, (_, index) => makeCard({
       ...card, uniqueId: `card-${index + 1}`,
@@ -211,6 +212,7 @@ describe('zip export helpers', () => {
   it('rejects an authored front/back shape mismatch without silently scaling either face', () => {
     const incompatible = makeCard({ backingTemplate: {
       id: 'square-back', name: 'Square Back', aspectRatio: '1:1', templateUsage: 'back-preset',
+      freeformCanvas: { width: 800, height: 800, elements: [] },
     } });
     expect(() => createTabletopSimulatorSheets([incompatible])).toThrow(/Card 1 has a back with a different shape/);
   });
