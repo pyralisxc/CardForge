@@ -11,7 +11,15 @@ describe('download page public shell and access presentation', () => {
     expect(source).not.toContain('<main className=');
     expect(source).toContain('ContributorPublicAuthSlot');
     expect(source).toContain('PluginDownloadLinks scope="studio"');
-    expect(source).not.toContain('scope="owner"');
+    expect(source).toContain('scope="owner"');
+    expect(source).toContain('getCurrentCardforgeUserAccess');
+    expect(source).toContain('mayShowOwnerDownloads(getCurrentCardforgeUserAccess)');
+    expect(source).toContain("from '@/features/plugin-distribution/server'");
+    expect(source).not.toContain("@/features/plugin-distribution/lib/");
+    expect(source).toContain("dynamic = 'force-dynamic'");
+    expect(source).toContain("dynamic = 'force-dynamic'");
+    expect(source).toContain('{owner ?');
+    expect(source).not.toContain('allowOwnerAdmission');
     expect(source).toContain('href="/"');
   });
   it('retains the validated local sign-in return', () => {
