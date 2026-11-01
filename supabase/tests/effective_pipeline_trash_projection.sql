@@ -37,9 +37,9 @@ begin
  values(historical_id,catalog_l,'author','icons','Catalog history','archived','archived',asset,asset,1,now()-interval '1 day',now()-interval '1 hour',now()+interval '29 days','withdrawn','contributor','author','published',true,now()-interval '1 day'),
  (revision_id,revision_l,'author','textures','Revision-only recovery','archived','archived',null,'revision-'||revision_l,1,now()-interval '2 days',now()-interval '2 hours',now()+interval '29 days','withdrawn','contributor','author','published',true,now()-interval '2 days');
  insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,contributor_email,asset_type,name,status,owner_status_override,submitted_at)
- values(draft_id,catalog_l,'private-author','private-only@example.invalid','icons','Private sibling draft','draft','draft',now()),
+ values(draft_id,catalog_l,'private-author','private-only@example.invalid','icons','Private sibling draft','draft',null,now()),
  (private_id,catalog_l,'private-author','private-only@example.invalid','icons','Private unknown archive','archived','archived',now()),
- (shared_id,catalog_l,'sibling-author','sibling@example.invalid','icons','Shared submitted sibling','submitted','submitted',now());
+ (shared_id,catalog_l,'sibling-author','sibling@example.invalid','icons','Shared submitted sibling','submitted',null,now());
  select trashed_at into before_history from public.cardforge_contributor_asset_submissions where id=historical_id;
  snapshot:=public.cardforge_read_catalog_trash(current_id);
  snapshot:=public.cardforge_change_catalog_trash('owner','trash',snapshot->'state',null,snapshot->'impact'->>'fingerprint');
