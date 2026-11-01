@@ -568,7 +568,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           {sharedTrashMode ? 'Return to Pipeline' : 'Browse shared Trash'}
         </button>
       </div> : null}
-      {activeScope === 'pipeline' && isSignedIn && sharedTrashMode ? <SharedPipelineTrashCollection /> : <LibraryCollection
+      {activeScope === 'pipeline' && isSignedIn && sharedTrashMode ? <SharedPipelineTrashCollection onOpenAuthorizedRevision={experience.owner ? item => { revisionQueue.setTrash('trashed'); revisionQueue.setAssetType(item.assetType); revisionQueue.setStatus('all'); projection.setQuery(item.name); setRevisionMode(true); setSharedTrashMode(false); setSelection(closeEnvironmentDetail); } : undefined} /> : <LibraryCollection
         onCampaignDirtyChange={setCampaignDirty}
         onCampaignCloseBlockedChange={setCampaignCloseBlocked}
         serverFiltered={revisionsEnabled}
