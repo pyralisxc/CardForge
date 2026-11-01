@@ -391,7 +391,7 @@ test('@golden captured unique published Arcane catalog selection from existing S
   await page.getByRole('option',{name}).click();
   await page.getByRole('button',{name:'Use selection',exact:true}).click();
  };
- await select(/^Star\\b/);
+ await select(/^Star\b/);
  await expect(page.getByText('Current icon: Star')).toBeVisible();
  await select(/Arcane Corner Overlay/);
  await expect(page.getByText('Current icon: Custom source')).toBeVisible();
