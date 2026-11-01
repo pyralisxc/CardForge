@@ -86,6 +86,15 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
 
   useLayoutEffect(() => {
     committedRef.current = editorState;
+    // A Save can acknowledge a draft→persisted identity while newer edits keep
+    // the parent selected Template unchanged. Reconcile the active document
+    // only after the saved ID actually commits in canonical editor state.
+    const savedIdentity = acknowledgedSaveIdentityRef.current;
+    if (savedIdentity
+      && activeDocumentIdRef.current === savedIdentity.fromId
+      && editorState.currentTemplate.id === savedIdentity.toId) {
+      activeDocumentIdRef.current = savedIdentity.toId;
+    }
     const request = pendingIconRef.current;
     if (!request) return;
     const element = getTemplateEditorCanvas(editorState.currentTemplate)?.elements.find(
@@ -125,7 +134,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     // switching to another Template. acceptSavedTemplate already reconciled
     // every authored history snapshot and the selected layer.
     const isAcknowledgedPersistence = Boolean(savedIdentity
-      && savedIdentity.fromId === activeDocumentIdRef.current
+      && savedIdentity.toId === activeDocumentIdRef.current
       && savedIdentity.toId === nextId
       && committedRef.current.currentTemplate.id === nextId);
     syncedInitialIdRef.current = nextId;
