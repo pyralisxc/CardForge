@@ -199,6 +199,7 @@ export function useTemplateLibraryActions({
       face,
       removedFieldKeys: impact.removedFieldKeys,
       setId,
+      deferEditorSelectionUntilReceipt: true,
     });
     // Persist first; the active editor must acknowledge the saved document
     // before its selected Template id changes. Premature selection resets the

@@ -50,7 +50,7 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
     return finalId;
   },
 
-  commitTemplateChange: ({ template, source, sourceTemplateId, artifactIds, face, removedFieldKeys = [], setId }) => {
+  commitTemplateChange: ({ template, source, sourceTemplateId, artifactIds, face, removedFieldKeys = [], setId, deferEditorSelectionUntilReceipt = false }) => {
     const reconstructed = reconstructMinimalTemplateObject({ ...template, id: template.id?.trim() ? template.id : nanoid(), templateSource: source || template.templateSource || 'user' });
     const finalId = reconstructed.id!;
     const fromId = sourceTemplateId?.trim() || finalId;
@@ -88,7 +88,7 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
         storedCards,
         cardSets,
         activeCardSet,
-        templateEditorSelectedTemplateId: finalId,
+        ...(!deferEditorSelectionUntilReceipt ? { templateEditorSelectedTemplateId: finalId } : {}),
         ...(reconstructed.templateUsage !== 'back-preset' ? { generatorSelectedTemplateId: finalId } : {}),
       };
     });

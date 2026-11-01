@@ -269,6 +269,47 @@ test('@golden edits made while local Save is pending survive its earlier snapsho
  const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved.freeformCanvas.elements.find((element:{type:string})=>element.type==='text').content).toBe('Saved snapshot');
 });
 
+test('@golden New front first Save waits for real store receipt before selecting persisted Template',async({page})=>{
+ await page.setViewportSize({width:1440,height:960});
+ await mountHistoryProof(page,'?realStoreSave=1&postCommitDelay=1');
+ await expect(page.getByTestId('fixture-parent-selection')).toHaveText('synthetic-local');
+ // The Library panel persists its last active section. Navigate visibly to
+ // Templates before using New front, exactly as the user does.
+ await page.getByRole('toolbar',{name:'Library sections'}).getByRole('button',{name:'Templates',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Create new front design'})).toBeVisible();
+ await page.getByRole('button',{name:'Create new front design'}).click();
+ // The initial synthetic Template has edits; follow the normal visible guard
+ // to discard only that fixture document before starting the new draft.
+ const leaveCurrent=page.getByRole('alertdialog',{name:/Save changes to/});
+ await expect(leaveCurrent).toBeVisible();
+ await leaveCurrent.getByRole('button',{name:'Don’t save',exact:true}).click();
+ await page.getByRole('dialog',{name:'Create a Template'}).getByLabel('Template name').fill('QA first Save store contract');
+ await page.getByRole('button',{name:'Create and open canvas'}).click();
+ await page.getByRole('button',{name:'Elements',exact:true}).click();
+ await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
+ await expect(page.getByText('Current icon: Sparkles')).toBeVisible();
+ await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
+ await page.getByRole('option',{name:/^Star\b/}).click();
+ await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();
+ // The canonical commit is already completed, but the receipt is held for
+ // agent sync. Its store update must NOT navigate away from the working draft.
+ await expect(page.getByTestId('fixture-parent-selection')).toHaveText('synthetic-local');
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await page.getByRole('button',{name:'Finish local Save'}).click();
+ await expect(page.getByTestId('saved')).toContainText('QA first Save store contract');
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');
+ await expect(page.getByTestId('fixture-parent-selection')).toHaveText(saved.id);
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Undo',exact:true}).first()).toBeEnabled();
+ await page.getByRole('button',{name:'Undo',exact:true}).first().click();
+ await expect(page.getByText('Current icon: Sparkles')).toBeVisible();
+ await page.getByRole('button',{name:'Redo',exact:true}).first().click();
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+});
+
 test('@golden first persisted Template identity keeps selected Icon and Undo history',async({page})=>{
  await page.setViewportSize({width:1440,height:960});
  await mountHistoryProof(page,'?forkSave=1&saveIdentityContinuity=1');
