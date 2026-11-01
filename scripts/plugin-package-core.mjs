@@ -57,9 +57,9 @@ export async function buildPluginArchive(product, environment) {
   manifest.homepage = origin + (product === 'studio' ? '/studio' : '');
   manifest.interface.websiteURL = origin;
   const listing = manifest.interface;
-  if (product === 'studio') {
-    if (listing.displayName.length > 30 || listing.shortDescription.length > 30 || listing.longDescription.length > 4000 || listing.developerName.length > 80 || listing.defaultPrompt.length > 3 || listing.defaultPrompt.some(value => !value || value.length > 128 || /[\\r\\n]/u.test(value))) throw new Error('Studio listing exceeds platform limits');
-    for (const key of ['websiteURL','supportURL','privacyPolicyURL','termsOfServiceURL']) if (!String(listing[key] ?? '').startsWith('https://') || listing[key].length > 1024) throw new Error('Invalid Studio public listing URL: ' + key);
+  if (listing) {
+    if (listing.displayName.length > 30 || listing.shortDescription.length > 30 || listing.longDescription.length > 4000 || listing.developerName.length > 80 || listing.defaultPrompt.length > 3 || listing.defaultPrompt.some(value => !value || value.length > 128 || /[\\r\\n]/u.test(value))) throw new Error('Plugin listing exceeds platform limits');
+    for (const key of ['websiteURL','supportURL','privacyPolicyURL','termsOfServiceURL']) if (!String(listing[key] ?? '').startsWith('https://') || listing[key].length > 1024) throw new Error('Invalid plugin listing URL: ' + key);
   }
   const files = new Map();
   if (product === 'studio') {
@@ -84,9 +84,9 @@ export async function buildPluginArchive(product, environment) {
     mcpServers: { [name]: { type: 'streamable-http', url: origin + spec.endpoint } },
   }));
   files.set('icon.svg', safe(await readFile(path.join(ROOT, 'public/brand/cardforge-studio/favicon.svg')), 'icon.svg'));
-  if (product === 'studio') {
+  {
     const icon = await readFile(path.join(ROOT, 'public/brand/cardforge-studio/favicon.png'));
-    if (icon.length > 5 * 1024 * 1024 || icon.length < 24 || icon.subarray(0,8).toString('hex') !== '89504e470d0a1a0a' || icon.readUInt32BE(16) < 256 || icon.readUInt32BE(20) < 256 || icon.readUInt32BE(16) !== icon.readUInt32BE(20)) throw new Error('Studio listing PNG must be square and at least 256px, at most 5 MiB');
+    if (icon.length > 5 * 1024 * 1024 || icon.length < 24 || icon.subarray(0,8).toString('hex') !== '89504e470d0a1a0a' || icon.readUInt32BE(16) < 256 || icon.readUInt32BE(20) < 256 || icon.readUInt32BE(16) !== icon.readUInt32BE(20)) throw new Error('Plugin listing PNG must be square and at least 256px, at most 5 MiB');
     files.set('assets/logo.png', icon);
     files.set('assets/icon.png', icon);
   }
