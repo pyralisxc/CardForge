@@ -254,7 +254,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     sharedType,
     revisionPage: revisionsEnabled ? revisionQueue : undefined,
   });
-  const revisionNavigationKey = JSON.stringify([revisionQueue.page, revisionQueue.status, revisionQueue.assetType, projection.query]);
+  const revisionNavigationKey = JSON.stringify([revisionQueue.page, revisionQueue.status, revisionQueue.assetType, revisionQueue.trash, projection.query]);
   const priorRevisionNavigation = useRef(revisionNavigationKey);
   useEffect(() => {
     if (!activeTool && revisionsEnabled && priorRevisionNavigation.current !== revisionNavigationKey) setSelection(closeEnvironmentDetail);
