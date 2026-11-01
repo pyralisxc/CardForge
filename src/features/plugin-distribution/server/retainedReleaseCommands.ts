@@ -55,7 +55,15 @@ async function validatePackage(bytes: Uint8Array, product: ReleaseCandidate['pro
   const skill = product === 'studio'
     ? ['skills/create-editable-template/SKILL.md','skills/create-cards-and-sets/SKILL.md']
     : ['skills/operate-cardforge-site/SKILL.md'];
-  const paths = ['plugin.json','mcp.json','icon.svg','.codex-plugin/plugin.json','.mcp.json',...skill].map(n => prefix+n);
+  // New branded package versions add two exact PNG entries. Earlier retained
+  // releases keep their historical allowlist and byte identity unchanged.
+  const [major, minor, patch] = version.split(/[.+-]/u).slice(0, 3).map(Number);
+  const brandPng = Number.isInteger(major) && Number.isInteger(minor) && Number.isInteger(patch)
+    && (product === 'studio'
+      ? major > 1 || (major === 1 && (minor > 0 || (minor === 0 && patch >= 4)))
+      : major > 0 || minor > 7 || (minor === 7 && patch >= 2));
+  const paths = ['plugin.json','mcp.json','icon.svg','.codex-plugin/plugin.json','.mcp.json',...skill,
+    ...(brandPng ? ['assets/icon.png','assets/logo.png'] : [])].map(n => prefix+n);
   const originals = originalZipNames(bytes);
   if (originals.length !== paths.length || new Set(originals).size !== paths.length
     || originals.some(n => !paths.includes(n) || n.includes('..') || n.includes('\\\\') || n.startsWith('/'))) throw new Error('Unexpected raw ZIP entry');
