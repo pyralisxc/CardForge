@@ -111,7 +111,7 @@ window.fetch = async (input, init) => {
         description: 'Public description', assetType: 'elementPresets', status: 'archived', revisionNumber: 1,
         trashedAt: '2026-10-31T18:00:00Z', purgeAfter: '2026-11-30T18:00:00Z',
         trashActorRole: 'contributor', trashPreviousStatus: 'voting', publicationRetained: true,
-        positiveVotes: 2, negativeVotes: 1 }] } }); }
+        positiveVotes: 2, negativeVotes: 1, ownedByViewer: false }] } }); }
     if (url === '/api/pipeline/library') return Response.json({ program: { ...program, submissions: [] } });
     if (url.startsWith('/api/pipeline/engagement?')) return Response.json({
       submissionId: row.id, lineageId: row.lineageId, name: 'Recoverable shared card back',

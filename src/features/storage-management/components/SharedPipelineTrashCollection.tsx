@@ -13,7 +13,7 @@ type SharedTrashItem = {
   trashedAt: string | null; purgeAfter: string | null;
   trashActorRole: 'owner' | 'contributor' | 'voting' | null;
   trashPreviousStatus: string | null; publicationRetained: boolean;
-  positiveVotes: number; negativeVotes: number;
+  positiveVotes: number; negativeVotes: number; ownedByViewer: boolean;
 };
 type SharedTrashPage = { total: number; page: number; pageSize: number; items: SharedTrashItem[] };
 
@@ -52,7 +52,7 @@ export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision, actorS
     <p role="status" className="text-sm">{loading ? 'Loading shared Trash…' : result ? `${result.total} matching shared revisions · Page ${result.page} of ${Math.max(1, Math.ceil(result.total / result.pageSize))}` : 'Shared Trash unavailable'}</p>
     {result?.items.length === 0 ? <p>No matching shared Trash items.</p> : null}
     <div className="grid gap-2">{result?.items.map(item => <article key={item.id} className="grid gap-1 border border-[var(--cf-border)] p-3">
-      <div className="flex flex-wrap justify-between gap-2"><strong>{item.name}</strong><span className="text-sm">In Trash</span></div>
+      <div className="flex flex-wrap justify-between gap-2"><strong>{item.name}</strong><span className="text-sm">{item.ownedByViewer ? 'Your contribution' : 'Shared contribution'} · In Trash</span></div>
       <p className="text-sm text-[var(--cf-text-muted)]">{item.assetType} · {item.revisionNumber === null ? 'Unnumbered revision' : `Revision ${item.revisionNumber}`} · {item.status}</p>
       {item.description ? <p className="text-sm">{item.description}</p> : null}
       <p className="text-xs text-[var(--cf-text-muted)]">Submission {item.id} · Recovery deadline {item.purgeAfter ? new Date(item.purgeAfter).toLocaleDateString() : 'unavailable'}{item.publicationRetained ? ' · Publication history remains retained' : ''}</p>

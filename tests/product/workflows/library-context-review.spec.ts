@@ -811,6 +811,7 @@ for (const denied of [false, true]) test(`@golden signed-in shared Trash exact C
   const evidence = await mount(page, `?queueActual=1&scope=pipeline&sharedTrashProof=1${denied ? '&sharedDenied=1' : ''}`);
   await page.getByRole('button', { name: 'Browse shared Trash' }).click();
   await expect(page.getByText('Recoverable shared card back')).toBeVisible();
+  await expect(page.getByText('Shared contribution · In Trash')).toBeVisible();
   await expect(page.getByText('Recovery deadline', { exact: false })).toBeVisible();
   await expect(page.getByText('Publication history remains retained', { exact: false })).toBeVisible();
   await expect(page.getByText('private draft secret')).toHaveCount(0);
