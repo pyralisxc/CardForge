@@ -91,12 +91,21 @@ for(const width of [390,1440]) test(`@golden Studio controls preserve selected g
   expect(unexpected).toEqual([]);
 });
 
+const capturedArcaneOverlayUrl = 'https://mpmmhjjhdxjedbmuctiv.supabase.co/storage/v1/object/public/cardforge-contributor-assets/user_3E8tWL7j6mQ7NuBBKrCmcr0DiSg/parts/1779783337564-forge-demo-202605260814-corner-overlay-SN3udQtA.svg';
+const capturedArcaneStarUrl = 'https://mjdugheniazuiqoefnnb.supabase.co/storage/v1/object/public/cardforge-contributor-assets/owner-defaults/icons/arcane-star.svg';
+const capturedArcaneIcons = [
+  {id:'arcane-star',name:'Arcane Star',kind:'icon',url:capturedArcaneStarUrl,librarySource:'contributor',sourceKind:'pipeline-owner-import',publishedSubmissionId:'7154aaaf-2ef5-4cbc-95ce-700f852d20bc',revision:1,tileMode:'contain',seamless:false,allowedTargets:['icon'],studioDestinations:['element.icon']},
+  {id:'developer-parts-2fadc9bf-659a-40fa-a893-be5ba27e43b5',name:'Arcane Corner Overlay',kind:'icon',url:capturedArcaneOverlayUrl,librarySource:'contributor',publishedSubmissionId:'011a7fa4-23d6-4f17-aa06-c886bc40dc47',revision:1,tileMode:'contain',seamless:false,allowedTargets:['icon'],studioDestinations:['element.icon']},
+];
+
 async function mountHistoryProof(page:import('@playwright/test').Page,query='',svgIcon=false,fillTexture=false) {
+ const capturedCatalog = new URLSearchParams(query).has('capturedCatalog');
  await page.route('**/*',route=>{const url=new URL(route.request().url());
   if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0"></body></html>'});
   if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
-  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:fillTexture?[{id:'history-ink',name:'Synthetic history Ink',url:'/history-ink.svg',kind:'texture',tileMode:'repeat',seamless:true,allowedTargets:['shape']}]:[],dividers:svgIcon?[{id:'asymmetric-divider',name:'Synthetic asymmetric divider',url:'/asymmetric.svg',kind:'divider',tileMode:'stretch',seamless:false,allowedTargets:['divider'],defaultWidth:450,defaultHeight:230}]:[],icons:svgIcon?[{id:'asymmetric-icon',name:'Legacy same-ID icon',url:'',kind:'icon',librarySource:'published',studioDestinations:['element.icon'],allowedTargets:['icon']},{id:'asymmetric-icon',name:'Synthetic asymmetric SVG',url:'/asymmetric.svg',kind:'icon',librarySource:'contributor',publishedSubmissionId:'synthetic-published-icon',studioDestinations:['element.icon'],tileMode:'contain',seamless:false,allowedTargets:['icon']}]:[],imageAssets:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:fillTexture?[{id:'history-ink',name:'Synthetic history Ink',url:'/history-ink.svg',kind:'texture',tileMode:'repeat',seamless:true,allowedTargets:['shape']}]:[],dividers:svgIcon?[{id:'asymmetric-divider',name:'Synthetic asymmetric divider',url:'/asymmetric.svg',kind:'divider',tileMode:'stretch',seamless:false,allowedTargets:['divider'],defaultWidth:450,defaultHeight:230}]:[],icons:capturedCatalog?capturedArcaneIcons:svgIcon?[{id:'asymmetric-icon',name:'Legacy same-ID icon',url:'',kind:'icon',librarySource:'published',studioDestinations:['element.icon'],allowedTargets:['icon']},{id:'asymmetric-icon',name:'Synthetic asymmetric SVG',url:'/asymmetric.svg',kind:'icon',librarySource:'contributor',publishedSubmissionId:'synthetic-published-icon',studioDestinations:['element.icon'],tileMode:'contain',seamless:false,allowedTargets:['icon']}]:[],imageAssets:[]}}});
   if(fillTexture&&url.pathname==='/history-ink.svg')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#000"/></svg>'});
+  if(capturedCatalog&&(url.href===capturedArcaneOverlayUrl||url.href===capturedArcaneStarUrl))return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150"><path d="M0 0H150V150H0Z" fill="#f00"/></svg>'});
   if(svgIcon&&url.pathname==='/asymmetric.svg')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><path d="M0 0H50V100H0Z" fill="#ff0000"/><path d="M50 50H100V100H50Z" fill="#0000ff"/></svg>'});
   if(url.pathname==='/api/templates/submissions')return route.fulfill({json:{contributorId:'synthetic-actor'}});
   if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
@@ -369,4 +378,24 @@ test('@golden same-batch SVG source and geometry edits retain both controller up
   expect(icon.iconName).toBeUndefined();
   expect(neighbor).toMatchObject({ id:'neighbor', content:'Keep neighbor' });
   expect(await page.getByTestId('batch-history').textContent()).toBe('2');
+});
+
+
+test('@golden captured unique published Arcane catalog selection from existing Star layer', async ({page}) => {
+ await page.setViewportSize({width:1440,height:960});
+ await mountHistoryProof(page,'?capturedCatalog=1');
+ await page.getByRole('button',{name:'Elements',exact:true}).click();
+ await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
+ const select=async(name:RegExp|string)=>{
+  await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
+  await page.getByRole('option',{name}).click();
+  await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ };
+ await select('Star');
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await select(/Arcane Corner Overlay/);
+ await expect(page.getByText('Current icon: Custom source')).toBeVisible();
+ await expect(page.getByPlaceholder('Uploaded icon URL or {{symbolUrl}}')).toHaveValue(capturedArcaneOverlayUrl);
+ await expect(page.getByLabel('Vector color',{exact:true})).toContainText('Original');
+ await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
 });
