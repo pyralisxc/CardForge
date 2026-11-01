@@ -19,7 +19,7 @@ type SharedTrashItem = {
 };
 type SharedTrashPage = { total: number; page: number; pageSize: number; items: SharedTrashItem[] };
 
-export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision, actorScope }: { onOpenAuthorizedRevision?: (item: SharedTrashItem) => Promise<void>; actorScope: string }) {
+export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision, actorScope, refreshEpoch = 0 }: { refreshEpoch?: number; onOpenAuthorizedRevision?: (item: SharedTrashItem) => Promise<void>; actorScope: string }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState('');
@@ -44,7 +44,7 @@ export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision, actorS
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [query, page, refresh]);
+  }, [query, page, refresh, refreshEpoch]);
   return <section aria-label="Shared Pipeline Trash" className="grid gap-3 px-3 py-4">
     <div><h2 className="font-semibold">Shared Trash</h2><p className="text-sm text-[var(--cf-text-muted)]">Discover retained shared revisions. Browsing does not restore them or make them available for Studio insertion. Your private drafts and connected files are separate.</p></div>
     <label className="grid gap-1 text-sm">Search shared Trash

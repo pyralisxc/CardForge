@@ -856,3 +856,31 @@ test('@golden catalog Trash survives Owner revision filters and exact Manage han
   ]));
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+
+test('@golden Owner catalog Restore refreshes mounted Shared Trash without losing query or page', async ({ page }) => {
+  const evidence = await mount(page, '?queueActual=1&scope=pipeline&sharedTrashOwnerRestore=1');
+  await page.getByRole('button', { name: 'Browse shared Trash' }).click();
+  const collection = page.getByLabel('Shared Pipeline Trash');
+  await collection.getByRole('textbox', { name: 'Search shared Trash' }).fill('icon');
+  await expect(collection.getByRole('status')).toContainText('13 matching shared revisions');
+  await collection.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(collection.getByRole('status')).toContainText('Page 2 of 2');
+  await collection.getByRole('button', { name: 'Manage exact revision' }).click();
+  const panel = page.getByLabel('Exact revision governance');
+  await panel.getByRole('button', { name: 'Manage', exact: true }).click();
+  const recovery = panel.getByLabel('Catalog recovery');
+  await recovery.getByRole('button', { name: 'Refresh recovery state' }).click();
+  await recovery.getByRole('button', { name: 'Restore', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Close Pipeline tool' })).toHaveCount(0);
+  await expect(collection.getByText('Owner recoverable icon', { exact: true })).toHaveCount(0);
+  await expect(collection.getByText('No matching shared Trash items.')).toBeVisible();
+  await expect(collection.getByRole('textbox', { name: 'Search shared Trash' })).toHaveValue('icon');
+  const requests = await page.evaluate(() => (window as unknown as { libraryRequests: { url:string;method:string;body?:string }[] }).libraryRequests);
+  const restore = requests.findIndex(request => request.url.endsWith('/catalog-trash') && request.method === 'POST');
+  expect(restore).toBeGreaterThan(-1);
+  const requery = requests.slice(restore + 1).find(request => request.url.startsWith('/api/pipeline/library?scope=shared&trash=trashed'));
+  expect(requery?.url).toContain('query=icon'); expect(requery?.url).toContain('page=2');
+  expect(requests.filter(request => request.method === 'POST')).toHaveLength(1);
+  expect(evidence.errors).toEqual([]);
+});

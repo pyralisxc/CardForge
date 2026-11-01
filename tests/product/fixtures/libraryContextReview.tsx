@@ -44,6 +44,8 @@ const row = { id: '10000000-0000-4000-8000-000000000001', lineageId: '20000000-0
 } as PipelineSubmission;
 if (params.has('upload')) Object.assign(row, { registryAssetId: null, targetRegistryAssetId: null, revisionNumber: null,
   assetType: 'dividers', status: 'voting', automatedStatus: 'voting', publishedAt: null, editorialReviewStatus: 'pending', name: 'Synthetic fresh SVG upload' });
+if (params.has('sharedTrashOwnerRestore')) Object.assign(row, { assetType: 'icons', requestedStudioDestination: 'element.icon', name: 'Owner recoverable icon',
+ catalogTrashedAt: '2026-11-01T21:00:00Z', catalogPurgeAfter: '2026-12-01T21:00:00Z', catalogRetentionHold: false, catalogSubmissionId: row.id });
 const target = createPipelineReviewTarget(row)!;
 if (params.has('published')) target.catalogPublication = { submissionId: row.id, updatedAt: 'registry-epoch' };
 const newer = { ...row, id: '10000000-0000-4000-8000-000000000002', name: 'Newer revision must not replace selection', revisionNumber: 2 };
@@ -108,6 +110,7 @@ if (params.has('catalogTrashProof')) {
 const marketingStrategy = { ...DEFAULT_MARKETING_STRATEGY, id: 'synthetic-strategy', version: 1, updatedAt: '2026-01-01T00:00:00Z', updatedBy: 'synthetic-owner' };
 const marketingCampaigns = [{ id: 'synthetic-campaign', name: 'Founder Beta Introduction', objective: 'Invite tabletop designers to try their first printable Set.', audienceKey: 'tabletop-designers', offer: 'Create a Set', status: 'active', startsOn: null, endsOn: null, successMetric: 'First completed Set', utmCampaign: 'founder-beta', version: 1, createdBy: 'synthetic-owner', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }];
 const campaignPackage = { id: 'synthetic-package', contributorId: params.has('campaignComposer') ? 'synthetic-owner' : 'synthetic-author', contributorEmail: null, contributorName: 'Synthetic author', title: 'Printable Deck Introduction', objective: 'Explain the printable card workflow', destinationUrl: 'https://cardforges.com', productionNote: '', marketingCampaignId: 'synthetic-campaign', audienceKey: 'tabletop-designers', contentPillar: 'product-proof', funnelStage: 'awareness', contentKind: 'demonstration', callToAction: 'Open Desk', creationSource: 'human', utmContent: '', variants: [{ service: 'facebook', text: 'Synthetic package copy', attachments: [] }], associations: [], status: params.has('campaignComposer') ? 'draft' : 'submitted', requestedPublishAt: null, reviewNote: '', reviewedBy: null, submittedAt: '2026-01-01T00:00:00Z', approvedAt: null, version: 1, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' } satisfies MarketingContentPackage;
+let ownerCatalogRestored = false;
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
   if (params.has('catalogTrashProof') && String(input).endsWith('/catalog-trash')) {
@@ -116,6 +119,30 @@ window.fetch = async (input, init) => {
     return Response.json({ name: queueRows[0].name, retentionDays: 30, entryReasons: [], reasons: [],
       state: { trashedAt: queueRows[0].catalogTrashedAt, purgeAfter: queueRows[0].catalogPurgeAfter, held: false,
         submissionId: queueRows[0].id, impactFingerprint: 'fixture-fresh-impact' } });
+  }
+  if (params.has('sharedTrashOwnerRestore')) {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    const method = init?.method ?? 'GET';
+    proof.libraryRequests.push({ url, method, body: typeof init?.body === 'string' ? init.body : undefined });
+    const selected = { ...row, catalogTrashedAt: ownerCatalogRestored ? null : row.catalogTrashedAt, catalogPurgeAfter: ownerCatalogRestored ? null : row.catalogPurgeAfter };
+    if (url.startsWith('/api/pipeline/library?scope=shared&trash=trashed')) {
+      const page = Number(new URL(url, location.origin).searchParams.get('page') ?? 1);
+      const item = { id: row.id, lineageId: row.lineageId, name: row.name, description: 'Public description', assetType: 'icons', status: 'published', revisionNumber: 1,
+        catalogTrashedAt: row.catalogTrashedAt, catalogPurgeAfter: row.catalogPurgeAfter, catalogRetentionHold: false, catalogSubmissionId: row.id,
+        trashedAt: null, purgeAfter: null, trashActorRole: null, trashPreviousStatus: null, publicationRetained: true, positiveVotes: 0, negativeVotes: 0, ownedByViewer: true };
+      const items = page === 1 ? Array.from({length:12}, (_,index) => ({ ...item, id: `10000000-0000-4000-8000-${String(index+10).padStart(12,'0')}`, name: `Other icon ${index}` })) : ownerCatalogRestored ? [] : [item];
+      return Response.json({ sharedTrash: { items, total: ownerCatalogRestored ? 12 : 13, page, pageSize: 12 } });
+    }
+    if (url.endsWith('/catalog-trash')) {
+      if (method === 'POST') { const command = JSON.parse(String(init?.body)); if (command.action !== 'restore' || command.expected.impactFingerprint !== 'fresh-owner-impact') throw new Error('Unexpected recovery command'); ownerCatalogRestored = true; }
+      return Response.json({ name: row.name, retentionDays:30, reasons:[], entryReasons:[], state: {
+        identity: { submissionId: row.id, lineageId: row.lineageId, registrySubmissionId: row.id, revisionHighWater: 1 }, impactFingerprint:'fresh-owner-impact',
+        trashedAt: ownerCatalogRestored ? null : row.catalogTrashedAt, purgeAfter: ownerCatalogRestored ? null : row.catalogPurgeAfter, held:false } });
+    }
+    if (url.startsWith('/api/pipeline?') || url.startsWith('/api/pipeline/library')) return Response.json({ program: { ...program, submissions:[selected], votingQueue:[] } });
+    if (url.startsWith('/api/pipeline/hearts?')) return Response.json({metrics:[]});
+    if (url === '/api/catalog') return Response.json(queueCatalog);
+    return Response.json({error:{message:'Excluded provider'}},{status:503});
   }
   if (params.has('sharedTrashProof')) {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
