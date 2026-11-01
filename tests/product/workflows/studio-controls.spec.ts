@@ -299,6 +299,30 @@ test('@golden a saved fork adopts its returned identity without overwriting edit
  const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(saved.id).toBe('synthetic-fork');expect(saved.freeformCanvas.elements.find((element:{type:string})=>element.type==='text').content).toBe('Saved fork snapshot');
 });
 
+test('@golden delayed first Save keeps newer edits and permits subsequent Icon selection on saved identity',async({page})=>{
+ await page.setViewportSize({width:1440,height:960});
+ await mountHistoryProof(page,'?forkSave=1&postCommitDelay=1&saveIdentityContinuity=1');
+ const editor=page.locator('.tiptap[contenteditable="true"]');
+ await editor.fill('Saved fork snapshot');
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Finish local Save'})).toBeVisible();
+ await editor.fill('Newer authored draft');
+ await page.getByRole('button',{name:'Finish local Save'}).click();
+ await expect(editor).toHaveText('Newer authored draft');
+ await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+ await page.getByRole('button',{name:'Elements',exact:true}).click();
+ await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
+ await expect(page.getByText('Current icon: Sparkles')).toBeVisible();
+ await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
+ await page.getByRole('option',{name:/^Star\b/}).click();
+ await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await expect(editor).toHaveText('Newer authored draft');
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');
+ expect(saved.id).toBe('synthetic-fork');
+ expect(saved.freeformCanvas.elements.find((e:{type:string})=>e.type==='text').content).toBe('Saved fork snapshot');
+});
+
 test('@golden structured-row creation and multi-field mode changes are atomic Template history operations',async({page})=>{
  await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page);const editor=page.locator('.tiptap[contenteditable="true"]');
  await editor.fill('Rule');await editor.press('ControlOrMeta+A');await page.getByRole('button',{name:'Make variable',exact:true}).click();
