@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getCurrentCardforgeUserAccess } from '@/features/account/server';
+import { mayShowOwnerDownloads } from '@/features/plugin-distribution/lib/ownerDownloadVisibility';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { ContributorPublicAuthSlot } from '@/features/contributor-access/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
@@ -19,7 +20,7 @@ export const metadata = createPageMetadata({
 export default async function DownloadsPage() {
   const identity = await getCachedBusinessIdentity();
   // Owner markup must fail closed on identity failure while public Studio stays usable.
-  const owner = await getCurrentCardforgeUserAccess().then(access => Boolean(access.user && access.ownerAccess.isOwner)).catch(() => false);
+  const owner = await mayShowOwnerDownloads(getCurrentCardforgeUserAccess);
   return <CardForgeAppProviders>
     <ConfiguredPublicSiteShell businessIdentity={identity} currentPath="/downloads"
       accountSlot={isClerkServerConfigPresent() ? <ContributorPublicAuthSlot /> : undefined}>

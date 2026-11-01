@@ -13,8 +13,8 @@ describe('download page public shell and access presentation', () => {
     expect(source).toContain('PluginDownloadLinks scope="studio"');
     expect(source).toContain('scope="owner"');
     expect(source).toContain('getCurrentCardforgeUserAccess');
-    expect(source).toContain('access.user && access.ownerAccess.isOwner');
-    expect(source).toContain('.catch(() => false)');
+    expect(source).toContain('mayShowOwnerDownloads(getCurrentCardforgeUserAccess)');
+    expect(source).toContain("dynamic = 'force-dynamic'");
     expect(source).toContain("dynamic = 'force-dynamic'");
     expect(source).toContain('{owner ?');
     expect(source).not.toContain('allowOwnerAdmission');
