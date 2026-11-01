@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import JSZip from 'jszip';
+import sharp from 'sharp';
 
 import { describe, expect, it } from 'vitest';
 
@@ -40,6 +41,8 @@ describe('CardForge Studio plugin', () => {
       expect(files).toEqual([
         '.codex-plugin/plugin.json',
         '.mcp.json',
+        'assets/icon.png',
+        'assets/logo.png',
         'icon.svg',
         'mcp.json',
         'plugin.json',
@@ -47,6 +50,7 @@ describe('CardForge Studio plugin', () => {
         'skills/create-editable-template/SKILL.md',
       ]);
       expect(files).not.toContain('SUBMISSION.md');
+      expect(files).not.toContain('REVIEW_CASES.json');
       expect(files.some((file) => file.includes('.env') || file.startsWith('src/') || file.startsWith('tests/'))).toBe(false);
 
       const packagedManifest = JSON.parse(await zip.file('.codex-plugin/plugin.json')!.async('string')) as {
@@ -84,7 +88,7 @@ describe('CardForge Studio plugin', () => {
 
     expect(manifest).toMatchObject({
       name: 'cardforge-studio',
-      version: '1.0.3',
+      version: '1.0.4',
       author: { name: 'Cameron Locke' },
       mcpServers: './.mcp.json',
       skills: './skills/',
@@ -124,7 +128,7 @@ describe('CardForge Studio plugin', () => {
     expect(privacy?.body).toContain('aggregate MCP usage');
   });
 
-  it('keeps a reviewer-ready submission source without committing credentials', () => {
+  it('keeps a reviewer-ready submission source without committing credentials', async () => {
     const submission = readFileSync(
       resolve(process.cwd(), 'plugins/cardforge-studio/SUBMISSION.md'),
       'utf8',
@@ -132,25 +136,69 @@ describe('CardForge Studio plugin', () => {
     const envExample = readFileSync(resolve(process.cwd(), '.env.example'), 'utf8');
     const operations = readFileSync(resolve(process.cwd(), 'docs/operations.md'), 'utf8');
 
-    const positiveCases = submission.match(/^### Positive \d+[\s\S]*?(?=^### Positive \d+|^## Negative)/gm) ?? [];
-    const negativeCases = submission.match(/^### Negative \d+[\s\S]*?(?=^### Negative \d+|^## Domain)/gm) ?? [];
-    expect(positiveCases).toHaveLength(5);
-    expect(negativeCases).toHaveLength(3);
-    for (const reviewCase of positiveCases) expect(reviewCase).toContain('- Fixture:');
-    for (const reviewCase of negativeCases) expect(reviewCase).toContain('- Why it should not complete:');
+    const cases = JSON.parse(readFileSync(resolve(process.cwd(), 'plugins/cardforge-studio/REVIEW_CASES.json'), 'utf8')) as {
+      version: string;
+      positive: Array<{ description: string; prompt: string; tools_triggered: string; expected_behavior: string; setup: string; status: string }>;
+      negative: Array<{ description: string; prompt: string; expected_behavior: string; setup: string; status: string }>;
+    };
+    expect(cases.version).toBe('1.0.4');
+    expect(cases.positive).toHaveLength(5);
+    expect(cases.negative).toHaveLength(5);
+    for (const item of [...cases.positive, ...cases.negative]) {
+      expect(item.prompt.trim().length).toBeGreaterThan(0);
+      expect(item.description.trim().length).toBeGreaterThan(0);
+      expect(item.setup).toBeTruthy();
+      expect(item.status).toBe('Not run');
+    }
+    const packaged = await (await import('../../../scripts/plugin-package-core.mjs')).buildPluginArchive('studio', 'production');
+    const zip = await JSZip.loadAsync(packaged.bytes);
+    const portable = JSON.parse(await zip.file('plugin.json')!.async('string'));
+    const codex = JSON.parse(await zip.file('.codex-plugin/plugin.json')!.async('string'));
+    const listing = portable.extensions['com.openai'].interface;
+    expect(listing.shortDescription.length).toBeLessThanOrEqual(30);
+    expect(listing.displayName.length).toBeLessThanOrEqual(30);
+    expect(listing.developerName.length).toBeLessThanOrEqual(80);
+    expect(listing.longDescription.length).toBeLessThanOrEqual(4000);
+    for (const name of ['websiteURL','supportURL','privacyPolicyURL','termsOfServiceURL']) expect(String(listing[name]).startsWith('https://')).toBe(true);
+    expect(listing.defaultPrompt).toHaveLength(3);
+    for (const prompt of listing.defaultPrompt) expect(prompt.length).toBeLessThanOrEqual(128);
+    expect(portable.extensions['com.openai'].review.test_cases.positive).toHaveLength(5);
+    expect(portable.extensions['com.openai'].review.test_cases.negative).toHaveLength(3);
+    expect(listing.category).toBe('Creativity');
+    for (const [index, negative] of portable.extensions['com.openai'].review.test_cases.negative.entries()) {
+      expect(negative.description).toContain(cases.negative[index].setup);
+      expect(negative.description).toContain(cases.negative[index].expected_behavior);
+      expect(negative).not.toHaveProperty('setup');
+      expect(negative).not.toHaveProperty('expected_behavior');
+    }
+    expect(cases.positive[1].setup).toContain('creates the first private fixture');
+    const embeddedPng = cases.positive[1].setup.match(/raw base64 ([A-Za-z0-9+/=]+)/)?.[1];
+    expect(embeddedPng).toBeTruthy();
+    const decoded = await sharp(Buffer.from(embeddedPng!, 'base64')).raw().toBuffer({ resolveWithObject: true });
+    expect(decoded.info.width).toBe(2);
+    expect(decoded.info.height).toBe(2);
+    expect(decoded.data.length).toBeGreaterThan(0);
+    expect(codex.extensions['com.openai'].review.test_cases).toEqual(portable.extensions['com.openai'].review.test_cases);
+    expect(listing.logo).toBe('./assets/logo.png');
+    expect(listing.composerIcon).toBe('./assets/icon.png');
+    const packet = await (await import('../../../scripts/plugin-review-packet-core.mjs')).buildStudioReviewerPacket('production','1.0.4');
+    expect(packet).toContain('P5');
+    expect(packet).toContain('N5');
+    expect(packet).toContain('Not run');
+    expect(packet).not.toContain('password:');
     expect(submission).toContain('https://cardforges.com/mcp');
     expect(submission).toContain('https://cardforges.com/contact?kind=support');
     expect(submission).toContain('https://cardforges.com/privacy');
     expect(submission).toContain('https://cardforges.com/terms');
     expect(submission).toContain('There is no review-only authentication bypass.');
     expect(submission).toContain('Requested availability: public, wherever ChatGPT plugins');
-    expect(submission).toContain('Hardening release notes for 1.0.2');
+    expect(submission).toContain('Historical hardening release notes for 1.0.2');
     expect(submission).toContain('Requested availability: public,');
     expect(submission).not.toContain('Requested availability: public beta');
     expect(submission).not.toContain('authenticated beta');
     expect(submission).toContain('ordinary Free account scope with no contributor, owner, billing, or provider-console privileges');
-    expect(submission).toContain('**Temporary Set resume:**');
-    expect(submission).toContain('temporary assistant drafts are created by the review cases');
+    expect(submission).toContain('REVIEW_CASES.json');
+    expect(submission).toContain('Not run');
     expect(submission).not.toMatch(/password\s*[:=]\s*\S+/i);
     expect(envExample).toContain('OPENAI_APPS_CHALLENGE_TOKEN=');
     expect(operations).toContain('plugins/cardforge-studio/SUBMISSION.md');

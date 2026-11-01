@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
   arrangeCanvasSelection,
@@ -35,6 +35,28 @@ import {
   reconstructMinimalTemplate,
 } from '@/domain/templates';
 
+type IconApplication = {
+  phase: 'pending' | 'acknowledged' | 'cancelled';
+  attempt: number;
+  templateId: string;
+  elementId: string;
+  changes: Pick<FreeformCardElement, 'iconName' | 'iconImageSource' | 'iconRenderMode'>;
+  resolve: () => void;
+  reject: (reason: Error) => void;
+  signal?: AbortSignal;
+  abort: () => void;
+};
+
+const iconApplyCancellation = () => new DOMException('Icon selection was cancelled.', 'AbortError');
+const iconApplyFailure = () => new Error('The selected Icon was not applied. Keep this Template open, select its layer, and try again.');
+
+const matchesIconApplication = (
+  element: FreeformCardElement,
+  changes: IconApplication['changes'],
+) => element.iconName === changes.iconName
+  && element.iconImageSource === changes.iconImageSource
+  && element.iconRenderMode === changes.iconRenderMode;
+
 type TemplateUpdater = (template: TCGCardTemplate) => TCGCardTemplate;
 
 export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
@@ -42,8 +64,82 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   const [checkedLayerIds, setCheckedLayerIds] = useState<string[]>([]);
   const initialTemplateRef = useRef(initialTemplate);
   initialTemplateRef.current = initialTemplate;
+  // Parent selection and a deliberately begun unsaved draft are distinct.
+  // The controller owns the active working document; parent ID changes still
+  // invalidate it and reset from the incoming Template.
+  const activeDocumentIdRef = useRef(initialTemplate.id);
+  const syncedInitialIdRef = useRef(initialTemplate.id);
+  const acknowledgedSaveIdentityRef = useRef<{ fromId: string; toId: string } | null>(null);
+  // One in-flight Icon confirmation owned by this controller, not a second editor store.
+  const committedRef = useRef(editorState);
+  const controllerAliveRef = useRef(true);
+  const pendingIconRef = useRef<IconApplication | null>(null);
+  const nextIconAttemptRef = useRef(0);
+  const finishIcon = useCallback((request: IconApplication, error?: Error) => {
+    if (pendingIconRef.current !== request) return;
+    pendingIconRef.current = null;
+    request.phase = error ? 'cancelled' : 'acknowledged';
+    request.signal?.removeEventListener('abort', request.abort);
+    if (error) request.reject(error);
+    else request.resolve();
+  }, []);
+
+  useLayoutEffect(() => {
+    committedRef.current = editorState;
+    // A Save can acknowledge a draft→persisted identity while newer edits keep
+    // the parent selected Template unchanged. Reconcile the active document
+    // only after the saved ID actually commits in canonical editor state.
+    const savedIdentity = acknowledgedSaveIdentityRef.current;
+    if (savedIdentity
+      && activeDocumentIdRef.current === savedIdentity.fromId
+      && editorState.currentTemplate.id === savedIdentity.toId) {
+      activeDocumentIdRef.current = savedIdentity.toId;
+    }
+    const request = pendingIconRef.current;
+    if (!request) return;
+    const element = getTemplateEditorCanvas(editorState.currentTemplate)?.elements.find(
+      candidate => candidate.id === request.elementId,
+    );
+    if (request.signal?.aborted) return finishIcon(request, iconApplyCancellation());
+    if (initialTemplate.id !== syncedInitialIdRef.current
+      || activeDocumentIdRef.current !== request.templateId
+      || editorState.currentTemplate.id !== request.templateId
+      || editorState.selectedElementId !== request.elementId
+      || !element || element.type !== 'icon' || element.locked) {
+      return finishIcon(request, iconApplyFailure());
+    }
+    // A different concurrent editor commit is not evidence that this Icon
+    // updater ran. Only its marker in the *committed state* can settle it.
+    if (editorState.iconApplicationAttempt !== request.attempt) return;
+    finishIcon(request, matchesIconApplication(element, request.changes) ? undefined : iconApplyFailure());
+  }, [editorState, finishIcon, initialTemplate.id]);
+
+  useLayoutEffect(() => {
+    // Strict Mode replays setup after cleanup; a retained callback must reject
+    // only while this controller is actually unmounted.
+    controllerAliveRef.current = true;
+    return () => {
+      controllerAliveRef.current = false;
+      const request = pendingIconRef.current;
+      if (request) finishIcon(request, iconApplyCancellation());
+    };
+  }, [finishIcon]);
+
 
   useEffect(() => {
+    const nextId = initialTemplateRef.current.id;
+    const savedIdentity = acknowledgedSaveIdentityRef.current;
+    acknowledgedSaveIdentityRef.current = null;
+    // Persisting the *same* working draft under its new library ID is not
+    // switching to another Template. acceptSavedTemplate already reconciled
+    // every authored history snapshot and the selected layer.
+    const isAcknowledgedPersistence = Boolean(savedIdentity
+      && savedIdentity.toId === activeDocumentIdRef.current
+      && savedIdentity.toId === nextId
+      && committedRef.current.currentTemplate.id === nextId);
+    syncedInitialIdRef.current = nextId;
+    activeDocumentIdRef.current = nextId;
+    if (isAcknowledgedPersistence) return;
     setEditorState(resetTemplateEditorState(initialTemplateRef.current));
     setCheckedLayerIds([]);
   }, [initialTemplate.id]);
@@ -90,9 +186,14 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   }, []);
 
   const resetTemplate = useCallback((template: TCGCardTemplate) => {
+    const pending = pendingIconRef.current;
+    if (pending) finishIcon(pending, iconApplyCancellation());
+    // Deliberate new-document navigation invalidates any unconsumed Save handoff.
+    acknowledgedSaveIdentityRef.current = null;
+    activeDocumentIdRef.current = template.id;
     setEditorState(resetTemplateEditorState(template));
     setCheckedLayerIds([]);
-  }, []);
+  }, [finishIcon]);
 
   const updateTemplate = useCallback((updates: Partial<TCGCardTemplate>, trackHistory = true) => {
     commitTemplate((template) => ({ ...template, ...updates }), trackHistory);
@@ -128,30 +229,114 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     trackHistory = true,
     historyGroup?: string,
   ) => {
-    updateCanvas({
-      elements: canvas.elements.map((element) => (
-        element.id === elementId ? { ...element, ...updates } : element
-      )),
+    // Apply against the latest queued Template state, not the render-time canvas
+    // snapshot. Library selection and inspector edits can complete in the same
+    // React batch; neither may overwrite the other's already-queued element edits.
+    commitTemplate((template) => {
+      const activeCanvas = getTemplateEditorCanvas(template) || createDefaultFreeformCanvas();
+      if (!activeCanvas.elements.some((element) => element.id === elementId)) return template;
+      return {
+        ...template,
+        freeformCanvas: reconstructFreeformCanvas({
+          ...activeCanvas,
+          elements: activeCanvas.elements.map((element) => (
+            element.id === elementId ? { ...element, ...updates } : element
+          )),
+        }),
+      };
     }, trackHistory, undefined, historyGroup);
-  }, [canvas.elements, updateCanvas]);
+  }, [commitTemplate]);
+
+  const applyIconSelection = useCallback((
+    elementId: string,
+    changes: IconApplication['changes'],
+    signal?: AbortSignal,
+    expectedTemplateId: string | null = initialTemplateRef.current.id,
+  ): Promise<void> => {
+    if (!controllerAliveRef.current) return Promise.reject(iconApplyCancellation());
+    const state = committedRef.current;
+    const current = getTemplateEditorCanvas(state.currentTemplate)?.elements.find(candidate => candidate.id === elementId);
+    if (signal?.aborted) return Promise.reject(iconApplyCancellation());
+    if (!expectedTemplateId || expectedTemplateId !== state.currentTemplate.id
+      || initialTemplateRef.current.id !== syncedInitialIdRef.current
+      || state.currentTemplate.id !== activeDocumentIdRef.current || state.selectedElementId !== elementId
+      || !current || current.type !== 'icon' || current.locked) return Promise.reject(iconApplyFailure());
+    // A second confirmation cannot overtake an uncommitted Icon selection.
+    // Even an already-current value must not acknowledge ahead of that write.
+    if (pendingIconRef.current) return Promise.reject(new Error('An Icon selection is still being applied. Try again after it finishes.'));
+    if (matchesIconApplication(current, changes)) return Promise.resolve();
+    return new Promise<void>((resolve, reject) => {
+      const request: IconApplication = {
+        phase: 'pending', attempt: ++nextIconAttemptRef.current,
+        templateId: state.currentTemplate.id!, elementId, changes, resolve, reject, signal,
+        abort: () => finishIcon(request, iconApplyCancellation()),
+      };
+      pendingIconRef.current = request;
+      signal?.addEventListener('abort', request.abort, { once: true });
+      // A React updater is not confirmation. The layout effect reads the *committed*
+      // controller state. Return a new envelope for rejected/no-op updates so
+      // missing/locked targets are also checked without adding history or dirt.
+      setEditorState(previous => {
+        // React can replay this updater when a lower-priority change rebases.
+        // An acknowledged commit must remain replayable even after picker close
+        // aborts its signal or clears the pending pointer. Only an uncommitted
+        // cancellation may suppress the write.
+        const active = request.phase === 'acknowledged'
+          || (request.phase === 'pending' && controllerAliveRef.current
+            && pendingIconRef.current === request && !signal?.aborted);
+        if (!active) return { ...previous };
+        const marked = (next: typeof previous) => ({
+          ...next, iconApplicationAttempt: request.attempt,
+        });
+        if (previous.currentTemplate.id !== request.templateId
+          || previous.selectedElementId !== elementId) return marked(previous);
+        const canvas = getTemplateEditorCanvas(previous.currentTemplate);
+        const element = canvas?.elements.find(candidate => candidate.id === elementId);
+        if (!canvas || !element || element.type !== 'icon' || element.locked) return marked(previous);
+        const next = commitTemplateEditorState(previous, template => ({
+          ...template,
+          freeformCanvas: reconstructFreeformCanvas({
+            ...canvas,
+            elements: canvas.elements.map(candidate => candidate.id === elementId
+              ? { ...candidate, ...changes } : candidate),
+          }),
+        }), true);
+        return marked(next);
+      });
+    });
+  }, [finishIcon]);
 
   const recordTemplateHistory = useCallback((template?: TCGCardTemplate) => {
     setEditorState((previous) => recordTemplateEditorHistory(previous, template ?? previous.currentTemplate));
   }, []);
 
   const acceptSavedTemplate = useCallback((submitted: TCGCardTemplate, saved: TCGCardTemplate) => {
+    // The only authorized identity handoff is an acknowledged Save for this
+    // same working document. Unrelated navigation retains reset semantics.
+    const workingId = committedRef.current.currentTemplate.id;
+    // A same-ID Save may happen while the first draft→persisted handoff still
+    // waits for the parent selection to catch up (newer edits kept it on draft).
+    // Do not erase that acknowledged handoff until the parent effect consumes it.
+    if (submitted.id && saved.id && submitted.id !== saved.id
+      && workingId === submitted.id) {
+      acknowledgedSaveIdentityRef.current = { fromId: submitted.id, toId: saved.id };
+    }
     setEditorState(previous => acceptSavedTemplateEditorState(previous, submitted, saved));
   }, []);
 
   const finishHistoryGroup = useCallback(() => setEditorState(previous => previous.historyGroup ? { ...previous, historyGroup: undefined } : previous), []);
 
   const undo = useCallback(() => {
+    const pending = pendingIconRef.current;
+    if (pending) finishIcon(pending, iconApplyCancellation());
     setEditorState(undoTemplateEditorState);
-  }, []);
+  }, [finishIcon]);
 
   const redo = useCallback(() => {
+    const pending = pendingIconRef.current;
+    if (pending) finishIcon(pending, iconApplyCancellation());
     setEditorState(redoTemplateEditorState);
-  }, []);
+  }, [finishIcon]);
 
   const setSelectedElementId: Dispatch<SetStateAction<string | null>> = useCallback((nextValue) => {
     setEditorState((previous) => selectTemplateEditorElement(
@@ -287,6 +472,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     ungroupSelected,
     updateCanvas,
     updateElement,
+    applyIconSelection,
     updateTemplate,
     arrangeSelected,
   };

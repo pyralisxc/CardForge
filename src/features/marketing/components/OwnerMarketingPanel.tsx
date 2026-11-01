@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   CalendarClock,
   Megaphone,
-  RefreshCw,
   Send,
   Target,
 } from "lucide-react";
@@ -33,20 +32,26 @@ const subtabClassName =
 
 export function OwnerMarketingPanel({
   initialNotice,
+  onDirtyChange,
+  onCloseBlockedChange,
+  searchQuery,
+  onSearchQueryChange,
 }: {
   initialNotice?: { kind: "success" | "error"; message: string };
+  onDirtyChange?: (dirty: boolean) => void;
+  onCloseBlockedChange?: (reason: string | null) => void;
+  searchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
 }) {
   const [marketing, setMarketing] = useState<MarketingCommandCenterView | null>(
     null,
   );
   const [workspace, setWorkspace] = useState<MarketingContentWorkspaceView | null>(null);
-  const [loading, setLoading] = useState(true);
   const [notice] = useState(initialNotice);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
-    setLoading(true);
     setError("");
     try {
       const [nextMarketing, nextWorkspace] = await Promise.all([
@@ -61,8 +66,6 @@ export function OwnerMarketingPanel({
           ? nextError.message
           : "Unable to load marketing.",
       );
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -126,19 +129,8 @@ export function OwnerMarketingPanel({
               outreach.
             </p>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={loading}
-            onClick={() => void load()}
-          >
-            <RefreshCw
-              className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
           <OwnerMarketingMetric
             icon={Target}
             label="Active campaigns"
@@ -181,6 +173,7 @@ export function OwnerMarketingPanel({
             className="mt-4 border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-3 text-sm text-[var(--cf-danger)]"
           >
             {error}
+            <Button type="button" className="ml-3" variant="outline" onClick={() => void load()}>Read latest campaign data</Button>
           </p>
         ) : null}
       </header>
@@ -208,7 +201,7 @@ export function OwnerMarketingPanel({
         </TabsList>
 
         <TabsContent value="strategy" className="mt-0">
-          <OwnerMarketingStrategyWorkspace
+          <OwnerMarketingStrategyWorkspace onDirtyChange={onDirtyChange} onCloseBlockedChange={onCloseBlockedChange}
             strategy={marketing.strategy}
             onSaved={(strategy) => {
               setMarketing({ ...marketing, strategy });
@@ -218,7 +211,8 @@ export function OwnerMarketingPanel({
           />
         </TabsContent>
         <TabsContent value="campaigns" className="mt-0">
-          <OwnerMarketingCampaignsWorkspace
+          <OwnerMarketingCampaignsWorkspace onDirtyChange={onDirtyChange} onCloseBlockedChange={onCloseBlockedChange}
+            searchQuery={searchQuery}
             campaigns={marketing.campaigns}
             strategy={marketing.strategy}
             onSaved={() => {
@@ -229,10 +223,10 @@ export function OwnerMarketingPanel({
           />
         </TabsContent>
         <TabsContent value="content" className="mt-0">
-          <CampaignWorkspace workspace={workspace} onRefresh={load} />
+          <CampaignWorkspace onDirtyChange={onDirtyChange} onCloseBlockedChange={onCloseBlockedChange} workspace={workspace} onRefresh={load} searchQuery={searchQuery} onSearchQueryChange={onSearchQueryChange} />
         </TabsContent>
         <TabsContent value="distribution" className="mt-0">
-          <OwnerMarketingDistributionWorkspace
+          <OwnerMarketingDistributionWorkspace onDirtyChange={onDirtyChange} onCloseBlockedChange={onCloseBlockedChange}
             marketing={marketing}
             workspace={workspace}
             onSaved={() => {

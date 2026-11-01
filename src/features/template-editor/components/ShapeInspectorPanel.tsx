@@ -1,4 +1,5 @@
 "use client";
+import { PipelineSourceDisclosure } from '@/features/pipeline/client/engagement';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -55,8 +56,8 @@ export function ShapeInspectorPanel({
         <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Shape Recipes</Label>
         <div className="grid grid-cols-2 gap-1.5">
           {compatibleRolePresets.map((preset) => (
+            <div key={preset.id} className="min-w-0">
             <Button
-              key={preset.id}
               type="button"
               variant="outline"
               size="sm"
@@ -68,6 +69,8 @@ export function ShapeInspectorPanel({
               <span className="w-full truncate text-[#f1dfb4]">{preset.label}</span>
               <PipelineRecipeMeta recipe={preset} />
             </Button>
+            <PipelineSourceDisclosure {...preset.pipelineSource} />
+          </div>
           ))}
         </div>
       </div>

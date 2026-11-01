@@ -86,7 +86,7 @@ export function useDeskActionRuntime({ experience, focusedItem, inspectorItem, c
   return {
     actions: definitions.map((definition) => definition.descriptor),
     detail: inspectorItem ? workDetailRecord(inspectorItem) : null,
-    runAction: (action: ActionDescriptor) => runForItem(actionItem, action),
+    runAction: (action: ActionDescriptor) => runForItem(action.id === 'desk.create-set' ? null : actionItem, action),
     runWorkAction: (item: AccountLibraryItem, action: ActionDescriptor) => runForItem(item, action),
   };
 }

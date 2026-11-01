@@ -3,9 +3,11 @@ import { createHash } from 'node:crypto';
 
 const access = vi.hoisted(() => vi.fn());
 const build = vi.hoisted(() => vi.fn());
+const packet = vi.hoisted(() => vi.fn());
 vi.mock('@/features/plugin-distribution/server', () => ({
   pluginDownloadAccess: access,
   buildCurrentPlugin: build,
+  buildStudioReviewerPacket: packet,
 }));
 import { GET } from '@/app/api/plugin-downloads/route';
 
@@ -18,6 +20,7 @@ describe('plugin release route: real HTTP response boundaries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     access.mockResolvedValue(200);
+    packet.mockResolvedValue('# Studio review packet\\nP1 to P5 and N1 to N5');
     build.mockResolvedValue({
       bytes: Buffer.from(zip), checksum, version: '1.0.3',
       filename: 'cardforge-studio-preview-1.0.3.zip',
@@ -40,6 +43,20 @@ describe('plugin release route: real HTTP response boundaries', () => {
       expect(response.headers.get('content-type')).not.toContain('application/zip');
     }
     expect(build).not.toHaveBeenCalled();
+  });
+  it('authorizes reviewer packet before generating bytes and rejects stale versions or Owner packet', async () => {
+    access.mockResolvedValue(403);
+    expect((await GET(request('studio','production','&packet=1&version=1.0.3'))).status).toBe(403);
+    expect(packet).not.toHaveBeenCalled();
+    access.mockResolvedValue(200);
+    expect((await GET(request('studio','production','&packet=1&version=old'))).status).toBe(409);
+    expect((await GET(request('owner','production','&packet=1&version=1.0.3'))).status).toBe(400);
+    expect(packet).not.toHaveBeenCalled();
+    const response = await GET(request('studio','production','&packet=1&version=1.0.3'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toContain('text/markdown');
+    expect(response.headers.get('Cache-Control')).toContain('no-store');
+    expect(packet).toHaveBeenCalledWith('production','1.0.3');
   });
   it('lists only verified latest metadata without bytes or invented history', async () => {
     const response = await GET(request());

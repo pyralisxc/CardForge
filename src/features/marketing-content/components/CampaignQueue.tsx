@@ -26,12 +26,16 @@ const fieldClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var
 
 export function CampaignQueue({
   workspace,
+  searchQuery,
+  onSearchQueryChange,
   onRefresh,
   onEdit,
   onMessage,
   onError,
 }: {
   workspace: MarketingContentWorkspaceView;
+  searchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
   onRefresh: () => Promise<void> | void;
   onEdit: (campaign: SocialCampaign) => void;
   onMessage: (message: string) => void;
@@ -40,7 +44,9 @@ export function CampaignQueue({
   const canApprove = workspace.scopes.includes('campaigns.approve');
   const canPublish = workspace.scopes.includes('campaigns.publish');
   const [filter, setFilter] = useState<CampaignQueueFilter>('active');
-  const [query, setQuery] = useState('');
+  const [localQuery, setLocalQuery] = useState('');
+  const query = searchQuery ?? localQuery;
+  const setQuery = onSearchQueryChange ?? setLocalQuery;
   const [busy, setBusy] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
 
@@ -111,11 +117,11 @@ export function CampaignQueue({
           <p className="text-sm text-[var(--cf-text-muted)]">{campaigns.length} shown / {workspace.campaigns.length} total</p>
         </div>
         <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem]">
-          <label className="relative">
+          {searchQuery === undefined ? <label className="relative">
             <span className="sr-only">Search campaign packages</span>
             <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-[var(--cf-text-subtle)]" />
             <input type="search" className={`${fieldClassName} pl-10`} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, objective, or contributor" />
-          </label>
+          </label> : null}
           <label>
             <span className="sr-only">Filter campaign packages</span>
             <select
@@ -136,7 +142,7 @@ export function CampaignQueue({
       </div>
 
       {campaigns.length === 0 ? (
-        <article className="border border-dashed border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-6 text-center"><p className="text-sm text-[var(--cf-text-muted)]">{workspace.campaigns.length ? 'No packages match this queue view.' : 'No campaign packages yet.'}</p></article>
+        <article role="status" className="border border-dashed border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-6 text-center"><p className="text-sm text-[var(--cf-text-muted)]">{workspace.campaigns.length ? 'No packages match this queue view.' : 'No campaign packages yet.'}</p></article>
       ) : campaigns.map((campaign) => {
         const reviewNote = reviewNotes[campaign.id] ?? '';
         const ownCampaign = campaign.contributorId === workspace.currentUserId;

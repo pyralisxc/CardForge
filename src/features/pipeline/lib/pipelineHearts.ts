@@ -84,20 +84,21 @@ export const getViewerVisiblePipelineLineageIds = async ({
           .eq('status', 'published').in('access_tier', getVisibleRegistryAccessTiers(viewerAccess))
       : Promise.resolve({ data: [], error: null }),
     contributor
-      ? database.from('cardforge_contributor_asset_submissions').select('lineage_id,contributor_id,status,purge_state')
+      ? database.from('cardforge_contributor_asset_submissions').select('lineage_id,contributor_id,status,purge_state,trashed_at,revision_publication_retained,published_at,revision_trash_actor_role,revision_trash_previous_status')
           .in('lineage_id', lineageIds).is('purge_state', null)
       : Promise.resolve({ data: [], error: null }),
   ]);
   if (registryResult.error || submissionResult.error) throw new Error('Pipeline reactions are unavailable.');
   const visibleRegistryAssets = new Set((registryResult.data ?? []).map((entry) => String((entry as { asset_id: string }).asset_id)));
   const visibleLineages = new Set((submissionResult.data ?? []).flatMap((entry) => {
-    const row = entry as { lineage_id?: unknown; contributor_id?: unknown; status?: unknown; purge_state?: unknown };
+    const row = entry as { lineage_id?: unknown; contributor_id?: unknown; status?: unknown; purge_state?: unknown; revision_trash_previous_status?: unknown; trashed_at?: string | null; revision_publication_retained?: boolean; published_at?: string | null; revision_trash_actor_role?: string | null };
     return typeof row.lineage_id === 'string'
       && typeof row.contributor_id === 'string'
       && typeof row.status === 'string'
       && isPipelineRevisionVisibleToContributor({
         contributorId: row.contributor_id,
         status: row.status as Parameters<typeof isPipelineRevisionVisibleToContributor>[0]['status'],
+        trashPreviousStatus: typeof row.revision_trash_previous_status === 'string' ? row.revision_trash_previous_status as Parameters<typeof isPipelineRevisionVisibleToContributor>[0]['trashPreviousStatus'] : null, trashedAt: row.trashed_at, publicationRetained: row.revision_publication_retained, publishedAt: row.published_at, trashActorRole: row.revision_trash_actor_role,
         purgeState: row.purge_state === 'pending' ? 'pending' : null,
         viewerId,
         contributor,

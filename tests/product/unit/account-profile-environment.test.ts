@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildAccountProfileSnapshot, buildAccountProfileUtilityGroups } from '@/features/account/lib/accountProfileEnvironment';
+import { buildAccountProfileSnapshot, buildAccountProfileUtilityGroups, filterAccountProfileUtilityGroups } from '@/features/account/lib/accountProfileEnvironment';
 
 const guest = {
   accountEmail: 'No signed-in account', authConfigured: true,
@@ -117,4 +117,15 @@ describe('account profile environment', () => {
     expect(loading.find((item) => item.target === 'billing')?.value).toBe('Checking access');
     expect(unconfigured.find((item) => item.target === 'billing')?.value).toBe('Setup required');
   });
+});
+
+it('searches native Profile utilities without changing their identity, access, or source groups', () => {
+  const groups = buildAccountProfileUtilityGroups({ ...guest, isSignedIn: true, isOwner: true });
+  const before = structuredClone(groups);
+  const filtered = filterAccountProfileUtilityGroups(groups, '  BILLING  ');
+  expect(filtered.flatMap(group => group.items).map(item => item.target)).toEqual(['billing']);
+  expect(filterAccountProfileUtilityGroups(groups, 'zz-no-match')).toEqual([]);
+  expect(filterAccountProfileUtilityGroups(groups, '')).toBe(groups);
+  expect(groups).toEqual(before);
+  expect(filtered[0].items[0]).toBe(groups.flatMap(group => group.items).find(item => item.target === 'billing'));
 });

@@ -97,12 +97,13 @@ test.describe('mobile Library location tools', () => {
     await page.setViewportSize({ width: 320, height: 844 });
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
 
-    const command = page.getByRole('button', { name: 'Open commands', exact: true });
-    await expectTouchTarget(command);
+    const search = page.getByRole('searchbox', { name: 'Search Desk work', exact: true });
+    await expectTouchTarget(search);
+    await expect(page.getByRole('button', { name: 'Open commands', exact: true })).toHaveCount(0);
     const appHeader = page.locator('header[data-context="false"]');
     await expect(appHeader).toBeVisible();
     await expect(appHeader.getByRole('link', { name: 'Open the CardForge public site', exact: true })).toBeVisible();
-    await expect(appHeader.getByPlaceholder('Search Desk work')).toHaveCount(0);
+    await expect(appHeader.getByPlaceholder('Search Desk work')).toBeVisible();
 
     const deskViewport = page.locator('[data-desk-viewport]');
     await expect(deskViewport).toBeVisible();
@@ -116,7 +117,7 @@ test.describe('mobile Library location tools', () => {
     expect(await deskWorld.evaluate((node) => getComputedStyle(node).backgroundImage)).toBe('none');
 
     const toolbar = page.locator('[data-desk-toolbar]');
-    await expect(toolbar.getByPlaceholder('Search Desk work')).toBeVisible();
+    await expect(toolbar.getByPlaceholder('Search Desk work')).toHaveCount(0);
     const filters = toolbar.locator('[data-mobile-desk-filters] > summary[aria-label="Open Desk filters"]');
     await expectTouchTarget(filters);
     const viewMenuTrigger = toolbar.getByRole('button', { name: 'Desk view controls', exact: true });

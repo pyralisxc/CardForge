@@ -59,3 +59,14 @@ it('rejects malformed native diagnostics rather than reporting an empty inventor
   rpc.mockResolvedValue({data:{...receipt(active),inventoryDetails:[{origin:'registry',recordId:'',payloadKind:'style',conditions:[]}]},error:null});
   await expect(readCatalogTrash('owner',identity.submissionId)).rejects.toMatchObject({status:503});
 });
+
+
+it('passes only explicit fresh impact confirmation with the complete observed state', async () => {
+  const fingerprint = 'a'.repeat(64);
+  const expected = { ...active, impactFingerprint: fingerprint };
+  rpc.mockResolvedValue({ data: receipt({ ...trashed, impactFingerprint: 'b'.repeat(64) }), error: null });
+  await changeCatalogTrash('owner', { action: 'trash', expected, confirmation: fingerprint });
+  expect(rpc).toHaveBeenCalledExactlyOnceWith('cardforge_change_catalog_trash', {
+    p_actor_user_id: 'owner', p_action: 'trash', p_expected: expected, p_held: null, p_confirmation: fingerprint,
+  });
+});

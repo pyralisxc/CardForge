@@ -1,3 +1,4 @@
+import { isSharedPipelineTrash } from './pipelineVisibility';
 import type { PipelineStatus } from './pipelineItems';
 import type { PipelineProgramView, PipelineSubmission } from './pipelineProgram';
 
@@ -73,7 +74,7 @@ export const isContributorPipelineReviewable = (
 export const isContributorPipelineVoteable = (
   submission: PipelineSubmission,
 ): boolean => submission.status !== 'draft'
-  && !submission.trashedAt
+  && isSharedPipelineTrash(submission)
   && !submission.purgeState;
 
 export const getPipelineImagePreviewUrl = (

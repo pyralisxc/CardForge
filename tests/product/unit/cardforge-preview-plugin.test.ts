@@ -41,7 +41,7 @@ describe('private Preview plugin derivation', () => {
         const skills = item.product === 'studio' ? [
           'skills/create-cards-and-sets/SKILL.md', 'skills/create-editable-template/SKILL.md',
         ] : ['skills/operate-cardforge-site/SKILL.md'];
-        expect(Object.keys(zip.files).sort()).toEqual(['.codex-plugin/plugin.json', '.mcp.json', 'icon.svg', 'mcp.json', 'plugin.json', ...skills].map((file) => `${name}/${file}`).sort());
+        expect(Object.keys(zip.files).sort()).toEqual(['.codex-plugin/plugin.json', '.mcp.json', 'assets/icon.png', 'assets/logo.png', 'icon.svg', 'mcp.json', 'plugin.json', ...skills].map((file) => `${name}/${file}`).sort());
         const manifest = JSON.parse(await zip.file(`${name}/.codex-plugin/plugin.json`)!.async('string'));
         expect(manifest).toMatchObject({
           name, version: canonical.version, mcpServers: './.mcp.json',
@@ -111,7 +111,7 @@ describe('private Preview plugin derivation', () => {
         writeFileSync(file, JSON.stringify(manifest));
       }
       expect(() => run(root, 'out')).toThrow();
-      expect(() => readFileSync(join(root, 'out/cardforge-studio-preview-1.0.3.zip'))).toThrow();
+      expect(() => readFileSync(join(root, 'out/cardforge-studio-preview-1.0.4.zip'))).toThrow();
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 });

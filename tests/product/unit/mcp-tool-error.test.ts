@@ -64,3 +64,13 @@ it.each([409, 503] as const)('serializes exact revision deletion %s as reconcili
   expect(result._meta['cardforge/boundaryFailure']).toMatchObject({ status, retryable: false, nextAction: expect.stringContaining('retained destructive claim state') });
   expect(result._meta['cardforge/boundaryFailure'].nextAction).not.toContain('retry against its latest revision');
 });
+
+it.each([409, 503] as const)('serializes revision recovery %s as exact-state reconciliation without automatic retry', async status => {
+  const { RevisionRecoveryError } = await import('@/features/pipeline/server');
+  const message = status === 409 ? 'A destructive claim blocks recovery.' : 'The recovery command outcome is uncertain.';
+  const result = createMcpToolError(new RevisionRecoveryError(message, status, 'revision_recovery_blocked'));
+  expect(result.content).toEqual([{ type: 'text', text: message }]);
+  expect(result._meta['cardforge/boundaryFailure']).toMatchObject({ status, retryable: false,
+    nextAction: expect.stringContaining('retained Trash, hold and destructive claim state') });
+  expect(result._meta['cardforge/boundaryFailure'].nextAction).not.toContain('retry against its latest revision');
+});

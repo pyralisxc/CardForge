@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import postcss from 'postcss';
 import tailwindcss from 'tailwindcss';
 import tailwindConfig from '../../../tailwind.config';
-const bundle = buildSync({ entryPoints: ['tests/product/fixtures/libraryContextReview.tsx'], bundle: true, platform: 'browser', format: 'iife', write: false,
+const bundle = buildSync({ entryPoints: ['tests/product/fixtures/libraryContextReview.tsx'], bundle: true, minify: true, keepNames: true, platform: 'browser', format: 'iife', write: false,
   outfile: join(tmpdir(), 'library-context-review.js'), define: { 'process.env.NODE_ENV': '"production"', 'process.env.NEXT_RUNTIME': '"browser"', 'process.env': '{}' } });
 const appCss = postcss([tailwindcss(tailwindConfig)]).process((readFileSync('src/app/cardforgePresentation.css', 'utf8') + readFileSync('src/app/globals.css', 'utf8')).replace(/@import ['"]([^'"]+)['"];?/g, (_, path: string) => readFileSync(join('src/app', path), 'utf8')), { from: 'src/app/globals.css' });
 async function mount(page: import('@playwright/test').Page, query = '') {
@@ -244,7 +244,7 @@ test('@golden actual Library keeps revision context through dirty close and clea
   await page.setViewportSize({ width: 1440, height: 900 });
   const evidence = await mount(page, '?queueActual=1&scope=pipeline');
   await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
-  await page.locator('#library-search').fill('material');
+  await page.locator('#library-global-search').fill('material');
   const collection = page.getByLabel('pipeline Library objects');
   await expect(collection.locator('article')).toHaveCount(12);
   await page.getByRole('button', { name: 'Next revisions' }).click();
@@ -276,7 +276,7 @@ test('@golden actual Library keeps revision context through dirty close and clea
   await expect(decisionNote).toHaveValue('Local unsaved review note');
   for (const name of ['Pipeline discovery mode', 'Revision status', 'Revision type']) await expect(page.getByLabel(name, { exact: true })).toBeDisabled();
   await expect(page.locator('#library-global-search')).toBeDisabled();
-  await expect(page.locator('#library-search')).toBeDisabled();
+  await expect(page.locator('#library-global-search')).toBeDisabled();
   await page.getByRole('button', { name: 'Close Pipeline tool', exact: true }).click();
   await expect(page.getByRole('alertdialog')).toContainText('Discard unsaved changes?');
   await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
@@ -287,7 +287,7 @@ test('@golden actual Library keeps revision context through dirty close and clea
   await expect(page.getByLabel('Exact revision governance')).toHaveCount(0);
   await expect(page.getByLabel('Pipeline discovery').getByRole('status')).toContainText('Page 2 of 2');
   await expect(page.getByLabel('Revision status', { exact: true })).toHaveValue('all');
-  await expect(page.locator('#library-search')).toHaveValue('material');
+  await expect(page.locator('#library-global-search')).toHaveValue('material');
   // The command-band trigger survives the tool transition. Restore that exact
   // trigger, falling back to the selected row only if the opener was removed.
   const selectedId = await selected.getAttribute('id');
@@ -311,8 +311,8 @@ test('@golden actual Library keeps revision context through dirty close and clea
 });
 
 
-for (const missing of [false, true]) test(`@golden historical Template keeps source and publication labels (missing=${missing})`, async ({ page }, info) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+for (const width of [390, 1440]) for (const missing of [false, true]) test(`@golden historical Template keeps source and publication labels (missing=${missing}) at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 900 });
   const evidence = await mount(page, `?queueActual=1&scope=pipeline&historyTemplate=1${missing ? '&missingHistory=1' : ''}`);
   await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
   await page.getByRole('button', { name: 'Next revisions' }).click();
@@ -320,7 +320,24 @@ for (const missing of [false, true]) test(`@golden historical Template keeps sou
   const history = page.getByLabel('Pipeline review details');
   await expect(history.getByText('History', { exact: true })).toBeVisible();
   await expect(history.getByText('Live', { exact: true })).toHaveCount(0);
-  await history.getByRole('button', { name: 'Review & manage Revision 1', exact: true }).click();
+  const reviewAction = history.getByRole('button', { name: 'Review & manage Revision 1', exact: true });
+  await reviewAction.scrollIntoViewIfNeeded();
+  const geometry = await reviewAction.evaluate(button => {
+    const bounds = button.getBoundingClientRect();
+    const summary = [...button.closest('li')!.querySelectorAll('summary')].find(node => node.textContent === 'Trash & recovery options')!;
+    const recovery = summary.getBoundingClientRect();
+    const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    return { action: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+      recovery: { x: recovery.x, y: recovery.y, width: recovery.width, height: recovery.height },
+      hit: hit?.textContent, reachable: hit === button || button.contains(hit) };
+  });
+  await info.attach('revision-recovery-pointer-geometry', { body: JSON.stringify(geometry), contentType: 'application/json' });
+  expect(geometry.reachable).toBe(true);
+  const recoverySummary = reviewAction.locator('xpath=ancestor::li[1]').getByText('Trash & recovery options', { exact: true });
+  await recoverySummary.click();
+  await expect(reviewAction.locator('xpath=ancestor::li[1]').getByRole('button', { name: 'Inspect revision recovery' })).toBeVisible();
+  await recoverySummary.click();
+  await reviewAction.click();
   const review = page.getByLabel('Exact revision governance');
   await expect(review).toContainText('10000000-0000-4000-8000-000000000015');
   await expect(review.getByText('Current live catalog payload', { exact: false })).toHaveCount(0);
@@ -373,8 +390,8 @@ for (const width of [390,1440]) test(`@golden Desk exact governance preserves di
 
 test('@golden Desk uncertain revision survives Back and recovers its exact attempt', async ({page}) => {
  const evidence=await mount(page,'?deskActual=1&published=1&submit=uncertain');
- await page.getByRole('button',{name:'Search or type a command',exact:true}).click();
- await page.getByRole('button',{name:'Review & manage',exact:true}).click();
+ await page.getByRole('button',{name:'Actions for Synthetic material revision one',exact:true}).click();
+ await page.getByRole('menuitem',{name:'Review & manage',exact:true}).click();
  await page.getByRole('button',{name:'Revise existing',exact:true}).click();
  await page.getByRole('button',{name:'Color #ebd39f',exact:true}).click();
  await page.getByTitle('Hex color value').fill('#123456');
@@ -448,4 +465,394 @@ for(const width of [390,1440]) test(`@golden Desk search reconciles published li
  await expect(page.getByLabel('Exact revision governance')).toContainText('Selected revision 2');
  await expect(page.getByLabel('Exact revision governance')).toContainText('10000000-0000-4000-8000-000000000004');
  expect(evidence.errors).toEqual([]);expect(evidence.mutations).toEqual([]);
+});
+
+for (const width of [390, 1440]) test(`@golden Campaigns search and content reachability at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 757 });
+  const evidence = await mount(page, '?campaignActual=1');
+  await page.getByRole('navigation', { name: 'Library scopes' }).getByRole('button', { name: /Campaigns/ }).click();
+  const campaigns = page.getByRole('tab', { name: 'Campaigns', exact: true });
+  const collection = page.locator('[data-library-surface] > section').last();
+  await expect(collection).toBeVisible();
+  await collection.hover();
+  await page.mouse.wheel(0, 700);
+  await expect.poll(() => collection.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+  await campaigns.scrollIntoViewIfNeeded();
+  await campaigns.click();
+  const card = page.getByRole('button', { name: /Founder Beta Introduction/ });
+  await card.scrollIntoViewIfNeeded();
+  await expect(card).toBeInViewport();
+  await card.click();
+  await page.getByLabel('Campaign name', { exact: true }).fill('Unsaved local campaign edit');
+  const save = page.getByRole('button', { name: 'Save campaign', exact: true });
+  await save.scrollIntoViewIfNeeded();
+  await expect(save).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  const search = page.getByRole('searchbox', { name: 'Search campaigns', exact: true });
+  await search.fill('zz-no-matching-campaign');
+  await expect(card).toHaveCount(0);
+  await expect(page.getByRole('status').filter({ hasText: 'No campaigns match' })).toBeVisible();
+  await expect(page.getByLabel('Campaign name', { exact: true })).toHaveValue('Unsaved local campaign edit');
+  await page.getByRole('button', { name: 'Clear search campaigns', exact: true }).click();
+  await expect(search).toBeFocused();
+  await expect(search).toHaveValue('');
+  await expect(card).toHaveCount(1);
+  await expect(page.getByLabel('Campaign name', { exact: true })).toHaveValue('Unsaved local campaign edit');
+  await card.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('campaigns.png') });
+  await info.attach('actual-components-local-campaigns', { path: info.outputPath('campaigns.png'), contentType: 'image/png' });
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const width of [320, 390, 1440]) test(`@golden Desk second rail keeps controls reachable and state intact at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 844 });
+  const evidence = await mount(page, '?deskActual=1&deskMenu=1&deskSearch=1');
+  const toolbar = page.locator('[data-desk="overview"] [data-desk-toolbar]');
+  const select = toolbar.getByRole('button', { name: 'Select multiple', exact: true });
+  const search = page.getByPlaceholder('Search Desk work');
+  await search.fill('material');
+  if (width < 768) {
+    const filters = toolbar.getByLabel('Open Desk filters', { exact: true });
+    const view = toolbar.getByRole('button', { name: 'Desk view controls', exact: true });
+    const boxes = await Promise.all([filters, select, view].map(async control => {
+      await expect(control).toBeInViewport({ ratio: 1 });
+      return (await control.boundingBox())!;
+    }));
+    const centers = boxes.map(box => box.y + box.height / 2);
+    expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
+    for (const box of boxes) { expect(box.height).toBeGreaterThanOrEqual(44); expect(box.width).toBeGreaterThanOrEqual(44); }
+    expect((await toolbar.boundingBox())!.height).toBeLessThanOrEqual(60);
+    await filters.click();
+    const panel = page.locator('[data-mobile-desk-filters] [aria-label="Desk views and filters"]');
+    await expect(panel).toBeInViewport({ ratio: 1 });
+    await panel.getByRole('button', { name: 'Choose Desk views', exact: true }).click();
+    await page.getByRole('menuitemcheckbox', { name: 'My published', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await filters.click();
+    await select.click();
+    await expect(toolbar.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await view.focus(); await page.keyboard.press('Enter');
+    await expect(page.getByRole('menuitem', { name: 'Fit visible work' })).toBeInViewport({ ratio: 1 });
+    await page.keyboard.press('Escape'); await expect(view).toBeFocused();
+    await filters.click();
+    await panel.getByRole('button', { name: 'Choose Desk views', exact: true }).click();
+    await expect(page.getByRole('menuitemcheckbox', { name: 'My published', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('Escape'); await filters.click();
+    await expect(toolbar.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  } else {
+    await expect(toolbar.getByRole('button', { name: 'Choose Desk views', exact: true })).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: 'Whole Desk', exact: true })).toBeVisible();
+    await select.click();
+    await expect(toolbar.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  }
+  await expect(search).toHaveValue('material');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: info.outputPath('desk-second-rail.png') });
+  await info.attach('native-desk-second-rail', { path: info.outputPath('desk-second-rail.png'), contentType: 'image/png' });
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+test('@golden Desk enlarged text keeps labels and selected-work controls reachable at 320px', async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  const evidence = await mount(page, '?deskActual=1&deskMenu=1&deskSearch=1');
+  const toolbar = page.locator('[data-desk="overview"] [data-desk-toolbar]');
+  const filters = toolbar.getByLabel('Open Desk filters', { exact: true });
+  const view = toolbar.getByRole('button', { name: 'Desk view controls', exact: true });
+  await filters.click();
+  const panel = page.locator('[data-mobile-desk-filters] [aria-label="Desk views and filters"]');
+  await panel.getByRole('button', { name: 'Choose Desk views', exact: true }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'My published', exact: true }).click();
+  await page.keyboard.press('Escape'); await filters.click();
+  await toolbar.getByRole('button', { name: 'Select multiple', exact: true }).click();
+  for (const name of ['Synthetic material revision one', 'Unrelated Bridge Back']) {
+    await page.getByRole('button', { name: new RegExp(`^Select ${name}`) }).click();
+  }
+  const normalFont = await filters.evaluate(node => parseFloat(getComputedStyle(node).fontSize));
+  // Enlarge the actual label text without doubling every unrelated rem-sized
+  // header, source notice and footer in this isolated unavailable-provider fixture.
+  await page.addStyleTag({ content: `[data-desk-toolbar] > button, [data-mobile-desk-filters] > summary, [aria-label="Compact Desk view controls"] button { font-size: ${normalFont * 2}px !important; }` });
+  expect(await filters.evaluate(node => parseFloat(getComputedStyle(node).fontSize))).toBeCloseTo(normalFont * 2, 1);
+  const measurements = await Promise.all([filters, toolbar.getByRole('button', { name: 'Done selecting', exact: true }), view].map(control => control.evaluate(node => {
+    const bounds = node.getBoundingClientRect();
+    const range = document.createRange(); range.selectNodeContents(node);
+    return { label: node.textContent, font: getComputedStyle(node).fontSize, x: bounds.x, width: bounds.width, height: bounds.height,
+      text: Array.from(range.getClientRects()).filter(rect => rect.width && rect.height).map(rect => ({ x: rect.x, right: rect.right })) };
+  })));
+  await info.attach('enlarged-desk-measurements', { body: JSON.stringify(measurements, null, 2), contentType: 'application/json' });
+  console.log('ENLARGED_DESK_MEASUREMENTS', JSON.stringify(measurements));
+  await page.screenshot({ path: info.outputPath('desk-second-rail-enlarged.png') });
+  for (const measurement of measurements) {
+    expect(measurement.width).toBeGreaterThanOrEqual(44); expect(measurement.height).toBeGreaterThanOrEqual(44);
+    expect(measurement.x).toBeGreaterThanOrEqual(0); expect(measurement.x + measurement.width).toBeLessThanOrEqual(320);
+    for (const text of measurement.text) { expect(text.x).toBeGreaterThanOrEqual(measurement.x); expect(text.right).toBeLessThanOrEqual(measurement.x + measurement.width + 1); }
+  }
+  await view.click(); await expect(page.getByRole('menuitem', { name: 'Fit selection', exact: true })).toBeEnabled();
+  await page.keyboard.press('Escape'); await expect(view).toBeFocused();
+  await filters.focus(); await page.keyboard.press('Enter');
+  await expect(panel).toBeInViewport({ ratio: 1 });
+  await expect(panel.getByRole('button', { name: 'Organize 2 Sets', exact: true })).toBeInViewport({ ratio: 1 });
+  await page.keyboard.press('Escape');
+  await toolbar.getByRole('button', { name: 'Done selecting', exact: true }).click();
+  await expect(toolbar.getByRole('button', { name: 'Select multiple', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const width of [320, 390, 1440]) test(`@golden Library second rail keeps full scope labels on one row at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 844 });
+  const evidence = await mount(page, '?campaignActual=1');
+  const scopes = page.getByRole('navigation', { name: 'Library scopes', exact: true });
+  const boxes = [];
+  for (const label of ['Personal', 'Pipeline', 'Published', 'Campaigns']) {
+    const button = scopes.getByRole('button', { name: new RegExp(`^${label}`) });
+    await button.scrollIntoViewIfNeeded();
+    await expect(button).toBeInViewport({ ratio: 1 });
+    const bounds = (await button.boundingBox())!;
+    expect(bounds.height).toBeGreaterThanOrEqual(width < 768 ? 44 : 40);
+    expect(await button.locator('span').evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+    await button.click(); await expect(button).toHaveAttribute('aria-current', 'page');
+    boxes.push(bounds);
+  }
+  const centers = boxes.map(box => box.y + box.height / 2);
+  expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
+  expect((await scopes.boundingBox())!.height).toBeLessThanOrEqual(48);
+  const campaigns = scopes.getByRole('button', { name: /^Campaigns/ });
+  await page.getByRole('searchbox', { name: 'Search campaigns' }).fill('founder');
+  await scopes.getByRole('button', { name: /^Personal/ }).focus();
+  await page.keyboard.press('Enter');
+  await expect(scopes.getByRole('button', { name: /^Personal/ })).toHaveAttribute('aria-current', 'page');
+  await campaigns.focus(); await page.keyboard.press('Enter');
+  await expect(campaigns).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('searchbox', { name: 'Search campaigns' })).toHaveValue('founder');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: info.outputPath('library-second-rail.png') });
+  await info.attach('native-library-second-rail', { path: info.outputPath('library-second-rail.png'), contentType: 'image/png' });
+  if (width === 320) {
+    await page.addStyleTag({ content: 'html { font-size: 200%; }' });
+    expect(await scopes.evaluate(node => node.scrollWidth)).toBeGreaterThan(await scopes.evaluate(node => node.clientWidth));
+    for (const label of ['Personal', 'Campaigns']) {
+      const button = scopes.getByRole('button', { name: new RegExp(`^${label}`) });
+      await button.focus(); await page.keyboard.press('Enter');
+      await expect(button).toBeInViewport({ ratio: 1 });
+      await expect(button).toHaveAttribute('aria-current', 'page');
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  }
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const width of [320, 390, 800, 1440]) test(`@golden Single shared rails and keyboard search across spaces at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 757 });
+  const evidence = await mount(page, '?rail=desk');
+  for (const space of ['desk', 'library', 'profile']) {
+  if (space !== 'desk') await page.getByRole('link', { name: space === 'library' ? 'Library' : 'Profile', exact: true }).click();
+  const rail = page.locator('header[data-has-search="true"]');
+  const home = rail.getByRole('link', { name: 'Open the CardForge public site' });
+  const search = rail.getByRole('searchbox', { name: `Search ${space}` });
+  const account = rail.getByRole('button', { name: 'Profile', exact: true });
+  for (const control of [home, search, account]) await expect(control).toBeInViewport();
+  const controls = [home, search, account];
+  if (space !== 'profile') controls.push(rail.getByRole('button', { name: 'New Set', exact: true }));
+  else await expect(rail.getByRole('button', { name: 'New Set' })).toHaveCount(0);
+  const boxes = await Promise.all(controls.map(control => control.boundingBox()));
+  const centers = boxes.map(box => box!.y + box!.height / 2);
+  expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
+  expect(await rail.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await page.keyboard.press('Control+k'); await expect(search).toBeFocused();
+  await page.keyboard.type('test query');
+  await rail.getByRole('button', { name: `Clear search ${space}` }).click();
+  await expect(search).toHaveValue(''); await expect(search).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Open commands' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Actions for this context' })).toHaveCount(0);
+  if (width === 320 || width === 1440) await info.attach(`native-${space}-rail-synthetic-account`, { body: await page.screenshot(), contentType: 'image/png' });
+  }
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+for (const width of [390, 1440]) test(`@golden Library uses the existing New Set flow without duplicate search or permanent Refresh at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 757 });
+  const evidence = await mount(page, '?campaignActual=1');
+  await expect(page.getByRole('searchbox', { name: 'Search personal' })).toHaveCount(1);
+  await expect(page.getByRole('textbox', { name: 'Search Library', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Refresh/ })).toHaveCount(0);
+  const create = page.getByRole('button', { name: 'New Set', exact: true });
+  await create.click();
+  await expect(page.getByRole('dialog', { name: 'Start a new Set' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Fresh Set', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Fresh Set + Design', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape'); await expect(create).toBeFocused();
+  await page.getByRole('navigation', { name: 'Library scopes' }).getByRole('button', { name: /Campaigns/ }).click();
+  await expect(page.getByRole('button', { name: /Refresh/ })).toHaveCount(0);
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+test('@golden Contributor Campaigns shares the native Library search and clear without writes', async ({ page }) => {
+  const evidence = await mount(page, '?campaignActual=1&campaignContributor=1');
+  await page.getByRole('navigation', { name: 'Library scopes' }).getByRole('button', { name: /Campaigns/ }).click();
+  const search = page.getByRole('searchbox', { name: 'Search campaigns' });
+  await expect(page.getByRole('heading', { name: 'Printable Deck Introduction', exact: true })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Search campaign packages' })).toHaveCount(0);
+  await search.fill('zz-no-matching-package');
+  await expect(page.getByRole('heading', { name: 'Printable Deck Introduction', exact: true })).toHaveCount(0);
+  await expect(page.getByText('No packages match this queue view.')).toBeVisible();
+  await page.getByRole('button', { name: 'Clear search campaigns' }).click();
+  await expect(page.getByRole('heading', { name: 'Printable Deck Introduction', exact: true })).toBeVisible();
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const design of [false, true]) test(`@golden Library native fresh Set creation retains return scope (design=${design})`, async ({ page }) => {
+  const evidence = await mount(page, '?campaignActual=1');
+  await page.getByRole('navigation', { name: 'Library scopes' }).getByRole('button', { name: /Campaigns/ }).click();
+  await page.getByRole('searchbox', { name: 'Search campaigns' }).fill('founder');
+  await page.getByRole('button', { name: 'New Set', exact: true }).click();
+  await page.getByRole('button', { name: design ? 'Fresh Set + Design' : 'Fresh Set', exact: true }).click();
+  const destinations = await page.evaluate(() => (window as typeof window & { libraryNavigations: string[] }).libraryNavigations);
+  expect(destinations).toHaveLength(1);
+  const target = new URL(destinations[0], 'https://cardforge.local');
+  expect(target.pathname).toBe('/account');
+  expect(target.searchParams.get('focus')).toMatch(/^set:.+/);
+  expect(target.searchParams.get('tool')).toBe(design ? 'design' : null);
+  const returnTo = new URL(target.searchParams.get('returnTo')!, 'https://cardforge.local');
+  expect(returnTo.searchParams.get('section')).toBe('library');
+  expect(returnTo.searchParams.get('scope')).toBe('campaigns');
+  expect(returnTo.searchParams.get('returnContext')).toBeTruthy();
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const state of ['connecting', 'signed-out']) test(`@golden Real ${state} auth presentation leaves 320px rail search reachable`, async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 757 });
+  const evidence = await mount(page, `?rail=library&railAuth=${state}`);
+  const rail = page.locator('header[data-has-search="true"]');
+  const search = rail.getByRole('searchbox', { name: 'Search library' });
+  const auth = state === 'connecting' ? rail.getByRole('button', { name: 'Connecting to account sign in' }) : rail.getByRole('link', { name: 'Sign in' });
+  await expect(auth).toBeInViewport();
+  const box = (await auth.boundingBox())!; expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44);
+  await search.fill('query'); await expect(search).toHaveValue('query');
+  const clear = rail.getByRole('button', { name: 'Clear search library' });
+  await clear.click(); await expect(search).toBeFocused();
+  const searchBox = (await search.boundingBox())!; expect(searchBox.width).toBeGreaterThanOrEqual(70);
+  expect(searchBox.x + searchBox.width).toBeLessThanOrEqual((await rail.getByRole('button', { name: 'New Set' }).boundingBox())!.x);
+  expect(await rail.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+  await info.attach('native-auth-state-compact-rail', { body: await page.screenshot(), contentType: 'image/png' });
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+test('@golden Unsaved Campaign edits block New Set until explicit cancellation', async ({ page }) => {
+  const evidence = await mount(page, '?campaignActual=1');
+  await page.getByRole('navigation', { name: 'Library scopes' }).getByRole('button', { name: /Campaigns/ }).click();
+  await page.getByRole('tab', { name: 'Campaigns', exact: true }).click();
+  await page.getByRole('button', { name: /Founder Beta Introduction/ }).click();
+  await page.getByLabel('Campaign name', { exact: true }).fill('Retain this campaign draft');
+  const create = page.getByRole('button', { name: 'New Set', exact: true });
+  await expect(create).toBeDisabled(); await expect(create).toHaveAttribute('title', 'Save or cancel campaign edits before starting a Set.');
+  await expect(page.getByRole('status').filter({ hasText: 'Save or cancel campaign edits' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Start a new Set' })).toHaveCount(0);
+  await expect(page.getByLabel('Campaign name', { exact: true })).toHaveValue('Retain this campaign draft');
+  expect(await page.evaluate(() => (window as typeof window & { libraryNavigations: string[] }).libraryNavigations)).toEqual([]);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(create).toBeEnabled(); await create.click();
+  await page.getByRole('button', { name: 'Fresh Set', exact: true }).click();
+  expect(await page.evaluate(() => (window as typeof window & { libraryNavigations: string[] }).libraryNavigations)).toHaveLength(1);
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const width of [390, 1440]) test(`@golden Focused nonlocal deep-link retains exact actions after Done at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  const evidence = await mount(page, '?deskActual=1&published=1');
+  const rail = page.locator('[data-desk-context-rail][data-depth="work"]');
+  const opener = rail.getByRole('button', { name: 'Actions for Synthetic material revision one', exact: true });
+  await opener.click();
+  await expect(page.getByRole('menuitem', { name: 'Review & manage', exact: true })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Generate cards', exact: true })).toHaveCount(0);
+  await page.getByRole('menuitem', { name: 'Open published work', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Published work · Synthetic material revision one', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await opener.click(); await page.getByRole('menuitem', { name: 'Review & manage', exact: true }).click();
+  await expect(page.getByLabel('Exact revision governance')).toContainText('Synthetic material revision one');
+  await expect(page.getByLabel('Exact revision governance')).not.toContainText('Newer revision must not replace selection');
+  await page.getByRole('button', { name: 'Return to Desk', exact: true }).click();
+  await expect(opener).toBeFocused();
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+test('@golden Unsaved strategy and destination drafts retain a local discard path before New Set', async ({ page }) => {
+  const evidence = await mount(page, '?campaignActual=1');
+  await page.getByRole('navigation', { name: 'Library scopes' }).getByRole('button', { name: /Campaigns/ }).click();
+  const create = page.getByRole('button', { name: 'New Set', exact: true });
+  await page.getByRole('textbox', { name: 'Current offer', exact: true }).fill('Unsaved strategy offer');
+  await expect(create).toBeDisabled();
+  await page.getByRole('button', { name: 'Discard strategy draft', exact: true }).click();
+  await expect(create).toBeEnabled();
+  await page.getByRole('tab', { name: 'Distribution', exact: true }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Unsaved destination');
+  await expect(create).toBeDisabled();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(create).toBeEnabled();
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const editing of [false, true]) test(`@golden Campaign package pristine and reverted draft preserves New Set (editing=${editing})`, async ({ page }) => {
+  const evidence = await mount(page, '?campaignActual=1&campaignContributor=1&campaignComposer=1');
+  await page.getByRole('navigation', { name: 'Library scopes' }).getByRole('button', { name: /Campaigns/ }).click();
+  if (editing) await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  else await page.getByRole('button', { name: 'New campaign package', exact: true }).click();
+  const create = page.getByRole('button', { name: 'New Set', exact: true });
+  const title = page.getByRole('textbox', { name: /^Content title/ });
+  const initial = await title.inputValue();
+  await expect(create).toBeEnabled();
+  await title.fill('Unsaved package title'); await expect(create).toBeDisabled();
+  await expect(title).toHaveValue('Unsaved package title');
+  await title.fill(initial); await expect(create).toBeEnabled();
+  await page.getByRole('searchbox', { name: 'Search campaigns' }).fill('independent view change');
+  await expect(create).toBeEnabled(); await expect(title).toHaveValue(initial);
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});
+
+for (const denied of [false, true]) test(`@golden signed-in shared Trash exact Contributor controls (denied=${denied})`, async ({ page }) => {
+  const evidence = await mount(page, `?queueActual=1&scope=pipeline&sharedTrashProof=1${denied ? '&sharedDenied=1' : ''}`);
+  await page.getByRole('button', { name: 'Browse shared Trash' }).click();
+  await expect(page.getByText('Recoverable shared card back')).toBeVisible();
+  await expect(page.getByText('Shared contribution · In Trash')).toBeVisible();
+  await expect(page.getByText('Recovery deadline', { exact: false })).toBeVisible();
+  await expect(page.getByText('Publication history remains retained', { exact: false })).toBeVisible();
+  await expect(page.getByText('private draft secret')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Manage exact revision' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Exact voting & recovery options' }).click();
+  await expect(page.getByLabel('Pipeline source feedback')).toBeVisible();
+  await expect(page.getByLabel('Revision recovery')).toBeVisible();
+  await page.getByRole('button', { name: 'Inspect revision recovery' }).click();
+  await expect(page.getByRole('button', { name: 'Restore' })).toBeDisabled();
+  if (denied) {
+    await expect(page.getByRole('button', { name: 'Like 2' })).toBeDisabled();
+  } else {
+    await page.getByRole('button', { name: 'Like 2' }).click();
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { libraryRequests: Array<{ url: string; method: string }> }).libraryRequests.filter(value => value.url.includes('/api/pipeline/library?scope=shared&trash=trashed')).length)).toBeGreaterThan(1);
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { libraryRequests: Array<{ url: string; method: string; body?: string }> }).libraryRequests.some(value => value.url.endsWith('/vote') && value.body?.includes('positive')))).toBe(true);
+  }
+  expect(evidence.errors).toEqual([]);
+  expect(evidence.mutations.filter(value => value.includes('/lifecycle'))).toEqual([]);
+});
+
+
+test('@golden catalog Trash survives Owner revision filters and exact Manage handoff', async ({ page }) => {
+  const evidence = await mount(page, '?queue=1&catalogTrashProof=1');
+  await page.getByRole('combobox', { name: 'Pipeline discovery mode' }).selectOption('revisions');
+  await expect(page.getByRole('status').filter({ hasText: '1 matching revisions' })).toBeVisible();
+  await expect(page.getByText('Catalog-trashed exact icon', { exact: true })).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'Revision lifecycle view' }).selectOption('all');
+  await expect(page.getByRole('status').filter({ hasText: '2 matching revisions' })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Revision lifecycle view' }).selectOption('trashed');
+  await expect(page.getByRole('status').filter({ hasText: '1 trashed revisions' })).toBeVisible();
+  await page.locator('[id="library-object-pipeline:submission:10000000-0000-4000-8000-000000000001"]').click();
+  const panel = page.getByLabel('Exact revision governance');
+  await expect(panel).toContainText('10000000-0000-4000-8000-000000000001');
+  await panel.getByRole('button', { name: 'Manage', exact: true }).click();
+  const recovery = panel.getByLabel('Catalog recovery');
+  await recovery.getByRole('button', { name: 'Refresh recovery state' }).click();
+  await expect(recovery.getByRole('button', { name: 'Restore', exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => (window as unknown as { libraryRequests: {url:string;method:string}[] }).libraryRequests)).toEqual(expect.arrayContaining([
+    expect.objectContaining({ url: expect.stringContaining('trash=trashed') }),
+    expect.objectContaining({ url: expect.stringContaining('trash=all') }),
+    expect.objectContaining({ url: '/api/pipeline/10000000-0000-4000-8000-000000000001/catalog-trash', method: 'GET' }),
+  ]));
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });

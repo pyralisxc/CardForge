@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -44,11 +44,15 @@ const emptyDestination = (): DestinationDraft => ({
 
 export function OwnerMarketingDistributionWorkspace({
   marketing,
+  onDirtyChange,
+  onCloseBlockedChange,
   workspace,
   onSaved,
   onError,
 }: {
   marketing: MarketingCommandCenterView;
+  onDirtyChange?: (dirty: boolean) => void;
+  onCloseBlockedChange?: (reason: string | null) => void;
   workspace: MarketingContentWorkspaceView;
   onSaved: () => void;
   onError: (message: string) => void;
@@ -59,6 +63,9 @@ export function OwnerMarketingDistributionWorkspace({
   const [destinationId, setDestinationId] = useState("");
   const [scheduledFor, setScheduledFor] = useState("");
   const [busy, setBusy] = useState(false);
+  const dirty = busy || JSON.stringify(draft) !== JSON.stringify(editing ?? emptyDestination()) || Boolean(contentId || destinationId || scheduledFor);
+  useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
+  useEffect(() => { onCloseBlockedChange?.(busy ? 'Wait for the campaign command outcome before starting a Set.' : null); return () => onCloseBlockedChange?.(null); }, [busy, onCloseBlockedChange]);
   const approved = workspace.campaigns.filter((item) =>
     ["approved", "provider_draft", "scheduled", "failed"].includes(
       item.status,
@@ -270,12 +277,13 @@ export function OwnerMarketingDistributionWorkspace({
             <Button disabled={busy} onClick={() => void saveDestination()}>
               {busy ? "Saving..." : "Save destination"}
             </Button>
-            {editing ? (
+            {editing || dirty ? (
               <Button
                 variant="outline"
                 onClick={() => {
                   setEditing(null);
                   setDraft(emptyDestination());
+                  setContentId(""); setDestinationId(""); setScheduledFor("");
                 }}
               >
                 Cancel

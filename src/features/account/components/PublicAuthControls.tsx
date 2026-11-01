@@ -32,6 +32,14 @@ function ClerkPublicAuthControls({ signedInAccessory }: { signedInAccessory?: Re
     isSignedIn: Boolean(isSignedIn),
   });
 
+  return <PublicAuthControlContent state={state} returnTo={returnTo} signedInAccessory={signedInAccessory} />;
+}
+
+/** Native auth presentation; identity continues to come from Clerk above. */
+export function PublicAuthControlContent({ state, returnTo, signedInAccessory }: {
+  state: ReturnType<typeof getPublicAuthControlState>; returnTo: string; signedInAccessory?: ReactNode;
+}) {
+  if (state === 'unconfigured') return null;
   if (state === 'connecting') {
     return (
       <Button
@@ -39,9 +47,9 @@ function ClerkPublicAuthControls({ signedInAccessory }: { signedInAccessory?: Re
         size="sm"
         disabled
         aria-label="Connecting to account sign in"
-        className="gap-2 bg-[#6f552c] text-[var(--cf-accent-text)]"
+        className="gap-2 max-sm:h-11 max-sm:w-11 max-sm:p-0 bg-[#6f552c] text-[var(--cf-accent-text)]"
       >
-        <LoaderCircle className="h-4 w-4 animate-spin" /> Connecting…
+        <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /><span className="max-sm:sr-only">Connecting…</span>
       </Button>
     );
   }
@@ -60,9 +68,9 @@ function ClerkPublicAuthControls({ signedInAccessory }: { signedInAccessory?: Re
   }
 
   return (
-    <Button asChild type="button" size="sm" className="gap-2 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]">
+    <Button asChild type="button" size="sm" className="gap-2 max-sm:h-11 max-sm:w-11 max-sm:p-0 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]">
       <Link href={createAuthRouteHref('/sign-in', returnTo)} prefetch={false}>
-        <LogIn className="h-4 w-4" /> Sign in
+        <LogIn className="h-4 w-4" aria-hidden="true" /><span className="max-sm:sr-only">Sign in</span>
       </Link>
     </Button>
   );

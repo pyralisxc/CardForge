@@ -39,9 +39,16 @@ const record: EnvironmentDetailRecord = {
 describe('Environment action presentation', () => {
   it('renders a disabled primary action with its required reason', () => {
     const action: ActionDescriptor = { ...baseAction, availability: { kind: 'disabled', reason: 'Reconnect first.' } };
-    const markup = renderToStaticMarkup(createElement(EnvironmentCommandBand, { zone: { id: 'library', label: 'Library' }, primaryAction: action, onCommand: vi.fn(), onAction: vi.fn() }));
+    const markup = renderToStaticMarkup(createElement(EnvironmentCommandBand, { zone: { id: 'library', label: 'Library' }, primaryAction: action, onAction: vi.fn() }));
     expect(markup).toContain('disabled=""');
     expect(markup).toContain('title="Reconnect first."');
+  });
+
+  it('keeps every eligible object action in its contextual detail after the global palette is removed', () => {
+    const review: ActionDescriptor = { ...baseAction, id: 'library.review-manage', label: 'Review exact revision', requiredPermission: 'owner' };
+    const markup = renderToStaticMarkup(createElement(EnvironmentDesktopInspector, { record, actions: [baseAction, review], onClose: vi.fn(), onAction: vi.fn() }));
+    expect(markup).toContain('Open in Studio');
+    expect(markup).toContain('Review exact revision');
   });
 
   it('omits hidden actions from the detail surface', () => {

@@ -23,7 +23,8 @@ interface LibraryPickerDialogProps {
   request: LibraryPickerRequest;
   resources: readonly LibraryPickerResource[];
   onOpenChange: (open: boolean) => void;
-  onSelect: (result: LibraryPickerResult) => void | Promise<void>;
+  onSelect: (result: LibraryPickerResult, signal: AbortSignal) => void | Promise<void>;
+  renderResourceDetails?: (resource: LibraryPickerResource) => ReactNode;
   renderPreview?: (resource: LibraryPickerResource) => ReactNode;
   sourceActions?: readonly LibraryPickerSourceAction[];
 }
@@ -35,7 +36,7 @@ export interface LibraryPickerSourceAction {
   onInvoke: () => void | Promise<void>;
 }
 
-export function LibraryPickerDialog({ open, request, resources, onOpenChange, onSelect, renderPreview, sourceActions = [] }: LibraryPickerDialogProps) {
+export function LibraryPickerDialog({ open, request, resources, onOpenChange, onSelect, renderPreview, renderResourceDetails, sourceActions = [] }: LibraryPickerDialogProps) {
   const [query, setQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -43,6 +44,23 @@ export function LibraryPickerDialog({ open, request, resources, onOpenChange, on
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const wasOpen = useRef(false);
   const optionRefs = useRef(new Map<string, HTMLButtonElement>());
+  const sessionRef = useRef(0);
+  const inFlightRef = useRef<AbortController | null>(null);
+  const cancelSession = () => {
+    ++sessionRef.current;
+    inFlightRef.current?.abort();
+    inFlightRef.current = null;
+  };
+  const changeOpen = (next: boolean) => {
+    if (!next) cancelSession();
+    onOpenChange(next);
+  };
+  useEffect(() => () => {
+    ++sessionRef.current;
+    inFlightRef.current?.abort();
+    inFlightRef.current = null;
+  }, []);
+
   const compatible = useMemo(() => getCompatibleLibraryPickerResources(request, resources), [request, resources]);
   const visible = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
@@ -63,6 +81,8 @@ export function LibraryPickerDialog({ open, request, resources, onOpenChange, on
     }
     wasOpen.current = open;
     if (!open) {
+      // Parent-driven close also invalidates an in-flight confirmation.
+      if (inFlightRef.current) cancelSession();
       setQuery('');
       setSelectedIds([]);
       setBusyActionId(null);
@@ -75,15 +95,22 @@ export function LibraryPickerDialog({ open, request, resources, onOpenChange, on
     : (current.includes(id) ? current.filter((candidate) => candidate !== id) : [...current, id]));
 
   const confirm = async () => {
+    if (inFlightRef.current) return;
+    const session = sessionRef.current;
+    const controller = new AbortController();
+    inFlightRef.current = controller;
     setBusyActionId('confirm');
     setErrorMessage(null);
     try {
-      await onSelect(createLibraryPickerResult(request, resources, selectedIds));
-      onOpenChange(false);
+      await onSelect(createLibraryPickerResult(request, resources, selectedIds), controller.signal);
+      if (session !== sessionRef.current || controller.signal.aborted) return;
+      changeOpen(false);
     } catch (error) {
+      if (session !== sessionRef.current || controller.signal.aborted) return;
       setErrorMessage(error instanceof Error ? error.message : 'CardForge could not use that Library selection.');
     } finally {
-      setBusyActionId(null);
+      if (inFlightRef.current === controller) inFlightRef.current = null;
+      if (session === sessionRef.current) setBusyActionId(null);
     }
   };
 
@@ -106,8 +133,10 @@ export function LibraryPickerDialog({ open, request, resources, onOpenChange, on
     optionRefs.current.get(visible[bounded]!.id)?.scrollIntoView({ block: 'nearest' });
   };
 
+  const inspectedResource = resources.find(resource => resource.id === selectedIds.at(-1));
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={changeOpen}>
       <DialogContent className="max-h-[85vh] max-w-3xl border-[#2d3340] bg-[#0b0f15] text-[#d8d1c4]">
         <DialogHeader>
           <DialogTitle>{request.title}</DialogTitle>
@@ -176,9 +205,10 @@ export function LibraryPickerDialog({ open, request, resources, onOpenChange, on
             })}
           </div>
         ) : <div className="rounded-md border border-dashed border-[#2d3340] p-6 text-center text-sm text-[#8f95a3]">No compatible Library objects found.</div>}
+        {renderResourceDetails && inspectedResource ? <div aria-label="Selected Library resource details">{renderResourceDetails(inspectedResource)}</div> : null}
         {errorMessage ? <p className="text-sm text-red-300" role="alert">{errorMessage}</p> : null}
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={Boolean(busyActionId)} onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button type="button" variant="outline" disabled={Boolean(busyActionId)} onClick={() => changeOpen(false)}>Cancel</Button>
           <Button type="button" disabled={!selectedIds.length || Boolean(busyActionId)} onClick={() => { void confirm(); }}>
             {busyActionId === 'confirm' ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden="true" /> : null}
             Use selection

@@ -18,15 +18,22 @@ import {
 
 export function OwnerMarketingStrategyWorkspace({
   strategy,
+  onDirtyChange,
+  onCloseBlockedChange,
   onSaved,
   onError,
 }: {
   strategy: MarketingStrategyRecord;
+  onDirtyChange?: (dirty: boolean) => void;
+  onCloseBlockedChange?: (reason: string | null) => void;
   onSaved: (strategy: MarketingStrategyRecord) => void;
   onError: (message: string) => void;
 }) {
   const [draft, setDraft] = useState(strategy);
   const [busy, setBusy] = useState(false);
+  const dirty = busy || JSON.stringify(draft) !== JSON.stringify(strategy);
+  useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
+  useEffect(() => { onCloseBlockedChange?.(busy ? 'Wait for the campaign command outcome before starting a Set.' : null); return () => onCloseBlockedChange?.(null); }, [busy, onCloseBlockedChange]);
   useEffect(() => setDraft(strategy), [strategy]);
 
   const save = async () => {
@@ -143,6 +150,7 @@ export function OwnerMarketingStrategyWorkspace({
       <Button className="mt-4" disabled={busy} onClick={() => void save()}>
         {busy ? "Saving..." : "Save strategy"}
       </Button>
+    {dirty && !busy ? <Button type="button" variant="outline" className="mt-3" onClick={() => setDraft(strategy)}>Discard strategy draft</Button> : null}
     </article>
   );
 }

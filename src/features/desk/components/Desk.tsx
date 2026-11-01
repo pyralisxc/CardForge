@@ -1,5 +1,7 @@
 "use client";
 
+import { zoneAction, getWorkActions } from '../model/desk';
+
 import Link from 'next/link';
 import { deleteGoogleDriveProjectCopy } from '@/features/project/client/provider-google-drive';
 import dynamic from 'next/dynamic';
@@ -17,6 +19,8 @@ import {
   deriveCreatorSurfaceContext,
   EnvironmentBoundaryNotice,
   EnvironmentShell,
+  EnvironmentSearch,
+  isActionApplicable,
   EnvironmentStatus,
   EnvironmentToolLayer,
 } from '@/features/app-shell/client/environment';
@@ -484,8 +488,12 @@ export function Desk({
         actions={actions}
         accountControl={<PublicAuthControls />}
         showPrimaryAction={!focusedItem}
-        contextBand={contextDepth === 'desk' ? undefined : <DeskContextRail
-          depth={contextDepth}
+        primaryAction={zoneAction('desk.create-set', 'New Set', 'tool-opened')}
+        contextBand={contextDepth === 'desk' && (!focusedItem || focusedLocalSetId) ? undefined : <DeskContextRail
+          depth={contextDepth === 'desk' && focusedItem && !focusedLocalSetId ? 'work' : contextDepth}
+          workId={focusedItem?.id}
+          workActions={focusedItem && !focusedLocalSetId ? getWorkActions(focusedItem, true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles, experience.owner && experience.signedIn).filter(action => isActionApplicable(action, { objectKind: focusedItem.kind, sources: workDetailRecord(focusedItem).actionSources, viewer })) : undefined}
+          onWorkAction={action => { if (focusedItem) runWorkAction(focusedItem, action); }}
           setName={focusedItem?.name}
           artifactName={focusedArtifact ? getCardTitle(focusedArtifact, selectedCardIndex) : undefined}
           toolName={toolName}
@@ -557,6 +565,7 @@ export function Desk({
             <Link className="font-semibold text-[var(--cf-accent-strong)] underline-offset-4 hover:underline" href={createAuthRouteHref('/sign-up', '/account')} prefetch={false} onClick={markSignUpIntent}>Create account</Link>
           </span>
         )}
+        search={contextDepth === 'desk' ? <EnvironmentSearch label="Search Desk work" value={query} onChange={setQuery} inputRef={searchRef} /> : undefined}
         onCommand={() => searchRef.current?.focus()}
         onAction={runAction}
         onCloseDetail={() => setInspectorWorkId(null)}
@@ -577,8 +586,6 @@ export function Desk({
             sourceStatuses={projection.sourceStatuses}
             showGrid={showGrid}
             snapToGrid={snapToGrid}
-            query={query}
-            searchRef={searchRef}
             sourceFilters={deskViewPreferences.preferences.sources}
             sourceFacets={sourceFacets}
             typeFilters={deskViewPreferences.preferences.types}

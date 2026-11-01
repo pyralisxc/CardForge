@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import { useToast } from '@/components/ui/use-toast';
 import { createPublishedSetCopy } from '@/features/project/client/published-sets';
-import type { CardForgeCatalogManifest } from '@/features/pipeline/client';
+import type { PublishedSetCatalogItem } from '@/domain/publishedSets';
 
 interface UseHomePublishedSetStartersOptions {
   focusCreatedSet: (setId: string) => void;
@@ -17,7 +17,7 @@ export function usePublishedSetStarters({
 }: UseHomePublishedSetStartersOptions) {
   const { toast } = useToast();
   const [createOpen, setCreateOpen] = useState(false);
-  const [publishedSets, setPublishedSets] = useState<CardForgeCatalogManifest['sets']['items']>([]);
+  const [publishedSets, setPublishedSets] = useState<PublishedSetCatalogItem[]>([]);
   const [publishedSetsLoading, setPublishedSetsLoading] = useState(false);
   const [publishedSetsFailure, setPublishedSetsFailure] = useState<string | null>(null);
   const [creatingPublishedSetId, setCreatingPublishedSetId] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export function usePublishedSetStarters({
     void fetch('/api/catalog', { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw new Error('Published Set starters are unavailable right now.');
-        return response.json() as Promise<CardForgeCatalogManifest>;
+        return response.json() as Promise<{ sets: { items: PublishedSetCatalogItem[] } }>;
       })
       .then((catalog) => setPublishedSets(catalog.sets?.items ?? []))
       .catch((error: unknown) => setPublishedSetsFailure(
@@ -39,7 +39,7 @@ export function usePublishedSetStarters({
       .finally(() => setPublishedSetsLoading(false));
   };
 
-  const createFromPublishedSet = async (set: CardForgeCatalogManifest['sets']['items'][number]) => {
+  const createFromPublishedSet = async (set: PublishedSetCatalogItem) => {
     setCreatingPublishedSetId(set.id);
     try {
       const result = await createPublishedSetCopy({ packageUrl: set.packageUrl, expectedName: set.name });

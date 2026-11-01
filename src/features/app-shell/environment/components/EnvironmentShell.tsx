@@ -5,7 +5,6 @@ import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } fr
 import { isActionApplicable, type ActionDescriptor, type EnvironmentPresentation, type EnvironmentViewer, type ZoneDefinition, type ZoneId, type ZoneViewportPolicy } from '../model';
 import type { EnvironmentDetailRecord } from '../presentation';
 import { EnvironmentCommandBand } from './EnvironmentCommandBand';
-import { EnvironmentCommandPalette } from './EnvironmentCommandPalette';
 import { EnvironmentDesktopInspector, EnvironmentMobileSheet } from './EnvironmentDetail';
 import { EnvironmentNavigation } from './EnvironmentNavigation';
 import styles from './EnvironmentFoundation.module.css';
@@ -24,6 +23,7 @@ interface EnvironmentShellProps {
   actions: readonly ActionDescriptor[];
   focusReturnId?: string;
   primaryDisabledReason?: string;
+  primaryAction?: ActionDescriptor;
   showPrimaryAction?: boolean;
   search?: ReactNode;
   accountControl?: ReactNode;
@@ -41,9 +41,8 @@ interface EnvironmentShellProps {
   onActiveZoneNavigate?: () => void;
 }
 
-export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, actionContext = null, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, showPrimaryAction = true, search, accountControl, contextBand, presentation, statusContent, persistentStatusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail, onActiveZoneNavigate }: EnvironmentShellProps) {
+export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, actionContext = null, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, primaryAction: requestedPrimaryAction, showPrimaryAction = true, search, accountControl, contextBand, presentation, statusContent, persistentStatusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail, onActiveZoneNavigate }: EnvironmentShellProps) {
   const [mobileDetail, setMobileDetail] = useState(false);
-  const [commandOpen, setCommandOpen] = useState(false);
   const ownedSurfaceRef = useRef<HTMLElement | null>(null);
   const resolvedSurfaceRef = surfaceRef ?? ownedSurfaceRef;
   const mobileNavigationPersistent = presentation.mode === 'browse' && presentation.focusDepth === 'zone';
@@ -72,8 +71,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
         event.preventDefault();
-        if (visibleActions.length) setCommandOpen(true);
-        else onCommand();
+        onCommand();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -81,7 +79,9 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
   }, [onCommand, visibleActions.length]);
   if (!activeDefinition) return null;
   const primaryAction = showPrimaryAction
-    ? visibleActions.find((action) => action.hierarchy === 'primary' && action.availability.kind !== 'hidden') ?? null
+    ? requestedPrimaryAction
+      ? isActionApplicable(requestedPrimaryAction, { objectKind: applicableContext?.kind ?? null, sources: applicableContext?.actionSources ?? [], viewer }) ? requestedPrimaryAction : null
+      : visibleActions.find((action) => action.hierarchy === 'primary' && action.availability.kind !== 'hidden') ?? null
     : null;
   return (
     <section className={styles.lab} data-primary-scroll={primaryScroll} aria-label={ariaLabel}>
@@ -95,7 +95,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
       >
         <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} onActiveZoneNavigate={onActiveZoneNavigate} mobilePersistent={mobileNavigationPersistent} />
         <div className={styles.commandStack}>
-          <EnvironmentCommandBand zone={activeDefinition} brand={brand} primaryAction={primaryAction} primaryDisabledReason={primaryDisabledReason} search={search} accountControl={accountControl} context={contextBand} onCommand={() => { if (visibleActions.length) setCommandOpen(true); else onCommand(); }} onAction={onAction} />
+          <EnvironmentCommandBand zone={activeDefinition} brand={brand} primaryAction={primaryAction} primaryDisabledReason={primaryDisabledReason} search={search} accountControl={accountControl} context={contextBand} onAction={onAction} />
         </div>
         <main ref={resolvedSurfaceRef} className={styles.primarySurface} data-scene-viewport data-scroll={primaryScroll}>{children}</main>
         {detail && !mobileDetail ? <EnvironmentDesktopInspector record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
@@ -108,7 +108,6 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
         </footer>
       </div>
       {detail && mobileDetail ? <EnvironmentMobileSheet open focusReturnId={focusReturnId} record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
-      <EnvironmentCommandPalette open={commandOpen} actions={visibleActions} onOpenChange={setCommandOpen} onAction={onAction} />
     </section>
   );
 }

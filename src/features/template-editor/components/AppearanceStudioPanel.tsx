@@ -16,6 +16,7 @@ import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import type { PersonalLibraryItem, PersonalLibraryRole } from '@/features/personal-library/client';
 import type { AppearanceGradientType, AppearanceStylePreset, AppearanceTextureKind, FreeformAppearance, FreeformCardElement } from '@/domain/templates';
 import { ColorField } from '@/features/template-editor/components/ColorField';
+import { PipelineSourceDisclosure } from '@/features/pipeline/client/engagement';
 import { TemplateAssetLibraryPicker } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
 
 type LocalFillPreset = {
@@ -200,7 +201,7 @@ export function AppearanceStudioPanel({
       )}
       <div className="grid grid-cols-2 gap-1.5">
         {visibleReviewedStyles.map((style) => (
-          <Tooltip key={style.id}>
+          <div key={style.id} className="min-w-0"><Tooltip>
             <TooltipTrigger asChild>
               <Button
                 type="button"
@@ -214,7 +215,7 @@ export function AppearanceStudioPanel({
               </Button>
             </TooltipTrigger>
             <TooltipContent>Apply {style.name}</TooltipContent>
-          </Tooltip>
+          </Tooltip><PipelineSourceDisclosure registryAssetId={style.librarySource !== 'local' && style.registryStatus === 'published' ? style.id : undefined} style={style} /></div>
         ))}
       </div>
       {hiddenStyleCount > 0 ? (

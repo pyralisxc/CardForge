@@ -31,7 +31,7 @@ describe('Divider Studio source selection', () => {
     expect(markup).toContain('Reviewed Divider Recipes');
     const props = picker.render.mock.calls.at(-1)![0] as ComponentProps<typeof TemplateAssetLibraryPicker>;
     expect(props).toMatchObject({ kind: 'divider', assets: [asset], personalRoles: ['divider'], providerRole: 'divider', target: { kind: 'template-element', ids: ['selected-divider'] } });
-    props.onApply(asset);
+    props.onApply(asset, new AbortController().signal);
     expect(appearance).toMatchObject({ dividerAsset: asset.url, assetKind: 'divider', assetRenderMode: 'original', shapeRole: 'divider', textureOpacity: 85, tileMode: 'stretch', material: { baseColor: 'transparent', textColor: '#123456' }, border: { kind: 'none', width: 0 } });
     expect(appearanceToStyle(appearance).backgroundImage).toBe(`url("${asset.url}#svgView(preserveAspectRatio(none))")`);
     expect(element).toEqual(before);

@@ -1,6 +1,6 @@
 {
   "name": "cardforge-owner",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Inspect and operate CardForge's Owner-controlled public property and operational state.",
   "author": {
     "name": "Cameron Locke",
@@ -18,7 +18,7 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "CardForge Owner",
-    "shortDescription": "Operate the CardForge property as its authenticated Owner",
+    "shortDescription": "Manage CardForge as Owner",
     "longDescription": "Inspect CardForge's public presentation, workspace health, analytics, MCP usage, provider readiness, and accountable Owner activity, and publish revision-safe site copy, public settings, identity, Founder, Experience, legal, roadmap and media changes through the same revision-safe Owner authority used by the browser. CardForge Studio remains a separate creator plugin.",
     "developerName": "Cameron Locke",
     "category": "Productivity",
@@ -34,7 +34,10 @@
       "Show me CardForge provider readiness and explain any gaps.",
       "What Owner changes have happened recently?"
     ],
-    "brandColor": "#8A5A2B"
+    "brandColor": "#8A5A2B",
+    "supportURL": "https://cardforges.com/contact?kind=support",
+    "logo": "./assets/logo.png",
+    "composerIcon": "./assets/icon.png"
   },
   "skills": "./skills/"
 }

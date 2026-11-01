@@ -378,13 +378,13 @@ Extend equivalent lineage concepts to revisionable media/fonts/component recipes
 
 ### Removal semantics
 
-Contributor ownership should support safe non-destructive lifecycle actions:
+The Owner may move any Contributor’s exact revision to recoverable Trash; Contributors may Trash only their own exact work. Only the Owner may request early permanent deletion, after Trash and the applicable native ownership, hold, reference and worker checks. Contributors cannot quick-delete content. Normal retention otherwise applies.
 
-- Withdraw own unpublished candidate/revision;
-- Retire own published contribution, subject to dependency/policy checks;
-- Restore/resubmit where policy allows.
+Revision recovery uses one exact-revision Trash clock, normally 30 days, whether entry came from voting, the Contributor or the Owner. Shared Trash remains browseable and votable under existing account eligibility; private drafts and unknown legacy sharing provenance do not become public. Trash is absent from Studio discovery and new insertion while retained references and bytes remain intact. Positive voting may recover vote-origin Trash through the existing grading policy, but never reverses manual Contributor or Owner Trash. The original Contributor may restore self- or vote-origin Trash, never Owner moderation. Restore returns ordinary review/publication eligibility without rewriting source or replacing a newer current revision; a restored private draft stays private until ordinary submission. Unchanged decision evidence cannot immediately re-trash a restored revision or reset its clock. Holds, dependency protections and committed or uncertain destructive attempts remain authoritative. Legacy unknown visibility remains unavailable rather than inventing sharing or moderation history. Removing an exact current publication still requires proven retained runtime compatibility and native consumer admission.
 
-Never-published work that is declined, withdrawn, expired, or superseded enters recoverable Trash. The Owner controls the minimum review age, inactivity window, Trash recovery window, and retention holds. After recovery expires, a service worker deletes the Storage object first and only then finalizes the database row; missing references and failed Storage deletion keep the record retryable. Previously published revisions remain History with a minimal publication receipt and are never treated as disposable failed content. The currently live registry pointer is never automatically purged or displaced by later dislikes.
+Manual recoverable removal of eligible catalog media previews known exact consumers and requires fresh impact confirmation when references exist. Affected current Pipeline objects receive technical dependency-unavailable findings in Content Health, independently of human editorial revise decisions; normal Open and exact-lineage revision workflows own repair. Incomplete unrelated dependency interpretation is a coverage warning, not proof of a target reference. Private consumer identities remain hidden from unauthorized Contributors, who receive redacted counts. Restore and corrected current revisions reevaluate health rather than blindly clearing it. Physical erasure, committed claims, holds and installed-runtime type restrictions remain separate boundaries.
+
+Never-published work that is declined, withdrawn, expired, or superseded enters recoverable Trash. The Owner controls the minimum review age, inactivity window, Trash recovery window, and retention holds. When native retention eligibility is established, the worker removes Storage bytes before finalizing the database row. An uncertain Storage or finalization outcome retains its durable claim for reconciliation; time alone never reissues authority. Previously published revisions retain publication evidence and are never treated as disposable failed content. Their displayed recovery deadline does not authorize physical expiry. The currently live registry pointer is never automatically purged or displaced by later dislikes.
 
 ## Library, Storage, and Source Ownership
 
@@ -619,7 +619,7 @@ CardForge already has much of the lower-level engine:
 - temporary AI documents and MCP collaboration;
 - Pipeline submissions/votes/publication/archive/attribution.
 - a select-first constrained spatial Desk with persistent grouping, shared-object Set opening, reflective organization, and equivalent pointer/touch/keyboard paths;
-- one semantic action runtime presented through Desk, focused work, and the command palette;
+- one semantic action runtime presented through Desk and exact focused-work menus;
 - Personal/Published/Pipeline Library scopes, exact revision editing, contributor withdrawal/retirement, and Content Health;
 - one source-agnostic Library Picker contract used by resource-selecting tools;
 - fault-visible browser recovery, revision-safe Google Drive boundaries, exact checkout return, and independent commercial/authority entitlement axes;

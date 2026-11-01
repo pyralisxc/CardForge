@@ -187,6 +187,7 @@ export const projectPipelineProgramForViewer = (
     submission.contributorId === currentUserId ? submission : {
       ...submission,
       contributorEmail: null,
+      trashActorId: null,
       sourceUrl: null,
       sourceStorageBucket: null,
       sourceStoragePath: null,

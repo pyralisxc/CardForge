@@ -36,6 +36,8 @@ describe('CardForge Owner plugin', () => {
       expect(files).toEqual([
         '.codex-plugin/plugin.json',
         '.mcp.json',
+        'assets/icon.png',
+        'assets/logo.png',
         'icon.svg',
         'mcp.json',
         'plugin.json',
@@ -49,7 +51,7 @@ describe('CardForge Owner plugin', () => {
       };
       expect(packagedManifest).toMatchObject({
         name: 'cardforge-owner',
-        version: '0.7.1',
+        version: '0.7.2',
         mcpServers: './.mcp.json',
         interface: {
           displayName: 'CardForge Owner',
@@ -79,7 +81,7 @@ describe('CardForge Owner plugin', () => {
       'utf8',
     );
 
-    expect(manifest).toContain('Operate the CardForge property');
+    expect(manifest).toContain('Inspect and operate CardForge');
     expect(tools).toContain("'get_owner_site_snapshot'");
     expect(tools).toContain("'get_owner_provider_readiness'");
     expect(tools).toContain("'get_owner_activity'");

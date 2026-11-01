@@ -91,8 +91,10 @@ export interface TabletopSimulatorManifestSheet {
   cardsPerSheet: number;
   cardWidthPx: number;
   cardHeightPx: number;
+  sideways: boolean;
   cards: Array<{
     number: number;
+    sourceIndex: number;
     name: string;
     uniqueId: string;
     hasBack: boolean;
@@ -246,24 +248,68 @@ export const createPrintProductionManifest = (
   }),
 });
 
+// Authored format compatibility is independent of raster rounding. A meaningful
+// format change starts a new contiguous sheet rather than stretching artwork.
+export const areTabletopSimulatorAspectRatiosCompatible = (
+  firstWidth: number, firstHeight: number, nextWidth: number, nextHeight: number
+): boolean => (
+  firstWidth > 0 && firstHeight > 0 && nextWidth > 0 && nextHeight > 0
+  && Math.abs(firstWidth / firstHeight - nextWidth / nextHeight) <= 0.005
+);
+
+export const assertTabletopSimulatorRenderedFaceAspect = (
+  cell: Pick<TabletopSimulatorCardCellSize, 'cardWidthPx' | 'cardHeightPx'>,
+  bitmap: Pick<ImageBitmap, 'width' | 'height'>,
+  sourceIndex: number,
+  face: 'front' | 'back',
+): void => {
+  // The 4K sheet helper floors both scaled cell dimensions (up to one
+  // pixel lost on each axis). The source raster also rounds each dimension
+  // to the nearest pixel. Accept only aspect intervals that can overlap
+  // under those two quantizations; a fixed ratio epsilon rejects valid
+  // wide cards such as 779×260 -> 409×136.
+  const cellMinRatio = cell.cardWidthPx / (cell.cardHeightPx + 1);
+  const cellMaxRatio = (cell.cardWidthPx + 1) / cell.cardHeightPx;
+  const bitmapMinRatio = (bitmap.width - 0.5) / (bitmap.height + 0.5);
+  const bitmapMaxRatio = (bitmap.width + 0.5) / (bitmap.height - 0.5);
+  if (
+    cell.cardWidthPx <= 0 || cell.cardHeightPx <= 0
+    || bitmap.width <= 0 || bitmap.height <= 0
+    || bitmap.height <= 0.5
+    || bitmapMaxRatio < cellMinRatio || bitmapMinRatio > cellMaxRatio
+  ) {
+    throw new Error(`Card ${sourceIndex + 1} ${face} pixels do not match this TTS sheet's proportions. No ZIP was exported; verify the authored face format.`);
+  }
+};
+
 export const createTabletopSimulatorSheets = (
   cards: DisplayCard[],
   quality: TabletopSimulatorExportQuality = 'standard'
 ): TabletopSimulatorSheet[] => {
   const grid = getTabletopSimulatorExportPreset(quality).grid;
   const sheets: TabletopSimulatorSheet[] = [];
-  for (let start = 0; start < cards.length; start += grid.cardsPerSheet) {
-    const slice = cards.slice(start, start + grid.cardsPerSheet);
-    sheets.push({
-      sheetIndex: sheets.length,
-      grid,
-      cards: slice.map((card, index) => ({
-        card,
-        sourceIndex: start + index,
-        sheetCardIndex: index,
-      })),
-      hasBacks: slice.some(hasCardBacking),
-    });
+  // TTS slices each image into uniform grid cells. Only adjacent compatible
+  // cards may share a sheet: global geometry buckets would reorder the Set.
+  let current: TabletopSimulatorSheet | null = null;
+  for (const [sourceIndex, card] of cards.entries()) {
+    const front = getTemplateProductionGeometryMm(getCardFaceTemplate(card, 'front'));
+    if (hasCardBacking(card)) {
+      const back = getTemplateProductionGeometryMm(getCardFaceTemplate(card, 'back'));
+      if (!areTabletopSimulatorAspectRatiosCompatible(front.trimWidthMm, front.trimHeightMm, back.trimWidthMm, back.trimHeightMm)) {
+        throw new Error(`Card ${sourceIndex + 1} has a back with a different shape from its front. Tabletop Simulator requires matching front/back proportions; edit the backing Template before exporting.`);
+      }
+    }
+    const first = current?.cards[0]?.card;
+    const firstGeometry = first && getTemplateProductionGeometryMm(getCardFaceTemplate(first, 'front'));
+    if (!current || current.cards.length === grid.cardsPerSheet
+      || !firstGeometry || !areTabletopSimulatorAspectRatiosCompatible(
+        firstGeometry.trimWidthMm, firstGeometry.trimHeightMm, front.trimWidthMm, front.trimHeightMm
+      )) {
+      current = { sheetIndex: sheets.length, grid, cards: [], hasBacks: false };
+      sheets.push(current);
+    }
+    current.cards.push({ card, sourceIndex, sheetCardIndex: current.cards.length });
+    current.hasBacks ||= hasCardBacking(card);
   }
   return sheets;
 };
@@ -285,7 +331,9 @@ export const createTabletopSimulatorManifest = (
     notes: [
       'Upload the exported sheet images to a public or local source that Tabletop Simulator can access.',
       `Use ${grid.columns} columns and ${grid.rows} rows. CardForge reserves the final grid slot so each sheet contains at most ${grid.cardsPerSheet} playable cards.`,
-      'If a back sheet is present, use it as the matching custom deck back for that numbered sheet.',
+      'Import these numbered sheets in order to preserve the authored Set order; a new sheet begins whenever card proportions change.',
+      'For a matching back sheet, enable Unique Backs in the TTS Custom Deck import. Back is Hidden can use the back instead of the reserved final face slot.',
+      'For landscape sheets, enable Sideways for the matching TTS card zoom orientation; each manifest sheet records this setting.',
     ],
     sheets: sheets.map((sheet) => {
       const renderedSize = sizesBySheetIndex.get(sheet.sheetIndex);
@@ -302,8 +350,10 @@ export const createTabletopSimulatorManifest = (
         cardsPerSheet: sheet.grid.cardsPerSheet,
         cardWidthPx: renderedSize.cardWidthPx,
         cardHeightPx: renderedSize.cardHeightPx,
+        sideways: renderedSize.cardWidthPx > renderedSize.cardHeightPx,
         cards: sheet.cards.map((item) => ({
           number: item.sheetCardIndex + 1,
+          sourceIndex: item.sourceIndex + 1,
           name: String(item.card.data?.cardName || item.card.data?.name || `Card ${item.sourceIndex + 1}`),
           uniqueId: item.card.uniqueId,
           hasBack: hasCardBacking(item.card),

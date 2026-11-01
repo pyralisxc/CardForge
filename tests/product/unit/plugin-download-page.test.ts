@@ -11,7 +11,15 @@ describe('download page public shell and access presentation', () => {
     expect(source).not.toContain('<main className=');
     expect(source).toContain('ContributorPublicAuthSlot');
     expect(source).toContain('PluginDownloadLinks scope="studio"');
-    expect(source).not.toContain('scope="owner"');
+    expect(source).toContain('scope="owner"');
+    expect(source).toContain('getCurrentCardforgeUserAccess');
+    expect(source).toContain('mayShowOwnerDownloads(getCurrentCardforgeUserAccess)');
+    expect(source).toContain("from '@/features/plugin-distribution/server'");
+    expect(source).not.toContain("@/features/plugin-distribution/lib/");
+    expect(source).toContain("dynamic = 'force-dynamic'");
+    expect(source).toContain("dynamic = 'force-dynamic'");
+    expect(source).toContain('{owner ?');
+    expect(source).not.toContain('allowOwnerAdmission');
     expect(source).toContain('href="/"');
   });
   it('retains the validated local sign-in return', () => {
@@ -27,6 +35,9 @@ describe('download page public shell and access presentation', () => {
     expect(source).toContain("await fetch('/api/plugin-downloads?'");
     expect(source).toContain("response.headers.get('X-Checksum-SHA256')");
     expect(source).toContain('URL.createObjectURL(blob)');
-    expect(source).not.toContain('href={\'/api/plugin-downloads?');
+    expect(source).toContain("packet:'1'");
+    // Direct ZIP links bypass checksum-header/blob validation; metadata-only
+    // reviewer packets are permitted through the same authorized GET route.
+    expect(source.split('href={').slice(1).every(fragment => !fragment.slice(0, 250).includes("download: '1'") && !fragment.slice(0, 250).includes('download=1'))).toBe(true);
   });
 });

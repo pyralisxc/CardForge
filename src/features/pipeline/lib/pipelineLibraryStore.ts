@@ -1,5 +1,6 @@
-import { buildPipelineProgramView, type PipelineProgramView } from './pipelineProgram';
-import { fetchPipelineSubmissionPage } from './pipelineProjections';
+import { buildPipelineProgramView, type SharedPipelineTrashPage, type PipelineProgramView } from './pipelineProgram';
+import { fetchPipelineSubmissionPage, fetchSharedPipelineTrashMetadataPage } from './pipelineProjections';
+import { readPipelineDependencyHealth } from './pipelineDependencyHealth';
 import { getPipelineProgramContext } from './pipelineStore';
 
 type ProgramContext = Awaited<ReturnType<typeof getPipelineProgramContext>>;
@@ -10,12 +11,14 @@ const fetchAllPipelineSubmissions = async ({
   includeRegistryRecipePayloads,
   allowSelfVoting,
   scope,
+  trash,
 }: {
   currentUserId: string;
   profiles: ProgramContext['profiles'];
   includeRegistryRecipePayloads: boolean;
   allowSelfVoting: boolean;
   scope: 'own' | 'review';
+  trash: string;
 }) => {
   const pageSize = 50;
   const fetchPage = (page: number) => fetchPipelineSubmissionPage({
@@ -23,7 +26,7 @@ const fetchAllPipelineSubmissions = async ({
     profiles,
     includeRegistryRecipePayloads,
     allowSelfVoting,
-    query: { scope, page, pageSize },
+    query: { scope, trash, page, pageSize },
   });
   const firstPage = await fetchPage(1);
   const pageCount = Math.ceil(firstPage.total / pageSize);
@@ -43,16 +46,17 @@ const fetchAllPipelineSubmissions = async ({
 export const getPipelineLibraryProgramView = async (
   currentUserId: string,
   currentContributorIds: string[] = [currentUserId],
-  { includeRegistryRecipePayloads = false }: { includeRegistryRecipePayloads?: boolean } = {},
+  { includeRegistryRecipePayloads = false, trash = 'active' }: { includeRegistryRecipePayloads?: boolean; trash?: string } = {},
 ): Promise<PipelineProgramView> => {
   const context = await getPipelineProgramContext(currentUserId);
-  const [submissionPage, votingPage] = await Promise.all([
+  const [submissionPage, votingPage, dependencyImpacts] = await Promise.all([
     fetchAllPipelineSubmissions({
       currentUserId,
       profiles: context.profiles,
       includeRegistryRecipePayloads,
       allowSelfVoting: context.settings.allowContributorSelfVoting,
       scope: 'own',
+      trash,
     }),
     fetchAllPipelineSubmissions({
       currentUserId,
@@ -60,9 +64,11 @@ export const getPipelineLibraryProgramView = async (
       includeRegistryRecipePayloads,
       allowSelfVoting: context.settings.allowContributorSelfVoting,
       scope: 'review',
+      trash,
     }),
+    readPipelineDependencyHealth(),
   ]);
-  return buildPipelineProgramView({
+  return { dependencyImpacts, ...buildPipelineProgramView({
     ...context,
     currentUserId,
     currentContributorIds,
@@ -70,7 +76,7 @@ export const getPipelineLibraryProgramView = async (
     votingQueue: votingPage.submissions,
     submissionPage,
     votingPage,
-  });
+  }) };
 };
 
 /**
@@ -96,3 +102,8 @@ export const getOwnPublishedPipelineSubmissions = async (
   const remaining = await Promise.all(Array.from({ length: pageCount - 1 }, (_, index) => loadPage(index + 2)));
   return [firstPage, ...remaining].flatMap((page) => page.submissions);
 };
+
+export const getSharedPipelineTrashPage = (
+  currentUserId: string,
+  query: Omit<import('./pipelineProjections').PipelineListQuery, 'scope' | 'trash'> = {},
+): Promise<SharedPipelineTrashPage> => fetchSharedPipelineTrashMetadataPage(currentUserId, query);

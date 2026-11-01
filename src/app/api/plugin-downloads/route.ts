@@ -1,5 +1,5 @@
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { buildCurrentPlugin, pluginDownloadAccess } from '@/features/plugin-distribution/server';
+import { buildCurrentPlugin, buildStudioReviewerPacket, pluginDownloadAccess } from '@/features/plugin-distribution/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -21,6 +21,12 @@ export async function GET(request: Request) {
     }
     const release = await buildCurrentPlugin(product, environment);
     const { bytes, ...detail } = release;
+    if (url.searchParams.get('packet') === '1') {
+      if (product !== 'studio') return createApiErrorResponse(400, 'owner_request_invalid', 'A public reviewer packet is available only for Studio.');
+      if (url.searchParams.get('version') !== release.version) return createApiErrorResponse(409, 'owner_operations_conflict', 'The package version changed. Refresh before downloading the packet.');
+      const packet = await buildStudioReviewerPacket(environment, release.version);
+      return new Response(packet, { headers: { 'Content-Type':'text/markdown; charset=utf-8', 'Content-Disposition': 'attachment; filename="cardforge-studio-review-' + environment + '-' + release.version + '.md"', 'Cache-Control':'private, no-store, max-age=0', 'X-Content-Type-Options':'nosniff' } });
+    }
     const wantsBytes = url.searchParams.get('download') === '1';
     if (!wantsBytes) return createNoStoreJsonResponse({ latest: detail, previous: [] });
     // Exact checksum guards changing deployments and prohibits disguised old-release downloads.
