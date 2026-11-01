@@ -17,7 +17,7 @@
       "prompt": "Create an editable fantasy spell card Template with an editable title and rules and preview it.",
       "tools_triggered": "create_editable_template, preview_template_draft",
       "expected_behavior": "Create a private revision-bound Template and show its native rendered preview without publishing.",
-      "setup": "Use the private fixture document created earlier in the same session.",
+      "setup": "No prior document required; this case creates the first private fixture in the session.",
       "status": "Not run"
     },
     {
