@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { startTransition, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { prepareTemplateForLibrarySave } from '@/features/template-editor/client';
 import { CardTemplateMaker } from '@/features/template-editor/components/CardTemplateMaker';
@@ -217,6 +217,15 @@ function ControllerIconApplicationProof() {
   return <>
     <button onClick={()=>perform('/asymmetric.svg')}>Apply Icon with acknowledgment</button>
     <button onClick={raceConfirmations}>Race Arcane then original Star</button>
+    <button onClick={() => {
+      setResult('pending');
+      // A lower-priority unrelated update queued before the Icon update forces
+      // React to rebase/replay the Icon updater after its first commit.
+      startTransition(() => controller.updateElement('neighbor', {content:'Updated neighbor'}));
+      void controller.applyIconSelection('icon', {
+        iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original',
+      }).then(() => setResult('applied')).catch(() => setResult('rejected'));
+    }}>Apply Icon during lower-priority neighbor edit</button>
     <output data-testid="ack-race">{race}</output>
     <button onClick={()=>controller.updateElement('icon',{locked:true})}>Lock Icon</button>
     <button onClick={()=>controller.updateElement('icon',{locked:false})}>Unlock Icon</button>
