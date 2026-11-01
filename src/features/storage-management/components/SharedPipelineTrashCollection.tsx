@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { PIPELINE_ENGAGEMENT_CHANGED } from '@/features/pipeline/client/engagement';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { PipelineSourceFeedback } from '@/features/pipeline/client/engagement';
 import { RevisionRecoveryControls } from '@/features/pipeline/client/revision-recovery';
@@ -16,9 +17,11 @@ type SharedTrashItem = {
 };
 type SharedTrashPage = { total: number; page: number; pageSize: number; items: SharedTrashItem[] };
 
-export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision }: { onOpenAuthorizedRevision?: (item: SharedTrashItem) => Promise<void> }) {
+export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision, actorScope }: { onOpenAuthorizedRevision?: (item: SharedTrashItem) => Promise<void>; actorScope: string }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState('');
+  useEffect(() => { const reload = () => setRefresh(value => value + 1); window.addEventListener(PIPELINE_ENGAGEMENT_CHANGED, reload); return () => window.removeEventListener(PIPELINE_ENGAGEMENT_CHANGED, reload); }, []);
   const [page, setPage] = useState(1);
   const [result, setResult] = useState<SharedTrashPage | null>(null);
   const [error, setError] = useState('');
@@ -39,7 +42,7 @@ export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision }: { on
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [query, page]);
+  }, [query, page, refresh]);
   return <section aria-label="Shared Pipeline Trash" className="grid gap-3 px-3 py-4">
     <div><h2 className="font-semibold">Shared Trash</h2><p className="text-sm text-[var(--cf-text-muted)]">Discover retained shared revisions. Browsing does not restore them or make them available for Studio insertion. Your private drafts and connected files are separate.</p></div>
     <label className="grid gap-1 text-sm">Search shared Trash
@@ -55,7 +58,7 @@ export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision }: { on
       <p className="text-xs text-[var(--cf-text-muted)]">Submission {item.id} · Recovery deadline {item.purgeAfter ? new Date(item.purgeAfter).toLocaleDateString() : 'unavailable'}{item.publicationRetained ? ' · Publication history remains retained' : ''}</p>
       <p className="text-xs">Votes: {item.positiveVotes} up · {item.negativeVotes} down. Voting and Restore require their own eligibility checks.</p>
       {onOpenAuthorizedRevision ? <button type="button" className="justify-self-start min-h-11 border border-[var(--cf-border)] px-3 text-sm" onClick={() => onOpenAuthorizedRevision(item)}>Manage exact revision</button> : <button type="button" className="justify-self-start min-h-11 border border-[var(--cf-border)] px-3 text-sm" aria-expanded={expandedId === item.id} onClick={() => setExpandedId(current => current === item.id ? null : item.id)}>Exact voting &amp; recovery options</button>}
-      {expandedId === item.id ? <div className="grid gap-2" aria-label={`Exact options for ${item.id}`}><p className="text-xs">These controls separately verify your eligibility for submission {item.id}. Shared discovery grants neither permission.</p><PipelineSourceFeedback key={item.id} submissionId={item.id} /><RevisionRecoveryControls submissionId={item.id} actorScope={`shared:${item.id}`} /></div> : null}
+      {expandedId === item.id ? <div className="grid gap-2" aria-label={`Exact options for ${item.id}`}><p className="text-xs">These controls separately verify your eligibility for submission {item.id}. Shared discovery grants neither permission.</p><PipelineSourceFeedback key={item.id} submissionId={item.id} /><RevisionRecoveryControls submissionId={item.id} actorScope={`${actorScope}:${item.id}`} onChanged={() => setRefresh(value => value + 1)} /></div> : null}
     </article>)}</div>
     <div className="flex gap-2">
       <button type="button" className="min-h-11 border px-3" disabled={loading || page <= 1} onClick={() => setPage(value => value - 1)}>Previous</button>

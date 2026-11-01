@@ -129,6 +129,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const activeScope = resolveLibraryScopeForViewer(scope, { contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
   const shared = useLibrarySharedProjection({ pipelineEnabled: pipelineAccess, activeScope });
   const [sharedTrashMode, setSharedTrashMode] = useState(false);
+  const sharedTrashSessionKey = JSON.stringify([activeScope, isSignedIn, experience.owner, persistenceScope, sharedTrashMode, activeTool]);
+
   const [revisionMode, setRevisionMode] = useState(false);
   const revisionsEnabled = activeScope === 'pipeline' && experience.owner && isSignedIn && revisionMode;
   const revisionQueue = useLibraryRevisionQueue({ enabled: revisionsEnabled, query: projection.query, catalog: shared.catalog, catalogLoading: shared.catalogLoading, catalogFailure: shared.catalogFailure });
@@ -152,7 +154,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [reviewTarget, setReviewTarget] = useState<PipelineReviewTarget | null>(null);
   const [toolCloseBlocked, setToolCloseBlocked] = useState<string | null>(null);
   const [revisionKind, setRevisionKind] = useState<'templates' | 'elementPresets' | null>(null);
+  const sharedTrashRequestEpoch = useRef(0);
+  const sharedTrashContext = useRef('');
   const reviewReturn = useRef<{ focus: HTMLElement | null; focusId?: string | null; scroll: number } | null>(null);
+  sharedTrashContext.current = sharedTrashSessionKey;
+  useEffect(() => { sharedTrashRequestEpoch.current += 1; }, [sharedTrashSessionKey]);
   const [editingSubmission, setEditingSubmission] = useState<PipelineSubmission | null>(null);
   const [requestedSubmissionId, setRequestedSubmissionId] = useState<string | null>(null);
   const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
@@ -568,18 +574,22 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           {sharedTrashMode ? 'Return to Pipeline' : 'Browse shared Trash'}
         </button>
       </div> : null}
-      {activeScope === 'pipeline' && isSignedIn && sharedTrashMode ? <SharedPipelineTrashCollection onOpenAuthorizedRevision={experience.owner ? async item => {
-        if (activeTool) return;
+      {activeScope === 'pipeline' && isSignedIn && sharedTrashMode ? <SharedPipelineTrashCollection actorScope={JSON.stringify([persistenceScope, isSignedIn, experience.owner, experience.contributor.active])} onOpenAuthorizedRevision={experience.owner ? async item => {
+        if (activeTool || !sharedTrashMode || activeScope !== 'pipeline' || !experience.owner || !isSignedIn) return;
+        const requestId = ++sharedTrashRequestEpoch.current;
+        const context = sharedTrashSessionKey;
         try {
           const response = await fetch('/api/pipeline/library?trash=trashed', { cache: 'no-store' });
           if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Exact revision is unavailable.'));
           const payload = await response.json() as { program: { submissions: PipelineSubmission[]; votingQueue: PipelineSubmission[] } };
+          if (requestId !== sharedTrashRequestEpoch.current || sharedTrashContext.current !== context) return;
           const exact = [...payload.program.submissions, ...payload.program.votingQueue].find(row => row.id === item.id && row.lineageId === item.lineageId && row.trashedAt);
           const target = exact ? createPipelineReviewTarget(exact) : null;
           if (!target) throw new Error('This exact trashed revision is unavailable to your Owner account. Refresh before retrying.');
           reviewReturn.current = { focus: document.activeElement instanceof HTMLElement ? document.activeElement : null, scroll: surfaceRef.current?.scrollTop ?? 0 };
           setReviewTarget(target); setRevisionKind(null); openTool('review-manage', [target.lineageId, target.submissionId]);
         } catch (error) {
+          if (requestId !== sharedTrashRequestEpoch.current || sharedTrashContext.current !== context) return;
           toast({ title: 'Exact revision unavailable', description: error instanceof Error ? error.message : 'Refresh Library.', variant: 'destructive' });
         }
       } : undefined} /> : <LibraryCollection
