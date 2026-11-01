@@ -210,12 +210,14 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     elementId: string,
     changes: IconApplication['changes'],
     signal?: AbortSignal,
+    expectedTemplateId: string | null = initialTemplateRef.current.id,
   ): Promise<void> => {
     if (!controllerAliveRef.current) return Promise.reject(iconApplyCancellation());
     const state = committedRef.current;
     const current = getTemplateEditorCanvas(state.currentTemplate)?.elements.find(candidate => candidate.id === elementId);
     if (signal?.aborted) return Promise.reject(iconApplyCancellation());
-    if (state.currentTemplate.id !== initialTemplateRef.current.id || state.selectedElementId !== elementId
+    if (!expectedTemplateId || expectedTemplateId !== state.currentTemplate.id
+      || state.currentTemplate.id !== initialTemplateRef.current.id || state.selectedElementId !== elementId
       || !current || current.type !== 'icon' || current.locked) return Promise.reject(iconApplyFailure());
     // A second confirmation cannot overtake an uncommitted Icon selection.
     // Even an already-current value must not acknowledge ahead of that write.
