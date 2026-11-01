@@ -158,7 +158,7 @@ describe('CardForge Studio plugin', () => {
     expect(listing.displayName.length).toBeLessThanOrEqual(30);
     expect(listing.developerName.length).toBeLessThanOrEqual(80);
     expect(listing.longDescription.length).toBeLessThanOrEqual(4000);
-    for (const name of ['websiteURL','supportURL','privacyPolicyURL','termsOfServiceURL']) expect(listing[name]).toMatch(/^https:\\/\\//);
+    for (const name of ['websiteURL','supportURL','privacyPolicyURL','termsOfServiceURL']) expect(String(listing[name]).startsWith('https://')).toBe(true);
     expect(listing.defaultPrompt).toHaveLength(3);
     for (const prompt of listing.defaultPrompt) expect(prompt.length).toBeLessThanOrEqual(128);
     expect(portable.extensions['com.openai'].review.test_cases.positive).toHaveLength(5);

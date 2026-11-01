@@ -59,7 +59,7 @@ export async function buildPluginArchive(product, environment) {
   const listing = manifest.interface;
   if (product === 'studio') {
     if (listing.displayName.length > 30 || listing.shortDescription.length > 30 || listing.longDescription.length > 4000 || listing.developerName.length > 80 || listing.defaultPrompt.length > 3 || listing.defaultPrompt.some(value => !value || value.length > 128 || /[\\r\\n]/u.test(value))) throw new Error('Studio listing exceeds platform limits');
-    for (const key of ['websiteURL','supportURL','privacyPolicyURL','termsOfServiceURL']) if (!/^https:\\/\\//u.test(listing[key] ?? '') || listing[key].length > 1024) throw new Error('Invalid Studio public listing URL: ' + key);
+    for (const key of ['websiteURL','supportURL','privacyPolicyURL','termsOfServiceURL']) if (!String(listing[key] ?? '').startsWith('https://') || listing[key].length > 1024) throw new Error('Invalid Studio public listing URL: ' + key);
   }
   const files = new Map();
   if (product === 'studio') {
