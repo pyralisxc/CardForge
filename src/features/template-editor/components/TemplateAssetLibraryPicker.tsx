@@ -32,10 +32,11 @@ interface TemplateAssetLibraryPickerProps {
   providerRole: PersonalLibraryRole;
   target: LibraryPickerRequest['target'];
   onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
-  onApply: (asset: CardAssetOption, signal: AbortSignal) => void | Promise<void>;
+  onApply: (asset: CardAssetOption, signal: AbortSignal, expectedTemplateId?: string | null) => void | Promise<void>;
+  applicationTemplateId?: string | null;
   managedAdoption?: { pendingName?: string; issue: string | null; onSelect: (selection: ManagedRasterSelection, name: string) => void };
   builtInOptions?: readonly { name: string; value: string }[];
-  onApplyBuiltIn?: (value: string, signal: AbortSignal) => void | Promise<void>;
+  onApplyBuiltIn?: (value: string, signal: AbortSignal, expectedTemplateId?: string | null) => void | Promise<void>;
   onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
 }
 
@@ -83,6 +84,7 @@ export function TemplateAssetLibraryPicker({
   target,
   onAddFromProvider,
   onApply,
+  applicationTemplateId,
   managedAdoption,
   builtInOptions = [],
   onApplyBuiltIn,
@@ -166,6 +168,8 @@ export function TemplateAssetLibraryPicker({
           onInvoke: () => onAddFromProvider(providerRole),
         }]}
         onSelect={async (result, signal) => {
+          // Capture Design context before potentially asynchronous personal materialization.
+          const expectedTemplateId = applicationTemplateId;
           const selection = result.selections[0];
           if (!selection) throw new Error('Choose one Library resource before applying it.');
           if (adopt && managedAdoption) {
@@ -182,17 +186,19 @@ export function TemplateAssetLibraryPicker({
             return;
           }
           if (selection.id.startsWith(`published:built-in-${kind}:`) && onApplyBuiltIn) {
-            await onApplyBuiltIn(selection.objectId, signal);
+            await onApplyBuiltIn(selection.objectId, signal, expectedTemplateId);
             return;
           }
           if (selection.source === 'personal') {
             const item = personalItems.find((candidate) => candidate.id === selection.objectId);
             if (!item) throw new Error('That personal Library item is no longer available. Refresh the Picker and choose again.');
-            await onApply(await onMaterializePersonal(item), signal);
+            const materialized = await onMaterializePersonal(item);
+            if (signal.aborted) return;
+            await onApply(materialized, signal, expectedTemplateId);
             return;
           }
           const asset = resolveSelectedTemplateAsset(selection, assets);
-          await onApply(asset, signal);
+          await onApply(asset, signal, expectedTemplateId);
         }}
         renderResourceDetails={resource => {
           const asset = assets.find(candidate => resource.id === `${pickerSourceForAsset(candidate)}:${candidate.id}`);
