@@ -14,6 +14,8 @@ describe('download page public shell and access presentation', () => {
     expect(source).toContain('scope="owner"');
     expect(source).toContain('getCurrentCardforgeUserAccess');
     expect(source).toContain('mayShowOwnerDownloads(getCurrentCardforgeUserAccess)');
+    expect(source).toContain("from '@/features/plugin-distribution/server'");
+    expect(source).not.toContain("@/features/plugin-distribution/lib/");
     expect(source).toContain("dynamic = 'force-dynamic'");
     expect(source).toContain("dynamic = 'force-dynamic'");
     expect(source).toContain('{owner ?');

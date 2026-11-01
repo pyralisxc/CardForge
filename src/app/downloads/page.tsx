@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getCurrentCardforgeUserAccess } from '@/features/account/server';
-import { mayShowOwnerDownloads } from '@/features/plugin-distribution/lib/ownerDownloadVisibility';
+import { mayShowOwnerDownloads } from '@/features/plugin-distribution/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { ContributorPublicAuthSlot } from '@/features/contributor-access/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
