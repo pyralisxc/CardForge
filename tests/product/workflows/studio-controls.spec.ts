@@ -399,3 +399,29 @@ for (const accountToolLayer of [false, true]) test(`@golden captured unique Arca
  await expect(page.getByLabel('Vector color',{exact:true})).toContainText('Original');
  await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
 });
+
+
+test('@golden compact 500px dirty Library Design keeps selected Icon when switching captured Arcane SVGs', async ({page}) => {
+ await page.setViewportSize({width:500,height:960});
+ await mountHistoryProof(page,'?capturedCatalog=1&accountToolLayer=1');
+ await page.getByRole('button',{name:'Close inspector',exact:true}).click();
+ await page.getByRole('button',{name:'Open editor menu',exact:true}).click();
+ await page.getByRole('button',{name:'Elements',exact:true}).click();
+ await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
+ await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
+ const choose=async(name:RegExp)=>{
+   await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
+   await page.getByRole('option',{name}).click();
+   await page.getByRole('button',{name:'Use selection',exact:true}).click();
+ };
+ await choose(/^Star\b/);
+ await expect(page.getByText('Current icon: Star')).toBeVisible();
+ await choose(/Arcane Corner Overlay/);
+ await expect(page.getByPlaceholder('Uploaded icon URL or {{symbolUrl}}')).toHaveValue(capturedArcaneOverlayUrl);
+ await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+ await choose(/Arcane Star/);
+ await expect(page.getByPlaceholder('Uploaded icon URL or {{symbolUrl}}')).toHaveValue(capturedArcaneStarUrl);
+ await expect(page.getByText('Current icon: Custom source')).toBeVisible();
+ await expect(page.getByLabel('Vector color',{exact:true})).toContainText('Original');
+ await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
+});
