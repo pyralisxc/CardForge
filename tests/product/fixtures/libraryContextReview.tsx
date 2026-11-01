@@ -113,11 +113,11 @@ window.fetch = async (input, init) => {
         trashActorRole: 'contributor', trashPreviousStatus: 'voting', publicationRetained: true,
         positiveVotes: 2, negativeVotes: 1 }] } });
     if (url === '/api/pipeline/library') return Response.json({ program: { ...program, submissions: [] } });
-    if (url.includes('/api/pipeline/') && url.endsWith('/engagement')) return Response.json({ engagement: {
+    if (url.startsWith('/api/pipeline/engagement?')) return Response.json({
       submissionId: row.id, lineageId: row.lineageId, name: 'Recoverable shared card back',
       revisionNumber: 1, status: 'archived', trashedAt: '2026-10-31T18:00:00Z', purgeState: null,
       positiveVotes: 2, negativeVotes: 1, currentUserVote: null,
-      voteIssue: params.has('sharedDenied') ? 'Voting not permitted' : null, heart: null, heartIssue: null } });
+      voteIssue: params.has('sharedDenied') ? 'Voting not permitted' : null, heart: null, heartIssue: null });
     if (url.endsWith('/lifecycle')) {
       if (method === 'POST') { proof.libraryRequests.push({ url, method, body: String(init?.body ?? '') }); return Response.json({ error: { message: 'Not permitted' } }, { status: 403 }); }
       return Response.json({ name: 'Recoverable shared card back', state: {

@@ -811,7 +811,6 @@ for (const editing of [false, true]) test(`@golden Campaign package pristine and
 for (const denied of [false, true]) test(`@golden signed-in shared Trash exact Contributor controls (denied=${denied})`, async ({ page }) => {
   const evidence = await mount(page, `?queueActual=1&scope=pipeline&sharedTrashProof=1${denied ? '&sharedDenied=1' : ''}`);
   await page.getByRole('button', { name: 'Browse shared Trash' }).click();
-  const shared = page.getByRole('region', { name: 'Shared Pipeline Trash' }).or(page.getByRole('generic', { name: 'Shared Pipeline Trash' }));
   await expect(page.getByText('Recoverable shared card back')).toBeVisible();
   await expect(page.getByText('Recovery deadline', { exact: false })).toBeVisible();
   await expect(page.getByText('Publication history remains retained', { exact: false })).toBeVisible();
