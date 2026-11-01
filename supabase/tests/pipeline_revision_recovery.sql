@@ -14,10 +14,10 @@ begin
    or has_function_privilege('authenticated','public.cardforge_change_revision_recovery(text,boolean,text,jsonb,boolean)','EXECUTE') then
    raise exception 'revision_recovery_browser_privilege_regression'; end if;
  insert into public.cardforge_pipeline_asset_lineages(id,registry_asset_id,revision_high_water) values(lineage,'recovery-proof',3);
- insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status,revision_number,published_at,source_payload,source_url)
- values(history,lineage,'recovery-a','icons','Retained history','archived','approved',1,now()-interval '3 days',payload,'https://example.invalid/recovery-history.svg'),
-       (live,lineage,'recovery-b','icons','Newer live','published','approved',2,now()-interval '2 days',null,'https://example.invalid/live.svg'),
-       (other,lineage,'recovery-b','icons','Another contributor candidate','voting','pending',3,null,null,'https://example.invalid/recovery-candidate.svg');
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,editorial_review_status,revision_number,published_at,source_payload,source_url,registry_asset_id,target_registry_asset_id)
+ values(history,lineage,'recovery-a','icons','Retained history','archived','approved',1,now()-interval '3 days',payload,'https://example.invalid/recovery-history.svg','recovery-proof','recovery-proof'),
+       (live,lineage,'recovery-b','icons','Newer live','published','approved',2,now()-interval '2 days',null,'https://example.invalid/live.svg','recovery-proof','recovery-proof'),
+       (other,lineage,'recovery-b','icons','Another contributor candidate','voting','pending',3,null,null,'https://example.invalid/recovery-candidate.svg',null,'recovery-proof');
  insert into public.cardforge_asset_registry(asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id)
  values('recovery-proof','Newer live','icon','https://example.invalid/live.svg','published','free','contributor',live);
  select count(*) into published_before from public.cardforge_pipeline_publication_events where lineage_id=lineage;
