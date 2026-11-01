@@ -69,6 +69,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   // invalidate it and reset from the incoming Template.
   const activeDocumentIdRef = useRef(initialTemplate.id);
   const syncedInitialIdRef = useRef(initialTemplate.id);
+  const acknowledgedSaveIdentityRef = useRef<{ fromId: string; toId: string } | null>(null);
   // One in-flight Icon confirmation owned by this controller, not a second editor store.
   const committedRef = useRef(editorState);
   const controllerAliveRef = useRef(true);
@@ -85,6 +86,15 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
 
   useLayoutEffect(() => {
     committedRef.current = editorState;
+    // A Save can acknowledge a draft→persisted identity while newer edits keep
+    // the parent selected Template unchanged. Reconcile the active document
+    // only after the saved ID actually commits in canonical editor state.
+    const savedIdentity = acknowledgedSaveIdentityRef.current;
+    if (savedIdentity
+      && activeDocumentIdRef.current === savedIdentity.fromId
+      && editorState.currentTemplate.id === savedIdentity.toId) {
+      activeDocumentIdRef.current = savedIdentity.toId;
+    }
     const request = pendingIconRef.current;
     if (!request) return;
     const element = getTemplateEditorCanvas(editorState.currentTemplate)?.elements.find(
@@ -117,8 +127,19 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
 
 
   useEffect(() => {
-    syncedInitialIdRef.current = initialTemplateRef.current.id;
-    activeDocumentIdRef.current = initialTemplateRef.current.id;
+    const nextId = initialTemplateRef.current.id;
+    const savedIdentity = acknowledgedSaveIdentityRef.current;
+    acknowledgedSaveIdentityRef.current = null;
+    // Persisting the *same* working draft under its new library ID is not
+    // switching to another Template. acceptSavedTemplate already reconciled
+    // every authored history snapshot and the selected layer.
+    const isAcknowledgedPersistence = Boolean(savedIdentity
+      && savedIdentity.toId === activeDocumentIdRef.current
+      && savedIdentity.toId === nextId
+      && committedRef.current.currentTemplate.id === nextId);
+    syncedInitialIdRef.current = nextId;
+    activeDocumentIdRef.current = nextId;
+    if (isAcknowledgedPersistence) return;
     setEditorState(resetTemplateEditorState(initialTemplateRef.current));
     setCheckedLayerIds([]);
   }, [initialTemplate.id]);
@@ -167,6 +188,8 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   const resetTemplate = useCallback((template: TCGCardTemplate) => {
     const pending = pendingIconRef.current;
     if (pending) finishIcon(pending, iconApplyCancellation());
+    // Deliberate new-document navigation invalidates any unconsumed Save handoff.
+    acknowledgedSaveIdentityRef.current = null;
     activeDocumentIdRef.current = template.id;
     setEditorState(resetTemplateEditorState(template));
     setCheckedLayerIds([]);
@@ -288,6 +311,16 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   }, []);
 
   const acceptSavedTemplate = useCallback((submitted: TCGCardTemplate, saved: TCGCardTemplate) => {
+    // The only authorized identity handoff is an acknowledged Save for this
+    // same working document. Unrelated navigation retains reset semantics.
+    const workingId = committedRef.current.currentTemplate.id;
+    // A same-ID Save may happen while the first draft→persisted handoff still
+    // waits for the parent selection to catch up (newer edits kept it on draft).
+    // Do not erase that acknowledged handoff until the parent effect consumes it.
+    if (submitted.id && saved.id && submitted.id !== saved.id
+      && workingId === submitted.id) {
+      acknowledgedSaveIdentityRef.current = { fromId: submitted.id, toId: saved.id };
+    }
     setEditorState(previous => acceptSavedTemplateEditorState(previous, submitted, saved));
   }, []);
 

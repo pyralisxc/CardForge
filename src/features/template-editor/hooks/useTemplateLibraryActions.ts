@@ -143,7 +143,6 @@ export function useTemplateLibraryActions({
   deleteTemplate,
   projectCapabilities,
   setGeneratorSelectedTemplateId,
-  setTemplateEditorSelectedTemplateId,
   storedCards,
   templates,
   toast,
@@ -201,7 +200,9 @@ export function useTemplateLibraryActions({
       removedFieldKeys: impact.removedFieldKeys,
       setId,
     });
-    setTemplateEditorSelectedTemplateId(savedTemplateId);
+    // Persist first; the active editor must acknowledge the saved document
+    // before its selected Template id changes. Premature selection resets the
+    // canonical controller and discards the unsaved draft's selection/history.
     if (templateToSave.templateUsage !== 'back-preset') setGeneratorSelectedTemplateId(savedTemplateId);
     const committed = selectAllTemplates(useProjectStore.getState()).find((candidate) => candidate.id === savedTemplateId);
     const templateForFile = committed ? reconstructMinimalTemplateObject(committed) : null;
@@ -216,7 +217,7 @@ export function useTemplateLibraryActions({
       }
     }
     return { id: savedTemplateId, template: templateForFile };
-  }, [commitTemplateChange, projectCapabilities.canSubmitTemplateRevisions, setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, toast]);
+  }, [commitTemplateChange, projectCapabilities.canSubmitTemplateRevisions, setGeneratorSelectedTemplateId, toast]);
 
   const handleSaveTemplate = useCallback(async (template: TCGCardTemplate): Promise<TemplateSaveReceipt> => {
     const source = templates.find((candidate) => candidate.id === template.id) ?? null;
