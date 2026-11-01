@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { prepareTemplateForLibrarySave } from '@/features/template-editor/client';
 import { CardTemplateMaker } from '@/features/template-editor/components/CardTemplateMaker';
+import { EnvironmentToolLayer } from '@/features/app-shell/environment/components/EnvironmentToolLayer';
 import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import { initializeCardDataFromTemplate } from '@/features/card-generator/client';
 import { renderCardToPngBlob } from '@/features/card-generator/lib/cardPreviewExport';
@@ -86,6 +87,22 @@ function ControllerBatchProof() {
     <output data-testid="batch-history">{controller.history.length}</output>
   </>;
 }
+const params = new URLSearchParams(location.search);
 createRoot(document.body.appendChild(document.createElement('div'))).render(
-  new URLSearchParams(location.search).has('controllerBatch') ? <ControllerBatchProof/> : <Fixture/>
+  params.has('controllerBatch') ? <ControllerBatchProof/>
+  : params.has('accountToolLayer') ? (
+    <EnvironmentToolLayer
+      id="library-design-title"
+      eyebrow="Library tool"
+      title="Design Template"
+      summary="Existing Device-only Design"
+      closeLabel="Close Design"
+      onClose={() => undefined}
+      dirty
+      presentation="sheet"
+      manageHistory={false}
+    >
+      <Fixture/>
+    </EnvironmentToolLayer>
+  ) : <Fixture/>
 );
