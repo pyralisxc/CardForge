@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { PipelineSourceFeedback } from '@/features/pipeline/client/engagement';
+import { RevisionRecoveryControls } from '@/features/pipeline/client/revision-recovery';
 
 // The shared endpoint intentionally returns public metadata, not a template,
 // source payload, management target, or permission to restore/insert assets.
@@ -15,6 +17,7 @@ type SharedTrashItem = {
 type SharedTrashPage = { total: number; page: number; pageSize: number; items: SharedTrashItem[] };
 
 export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision }: { onOpenAuthorizedRevision?: (item: SharedTrashItem) => Promise<void> }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [result, setResult] = useState<SharedTrashPage | null>(null);
@@ -51,7 +54,8 @@ export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision }: { on
       {item.description ? <p className="text-sm">{item.description}</p> : null}
       <p className="text-xs text-[var(--cf-text-muted)]">Submission {item.id} · Recovery deadline {item.purgeAfter ? new Date(item.purgeAfter).toLocaleDateString() : 'unavailable'}{item.publicationRetained ? ' · Publication history remains retained' : ''}</p>
       <p className="text-xs">Votes: {item.positiveVotes} up · {item.negativeVotes} down. Voting and Restore require their own eligibility checks.</p>
-      {onOpenAuthorizedRevision ? <button type="button" className="justify-self-start min-h-11 border border-[var(--cf-border)] px-3 text-sm" onClick={() => onOpenAuthorizedRevision(item)}>Manage exact revision</button> : <p className="text-xs text-[var(--cf-text-muted)]">For voting or your own recovery options, use the authorized Pipeline account controls. Shared browsing alone grants no action.</p>}
+      {onOpenAuthorizedRevision ? <button type="button" className="justify-self-start min-h-11 border border-[var(--cf-border)] px-3 text-sm" onClick={() => onOpenAuthorizedRevision(item)}>Manage exact revision</button> : <button type="button" className="justify-self-start min-h-11 border border-[var(--cf-border)] px-3 text-sm" aria-expanded={expandedId === item.id} onClick={() => setExpandedId(current => current === item.id ? null : item.id)}>Exact voting &amp; recovery options</button>}
+      {expandedId === item.id ? <div className="grid gap-2" aria-label={`Exact options for ${item.id}`}><p className="text-xs">These controls separately verify your eligibility for submission {item.id}. Shared discovery grants neither permission.</p><PipelineSourceFeedback key={item.id} submissionId={item.id} /><RevisionRecoveryControls submissionId={item.id} actorScope={`shared:${item.id}`} /></div> : null}
     </article>)}</div>
     <div className="flex gap-2">
       <button type="button" className="min-h-11 border px-3" disabled={loading || page <= 1} onClick={() => setPage(value => value - 1)}>Previous</button>
