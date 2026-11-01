@@ -93,6 +93,13 @@ function ControllerBatchProof() {
 function PickerSessionProof() {
   const [open,setOpen] = useState(false);
   const [result,setResult] = useState('idle');
+  const [race,setRace] = useState('idle');
+  const raceConfirmations = () => {
+    setRace('pending');
+    const first = controller.applyIconSelection('icon', {iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
+    const second = controller.applyIconSelection('icon', {iconName:'Star',iconImageSource:undefined,iconRenderMode:undefined});
+    void Promise.allSettled([first, second]).then(results => setRace(results.map(result => result.status).join(',')));
+  };
   const completion = useRef<null|{resolve:()=>void;reject:(error:Error)=>void}>(null);
   return <>
     <button onClick={()=>setOpen(true)}>Open chooser</button>
@@ -124,6 +131,8 @@ function ControllerIconApplicationProof() {
   };
   return <>
     <button onClick={()=>perform('/asymmetric.svg')}>Apply Icon with acknowledgment</button>
+    <button onClick={raceConfirmations}>Race Arcane then original Star</button>
+    <output data-testid="ack-race">{race}</output>
     <button onClick={()=>controller.updateElement('icon',{locked:true})}>Lock Icon</button>
     <button onClick={()=>controller.updateElement('icon',{locked:false})}>Unlock Icon</button>
     <button onClick={()=>controller.updateElement('icon',{rotation:30})}>Change geometry</button>
