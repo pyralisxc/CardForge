@@ -331,10 +331,9 @@ for (const width of [390, 1440]) for (const missing of [false, true]) test(`@gol
       recovery: { x: recovery.x, y: recovery.y, width: recovery.width, height: recovery.height },
       hit: hit?.textContent, reachable: hit === button || button.contains(hit) };
   });
-  console.log('REVISION_RECOVERY_POINTER_GEOMETRY', JSON.stringify(geometry));
   await info.attach('revision-recovery-pointer-geometry', { body: JSON.stringify(geometry), contentType: 'application/json' });
   expect(geometry.reachable).toBe(true);
-  const recoverySummary = reviewAction.locator('xpath=ancestor::li[1]').getByText('Recover or Trash this revision', { exact: true });
+  const recoverySummary = reviewAction.locator('xpath=ancestor::li[1]').getByText('Trash & recovery options', { exact: true });
   await recoverySummary.click();
   await expect(reviewAction.locator('xpath=ancestor::li[1]').getByRole('button', { name: 'Inspect revision recovery' })).toBeVisible();
   await recoverySummary.click();
