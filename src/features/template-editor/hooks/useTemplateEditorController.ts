@@ -209,8 +209,9 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     if (signal?.aborted) return Promise.reject(iconApplyCancellation());
     if (state.currentTemplate.id !== initialTemplateRef.current.id || state.selectedElementId !== elementId
       || !current || current.type !== 'icon' || current.locked) return Promise.reject(iconApplyFailure());
-    const older = pendingIconRef.current;
-    if (older) finishIcon(older, iconApplyCancellation());
+    // A second confirmation cannot overtake an uncommitted Icon selection.
+    // Even an already-current value must not acknowledge ahead of that write.
+    if (pendingIconRef.current) return Promise.reject(new Error('An Icon selection is still being applied. Try again after it finishes.'));
     if (matchesIconApplication(current, changes)) return Promise.resolve();
     return new Promise<void>((resolve, reject) => {
       const request: IconApplication = {
