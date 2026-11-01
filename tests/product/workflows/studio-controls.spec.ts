@@ -453,6 +453,35 @@ test('@golden delayed personal materialization cannot apply A Icon to B with sam
  expect(element.iconImageSource).toBeUndefined();
 });
 
+test('@golden new unsaved Template accepts Icon SVG without a matching persisted initial Template',async({page})=>{
+ await page.route('**/*',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
+  if(url.pathname==='/api/catalog/studio-bootstrap')return route.fulfill({json:{fonts:{fonts:[]},templates:{templates:[]},styles:{styles:[]}}});
+  if(url.pathname==='/api/catalog/studio-assets')return route.fulfill({json:{assets:{textures:[],dividers:[],icons:[],imageAssets:[]}}});
+  if(url.pathname.startsWith('/fonts/'))return route.fulfill({body:readFileSync(join('public',url.pathname))});
+  return route.abort();
+ });
+ await page.goto('/__studio-history?unsavedDraftIcon=1');
+ await page.addStyleTag({content:(await css).css});
+ for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
+ await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
+ await page.getByRole('button',{name:'Begin unsaved personal Template'}).click();
+ await expect(page.getByTestId('draft-template-id')).toHaveText('draft-new-personal-template');
+ await expect(page.getByTestId('draft-selected-element-id')).toHaveText('neighbor');
+ await page.getByRole('button',{name:'Select Icon Layer',exact:true}).click();
+ await expect(page.getByTestId('draft-selected-element-id')).toHaveText('icon');
+ await page.getByRole('button',{name:'Apply published SVG to unsaved Template'}).click();
+ await expect(page.getByTestId('draft-apply-status')).toHaveText('applied');
+ expect(JSON.parse(await page.getByTestId('draft-icon').textContent()||'{}')).toMatchObject({
+  id:'icon',iconImageSource:'/asymmetric.svg',iconRenderMode:'original',
+ });
+ expect(JSON.parse(await page.getByTestId('draft-neighbor').textContent()||'{}')).toMatchObject({
+  id:'neighbor',content:'Keep neighbor',
+ });
+ await expect(page.getByTestId('draft-history')).toHaveText('1');
+});
+
 test('@golden retained same-value Icon confirmation rejects after editor unmount', async ({page}) => {
  await page.route('**/*',route=>{
   const url=new URL(route.request().url());

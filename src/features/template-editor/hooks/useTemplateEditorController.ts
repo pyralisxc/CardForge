@@ -64,6 +64,11 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   const [checkedLayerIds, setCheckedLayerIds] = useState<string[]>([]);
   const initialTemplateRef = useRef(initialTemplate);
   initialTemplateRef.current = initialTemplate;
+  // Parent selection and a deliberately begun unsaved draft are distinct.
+  // The controller owns the active working document; parent ID changes still
+  // invalidate it and reset from the incoming Template.
+  const activeDocumentIdRef = useRef(initialTemplate.id);
+  const syncedInitialIdRef = useRef(initialTemplate.id);
   // One in-flight Icon confirmation owned by this controller, not a second editor store.
   const committedRef = useRef(editorState);
   const controllerAliveRef = useRef(true);
@@ -86,7 +91,8 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
       candidate => candidate.id === request.elementId,
     );
     if (request.signal?.aborted) return finishIcon(request, iconApplyCancellation());
-    if (initialTemplate.id !== request.templateId
+    if (initialTemplate.id !== syncedInitialIdRef.current
+      || activeDocumentIdRef.current !== request.templateId
       || editorState.currentTemplate.id !== request.templateId
       || editorState.selectedElementId !== request.elementId
       || !element || element.type !== 'icon' || element.locked) {
@@ -111,6 +117,8 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
 
 
   useEffect(() => {
+    syncedInitialIdRef.current = initialTemplateRef.current.id;
+    activeDocumentIdRef.current = initialTemplateRef.current.id;
     setEditorState(resetTemplateEditorState(initialTemplateRef.current));
     setCheckedLayerIds([]);
   }, [initialTemplate.id]);
@@ -159,6 +167,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   const resetTemplate = useCallback((template: TCGCardTemplate) => {
     const pending = pendingIconRef.current;
     if (pending) finishIcon(pending, iconApplyCancellation());
+    activeDocumentIdRef.current = template.id;
     setEditorState(resetTemplateEditorState(template));
     setCheckedLayerIds([]);
   }, [finishIcon]);
@@ -226,7 +235,8 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     const current = getTemplateEditorCanvas(state.currentTemplate)?.elements.find(candidate => candidate.id === elementId);
     if (signal?.aborted) return Promise.reject(iconApplyCancellation());
     if (!expectedTemplateId || expectedTemplateId !== state.currentTemplate.id
-      || state.currentTemplate.id !== initialTemplateRef.current.id || state.selectedElementId !== elementId
+      || initialTemplateRef.current.id !== syncedInitialIdRef.current
+      || state.currentTemplate.id !== activeDocumentIdRef.current || state.selectedElementId !== elementId
       || !current || current.type !== 'icon' || current.locked) return Promise.reject(iconApplyFailure());
     // A second confirmation cannot overtake an uncommitted Icon selection.
     // Even an already-current value must not acknowledge ahead of that write.
