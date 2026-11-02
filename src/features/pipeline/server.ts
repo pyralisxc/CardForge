@@ -44,3 +44,6 @@ export { dependencyImpactJsonSchema } from './lib/dependencyImpactContract';
 
 export { listAgentPipelineSubmissions, inspectAgentPipelineRevision, readAgentPipelineHealth, readAgentPipelineEngagement, voteAgentPipelineRevision, heartAgentPipelineLineage } from './server/pipelineAgentActions';
 export { pipelineAgentListInput, pipelineAgentExactInput, pipelineAgentVoteInput, pipelineAgentHeartInput, pipelineAgentPage, pipelineAgentRevision, pipelineAgentHealth, pipelineAgentEngagement, pipelineAgentMutationReceipt } from './lib/pipelineAgentContract';
+
+export { getContributorPipelineDraft, saveContributorPipelineMetadata, finalizeContributorTemplateSubmission } from './server/contributorDraftCommands';
+export { contributorDraftExactInput, contributorDraftWriteInput, contributorDraftSnapshot, contributorDraftMutationResult } from './lib/contributorDraftContract';

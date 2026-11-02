@@ -884,3 +884,27 @@ test('@golden Owner catalog Restore refreshes mounted Shared Trash without losin
   expect(requests.filter(request => request.method === 'POST')).toHaveLength(1);
   expect(evidence.errors).toEqual([]);
 });
+
+for (const outcome of ['partial', 'uncertain'] as const) test(`@golden Contributor draft ${outcome} receipt keeps authored form and requires readback`, async ({ page }) => {
+  const evidence = await mount(page, `?contributorReceipt=${outcome}`);
+  await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Newer private description');
+  await page.getByRole('button', { name: 'Submit for owner review', exact: true }).click();
+  const status = page.getByRole('status').filter({ hasText: outcome === 'partial' ? 'Classification saved; draft not submitted' : 'Submission outcome not confirmed' });
+  await expect(status).toContainText('Read the exact draft before any further write; do not replay automatically');
+  await expect(status).toContainText('Semantic classification was saved');
+  await expect(page.getByRole('textbox', { name: 'Description', exact: true })).toHaveValue('Newer private description');
+  expect(await page.evaluate(() => (window as typeof window & { contributorRefreshes?: number }).contributorRefreshes ?? 0)).toBe(0);
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'POST')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+for (const outcome of ['committed', 'submitted'] as const) test(`@golden Contributor draft ${outcome} remains committed through deferred failed Library refresh`, async ({ page }) => {
+  const evidence = await mount(page, `?contributorReceipt=${outcome}`);
+  await page.getByRole('button', { name: outcome === 'submitted' ? 'Submit for owner review' : 'Save Pipeline draft', exact: true }).click();
+  const notice = page.getByRole('listitem').filter({ hasText: outcome === 'submitted' ? 'Draft submitted' : 'Metadata committed' });
+  await expect(notice).toContainText('The exact write is committed. Library refresh is pending.');
+  await page.evaluate(() => (window as typeof window & { releaseContributorRefresh: () => void }).releaseContributorRefresh());
+  await expect(notice).toContainText('Library refresh is incomplete');
+  await expect(notice).not.toContainText('not submitted');
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method !== 'GET')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});

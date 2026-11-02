@@ -1,6 +1,7 @@
 import type { MarketingContentPackage } from '@/features/marketing-content/client';
 import { PublicAuthControlContent } from '@/features/account/components/PublicAuthControls';
 import { DEFAULT_MARKETING_STRATEGY } from '@/features/marketing/client';
+import { PipelineSubmissionEditPanel } from '@/features/pipeline/components/PipelineSubmissionEditPanel';
 import { Toaster } from '@/components/ui/toaster';
 import { SearchParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
 import { Desk } from '@/features/desk/components/Desk';
@@ -57,7 +58,7 @@ const program = { configured: true, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   managedStorageBytes: 0, managedFileCount: 0, totalSubmissionCount: rows.length, totalVoteableCount: 0, activeContributorCount: 0,
   assetTypeSummaries: [], contributions: [], currentContributorIds: [],
 } as unknown as PipelineProgramView;
-const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseStylePost?: () => void; libraryNavigations: string[] };
+const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseContributorRefresh?: () => void; contributorRefreshes?: number; releaseStylePost?: () => void; libraryNavigations: string[] };
 proof.libraryRequests = []; proof.libraryNavigations = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
@@ -113,6 +114,14 @@ const campaignPackage = { id: 'synthetic-package', contributorId: params.has('ca
 let ownerCatalogRestored = false;
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
+  if (params.has('contributorReceipt') && String(input) === `/api/pipeline/${row.id}`) {
+    const method = init?.method ?? 'GET'; proof.libraryRequests.push({ url: String(input), method, body: String(init?.body ?? '') });
+    const kind = params.get('contributorReceipt'); const outcome = kind === 'partial' ? 'metadata_committed_not_submitted' : kind;
+    const receipt = { submissionId: row.id, outcome, metadataCommitted: true, submitted: outcome === 'submitted' ? true : outcome === 'uncertain' ? null : false,
+      committedMetadataFields: ['semanticRole'], warnings: outcome === 'metadata_committed_not_submitted' ? ['Semantic classification was saved, but submission was rejected.'] : outcome === 'uncertain' ? ['Semantic classification was saved; submission outcome is unconfirmed.'] : [], retryable: false, nextAction: outcome === 'committed' || outcome === 'submitted' ? 'none' : 'read' };
+    return Response.json({ receipt, snapshot: null, ...(outcome === 'uncertain' ? { error: { message: 'Exact write outcome is unconfirmed.', retryable: false } } : {}) }, { status: outcome === 'uncertain' ? 503 : 200 });
+  }
+
   if (params.has('catalogTrashProof') && String(input).endsWith('/catalog-trash')) {
     proof.libraryRequests.push({ url: String(input), method: init?.method ?? 'GET' });
     if (init?.method && init.method !== 'GET') throw new Error('Read-only recovery reachability proof must not mutate');
@@ -306,7 +315,7 @@ function RailProof() {
   }}><EnvironmentShell ariaLabel="Native shared rail proof" brand={{ src: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E', alt: 'Fixture' }} viewer={{ owner: false, signedIn: true, contributor: false }} zones={ENVIRONMENT_ZONES.filter(item => ['desk', 'library', 'profile'].includes(item.id))} activeZone={zone} viewportPolicy="desk" primaryScroll="contained" presentation={{ mode: 'browse', focusDepth: 'zone' }} detail={null} actions={[]} primaryAction={zone === 'profile' ? undefined : createLibraryZoneAction('library.create-set', 'New Set')} showPrimaryAction={zone !== 'profile'} accountControl={params.has('railAuth') ? <PublicAuthControlContent state={params.get('railAuth') === 'connecting' ? 'connecting' : 'signed-out'} returnTo="/account" /> : <button aria-label="Profile" style={{ width: 44, height: 44, flexShrink: 0 }}>P</button>} search={<EnvironmentSearch label={`Search ${zone}`} value={query} onChange={setQuery} inputRef={searchRef} />} onCommand={() => searchRef.current?.focus()} onAction={() => {}} onCloseDetail={() => {}} statusContent="Local storage ready" footerContent="Synthetic account control; no provider session"><p>Native shell layout proof</p></EnvironmentShell></div></AppRouterContext.Provider>;
 }
 const mount = document.createElement('div'); document.body.append(mount); const fixtureRouter = { bfcacheId: 'isolated-library', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: (href: string) => { proof.libraryNavigations.push(href); }, replace: () => {}, prefetch: async () => {} };
-createRoot(mount).render(<><Toaster />{params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
+createRoot(mount).render(<><Toaster />{params.has('contributorReceipt') ? <PipelineSubmissionEditPanel submission={{ ...row, assetType: 'templates', status: 'draft', semanticRole: 'template-front', requestedStudioDestination: 'template.front', specialtyTags: ['games'], useCaseTags: ['tcg'] }} onCancel={() => {}} onUpdated={async () => { proof.contributorRefreshes = (proof.contributorRefreshes ?? 0) + 1; await new Promise<void>((_, reject) => { proof.releaseContributorRefresh = () => reject(new Error('Synthetic Library refresh unavailable')); }); }} /> : params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
   experience={{ signedIn: true, owner: !params.has('campaignContributor') && !params.has('sharedTrashProof'), plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: true } } as AccountExperienceProjection}
   businessIdentity={{} as never} persistenceScope="account:isolated-library-fixture" />
 </AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />}</>);

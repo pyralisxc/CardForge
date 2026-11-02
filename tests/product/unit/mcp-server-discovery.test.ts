@@ -35,7 +35,7 @@ describe('Studio MCP HTTP discovery', () => {
       'get_pipeline_revision_recovery', 'change_pipeline_revision_recovery',
       'discover_pipeline_previews', 'inspect_saved_source', 'preview_saved_source', 'export_saved_source',
     ]));
-    expect(tools).toHaveLength(46);
+    expect(tools).toHaveLength(49);
     expect(tools.map((tool) => tool.name).sort()).toMatchInlineSnapshot(`
       [
         "attach_template_artwork",
@@ -51,10 +51,12 @@ describe('Studio MCP HTTP discovery', () => {
         "delete_pipeline_revision_now",
         "discover_pipeline_previews",
         "export_saved_source",
+        "finalize_contributor_template_submission",
         "get_agent_install_status",
         "get_card_generation_contract",
         "get_cardforge_capabilities",
         "get_catalog_trash",
+        "get_contributor_pipeline_draft",
         "get_editable_template",
         "get_pipeline_content_health",
         "get_pipeline_engagement",
@@ -75,6 +77,7 @@ describe('Studio MCP HTTP discovery', () => {
         "preview_cards",
         "preview_saved_source",
         "preview_template_draft",
+        "save_contributor_pipeline_metadata",
         "search_personal_library",
         "search_studio_library",
         "set_pipeline_heart",

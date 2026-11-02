@@ -1,3 +1,4 @@
+import type { ContributorDraftReceipt } from './contributorDraftContract';
 import { runPipelineUploadCommand, isPipelineUploadToken } from './pipelineUploadCommitments';
 import { stampContentQualityReviewNote } from '@/features/pipeline/lib/contentQualityStandard';
 import {
@@ -23,7 +24,7 @@ import {
   savePipelineProgramSettings,
   setPipelineEditorialReview,
   setPipelineOwnerOverride,
-  submitTemplatePipelineDraft,
+  commitTemplatePipelineDraft,
 } from '@/features/pipeline/lib/pipelineRegistryCommands';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import {
@@ -449,7 +450,7 @@ export const updatePipelineSubmissionDetails = async ({
     requestedStudioDestination?: unknown;
   };
   allowOwnerEdit?: boolean;
-}): Promise<void> => {
+}): Promise<ContributorDraftReceipt> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
 
@@ -500,7 +501,7 @@ export const updatePipelineSubmissionDetails = async ({
   }
 
   const previewUrl = normalized.value.previewUrl || row.source_url || '';
-  const { error } = await supabase
+  const write = supabase
     .from('cardforge_contributor_asset_submissions')
     .update({
       name: normalized.value.name,
@@ -518,7 +519,11 @@ export const updatePipelineSubmissionDetails = async ({
         ? { requested_studio_destination: normalized.value.requestedStudioDestination }
         : {}),
     })
-    .eq('id', submissionId);
+    .eq('id', submissionId)
+    .not('status', 'in', '(published,rejected)')
+    .is('media_presentation', null);
+  if (!allowOwnerEdit) write.eq('contributor_id', contributorId);
+  const { data: affected, error } = await write.select('id').maybeSingle();
 
   if (error) {
     console.error('Failed to edit Pipeline submission:', error);
@@ -532,7 +537,8 @@ export const updatePipelineSubmissionDetails = async ({
     }
     throw new PipelineStoreError('Unable to edit Pipeline submission.', 500);
   }
-
+  if (affected?.id !== submissionId) throw new PipelineStoreError('The exact editable revision changed or is unavailable. Read it again before any further write.', 409);
+  return { submissionId, outcome: 'committed', metadataCommitted: true, submitted: false, committedMetadataFields: ['name', 'description', 'previewUrl', ...Object.keys(normalized.value).filter(key => !['name', 'description', 'previewUrl'].includes(key))], warnings: [], retryable: false, nextAction: 'none' };
 };
 
 export const finalizeContributorTemplatePipelineDraft = async ({
@@ -556,7 +562,7 @@ export const finalizeContributorTemplatePipelineDraft = async ({
     compatibilityTags?: unknown;
     requestedStudioDestination?: unknown;
   };
-}): Promise<void> => {
+}): Promise<ContributorDraftReceipt> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
   const { data: rows, error } = await supabase
@@ -580,7 +586,7 @@ export const finalizeContributorTemplatePipelineDraft = async ({
   if (!normalized.value.requestedStudioDestination) throw new PipelineStoreError('Choose where this Template belongs in Studio.', 400);
   if (!normalized.value.semanticRole) throw new PipelineStoreError('Choose what semantic role this Template serves.', 400);
 
-  const { error: semanticUpdateError } = await supabase
+  const { data: semanticAffected, error: semanticUpdateError } = await supabase
     .from('cardforge_contributor_asset_submissions')
     .update({
       semantic_role: normalized.value.semanticRole,
@@ -591,13 +597,17 @@ export const finalizeContributorTemplatePipelineDraft = async ({
     })
     .eq('id', submissionId)
     .eq('contributor_id', contributorId)
-    .eq('status', 'draft');
+    .eq('status', 'draft')
+    .eq('asset_type', 'templates')
+    .select('id').maybeSingle();
   if (semanticUpdateError) {
     throw new PipelineStoreError('Unable to save this Template’s semantic classification before submission.', 500);
   }
 
-  await runRegistryCommand(async () => {
-    await submitTemplatePipelineDraft({
+  if (semanticAffected?.id !== submissionId) throw new PipelineStoreError('The exact Template draft changed before classification was saved.', 409);
+  const committedMetadataFields = ['semanticRole', 'visualFamily', 'variantKind', 'variantLabel', 'compatibilityTags'];
+  try {
+    await runRegistryCommand(() => commitTemplatePipelineDraft({
       submissionId,
       contributorId,
       name: normalized.value.name,
@@ -607,8 +617,14 @@ export const finalizeContributorTemplatePipelineDraft = async ({
       specialtyTags: normalized.value.specialtyTags!,
       useCaseTags: normalized.value.useCaseTags!,
       requestedStudioDestination: normalized.value.requestedStudioDestination!,
-    });
-  });
+    }));
+  } catch (error) {
+    const rejected = error instanceof PipelineStoreError && error.status < 500;
+    return { submissionId, outcome: rejected ? 'metadata_committed_not_submitted' : 'uncertain', metadataCommitted: true, submitted: rejected ? false : null,
+      committedMetadataFields, warnings: [rejected ? `Semantic classification was saved, but submission was rejected: ${error.message}` : 'Semantic classification was saved; the submission outcome is unconfirmed.'], retryable: false, nextAction: 'read' };
+  }
+  return { submissionId, outcome: 'submitted', metadataCommitted: true, submitted: true,
+    committedMetadataFields: [...committedMetadataFields, 'name', 'description', 'previewUrl', 'sourceNotes', 'specialtyTags', 'useCaseTags', 'requestedStudioDestination'], warnings: [], retryable: false, nextAction: 'none' };
 };
 
 export const updatePipelineSubmissionStatus = async ({

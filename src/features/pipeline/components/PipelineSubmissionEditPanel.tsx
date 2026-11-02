@@ -16,6 +16,7 @@ import {
   getPipelineStudioDestinationOptions,
 } from '../lib/pipelineAssetTaxonomy';
 import type { PipelineSubmission } from '../lib/pipelineProgram';
+import { contributorDraftReceipt } from '../lib/contributorDraftContract';
 import { EditSubmissionForm } from './PipelineSubmissionRows';
 
 export function PipelineSubmissionEditPanel({
@@ -51,6 +52,7 @@ export function PipelineSubmissionEditPanel({
 
   const save = async (submitDraft: boolean) => {
     setIsSaving(true);
+    let rejected = false;
     try {
       const response = await fetch(`/api/pipeline/${submission.id}`, {
         method: submitDraft ? 'POST' : 'PATCH',
@@ -70,20 +72,29 @@ export function PipelineSubmissionEditPanel({
           requestedStudioDestination,
         }),
       });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, submitDraft ? 'Unable to submit this Pipeline draft.' : 'Unable to update this Pipeline submission.'));
-      toast({
-        title: submitDraft ? 'Draft submitted' : 'Submission updated',
-        description: submitDraft
-          ? `${name} is ready for owner review.`
-          : `${name} now reflects your latest details.`,
-      });
-      await onUpdated();
+      const body = await response.clone().json().catch(() => null);
+      const parsed = contributorDraftReceipt.safeParse(body?.receipt);
+      if (!parsed.success) {
+        rejected = response.status >= 400 && response.status < 500;
+        throw new Error(await readApiErrorMessage(response, 'The exact write outcome could not be confirmed.'));
+      }
+      const receipt = parsed.data;
+      if (receipt.submissionId !== submission.id) throw new Error('The response did not confirm this exact revision.');
+      if (receipt.outcome === 'uncertain' || receipt.outcome === 'metadata_committed_not_submitted') {
+        toast({ title: receipt.outcome === 'uncertain' ? 'Submission outcome not confirmed' : 'Classification saved; draft not submitted',
+          description: `${receipt.warnings.join(' ')} Read the exact draft before any further write; do not replay automatically.`, variant: 'destructive' });
+        return;
+      }
+      const warnings = [...receipt.warnings];
+      const title = receipt.outcome === 'submitted' ? 'Draft submitted' : 'Metadata committed';
+      const notice = toast({ title, description: ['The exact write is committed. Library refresh is pending.', ...warnings].join(' '), variant: warnings.length ? 'destructive' : 'default', duration: Infinity });
+      try { await onUpdated(); } catch { warnings.push('Library refresh is incomplete. Read current state rather than repeating the committed write.'); }
+      notice.update({ id: notice.id, title,
+        description: warnings.length ? warnings.join(' ') : receipt.outcome === 'submitted' ? `${name} is ready for owner review.` : `${name} now reflects your saved details.`,
+        variant: warnings.length ? 'destructive' : 'default', duration: 5000 });
     } catch (error) {
-      toast({
-        title: submitDraft ? 'Draft was not submitted' : 'Submission was not updated',
-        description: error instanceof Error ? error.message : 'The Pipeline could not save this change.',
-        variant: 'destructive',
-      });
+      toast({ title: rejected ? (submitDraft ? 'Draft was not submitted' : 'Submission was not updated') : 'Submission outcome not confirmed',
+        description: `${error instanceof Error ? error.message : 'The Pipeline could not confirm this change.'}${rejected ? '' : ' Read the exact draft before any further write; do not replay automatically.'}`, variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
