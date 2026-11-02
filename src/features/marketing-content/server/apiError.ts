@@ -18,7 +18,9 @@ export const createMarketingContentErrorResponse = (
   if (error instanceof ContributorAccessError || error instanceof AccountToolAccessError) {
     return createApiErrorResponse(
       error.status,
-      error.status === 401
+      error.status >= 500
+        ? 'account_access_unavailable'
+        : error.status === 401
         ? 'sign_in_required'
         : error.message.startsWith('Owner')
           ? 'owner_access_required'
