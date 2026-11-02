@@ -540,7 +540,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         setEditingSubmission(revision); openTool('edit-contribution', [revision.id]);
       } : undefined}
       onReviewRevision={revision => { try { openReview(currentItem, revision); } catch (error) { toast({ title: 'Revision unavailable', description: error instanceof Error ? error.message : 'Refresh Library.', variant: 'destructive' }); } }}
-      onRevisionCreated={() => shared.refresh()}
+      onRevisionCreated={async () => { await shared.refresh(); }}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
       canReview={experience.contributor.canReview}
       votingId={votingId}

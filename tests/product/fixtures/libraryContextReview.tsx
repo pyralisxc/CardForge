@@ -1,4 +1,5 @@
 import { SourceReviewEvidence } from '@/features/pipeline/components/SourceReviewEvidence';
+import { PublishedClassificationEditor } from '@/features/pipeline/components/PublishedClassificationEditor';
 import type { MarketingContentPackage } from '@/features/marketing-content/client';
 import { PublicAuthControlContent } from '@/features/account/components/PublicAuthControls';
 import { DEFAULT_MARKETING_STRATEGY } from '@/features/marketing/client';
@@ -14,7 +15,7 @@ import { LibraryCollection } from '@/features/storage-management/components/Libr
 import { LibraryRevisionQueueControls } from '@/features/storage-management/components/LibraryRevisionQueueControls';
 import { useLibraryRevisionQueue } from '@/features/storage-management/hooks/useLibraryRevisionQueue';
 import { useUnifiedLibraryView } from '@/features/storage-management/hooks/useUnifiedLibraryView';
-import { projectPipelineLibraryObjects } from '@/features/storage-management/hooks/useLibrarySharedProjection';
+import { useLibrarySharedProjection, projectPipelineLibraryObjects } from '@/features/storage-management/hooks/useLibrarySharedProjection';
 import { libraryReviewSelection } from '@/features/storage-management/lib/libraryReviewSelection';
 import { EnvironmentSearch } from '@/features/app-shell/client/environment';
 import { createLibraryZoneAction } from '@/features/storage-management/components/LibraryObjectPresentation';
@@ -58,7 +59,7 @@ const program = { configured: true, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   managedStorageBytes: 0, managedFileCount: 0, totalSubmissionCount: rows.length, totalVoteableCount: 0, activeContributorCount: 0,
   assetTypeSummaries: [], contributions: [], currentContributorIds: [],
 } as unknown as PipelineProgramView;
-const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseStylePost?: () => void; releaseEvidencePost?: () => void; libraryNavigations: string[] };
+const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseClassificationRefresh?: () => void; classificationRefreshes?: number; classificationCloses?: number; releaseStylePost?: () => void; releaseEvidencePost?: () => void; libraryNavigations: string[] };
 proof.libraryRequests = []; proof.libraryNavigations = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
@@ -117,6 +118,22 @@ const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
   const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   const requestMethod = init?.method ?? 'GET';
+  if (params.get('classificationReceipt') === 'libraryFailure' && requestUrl === '/api/catalog') return Response.json({ error: { message: 'Synthetic catalog refresh failed' } }, { status: 503 });
+  if (params.has('classificationReceipt') && String(input).startsWith('/api/owner/pipeline/classification')) {
+    const method = init?.method ?? 'GET'; proof.libraryRequests.push({ url: String(input), method, body: String(init?.body ?? '') });
+    const snapshot = { assetId: row.registryAssetId, name: 'Synthetic published texture', assetType: 'textures', expectedSubmissionId: row.id, expectedLineageId: row.lineageId, expectedRevision: 1,
+      expectedSpecialtyTags: ['general'], expectedUseCaseTags: [], expectedSemanticRole: 'texture', expectedVisualFamily: null, expectedVariantKind: 'base', expectedVariantLabel: null, expectedCompatibilityTags: [] };
+    if (method === 'GET') return Response.json(snapshot);
+    const outcome = params.get('classificationReceipt');
+    if (outcome === 'unstructured') return new Response('Unstructured provider failure', { status: 503 });
+    if (outcome === 'conflict') return Response.json({ error: { message: 'The published revision or classification changed. Reload before classifying it again.', code: 'pipeline_classification_conflict', retryable: false } }, { status: 409 });
+    const uncertain = outcome === 'uncertain';
+    return Response.json({ snapshot: outcome === 'readback' ? null : snapshot, receipt: { assetId: row.registryAssetId, expectedSubmissionId: row.id, expectedLineageId: row.lineageId, expectedRevision: 1,
+      outcome: uncertain ? 'uncertain' : 'committed', committed: uncertain ? null : true, refreshComplete: !uncertain && outcome !== 'readback',
+      warnings: outcome === 'readback' ? ['Exact classification readback is unavailable.'] : uncertain ? ['Native outcome unconfirmed.'] : [], retryable: false, nextAction: uncertain || outcome === 'readback' ? 'read' : 'none' },
+      ...(uncertain ? { error: { message: 'Classification outcome is unconfirmed.', retryable: false } } : {}) }, { status: uncertain ? 503 : 200 });
+  }
+
   if (params.has('ownerDecisionReceipt') || params.has('sourceEvidenceReceipt')) {
     proof.libraryRequests.push({ url: requestUrl, method: requestMethod, body: typeof init?.body === 'string' ? init.body : undefined });
     const committedReceipt = { submissionId: row.id, outcome: 'committed', committed: true, refreshComplete: true, refreshFailures: [], activityRecorded: !params.has('sourceEvidenceReceipt'), retryable: false, nextAction: 'read', message: 'Decision committed.' };
@@ -333,7 +350,11 @@ function RailProof() {
   }}><EnvironmentShell ariaLabel="Native shared rail proof" brand={{ src: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E', alt: 'Fixture' }} viewer={{ owner: false, signedIn: true, contributor: false }} zones={ENVIRONMENT_ZONES.filter(item => ['desk', 'library', 'profile'].includes(item.id))} activeZone={zone} viewportPolicy="desk" primaryScroll="contained" presentation={{ mode: 'browse', focusDepth: 'zone' }} detail={null} actions={[]} primaryAction={zone === 'profile' ? undefined : createLibraryZoneAction('library.create-set', 'New Set')} showPrimaryAction={zone !== 'profile'} accountControl={params.has('railAuth') ? <PublicAuthControlContent state={params.get('railAuth') === 'connecting' ? 'connecting' : 'signed-out'} returnTo="/account" /> : <button aria-label="Profile" style={{ width: 44, height: 44, flexShrink: 0 }}>P</button>} search={<EnvironmentSearch label={`Search ${zone}`} value={query} onChange={setQuery} inputRef={searchRef} />} onCommand={() => searchRef.current?.focus()} onAction={() => {}} onCloseDetail={() => {}} statusContent="Local storage ready" footerContent="Synthetic account control; no provider session"><p>Native shell layout proof</p></EnvironmentShell></div></AppRouterContext.Provider>;
 }
 const mount = document.createElement('div'); document.body.append(mount); const fixtureRouter = { bfcacheId: 'isolated-library', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: (href: string) => { proof.libraryNavigations.push(href); }, replace: () => {}, prefetch: async () => {} };
-createRoot(mount).render(<><Toaster />{params.has('sourceEvidenceReceipt') ? <SourceReviewEvidence submissionId={row.id} onVersionChange={() => {}} onRecorded={async () => { throw new Error('Synthetic refresh rejected'); }} /> : params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
+function ClassificationLibraryRefreshProof() {
+  const shared = useLibrarySharedProjection({ pipelineEnabled: false, activeScope: 'published' });
+  return <PublishedClassificationEditor assetId={row.registryAssetId!} onClose={() => { proof.classificationCloses = (proof.classificationCloses ?? 0) + 1; }} onSaved={shared.refresh} />;
+}
+createRoot(mount).render(<><Toaster />{params.get('classificationReceipt') === 'libraryFailure' ? <ClassificationLibraryRefreshProof /> : params.has('classificationReceipt') ? <PublishedClassificationEditor assetId={row.registryAssetId!} onClose={() => { proof.classificationCloses = (proof.classificationCloses ?? 0) + 1; }} onSaved={async () => { proof.classificationRefreshes = (proof.classificationRefreshes ?? 0) + 1; if (params.get('classificationReceipt') === 'committed') await new Promise<void>((_, reject) => { proof.releaseClassificationRefresh = () => reject(new Error('Synthetic Library refresh unavailable')); }); }} /> : params.has('sourceEvidenceReceipt') ? <SourceReviewEvidence submissionId={row.id} onVersionChange={() => {}} onRecorded={async () => { throw new Error('Synthetic refresh rejected'); }} /> : params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
   experience={{ signedIn: true, owner: !params.has('campaignContributor') && !params.has('sharedTrashProof'), plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: true } } as AccountExperienceProjection}
   businessIdentity={{} as never} persistenceScope="account:isolated-library-fixture" />
 </AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />}</>);

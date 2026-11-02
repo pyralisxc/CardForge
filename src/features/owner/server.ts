@@ -8,3 +8,5 @@ export * from './server/ownerPeopleStore';
 export type { OwnerActivityEvent, OwnerActivityOutcome } from './lib/ownerActivity';
 export * from './server/ownerPeopleOperations';
 export { getOwnerPipelineSourceReviewEvidence, recordOwnerPipelineSourceReviewEvidence, getOwnerPipelineEditorialReview, saveOwnerPipelineEditorialReview, getOwnerPipelinePublicationDecision, saveOwnerPipelinePublicationOverride } from './server/ownerPipelineDecisionCommands';
+
+export { getOwnerPublishedClassification, saveOwnerPublishedClassification } from './server/ownerPublishedClassificationCommands';

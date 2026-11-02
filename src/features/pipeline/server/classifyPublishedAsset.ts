@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { publishedClassificationInput } from '../lib/publishedClassificationContract';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import {
   CARDFORGE_SEMANTIC_ROLE_OPTIONS,
@@ -11,27 +11,6 @@ import {
   normalizeVisualFamily,
 } from '../lib/contentTaxonomy';
 import { PipelineRegistryCommandError } from '../lib/pipelineRegistryCommandsError';
-
-const inputSchema = z.object({
-  assetId: z.string().trim().min(1).max(200),
-  expectedSubmissionId: z.string().uuid(),
-  expectedLineageId: z.string().uuid(),
-  expectedRevision: z.number().int().nonnegative(),
-  expectedSpecialtyTags: z.array(z.string()).max(12),
-  expectedUseCaseTags: z.array(z.string()).max(12),
-  expectedSemanticRole: z.string().min(1).max(80),
-  expectedVisualFamily: z.string().max(80).nullable(),
-  expectedVariantKind: z.string().min(1).max(40),
-  expectedVariantLabel: z.string().max(80).nullable(),
-  expectedCompatibilityTags: z.array(z.string()).max(12),
-  specialtyTags: z.array(z.string()).min(1).max(12),
-  useCaseTags: z.array(z.string()).max(12),
-  semanticRole: z.string().min(1).max(80),
-  visualFamily: z.string().max(80).nullable(),
-  variantKind: z.string().min(1).max(40),
-  variantLabel: z.string().max(80).nullable(),
-  compatibilityTags: z.array(z.string()).max(12),
-}).strict();
 
 export async function readPublishedPipelineClassification(assetId: string) {
   if (!assetId.trim() || assetId.length > 200) throw new PipelineRegistryCommandError('Choose a published asset.', 400, 'pipeline_classification_invalid');
@@ -63,7 +42,7 @@ export async function readPublishedPipelineClassification(assetId: string) {
 
 /** Invoked only after the request owner gate. SQL owns the locked comparison. */
 export async function classifyPublishedPipelineAsset(value: unknown): Promise<void> {
-  const parsed = inputSchema.safeParse(value);
+  const parsed = publishedClassificationInput.safeParse(value);
   if (!parsed.success) throw new PipelineRegistryCommandError('Provide the exact published identity and supported classification.', 400, 'pipeline_classification_invalid');
   const input = parsed.data;
   if (!CARDFORGE_SEMANTIC_ROLE_OPTIONS.some((option) => option.id === input.semanticRole)) {
@@ -107,5 +86,5 @@ export async function classifyPublishedPipelineAsset(value: unknown): Promise<vo
   if (error.message.includes('pipeline_classification_conflict')) throw new PipelineRegistryCommandError('The published revision or classification changed. Reload before classifying it again.', 409, 'pipeline_classification_conflict');
   if (error.message.includes('pipeline_classification_not_found')) throw new PipelineRegistryCommandError('The published asset no longer exists.', 404, 'pipeline_classification_not_found');
   if (error.message.includes('pipeline_classification_invalid')) throw new PipelineRegistryCommandError('This asset requires a supported specialty and use case.', 400, 'pipeline_classification_invalid');
-  throw new PipelineRegistryCommandError('Classification could not be saved. Retry the same request to confirm its outcome.', 503, 'pipeline_classification_unavailable');
+  throw new PipelineRegistryCommandError('Classification outcome is unconfirmed. Read the exact published classification before any further write; do not replay automatically.', 503, 'pipeline_classification_unavailable');
 }
