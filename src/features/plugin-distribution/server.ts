@@ -30,3 +30,6 @@ export async function pluginDownloadAccess(product: PluginProduct, environment: 
 export { mayShowOwnerDownloads } from './lib/ownerDownloadVisibility';
 
 export { buildStudioReviewerPacket } from '../../../scripts/plugin-review-packet-core.mjs';
+
+export * from './model/retainedReleaseReadContract';
+export * from './server/ownerRetainedReleaseReads';
