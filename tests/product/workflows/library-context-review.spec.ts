@@ -1065,3 +1065,27 @@ for (const mode of ['success','activity','refreshFalse','refreshThrow','deferred
   const writes = requests.filter(request => request.method === 'PATCH'); expect(writes).toHaveLength(1); expect(writes[0].url).toBe('/api/owner/contact-requests/1f5bd520-ff5c-4e25-bcb3-c1e828c277ab'); expect(JSON.parse(writes[0].body!)).toEqual({ status: 'closed' });
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+for (const mode of ['success','activity','readback','uncertain','unstructured','conflict']) test(`@golden Owner Studio dependency ${mode} keeps exact reconciliation receipt`, async ({ page }) => {
+  const evidence = await mount(page, `?dependencyReceipt=${mode}`);
+  await page.getByLabel('Studio document ID').fill('8856f600-6c95-4835-8733-3ecb0ceb951d');
+  await page.getByLabel('Expected Studio revision').fill('7');
+  const reconcile = page.getByRole('button', { name: 'Reconcile exact Studio revision', exact: true });
+  await reconcile.click();
+  if (mode === 'conflict') { await expect(page.getByRole('alert')).toContainText('Studio revision changed'); await expect(reconcile).toBeEnabled(); }
+  else if (['uncertain','unstructured'].includes(mode)) {
+    await expect(page.getByText(/Outcome uncertain:/)).toBeVisible(); await expect(reconcile).toBeDisabled();
+    await page.getByRole('button', { name: 'Read exact persisted dependency state', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Persisted dependency state: complete');
+    await expect(page.getByRole('status')).toContainText('does not prove a previous operation committed'); await expect(reconcile).toBeDisabled();
+    await expect(page.getByText(/Reconciliation acknowledged/)).toHaveCount(0);
+  } else {
+    await expect(page.getByText(/Reconciliation acknowledged for document/)).toBeVisible();
+    if (mode === 'activity') await expect(page.locator('p[role="status"]')).toContainText('Owner activity is incomplete');
+    if (mode === 'readback') await expect(page.locator('p[role="status"]')).toContainText('readback is unavailable');
+    await expect(page.getByText(/is not deletion permission/).first()).toBeVisible();
+  }
+  const writes = (await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string; body?: string }[] }).libraryRequests)).filter(request => request.method === 'POST');
+  expect(writes).toHaveLength(1); expect(JSON.parse(writes[0].body!)).toEqual({ documentId: '8856f600-6c95-4835-8733-3ecb0ceb951d', expectedRevision: 7 });
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});

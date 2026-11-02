@@ -1,4 +1,4 @@
-import { recordOwnerActivity } from '@/features/owner/server';
+import { recordOwnerActivity } from '@/infrastructure/database/ownerActivityWriter';
 import { fromJsonSchema } from '@modelcontextprotocol/server';
 import { deleteOwnerRevision, inspectOwnerRevisionDeletion } from '@/features/pipeline/server';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';

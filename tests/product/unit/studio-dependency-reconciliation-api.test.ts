@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ access: vi.fn(), reconcile: vi.fn() }));
+const mocks = vi.hoisted(() => ({ access: vi.fn(), reconcile: vi.fn(), account: vi.fn(), read: vi.fn() }));
+vi.mock('@/features/account/server', async original => ({ ...await original<object>(), getAccountToolAccessForUserId: mocks.account }));
+vi.mock('@/features/owner/server/ownerActivityStore', () => ({ recordOwnerActivity: async () => true }));
 vi.mock('@/features/owner/server', () => ({ getCurrentOwnerAccess: mocks.access }));
 vi.mock('@/features/studio-documents/server', async () => ({
   ...(await import('@/features/studio-documents/server/StudioDocumentStoreError')),
   reconcileOwnerStudioDocumentDependencies: mocks.reconcile,
+  readOwnerStudioDocumentDependencies: mocks.read,
+  ...(await import('@/features/studio-documents/ownerStudioDependencyContract')),
 }));
 import { POST } from '@/app/api/owner/studio-dependencies/route';
 import { StudioDocumentStoreError } from '@/features/studio-documents/server/StudioDocumentStoreError';
 const documentId = '8856f600-6c95-4835-8733-3ecb0ceb951d';
 const post = (body: unknown) => POST(new Request('http://localhost/api/owner/studio-dependencies', {method:'POST',body:JSON.stringify(body)}));
-beforeEach(() => { vi.resetAllMocks(); mocks.access.mockResolvedValue({isOwner:true,userId:'owner'}); });
+beforeEach(() => { vi.resetAllMocks(); mocks.access.mockResolvedValue({isOwner:true,userId:'owner'}); mocks.account.mockResolvedValue({isOwner:true,user:{id:'owner'}}); mocks.read.mockResolvedValue({documentId,revision:2,contractVersion:1,complete:false,opaqueReasons:['external_or_unbound_source'],state:'incomplete'}); });
 describe('Owner Studio dependency reconciliation', () => {
   it.each([{isOwner:false,userId:'contributor'}, {isOwner:false,userId:null}, {isOwner:true,userId:null}])('rejects without session Owner authority', async access => {
     mocks.access.mockResolvedValue(access);
@@ -29,7 +33,7 @@ describe('Owner Studio dependency reconciliation', () => {
     const receipt={documentId,revision:2,contractVersion:1,complete:false,opaqueReasons:['external_or_unbound_source']};
     mocks.reconcile.mockResolvedValue(receipt);
     const response=await post({documentId,expectedRevision:2});
-    expect(response.status).toBe(200); expect(await response.json()).toEqual(receipt);
+    expect(response.status).toBe(200); expect(await response.json()).toMatchObject({...receipt, receipt:{committed:true,outcome:'committed'}});
     expect(response.headers.get('cache-control')).toContain('no-store');
     expect(mocks.reconcile).toHaveBeenCalledWith(documentId,2);
   });
