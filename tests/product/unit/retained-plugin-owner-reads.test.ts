@@ -189,3 +189,16 @@ it('finite native timestamp precision and byte-length bounds preserve their stor
   expect(history.releases[0]).toMatchObject({releasedAt:'2026-11-02T21:00:00.123456+00:00',byteLength:16777216});
   expect(f.download).not.toHaveBeenCalled(); noWrites();
 });
+
+for (const releasedAt of ['infinity', '-infinity', '10000-01-01T00:00:00+00:00', '2026-11-02T21:00:00']) it(`unsupported retained timestamp is unavailable, never empty: ${releasedAt}`, async () => {
+  selected().released_at = releasedAt;
+  await expect(listOwnerRetainedPluginReleases('owner', scope)).rejects.toMatchObject({ status: 503 });
+  await expect(verifyOwnerRetainedPluginRelease('owner', exact())).rejects.toMatchObject({ status: 503 });
+  expect(f.download).not.toHaveBeenCalled(); noWrites();
+});
+it('finite explicit-offset timestamps retain their observed value', async () => {
+  selected().released_at = '2026-11-02T21:00:00.123456+05:30';
+  expect((await listOwnerRetainedPluginReleases('owner', scope)).releases[0].releasedAt).toBe('2026-11-02T21:00:00.123456+05:30');
+  expect((await verifyOwnerRetainedPluginRelease('owner', exact())).release.releasedAt).toBe('2026-11-02T21:00:00.123456+05:30');
+  noWrites();
+});
