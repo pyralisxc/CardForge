@@ -1,3 +1,4 @@
+import { MediaPresentationRevision } from '@/features/pipeline/components/MediaPresentationRevision';
 import { SourceReviewEvidence } from '@/features/pipeline/components/SourceReviewEvidence';
 import { PublishedClassificationEditor } from '@/features/pipeline/components/PublishedClassificationEditor';
 import type { MarketingContentPackage } from '@/features/marketing-content/client';
@@ -59,7 +60,7 @@ const program = { configured: true, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   managedStorageBytes: 0, managedFileCount: 0, totalSubmissionCount: rows.length, totalVoteableCount: 0, activeContributorCount: 0,
   assetTypeSummaries: [], contributions: [], currentContributorIds: [],
 } as unknown as PipelineProgramView;
-const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseClassificationRefresh?: () => void; classificationRefreshes?: number; classificationCloses?: number; releaseStylePost?: () => void; releaseEvidencePost?: () => void; libraryNavigations: string[] };
+const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseMediaRefresh?: () => void; mediaRefreshes?: number; releaseClassificationRefresh?: () => void; classificationRefreshes?: number; classificationCloses?: number; releaseStylePost?: () => void; releaseEvidencePost?: () => void; libraryNavigations: string[] };
 proof.libraryRequests = []; proof.libraryNavigations = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
@@ -118,6 +119,22 @@ const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
   const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   const requestMethod = init?.method ?? 'GET';
+  if (params.has('mediaReceipt') && requestUrl.startsWith('/api/owner/pipeline/media-revisions')) {
+    proof.libraryRequests.push({ url: requestUrl, method: requestMethod, body: typeof init?.body === 'string' ? init.body : undefined });
+    const mode = params.get('mediaReceipt');
+    const query = new URL(requestUrl, window.location.origin).searchParams;
+    const presentation = { schemaVersion: 1, parentSubmissionId: row.id, lineageId: row.lineageId, baseRevisionNumber: 1, baseVersion: 'a'.repeat(32), registryVersion: 'b'.repeat(32), intendedAccessTier: 'free', sourceSha256: 'c'.repeat(64), baseline: { tileMode: 'repeat', seamless: true }, proposed: { tileMode: 'repeat', seamless: true } };
+    if (requestMethod === 'GET' && !query.has('submissionKey')) return Response.json({ assetId: row.registryAssetId, name: 'Synthetic texture', sourceUrl: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="20" height="20"/%3E', presentation });
+    const receipt = { id: 'bc615bd7-07b1-460c-9e25-9d3b13b65ed1', assetId: row.registryAssetId, revisionNumber: 4, status: 'submitted', editorialReviewStatus: 'pending' };
+    if (requestMethod === 'GET') {
+      if (mode === 'unavailableReceipt') return Response.json({ error: { message: 'Receipt read unavailable', retryable: false } }, { status: 503 });
+      return Response.json({ assetId: row.registryAssetId, submissionKey: query.get('submissionKey'), receipt: mode === 'nullReceipt' ? null : receipt });
+    }
+    const body = JSON.parse(String(init?.body));
+    if (mode === 'unstructured') return new Response('Lost provider reply', { status: 503 });
+    if (['uncertain','nullReceipt','unavailableReceipt'].includes(mode ?? '')) return Response.json({ error: { message: 'Outcome unconfirmed', retryable: false } }, { status: 503 });
+    return Response.json({ assetId: row.registryAssetId, submissionKey: body.submissionKey, receipt, outcome: 'committed', committed: true, activityRecorded: mode !== 'activity', reused: false, cleanupPending: false, warnings: mode === 'activity' ? ['Owner activity recording is incomplete.'] : [], retryable: false, nextAction: mode === 'activity' ? 'read' : 'none' });
+  }
   if (params.get('classificationReceipt') === 'libraryFailure' && requestUrl === '/api/catalog') return Response.json({ error: { message: 'Synthetic catalog refresh failed' } }, { status: 503 });
   if (params.has('classificationReceipt') && String(input).startsWith('/api/owner/pipeline/classification')) {
     const method = init?.method ?? 'GET'; proof.libraryRequests.push({ url: String(input), method, body: String(init?.body ?? '') });
@@ -354,7 +371,15 @@ function ClassificationLibraryRefreshProof() {
   const shared = useLibrarySharedProjection({ pipelineEnabled: false, activeScope: 'published' });
   return <PublishedClassificationEditor assetId={row.registryAssetId!} onClose={() => { proof.classificationCloses = (proof.classificationCloses ?? 0) + 1; }} onSaved={shared.refresh} />;
 }
-createRoot(mount).render(<><Toaster />{params.get('classificationReceipt') === 'libraryFailure' ? <ClassificationLibraryRefreshProof /> : params.has('classificationReceipt') ? <PublishedClassificationEditor assetId={row.registryAssetId!} onClose={() => { proof.classificationCloses = (proof.classificationCloses ?? 0) + 1; }} onSaved={async () => { proof.classificationRefreshes = (proof.classificationRefreshes ?? 0) + 1; if (params.get('classificationReceipt') === 'committed') await new Promise<void>((_, reject) => { proof.releaseClassificationRefresh = () => reject(new Error('Synthetic Library refresh unavailable')); }); }} /> : params.has('sourceEvidenceReceipt') ? <SourceReviewEvidence submissionId={row.id} onVersionChange={() => {}} onRecorded={async () => { throw new Error('Synthetic refresh rejected'); }} /> : params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
+function MediaReceiptProof() {
+  return <MediaPresentationRevision assetId={row.registryAssetId!} onCreated={async () => {
+    proof.mediaRefreshes = (proof.mediaRefreshes ?? 0) + 1;
+    if (params.get('mediaReceipt') === 'refreshFalse') return false;
+    if (params.get('mediaReceipt') === 'refreshThrow') throw new Error('Synthetic refresh failed');
+    if (params.get('mediaReceipt') === 'deferred') await new Promise<void>((_, reject) => { proof.releaseMediaRefresh = () => reject(new Error('Synthetic refresh failed')); });
+  }} />;
+}
+createRoot(mount).render(<><Toaster />{params.has('mediaReceipt') ? <MediaReceiptProof /> : params.get('classificationReceipt') === 'libraryFailure' ? <ClassificationLibraryRefreshProof /> : params.has('classificationReceipt') ? <PublishedClassificationEditor assetId={row.registryAssetId!} onClose={() => { proof.classificationCloses = (proof.classificationCloses ?? 0) + 1; }} onSaved={async () => { proof.classificationRefreshes = (proof.classificationRefreshes ?? 0) + 1; if (params.get('classificationReceipt') === 'committed') await new Promise<void>((_, reject) => { proof.releaseClassificationRefresh = () => reject(new Error('Synthetic Library refresh unavailable')); }); }} /> : params.has('sourceEvidenceReceipt') ? <SourceReviewEvidence submissionId={row.id} onVersionChange={() => {}} onRecorded={async () => { throw new Error('Synthetic refresh rejected'); }} /> : params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
   experience={{ signedIn: true, owner: !params.has('campaignContributor') && !params.has('sharedTrashProof'), plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: true } } as AccountExperienceProjection}
   businessIdentity={{} as never} persistenceScope="account:isolated-library-fixture" />
 </AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />}</>);

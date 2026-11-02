@@ -21,7 +21,7 @@ it('serializes six explicit Owner tool contracts and calls the exact canonical r
   await initialize(); const listed = await read(await request(2, 'tools/list', {}));
   const names = ['get_pipeline_source_review_evidence','record_pipeline_source_review_evidence','get_pipeline_editorial_review','save_pipeline_editorial_review','get_pipeline_publication_decision','save_pipeline_publication_override'];
   expect(listed, JSON.stringify(listed)).toHaveProperty("result.tools");
-  expect(listed.result.tools).toHaveLength(43);
+  expect(listed.result.tools).toHaveLength(46);
   for (const name of names) { const tool = listed.result.tools.find((tool: { name: string }) => tool.name === name); expect(tool.inputSchema.type).toBe('object'); expect(tool.outputSchema.type).toBe('object'); expect(tool.annotations.readOnlyHint).toBe(false); }
   const result = await read(await request(3, 'tools/call', { name: 'get_pipeline_editorial_review', arguments: { submissionId: id } }));
   expect(result.result.isError).not.toBe(true); expect(result.result.structuredContent).toMatchObject({ submissionId: id, revisionNumber: 2, evidenceVersion: 0, qualityStandard: { version: 'CF-CQS-1' } });

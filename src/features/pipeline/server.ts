@@ -18,7 +18,7 @@ export * from './server/catalogCache';
 export * from './server/pipelineRequestAccess';
 export { classifyPublishedPipelineAsset, readPublishedPipelineClassification } from './server/classifyPublishedAsset';
 
-export { readMediaPresentationRevision, createMediaPresentationRevision } from './server/mediaPresentationRevision';
+export { readMediaPresentationRevision, readMediaPresentationReceipt, createMediaPresentationRevision } from './server/mediaPresentationRevision';
 export { readTemplateReviewBase, readTemplateReviewReceipt, createTemplateReviewRevision } from './server/templateReviewRevision';
 export { readSourceReviewEvidence, recordSourceReviewEvidence } from './server/sourceReviewEvidence';
 
@@ -51,3 +51,5 @@ export { listAgentPipelineSubmissions, inspectAgentPipelineRevision, readAgentPi
 export { pipelineAgentListInput, pipelineAgentExactInput, pipelineAgentVoteInput, pipelineAgentHeartInput, pipelineAgentPage, pipelineAgentRevision, pipelineAgentHealth, pipelineAgentEngagement, pipelineAgentMutationReceipt } from './lib/pipelineAgentContract';
 
 export { publishedClassificationReadInput, publishedClassificationInput, publishedClassificationSnapshot, publishedClassificationReceipt, publishedClassificationResult } from './lib/publishedClassificationContract';
+
+export { mediaRevisionBaseInput, mediaRevisionAttemptInput, mediaRevisionBaseOutput, mediaRevisionReceipt, mediaRevisionReceiptOutput, mediaRevisionCommandResult } from './lib/mediaRevisionCommand';

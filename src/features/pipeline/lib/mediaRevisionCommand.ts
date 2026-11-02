@@ -1,0 +1,9 @@
+import { z } from 'zod/v4';
+const values = z.object({ tileMode: z.enum(['repeat', 'stretch', 'contain']), seamless: z.boolean() }).strict();
+export const mediaRevisionPresentation = z.object({ schemaVersion: z.literal(1), parentSubmissionId: z.uuid(), lineageId: z.uuid(), baseRevisionNumber: z.number().int().nonnegative(), baseVersion: z.string().regex(/^[a-f0-9]{32}$/), registryVersion: z.string().regex(/^[a-f0-9]{32}$/), intendedAccessTier: z.enum(['free','paid','contributor','hidden','official']), sourceSha256: z.string().regex(/^[a-f0-9]{64}$/), baseline: values, proposed: values }).strict();
+export const mediaRevisionBaseInput = z.object({ assetId: z.string().trim().min(1).max(200) }).strict();
+export const mediaRevisionAttemptInput = mediaRevisionBaseInput.extend({ submissionKey: z.uuid(), presentation: mediaRevisionPresentation }).strict();
+export const mediaRevisionBaseOutput = z.object({ assetId: z.string(), name: z.string(), sourceUrl: z.string().min(1), presentation: mediaRevisionPresentation }).strict();
+export const mediaRevisionReceipt = z.object({ id: z.uuid(), assetId: z.string(), revisionNumber: z.number().int().nonnegative(), status: z.string().min(1), editorialReviewStatus: z.enum(['pending','approved','revise','quarantine','retire']) }).strict();
+export const mediaRevisionReceiptOutput = z.object({ assetId: z.string(), submissionKey: z.uuid(), receipt: mediaRevisionReceipt.nullable() }).strict();
+export const mediaRevisionCommandResult = z.object({ assetId: z.string(), submissionKey: z.uuid(), receipt: mediaRevisionReceipt.nullable(), outcome: z.enum(['committed','uncertain']), committed: z.literal(true).nullable(), activityRecorded: z.boolean().nullable(), reused: z.boolean().nullable(), cleanupPending: z.boolean().nullable(), warnings: z.array(z.string()), retryable: z.literal(false), nextAction: z.enum(['none','read']) }).strict();
