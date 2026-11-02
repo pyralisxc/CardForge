@@ -126,6 +126,8 @@ window.fetch = async (input, init) => {
     if (requestUrl === `/api/pipeline/${row.id}`) {
       if (requestMethod === 'PUT') {
         ownerDecisionWritten = true;
+        if (params.get('ownerDecisionReceipt') === 'uncertain') return Response.json({ error: { message: 'The native decision outcome is unconfirmed.', retryable: false }, receipt: { ...committedReceipt, outcome: 'uncertain', committed: null, refreshComplete: false, activityRecorded: null } }, { status: 503 });
+        if (params.get('ownerDecisionReceipt') === 'rejected') return Response.json({ error: { message: 'Exact reviewed evidence changed; decision rejected.', retryable: false } }, { status: 409 });
         if (params.get('sourceEvidenceReceipt') === 'uncertain') return new Response('Unstructured failure', { status: 503 });
         const body = JSON.parse(String(init?.body));
         if (params.has('sourceEvidenceReceipt')) await new Promise<void>(resolve => { proof.releaseEvidencePost = resolve; });

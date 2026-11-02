@@ -924,3 +924,21 @@ test('@golden source evidence receipt unstructured failure requires readback wit
   expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'PUT')).toHaveLength(1);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+for (const outcome of ['uncertain', 'rejected'] as const) for (const decision of ['control', 'editorial'] as const) test(`@golden Owner ${decision} decision distinguishes ${outcome} outcome without retry`, async ({ page }) => {
+  const evidence = await mount(page, `?ownerDecisionReceipt=${outcome}`);
+  await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
+  await page.getByRole('button', { name: 'Manage', exact: true }).click();
+  if (decision === 'editorial') await page.getByRole('combobox', { name: 'Review outcome', exact: true }).selectOption('pending');
+  await page.getByRole('button', { name: decision === 'control' ? 'Save control' : 'Save editorial review', exact: true }).click();
+  const title = `${decision === 'control' ? 'Asset control' : 'Editorial review'} ${outcome === 'uncertain' ? 'not confirmed' : 'not saved'}`;
+  const status = page.getByRole('status').filter({ hasText: title });
+  await expect(status).toBeVisible();
+  if (outcome === 'uncertain') {
+    await expect(status).toContainText('Read this exact revision before any further write; do not replay automatically');
+    await expect(status).not.toContainText('not saved');
+  } else await expect(status).toContainText('decision rejected');
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests);
+  expect(requests.filter(request => request.method === 'PUT')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});

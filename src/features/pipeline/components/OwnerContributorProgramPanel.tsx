@@ -154,13 +154,14 @@ export function OwnerContributorProgramPanel({
   ): Promise<boolean> => {
     if (target && submissionId !== target.submissionId) throw new Error('The action does not match the selected revision.');
     setUpdatingSubmissionId(submissionId);
+    let rejected = false;
     try {
       const response = await fetch(`/api/pipeline/${submissionId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update asset status.'));
+      if (!response.ok) { rejected = response.status < 500; throw new Error(await readApiErrorMessage(response, 'Asset control outcome is unconfirmed.')); }
       const result = await response.json() as PipelineItemsResponse & { receipt?: { committed: boolean | null; refreshComplete: boolean; activityRecorded: boolean | null } };
       let followupIncomplete = result.receipt?.committed === true && (!result.receipt.refreshComplete || !result.receipt.activityRecorded);
       try { if (target && onSelectionMutated) await onSelectionMutated(); else if (!await loadProgram()) followupIncomplete = true; }
@@ -171,8 +172,8 @@ export function OwnerContributorProgramPanel({
       return true;
     } catch (error) {
       toast({
-        title: 'Asset control not saved',
-        description: error instanceof Error ? error.message : 'Unable to update asset control.',
+        title: rejected ? 'Asset control not saved' : 'Asset control not confirmed',
+        description: `${error instanceof Error ? error.message : 'Asset control outcome is unconfirmed.'}${rejected ? '' : ' Read this exact revision before any further write; do not replay automatically.'}`,
         variant: 'destructive',
       });
       return false;
@@ -187,13 +188,14 @@ export function OwnerContributorProgramPanel({
   ): Promise<boolean> => {
     if (target && submissionId !== target.submissionId) throw new Error('The action does not match the selected revision.');
     setUpdatingSubmissionId(submissionId);
+    let rejected = false;
     try {
       const response = await fetch(`/api/pipeline/${submissionId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save editorial review.'));
+      if (!response.ok) { rejected = response.status < 500; throw new Error(await readApiErrorMessage(response, 'Editorial review outcome is unconfirmed.')); }
       const result = await response.json() as PipelineItemsResponse & { receipt?: { committed: boolean | null; refreshComplete: boolean; activityRecorded: boolean | null } };
       let followupIncomplete = result.receipt?.committed === true && (!result.receipt.refreshComplete || !result.receipt.activityRecorded);
       try { if (target && onSelectionMutated) await onSelectionMutated(); else if (!await loadProgram()) followupIncomplete = true; }
@@ -204,8 +206,8 @@ export function OwnerContributorProgramPanel({
       return true;
     } catch (error) {
       toast({
-        title: 'Editorial review not saved',
-        description: error instanceof Error ? error.message : 'Unable to save editorial review.',
+        title: rejected ? 'Editorial review not saved' : 'Editorial review not confirmed',
+        description: `${error instanceof Error ? error.message : 'Editorial review outcome is unconfirmed.'}${rejected ? '' : ' Read this exact revision before any further write; do not replay automatically.'}`,
         variant: 'destructive',
       });
       return false;
