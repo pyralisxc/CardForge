@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Megaphone, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import {
   mutateMarketingContent,
 } from '@/features/marketing-content/client/api';
@@ -53,6 +54,8 @@ export function CampaignWorkspace({
   const [busy, setBusy] = useState(false);
   const [unconfirmed, setUnconfirmed] = useState(false);
   const [identityOnly, setIdentityOnly] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [discardedOutcome, setDiscardedOutcome] = useState<'uncertain' | 'identity_only' | null>(null);
   const [attempt, setAttempt] = useState<{campaignId:string|null;idempotencyKey:string}|null>(null);
   const dirty = showComposer && (busy || JSON.stringify(draft) !== JSON.stringify(draftBaseline));
   useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
@@ -72,6 +75,24 @@ export function CampaignWorkspace({
     setEditing(null);
     replaceDraft(createDraft());
     setShowComposer(false);
+  };
+
+  const requestCloseComposer = () => {
+    if (busy) return;
+    if (dirty || unconfirmed || identityOnly) setConfirmLeave(true);
+    else resetComposer();
+  };
+  const discardAndCloseComposer = () => {
+    if (busy) return;
+    if (unconfirmed || identityOnly) {
+      setDiscardedOutcome(unconfirmed ? 'uncertain' : 'identity_only');
+      setMessage('Only the local draft edits were discarded. The retained Campaign request was not cancelled, undone or replayed. Read its exact reference before any further related write.');
+    }
+    setUnconfirmed(false);
+    setIdentityOnly(false);
+    setError('');
+    setConfirmLeave(false);
+    resetComposer();
   };
 
   const editCampaign = (campaign: SocialCampaign) => {
@@ -107,6 +128,7 @@ export function CampaignWorkspace({
   const saveCampaign = async () => {
     if (busy || unconfirmed || identityOnly) return;
     setBusy(true);
+    setDiscardedOutcome(null);
     setAttempt({campaignId:editing?.id??null,idempotencyKey:draft.idempotencyKey});
     setError('');
     setMessage('');
@@ -184,11 +206,12 @@ export function CampaignWorkspace({
 
       {error ? <p role="alert" className="border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-3 text-sm text-[var(--cf-danger)]">{error}</p> : null}
       {unconfirmed || identityOnly ? <p role="alert">{unconfirmed ? 'Campaign outcome is unconfirmed. Do not replay automatically.' : 'A retained Campaign identity is acknowledged; attempted draft content has not been confirmed. Do not repeat Create.'} <Button disabled={busy} onClick={() => void readAttempt()}>Read retained Campaign state</Button></p> : null}
+      {discardedOutcome && attempt ? <p role="alert">{discardedOutcome === 'uncertain' ? 'The previous Campaign outcome remains unconfirmed.' : 'The previous Create acknowledged a retained identity, not the attempted content.'} Exact reference: {attempt.campaignId ? `Campaign ${attempt.campaignId}` : `creation key ${attempt.idempotencyKey}`}. Discarding local edits did not reverse that request. <Button disabled={busy} onClick={() => void readAttempt()}>Read retained Campaign state</Button></p> : null}
       {message ? <p role="status" className="border border-[#497352] bg-[#0e170f] p-3 text-sm text-[#a8e7b8]">{message}</p> : null}
 
       {showComposer && canDraft ? (
         <div ref={composerRef} tabIndex={-1} className="scroll-mt-4 outline-none">
-          <button type="button" className="mb-3 inline-flex min-h-11 items-center gap-2 text-sm text-[#f1c875] underline-offset-4 hover:underline" onClick={resetComposer}>
+          <button type="button" className="mb-3 inline-flex min-h-11 items-center gap-2 text-sm text-[#f1c875] underline-offset-4 hover:underline" disabled={busy} onClick={requestCloseComposer}>
             <ArrowLeft className="h-4 w-4" /> Back to campaigns
           </button>
           <CampaignComposer
@@ -199,12 +222,30 @@ export function CampaignWorkspace({
             marketingCampaigns={workspace.marketingCampaigns}
             marketingStrategy={workspace.marketingStrategy}
             onDraftChange={setDraft}
-            onCancel={resetComposer}
+            closeDisabled={busy}
+            onCancel={requestCloseComposer}
             onSave={() => void saveCampaign()}
             onError={showError}
           />
         </div>
       ) : null}
+
+      <AlertDialog open={confirmLeave} onOpenChange={setConfirmLeave}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave with unsaved changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {unconfirmed || identityOnly
+                ? 'The Campaign request may already be retained. Discard only abandons local draft edits; it does not cancel, undo or retry the request. Its exact reference remains available for readback.'
+                : 'Keep editing to save this local draft before leaving. Discard abandons these unsaved edits.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction disabled={busy} onClick={discardAndCloseComposer}>Discard and continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {!canDraft ? (
         <article className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface-inset)] p-5">

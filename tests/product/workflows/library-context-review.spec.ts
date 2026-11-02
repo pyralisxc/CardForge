@@ -925,3 +925,28 @@ for(const mode of ['success','readback','refreshFalse','refreshThrow','deferred'
  if(mode.startsWith('create')){expect(writes[0].method).toBe('POST');if(mode==='createUnknown')expect(new URL(requests.at(-1)!.url,'http://localhost').searchParams.get('idempotencyKey')).toBe(body.idempotencyKey);}else{expect(body).toMatchObject({action:'save',campaignId:'10000000-0000-4000-8000-000000000001',expectedVersion:1});}
  expect(evidence.errors).toEqual([]);expect(evidence.mutations).toEqual([]);
 });
+
+for (const mode of ['pendingUnknown','uncertain','createIdentity','dirty'] as const) test(`@golden Campaign draft navigation ${mode} preserves work until explicit discard`, async ({page}) => {
+  const evidence=await mount(page,`?campaignDraftReceipt=${mode}`);
+  if(mode==='createIdentity'){
+    await page.getByLabel('Content title').fill('Synthetic new package');await page.getByLabel('Objective').fill('Synthetic goal');await page.getByLabel('Tracking key').fill('synthetic_key');await page.getByLabel('Facebook post copy').fill('Synthetic copy');
+  }else{await page.getByRole('button',{name:'Edit',exact:true}).click();await page.getByLabel('Content title').fill('Preserved attempted title');}
+  const attempted=mode==='createIdentity'?'Synthetic new package':'Preserved attempted title';
+  const back=page.getByRole('button',{name:'Back to campaigns',exact:true}),close=page.getByRole('button',{name:'Close editor',exact:true});
+  if(mode!=='dirty')await page.getByRole('button',{name:mode==='createIdentity'?'Create campaign draft':'Save package changes',exact:true}).click();
+  if(mode==='pendingUnknown'){
+    await expect(back).toBeDisabled();await expect(close).toBeDisabled();await expect(page.getByLabel('Content title')).toHaveValue(attempted);
+    await page.evaluate(()=>(window as typeof window & {releaseCampaignDraftPost:()=>void}).releaseCampaignDraftPost());
+  }
+  if(mode==='pendingUnknown'||mode==='uncertain')await expect(page.getByText(/Campaign outcome is unconfirmed/).first()).toBeVisible();
+  if(mode==='createIdentity')await expect(page.getByRole('status')).toContainText('acknowledged a retained Campaign identity');
+  await expect(back).toBeEnabled();await back.click();
+  const dialog=page.getByRole('alertdialog',{name:'Leave with unsaved changes?'});await expect(dialog).toBeVisible();await page.getByRole('button',{name:'Keep editing',exact:true}).click();await expect(page.getByLabel('Content title')).toHaveValue(attempted);
+  await close.click();await expect(dialog).toBeVisible();if(mode!=='dirty')await expect(dialog).toContainText('does not cancel, undo or retry');await page.getByRole('button',{name:'Discard and continue',exact:true}).click();await expect(page.getByLabel('Content title')).toHaveCount(0);await expect(page.getByRole('button',{name:'New campaign package',exact:true})).toBeEnabled();
+  if(mode!=='dirty'){
+    await expect(page.getByRole('alert')).toContainText('Exact reference:');await page.getByRole('button',{name:'Read retained Campaign state',exact:true}).click();await expect(page.getByRole('status')).toContainText('Observed retained Campaign');
+  }
+  const requests=await page.evaluate(()=>(window as typeof window & {libraryRequests:{url:string;method:string;body?:string}[]}).libraryRequests);const writes=requests.filter(r=>r.method==='POST'||r.method==='PATCH');expect(writes).toHaveLength(mode==='dirty'?0:1);
+  if(mode==='createIdentity'){const body=JSON.parse(writes[0].body!);expect(new URL(requests.at(-1)!.url,'http://localhost').searchParams.get('idempotencyKey')).toBe(body.idempotencyKey);}
+  expect(evidence.errors).toEqual([]);expect(evidence.mutations).toEqual([]);
+});

@@ -60,7 +60,7 @@ const program = { configured: true, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   managedStorageBytes: 0, managedFileCount: 0, totalSubmissionCount: rows.length, totalVoteableCount: 0, activeContributorCount: 0,
   assetTypeSummaries: [], contributions: [], currentContributorIds: [],
 } as unknown as PipelineProgramView;
-const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseContributorRefresh?: () => void; releaseCampaignDraftRefresh?: () => void; contributorRefreshes?: number; releaseStylePost?: () => void; libraryNavigations: string[] };
+const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseContributorRefresh?: () => void; releaseCampaignDraftRefresh?: () => void; releaseCampaignDraftPost?: () => void; contributorRefreshes?: number; releaseStylePost?: () => void; libraryNavigations: string[] };
 proof.libraryRequests = []; proof.libraryNavigations = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
@@ -127,6 +127,7 @@ window.fetch = async (input, init) => {
     proof.libraryRequests.push({ url: requestUrl, method: requestMethod, body: typeof init?.body === 'string' ? init.body : undefined });
     const mode=params.get('campaignDraftReceipt');
     if(requestMethod==='GET')return Response.json(requestUrl.includes('creation-receipt')?{campaignId:campaignProof.id,campaign:campaignProof,found:true,warning:'Matching current state is not causation.'}:{campaign:campaignProof,canSave:true});
+    if(mode==='pendingUnknown') { await new Promise<void>(resolve=>{proof.releaseCampaignDraftPost=resolve;}); return Response.json({error:{message:'Campaign outcome is unconfirmed. Read retained state; do not replay automatically.'}},{status:503}); }
     if(mode==='uncertain'||mode==='createUnknown')return Response.json({error:{message:'Campaign outcome is unconfirmed. Read retained state; do not replay automatically.'}},{status:503});
     if(mode==='unstructured')throw new Error('Synthetic ACK lost');
     if(mode==='rejected')return Response.json({error:{message:'This campaign changed elsewhere. Reload before saving.'}},{status:409});

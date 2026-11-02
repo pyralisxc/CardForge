@@ -158,6 +158,7 @@ export function CampaignComposer({
   marketingStrategy,
   onDraftChange,
   onCancel,
+  closeDisabled = false,
   onSave,
   onError,
 }: {
@@ -169,6 +170,7 @@ export function CampaignComposer({
   marketingStrategy: MarketingStrategy;
   onDraftChange: (draft: CampaignDraft) => void;
   onCancel: () => void;
+  closeDisabled?: boolean;
   onSave: () => void;
   onError: (message: string) => void;
 }) {
@@ -258,6 +260,7 @@ export function CampaignComposer({
           className="min-h-11"
           variant="outline"
           onClick={onCancel}
+          disabled={closeDisabled}
         >
           Close editor
         </Button>
