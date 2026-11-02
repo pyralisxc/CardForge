@@ -284,9 +284,21 @@ export const updateOwnerPerson = async (
   }
 };
 
+export type OwnerPersonDeletionResult = {
+  userId: string;
+  outcome: 'committed' | 'uncertain';
+  committed: true | null;
+  profileReconciled: boolean | null;
+  activityRecorded: boolean | null;
+  reconciliationComplete: boolean;
+  retryable: false;
+  nextAction: 'none' | 'read';
+  warnings: string[];
+};
+
 export const deleteOwnerPerson = async (
   input: DeleteOwnerPersonInput,
-): Promise<{ warnings: string[] }> => {
+): Promise<OwnerPersonDeletionResult> => {
   const owner = await requireOwnerActor();
   const userId = requireUserId(input.userId);
   const confirmation = typeof input.confirmation === 'string' ? input.confirmation.trim().toLowerCase() : '';
@@ -325,37 +337,49 @@ export const deleteOwnerPerson = async (
     );
   }
 
-  await client.users.deleteUser(userId);
-  const profile = await findProfile(userId);
-  const warnings: string[] = [];
-  if (profile) {
-    try {
-      await updateContributorProfileControl({
-        contributorId: userId,
-        status: 'inactive',
-        canDraftCampaigns: false,
-        monthlySubmissionLimitOverride: profile.monthly_submission_limit_override ?? null,
-        monthlyPublishedRequirementOverride: profile.monthly_published_requirement_override ?? null,
-        ownerNote: profile.owner_note ?? '',
-      });
-    } catch (error) {
-      warnings.push('The Clerk account was deleted, but the retained contribution profile could not be marked inactive.');
-      console.error('Deleted Clerk account but failed to deactivate retained profile:', error);
-    }
+  try {
+    await client.users.deleteUser(userId);
+  } catch {
+    // No acknowledgement means no commit claim, even if the provider applied it.
+    return { userId, outcome: 'uncertain', committed: null, profileReconciled: null, activityRecorded: null,
+      reconciliationComplete: false, retryable: false, nextAction: 'read',
+      warnings: ['Clerk account deletion is unconfirmed. Read this exact identity before any further action; do not repeat deletion automatically.'] };
   }
 
-  const activityRecorded = await recordOwnerActivity({
-    actorUserId: owner.userId,
-    actorEmail: owner.email,
-    action: 'people.account.delete',
-    targetType: 'person',
-    targetId: userId,
-    summary: 'Deleted a Clerk account and preserved its historical CardForge contribution attribution.',
-    outcome: warnings.length ? 'partial' : 'succeeded',
-    metadata: { email: account.email, warnings },
-  });
-  if (!activityRecorded) warnings.push('The deletion completed, but owner history could not record it.');
-  return { warnings };
+  const warnings: string[] = [];
+  let profileReconciled = false;
+  try {
+    const profile = await findProfile(userId);
+    if (profile) await updateContributorProfileControl({
+      contributorId: userId,
+      status: 'inactive',
+      canDraftCampaigns: false,
+      monthlySubmissionLimitOverride: profile.monthly_submission_limit_override ?? null,
+      monthlyPublishedRequirementOverride: profile.monthly_published_requirement_override ?? null,
+      ownerNote: profile.owner_note ?? '',
+    });
+    profileReconciled = true;
+  } catch {
+    warnings.push('The Clerk account was deleted, but retained-profile reconciliation is incomplete. Read retained history and use Deactivate retained profile if needed; do not delete the account again.');
+  }
+
+  let activityRecorded = false;
+  try {
+    activityRecorded = await recordOwnerActivity({
+      actorUserId: owner.userId,
+      actorEmail: owner.email,
+      action: 'people.account.delete',
+      targetType: 'person',
+      targetId: userId,
+      summary: 'Deleted a Clerk account and preserved its historical CardForge contribution attribution.',
+      outcome: warnings.length ? 'partial' : 'succeeded',
+      metadata: { email: account.email, warnings },
+    });
+  } catch { /* Provider commit remains authoritative if history is unavailable. */ }
+  if (!activityRecorded) warnings.push('The deletion completed, but owner history could not record it. Do not repeat deletion.');
+  const reconciliationComplete = profileReconciled && activityRecorded;
+  return { userId, outcome: 'committed', committed: true, profileReconciled, activityRecorded,
+    reconciliationComplete, retryable: false, nextAction: reconciliationComplete ? 'none' : 'read', warnings };
 };
 
 export const ownerPeopleErrorFromUnknown = (error: unknown): OwnerPeopleOperationError | null => {

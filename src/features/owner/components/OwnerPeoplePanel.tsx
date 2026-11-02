@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ChevronLeft, ChevronRight, Save, Search, ShieldOff, Trash2, UserRoundCog, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -59,6 +59,7 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
   const [draft, setDraft] = useState<PersonDraft | null>(null);
   const [busy, setBusy] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const deletedAccountIds = useRef(new Set<string>());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,11 +69,18 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
       const response = await fetch(`/api/owner/people?${params}`, { cache: 'no-store' });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load people and contributor access.'));
       const body = await response.json() as { people: OwnerPeoplePage };
-      setPeople(body.people);
+      // A confirmed deleted sign-in must not reappear from a stale directory response.
+      // A fresh retained-history row is a different lifecycle and keeps its native controls.
+      const items = body.people.items.filter(person => person.identityState === 'history_only' || !deletedAccountIds.current.has(person.id));
+      setPeople({ ...body.people, items, total: Math.max(0, body.people.total - (body.people.items.length - items.length)) });
       if (body.people.page !== page) setPage(body.people.page);
-      setSelected((current) => current ? body.people.items.find((person) => person.id === current.id) ?? null : null);
+      setSelected((current) => current ? items.find((person) => person.id === current.id) ?? null : null);
+      const staleDeletedAccount = items.length !== body.people.items.length;
+      if (staleDeletedAccount) setError('The directory response still contains a confirmed deleted sign-in. Read current people and retained history; do not repeat deletion.');
+      return !staleDeletedAccount;
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Unable to load people and contributor access.');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -88,20 +96,28 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
 
   const mutate = async (method: 'PATCH' | 'DELETE', body: Record<string, unknown>, successTitle: string) => {
     setBusy(true);
+    let rejected = false;
     try {
       const response = await fetch('/api/owner/people', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update this person.'));
-      const result = await response.json() as { warnings?: string[] };
-      const warnings = result.warnings ?? [];
+      if (!response.ok) { rejected = response.status < 500; throw new Error(await readApiErrorMessage(response, 'Person update is unconfirmed.')); }
+      const result = await response.json() as { userId?: string; committed?: boolean | null; warnings?: string[] };
+      if (method === 'DELETE') {
+        if (result.committed !== true || result.userId !== body.userId || typeof body.userId !== 'string') throw new Error('Exact account deletion could not be confirmed.');
+        deletedAccountIds.current.add(body.userId);
+        setPeople(current => current ? { ...current, items: current.items.filter(person => person.id !== body.userId), total: Math.max(0, current.total - (current.items.some(person => person.id === body.userId) ? 1 : 0)) } : current);
+      }
+      setSelected(null); setDraft(null); setDeleteConfirmation('');
+      const warnings = [...(result.warnings ?? [])];
+      if (!await load()) warnings.push('Directory refresh is incomplete. Read current people and retained history; do not repeat the completed change.');
       toast({
         title: successTitle,
         description: warnings.length ? warnings.join(' ') : 'Account, contributor authority, and owner history are synchronized.',
         variant: warnings.length ? 'destructive' : 'default',
       });
-      setSelected(null);
-      await load();
     } catch (nextError) {
-      toast({ title: 'Person not updated', description: nextError instanceof Error ? nextError.message : 'Unable to update this person.', variant: 'destructive' });
+      if (method === 'DELETE' && !rejected) setDeleteConfirmation('');
+      toast({ title: method === 'DELETE' && !rejected ? 'Account deletion not confirmed' : 'Person not updated',
+        description: `${nextError instanceof Error ? nextError.message : 'Unable to update this person.'}${method === 'DELETE' && !rejected ? ' Read this exact identity and retained history before any further deletion; do not replay automatically.' : ''}`, variant: 'destructive' });
     } finally {
       setBusy(false);
     }

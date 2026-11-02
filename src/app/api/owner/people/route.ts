@@ -60,6 +60,12 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const result = await deleteOwnerPerson(await request.json());
+    if (result.outcome === 'uncertain') {
+      const failure = createApiErrorResponse(503, 'owner_person_unavailable', result.warnings[0], {
+        retryable: false, nextAction: 'Read the exact identity and retained history before any further deletion; do not replay automatically.',
+      });
+      return createNoStoreJsonResponse({ ...(await failure.json()), receipt: result }, { status: 503, headers: failure.headers });
+    }
     return createNoStoreJsonResponse(result);
   } catch (error) {
     if (error instanceof SyntaxError) {

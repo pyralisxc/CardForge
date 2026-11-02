@@ -1,6 +1,8 @@
 import type { MarketingContentPackage } from '@/features/marketing-content/client';
 import { PublicAuthControlContent } from '@/features/account/components/PublicAuthControls';
 import { DEFAULT_MARKETING_STRATEGY } from '@/features/marketing/client';
+import { OwnerPeoplePanel } from '@/features/owner/components/OwnerPeoplePanel';
+import type { OwnerPerson } from '@/features/owner/model/ownerOperationsClient';
 import { Toaster } from '@/components/ui/toaster';
 import { SearchParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
 import { Desk } from '@/features/desk/components/Desk';
@@ -30,6 +32,8 @@ import { EnvironmentToolLayer } from '@/features/app-shell/environment/component
 import { DEFAULT_PIPELINE_PROGRAM_SETTINGS, PIPELINE_TYPES, PIPELINE_STATUSES } from '@/features/pipeline/lib/pipelineItems';
 import { createPipelineReviewTarget } from '@/features/pipeline/lib/pipelineReviewTarget';
 import type { PipelineSubmission, PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
+const peoplePerson: OwnerPerson = { id: 'synthetic-person', email: 'person@example.invalid', name: 'Synthetic person', identityState: 'connected', access: 'free', commercialPlan: 'free', ownerCommercialPlan: 'free', contributorAuthority: true, isOwner: false, ownerSource: 'none', createdAt: null, lastSignInAt: null, stripeCustomerId: null, stripeSubscriptionId: null, accountNote: '', profileStatus: 'active', canDraftCampaigns: false, monthlySubmissionLimitOverride: null, monthlyPublishedRequirementOverride: null, contributorNote: '', submissions: { total: 1, published: 0, inReview: 1 } };
+let peopleDeleted = false; let peopleRefreshes = 0;
 const params = new URLSearchParams(location.search);
 const row = { id: '10000000-0000-4000-8000-000000000001', lineageId: '20000000-0000-4000-8000-000000000001',
   registryAssetId: 'synthetic-material', targetRegistryAssetId: 'synthetic-material', revisionNumber: 1, baseRevisionNumber: null,
@@ -57,7 +61,7 @@ const program = { configured: true, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   managedStorageBytes: 0, managedFileCount: 0, totalSubmissionCount: rows.length, totalVoteableCount: 0, activeContributorCount: 0,
   assetTypeSummaries: [], contributions: [], currentContributorIds: [],
 } as unknown as PipelineProgramView;
-const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseStylePost?: () => void; libraryNavigations: string[] };
+const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releasePeopleRefresh?: () => void; releaseStylePost?: () => void; libraryNavigations: string[] };
 proof.libraryRequests = []; proof.libraryNavigations = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
@@ -113,6 +117,23 @@ const campaignPackage = { id: 'synthetic-package', contributorId: params.has('ca
 let ownerCatalogRestored = false;
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
+  if (params.has('ownerPeople') && String(input).startsWith('/api/owner/people')) {
+    const method = init?.method ?? 'GET'; proof.libraryRequests.push({ url: String(input), method, body: typeof init?.body === 'string' ? init.body : undefined });
+    if (method === 'DELETE') {
+      if (params.get('ownerPeople') === 'uncertain') return Response.json({ error: { message: 'Clerk account deletion is unconfirmed.' }, receipt: { userId: peoplePerson.id, committed: null, outcome: 'uncertain', retryable: false } }, { status: 503 });
+      peopleDeleted = true;
+      return Response.json({ userId: peoplePerson.id, committed: true, outcome: 'committed', profileReconciled: false, activityRecorded: true, warnings: ['Clerk account deleted; retained-profile reconciliation is incomplete. Use Deactivate retained profile after readback.'] });
+    }
+    if (method === 'PATCH') return Response.json({ warnings: [] });
+    if (peopleDeleted && ++peopleRefreshes === 1) {
+      await new Promise<void>(resolve => { proof.releasePeopleRefresh = resolve; });
+      return Response.json({ error: { message: 'Synthetic directory refresh unavailable.' } }, { status: 503 });
+    }
+    const history = peopleRefreshes >= 3;
+    return Response.json({ people: { items: [{ ...peoplePerson, ...(history ? { identityState: 'history_only' } : {}) }], total: 1, page: 1, pageSize: 12,
+      summary: { accounts: history ? 0 : 1, activeContributors: 1, historyOnly: history ? 1 : 0, needsAttention: history ? 1 : 0 } } });
+  }
+
   if (params.has('catalogTrashProof') && String(input).endsWith('/catalog-trash')) {
     proof.libraryRequests.push({ url: String(input), method: init?.method ?? 'GET' });
     if (init?.method && init.method !== 'GET') throw new Error('Read-only recovery reachability proof must not mutate');
@@ -306,7 +327,7 @@ function RailProof() {
   }}><EnvironmentShell ariaLabel="Native shared rail proof" brand={{ src: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E', alt: 'Fixture' }} viewer={{ owner: false, signedIn: true, contributor: false }} zones={ENVIRONMENT_ZONES.filter(item => ['desk', 'library', 'profile'].includes(item.id))} activeZone={zone} viewportPolicy="desk" primaryScroll="contained" presentation={{ mode: 'browse', focusDepth: 'zone' }} detail={null} actions={[]} primaryAction={zone === 'profile' ? undefined : createLibraryZoneAction('library.create-set', 'New Set')} showPrimaryAction={zone !== 'profile'} accountControl={params.has('railAuth') ? <PublicAuthControlContent state={params.get('railAuth') === 'connecting' ? 'connecting' : 'signed-out'} returnTo="/account" /> : <button aria-label="Profile" style={{ width: 44, height: 44, flexShrink: 0 }}>P</button>} search={<EnvironmentSearch label={`Search ${zone}`} value={query} onChange={setQuery} inputRef={searchRef} />} onCommand={() => searchRef.current?.focus()} onAction={() => {}} onCloseDetail={() => {}} statusContent="Local storage ready" footerContent="Synthetic account control; no provider session"><p>Native shell layout proof</p></EnvironmentShell></div></AppRouterContext.Provider>;
 }
 const mount = document.createElement('div'); document.body.append(mount); const fixtureRouter = { bfcacheId: 'isolated-library', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: (href: string) => { proof.libraryNavigations.push(href); }, replace: () => {}, prefetch: async () => {} };
-createRoot(mount).render(<><Toaster />{params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
+createRoot(mount).render(<><Toaster />{params.has('ownerPeople') ? <OwnerPeoplePanel currentOwnerId="synthetic-owner" /> : params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
   experience={{ signedIn: true, owner: !params.has('campaignContributor') && !params.has('sharedTrashProof'), plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: true } } as AccountExperienceProjection}
   businessIdentity={{} as never} persistenceScope="account:isolated-library-fixture" />
 </AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />}</>);
