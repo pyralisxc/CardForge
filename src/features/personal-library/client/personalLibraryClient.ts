@@ -1,5 +1,5 @@
 "use client";
-import { PERSONAL_LIBRARY_REMOVAL_NOTICE, personalLibraryItemRead, personalLibraryRemovalReceipt, uncertainPersonalLibraryRemoval } from '../itemContract';
+import { PERSONAL_LIBRARY_REMOVAL_NOTICE, personalLibraryListResult, personalLibraryItemRead, personalLibraryRemovalReceipt, uncertainPersonalLibraryRemoval } from '../itemContract';
 
 import { readApiError } from '@/infrastructure/http/clientResponses';
 import { observeProviderBoundaryResponse, trackProviderBoundaryOutcome } from '@/features/analytics/client/tracking';
@@ -26,7 +26,7 @@ export const loadPersonalLibrary = async (): Promise<PersonalLibraryListResult> 
     fetch('/api/personal-library', { cache: 'no-store' })
   ));
   if (!response.ok) throw await readApiError(response, 'Unable to load your personal library.');
-  return await response.json() as PersonalLibraryListResult;
+  return personalLibraryListResult.parse(await response.json());
 };
 
 export const registerGoogleDrivePersonalLibraryItems = async ({

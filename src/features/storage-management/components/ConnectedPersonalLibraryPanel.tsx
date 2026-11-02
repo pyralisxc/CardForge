@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ExternalLink, FolderSearch, Library, Loader2, LogIn, RefreshCw, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -57,17 +57,20 @@ export function ConnectedPersonalLibraryPanel({
       } else setAttempt({ item, message: receipt.message });
     } finally { setBusyAction(null); }
   };
+  const readInFlight = useRef(false);
   const readAttempt = async () => {
-    if (!attempt) return;
+    if (!attempt || readInFlight.current) return;
+    readInFlight.current = true;
     const original = attempt;
+    setAttempt({ item: original.item, message: 'Exact readback is pending. Do not repeat DELETE.' });
     setBusyAction(`read:${original.item.id}`);
     try {
       const result = await getPersonalLibraryItem(original.item.id);
       if (!result.item) setRemovedIds(ids => [...ids, original.item.id]);
       setAttempt({ ...original, present: Boolean(result.item), message: result.item ? 'This exact entry is currently present. This does not establish the earlier operation outcome. A new removal requires a new explicit confirmation.' : 'This exact entry is currently absent. This does not prove the attempted removal committed. No DELETE was replayed.' });
     } catch {
-      setAttempt({ ...original, message: 'Exact readback is unavailable. The earlier removal remains unconfirmed. Do not repeat DELETE.' });
-    } finally { setBusyAction(null); }
+      setAttempt({ item: original.item, message: 'Exact readback is unavailable. The earlier removal remains unconfirmed. Do not repeat DELETE.' });
+    } finally { readInFlight.current = false; setBusyAction(null); }
   };
 
   const refresh = useCallback(async () => {

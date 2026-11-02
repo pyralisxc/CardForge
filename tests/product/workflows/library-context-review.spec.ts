@@ -983,3 +983,34 @@ for (const mode of ['refreshFail', 'staleList', 'uncertain', 'absent', 'deferred
     expect(await deletes()).toBe(1);
   }
 });
+
+test('@golden personal index present then pending/unavailable clears stale removal eligibility', async ({ page }) => {
+  await mount(page, '?personalItemProof=readSequence');
+  page.on('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  const read = page.getByRole('button', { name: 'Read exact index entry' });
+  await read.click();
+  await expect(page.getByRole('button', { name: 'Allow a new removal confirmation' })).toBeVisible();
+  // Two same-turn activations must create only one pending exact read.
+  await read.evaluate(button => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
+  await expect(read).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Allow a new removal confirmation' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+  const requests = () => page.evaluate(() => (window as unknown as { libraryRequests: { method: string; url: string }[] }).libraryRequests);
+  expect((await requests()).filter(row => row.method === 'GET' && row.url.endsWith('10000000-0000-4000-8000-000000000001'))).toHaveLength(2);
+  await page.evaluate(() => (window as unknown as { releasePersonalRead: () => void }).releasePersonalRead());
+  await expect(page.getByText(/Exact readback is unavailable/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Allow a new removal confirmation' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+  expect((await requests()).filter(row => row.method === 'DELETE')).toHaveLength(1);
+});
+
+for (const mode of ['listEmpty', 'listMalformed']) test(`@golden personal index list ${mode} stays truthful`, async ({ page }) => {
+  await mount(page, `?personalItemProof=${mode}`);
+  if (mode === 'listEmpty') await expect(page.getByText(/No connected assets yet/)).toBeVisible();
+  else {
+    await expect(page.getByText('Personal library unavailable', { exact: true })).toBeVisible();
+    await expect(page.getByText(/No connected assets yet/)).toHaveCount(0);
+  }
+  expect(await page.evaluate(() => (window as unknown as { libraryRequests: { method: string }[] }).libraryRequests.some(row => row.method !== 'GET'))).toBe(false);
+});

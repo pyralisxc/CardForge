@@ -1,21 +1,22 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
-const f = vi.hoisted(() => ({ access: vi.fn(), result: undefined as unknown, error: false, lost: false, reads: 0, deletes: 0, queries: [] as unknown[][], telemetry: vi.fn() }));
+const f = vi.hoisted(() => ({ access: vi.fn(), result: undefined as unknown, count: 0 as number | null, error: false, lost: false, reads: 0, deletes: 0, queries: [] as unknown[][], telemetry: vi.fn() }));
 vi.mock('@/features/studio-documents/server/mcpStudioAccess', () => ({ getMcpStudioReadAccess: f.access, getMcpStudioAccess: () => { throw new Error('No profile enrollment'); } }));
 vi.mock('@/features/account/server', async original => ({ ...await original<object>(), getCurrentCardforgeEntitlement: async () => (await f.access()).entitlement }));
 vi.mock('@/features/mcp-usage/server', async original => ({ ...await original<object>(), observeMcpToolExecution: async ({ execute }: { execute: () => Promise<unknown> }) => { const result = await execute(); try { await f.telemetry(); } catch { /* actual wrapper fails open */ } return result; } }));
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ from: (table: string) => {
   f.queries.push(['from', table]); let write = false;
-  const q = { select: (columns: string) => { f.queries.push(['select', columns]); return q; }, eq: (key: string, value: unknown) => { f.queries.push(['eq', key, value]); return q; }, delete: () => { write = true; f.deletes++; return q; }, maybeSingle: async () => { if (!write) f.reads++; if (f.lost) throw new Error('Lost response'); return { data: f.result, error: f.error ? { message: 'private database detail' } : null }; } }; return q;
+  const q = { select: (columns: string) => { f.queries.push(['select', columns]); return q; }, eq: (key: string, value: unknown) => { f.queries.push(['eq', key, value]); return q; }, order: () => q, limit: () => q, then: (resolve: (value: unknown) => unknown) => { if (f.lost) return Promise.reject(new Error('Lost response')); return Promise.resolve({ data: f.result, error: f.error ? { message: 'private database detail' } : null, count: f.count }).then(resolve); }, delete: () => { write = true; f.deletes++; return q; }, maybeSingle: async () => { if (!write) f.reads++; if (f.lost) throw new Error('Lost response'); return { data: f.result, error: f.error ? { message: 'private database detail' } : null }; } }; return q;
 } }) }));
-import { getPersonalLibraryItem, removePersonalLibraryItem } from '@/features/personal-library/server/personalLibraryStore';
+import { getPersonalLibraryItem, listPersonalLibraryItems, removePersonalLibraryItem } from '@/features/personal-library/server/personalLibraryStore';
 import { PERSONAL_LIBRARY_REMOVAL_NOTICE } from '@/features/personal-library/itemContract';
 import { cardForgeMcpHandler } from '@/features/studio-documents/server/mcpServer';
+import { GET as listGet } from '@/app/api/personal-library/route';
 import { GET, DELETE } from '@/app/api/personal-library/[itemId]/route';
 const id = '10000000-0000-4000-8000-000000000001', other = '20000000-0000-4000-8000-000000000001';
 const input = { itemId: id, confirmation: { itemId: id, notice: PERSONAL_LIBRARY_REMOVAL_NOTICE } };
-const metadata = () => ({ id, owner_user_id: 'linked-account', provider: 'google-drive', display_name: 'Synthetic artwork', asset_role: 'artwork', mime_type: 'image/png', byte_size: '100', provider_revision: 'v1', content_hash: null, provider_resource_key: 'private-key', provider_file_id: 'private-file' });
-beforeEach(() => { vi.clearAllMocks(); f.result = metadata(); f.error = false; f.lost = false; f.reads = 0; f.deletes = 0; f.queries = []; f.access.mockResolvedValue({ user: { id: 'oauth-identity' }, entitlement: { isSignedIn: true, accountUserId: 'linked-account' } }); });
+const metadata = () => ({ id, owner_user_id: 'linked-account', provider: 'google-drive', display_name: 'Synthetic artwork', asset_role: 'artwork', mime_type: 'image/png', byte_size: '100', provider_revision: 'v1', content_hash: null, provider_resource_key: 'private-key', provider_file_id: 'private-file', provider_modified_at: '2026-11-02T00:00:00+00:00', provider_web_view_link: null, last_verified_at: '2026-11-02T00:00:00+00:00', created_at: '2026-11-02T00:00:00+00:00', updated_at: '2026-11-02T00:00:00+00:00' });
+beforeEach(() => { vi.clearAllMocks(); f.result = metadata(); f.count = 1; f.error = false; f.lost = false; f.reads = 0; f.deletes = 0; f.queries = []; f.access.mockResolvedValue({ user: { id: 'oauth-identity' }, entitlement: { isSignedIn: true, accountUserId: 'linked-account' } }); });
 it('reads exact linked-account scoped metadata without provider fields or bytes', async () => {
   const result = await getPersonalLibraryItem('linked-account', id);
   expect(result.item).toMatchObject({ itemId: id, byteSize: 100, providerRevision: 'v1' });
@@ -67,4 +68,32 @@ it('browser API preserves 204 only for exact commit, exact GET and uncertain/abs
   f.result = { id }; expect((await DELETE(request(), ctx)).status).toBe(204);
   f.result = null; expect((await DELETE(request(), ctx)).status).toBe(404);
   f.lost = true; const result = await DELETE(request(), ctx); expect(result.status).toBe(503); expect(await result.json()).toMatchObject({ receipt: { committed: null, retryable: false } });
+});
+
+it('shared list and actual HTTP search preserve genuine empty and valid stored zero/Unicode metadata', async () => {
+  f.result = []; f.count = 0; expect(await listPersonalLibraryItems('linked-account')).toMatchObject({ items: [], count: 0 });
+  expect((await http(1, 'tools/call', { name: 'search_personal_library', arguments: {} })).result.structuredContent).toMatchObject({ items: [], count: 0 });
+  f.result = [{ ...metadata(), display_name: '😀'.repeat(320), byte_size: '0', provider_revision: '\t', provider_modified_at: 'infinity' }]; f.count = 1;
+  expect((await listPersonalLibraryItems('linked-account')).items[0]).toMatchObject({ byteSize: 0, displayName: '😀'.repeat(320), providerModifiedAt: 'infinity' });
+  const result = (await http(2, 'tools/call', { name: 'search_personal_library', arguments: {} })).result;
+  expect(result.isError).not.toBe(true); expect(result.structuredContent.items[0].byteSize).toBe(0); expect(JSON.stringify(result)).not.toContain('private-key');
+});
+it('list/search fail unavailable rather than empty or filtering malformed/wrong-scope rows', async () => {
+  for (const bad of [null, undefined, {}, [metadata(), { ...metadata(), id: other, owner_user_id: 'other' }], [{ ...metadata(), byte_size: 'bad' }], [{ ...metadata(), created_at: null }], [{ ...metadata(), display_name: 'a'.repeat(319) + ' \n' }]]) {
+    f.result = bad; f.count = Array.isArray(bad) ? bad.length : 0;
+    await expect(listPersonalLibraryItems('linked-account')).rejects.toMatchObject({ status: 503 });
+    expect((await http(3, 'tools/call', { name: 'search_personal_library', arguments: {} })).result.isError).toBe(true);
+  }
+  f.result = []; f.count = 0; f.error = true; await expect(listPersonalLibraryItems('linked-account')).rejects.toMatchObject({ status: 503 });
+});
+it('list rejects unavailable/contradictory counts and duplicate exact identities', async () => {
+  f.result = [metadata()];
+  for (const count of [null, -1, 0, 2, 1.5]) { f.count = count; await expect(listPersonalLibraryItems('linked-account')).rejects.toMatchObject({ status: 503 }); }
+  f.result = [metadata(), metadata()]; f.count = 2; await expect(listPersonalLibraryItems('linked-account')).rejects.toMatchObject({ status: 503 });
+});
+
+it('browser list API uses the same strict projection as search without hiding unavailable data', async () => {
+  f.result = []; f.count = 0; const empty = await listGet(); expect(empty.status).toBe(200); expect(await empty.json()).toMatchObject({ items: [], count: 0 });
+  f.result = null; const unavailable = await listGet(); expect(unavailable.status).toBe(503); expect(await unavailable.json()).toMatchObject({ error: { kind: 'unavailable' } });
+  f.result = [{ ...metadata(), owner_user_id: 'other-account' }]; f.count = 1; expect((await listGet()).status).toBe(503);
 });

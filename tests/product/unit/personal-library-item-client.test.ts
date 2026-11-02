@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 const f = vi.hoisted(() => ({ track: vi.fn() }));
 vi.mock('@/features/analytics/client/tracking', () => ({ observeProviderBoundaryResponse: (_scope: string, _action: string, request: () => unknown) => request(), trackProviderBoundaryOutcome: f.track }));
 vi.mock('@/features/project/client/provider-google-drive', () => ({ pickGoogleDriveItems: vi.fn() }));
-import { getPersonalLibraryItem, removePersonalLibraryItem } from '@/features/personal-library/client/personalLibraryClient';
+import { getPersonalLibraryItem, loadPersonalLibrary, removePersonalLibraryItem } from '@/features/personal-library/client/personalLibraryClient';
 import { PERSONAL_LIBRARY_REMOVAL_NOTICE } from '@/features/personal-library/itemContract';
 const id = '10000000-0000-4000-8000-000000000001';
 afterEach(() => { vi.unstubAllGlobals(); vi.resetAllMocks(); });
@@ -26,4 +26,13 @@ it('unavailable or malformed readback never becomes absent', async () => {
  for (const response of [Response.json({ error: { message: 'Unavailable' } }, { status: 503 }), Response.json({}), Response.json({ itemId: '20000000-0000-4000-8000-000000000001', item: null })]) {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response)); await expect(getPersonalLibraryItem(id)).rejects.toThrow();
  }
+});
+
+it('browser shared list accepts only observed empty and rejects unavailable/malformed payloads', async () => {
+ vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ items: [], count: 0, limit: 2000 })));
+ expect(await loadPersonalLibrary()).toEqual({ items: [], count: 0, limit: 2000 });
+ for (const value of [null, {}, { items: null, count: 0, limit: 2000 }, { items: [], count: 1, limit: 2000 }, { items: [{ id }], count: 1, limit: 2000 }]) {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(value))); await expect(loadPersonalLibrary()).rejects.toThrow();
+ }
+ vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Offline'))); await expect(loadPersonalLibrary()).rejects.toThrow();
 });

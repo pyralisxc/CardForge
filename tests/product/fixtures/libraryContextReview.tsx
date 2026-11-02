@@ -61,7 +61,7 @@ const program = { configured: true, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   managedStorageBytes: 0, managedFileCount: 0, totalSubmissionCount: rows.length, totalVoteableCount: 0, activeContributorCount: 0,
   assetTypeSummaries: [], contributions: [], currentContributorIds: [],
 } as unknown as PipelineProgramView;
-const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releasePersonalRemoval?: () => void; releaseContributorRefresh?: () => void; releaseCampaignDraftRefresh?: () => void; releaseCampaignDraftPost?: () => void; contributorRefreshes?: number; releaseStylePost?: () => void; libraryNavigations: string[] };
+const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releasePersonalRead?: () => void; releasePersonalRemoval?: () => void; releaseContributorRefresh?: () => void; releaseCampaignDraftRefresh?: () => void; releaseCampaignDraftPost?: () => void; contributorRefreshes?: number; releaseStylePost?: () => void; libraryNavigations: string[] };
 proof.libraryRequests = []; proof.libraryNavigations = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
@@ -116,6 +116,7 @@ const marketingCampaigns = [{ id: 'synthetic-campaign', name: 'Founder Beta Intr
 const campaignPackage = { id: 'synthetic-package', contributorId: params.has('campaignComposer') ? 'synthetic-owner' : 'synthetic-author', contributorEmail: null, contributorName: 'Synthetic author', title: 'Printable Deck Introduction', objective: 'Explain the printable card workflow', destinationUrl: 'https://cardforges.com', productionNote: '', marketingCampaignId: 'synthetic-campaign', audienceKey: 'tabletop-designers', contentPillar: 'product-proof', funnelStage: 'awareness', contentKind: 'demonstration', callToAction: 'Open Desk', creationSource: 'human', utmContent: '', variants: [{ service: 'facebook', text: 'Synthetic package copy', attachments: [] }], associations: [], status: params.has('campaignComposer') ? 'draft' : 'submitted', requestedPublishAt: null, reviewNote: '', reviewedBy: null, submittedAt: '2026-01-01T00:00:00Z', approvedAt: null, version: 1, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' } satisfies MarketingContentPackage;
 let ownerCatalogRestored = false;
 let campaignDraftWritten = false;
+let personalExactReads = 0;
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
   const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -127,11 +128,17 @@ window.fetch = async (input, init) => {
     if (requestMethod === 'DELETE') {
       campaignDraftWritten = true;
       if (params.get('personalItemProof') === 'deferred') await new Promise<void>(resolve => { proof.releasePersonalRemoval = resolve; });
-      if (params.get('personalItemProof') === 'uncertain' || params.get('personalItemProof') === 'absent') throw new Error('Synthetic lost DELETE response');
+      if (params.get('personalItemProof') === 'uncertain' || params.get('personalItemProof') === 'absent' || params.get('personalItemProof') === 'readSequence') throw new Error('Synthetic lost DELETE response');
       return new Response(null, { status: 204 });
+    }
+    if (requestUrl.endsWith(id) && params.get('personalItemProof') === 'readSequence' && ++personalExactReads > 1) {
+      await new Promise<void>(resolve => { proof.releasePersonalRead = resolve; });
+      return Response.json({ error: { message: 'Synthetic exact read unavailable' } }, { status: 503 });
     }
     if (requestUrl.endsWith(id)) return Response.json({ itemId: id, item: params.get('personalItemProof') === 'absent' ? null : { itemId: id, provider: item.provider, displayName: item.displayName, mimeType: item.mimeType, role: item.role, byteSize: item.byteSize, providerRevision: item.providerRevision, contentHash: null } });
     if (campaignDraftWritten && params.get('personalItemProof') === 'refreshFail') return Response.json({ error: { message: 'Synthetic index refresh failed' } }, { status: 503 });
+    if (params.get('personalItemProof') === 'listMalformed') return Response.json({ items: null, count: 0, limit: 2000 });
+    if (params.get('personalItemProof') === 'listEmpty') return Response.json({ items: [], count: 0, limit: 2000 });
     return Response.json({ items: [item], count: 1, limit: 2000 }); // Deliberately stale list after confirmed commit.
   }
 

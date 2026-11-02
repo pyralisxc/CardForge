@@ -1,4 +1,4 @@
-import { personalLibraryExactInput, personalLibraryRemovalInput, personalLibraryItemMetadata, uncertainPersonalLibraryRemoval, type PersonalLibraryRemovalReceipt } from '../itemContract';
+import { personalLibraryExactInput, personalLibraryRemovalInput, personalLibraryItemMetadata, personalLibraryClientItem, personalLibraryListResult, uncertainPersonalLibraryRemoval, type PersonalLibraryRemovalReceipt } from '../itemContract';
 import { createHash } from 'node:crypto';
 
 import { isGoogleDriveFileId } from '@/features/project/server';
@@ -249,22 +249,31 @@ const mapWithConcurrency = async <Input, Output>(
   return results;
 };
 
+const projectPersonalLibraryMetadata = (data: unknown, ownerUserId: string) => {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new PersonalLibraryStoreError('Personal-library metadata is unavailable or malformed.', 503, { kind: 'unavailable' });
+  const row = data as Record<string, unknown>;
+  const parsed = personalLibraryItemMetadata.safeParse({ itemId: row.id, provider: row.provider, displayName: row.display_name, role: row.asset_role, mimeType: row.mime_type, byteSize: typeof row.byte_size === 'string' && /^[0-9]+$/u.test(row.byte_size) ? Number(row.byte_size) : row.byte_size, providerRevision: row.provider_revision, contentHash: row.content_hash });
+  if (!parsed.success || row.owner_user_id !== ownerUserId) throw new PersonalLibraryStoreError('Personal-library metadata is unavailable or malformed.', 503, { kind: 'unavailable' });
+  return parsed.data;
+};
+
 export const listPersonalLibraryItems = async (ownerUserId: string): Promise<PersonalLibraryListResult> => {
-  const { data, error, count } = await requireStore()
-    .from('cardforge_personal_library_items')
-    .select(LIBRARY_COLUMNS, { count: 'exact' })
-    .eq('owner_user_id', ownerUserId)
-    .order('updated_at', { ascending: false })
-    .limit(MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT);
-  if (error) {
-    console.error('Unable to list personal library items:', error);
-    throw new PersonalLibraryStoreError('Unable to load the personal library.', 503, { kind: 'unavailable' });
-  }
-  return {
-    items: (data ?? []).map((row) => toItem(row as unknown as LibraryRow)),
-    count: count ?? data?.length ?? 0,
-    limit: MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT,
-  };
+  let result;
+  try {
+    result = await requireStore().from('cardforge_personal_library_items').select(LIBRARY_COLUMNS, { count: 'exact' })
+      .eq('owner_user_id', ownerUserId).order('updated_at', { ascending: false }).limit(MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT);
+  } catch { throw new PersonalLibraryStoreError('Unable to load the personal library.', 503, { kind: 'unavailable' }); }
+  if (!result || result.error || !Array.isArray(result.data)) throw new PersonalLibraryStoreError('Unable to load the personal library.', 503, { kind: 'unavailable' });
+  const items = result.data.map(data => {
+    const { itemId, ...metadata } = projectPersonalLibraryMetadata(data, ownerUserId);
+    const row = data as unknown as Record<string, unknown>;
+    const parsed = personalLibraryClientItem.safeParse({ ...metadata, id: itemId, providerFileId: row.provider_file_id, providerModifiedAt: row.provider_modified_at, providerWebViewLink: row.provider_web_view_link, lastVerifiedAt: row.last_verified_at, createdAt: row.created_at, updatedAt: row.updated_at });
+    if (!parsed.success) throw new PersonalLibraryStoreError('Personal-library list metadata is unavailable or malformed.', 503, { kind: 'unavailable' });
+    return parsed.data;
+  });
+  const parsed = personalLibraryListResult.safeParse({ items, count: result.count, limit: MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT });
+  if (!parsed.success) throw new PersonalLibraryStoreError('Personal-library list/count is unavailable or malformed.', 503, { kind: 'unavailable' });
+  return parsed.data;
 };
 
 export const registerGoogleDrivePersonalLibraryFiles = async ({
@@ -363,10 +372,9 @@ export const getPersonalLibraryItem = async (ownerUserId: string, itemId: string
     .eq('id', itemId).eq('owner_user_id', ownerUserId).maybeSingle();
   if (error || data === undefined) throw new PersonalLibraryStoreError('Unable to read that personal-library item.', 503, { kind: 'unavailable' });
   if (data === null) return { itemId, item: null };
-  const row = data as Record<string, unknown>;
-  const parsed = personalLibraryItemMetadata.safeParse({ itemId: row.id, provider: row.provider, displayName: row.display_name, role: row.asset_role, mimeType: row.mime_type, byteSize: typeof row.byte_size === 'string' && /^[0-9]+$/u.test(row.byte_size) ? Number(row.byte_size) : row.byte_size, providerRevision: row.provider_revision, contentHash: row.content_hash });
-  if (!parsed.success || row.id !== itemId || row.owner_user_id !== ownerUserId) throw new PersonalLibraryStoreError('Personal-library metadata is unavailable or malformed.', 503, { kind: 'unavailable' });
-  return { itemId, item: parsed.data };
+  const item = projectPersonalLibraryMetadata(data, ownerUserId);
+  if (item.itemId !== itemId) throw new PersonalLibraryStoreError('Personal-library metadata returned a different identity.', 503, { kind: 'unavailable' });
+  return { itemId, item };
 };
 
 export const removePersonalLibraryItem = async (ownerUserId: string, input: unknown): Promise<PersonalLibraryRemovalReceipt> => {
