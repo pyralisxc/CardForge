@@ -46,7 +46,7 @@ export function SourceReviewEvidence({ submissionId, onVersionChange, onRecorded
       const next = sourceReviewSnapshotSchema.parse(result.snapshot);
       setSnapshot(next); onVersionChangeRef.current(next.evidence!.version);
       setStatus(`Evidence version ${next.evidence!.version} recorded. Approval remains separate.${JSON.stringify(latestFacts.current) !== JSON.stringify(savedFacts) ? ' Newer form edits are still unsaved.' : ''}`);
-      await onRecorded?.();
+      try { await onRecorded?.(); } catch { setStatus(`Evidence version ${next.evidence!.version} committed. Library refresh is incomplete; read current state rather than repeating the observations.`); }
     } catch (error) { setStatus(error instanceof Error ? error.message : 'Evidence could not be confirmed. Keep your observations.'); }
     finally { setSaving(false); }
   };

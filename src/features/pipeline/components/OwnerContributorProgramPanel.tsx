@@ -159,11 +159,13 @@ export function OwnerContributorProgramPanel({
         body: JSON.stringify(input),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update asset status.'));
-      await response.json() as PipelineItemsResponse;
-      if (target && onSelectionMutated) onSelectionMutated(); else await loadProgram();
+      const result = await response.json() as PipelineItemsResponse & { receipt?: { committed: boolean | null; refreshComplete: boolean; activityRecorded: boolean | null } };
+      let followupIncomplete = result.receipt?.committed === true && (!result.receipt.refreshComplete || !result.receipt.activityRecorded);
+      try { if (target && onSelectionMutated) await onSelectionMutated(); else await loadProgram(); }
+      catch { followupIncomplete = true; }
       setLastSavedAt(new Date().toISOString());
       onDirtyChange?.(false);
-      toast(success ?? { title: 'Asset control saved', description: 'The owner override and automatic recommendation are now synchronized.' });
+      toast(followupIncomplete ? { title: 'Asset control committed', description: 'Refresh or activity is incomplete. Read current state rather than repeating the decision.' } : success ?? { title: 'Asset control saved', description: 'The owner override and automatic recommendation are now synchronized.' });
       return true;
     } catch (error) {
       toast({
@@ -190,11 +192,13 @@ export function OwnerContributorProgramPanel({
         body: JSON.stringify(input),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save editorial review.'));
-      await response.json() as PipelineItemsResponse;
-      if (target && onSelectionMutated) onSelectionMutated(); else await loadProgram();
+      const result = await response.json() as PipelineItemsResponse & { receipt?: { committed: boolean | null; refreshComplete: boolean; activityRecorded: boolean | null } };
+      let followupIncomplete = result.receipt?.committed === true && (!result.receipt.refreshComplete || !result.receipt.activityRecorded);
+      try { if (target && onSelectionMutated) await onSelectionMutated(); else await loadProgram(); }
+      catch { followupIncomplete = true; }
       setLastSavedAt(new Date().toISOString());
       onDirtyChange?.(false);
-      toast({ title: 'Editorial review saved', description: 'The exact revision now carries the recorded publication-quality decision.' });
+      toast(followupIncomplete ? { title: 'Editorial review committed', description: 'Refresh or activity is incomplete. Read current state rather than repeating the decision.' } : { title: 'Editorial review saved', description: 'The exact revision now carries the recorded publication-quality decision.' });
       return true;
     } catch (error) {
       toast({
