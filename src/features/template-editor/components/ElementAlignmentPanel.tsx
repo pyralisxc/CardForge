@@ -31,27 +31,27 @@ export function ElementAlignmentPanel({
     <div className="grid grid-cols-3 gap-2">
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button type="button" variant="outline" size="icon" onClick={() => onAlign('left')} aria-label="Align left edge to canvas" className={buttonClassName}>
+          <Button type="button" variant="outline" size="icon" onClick={() => onAlign('left')} aria-label="Align to left canvas inset" className={buttonClassName}>
             <AlignLeft className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Align left edge to canvas</TooltipContent>
+        <TooltipContent>Place the selected element 32px inside the left canvas edge.</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button type="button" variant="outline" size="icon" onClick={() => onAlign('center')} aria-label="Center horizontally on canvas" className={buttonClassName}>
+          <Button type="button" variant="outline" size="icon" onClick={() => onAlign('center')} aria-label="Center horizontally within canvas" className={buttonClassName}>
             <AlignCenter className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Center horizontally on canvas</TooltipContent>
+        <TooltipContent>Center horizontally within canvas</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button type="button" variant="outline" size="icon" onClick={() => onAlign('right')} aria-label="Align right edge to canvas" className={buttonClassName}>
+          <Button type="button" variant="outline" size="icon" onClick={() => onAlign('right')} aria-label="Align to right canvas inset" className={buttonClassName}>
             <AlignRight className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Align right edge to canvas</TooltipContent>
+        <TooltipContent>Place the selected element 32px inside the right canvas edge.</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
