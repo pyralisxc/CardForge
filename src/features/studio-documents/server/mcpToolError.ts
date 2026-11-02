@@ -1,3 +1,4 @@
+import { MarketingContentStoreError } from '@/features/marketing-content/server';
 import 'server-only';
 import { PipelineRegistryCommandError, PipelineStoreError, RevisionDeleteError } from '@/features/pipeline/server';
 
@@ -14,7 +15,8 @@ import {
 import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
 
 const isSafeMcpError = (error: unknown): error is Error => (
-  error instanceof PipelineRegistryCommandError
+  error instanceof MarketingContentStoreError
+  || error instanceof PipelineRegistryCommandError
   || error instanceof PipelineStoreError
   || error instanceof RevisionDeleteError
   || error instanceof AccountToolAccessError

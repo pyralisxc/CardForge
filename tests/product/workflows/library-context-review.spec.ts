@@ -908,3 +908,20 @@ for (const outcome of ['committed', 'submitted'] as const) test(`@golden Contrib
   expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method !== 'GET')).toHaveLength(1);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+for(const mode of ['success','readback','refreshFalse','refreshThrow','deferred','uncertain','unstructured','rejected','createUnknown','createIdentity','libraryRefresh'])test(`@golden Campaign draft ${mode} retains native outcome without replay`,async({page})=>{
+ const evidence=await mount(page,`?campaignDraftReceipt=${mode}`);
+ if(mode.startsWith('create')){
+   await page.getByLabel('Content title').fill('Synthetic new package');await page.getByLabel('Objective').fill('Synthetic goal');await page.getByLabel('Tracking key').fill('synthetic_key');await page.getByLabel('Facebook post copy').fill('Synthetic copy');
+ }else{await page.getByRole('button',{name:'Edit',exact:true}).click();await page.getByLabel('Content title').fill('Changed synthetic title');}
+ const save=page.getByRole('button',{name:mode.startsWith('create')?'Create campaign draft':'Save package changes',exact:true});await expect(save).toBeEnabled();await save.click();
+ if(['uncertain','unstructured','createUnknown'].includes(mode)){
+   await expect(page.getByText(/Campaign outcome is unconfirmed/).first()).toBeVisible();await expect(save).toBeDisabled();
+   await page.getByRole('button',{name:'Read retained Campaign state',exact:true}).click();await expect(page.getByRole('status')).toContainText('Observed retained Campaign');await expect(page.getByRole('status')).toContainText('does not prove');await expect(save).toBeDisabled();
+ }else if(mode==='createIdentity'){await expect(page.getByRole('status')).toContainText('acknowledged a retained Campaign identity');await expect(page.getByLabel('Content title')).toHaveValue('Synthetic new package');await expect(save).toBeDisabled();await expect(page.getByRole('alert')).toContainText('Do not repeat Create');}
+ else if(mode==='rejected'){await expect(page.getByRole('alert')).toContainText('changed elsewhere');await expect(save).toBeEnabled();await expect(page.getByLabel('Content title')).toHaveValue('Changed synthetic title');}
+ else{await expect(page.getByRole('status')).toContainText('native commit confirmed');if(mode==='deferred')await page.evaluate(()=>(window as typeof window & {releaseCampaignDraftRefresh:()=>void}).releaseCampaignDraftRefresh());if(['refreshFalse','refreshThrow','deferred','libraryRefresh'].includes(mode))await expect(page.getByRole('status')).toContainText('refresh is incomplete');if(mode==='readback')await expect(page.getByRole('status')).toContainText('readback is unavailable');}
+ const requests=await page.evaluate(()=>(window as typeof window & {libraryRequests:{url:string;method:string;body?:string}[]}).libraryRequests);const writes=requests.filter(r=>r.method==='POST'||r.method==='PATCH');expect(writes).toHaveLength(1);const body=JSON.parse(writes[0].body!);
+ if(mode.startsWith('create')){expect(writes[0].method).toBe('POST');if(mode==='createUnknown')expect(new URL(requests.at(-1)!.url,'http://localhost').searchParams.get('idempotencyKey')).toBe(body.idempotencyKey);}else{expect(body).toMatchObject({action:'save',campaignId:'10000000-0000-4000-8000-000000000001',expectedVersion:1});}
+ expect(evidence.errors).toEqual([]);expect(evidence.mutations).toEqual([]);
+});

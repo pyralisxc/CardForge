@@ -120,7 +120,7 @@ export const getCampaignPayload = (draft: CampaignDraft) => ({
   variants: draft.variants.map((variant) => ({
     service: variant.service,
     text: variant.text,
-    attachments: variant.attachments.map(({ media, ...attachment }) => attachment),
+    attachments: variant.attachments.map(attachment => ({ mediaId: attachment.mediaId, derivativeId: attachment.derivativeId, displayOrder: attachment.displayOrder, altText: attachment.altText, captionOverride: attachment.captionOverride, cropIntent: attachment.cropIntent })),
   })),
   associations: draft.associations.map(({
     id,

@@ -11,3 +11,6 @@ export {
   fetchPublishJobs,
   getCampaignRecord as getMarketingContentPackage,
 } from './server/storeShared';
+
+export * from './campaignDraftContract';
+export * from './server/campaignDraftCommands';

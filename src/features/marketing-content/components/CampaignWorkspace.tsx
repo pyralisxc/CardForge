@@ -1,5 +1,6 @@
 "use client";
 
+import { campaignDraftMutationResult, campaignDraftReadResult, campaignDraftCreationReceipt } from '@/features/marketing-content/campaignDraftContract';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Megaphone, Plus } from 'lucide-react';
 
@@ -15,6 +16,7 @@ import {
   type CampaignDraft,
 } from '@/features/marketing-content/components/CampaignComposer';
 import { CampaignQueue } from '@/features/marketing-content/components/CampaignQueue';
+import { canSaveCampaignDraft, normalizeCampaignInput } from '@/features/marketing-content/model';
 import type {
   MarketingContentWorkspaceView,
   MarketingContentPackage as SocialCampaign,
@@ -35,7 +37,7 @@ export function CampaignWorkspace({
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
   initialCampaignId?: string | null;
-  onRefresh: () => Promise<void> | void;
+  onRefresh: () => Promise<void | boolean> | void | boolean;
 }) {
   const canDraft = workspace.scopes.includes('campaigns.draft');
   const [showComposer, setShowComposer] = useState(false);
@@ -49,9 +51,12 @@ export function CampaignWorkspace({
   const replaceDraft = useCallback((next: CampaignDraft) => { setDraftBaseline(next); setDraft(next); }, []);
   const [editing, setEditing] = useState<SocialCampaign | null>(null);
   const [busy, setBusy] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [identityOnly, setIdentityOnly] = useState(false);
+  const [attempt, setAttempt] = useState<{campaignId:string|null;idempotencyKey:string}|null>(null);
   const dirty = showComposer && (busy || JSON.stringify(draft) !== JSON.stringify(draftBaseline));
   useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
-  useEffect(() => { onCloseBlockedChange?.(busy ? 'Wait for the campaign command outcome before starting a Set.' : null); return () => onCloseBlockedChange?.(null); }, [busy, onCloseBlockedChange]);
+  useEffect(() => { onCloseBlockedChange?.(busy || unconfirmed || identityOnly ? 'Read the retained Campaign outcome before starting a Set.' : null); return () => onCloseBlockedChange?.(null); }, [busy, unconfirmed, identityOnly, onCloseBlockedChange]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const composerRef = useRef<HTMLDivElement>(null);
@@ -89,8 +94,7 @@ export function CampaignWorkspace({
     const campaign = workspace.campaigns.find((candidate) => candidate.id === initialCampaignId);
     if (
       campaign
-      && campaign.contributorId === workspace.currentUserId
-      && (campaign.status === 'draft' || campaign.status === 'changes_requested')
+      && canSaveCampaignDraft(campaign, { isOwner: workspace.isOwner, user: { id: workspace.currentUserId } })
     ) {
       setEditing(campaign);
       replaceDraft(toCampaignDraft(campaign));
@@ -98,15 +102,17 @@ export function CampaignWorkspace({
       setError('');
       setMessage('');
     }
-  }, [workspace.campaigns, workspace.currentUserId, createDraft, initialCampaignId, replaceDraft]);
+  }, [workspace.campaigns, workspace.currentUserId, workspace.isOwner, createDraft, initialCampaignId, replaceDraft]);
 
   const saveCampaign = async () => {
+    if (busy || unconfirmed || identityOnly) return;
     setBusy(true);
+    setAttempt({campaignId:editing?.id??null,idempotencyKey:draft.idempotencyKey});
     setError('');
     setMessage('');
     try {
       const payload = getCampaignPayload(draft);
-      await (editing
+      const result = await (editing
         ? mutateMarketingContent('PATCH', {
           action: 'save',
           campaignId: editing.id,
@@ -114,14 +120,40 @@ export function CampaignWorkspace({
           campaign: payload,
         })
         : mutateMarketingContent('POST', payload));
-      await onRefresh();
-      setMessage(editing ? 'Campaign changes saved.' : 'Campaign draft created.');
-      resetComposer();
+      const parsed = campaignDraftMutationResult.safeParse(result);
+      if (!parsed.success || !parsed.data.receipt.identityAcknowledged || (editing && (parsed.data.campaignId !== editing.id || parsed.data.receipt.committed !== true))) { setUnconfirmed(true); setError('Campaign outcome is unconfirmed. Read exact retained state; do not replay automatically.'); return; }
+      setMessage((editing ? 'Campaign changes saved; native commit confirmed. ' : 'Native create acknowledged a retained Campaign identity; this does not prove newly created or changed content. ') + parsed.data.receipt.warnings.join(' '));
+      const requested = normalizeCampaignInput(payload);
+      const observed = parsed.data.campaign ? normalizeCampaignInput(parsed.data.campaign) : null;
+      if (!editing && (!requested.ok || !observed?.ok || JSON.stringify(requested.value) !== JSON.stringify(observed.value))) {
+        setIdentityOnly(true);
+        setMessage(previous => previous + ' Attempted draft content remains here because retained content was not confirmed to match. Read retained state before any further edit.');
+      } else resetComposer();
+      try { const refreshed = await onRefresh(); if (refreshed === false) throw new Error('Refresh incomplete'); } catch { setMessage(previous => previous + ' Campaign refresh is incomplete. Do not repeat the acknowledged operation.'); }
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Unable to save the campaign.');
+      if (!(nextError instanceof Error && 'status' in nextError && typeof nextError.status === 'number' && nextError.status < 500)) setUnconfirmed(true);
+      setError(nextError instanceof Error ? nextError.message : 'Campaign outcome is unconfirmed. Read exact retained state; do not replay automatically.');
     } finally {
       setBusy(false);
     }
+  };
+
+  const readAttempt = async () => {
+    if (!attempt || busy) return;
+    setBusy(true);
+    try {
+      const path = attempt.campaignId ? attempt.campaignId : `creation-receipt?idempotencyKey=${encodeURIComponent(attempt.idempotencyKey)}`;
+      const response = await fetch(`/api/marketing-content/campaigns/${path}`, { cache:'no-store' });
+      if (!response.ok) throw new Error('Exact retained Campaign state is unavailable; no absence was established.');
+      const raw = await response.json();
+      const parsed = attempt.campaignId ? campaignDraftReadResult.safeParse(raw) : campaignDraftCreationReceipt.safeParse(raw);
+      if (!parsed.success || (attempt.campaignId && parsed.data.campaign?.id !== attempt.campaignId)) throw new Error('Retained Campaign readback identity could not be verified.');
+      const result = parsed.data;
+      if (result.campaign) setMessage(`Observed retained Campaign ${result.campaign.id}, version ${result.campaign.version}. Matching state does not prove the previous operation committed. No request was replayed.`);
+      else if ('campaignId' in result && result.campaignId) setMessage(`Observed retained Campaign identity ${result.campaignId}; full readback is unavailable. This does not prove prior operation causation. No request was replayed.`);
+      else setMessage('No retained Campaign identity was observed. An in-flight operation is not ruled out; do not replay automatically.');
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Retained Campaign read is unavailable.'); }
+    finally { setBusy(false); }
   };
 
   const showError = (nextError: string) => {
@@ -151,6 +183,7 @@ export function CampaignWorkspace({
       </div>
 
       {error ? <p role="alert" className="border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-3 text-sm text-[var(--cf-danger)]">{error}</p> : null}
+      {unconfirmed || identityOnly ? <p role="alert">{unconfirmed ? 'Campaign outcome is unconfirmed. Do not replay automatically.' : 'A retained Campaign identity is acknowledged; attempted draft content has not been confirmed. Do not repeat Create.'} <Button disabled={busy} onClick={() => void readAttempt()}>Read retained Campaign state</Button></p> : null}
       {message ? <p role="status" className="border border-[#497352] bg-[#0e170f] p-3 text-sm text-[#a8e7b8]">{message}</p> : null}
 
       {showComposer && canDraft ? (
@@ -161,7 +194,7 @@ export function CampaignWorkspace({
           <CampaignComposer
             draft={draft}
             editing={editing}
-            busy={busy}
+            busy={busy || unconfirmed || identityOnly}
             mediaLibrary={workspace.campaignMedia}
             marketingCampaigns={workspace.marketingCampaigns}
             marketingStrategy={workspace.marketingStrategy}
@@ -190,7 +223,7 @@ export function CampaignWorkspace({
       {!showComposer ? (
         <CampaignQueue searchQuery={searchQuery} onSearchQueryChange={onSearchQueryChange}
           workspace={workspace}
-          onRefresh={onRefresh}
+          onRefresh={async () => { await onRefresh(); }}
           onEdit={editCampaign}
           onMessage={setMessage}
           onError={showError}
