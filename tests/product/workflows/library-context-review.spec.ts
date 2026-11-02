@@ -889,7 +889,7 @@ for (const decision of ['control', 'editorial'] as const) test(`@golden committe
   const evidence = await mount(page, '?ownerDecisionReceipt=1');
   await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
   await page.getByRole('button', { name: 'Manage', exact: true }).click();
-  if (decision === 'editorial') await page.getByLabel('Review outcome', { exact: true }).selectOption('pending');
+  if (decision === 'editorial') await page.getByRole('combobox', { name: 'Review outcome', exact: true }).selectOption('pending');
   await page.getByRole('button', { name: decision === 'control' ? 'Save control' : 'Save editorial review', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: decision === 'control' ? 'Asset control committed' : 'Editorial review committed' })).toContainText('Refresh or activity is incomplete');
   await expect(page.getByText('The owner override and automatic recommendation are now synchronized.', { exact: true })).toHaveCount(0);
@@ -897,20 +897,19 @@ for (const decision of ['control', 'editorial'] as const) test(`@golden committe
   expect(requests.filter(request => request.method === 'PUT')).toHaveLength(1);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
-test('@golden source evidence receipt preserves audit refresh warnings and newer unsaved edits', async ({ page }) => {
+test('@golden source evidence receipt preserves committed observations and audit refresh warnings', async ({ page }) => {
   const evidence = await mount(page, '?sourceEvidenceReceipt=followups');
   const trace = page.getByRole('textbox', { name: 'Technical source trace', exact: true });
   await trace.fill('Exact observed parent source');
   await page.getByRole('button', { name: 'Record source evidence', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Recording…', exact: true })).toBeVisible();
-  await trace.fill('Newer unsaved observations');
+  await expect(trace).toBeDisabled();
   await page.evaluate(() => (window as typeof window & { releaseEvidencePost: () => void }).releaseEvidencePost());
   const status = page.getByRole('region', { name: 'Correction source evidence' }).getByRole('status');
   await expect(status).toContainText('Evidence version 1 committed');
   await expect(status).toContainText('Audit activity is incomplete');
   await expect(status).toContainText('Library refresh is incomplete');
-  await expect(status).toContainText('Newer form edits are still unsaved');
-  await expect(trace).toHaveValue('Newer unsaved observations');
+  await expect(trace).toHaveValue('Exact observed parent source');
   expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'PUT')).toHaveLength(1);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });

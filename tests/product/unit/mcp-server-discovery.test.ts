@@ -35,7 +35,9 @@ describe('Studio MCP HTTP discovery', () => {
       'get_pipeline_revision_recovery', 'change_pipeline_revision_recovery',
       'discover_pipeline_previews', 'inspect_saved_source', 'preview_saved_source', 'export_saved_source',
     ]));
-    expect(tools).toHaveLength(52);
+    expect(tools).toHaveLength(46);
+    expect(tools.map(tool => tool.name)).not.toContain('save_pipeline_editorial_review');
+    expect(tools.map(tool => tool.name)).not.toContain('get_pipeline_publication_decision');
     expect(tools.map((tool) => tool.name).sort()).toMatchInlineSnapshot(`
       [
         "attach_template_artwork",
@@ -57,13 +59,10 @@ describe('Studio MCP HTTP discovery', () => {
         "get_catalog_trash",
         "get_editable_template",
         "get_pipeline_content_health",
-        "get_pipeline_editorial_review",
         "get_pipeline_engagement",
-        "get_pipeline_publication_decision",
         "get_pipeline_revision",
         "get_pipeline_revision_deletion",
         "get_pipeline_revision_recovery",
-        "get_pipeline_source_review_evidence",
         "get_studio_creation_guide",
         "get_working_document_operation_status",
         "inspect_saved_source",
@@ -78,9 +77,6 @@ describe('Studio MCP HTTP discovery', () => {
         "preview_cards",
         "preview_saved_source",
         "preview_template_draft",
-        "record_pipeline_source_review_evidence",
-        "save_pipeline_editorial_review",
-        "save_pipeline_publication_override",
         "search_personal_library",
         "search_studio_library",
         "set_pipeline_heart",

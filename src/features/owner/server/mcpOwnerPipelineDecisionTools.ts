@@ -1,13 +1,13 @@
 import { fromJsonSchema, type JsonSchemaType } from '@modelcontextprotocol/server';
 import { z } from 'zod/v4';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
-import { getOwnerPipelineSourceReviewEvidence, recordOwnerPipelineSourceReviewEvidence, getOwnerPipelineEditorialReview, saveOwnerPipelineEditorialReview, getOwnerPipelinePublicationDecision, saveOwnerPipelinePublicationOverride } from '@/features/owner/server';
+import { getOwnerPipelineSourceReviewEvidence, recordOwnerPipelineSourceReviewEvidence, getOwnerPipelineEditorialReview, saveOwnerPipelineEditorialReview, getOwnerPipelinePublicationDecision, saveOwnerPipelinePublicationOverride } from './ownerPipelineDecisionCommands';
 import {
   ownerPipelineExactInput, ownerPipelineEvidenceInput, ownerPipelineEditorialInput, ownerPipelinePublicationInput, ownerPipelineEvidenceSnapshot, ownerPipelineEditorialSnapshot, ownerPipelinePublicationSnapshot, ownerPipelineEvidenceResult, ownerPipelineEditorialResult, ownerPipelinePublicationResult,
 } from '@/features/pipeline/server';
-import type { registerRevisionRecoveryTools } from './mcpRevisionRecoveryTools';
+import type { registerOwnerReadTools } from './mcpOwnerTools';
 
-export function registerOwnerPipelineDecisionTools({ server, getReadAccess, toolError }: Pick<Parameters<typeof registerRevisionRecoveryTools>[0], 'server' | 'getReadAccess' | 'toolError'>) {
+export function registerOwnerPipelineDecisionTools({ server, getAccess, toolError }: Pick<Parameters<typeof registerOwnerReadTools>[0], 'server' | 'getAccess' | 'toolError'>) {
   const tools = [
     { name: 'get_pipeline_source_review_evidence', title: 'Read exact Owner source-review evidence', input: ownerPipelineExactInput, output: ownerPipelineEvidenceSnapshot, write: false, action: getOwnerPipelineSourceReviewEvidence,
       description: 'Owner only. Read the exact correction candidate version and evidence version before recording observations. Private rights/creator/trace evidence remains private; a hash or parent revision does not establish authorship, rights or AI provenance. No sibling/latest substitution.' },
@@ -29,7 +29,7 @@ export function registerOwnerPipelineDecisionTools({ server, getReadAccess, tool
     annotations: { readOnlyHint: false, destructiveHint: tool.write, openWorldHint: false },
   }, async input => {
     try {
-      const access = await getReadAccess();
+      const access = await getAccess();
       return await observeMcpToolExecution({ ownerUserId: access.user.id, toolName: tool.name, input, execute: async () => {
         const result = await tool.action(access.user.id, input);
         // Browser-only aggregate refresh never becomes a second MCP payload owner.

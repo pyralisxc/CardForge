@@ -1,5 +1,4 @@
 import { registerPipelineTools } from './mcpPipelineTools';
-import { registerOwnerPipelineDecisionTools } from './mcpOwnerPipelineDecisionTools';
 import { registerRevisionDeletionTools } from './mcpRevisionDeletionTools';
 import { registerRevisionRecoveryTools } from './mcpRevisionRecoveryTools';
 import { createMcpHandler } from 'mcp-handler';
@@ -31,7 +30,6 @@ export const cardForgeMcpHandler = createMcpHandler(
     registerRevisionDeletionTools(options);
     registerRevisionRecoveryTools(options);
     registerPipelineTools(options);
-    registerOwnerPipelineDecisionTools(options);
     registerEditableTemplateTools(options);
   },
   {
