@@ -27,50 +27,6 @@ jobs:
           project: pyralisxc/CardForge
           mode: analyze
           parity-contract: .github/parity-contracts/owner-site-snapshot.json
-      # Temporary replacement-equivalence proof; the original assertion remains until this passes.
-      - name: Prepare disposable registration counterexample
-        shell: bash
-        run: |
-          python3 - <<'PYPROOF'
-          import hashlib, json, os, re, subprocess
-          from pathlib import Path
-          source = Path('src/features/owner/server/mcpOwnerTools.ts')
-          subprocess.run(['git', 'diff', '--exit-code', '--', str(source)], check=True)
-          original = source.read_bytes()
-          backup = Path(os.environ['RUNNER_TEMP']) / 'cardforge-owner-snapshot-original.ts'
-          backup.write_bytes(original)
-          changed, count = re.subn(r"(server\.registerTool\(\s*)'get_owner_site_snapshot'", r"\1'get_owner_site_snapshot_counterexample'", original.decode(), count=1)
-          if count != 1: raise RuntimeError('Expected one exact real snapshot registration')
-          changed += "\n// Counterexample decoy only: 'get_owner_site_snapshot' is no longer a registration.\n"
-          source.write_text(changed)
-          print(json.dumps({'phase': 'counterexample-source', 'gitHead': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(), 'source': str(source), 'positiveSha256': hashlib.sha256(original).hexdigest(), 'counterexampleSha256': hashlib.sha256(source.read_bytes()).hexdigest(), 'oldLiteralRetained': "'get_owner_site_snapshot'" in changed}, sort_keys=True))
-          PYPROOF
-      - name: Prove renamed registration fails the actual composite action
-        id: owner_snapshot_counterexample
-        continue-on-error: true
-        uses: pyralisxc/Development-Intelligence@1522604aff0fb651afeeabb37428cb5044b76ab0
-        with:
-          project: pyralisxc/CardForge
-          mode: analyze
-          parity-contract: .github/parity-contracts/owner-site-snapshot.json
-      - name: Verify negative action outcome and clean restoration
-        if: always()
-        shell: bash
-        env:
-          COUNTEREXAMPLE_OUTCOME: ${{ steps.owner_snapshot_counterexample.outcome }}
-        run: |
-          python3 - <<'PYPROOF'
-          import hashlib, json, os, subprocess
-          from pathlib import Path
-          source = Path('src/features/owner/server/mcpOwnerTools.ts')
-          backup = Path(os.environ['RUNNER_TEMP']) / 'cardforge-owner-snapshot-original.ts'
-          if not backup.is_file(): raise RuntimeError('Counterexample preparation did not complete')
-          original = backup.read_bytes()
-          source.write_bytes(original)
-          subprocess.run(['git', 'diff', '--exit-code'], check=True)
-          print(json.dumps({'phase': 'restored-source', 'gitHead': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(), 'sourceSha256': hashlib.sha256(source.read_bytes()).hexdigest(), 'byteIdentical': source.read_bytes() == original, 'counterexampleActionOutcome': os.environ['COUNTEREXAMPLE_OUTCOME'], 'trackedTreeClean': True}, sort_keys=True))
-          if os.environ['COUNTEREXAMPLE_OUTCOME'] != 'failure': raise RuntimeError('Renamed registration must fail the actual action')
-          PYPROOF
 
   verify:
     runs-on: ubuntu-latest
