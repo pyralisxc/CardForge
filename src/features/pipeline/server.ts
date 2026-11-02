@@ -41,3 +41,6 @@ export type { RevisionRecoveryCommand, RevisionRecoverySnapshot } from './lib/re
 export { RevisionRecoveryError, REVISION_RECOVERY_NEXT_ACTION } from './lib/revisionRecoveryError';
 
 export { dependencyImpactJsonSchema } from './lib/dependencyImpactContract';
+
+export { listAgentPipelineSubmissions, inspectAgentPipelineRevision, readAgentPipelineHealth, readAgentPipelineEngagement, voteAgentPipelineRevision, heartAgentPipelineLineage } from './server/pipelineAgentActions';
+export { pipelineAgentListInput, pipelineAgentExactInput, pipelineAgentVoteInput, pipelineAgentHeartInput, pipelineAgentPage, pipelineAgentRevision, pipelineAgentHealth, pipelineAgentEngagement, pipelineAgentMutationReceipt } from './lib/pipelineAgentContract';
