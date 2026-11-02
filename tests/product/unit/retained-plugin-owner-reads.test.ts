@@ -27,7 +27,7 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerCo
 } : null }));
 
 import { listOwnerRetainedPluginReleases, verifyOwnerRetainedPluginRelease } from '@/features/plugin-distribution/server/ownerRetainedReleaseReads';
-import { listRetainedReleases, type ReleaseStore } from '@/features/plugin-distribution/server/retainedReleaseCommands';
+import { admitBuiltRelease, listRetainedReleases, type ReleaseStore } from '@/features/plugin-distribution/server/retainedReleaseCommands';
 import { createRetainedReleaseStore } from '@/features/plugin-distribution/server/retainedReleaseStore';
 import { handleRetainedReleaseRequest } from '@/features/plugin-distribution/server/retainedReleaseHttp';
 import { cardForgeOwnerMcpHandler } from '@/features/owner/server/mcpOwnerServer';
@@ -145,3 +145,47 @@ it('actual HTTP denies non-Owner discovery/call and fresh revoked authority befo
  f.account.mockResolvedValueOnce({user:{id:'owner'},isOwner:true}).mockResolvedValueOnce({user:{id:'owner'},isOwner:true}).mockResolvedValueOnce({user:{id:'other'},isOwner:false});expect((await http(3,'tools/call',{name:'list_owner_retained_plugin_releases',arguments:scope})).body.result.isError).toBe(true); expect(f.queries).toEqual([]);expect(f.download).not.toHaveBeenCalled();noWrites();
 });
 it('HTTP storage failure is safe unavailable, not a missing release claim or leaked provider detail',async()=>{f.download.mockRejectedValue(new Error('private/path/secret.zip'));const result=(await http(1,'tools/call',{name:'verify_owner_retained_plugin_release',arguments:exact()})).body.result;expect(result.isError).toBe(true);expect(result._meta['cardforge/boundaryFailure']).toMatchObject({kind:'unavailable'});expect(JSON.stringify(result)).not.toContain('private/path');noWrites();});
+
+for (const [name, changes] of [
+  ['600 astral characters', '😀'.repeat(600)],
+  ['1000 astral characters', '😀'.repeat(1000)],
+  ['ordinary-space padding', '  ' + 'x'.repeat(1000) + '  '],
+  ['tab is one persisted character', '\t'],
+  ['newline is one persisted character', '\n'],
+  ['NBSP is one persisted character', '\u00a0'],
+  ['tab plus 999 letters', '\t' + 'x'.repeat(999)],
+  ['combining marks are separate characters', 'e\u0301'.repeat(500)],
+] as const) it(`persisted SQL-valid note survives history and original verification: ${name}`, async () => {
+  selected().changes = changes;
+  const history = await listOwnerRetainedPluginReleases('owner', scope);
+  expect(history.releases[0].changes).toBe(changes);
+  const verified = await verifyOwnerRetainedPluginRelease('owner', exact());
+  expect(verified.release.changes).toBe(changes);
+  noWrites();
+});
+for (const [name, changes] of [
+  ['empty', ''], ['ordinary spaces only', '   '],
+  ['tab plus 1000 letters', '\t' + 'x'.repeat(1000)],
+  ['space before terminal newline is not end padding', 'x'.repeat(999) + ' \n'],
+  ['1001 astral characters', '😀'.repeat(1001)],
+  ['1002 combining code points', 'e\u0301'.repeat(501)],
+] as const) it(`persisted SQL-invalid note remains unavailable: ${name}`, async () => {
+  selected().changes = changes;
+  await expect(listOwnerRetainedPluginReleases('owner', scope)).rejects.toMatchObject({status:503});
+  await expect(verifyOwnerRetainedPluginRelease('owner', exact())).rejects.toMatchObject({status:503});
+  expect(f.download).not.toHaveBeenCalled(); noWrites();
+});
+it('persisted whitespace compatibility does not broaden the existing new-admission rule', async () => {
+  const build = vi.fn();
+  for (const changes of ['\t', '\n', '\u00a0']) {
+    await expect(admitBuiltRelease({} as ReleaseStore, {sourceSha:'a'.repeat(40),build}, {product:'studio',environment:'preview',changes})).rejects.toThrow('Missing release description');
+  }
+  expect(build).not.toHaveBeenCalled(); noWrites();
+});
+it('finite native timestamp precision and byte-length bounds preserve their stored representation', async () => {
+  selected().released_at='2026-11-02T21:00:00.123456+00:00';
+  selected().byte_length=16777216;
+  const history=await listOwnerRetainedPluginReleases('owner',scope);
+  expect(history.releases[0]).toMatchObject({releasedAt:'2026-11-02T21:00:00.123456+00:00',byteLength:16777216});
+  expect(f.download).not.toHaveBeenCalled(); noWrites();
+});

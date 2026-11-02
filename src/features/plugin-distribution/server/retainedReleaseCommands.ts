@@ -150,7 +150,14 @@ export function validateRetainedRelease(value: unknown): RetainedRelease {
   const parsed = retainedReleaseRecord.safeParse(value);
   if (!parsed.success) throw new RetainedReleaseReadError('Retained release metadata is malformed.');
   const record = parsed.data;
-  if (record.changes.trim().length < 1 || record.changes.trim().length > 1000
+  // Mirror length(btrim(changes)): U+0020 at the actual ends only, then
+  // Unicode characters rather than JavaScript UTF-16 code units. Preserve stored text.
+  let start = 0;
+  let end = record.changes.length;
+  while (start < end && record.changes[start] === ' ') start++;
+  while (end > start && record.changes[end - 1] === ' ') end--;
+  const changeLength = Array.from(record.changes.slice(start, end)).length;
+  if (changeLength < 1 || changeLength > 1000
     || releaseArtifactPath(record) !== record.storagePath) {
     throw new RetainedReleaseReadError('Retained release metadata identity is invalid.');
   }
