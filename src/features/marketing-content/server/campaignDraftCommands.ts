@@ -1,14 +1,19 @@
-import { getAccountToolAccessForUserId } from '@/features/account/server';
-import { readContributorCapabilities, requireContributionScope, type ContributorAccess } from '@/features/contributor-access/server';
+import { AccountToolAccessError, getAccountToolAccessForUserId } from '@/features/account/server';
+import { ContributorAccessError, readContributorCapabilities, requireContributionScope, type ContributorAccess } from '@/features/contributor-access/server';
 import { consumeRateLimit, RateLimitExceededError } from '@/infrastructure/security/abuseProtection';
 import { campaignDraftListInput, campaignDraftExactInput, campaignDraftReceiptInput, campaignDraftCreateInput, campaignDraftSaveInput, campaignPlanningResult, campaignDraftReadResult, campaignDraftPage } from '../campaignDraftContract';
 import { getAllowedCampaignActions, commitSocialCampaignDraft, commitSocialCampaignDraftSave, listSocialCampaigns } from './campaignStore';
 import { getCampaignRecord, requireMarketingContentDatabase, MarketingContentStoreError } from './storeShared';
 import { canSaveCampaignDraft, type MarketingContentPackage } from '../model';
 async function accessFor(actorUserId:string):Promise<ContributorAccess> {
- const account=await getAccountToolAccessForUserId(actorUserId), contribution=await readContributorCapabilities(account);
- requireContributionScope(contribution,'campaigns.draft');
- return {...account,scopes:[...contribution.scopes]};
+ try {
+  const account=await getAccountToolAccessForUserId(actorUserId), contribution=await readContributorCapabilities(account);
+  requireContributionScope(contribution,'campaigns.draft');
+  return {...account,scopes:[...contribution.scopes]};
+ } catch(error) {
+  if(error instanceof AccountToolAccessError || error instanceof ContributorAccessError) throw error;
+  throw new MarketingContentStoreError('Campaign account or contribution authority is unavailable; no permission or empty state was established.',503);
+ }
 }
 const invalid=()=>new MarketingContentStoreError('Provide a supported exact Campaign draft request.',400);
 export async function consumeCampaignMutationLimit(actorUserId:string){const result=await consumeRateLimit({action:'marketing-content-campaign',identity:actorUserId,limit:60,windowSeconds:3600});if(!result.allowed)throw new RateLimitExceededError('Too many campaign changes.',result.retryAfterSeconds,{resource:'campaign_changes',maximum:60,unit:'attempts_per_hour'});}
