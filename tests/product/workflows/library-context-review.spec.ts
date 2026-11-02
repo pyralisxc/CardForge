@@ -893,9 +893,15 @@ test('@golden Owner People committed deletion clears exact identity before faile
   await expect(page.getByRole('heading', { name: 'Choose a person', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Synthetic person/ })).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: 'Type person@example.invalid', exact: true })).toHaveCount(0);
+  const committedNotice = page.getByRole('listitem').filter({ hasText: 'Clerk account deleted' });
+  await expect(committedNotice).toContainText('Clerk deletion is committed. Directory refresh is pending.');
+  await expect(committedNotice).toContainText('retained-profile reconciliation is incomplete');
+  await expect(page.getByRole('alert')).toHaveCount(0);
   await page.evaluate(() => (window as typeof window & { releasePeopleRefresh: () => void }).releasePeopleRefresh());
   await expect(page.getByRole('alert')).toContainText('Synthetic directory refresh unavailable');
-  await expect(page.getByRole('status').filter({ hasText: 'Clerk account deleted' })).toContainText('Directory refresh is incomplete');
+  await expect(committedNotice).toHaveCount(1);
+  await expect(committedNotice).toContainText('Directory refresh is incomplete');
+  await expect(committedNotice).not.toContainText('refresh is pending');
   // A new search exercises fresh readback, first stale then retained history.
   await page.getByRole('textbox', { name: 'Search name, email, or identity', exact: true }).fill('person');
   await page.getByRole('button', { name: 'Search', exact: true }).click();

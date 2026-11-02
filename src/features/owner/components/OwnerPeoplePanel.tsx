@@ -108,12 +108,21 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
       }
       setSelected(null); setDraft(null); setDeleteConfirmation('');
       const warnings = [...(result.warnings ?? [])];
-      if (!await load()) warnings.push('Directory refresh is incomplete. Read current people and retained history; do not repeat the completed change.');
-      toast({
+      const committedNotice = method === 'DELETE' ? toast({
         title: successTitle,
-        description: warnings.length ? warnings.join(' ') : 'Account, contributor authority, and owner history are synchronized.',
+        description: ['Clerk deletion is committed. Directory refresh is pending.', ...warnings].join(' '),
         variant: warnings.length ? 'destructive' : 'default',
-      });
+        duration: Infinity,
+      }) : null;
+      if (!await load()) warnings.push('Directory refresh is incomplete. Read current people and retained history; do not repeat the completed change.');
+      const notice = {
+        title: successTitle,
+        description: warnings.length ? warnings.join(' ') : method === 'DELETE' ? 'Clerk deletion is committed. Directory refreshed.' : 'Account, contributor authority, and owner history are synchronized.',
+        variant: warnings.length ? 'destructive' as const : 'default' as const,
+        duration: 5000,
+      };
+      if (committedNotice) committedNotice.update({ ...notice, id: committedNotice.id });
+      else toast(notice);
     } catch (nextError) {
       if (method === 'DELETE' && !rejected) setDeleteConfirmation('');
       toast({ title: method === 'DELETE' && !rejected ? 'Account deletion not confirmed' : 'Person not updated',
