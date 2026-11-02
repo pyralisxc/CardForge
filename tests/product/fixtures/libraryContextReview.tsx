@@ -1,3 +1,4 @@
+import { ConnectedPersonalLibraryPanel } from '@/features/storage-management/components/ConnectedPersonalLibraryPanel';
 import { CampaignLibraryWorkspace } from '@/features/marketing-content/components/CampaignLibraryWorkspace';
 import { CampaignWorkspace } from '@/features/marketing-content/components/CampaignWorkspace';
 import type { MarketingContentPackage, MarketingContentWorkspaceView } from '@/features/marketing-content/client';
@@ -60,7 +61,7 @@ const program = { configured: true, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   managedStorageBytes: 0, managedFileCount: 0, totalSubmissionCount: rows.length, totalVoteableCount: 0, activeContributorCount: 0,
   assetTypeSummaries: [], contributions: [], currentContributorIds: [],
 } as unknown as PipelineProgramView;
-const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseContributorRefresh?: () => void; releaseCampaignDraftRefresh?: () => void; releaseCampaignDraftPost?: () => void; contributorRefreshes?: number; releaseStylePost?: () => void; libraryNavigations: string[] };
+const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releasePersonalRemoval?: () => void; releaseContributorRefresh?: () => void; releaseCampaignDraftRefresh?: () => void; releaseCampaignDraftPost?: () => void; contributorRefreshes?: number; releaseStylePost?: () => void; libraryNavigations: string[] };
 proof.libraryRequests = []; proof.libraryNavigations = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
@@ -119,6 +120,21 @@ const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
   const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   const requestMethod = init?.method ?? 'GET';
+  if (params.has('personalItemProof') && requestUrl.startsWith('/api/personal-library')) {
+    const id = '10000000-0000-4000-8000-000000000001';
+    const item = { id, provider: 'google-drive', providerFileId: 'synthetic-file', providerRevision: 'v1', displayName: 'Synthetic indexed artwork', mimeType: 'image/png', role: 'artwork', byteSize: 100, providerModifiedAt: '2026-11-02T00:00:00Z', providerWebViewLink: null, contentHash: null, lastVerifiedAt: '2026-11-02T00:00:00Z', createdAt: '2026-11-02T00:00:00Z', updatedAt: '2026-11-02T00:00:00Z' };
+    proof.libraryRequests.push({ url: requestUrl, method: requestMethod, body: String(init?.body ?? '') });
+    if (requestMethod === 'DELETE') {
+      campaignDraftWritten = true;
+      if (params.get('personalItemProof') === 'deferred') await new Promise<void>(resolve => { proof.releasePersonalRemoval = resolve; });
+      if (params.get('personalItemProof') === 'uncertain' || params.get('personalItemProof') === 'absent') throw new Error('Synthetic lost DELETE response');
+      return new Response(null, { status: 204 });
+    }
+    if (requestUrl.endsWith(id)) return Response.json({ itemId: id, item: params.get('personalItemProof') === 'absent' ? null : { itemId: id, provider: item.provider, displayName: item.displayName, mimeType: item.mimeType, role: item.role, byteSize: item.byteSize, providerRevision: item.providerRevision, contentHash: null } });
+    if (campaignDraftWritten && params.get('personalItemProof') === 'refreshFail') return Response.json({ error: { message: 'Synthetic index refresh failed' } }, { status: 503 });
+    return Response.json({ items: [item], count: 1, limit: 2000 }); // Deliberately stale list after confirmed commit.
+  }
+
   if (params.get('campaignDraftReceipt') === 'libraryRefresh' && requestUrl === '/api/marketing-content') {
     if (campaignDraftWritten) return Response.json({error:{message:'Synthetic library readback failed'}},{status:503});
     return Response.json({campaigns:campaignWorkspaceProof});
@@ -342,7 +358,7 @@ function CampaignDraftReceiptProof(){
  return <CampaignWorkspace workspace={campaignWorkspaceProof} initialCampaignId={mode?.startsWith('create')?'new':undefined} onRefresh={async()=>{if(mode==='refreshFalse')return false;if(mode==='refreshThrow')throw new Error('Synthetic refresh failed');if(mode==='deferred')await new Promise<void>((_,reject)=>{proof.releaseCampaignDraftRefresh=()=>reject(new Error('Synthetic refresh failed'));});}}/>;
 }
 const mount = document.createElement('div'); document.body.append(mount); const fixtureRouter = { bfcacheId: 'isolated-library', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: (href: string) => { proof.libraryNavigations.push(href); }, replace: () => {}, prefetch: async () => {} };
-createRoot(mount).render(<><Toaster />{params.has('campaignDraftReceipt') ? (params.get('campaignDraftReceipt')==='libraryRefresh'?<CampaignLibraryWorkspace />:<CampaignDraftReceiptProof />) : params.has('contributorReceipt') ? <PipelineSubmissionEditPanel submission={{ ...row, assetType: 'templates', status: 'draft', semanticRole: 'template-front', requestedStudioDestination: 'template.front', specialtyTags: ['games'], useCaseTags: ['tcg'] }} onCancel={() => {}} onUpdated={async () => { proof.contributorRefreshes = (proof.contributorRefreshes ?? 0) + 1; await new Promise<void>((_, reject) => { proof.releaseContributorRefresh = () => reject(new Error('Synthetic Library refresh unavailable')); }); }} /> : params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
+createRoot(mount).render(<><Toaster />{params.has('personalItemProof') ? <ConnectedPersonalLibraryPanel canUseConnectedStorage isSignedIn /> : params.has('campaignDraftReceipt') ? (params.get('campaignDraftReceipt')==='libraryRefresh'?<CampaignLibraryWorkspace />:<CampaignDraftReceiptProof />) : params.has('contributorReceipt') ? <PipelineSubmissionEditPanel submission={{ ...row, assetType: 'templates', status: 'draft', semanticRole: 'template-front', requestedStudioDestination: 'template.front', specialtyTags: ['games'], useCaseTags: ['tcg'] }} onCancel={() => {}} onUpdated={async () => { proof.contributorRefreshes = (proof.contributorRefreshes ?? 0) + 1; await new Promise<void>((_, reject) => { proof.releaseContributorRefresh = () => reject(new Error('Synthetic Library refresh unavailable')); }); }} /> : params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
   experience={{ signedIn: true, owner: !params.has('campaignContributor') && !params.has('sharedTrashProof'), plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: true } } as AccountExperienceProjection}
   businessIdentity={{} as never} persistenceScope="account:isolated-library-fixture" />
 </AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />}</>);

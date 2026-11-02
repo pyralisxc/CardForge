@@ -1,7 +1,8 @@
 "use client";
+import { PERSONAL_LIBRARY_REMOVAL_NOTICE, personalLibraryItemRead, personalLibraryRemovalReceipt, uncertainPersonalLibraryRemoval } from '../itemContract';
 
 import { readApiError } from '@/infrastructure/http/clientResponses';
-import { observeProviderBoundaryResponse } from '@/features/analytics/client/tracking';
+import { observeProviderBoundaryResponse, trackProviderBoundaryOutcome } from '@/features/analytics/client/tracking';
 import { pickGoogleDriveItems } from '@/features/project/client/provider-google-drive';
 import {
   MAX_PERSONAL_LIBRARY_REGISTER_BATCH,
@@ -65,11 +66,25 @@ export const chooseGoogleDrivePersonalLibraryItems = async (
   });
 };
 
-export const removePersonalLibraryItem = async (itemId: string): Promise<void> => {
-  const response = await observeProviderBoundaryResponse('google_drive', 'personal_remove', () => (
-    fetch(`/api/personal-library/${encodeURIComponent(itemId)}`, { method: 'DELETE' })
-  ));
-  if (!response.ok) throw await readApiError(response, 'Unable to remove that item from your CardForge library.');
+export const getPersonalLibraryItem = async (itemId: string) => {
+  const response = await fetch(`/api/personal-library/${encodeURIComponent(itemId)}`, { cache: 'no-store' });
+  if (!response.ok) throw await readApiError(response, 'Exact index readback is unavailable.');
+  const result = personalLibraryItemRead.parse(await response.json());
+  if (result.itemId !== itemId || (result.item && result.item.itemId !== itemId)) throw new Error('Exact index readback returned a different identity.');
+  return result;
+};
+
+export const removePersonalLibraryItem = async (itemId: string) => {
+  try {
+    const response = await fetch(`/api/personal-library/${encodeURIComponent(itemId)}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmation: { itemId, notice: PERSONAL_LIBRARY_REMOVAL_NOTICE } }) });
+    // Optional analytics must not erase the authoritative HTTP acknowledgement.
+    try { trackProviderBoundaryOutcome('google_drive', 'personal_remove', response); } catch { /* fail open */ }
+    if (response.status === 204) return { itemId, outcome: 'removed' as const, committed: true, retryable: false as const, message: 'The exact index entry was removed; its Drive original is untouched.' };
+    const body = await response.json();
+    const receipt = personalLibraryRemovalReceipt.safeParse(body?.receipt);
+    if (receipt.success && receipt.data.itemId === itemId) return receipt.data;
+    return uncertainPersonalLibraryRemoval(itemId);
+  } catch { return uncertainPersonalLibraryRemoval(itemId); }
 };
 
 export interface PersonalLibraryContent {

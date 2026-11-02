@@ -3,6 +3,7 @@ export { importPersonalLibraryFont } from './client/importPersonalLibraryFont';
 export {
   chooseGoogleDrivePersonalLibraryItems,
   loadPersonalLibrary,
+  getPersonalLibraryItem,
   materializePersonalLibraryItemContent,
   registerGoogleDrivePersonalLibraryItems,
   removePersonalLibraryItem,
@@ -33,3 +34,5 @@ export type {
   PersonalLibraryRegisterResult,
   PersonalLibraryRole,
 } from './model';
+
+export { PERSONAL_LIBRARY_REMOVAL_NOTICE } from './itemContract';

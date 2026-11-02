@@ -1,3 +1,4 @@
+import { getMcpStudioReadAccess } from './mcpStudioAccess';
 import { registerSavedSourceTools } from './mcpSavedSourceTools';
 import { registerPersonalLibraryTools } from '@/features/personal-library/server';
 import { registerAccountWorkflowTools } from './mcpAccountWorkflowTools';
@@ -15,5 +16,5 @@ export const registerAgentTemplateTools = (
   registerWorkingDocumentTools(options);
   registerProjectSourceTools(options);
   registerSavedSourceTools(options);
-  registerPersonalLibraryTools(options);
+  registerPersonalLibraryTools({ ...options, getAccess: getMcpStudioReadAccess });
 };

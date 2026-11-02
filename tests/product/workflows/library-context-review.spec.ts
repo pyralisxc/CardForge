@@ -950,3 +950,36 @@ for (const mode of ['pendingUnknown','uncertain','createIdentity','dirty'] as co
   if(mode==='createIdentity'){const body=JSON.parse(writes[0].body!);expect(new URL(requests.at(-1)!.url,'http://localhost').searchParams.get('idempotencyKey')).toBe(body.idempotencyKey);}
   expect(evidence.errors).toEqual([]);expect(evidence.mutations).toEqual([]);
 });
+
+for (const mode of ['refreshFail', 'staleList', 'uncertain', 'absent', 'deferred']) test(`@golden personal index removal receipt ${mode}`, async ({ page }) => {
+  await mount(page, `?personalItemProof=${mode}`);
+  await expect(page.getByText('Synthetic indexed artwork', { exact: true })).toBeVisible();
+  let confirmation = '';
+  page.on('dialog', async dialog => { confirmation = dialog.message(); await dialog.accept(); });
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  expect(confirmation).toContain('10000000-0000-4000-8000-000000000001');
+  expect(confirmation).toContain('no index Trash or Undo');
+  expect(confirmation).toContain('does not restore this exact index identity');
+  const deletes = () => page.evaluate(() => (window as unknown as { libraryRequests: {method:string}[] }).libraryRequests.filter(row => row.method === 'DELETE').length);
+  if (mode === 'deferred') {
+    await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Read exact index entry' })).toBeDisabled();
+    await page.evaluate(() => (window as unknown as { releasePersonalRemoval: () => void }).releasePersonalRemoval());
+  }
+  if (mode === 'uncertain' || mode === 'absent') {
+    await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+    await page.getByRole('button', { name: 'Read exact index entry' }).click();
+    await expect(page.getByText(mode === 'absent' ? /does not prove the attempted removal committed/ : /does not establish the earlier operation outcome/)).toBeVisible();
+    expect(await deletes()).toBe(1);
+    if (mode === 'uncertain') {
+      await page.getByRole('button', { name: 'Allow a new removal confirmation' }).click();
+      await page.getByRole('button', { name: 'Remove', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+      expect(await deletes()).toBe(2); // New explicit confirmation, never automatic replay.
+    }
+  } else {
+    await expect(page.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Google Drive asset access' }).getByRole('status').filter({ hasText: 'The exact index entry was removed; its Drive original is untouched.' })).toBeVisible();
+    expect(await deletes()).toBe(1);
+  }
+});
