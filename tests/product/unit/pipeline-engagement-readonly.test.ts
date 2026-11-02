@@ -14,7 +14,7 @@ beforeEach(() => {
     f.calls.push(table);
     const rows = table === 'cardforge_contributor_profiles' ? [{ status: f.profile, can_draft_campaigns: false }]
       : table === 'cardforge_contributor_program_settings' ? [{ allow_contributor_self_voting: true }]
-        : table === 'cardforge_contributor_asset_submissions' ? [row]
+        : (table === 'cardforge_contributor_asset_submissions' || table === 'cardforge_pipeline_submission_recovery_projection') ? [row]
           : table === 'cardforge_pipeline_asset_lineages' ? [{ id: lineageId, registry_asset_id: 'raw-asset' }]
             : table === 'cardforge_asset_registry' || table === 'cardforge_discoverable_asset_registry' ? [{ asset_id: 'raw-asset' }] : [];
     const result = () => ({ data: rows, error: null });

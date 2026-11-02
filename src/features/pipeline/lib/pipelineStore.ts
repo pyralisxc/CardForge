@@ -66,7 +66,7 @@ const runRegistryCommand = async <T>(command: () => Promise<T>): Promise<T> => {
 
 const PROGRAM_SETTINGS_ID = 'default';
 
-const fetchContributorSettings = async (): Promise<{ configured: boolean; settings: PipelineProgramSettings }> => {
+export const fetchContributorSettings = async (): Promise<{ configured: boolean; settings: PipelineProgramSettings }> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) {
     return { configured: false, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS };
@@ -386,6 +386,27 @@ export const createPipelineSubmission = async ({
 
 };
 
+export const recordPipelineSubmissionVote = async ({
+  submissionId,
+  contributorId,
+  voteValue,
+  ownerContributorId,
+}: {
+  submissionId: string;
+  contributorId: string;
+  voteValue: unknown;
+  ownerContributorId?: string | null;
+}): Promise<void> => {
+  if (voteValue !== 'positive' && voteValue !== 'negative') {
+    throw new PipelineStoreError('Choose a supported vote value.', 400);
+  }
+  await runRegistryCommand(() => castPipelineVote({
+    submissionId,
+    contributorId,
+    voteValue,
+    ownerContributorId,
+  }));
+};
 export const voteOnPipelineSubmission = async ({
   submissionId,
   contributorId,
@@ -399,15 +420,7 @@ export const voteOnPipelineSubmission = async ({
   currentContributorIds?: string[];
   ownerContributorId?: string | null;
 }): Promise<PipelineProgramView> => {
-  if (voteValue !== 'positive' && voteValue !== 'negative') {
-    throw new PipelineStoreError('Choose a supported vote value.', 400);
-  }
-  await runRegistryCommand(() => castPipelineVote({
-    submissionId,
-    contributorId,
-    voteValue,
-    ownerContributorId,
-  }));
+  await recordPipelineSubmissionVote({ submissionId, contributorId, voteValue, ownerContributorId });
   return getPipelineProgramView(contributorId, currentContributorIds, {
     includeRegistryRecipePayloads: Boolean(ownerContributorId),
   });
