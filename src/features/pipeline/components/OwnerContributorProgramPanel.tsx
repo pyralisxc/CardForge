@@ -100,6 +100,7 @@ export function OwnerContributorProgramPanel({
       } else setProgram(body.program);
       setSettingsState(body.program.settings);
       hasLoadedRef.current = true;
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to load the Contributor program.';
       setLoadError(message);
@@ -108,6 +109,7 @@ export function OwnerContributorProgramPanel({
         description: message,
         variant: 'destructive',
       });
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -161,7 +163,7 @@ export function OwnerContributorProgramPanel({
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update asset status.'));
       const result = await response.json() as PipelineItemsResponse & { receipt?: { committed: boolean | null; refreshComplete: boolean; activityRecorded: boolean | null } };
       let followupIncomplete = result.receipt?.committed === true && (!result.receipt.refreshComplete || !result.receipt.activityRecorded);
-      try { if (target && onSelectionMutated) await onSelectionMutated(); else await loadProgram(); }
+      try { if (target && onSelectionMutated) await onSelectionMutated(); else if (!await loadProgram()) followupIncomplete = true; }
       catch { followupIncomplete = true; }
       setLastSavedAt(new Date().toISOString());
       onDirtyChange?.(false);
@@ -194,7 +196,7 @@ export function OwnerContributorProgramPanel({
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save editorial review.'));
       const result = await response.json() as PipelineItemsResponse & { receipt?: { committed: boolean | null; refreshComplete: boolean; activityRecorded: boolean | null } };
       let followupIncomplete = result.receipt?.committed === true && (!result.receipt.refreshComplete || !result.receipt.activityRecorded);
-      try { if (target && onSelectionMutated) await onSelectionMutated(); else await loadProgram(); }
+      try { if (target && onSelectionMutated) await onSelectionMutated(); else if (!await loadProgram()) followupIncomplete = true; }
       catch { followupIncomplete = true; }
       setLastSavedAt(new Date().toISOString());
       onDirtyChange?.(false);

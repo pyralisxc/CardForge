@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { requireOkResponse } from '@/infrastructure/http/clientResponses';
+import { ownerPipelineDecisionReceipt } from '../lib/ownerPipelineDecisionContract';
 import { sourceReviewSnapshotSchema, type SourceReviewFacts, type SourceReviewSnapshot } from '../lib/sourceReviewEvidence';
 
 const emptyFacts: SourceReviewFacts = { technicalTrace: '', creatorFacts: null, rightsFacts: null, aiFacts: null };
@@ -41,13 +42,23 @@ export function SourceReviewEvidence({ submissionId, onVersionChange, onRecorded
           facts: savedFacts, expectedCandidateVersion: snapshot.candidateVersion, expectedEvidenceVersion: snapshot.evidence?.version ?? 0,
         } }),
       });
-      await requireOkResponse(response, 'Evidence outcome is unavailable. Keep these observations and retry the same request.');
-      const result = await response.json() as { snapshot?: unknown };
+      await requireOkResponse(response, 'Evidence outcome is unconfirmed. Keep these observations.');
+      const result = await response.json() as { snapshot?: unknown; receipt?: unknown };
       const next = sourceReviewSnapshotSchema.parse(result.snapshot);
       setSnapshot(next); onVersionChangeRef.current(next.evidence!.version);
-      setStatus(`Evidence version ${next.evidence!.version} recorded. Approval remains separate.${JSON.stringify(latestFacts.current) !== JSON.stringify(savedFacts) ? ' Newer form edits are still unsaved.' : ''}`);
-      try { await onRecorded?.(); } catch { setStatus(`Evidence version ${next.evidence!.version} committed. Library refresh is incomplete; read current state rather than repeating the observations.`); }
-    } catch (error) { setStatus(error instanceof Error ? error.message : 'Evidence could not be confirmed. Keep your observations.'); }
+      const receipt = ownerPipelineDecisionReceipt.safeParse(result.receipt);
+      const warnings: string[] = [];
+      if (!receipt.success) warnings.push('Follow-up receipt is unavailable; read current state rather than repeating the observations.');
+      else {
+        if (receipt.data.activityRecorded !== true) warnings.push('Audit activity is incomplete; do not repeat the committed observations.');
+        if (!receipt.data.refreshComplete) warnings.push('Server refresh is incomplete; read current state.');
+      }
+      try { await onRecorded?.(); } catch { warnings.push('Library refresh is incomplete; read current state rather than repeating the observations.'); }
+      setStatus(`Evidence version ${next.evidence!.version} committed. Approval remains separate. ${warnings.join(' ')}${JSON.stringify(latestFacts.current) !== JSON.stringify(savedFacts) ? ' Newer form edits are still unsaved.' : ''}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Evidence outcome is unconfirmed.';
+      setStatus(`${message} Read this exact revision/evidence before any further write; do not replay automatically.${JSON.stringify(latestFacts.current) !== JSON.stringify(savedFacts) ? ' Newer form edits are still unsaved.' : ''}`);
+    }
     finally { setSaving(false); }
   };
   return <section className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3" aria-label="Correction source evidence">

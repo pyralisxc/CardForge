@@ -884,3 +884,44 @@ test('@golden Owner catalog Restore refreshes mounted Shared Trash without losin
   expect(requests.filter(request => request.method === 'POST')).toHaveLength(1);
   expect(evidence.errors).toEqual([]);
 });
+
+for (const decision of ['control', 'editorial'] as const) test(`@golden committed Owner decision keeps warning after swallowed ${decision} refresh failure`, async ({ page }) => {
+  const evidence = await mount(page, '?ownerDecisionReceipt=1');
+  await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
+  await page.getByRole('button', { name: 'Manage', exact: true }).click();
+  if (decision === 'editorial') await page.getByLabel('Review outcome', { exact: true }).selectOption('pending');
+  await page.getByRole('button', { name: decision === 'control' ? 'Save control' : 'Save editorial review', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: decision === 'control' ? 'Asset control committed' : 'Editorial review committed' })).toContainText('Refresh or activity is incomplete');
+  await expect(page.getByText('The owner override and automatic recommendation are now synchronized.', { exact: true })).toHaveCount(0);
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests);
+  expect(requests.filter(request => request.method === 'PUT')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+test('@golden source evidence receipt preserves audit refresh warnings and newer unsaved edits', async ({ page }) => {
+  const evidence = await mount(page, '?sourceEvidenceReceipt=followups');
+  const trace = page.getByRole('textbox', { name: 'Technical source trace', exact: true });
+  await trace.fill('Exact observed parent source');
+  await page.getByRole('button', { name: 'Record source evidence', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Recording…', exact: true })).toBeVisible();
+  await trace.fill('Newer unsaved observations');
+  await page.evaluate(() => (window as typeof window & { releaseEvidencePost: () => void }).releaseEvidencePost());
+  const status = page.getByRole('region', { name: 'Correction source evidence' }).getByRole('status');
+  await expect(status).toContainText('Evidence version 1 committed');
+  await expect(status).toContainText('Audit activity is incomplete');
+  await expect(status).toContainText('Library refresh is incomplete');
+  await expect(status).toContainText('Newer form edits are still unsaved');
+  await expect(trace).toHaveValue('Newer unsaved observations');
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'PUT')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+test('@golden source evidence receipt unstructured failure requires readback without blind replay', async ({ page }) => {
+  const evidence = await mount(page, '?sourceEvidenceReceipt=uncertain');
+  await page.getByRole('textbox', { name: 'Technical source trace', exact: true }).fill('Exact observed source');
+  await page.getByRole('button', { name: 'Record source evidence', exact: true }).click();
+  const status = page.getByRole('region', { name: 'Correction source evidence' }).getByRole('status');
+  await expect(status).toContainText('Read this exact revision/evidence before any further write');
+  await expect(status).toContainText('do not replay automatically');
+  await expect(status).not.toContainText('retry the same request');
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'PUT')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});

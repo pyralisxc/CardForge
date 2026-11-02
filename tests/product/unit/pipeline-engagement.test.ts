@@ -17,7 +17,7 @@ beforeEach(() => {
   f.policy.mockResolvedValue({ visibleToViewer: true, allowContributorSelfVoting: true, submissionContributorId: 'author' });
   f.heartVisible.mockResolvedValue([lineageId]); f.hearts.mockResolvedValue([{ lineageId, count: 8, hearted: false }]);
   f.database.mockReturnValue({ from: (table: string) => {
-    const query = { select: (columns: string) => { f.selections.push(columns); return query; }, eq: vi.fn(() => query), in: vi.fn(() => query), limit: () => Promise.resolve({ data: table === 'cardforge_contributor_asset_submissions' ? [f.row] : table === 'cardforge_discoverable_asset_registry' ? f.publication : f.votes, error: f.databaseError }) };
+    const query = { select: (columns: string) => { f.selections.push(columns); return query; }, eq: vi.fn(() => query), in: vi.fn(() => query), limit: () => Promise.resolve({ data: (table === 'cardforge_contributor_asset_submissions' || table === 'cardforge_pipeline_submission_recovery_projection') ? [f.row] : table === 'cardforge_discoverable_asset_registry' ? f.publication : f.votes, error: f.databaseError }) };
     return query;
   } });
 });
@@ -52,4 +52,15 @@ describe('exact source reaction projection', () => {
   it('fails unavailable rather than inventing an empty reaction state', async () => {
     f.databaseError = { message: 'offline' }; await expect(readPipelineEngagement(submissionId)).rejects.toMatchObject({ status: 503 });
   });
+});
+
+it('allows signed-in Free exact shared Trash metadata while denying private Trash and purging sources', async () => {
+  f.capabilities.mockResolvedValue({ active: false, scopes: [] }); f.activeScopes = []; f.publication = [];
+  Object.assign(f.row, { status: 'archived', trashed_at: '2026-11-01T00:00:00Z', published_at: '2026-10-01T00:00:00Z' });
+  expect((await readPipelineEngagement(submissionId)).submissionId).toBe(submissionId);
+  Object.assign(f.row, { published_at: null });
+  await expect(readPipelineEngagement(submissionId)).rejects.toMatchObject({ status: 403 });
+  Object.assign(f.row, { status: 'published', trashed_at: null, catalog_trashed_at: '2026-11-01T00:00:00Z', catalog_source_published: true });
+  expect((await readPipelineEngagement(submissionId)).submissionId).toBe(submissionId);
+  f.row.purge_state = 'pending'; await expect(readPipelineEngagement(submissionId)).rejects.toMatchObject({ status: 403 });
 });

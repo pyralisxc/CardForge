@@ -35,7 +35,7 @@ describe('Studio MCP HTTP discovery', () => {
       'get_pipeline_revision_recovery', 'change_pipeline_revision_recovery',
       'discover_pipeline_previews', 'inspect_saved_source', 'preview_saved_source', 'export_saved_source',
     ]));
-    expect(tools).toHaveLength(46);
+    expect(tools).toHaveLength(52);
     expect(tools.map((tool) => tool.name).sort()).toMatchInlineSnapshot(`
       [
         "attach_template_artwork",
@@ -56,8 +56,11 @@ describe('Studio MCP HTTP discovery', () => {
         "get_cardforge_capabilities",
         "get_catalog_trash",
         "get_editable_template",
+        "get_pipeline_content_health",
         "get_pipeline_editorial_review",
+        "get_pipeline_engagement",
         "get_pipeline_publication_decision",
+        "get_pipeline_revision",
         "get_pipeline_revision_deletion",
         "get_pipeline_revision_recovery",
         "get_pipeline_source_review_evidence",
@@ -67,6 +70,7 @@ describe('Studio MCP HTTP discovery', () => {
         "list_agent_working_documents",
         "list_connected_projects",
         "list_editable_templates",
+        "list_pipeline_submissions",
         "move_cards",
         "patch_cards",
         "patch_working_document",
@@ -79,11 +83,13 @@ describe('Studio MCP HTTP discovery', () => {
         "save_pipeline_publication_override",
         "search_personal_library",
         "search_studio_library",
+        "set_pipeline_heart",
         "update_editable_template",
         "upsert_card",
         "upsert_card_set",
         "upsert_cards",
         "validate_working_document",
+        "vote_pipeline_revision",
       ]
     `);
     expect(new Set(tools.map((tool) => tool.name)).size).toBe(tools.length);

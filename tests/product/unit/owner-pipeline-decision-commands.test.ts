@@ -61,3 +61,10 @@ it('returns explicit uncertain write outcomes without replay or false committed 
   await expect(saveOwnerPipelinePublicationOverride('oauth-actor', { submissionId: id, ownerNote: 'Explicit', expectedUpdatedAt: 'invented' })).rejects.toMatchObject({ status: 400 });
   expect(f.publication).not.toHaveBeenCalled();
 });
+
+it('retains recorded source evidence when activity explicitly returns false', async () => {
+  f.activity.mockResolvedValue(false);
+  const result = await recordOwnerPipelineSourceReviewEvidence('oauth-actor', { submissionId: id, facts, expectedCandidateVersion: evidence.candidateVersion, expectedEvidenceVersion: 0 });
+  expect(result).toMatchObject({ snapshot: { evidence: { version: 1 } }, receipt: { committed: true, outcome: 'committed', activityRecorded: false, retryable: false, nextAction: 'read' } });
+  expect(f.sourceRecord).toHaveBeenCalledOnce();
+});

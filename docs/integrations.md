@@ -10,6 +10,8 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 
 **Provider owns:** session cookies, OAuth/social sign-in, sign-in/sign-up UI, request authentication, current-user identity, and Backend API user records.
 
+Studio MCP Pipeline discovery uses the native scoped, paginated submission and sanitized effective Shared Trash readers. Exact revision inspection and engagement share the browser visibility policy; technical Content Health excludes editorial packets and private consumer identities. Votes remain exact-revision Contributor operations, while hearts explicitly set the matching lineage state under the existing native policy and rate limits. OAuth-derived actor identity is re-resolved server-side without profile enrollment. A confirmed mutation with unavailable engagement refresh remains committed; an uncertain result requires readback and never automatic replay. Discovery grants neither recovery nor physical-deletion authority.
+
 **Start here:**
 
 1. `src/app/layout.tsx` — the single root `ClerkProvider`.
