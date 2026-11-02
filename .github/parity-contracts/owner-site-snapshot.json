@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "name": "CardForge Owner snapshot registration",
+  "predicates": [
+    {
+      "id": "owner-site-snapshot-registered",
+      "type": "reachability",
+      "from": {
+        "ids": [
+          "mcp:get_owner_site_snapshot"
+        ]
+      },
+      "to": {
+        "kinds": [
+          "mcp-tool"
+        ],
+        "sourceIds": [
+          "repo:src/features/owner/server/mcpOwnerTools.ts"
+        ]
+      },
+      "requirement": "required",
+      "quantifier": "any",
+      "direction": "outbound",
+      "relationshipKinds": [
+        "registered-as"
+      ],
+      "maxDepth": 1,
+      "scopeSourceIds": [
+        "src/features/owner/server/mcpOwnerTools.ts"
+      ]
+    }
+  ]
+}
