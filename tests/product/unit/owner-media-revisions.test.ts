@@ -94,9 +94,9 @@ const http = async (id: number, method: string, params: object) => {
   const response = await cardForgeOwnerMcpHandler(new Request('https://cardforge.test/mcp/owner', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) }));
   const text = await response.text(); return { status: response.status, body: JSON.parse(text.startsWith('event:') ? text.split('data: ')[1].split('\n')[0] : text) };
 };
-it('initialized real HTTP exposes 46 Owner tools and calls the exact three media adapters', async () => {
-  expect((await http(1, 'initialize', { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'test', version: '1' } })).body.result.serverInfo).toEqual({ name: 'cardforge-owner', version: '1.13.0' });
-  const tools = (await http(2, 'tools/list', {})).body.result.tools; expect(tools).toHaveLength(46);
+it('initialized real HTTP exposes 50 Owner tools and calls the exact three media adapters', async () => {
+  expect((await http(1, 'initialize', { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'test', version: '1' } })).body.result.serverInfo).toEqual({ name: 'cardforge-owner', version: '1.14.0' });
+  const tools = (await http(2, 'tools/list', {})).body.result.tools; expect(tools).toHaveLength(50);
   const tool = tools.find((entry: { name: string }) => entry.name === 'create_pipeline_media_presentation_revision'); expect(tool.inputSchema.required).toEqual(expect.arrayContaining(['assetId','submissionKey','presentation'])); expect(tool.inputSchema.additionalProperties).toBe(false); expect(tool.inputSchema.properties.presentation.properties).not.toHaveProperty('revisionHighWater'); expect(tool.annotations.readOnlyHint).toBe(false);
   expect((await http(3, 'tools/call', { name: 'get_pipeline_media_presentation_base', arguments: { assetId: base.assetId } })).body.result.structuredContent.presentation.sourceSha256).toBe(sha);
   expect((await http(4, 'tools/call', { name: 'get_pipeline_media_presentation_receipt', arguments: input() })).body.result.structuredContent.receipt).toBeNull();

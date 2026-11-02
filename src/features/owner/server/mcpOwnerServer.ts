@@ -1,3 +1,4 @@
+import { registerOwnerProgramRoutingTools } from './mcpProgramRoutingTools';
 import { registerOwnerMediaRevisionTools } from './mcpMediaRevisionTools';
 import { registerOwnerReviewRevisionTools } from './mcpReviewRevisionTools';
 import { registerPublishedClassificationTools } from './mcpPublishedClassificationTools';
@@ -10,7 +11,7 @@ import { getMcpOwnerAccess } from './mcpOwnerAccess';
 import { registerOwnerReadTools } from './mcpOwnerTools';
 import { createOwnerMcpToolError } from './mcpOwnerToolError';
 
-export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.13.0';
+export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.14.0';
 
 const ownerMcpHandler = createMcpHandler(
   (server) => {
@@ -24,6 +25,7 @@ const ownerMcpHandler = createMcpHandler(
     registerPublishedClassificationTools(options);
     registerOwnerReviewRevisionTools(options);
     registerOwnerMediaRevisionTools(options);
+    registerOwnerProgramRoutingTools(options);
   },
   {
     serverInfo: {
@@ -47,6 +49,7 @@ const ownerMcpHandler = createMcpHandler(
       'Read get_pipeline_published_classification before save_pipeline_published_classification. Preserve its native expected publication identity and all seven previous classification values; taxonomy changes do not publish or create revisions. Unknown outcomes require exact readback, never automatic replay.',
       'For Template or Style corrections read the exact get_pipeline_template_review_base / get_pipeline_style_review_base, then use the corresponding create_pipeline_*_review_revision with its original payload ID, complete expectedBase and saved submissionKey. Preserve native fingerprint/idempotent receipt semantics. On uncertainty use get_pipeline_*_review_receipt with the same actor-bound key; do not fabricate absence or replay automatically. These create unpublished reviews, never publication or media copies.',
       'Managed texture presentation reviews use get_pipeline_media_presentation_base, get_pipeline_media_presentation_receipt and create_pipeline_media_presentation_revision. Preserve the existing UUID key and complete saved presentation; server/native service alone owns candidate UUID and byte-copy identity. Unknown outcomes require receipt-only reconciliation, never blind copy/replay. Cleanup flags concern the current invocation and never prove global orphan cleanup.',
+      'Pipeline program settings and Studio routing have separate get/save tools. Program Save runs a consequential global governed rebalance that may change status, access, vote-driven Trash and registry publication; it is not merely a draft settings edit. Routing changes registry placement only. Neither command has caller CAS, versions or operation keys; preserve existing policy and reconcile unknown acknowledgement by exact reads without replay or causal inference from matching state.',
       'CardForge Studio is a separate creator plugin. Do not use Owner tools as a substitute for Template, Set, card, or connected-project authoring.',
     ].join(' '),
     maxSubscriptions: 0,

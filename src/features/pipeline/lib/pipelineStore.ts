@@ -260,17 +260,22 @@ export const updateContributorProfileOverrides = async ({
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 
+/** Commit seam: native settings + global rebalance ACK precedes derived program reload. */
+export const commitPipelineProgramSettings = async (
+  input: Partial<Record<keyof PipelineProgramSettings, unknown>>, currentUserId: string,
+): Promise<number> => {
+  if (!getSupabaseServerClient()) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
+  if (!currentUserId) throw new PipelineStoreError('Owner identity is required to update pipeline rules.', 403);
+  const normalized = normalizePipelineProgramSettingsInput(input);
+  return runRegistryCommand(() => savePipelineProgramSettings(normalized, currentUserId));
+};
+
 export const updatePipelineProgramSettings = async (
   input: Partial<Record<keyof PipelineProgramSettings, unknown>>,
   currentUserId = '',
   currentContributorIds: string[] = currentUserId ? [currentUserId] : [],
 ): Promise<PipelineProgramView> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
-
-  const normalized = normalizePipelineProgramSettingsInput(input);
-  if (!currentUserId) throw new PipelineStoreError('Owner identity is required to update pipeline rules.', 403);
-  await runRegistryCommand(() => savePipelineProgramSettings(normalized, currentUserId));
+  await commitPipelineProgramSettings(input, currentUserId);
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 

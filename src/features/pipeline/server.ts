@@ -53,3 +53,4 @@ export { pipelineAgentListInput, pipelineAgentExactInput, pipelineAgentVoteInput
 export { publishedClassificationReadInput, publishedClassificationInput, publishedClassificationSnapshot, publishedClassificationReceipt, publishedClassificationResult } from './lib/publishedClassificationContract';
 
 export { mediaRevisionBaseInput, mediaRevisionAttemptInput, mediaRevisionBaseOutput, mediaRevisionReceipt, mediaRevisionReceiptOutput, mediaRevisionCommandResult } from './lib/mediaRevisionCommand';
+export { editablePipelineSettings, pipelineSettingsSnapshot, pipelineSettingsReadInput, pipelineSettingsSaveInput, routingReadInput, routingSaveInput, routingItem, routingReadOutput, configurationReceipt, settingsSaveResult, routingSaveResult } from './lib/ownerProgramRoutingContract';

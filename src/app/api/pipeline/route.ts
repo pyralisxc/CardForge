@@ -8,9 +8,10 @@ import {
   getPipelineContributorSummary,
   requirePipelineRequestScope,
   updateContributorProfileOverrides,
-  updatePipelineProgramSettings,
+  PipelineRegistryCommandError,
 } from '@/features/pipeline/server';
-import { getCurrentOwnerAccess } from '@/features/owner/server';
+import { getCurrentOwnerAccess, saveOwnerPipelineProgramSettings } from '@/features/owner/server';
+import { AccountToolAccessError } from '@/features/account/server';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 import { revalidateCardForgeCatalog } from '@/features/pipeline/server/catalogCache';
@@ -197,17 +198,21 @@ export async function PUT(request: Request) {
       return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required for Contributor program settings.');
     }
     const body = await request.json() as { settings?: Record<string, unknown> };
-    const program = await updatePipelineProgramSettings(
-      body.settings ?? {},
-      ownerUserId,
-      getPipelineContributorIds(ownerUserId)
-    );
-    revalidateCardForgeCatalog();
-    return createNoStoreJsonResponse({ program });
+    if (!body?.settings || typeof body.settings !== 'object' || Array.isArray(body.settings)) return createApiErrorResponse(400, 'pipeline_request_invalid', 'Provide the complete editable Pipeline settings.');
+    // These are native policy/readback facts, not independent editable controls.
+    const { allowContributorSelfVoting: _selfVoting, ownerVoteWeight: _weight, publishCapsByType: _caps, ...settings } = body.settings;
+    const result = await saveOwnerPipelineProgramSettings(ownerUserId, { settings }, { includeProgram: true });
+    if (result.receipt.outcome === 'uncertain') {
+      const unavailable = createApiErrorResponse(503, 'pipeline_unavailable', result.receipt.warnings.join(' '), { retryable: false, nextAction: 'Read exact current settings; do not replay automatically or infer commit from matching state.' });
+      return createNoStoreJsonResponse({ ...(await unavailable.json()), ...result }, { status: 503, headers: unavailable.headers });
+    }
+    return createNoStoreJsonResponse(result);
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
     }
+    if (error instanceof AccountToolAccessError) return createApiErrorResponse(error.status, 'owner_access_required', error.message);
+    if (error instanceof PipelineRegistryCommandError) return createApiErrorResponse(error.status, error.status === 503 ? 'pipeline_unavailable' : 'pipeline_request_invalid', error.message, { retryable: false });
     if (error instanceof PipelineStoreError) {
       return createApiErrorResponse(
         error.status,
