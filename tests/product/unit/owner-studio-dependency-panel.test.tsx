@@ -75,7 +75,7 @@ describe('Owner Studio dependency action UI', () => {
     click(initial);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(JSON.parse((fetchMock.mock.calls[0] as unknown as [string, { body: string }])[1].body)).toEqual({ documentId, expectedRevision: 7 });
-    resolve(new Response(JSON.stringify({ documentId, revision: 7, contractVersion: 1, complete: true, opaqueReasons: [] })));
+    resolve(new Response(JSON.stringify({ documentId, revision: 7, contractVersion: 1, complete: true, opaqueReasons: [], snapshot: null, receipt: { outcome: 'committed', committed: true, readbackComplete: false, activityRecorded: true, warnings: [], retryable: false, nextAction: 'read' } })));
     await settle(done => {
       expect(textOf(done)).toContain(`document ${documentId}, revision 7`);
       expect(field(done, 'Studio document ID').props.disabled).toBe(false);

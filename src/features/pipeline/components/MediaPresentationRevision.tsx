@@ -1,5 +1,6 @@
 "use client";
 
+import { mediaRevisionBaseOutput, mediaRevisionReceiptOutput, mediaRevisionCommandResult } from '../lib/mediaRevisionCommand';
 import type { PipelineReviewTarget } from '../lib/pipelineReviewTarget';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,7 @@ export function MediaPresentationPreview({ sourceUrl, presentation }: {
 
 export function MediaPresentationRevision({ assetId, onCreated, selectedTarget }: {
   selectedTarget?: PipelineReviewTarget | null;
-  assetId: string; onCreated: () => Promise<void> | void;
+  assetId: string; onCreated: () => Promise<void | boolean> | void | boolean;
 }) {
   const [snapshot, setSnapshot] = useState<MediaRevisionSnapshot | null>(null);
   const [presentation, setPresentation] = useState<PipelineMediaPresentation | null>(null);
@@ -41,7 +42,8 @@ export function MediaPresentationRevision({ assetId, onCreated, selectedTarget }
     try {
       const response = await fetch(`/api/owner/pipeline/media-revisions?assetId=${encodeURIComponent(assetId)}`, { cache: 'no-store' });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Presentation could not be loaded.'));
-      const value = await response.json() as MediaRevisionSnapshot;
+      const value = mediaRevisionBaseOutput.parse(await response.json());
+      if (value.assetId !== assetId) throw new Error('The exact media base could not be verified.');
       if (selectedTarget !== undefined && (!selectedTarget || selectedTarget.status !== 'published'
         || value.assetId !== selectedTarget.assetId || value.presentation.parentSubmissionId !== selectedTarget.submissionId
         || value.presentation.lineageId !== selectedTarget.lineageId
@@ -54,21 +56,45 @@ export function MediaPresentationRevision({ assetId, onCreated, selectedTarget }
   };
   const create = async () => {
     if (!presentation) return;
+    const reconciling = attempted;
     setBusy(true); setAttempted(true); setError('');
+    let confirmed = false;
     try {
-      const response = await fetch('/api/owner/pipeline/media-revisions', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assetId, submissionKey, presentation }),
-      });
-      if (!response.ok) throw await readApiError(response, 'The revision outcome could not be confirmed. Retry this same attempt.');
-      const saved = await response.json() as { revisionNumber: number; status: string; editorialReviewStatus: string; reused: boolean; cleanupPending: boolean; activityRecorded: boolean };
-      setResult(`Revision ${saved.revisionNumber}${saved.reused ? ` recovered: ${saved.status}, editorial ${saved.editorialReviewStatus}` : ' is pending review'}. This attempt did not change published content.${saved.cleanupPending ? ' An unused copy still needs cleanup.' : ''}${!saved.activityRecorded ? ' Owner activity recording is unavailable.' : ''}`);
-      try { await onCreated(); } catch { setError('The revision is confirmed, but Library refresh is unavailable. Reopen the Library to refresh its view.'); }
+      let saved;
+      let warnings: string[] = [];
+      if (reconciling) {
+        const params = new URLSearchParams({ assetId, submissionKey, presentation: JSON.stringify(presentation) });
+        const response = await fetch(`/api/owner/pipeline/media-revisions?${params}`, { cache: 'no-store' });
+        if (!response.ok) throw await readApiError(response, 'Exact media receipt lookup is unavailable. Absence was not established.');
+        const observed = mediaRevisionReceiptOutput.parse(await response.json());
+        if (observed.assetId !== assetId || observed.submissionKey !== submissionKey) throw new Error('The exact media receipt could not be verified.');
+        if (!observed.receipt) {
+          setError('No receipt was observed for this saved attempt. Its outcome remains unconfirmed; retain its UUID key and presentation and read again before any further write.');
+          return;
+        }
+        saved = { ...observed.receipt, reused: true };
+      } else {
+        const response = await fetch('/api/owner/pipeline/media-revisions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assetId, submissionKey, presentation }),
+        });
+        if (!response.ok) throw await readApiError(response, 'The revision outcome is unconfirmed. Read the exact retained receipt; do not copy or replay automatically.');
+        const result = mediaRevisionCommandResult.parse(await response.json());
+        if (result.assetId !== assetId || result.submissionKey !== submissionKey || result.outcome !== 'committed' || result.committed !== true || !result.receipt) throw new Error('The exact media receipt could not be confirmed.');
+        saved = { ...result.receipt, reused: result.reused };
+        warnings = [...result.warnings];
+        if (result.activityRecorded !== true && !warnings.length) warnings.push('Owner activity recording is incomplete.');
+        if (result.cleanupPending && !warnings.some(warning => warning.includes('copy'))) warnings.push('An unused copy from this invocation needs cleanup.');
+      }
+      if (saved.assetId !== assetId) throw new Error('The exact media receipt could not be verified.');
+      confirmed = true;
+      setResult(`Revision ${saved.revisionNumber}${saved.reused ? ` recovered: ${saved.status}, editorial ${saved.editorialReviewStatus}` : ` confirmed: ${saved.status}, editorial ${saved.editorialReviewStatus}`}. This attempt did not change published content. ${warnings.join(' ')}`);
+      try { if (await onCreated() === false) setError('The revision is confirmed, but Library refresh is incomplete. Reopen the Library to refresh its view; do not repeat creation.'); }
+      catch { setError('The revision is confirmed, but Library refresh is unavailable. Reopen the Library to refresh its view; do not repeat creation.'); }
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'The revision outcome is unavailable. Retry this same attempt.');
-      setCanReload(failure instanceof ApiClientError && (failure.status === 409 || failure.status === 400));
-    }
-    finally { setBusy(false); }
+      const rejected = failure instanceof ApiClientError && (failure.status === 409 || failure.status === 400);
+      setError(rejected ? failure.message : confirmed ? 'The revision is confirmed; follow-up refresh is incomplete.' : 'The revision outcome is unconfirmed. Read the exact retained receipt; do not copy or replay automatically.');
+      setCanReload(rejected);
+    } finally { setBusy(false); }
   };
   const changed = presentation && (presentation.baseline.tileMode !== presentation.proposed.tileMode || presentation.baseline.seamless !== presentation.proposed.seamless);
   return <section className="grid gap-3 border border-[var(--cf-border)] p-3" aria-label="Media presentation revision">
@@ -84,9 +110,9 @@ export function MediaPresentationRevision({ assetId, onCreated, selectedTarget }
         <label><input type="checkbox" checked={presentation.proposed.seamless} onChange={(event) => setPresentation({ ...presentation, proposed: { ...presentation.proposed, seamless: event.target.checked } })} /> Seamless source</label>
       </fieldset>
       <MediaPresentationPreview sourceUrl={snapshot.sourceUrl} presentation={presentation} />
-      {!result ? <Button type="button" disabled={busy || !changed || canReload} onClick={() => void create()}>{busy ? 'Working…' : attempted ? 'Confirm same attempt' : 'Create pending revision'}</Button> : null}
+      {!result ? <Button type="button" disabled={busy || !changed || canReload} onClick={() => void create()}>{busy ? 'Working…' : attempted ? 'Read exact attempt receipt' : 'Create pending revision'}</Button> : null}
     </> : null}
-    {error ? <p role="alert">{error} {result ? '' : !attempted ? 'Reload the source before preparing a candidate.' : canReload ? 'This attempt was rejected or its existing receipt was reconciled. Reload current values before preparing a new attempt.' : 'Retry the same attempt to reconcile an uncertain result before preparing another.'}</p> : null}
+    {error ? <p role="alert">{error} {result ? '' : !attempted ? 'Reload the source before preparing a candidate.' : canReload ? 'This attempt was rejected or its existing receipt was reconciled. Reload current values before preparing a new attempt.' : 'Read the exact retained receipt before any further write; do not copy or replay automatically.'}</p> : null}
     {canReload ? <Button type="button" disabled={busy} onClick={() => void load()}>Reload current values / new attempt</Button> : null}
     {result ? <p role="status">{result}</p> : null}
   </section>;

@@ -9,7 +9,8 @@ import { PipelineRegistryCommandError } from '@/features/pipeline/lib/pipelineRe
 
 const boundary = vi.hoisted(() => ({ rpc: vi.fn(), owner: vi.fn(), classify: vi.fn(), read: vi.fn(), refresh: vi.fn() }));
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ rpc: boundary.rpc }) }));
-vi.mock('@/features/owner/server', () => ({ getCurrentOwnerAccess: boundary.owner }));
+vi.mock('server-only', () => ({}));
+vi.mock('@/features/owner/server', () => ({ getCurrentOwnerAccess: boundary.owner, getOwnerPublishedClassification: boundary.read, saveOwnerPublishedClassification: boundary.classify }));
 vi.mock('@/features/pipeline/server', () => ({ classifyPublishedPipelineAsset: boundary.classify, readPublishedPipelineClassification: boundary.read, PipelineRegistryCommandError, revalidateCardForgeCatalog: boundary.refresh }));
 import { GET, POST } from '@/app/api/owner/pipeline/classification/route';
 
@@ -33,7 +34,7 @@ const classification = {
   variantLabel: null,
   compatibilityTags: ['print', 'tileable'],
 };
-beforeEach(() => { vi.clearAllMocks(); boundary.rpc.mockResolvedValue({ error: null }); boundary.owner.mockResolvedValue({ isOwner: true, userId: 'owner' }); boundary.classify.mockResolvedValue(undefined); });
+beforeEach(() => { vi.clearAllMocks(); boundary.rpc.mockResolvedValue({ error: null }); boundary.owner.mockResolvedValue({ isOwner: true, userId: 'owner' }); boundary.classify.mockImplementation(async () => { boundary.refresh(); return { snapshot: null, receipt: { outcome: 'committed', committed: true } }; }); });
 
 describe('published classification command', () => {
   it.each([['business', 'business-card'], ['events', 'event-badge']])('accepts the %s use case without weakening unknown-tag rejection', async (specialty, useCase) => {
@@ -112,7 +113,7 @@ it('loads exact classification only after the owner gate', async () => {
   const response = await GET(new Request('https://cardforges.com/api/owner/pipeline/classification?assetId=worn-paper'));
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual(classification);
-  expect(boundary.read).toHaveBeenCalledWith('worn-paper');
+  expect(boundary.read).toHaveBeenCalledWith('owner', { assetId: 'worn-paper' });
   expect(response.headers.get('Cache-Control')).toContain('no-store');
 });
 
@@ -137,4 +138,11 @@ it('keeps owner classification reachable after all health warnings are resolved'
     catalog: { pipeline: { items: [{ id: 'worn-paper', name: 'Worn Paper', lineageId: 'lineage' }] } } as CardForgeCatalogManifest };
   expect(renderToStaticMarkup(createElement(PipelineContentHealthPanel, { ...props, canRepair: true }))).toContain('Edit published classification');
   expect(renderToStaticMarkup(createElement(PipelineContentHealthPanel, { ...props, canRepair: false }))).not.toContain('Edit published classification');
+});
+it('keeps an unconfirmed shared receipt nonretryable without claiming browser success', async () => {
+  boundary.classify.mockResolvedValue({ snapshot: null, receipt: { outcome: 'uncertain', committed: null } });
+  const response = await POST(new Request('https://cardforges.com/api/owner/pipeline/classification', { method: 'POST', body: JSON.stringify(classification) }));
+  expect(response.status).toBe(503);
+  expect(await response.json()).toMatchObject({ receipt: { outcome: 'uncertain', committed: null }, error: { retryable: false, nextAction: expect.stringContaining('do not replay automatically') } });
+  expect(boundary.classify).toHaveBeenCalledExactlyOnceWith('owner', classification);
 });

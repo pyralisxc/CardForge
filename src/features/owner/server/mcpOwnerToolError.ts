@@ -1,4 +1,10 @@
+import { RetainedReleaseReadError } from '@/features/plugin-distribution/server';
+import { StudioDocumentStoreError } from '@/features/studio-documents/server';
+import { OwnerPeopleOperationError } from './ownerPeopleOperations';
+import { ContactRequestStoreError } from '@/features/contact/server';
 import 'server-only';
+
+import { PipelineStoreError, PipelineRegistryCommandError } from '@/features/pipeline/server';
 
 import { AccountToolAccessError } from '@/features/account/server';
 import { BusinessIdentityStoreError } from '@/features/business-identity/server';
@@ -16,7 +22,13 @@ import { WebsiteEditionStoreError } from '@/features/public-site/server/websiteE
 import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
 
 const isSafeOwnerMcpError = (error: unknown): error is Error => (
-  error instanceof AccountToolAccessError
+  error instanceof RetainedReleaseReadError
+  || error instanceof StudioDocumentStoreError
+  || error instanceof OwnerPeopleOperationError
+  || error instanceof ContactRequestStoreError
+  || error instanceof AccountToolAccessError
+  || error instanceof PipelineStoreError
+  || error instanceof PipelineRegistryCommandError
   || error instanceof BusinessIdentityStoreError
   || error instanceof LegalDocumentStoreError
   || error instanceof McpUsageStoreError

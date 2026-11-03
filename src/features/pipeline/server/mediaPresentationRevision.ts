@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { isPipelineEditorialReviewStatus } from '../lib/pipelineProgram';
+import { isContributorAssetStatus } from '../lib/pipelineItems';
 import { PipelineRegistryCommandError } from '../lib/pipelineRegistryCommandsError';
 import {
   mediaPresentationSchema,
@@ -64,20 +65,30 @@ export async function readMediaPresentationRevision(assetId: string): Promise<Me
 
 async function receipt(db: Client, assetId: string, submissionKey: string, presentation: PipelineMediaPresentation) {
   const { data, error } = await db.from('cardforge_contributor_asset_submissions')
-    .select('id,revision_number,status,editorial_review_status,media_presentation,source_storage_bucket,source_storage_path,trashed_at,purge_state')
+    .select('id,target_registry_asset_id,submission_key,revision_number,status,editorial_review_status,media_presentation,source_storage_bucket,source_storage_path,trashed_at,purge_state')
     .eq('target_registry_asset_id', assetId).eq('submission_key', submissionKey).not('media_presentation', 'is', null).maybeSingle();
-  if (error) fail('The revision receipt is unavailable. Retry the same request; no source copy has been removed.');
+  if (error) fail('The revision receipt is unavailable. Read the exact saved receipt before any further write; no source copy has been removed.');
   if (!data) return null;
-  const parsed = mediaPresentationSchema.safeParse(data.media_presentation);
-  if (!isPipelineEditorialReviewStatus(data.editorial_review_status)) fail('The revision review state could not be verified. Retry this exact attempt.');
-  if (!parsed.success || !same(parsed.data, presentation) || data.trashed_at || data.purge_state) {
+  const row = z.object({ id: z.string().uuid(), target_registry_asset_id: z.string(), submission_key: z.string().uuid(), revision_number: z.number().int().nonnegative(), status: z.string().refine(isContributorAssetStatus), editorial_review_status: z.string().refine(isPipelineEditorialReviewStatus), media_presentation: mediaPresentationSchema, source_storage_bucket: z.string().min(1), source_storage_path: z.string().min(1), trashed_at: z.string().nullable(), purge_state: z.string().nullable() }).safeParse(data);
+  if (!row.success || row.data.target_registry_asset_id !== assetId || row.data.submission_key !== submissionKey) fail('The exact revision receipt could not be verified. This failed read does not establish absence.');
+  if (!same(row.data.media_presentation, presentation) || row.data.trashed_at || row.data.purge_state) {
     fail('This attempt key already belongs to a different or unavailable revision. Reload before continuing.', 409, 'pipeline_media_conflict');
   }
-  return data as { id: string; revision_number: number; status: string; editorial_review_status: string; source_storage_bucket: string; source_storage_path: string };
+  return row.data;
+}
+
+/** Exact receipt observation only: no allocation, download, copy or compensation. */
+export async function readMediaPresentationReceipt(value: unknown) {
+  const parsed = mediaRevisionInputSchema.safeParse(value);
+  if (!parsed.success) fail('Provide the exact saved asset, UUID key and presentation.', 400, 'pipeline_media_invalid');
+  const saved = await receipt(client(), parsed.data.assetId, parsed.data.submissionKey, parsed.data.presentation);
+  return { assetId: parsed.data.assetId, submissionKey: parsed.data.submissionKey, receipt: saved ? {
+    id: saved.id, assetId: parsed.data.assetId, revisionNumber: saved.revision_number, status: saved.status, editorialReviewStatus: saved.editorial_review_status,
+  } : null };
 }
 
 // Delete only this attempt's UUID-owned copy, and only after a readable reference
-// check. Unknown transaction outcomes retain bytes for an exact-key retry.
+// check. Unknown transaction outcomes retain bytes for exact-key receipt reconciliation.
 async function compensate(db: Client, bucket: string, path: string) {
   try {
     const { data, error } = await db.from('cardforge_contributor_asset_submissions').select('id')
@@ -110,7 +121,7 @@ export async function createMediaPresentationRevision(value: unknown) {
   let commitAttempted = false;
   try {
     const { error: copyError } = await storage.copy(base.sourcePath, path);
-    if (copyError) fail('The source copy could not be confirmed. Retry the same request.');
+    if (copyError) fail('The source copy could not be confirmed. Read the exact saved receipt before any further write.');
     if (await sourceHash(db, base, path) !== p.sourceSha256) {
       fail('The copied bytes do not match the exact source. No revision was created.', 409, 'pipeline_media_conflict');
     }
@@ -133,8 +144,8 @@ export async function createMediaPresentationRevision(value: unknown) {
       if (error.message.includes('invalid')) fail('The presentation candidate was rejected without changing the published asset.', 400, 'pipeline_media_invalid');
     }
     fail(commitAttempted
-      ? 'The revision outcome could not be confirmed. Retry this exact attempt; its copy has been retained.'
-      : 'The revision was not committed. Retry this exact attempt after reloading the current base.');
+      ? 'The revision outcome could not be confirmed. Read the exact saved receipt before any further write; its copy has been retained.'
+      : 'This invocation was rejected. Read the exact saved receipt and current base before any further write.');
   } catch (error) {
     if (!commitAttempted) {
       if (!await compensate(db, base.sourceBucket, path)) console.error('Media revision copy cleanup pending:', { candidateId, bucket: base.sourceBucket, path });

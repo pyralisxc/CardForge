@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { publishedClassificationResult } from '../lib/publishedClassificationContract';
 import { readApiError } from '@/infrastructure/http/clientResponses';
 import {
   CARDFORGE_COMPATIBILITY_OPTIONS,
@@ -27,7 +28,7 @@ interface ClassificationSnapshot {
 }
 
 export function PublishedClassificationEditor({ assetId, onClose, onSaved }: {
-  assetId: string; onClose: () => void; onSaved: () => Promise<void>;
+  assetId: string; onClose: () => void; onSaved: () => Promise<void | boolean>;
 }) {
   const [snapshot, setSnapshot] = useState<ClassificationSnapshot | null>(null);
   const [specialtyTags, setSpecialtyTags] = useState<string[]>([]);
@@ -38,11 +39,13 @@ export function PublishedClassificationEditor({ assetId, onClose, onSaved }: {
   const [variantLabel, setVariantLabel] = useState('');
   const [compatibilityTags, setCompatibilityTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [refreshIncomplete, setRefreshIncomplete] = useState(false);
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
   useEffect(() => {
     const abort = new AbortController();
-    setSnapshot(null); setError(null);
+    setSnapshot(null); setError(null); setStatus(null); setRefreshIncomplete(false);
     void fetch(`/api/owner/pipeline/classification?assetId=${encodeURIComponent(assetId)}`, { cache: 'no-store', signal: abort.signal })
       .then(async (response) => {
         if (!response.ok) throw await readApiError(response, 'Classification could not be loaded.');
@@ -62,7 +65,8 @@ export function PublishedClassificationEditor({ assetId, onClose, onSaved }: {
   }, [assetId, reload]);
   const save = async () => {
     if (!snapshot) return;
-    setBusy(true); setError(null);
+    setBusy(true); setError(null); setStatus(null); setRefreshIncomplete(false);
+    let rejected = false;
     try {
       const { name: _name, assetType: _assetType, ...identity } = snapshot;
       const response = await fetch('/api/owner/pipeline/classification', {
@@ -79,9 +83,28 @@ export function PublishedClassificationEditor({ assetId, onClose, onSaved }: {
           compatibilityTags,
         }),
       });
-      if (!response.ok) throw await readApiError(response, 'Classification could not be saved.');
-      await onSaved(); onClose();
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Classification could not be saved.'); }
+      const parsed = publishedClassificationResult.safeParse(await response.clone().json().catch(() => null));
+      if (!parsed.success) {
+        rejected = response.status >= 400 && response.status < 500;
+        throw await readApiError(response, 'Classification outcome could not be confirmed.');
+      }
+      const { receipt } = parsed.data;
+      if (receipt.assetId !== assetId || receipt.expectedSubmissionId !== snapshot.expectedSubmissionId || receipt.expectedLineageId !== snapshot.expectedLineageId || receipt.expectedRevision !== snapshot.expectedRevision) throw new Error('Exact classification receipt could not be verified.');
+      if (receipt.outcome === 'uncertain' || receipt.committed !== true) {
+        setError('Classification outcome is unconfirmed. Read exact current values before any further write; do not replay automatically.');
+        return;
+      }
+      const warnings = [...receipt.warnings];
+      if (!receipt.refreshComplete && !warnings.length) warnings.push('Classification committed; follow-up refresh is incomplete. Read current values before any further edit.');
+      setStatus(`Classification committed. ${warnings.join(' ')} Library refresh is pending.`);
+      try { if (await onSaved() === false) warnings.push('Library refresh is incomplete. Read current values rather than repeating the committed classification.'); } catch { warnings.push('Library refresh is incomplete. Read current values rather than repeating the committed classification.'); }
+      setStatus(`Classification committed.${warnings.length ? ` ${warnings.join(' ')}` : ''}`);
+      setRefreshIncomplete(warnings.length > 0);
+      if (!warnings.length) onClose();
+    } catch (failure) {
+      const message = failure instanceof Error ? failure.message : 'Classification outcome could not be confirmed.';
+      setError(rejected ? message : `${message} Read exact current values before any further write; do not replay automatically.`);
+    }
     finally { setBusy(false); }
   };
   return <section aria-label="Published classification" className="grid gap-3 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-4">
@@ -114,10 +137,11 @@ export function PublishedClassificationEditor({ assetId, onClose, onSaved }: {
       <ControlledTaxonomySelect label="Published specialty" selectedIds={specialtyTags} options={CARDFORGE_SPECIALTY_OPTIONS} onChange={setSpecialtyTags} />
       <ControlledTaxonomySelect label="Published use case" selectedIds={useCaseTags} options={CARDFORGE_USE_CASE_OPTIONS} onChange={setUseCaseTags} />
     </fieldset> : !error ? <p role="status">Loading current classification…</p> : null}
+    {status ? <p role="status" className="text-sm text-[var(--cf-text-muted)]">{status}</p> : null}
     {error ? <p role="alert" className="text-sm text-[var(--cf-danger)]">{error}</p> : null}
     <div className="flex flex-wrap gap-2">
       <Button type="button" disabled={busy || !snapshot || !specialtyTags.length} onClick={() => void save()}>{busy ? 'Saving…' : 'Save classification'}</Button>
-      {error ? <Button type="button" variant="outline" disabled={busy} onClick={() => setReload((value) => value + 1)}>Reload current values</Button> : null}
+      {error || refreshIncomplete ? <Button type="button" variant="outline" disabled={busy} onClick={() => setReload((value) => value + 1)}>Reload current values</Button> : null}
       <Button type="button" variant="outline" disabled={busy} onClick={onClose}>Cancel</Button>
     </div>
   </section>;

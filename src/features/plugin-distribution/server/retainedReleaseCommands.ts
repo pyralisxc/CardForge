@@ -1,3 +1,4 @@
+import { retainedReleaseRecord, RetainedReleaseReadError } from '../model/retainedReleaseReadContract';
 import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
 import { releaseArtifactPath, verifyRetainedArtifact, type ReleaseCandidate } from '../model/releaseArtifactIdentity';
@@ -22,7 +23,7 @@ export type TrustedReleaseBuild = {
 };
 const digest = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 
-const endpointFor = (product: ReleaseCandidate['product'], environment: ReleaseCandidate['environment']) =>
+export const endpointForRetainedRelease = (product: ReleaseCandidate['product'], environment: ReleaseCandidate['environment']) =>
   (environment === 'preview' ? 'https://card-forge-git-vercel-preview-pyralis-projects.vercel.app' : 'https://cardforges.com')
   + (product === 'owner' ? '/mcp/owner' : '/mcp');
 const exact = (value: unknown, shape: Record<string, unknown>) =>
@@ -49,7 +50,7 @@ function originalZipNames(bytes: Uint8Array): string[] {
   return names;
 }
 async function validatePackage(bytes: Uint8Array, product: ReleaseCandidate['product'], environment: ReleaseCandidate['environment'], version: string, endpoint: string) {
-  const expectedEndpoint = endpointFor(product, environment);
+  const expectedEndpoint = endpointForRetainedRelease(product, environment);
   if (endpoint !== expectedEndpoint) throw new Error('Release endpoint violates environment policy');
   const prefix = environment === 'preview' ? `cardforge-${product}-preview/` : '';
   const skill = product === 'studio'
@@ -92,7 +93,7 @@ async function validatePackage(bytes: Uint8Array, product: ReleaseCandidate['pro
   }
 }
 export async function verifyReleaseBytes(record: ReleaseCandidate & { storagePath: string }, bytes: Uint8Array, expectedEndpoint: string) {
-  if (expectedEndpoint !== endpointFor(record.product, record.environment)) throw new Error('Release endpoint violates environment policy');
+  if (expectedEndpoint !== endpointForRetainedRelease(record.product, record.environment)) throw new Error('Release endpoint violates environment policy');
   if (verifyRetainedArtifact(record, bytes) !== record.storagePath) throw new Error('Storage key mismatch');
   await validatePackage(bytes, record.product, record.environment, record.packageVersion, expectedEndpoint);
 }
@@ -144,14 +145,69 @@ export async function admitBuiltRelease(store: ReleaseStore, trusted: TrustedRel
   await verifyReleaseBytes(admitted, await store.readBytes(admitted.storagePath), built.endpoint);
   return admitted;
 }
+/** Validate observed metadata before reading bytes or claiming a usable history. */
+export function validateRetainedRelease(value: unknown): RetainedRelease {
+  const parsed = retainedReleaseRecord.safeParse(value);
+  if (!parsed.success) throw new RetainedReleaseReadError('Retained release metadata is malformed.');
+  const record = parsed.data;
+  // Mirror length(btrim(changes)): U+0020 at the actual ends only, then
+  // Unicode characters rather than JavaScript UTF-16 code units. Preserve stored text.
+  let start = 0;
+  let end = record.changes.length;
+  while (start < end && record.changes[start] === ' ') start++;
+  while (end > start && record.changes[end - 1] === ' ') end--;
+  const changeLength = Array.from(record.changes.slice(start, end)).length;
+  if (changeLength < 1 || changeLength > 1000
+    || releaseArtifactPath(record) !== record.storagePath) {
+    throw new RetainedReleaseReadError('Retained release metadata identity is invalid.');
+  }
+  return record;
+}
+
+export const toRetainedReleaseMetadata = (record: RetainedRelease) => ({
+  product: record.product,
+  environment: record.environment,
+  name: `cardforge-${record.product}${record.environment === 'preview' ? '-preview' : ''}`,
+  version: record.packageVersion,
+  checksum: record.checksumSha256,
+  sourceSha: record.sourceSha,
+  byteLength: record.byteLength,
+  releasedAt: record.releasedAt,
+  changes: record.changes,
+});
+
+export async function findExactRetainedRelease(
+  store: ReleaseStore,
+  product: ReleaseCandidate['product'],
+  environment: ReleaseCandidate['environment'],
+  version: string,
+  checksum: string,
+): Promise<RetainedRelease> {
+  const observed = await store.find(product, environment, version);
+  if (observed === null) throw new RetainedReleaseReadError('The selected exact retained release is not available.', 404);
+  const record = validateRetainedRelease(observed);
+  if (record.product !== product || record.environment !== environment || record.packageVersion !== version) {
+    throw new RetainedReleaseReadError('Retained release metadata returned a different identity; no substitution was made.');
+  }
+  // Preserve the existing HTTP exact-version/checksum absence meaning.
+  if (record.checksumSha256 !== checksum) throw new RetainedReleaseReadError('The selected exact retained release is not available.', 404);
+  return record;
+}
+
 /** A reader must be called only AFTER existing product/environment role gate. */
 export async function readRetainedRelease(store: ReleaseStore, record: RetainedRelease, endpoint: string): Promise<Uint8Array> {
-  const bytes = await store.readBytes(record.storagePath);
-  await verifyReleaseBytes(record, bytes, endpoint);
+  const observed = validateRetainedRelease(record);
+  if (endpoint !== endpointForRetainedRelease(observed.product, observed.environment)) throw new RetainedReleaseReadError('Retained endpoint identity is invalid.');
+  const bytes = await store.readBytes(observed.storagePath);
+  await verifyReleaseBytes(observed, bytes, endpoint);
   return bytes;
 }
 export async function listRetainedReleases(store: ReleaseStore, product: ReleaseCandidate['product'], environment: ReleaseCandidate['environment']) {
-  const list = await store.list(product, environment);
-  return list.filter(x => x.product === product && x.environment === environment)
-    .sort((a, b) => b.releasedAt.localeCompare(a.releasedAt) || a.checksumSha256.localeCompare(b.checksumSha256));
+  const observed = await store.list(product, environment);
+  if (!Array.isArray(observed)) throw new RetainedReleaseReadError('Retained release history is unavailable; an empty list was not established.');
+  const list = observed.map(validateRetainedRelease);
+  if (list.some(record => record.product !== product || record.environment !== environment)) {
+    throw new RetainedReleaseReadError('Retained release history returned a different scope.');
+  }
+  return list.sort((a, b) => b.releasedAt.localeCompare(a.releasedAt) || a.checksumSha256.localeCompare(b.checksumSha256));
 }
