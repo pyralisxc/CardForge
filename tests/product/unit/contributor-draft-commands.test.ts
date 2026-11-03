@@ -114,7 +114,7 @@ const http = async (id: number, method: string, params: object) => {
 it('lists all three explicit schemas and calls read/save/finalize through real HTTP and canonical native commands', async () => {
   await http(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'contributor-proof', version: '1' } });
   const listed = await http(2, 'tools/list', {});
-  expect(listed.result.tools).toHaveLength(49);
+  expect(listed.result.tools).toHaveLength(55);
   for (const name of ['get_contributor_pipeline_draft', 'save_contributor_pipeline_metadata', 'finalize_contributor_template_submission']) {
     expect(listed.result.tools.find((tool: { name: string }) => tool.name === name)).toMatchObject({ inputSchema: { type: 'object' }, outputSchema: { type: 'object' }, annotations: { readOnlyHint: false } });
   }

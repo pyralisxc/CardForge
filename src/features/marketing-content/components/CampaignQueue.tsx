@@ -1,5 +1,7 @@
 "use client";
 
+import { canSaveCampaignDraft } from '@/features/marketing-content/model';
+
 import { useMemo, useState } from 'react';
 import { ChevronDown, Megaphone, Search, Send, ShieldCheck } from 'lucide-react';
 
@@ -146,7 +148,7 @@ export function CampaignQueue({
       ) : campaigns.map((campaign) => {
         const reviewNote = reviewNotes[campaign.id] ?? '';
         const ownCampaign = campaign.contributorId === workspace.currentUserId;
-        const canEdit = ownCampaign && (campaign.status === 'draft' || campaign.status === 'changes_requested');
+        const canEdit = workspace.scopes.includes('campaigns.draft') && canSaveCampaignDraft(campaign, { isOwner: workspace.isOwner, user: { id: workspace.currentUserId } });
         const providerReady = ['approved', 'provider_draft', 'failed'].includes(campaign.status);
         const canCancel = (ownCampaign || workspace.isOwner)
           && canTransitionCampaign(campaign.status, 'cancelled', workspace.isOwner ? 'owner' : 'contributor');
@@ -174,7 +176,7 @@ export function CampaignQueue({
               </div>
               <div className="flex flex-wrap gap-2 sm:justify-end">
                 {canEdit ? <Button type="button" size="sm" variant="outline" onClick={() => onEdit(campaign)}>Edit</Button> : null}
-                {canEdit ? <Button type="button" size="sm" onClick={() => void workflow(campaign, 'submit', 'Campaign submitted for owner review.')} disabled={Boolean(busy)}><Send className="mr-2 h-4 w-4" />Submit</Button> : null}
+                {canEdit && ownCampaign ? <Button type="button" size="sm" onClick={() => void workflow(campaign, 'submit', 'Campaign submitted for owner review.')} disabled={Boolean(busy)}><Send className="mr-2 h-4 w-4" />Submit</Button> : null}
                 {canCancel ? (
                   <WorkflowConfirmationDialog
                     trigger={<Button type="button" size="sm" variant="ghost" disabled={Boolean(busy)}>{cancelLabel}</Button>}

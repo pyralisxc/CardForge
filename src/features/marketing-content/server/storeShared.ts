@@ -93,6 +93,7 @@ export const getCampaignMediaRows = async (
     );
   }
 
+  if (!Array.isArray(mediaResult.data) || !Array.isArray(derivativeResult.data)) throw new MarketingContentStoreError('Campaign media readback is invalid.', 503);
   const rows = readDatabaseRows<CampaignMediaRow>(mediaResult.data);
   const derivatives = readDatabaseRows<DerivativeRow>(derivativeResult.data);
   return {
@@ -137,6 +138,7 @@ export const hydrateCampaignRows = async (
     );
   }
 
+  if (!Array.isArray(attachmentResult.data) || !Array.isArray(associationResult.data)) throw new MarketingContentStoreError('Campaign relationship readback is invalid.', 503);
   const attachments = readDatabaseRows<AttachmentRow>(attachmentResult.data);
   const associations = readDatabaseRows<AssociationRow>(associationResult.data);
   const mediaIds = [...new Set(attachments.map((attachment) => attachment.media_id))];
@@ -169,10 +171,12 @@ export const getCampaignRecord = async (
     .eq('id', campaignId)
     .limit(1);
   if (error) throwMarketingContentDatabaseError('Unable to load the campaign package.', error);
+  if (!Array.isArray(data)) throw new MarketingContentStoreError('Exact Campaign storage is unavailable; absence was not established.', 503);
   const row = readFirstDatabaseRow<CampaignRow>(data);
   if (!row) {
     throw new MarketingContentStoreError('Campaign package not found.', 404);
   }
+  if (access && !access.isOwner && row.contributor_id !== access.user.id) throw new MarketingContentStoreError('Marketing content access denied.', 403);
   return (await hydrateCampaignRows([row], access))[0]!;
 };
 

@@ -1,5 +1,8 @@
 "use client";
 
+import type { z } from 'zod/v4';
+import type { campaignDraftMutationResult } from '../campaignDraftContract';
+
 import type {
   CampaignDeskProjection,
   CampaignMedia,
@@ -54,14 +57,14 @@ export const uploadCampaignMedia = async (
 export const mutateMarketingContent = async (
   method: 'POST' | 'PATCH',
   payload: unknown,
-): Promise<{ campaign: SocialCampaign; allowedNextActions: string[] }> => {
+): Promise<({ campaign: SocialCampaign | null } & z.infer<typeof campaignDraftMutationResult>) | { campaign: SocialCampaign; allowedNextActions: string[] }> => {
   const response = await fetch('/api/marketing-content/campaigns', {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update the marketing content package.'));
-  return response.json() as Promise<{ campaign: SocialCampaign; allowedNextActions: string[] }>;
+  if (!response.ok) throw Object.assign(new Error(await readApiErrorMessage(response, 'Campaign outcome is unconfirmed. Read retained state; do not replay automatically.')), { status: response.status });
+  return response.json() as Promise<({ campaign: SocialCampaign | null } & z.infer<typeof campaignDraftMutationResult>) | { campaign: SocialCampaign; allowedNextActions: string[] }>;
 };
 
 export const validateMarketingContent = async (payload: unknown) => {

@@ -1,10 +1,12 @@
+import { CampaignLibraryWorkspace } from '@/features/marketing-content/components/CampaignLibraryWorkspace';
+import { CampaignWorkspace } from '@/features/marketing-content/components/CampaignWorkspace';
+import type { MarketingContentPackage, MarketingContentWorkspaceView } from '@/features/marketing-content/client';
 import { OwnerStudioDependencyPanel } from '@/features/owner/components/OwnerStudioDependencyPanel';
 import { OwnerInboxPanel } from '@/features/owner/components/OwnerInboxPanel';
 import { OwnerStudioRoutingPanel } from '@/features/pipeline/components/OwnerStudioRoutingPanel';
 import { MediaPresentationRevision } from '@/features/pipeline/components/MediaPresentationRevision';
 import { SourceReviewEvidence } from '@/features/pipeline/components/SourceReviewEvidence';
 import { PublishedClassificationEditor } from '@/features/pipeline/components/PublishedClassificationEditor';
-import type { MarketingContentPackage } from '@/features/marketing-content/client';
 import { PublicAuthControlContent } from '@/features/account/components/PublicAuthControls';
 import { DEFAULT_MARKETING_STRATEGY } from '@/features/marketing/client';
 import { PipelineSubmissionEditPanel } from '@/features/pipeline/components/PipelineSubmissionEditPanel';
@@ -64,7 +66,7 @@ const program = { configured: true, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   managedStorageBytes: 0, managedFileCount: 0, totalSubmissionCount: rows.length, totalVoteableCount: 0, activeContributorCount: 0,
   assetTypeSummaries: [], contributions: [], currentContributorIds: [],
 } as unknown as PipelineProgramView;
-const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseContributorRefresh?: () => void; contributorRefreshes?: number; releaseInboxRefresh?: () => void; releaseConfigurationRefresh?: () => void; releaseMediaRefresh?: () => void; mediaRefreshes?: number; releaseClassificationRefresh?: () => void; classificationRefreshes?: number; classificationCloses?: number; releaseStylePost?: () => void; releaseEvidencePost?: () => void; libraryNavigations: string[] };
+const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releaseCampaignDraftRefresh?: () => void; releaseCampaignDraftPost?: () => void; releaseContributorRefresh?: () => void; contributorRefreshes?: number; releaseInboxRefresh?: () => void; releaseConfigurationRefresh?: () => void; releaseMediaRefresh?: () => void; mediaRefreshes?: number; releaseClassificationRefresh?: () => void; classificationRefreshes?: number; classificationCloses?: number; releaseStylePost?: () => void; releaseEvidencePost?: () => void; libraryNavigations: string[] };
 proof.libraryRequests = []; proof.libraryNavigations = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
@@ -120,9 +122,28 @@ const campaignPackage = { id: 'synthetic-package', contributorId: params.has('ca
 let inboxWritten = false;
 let configurationWritten = false;
 let ownerCatalogRestored = false;
+let campaignDraftWritten = false;
 let ownerDecisionWritten = false;
 const nativeFetch = window.fetch;
 window.fetch = async (input, init) => {
+  const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const requestMethod = init?.method ?? 'GET';
+  if (params.get('campaignDraftReceipt') === 'libraryRefresh' && requestUrl === '/api/marketing-content') {
+    if (campaignDraftWritten) return Response.json({error:{message:'Synthetic library readback failed'}},{status:503});
+    return Response.json({campaigns:campaignWorkspaceProof});
+  }
+  if (params.has('campaignDraftReceipt') && requestUrl.startsWith('/api/marketing-content/campaigns')) {
+    proof.libraryRequests.push({ url: requestUrl, method: requestMethod, body: typeof init?.body === 'string' ? init.body : undefined });
+    const mode=params.get('campaignDraftReceipt');
+    if(requestMethod==='GET')return Response.json(requestUrl.includes('creation-receipt')?{campaignId:campaignProof.id,campaign:campaignProof,found:true,warning:'Matching current state is not causation.'}:{campaign:campaignProof,canSave:true});
+    if(mode==='pendingUnknown') { await new Promise<void>(resolve=>{proof.releaseCampaignDraftPost=resolve;}); return Response.json({error:{message:'Campaign outcome is unconfirmed. Read retained state; do not replay automatically.'}},{status:503}); }
+    if(mode==='uncertain'||mode==='createUnknown')return Response.json({error:{message:'Campaign outcome is unconfirmed. Read retained state; do not replay automatically.'}},{status:503});
+    if(mode==='unstructured')throw new Error('Synthetic ACK lost');
+    if(mode==='rejected')return Response.json({error:{message:'This campaign changed elsewhere. Reload before saving.'}},{status:409});
+    campaignDraftWritten = true;
+    const create=requestMethod==='POST';
+    return Response.json({campaignId:campaignProof.id,campaign:{...campaignProof,version:create?1:2},canSave:true,receipt:{outcome:create?'identity_acknowledged':'committed',committed:create?null:true,identityAcknowledged:true,acknowledgedVersion:create?null:2,readbackComplete:mode!=='readback',warnings:mode==='readback'?['Campaign acknowledgement is retained; independent campaign readback is unavailable.']:create?['Native key reuse does not prove changed content saved.']:[],retryable:false,nextAction:mode==='readback'||create?'read':'none'}});
+  }
   if (params.has('contributorReceipt') && String(input) === `/api/pipeline/${row.id}`) {
     const method = init?.method ?? 'GET'; proof.libraryRequests.push({ url: String(input), method, body: String(init?.body ?? '') });
     const kind = params.get('contributorReceipt'); const outcome = kind === 'partial' ? 'metadata_committed_not_submitted' : kind;
@@ -130,8 +151,6 @@ window.fetch = async (input, init) => {
       committedMetadataFields: ['semanticRole'], warnings: outcome === 'metadata_committed_not_submitted' ? ['Semantic classification was saved, but submission was rejected.'] : outcome === 'uncertain' ? ['Semantic classification was saved; submission outcome is unconfirmed.'] : [], retryable: false, nextAction: outcome === 'committed' || outcome === 'submitted' ? 'none' : 'read' };
     return Response.json({ receipt, snapshot: null, ...(outcome === 'uncertain' ? { error: { message: 'Exact write outcome is unconfirmed.', retryable: false } } : {}) }, { status: outcome === 'uncertain' ? 503 : 200 });
   }
-  const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-  const requestMethod = init?.method ?? 'GET';
   if (params.has('dependencyReceipt') && requestUrl.startsWith('/api/owner/studio-dependencies')) {
     proof.libraryRequests.push({ url: requestUrl, method: requestMethod, body: typeof init?.body === 'string' ? init.body : undefined });
     const mode = params.get('dependencyReceipt');
@@ -434,6 +453,12 @@ function RailProof() {
     }
   }}><EnvironmentShell ariaLabel="Native shared rail proof" brand={{ src: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E', alt: 'Fixture' }} viewer={{ owner: false, signedIn: true, contributor: false }} zones={ENVIRONMENT_ZONES.filter(item => ['desk', 'library', 'profile'].includes(item.id))} activeZone={zone} viewportPolicy="desk" primaryScroll="contained" presentation={{ mode: 'browse', focusDepth: 'zone' }} detail={null} actions={[]} primaryAction={zone === 'profile' ? undefined : createLibraryZoneAction('library.create-set', 'New Set')} showPrimaryAction={zone !== 'profile'} accountControl={params.has('railAuth') ? <PublicAuthControlContent state={params.get('railAuth') === 'connecting' ? 'connecting' : 'signed-out'} returnTo="/account" /> : <button aria-label="Profile" style={{ width: 44, height: 44, flexShrink: 0 }}>P</button>} search={<EnvironmentSearch label={`Search ${zone}`} value={query} onChange={setQuery} inputRef={searchRef} />} onCommand={() => searchRef.current?.focus()} onAction={() => {}} onCloseDetail={() => {}} statusContent="Local storage ready" footerContent="Synthetic account control; no provider session"><p>Native shell layout proof</p></EnvironmentShell></div></AppRouterContext.Provider>;
 }
+const campaignProof:MarketingContentPackage={...campaignPackage,id:'10000000-0000-4000-8000-000000000001',marketingCampaignId:'20000000-0000-4000-8000-000000000001',contributorId:'different-contributor',status:'draft',utmContent:'synthetic-proof',productionNote:'Synthetic source context'};
+const campaignWorkspaceProof:MarketingContentWorkspaceView = {currentUserId:'synthetic-owner',isOwner:true,scopes:['campaigns.draft'],campaigns:[campaignProof],campaignMedia:[],campaignMediaSummary:{mediaCount:0,protectedBytes:0,derivativeBytes:0,unusedMediaCount:0},campaignMediaPage:{total:0,page:1,pageSize:24},publishJobs:[],marketingStrategy,marketingCampaigns:marketingCampaigns.map(row=>({...row,id:campaignProof.marketingCampaignId,status:'active' as const,audienceKey:campaignProof.audienceKey}))};
+function CampaignDraftReceiptProof(){
+ const mode=params.get('campaignDraftReceipt');
+ return <CampaignWorkspace workspace={campaignWorkspaceProof} initialCampaignId={mode?.startsWith('create')?'new':undefined} onRefresh={async()=>{if(mode==='refreshFalse')return false;if(mode==='refreshThrow')throw new Error('Synthetic refresh failed');if(mode==='deferred')await new Promise<void>((_,reject)=>{proof.releaseCampaignDraftRefresh=()=>reject(new Error('Synthetic refresh failed'));});}}/>;
+}
 const mount = document.createElement('div'); document.body.append(mount); const fixtureRouter = { bfcacheId: 'isolated-library', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: (href: string) => { proof.libraryNavigations.push(href); }, replace: () => {}, prefetch: async () => {} };
 function ClassificationLibraryRefreshProof() {
   const shared = useLibrarySharedProjection({ pipelineEnabled: false, activeScope: 'published' });
@@ -447,7 +472,7 @@ function MediaReceiptProof() {
     if (params.get('mediaReceipt') === 'deferred') await new Promise<void>((_, reject) => { proof.releaseMediaRefresh = () => reject(new Error('Synthetic refresh failed')); });
   }} />;
 }
-createRoot(mount).render(<><Toaster />{params.has('contributorReceipt') ? <PipelineSubmissionEditPanel submission={{ ...row, assetType: 'templates', status: 'draft', semanticRole: 'template-front', requestedStudioDestination: 'template.front', specialtyTags: ['games'], useCaseTags: ['tcg'] }} onCancel={() => {}} onUpdated={async () => { proof.contributorRefreshes = (proof.contributorRefreshes ?? 0) + 1; await new Promise<void>((_, reject) => { proof.releaseContributorRefresh = () => reject(new Error('Synthetic Library refresh unavailable')); }); }} /> : params.has('dependencyReceipt') ? <OwnerStudioDependencyPanel /> : params.has('inboxReceipt') ? <OwnerInboxPanel /> : params.has('programReceipt') ? <OwnerContributorProgramPanel renderTemplateSpecimen={async () => { throw new Error('No Template fixture'); }} /> : params.has('routingReceipt') ? <OwnerStudioRoutingPanel /> : params.has('mediaReceipt') ? <MediaReceiptProof /> : params.get('classificationReceipt') === 'libraryFailure' ? <ClassificationLibraryRefreshProof /> : params.has('classificationReceipt') ? <PublishedClassificationEditor assetId={row.registryAssetId!} onClose={() => { proof.classificationCloses = (proof.classificationCloses ?? 0) + 1; }} onSaved={async () => { proof.classificationRefreshes = (proof.classificationRefreshes ?? 0) + 1; if (params.get('classificationReceipt') === 'committed') await new Promise<void>((_, reject) => { proof.releaseClassificationRefresh = () => reject(new Error('Synthetic Library refresh unavailable')); }); }} /> : params.has('sourceEvidenceReceipt') ? <SourceReviewEvidence submissionId={row.id} onVersionChange={() => {}} onRecorded={async () => { throw new Error('Synthetic refresh rejected'); }} /> : params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
+createRoot(mount).render(<><Toaster />{params.has('campaignDraftReceipt') ? (params.get('campaignDraftReceipt')==='libraryRefresh'?<CampaignLibraryWorkspace />:<CampaignDraftReceiptProof />) : params.has('contributorReceipt') ? <PipelineSubmissionEditPanel submission={{ ...row, assetType: 'templates', status: 'draft', semanticRole: 'template-front', requestedStudioDestination: 'template.front', specialtyTags: ['games'], useCaseTags: ['tcg'] }} onCancel={() => {}} onUpdated={async () => { proof.contributorRefreshes = (proof.contributorRefreshes ?? 0) + 1; await new Promise<void>((_, reject) => { proof.releaseContributorRefresh = () => reject(new Error('Synthetic Library refresh unavailable')); }); }} /> : params.has('dependencyReceipt') ? <OwnerStudioDependencyPanel /> : params.has('inboxReceipt') ? <OwnerInboxPanel /> : params.has('programReceipt') ? <OwnerContributorProgramPanel renderTemplateSpecimen={async () => { throw new Error('No Template fixture'); }} /> : params.has('routingReceipt') ? <OwnerStudioRoutingPanel /> : params.has('mediaReceipt') ? <MediaReceiptProof /> : params.get('classificationReceipt') === 'libraryFailure' ? <ClassificationLibraryRefreshProof /> : params.has('classificationReceipt') ? <PublishedClassificationEditor assetId={row.registryAssetId!} onClose={() => { proof.classificationCloses = (proof.classificationCloses ?? 0) + 1; }} onSaved={async () => { proof.classificationRefreshes = (proof.classificationRefreshes ?? 0) + 1; if (params.get('classificationReceipt') === 'committed') await new Promise<void>((_, reject) => { proof.releaseClassificationRefresh = () => reject(new Error('Synthetic Library refresh unavailable')); }); }} /> : params.has('sourceEvidenceReceipt') ? <SourceReviewEvidence submissionId={row.id} onVersionChange={() => {}} onRecorded={async () => { throw new Error('Synthetic refresh rejected'); }} /> : params.has('rail') ? <RailProof /> : params.has('deskActual') ? <AppRouterContext.Provider value={fixtureRouter}><SearchParamsContext.Provider value={params}><Desk businessIdentity={{} as never} persistenceScope="account:isolated-desk-proof" initialFocusedWorkId={params.has('deskMenu') ? null : `pipeline:${row.lineageId}`} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={{signedIn:true,owner:true,plan:'designer',capabilities:{canUseProjectFiles:params.has('deskDrive')},contributor:{active:true,canSubmit:true,canReview:true,canPublish:true,canDraftCampaigns:false}} as AccountExperienceProjection} /></SearchParamsContext.Provider></AppRouterContext.Provider> : (params.has('queueActual') || params.has('campaignActual')) ? <AppRouterContext.Provider value={fixtureRouter}><UnifiedAccountLibrary
   experience={{ signedIn: true, owner: !params.has('campaignContributor') && !params.has('sharedTrashProof'), plan: 'designer', capabilities: { canUseProjectFiles: false }, contributor: { active: true, canSubmit: true, canReview: true, canPublish: true, canDraftCampaigns: true } } as AccountExperienceProjection}
   businessIdentity={{} as never} persistenceScope="account:isolated-library-fixture" />
 </AppRouterContext.Provider> : params.has('queue') ? <QueueProof /> : <Proof />}</>);

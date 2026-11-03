@@ -1,3 +1,4 @@
+import { AccountToolAccessError } from '@/features/account/server';
 import {
   ContributorAccessError,
   ContributorAccessStoreError,
@@ -14,7 +15,7 @@ export const createMarketingContentErrorResponse = (
   if (error instanceof SyntaxError) {
     return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
   }
-  if (error instanceof ContributorAccessError) {
+  if (error instanceof ContributorAccessError || error instanceof AccountToolAccessError) {
     return createApiErrorResponse(
       error.status,
       error.status === 401

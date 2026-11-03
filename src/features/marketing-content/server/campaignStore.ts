@@ -182,6 +182,7 @@ export const listSocialCampaigns = async ({
 
   const { data, error } = await query.range(cursor, cursor + limit);
   if (error) throwMarketingContentDatabaseError('Unable to list campaign packages.', error);
+  if (!Array.isArray(data)) throw new MarketingContentStoreError('Campaign list storage is unavailable; an empty list was not established.', 503);
   const rows = readDatabaseRows<CampaignRow>(data);
   const hasMore = rows.length > limit;
   return {
@@ -190,10 +191,10 @@ export const listSocialCampaigns = async ({
   };
 };
 
-export const createSocialCampaign = async (
+export const commitSocialCampaignDraft = async (
   access: ContributorAccess,
   input: CampaignInput & { idempotencyKey?: unknown },
-): Promise<{ campaign: SocialCampaign; allowedNextActions: string[] }> => {
+): Promise<{ campaignId: string }> => {
   const key = normalizeIdempotencyKey(input.idempotencyKey);
   if (!key) {
     throw new MarketingContentStoreError(
@@ -233,19 +234,21 @@ export const createSocialCampaign = async (
     },
   );
   if (error) throwMarketingContentDatabaseError('Unable to create the campaign package.', error);
-  if (typeof data !== 'string') {
+  if (typeof data !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data)) {
     throw new MarketingContentStoreError(
       'Campaign creation did not return an identifier.',
     );
   }
-  const campaign = await getCampaignRecord(data, access);
-  return {
-    campaign,
-    allowedNextActions: getAllowedCampaignActions(campaign, access),
-  };
+  return { campaignId: data };
 };
 
-export const saveSocialCampaign = async ({
+export const createSocialCampaign = async (access: ContributorAccess, input: CampaignInput & { idempotencyKey?: unknown }) => {
+  const { campaignId } = await commitSocialCampaignDraft(access, input);
+  const campaign = await getCampaignRecord(campaignId, access);
+  return { campaign, allowedNextActions: getAllowedCampaignActions(campaign, access) };
+};
+
+export const commitSocialCampaignDraftSave = async ({
   access,
   campaignId,
   expectedVersion,
@@ -255,7 +258,7 @@ export const saveSocialCampaign = async ({
   campaignId: string;
   expectedVersion: unknown;
   input: CampaignInput;
-}): Promise<{ campaign: SocialCampaign; allowedNextActions: string[] }> => {
+}): Promise<{ campaignId: string; version: number }> => {
   const campaign = await getCampaignRecord(campaignId, access);
   requireCampaignOwnership(campaign, access);
   if (!['draft', 'changes_requested'].includes(campaign.status)) {
@@ -296,17 +299,15 @@ export const saveSocialCampaign = async ({
     },
   );
   if (error) throwMarketingContentDatabaseError('Unable to save the campaign package.', error);
-  if (data !== true) {
-    throw new MarketingContentStoreError(
-      'This campaign changed elsewhere. Reload before saving.',
-      409,
-    );
-  }
-  const saved = await getCampaignRecord(campaign.id, access);
-  return {
-    campaign: saved,
-    allowedNextActions: getAllowedCampaignActions(saved, access),
-  };
+  if (data === false) throw new MarketingContentStoreError('This campaign changed elsewhere. Reload before saving.', 409);
+  if (data !== true) throw new MarketingContentStoreError('Campaign Save acknowledgement is unknown. Read exact state before any further write.', 503);
+  return { campaignId: campaign.id, version: version + 1 };
+};
+
+export const saveSocialCampaign = async (input: Parameters<typeof commitSocialCampaignDraftSave>[0]) => {
+  const receipt = await commitSocialCampaignDraftSave(input);
+  const campaign = await getCampaignRecord(receipt.campaignId, input.access);
+  return { campaign, allowedNextActions: getAllowedCampaignActions(campaign, input.access) };
 };
 
 const transitionCampaign = async ({

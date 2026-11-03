@@ -120,7 +120,7 @@ export const getCampaignPayload = (draft: CampaignDraft) => ({
   variants: draft.variants.map((variant) => ({
     service: variant.service,
     text: variant.text,
-    attachments: variant.attachments.map(({ media, ...attachment }) => attachment),
+    attachments: variant.attachments.map(attachment => ({ mediaId: attachment.mediaId, derivativeId: attachment.derivativeId, displayOrder: attachment.displayOrder, altText: attachment.altText, captionOverride: attachment.captionOverride, cropIntent: attachment.cropIntent })),
   })),
   associations: draft.associations.map(({
     id,
@@ -158,6 +158,7 @@ export function CampaignComposer({
   marketingStrategy,
   onDraftChange,
   onCancel,
+  closeDisabled = false,
   onSave,
   onError,
 }: {
@@ -169,6 +170,7 @@ export function CampaignComposer({
   marketingStrategy: MarketingStrategy;
   onDraftChange: (draft: CampaignDraft) => void;
   onCancel: () => void;
+  closeDisabled?: boolean;
   onSave: () => void;
   onError: (message: string) => void;
 }) {
@@ -258,6 +260,7 @@ export function CampaignComposer({
           className="min-h-11"
           variant="outline"
           onClick={onCancel}
+          disabled={closeDisabled}
         >
           Close editor
         </Button>

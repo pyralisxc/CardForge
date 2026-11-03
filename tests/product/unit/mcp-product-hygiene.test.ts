@@ -169,11 +169,11 @@ describe('CardForge MCP and plugin product hygiene', () => {
   it('keeps the package release compatible with its independently versioned MCP server contract', () => {
     // Plugin packaging may release independently of the MCP protocol.
     // Breaking server contract revisions must still be reflected in the package's major version.
-    expect(CARDFORGE_MCP_CONTRACT_VERSION).toBe('1.0.12');
+    expect(CARDFORGE_MCP_CONTRACT_VERSION).toBe('1.0.13');
     expect(plugin.version).toBe('1.0.4');
     // The additive Pipeline contract keeps the independently packaged 1.x plugin compatible.
     expect({ package: plugin.version, mcpContract: CARDFORGE_MCP_CONTRACT_VERSION }).toEqual({
-      package: '1.0.4', mcpContract: '1.0.12',
+      package: '1.0.4', mcpContract: '1.0.13',
     });
   });
 
