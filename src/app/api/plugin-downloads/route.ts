@@ -1,3 +1,4 @@
+import { RetainedReleaseReadError } from '@/features/plugin-distribution/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { buildCurrentPlugin, buildStudioReviewerPacket, pluginDownloadAccess } from '@/features/plugin-distribution/server';
 
@@ -41,7 +42,8 @@ export async function GET(request: Request) {
         'X-Checksum-SHA256': release.checksum,
       },
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof RetainedReleaseReadError && error.status === 404) return createApiErrorResponse(404, 'service_unavailable', 'The verified release is not available.');
     return createApiErrorResponse(503, 'service_unavailable', 'Verified plugin artifact is unavailable.');
   }
 }

@@ -1,6 +1,8 @@
+import { AccountToolAccessError } from '@/features/account/server';
 import {
   deleteOwnerPerson,
-  getOwnerPeopleForCurrentOwner,
+  getCurrentOwnerAccess,
+  readOwnerPeople,
   ownerPeopleErrorFromUnknown,
   updateOwnerPerson,
 } from '@/features/owner/server';
@@ -14,6 +16,7 @@ const readPage = (value: string | null, fallback: number): number => {
 };
 
 const ownerPeopleErrorResponse = (error: unknown) => {
+  if (error instanceof AccountToolAccessError) return createApiErrorResponse(error.status, 'owner_access_required', error.message);
   const known = ownerPeopleErrorFromUnknown(error);
   return known
     ? createApiErrorResponse(known.status, known.code, known.message)
@@ -27,13 +30,13 @@ export async function GET(request: Request) {
     const filter = requestedFilter === 'contributors' || requestedFilter === 'active' || requestedFilter === 'needs_attention'
       ? requestedFilter
       : 'all';
-    const people = await getOwnerPeopleForCurrentOwner({
-      query: url.searchParams.get('query') ?? '',
-      filter,
-      page: readPage(url.searchParams.get('page'), 1),
-      pageSize: readPage(url.searchParams.get('pageSize'), 12),
+    const owner = await getCurrentOwnerAccess();
+    if (!owner.isOwner || !owner.userId) return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required.');
+    const result = await readOwnerPeople(owner.userId, url.searchParams.has('userId') ? { userId: url.searchParams.get('userId') } : {
+      query: url.searchParams.get('query') ?? '', filter,
+      page: readPage(url.searchParams.get('page'), 1), pageSize: readPage(url.searchParams.get('pageSize'), 12),
     });
-    return createNoStoreJsonResponse({ people });
+    return createNoStoreJsonResponse({ people: result.page, person: result.person });
   } catch (error) {
     const response = ownerPeopleErrorResponse(error);
     if (response) return response;

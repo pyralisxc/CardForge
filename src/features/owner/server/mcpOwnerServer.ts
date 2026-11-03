@@ -1,18 +1,37 @@
+import { registerOwnerRetainedPluginReadTools } from './mcpRetainedPluginReadTools';
+import { registerOwnerStudioDependencyTools } from './mcpStudioDependencyTools';
+import { registerOwnerPeopleInboxTools } from './mcpPeopleInboxTools';
+import { registerOwnerProgramRoutingTools } from './mcpProgramRoutingTools';
+import { registerOwnerMediaRevisionTools } from './mcpMediaRevisionTools';
+import { registerOwnerReviewRevisionTools } from './mcpReviewRevisionTools';
+import { registerPublishedClassificationTools } from './mcpPublishedClassificationTools';
 import { createMcpHandler } from 'mcp-handler';
+import { createApiErrorResponse } from '@/infrastructure/http/apiResponses';
+import { AccountToolAccessError } from '@/features/account/server';
+import { registerOwnerPipelineDecisionTools } from './mcpOwnerPipelineDecisionTools';
 
 import { getMcpOwnerAccess } from './mcpOwnerAccess';
 import { registerOwnerReadTools } from './mcpOwnerTools';
 import { createOwnerMcpToolError } from './mcpOwnerToolError';
 
-export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.9.2';
+export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.17.0';
 
-export const cardForgeOwnerMcpHandler = createMcpHandler(
+const ownerMcpHandler = createMcpHandler(
   (server) => {
-    registerOwnerReadTools({
+    const options = {
       server,
       getAccess: getMcpOwnerAccess,
       toolError: createOwnerMcpToolError,
-    });
+    };
+    registerOwnerReadTools(options);
+    registerOwnerPipelineDecisionTools(options);
+    registerPublishedClassificationTools(options);
+    registerOwnerReviewRevisionTools(options);
+    registerOwnerMediaRevisionTools(options);
+    registerOwnerProgramRoutingTools(options);
+    registerOwnerPeopleInboxTools(options);
+    registerOwnerStudioDependencyTools(options);
+    registerOwnerRetainedPluginReadTools(options);
   },
   {
     serverInfo: {
@@ -32,8 +51,26 @@ export const cardForgeOwnerMcpHandler = createMcpHandler(
       'When the Owner asks for a supported homepage walkthrough change, inspect with get_owner_homepage_showcase, then publish_owner_homepage_showcase with the exact settingsRevision. The focused tool preserves other sections and demonstration Sets; no separate revision dashboard or routine human approval ceremony is required for reversible Preview changes. Screenshot selection references existing media slots; actual images must be published separately with Owner media tools, never guessed or represented as captured browser state.',
       'Before any site-copy publication, read the current Owner snapshot, preserve its exact updatedAt revision, explain the proposed public change, and never retry a conflict against stale state.',
       'In production, describe publish_owner_site_copy as a live publication. In Preview or another non-production environment, describe it as staging-only and never imply that production changed.',
+      'For exact Pipeline review use get_pipeline_source_review_evidence, get_pipeline_editorial_review and get_pipeline_publication_decision before their paired record/save tools. Preserve native evidence versions, quality criteria and consequential publication rules. A committed receipt remains committed after refresh/activity warnings; uncertain writes require exact readback, never blind replay. These Owner decision tools are not exposed by Studio.',
+      'Read get_pipeline_published_classification before save_pipeline_published_classification. Preserve its native expected publication identity and all seven previous classification values; taxonomy changes do not publish or create revisions. Unknown outcomes require exact readback, never automatic replay.',
+      'For Template or Style corrections read the exact get_pipeline_template_review_base / get_pipeline_style_review_base, then use the corresponding create_pipeline_*_review_revision with its original payload ID, complete expectedBase and saved submissionKey. Preserve native fingerprint/idempotent receipt semantics. On uncertainty use get_pipeline_*_review_receipt with the same actor-bound key; do not fabricate absence or replay automatically. These create unpublished reviews, never publication or media copies.',
+      'Managed texture presentation reviews use get_pipeline_media_presentation_base, get_pipeline_media_presentation_receipt and create_pipeline_media_presentation_revision. Preserve the existing UUID key and complete saved presentation; server/native service alone owns candidate UUID and byte-copy identity. Unknown outcomes require receipt-only reconciliation, never blind copy/replay. Cleanup flags concern the current invocation and never prove global orphan cleanup.',
+      'Pipeline program settings and Studio routing have separate get/save tools. Program Save runs a consequential global governed rebalance that may change status, access, vote-driven Trash and registry publication; it is not merely a draft settings edit. Routing changes registry placement only. Neither command has caller CAS, versions or operation keys; preserve existing policy and reconcile unknown acknowledgement by exact reads without replay or causal inference from matching state.',
+      'get_owner_people and get_owner_inbox expose private Owner-only canonical reads, including exact identity. Inbox search/counts cover the latest 50 window unless an exact request is read. save_owner_inbox_status only closes/reopens a request; it sends no message and changes no People authority. Preserve committed/uncertain receipts and never infer absence from provider failure or causal commit from matching readback. No People mutation, send/reply or deletion tool is added by this slice.',
       'CardForge Studio is a separate creator plugin. Do not use Owner tools as a substitute for Template, Set, card, or connected-project authoring.',
     ].join(' '),
     maxSubscriptions: 0,
   },
 );
+
+// Gate discovery as well as invocation: a linked non-Owner cannot list Owner tools.
+export const cardForgeOwnerMcpHandler = async (request: Request): Promise<Response> => {
+  try {
+    await getMcpOwnerAccess();
+  } catch (error) {
+    const status = error instanceof AccountToolAccessError ? error.status : 503;
+    return createApiErrorResponse(status, status === 401 ? 'sign_in_required' : status === 403 ? 'owner_access_required' : 'owner_account_unavailable',
+      error instanceof AccountToolAccessError ? error.message : 'CardForge Owner access is unavailable.');
+  }
+  return ownerMcpHandler(request);
+};

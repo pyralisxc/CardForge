@@ -8,7 +8,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { PipelineContentHealth } from '../lib/pipelineContentHealth';
 
-export function PipelineContentHealthPanel({ health, canRepair, canOpenObject = canRepair, onOpenObject, catalog, onClassified }: { health: PipelineContentHealth; canRepair: boolean; canOpenObject?: boolean; onOpenObject: (objectId: string, submissionId?: string) => void; catalog?: CardForgeCatalogManifest | null; onClassified?: () => Promise<void> }) {
+export function PipelineContentHealthPanel({ health, canRepair, canOpenObject = canRepair, onOpenObject, catalog, onClassified }: { health: PipelineContentHealth; canRepair: boolean; canOpenObject?: boolean; onOpenObject: (objectId: string, submissionId?: string) => void; catalog?: CardForgeCatalogManifest | null; onClassified?: () => Promise<void | boolean> }) {
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
   const downloadReview = () => {
     const url = URL.createObjectURL(new Blob([JSON.stringify({ ...health.review, technicalIssues: health.issues, editorial: health.editorial }, null, 2)], { type: 'application/json' }));
