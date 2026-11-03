@@ -10,3 +10,5 @@ export * from './server/ownerPeopleOperations';
 export { getOwnerPipelineSourceReviewEvidence, recordOwnerPipelineSourceReviewEvidence, getOwnerPipelineEditorialReview, saveOwnerPipelineEditorialReview, getOwnerPipelinePublicationDecision, saveOwnerPipelinePublicationOverride } from './server/ownerPipelineDecisionCommands';
 
 export { getOwnerPublishedClassification, saveOwnerPublishedClassification } from './server/ownerPublishedClassificationCommands';
+
+export { createOwnerReviewRevision, getOwnerReviewRevisionBase, getOwnerReviewRevisionReceipt } from './server/ownerReviewRevisionCommands';

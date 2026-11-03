@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TCGCardTemplate } from '@/domain/templates';
+const feedback = vi.hoisted(() => vi.fn());
 const workspace = vi.hoisted(() => ({ userTemplates: [] as TCGCardTemplate[], defaultTemplates: [] as TCGCardTemplate[] }));
 vi.mock('@/features/project/client/workspace', async () => ({
   useProjectStore: { getState: () => workspace },
@@ -25,14 +26,14 @@ function actions() {
       clearPersonalTemplateOverride: vi.fn(), cloneTemplate: vi.fn(() => null), deleteAppearanceStyle: vi.fn(), deleteTemplate: vi.fn(),
       setGeneratorSelectedTemplateId: vi.fn(), setTemplateEditorSelectedTemplateId: vi.fn(),
       projectCapabilities: { canSubmitTemplateRevisions: true, canPublishSharedLibrary: true },
-      templates: [...workspace.defaultTemplates, ...workspace.userTemplates], storedCards: [], appearanceStyles: [], toast: vi.fn(),
+      templates: [...workspace.defaultTemplates, ...workspace.userTemplates], storedCards: [], appearanceStyles: [], toast: feedback,
     });
     return null;
   }
   renderToStaticMarkup(createElement(Probe));
   return result;
 }
-beforeEach(() => { workspace.userTemplates = []; workspace.defaultTemplates = []; });
+beforeEach(() => { feedback.mockReset(); workspace.userTemplates = []; workspace.defaultTemplates = []; });
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Template review asynchronous browser recovery', () => {
@@ -84,5 +85,40 @@ describe('Template review asynchronous browser recovery', () => {
     release();
     await expect(preparation).rejects.toThrow('changes are preserved');
     expect(workspace.userTemplates).toEqual(change === 'saved draft' ? [expect.objectContaining({ name: 'Newer saved edit' })] : []);
+  });
+});
+
+describe('Template review committed browser receipts', () => {
+  const receipt = { id: 'bc615bd7-07b1-460c-9e25-9d3b13b65ed1', assetId: expectedBase.assetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'f'.repeat(64) };
+  it('keeps the confirmed native receipt and reports incomplete activity without another write', async () => {
+    const template = draft(); workspace.userTemplates = [template];
+    vi.stubGlobal('crypto', { subtle: { digest: async () => new ArrayBuffer(32) } });
+    const fetch = vi.fn(async () => Response.json({ ...receipt, requestFingerprint: '00'.repeat(32), outcome: 'committed', committed: true, activityRecorded: false })); vi.stubGlobal('fetch', fetch);
+    await actions().handleSubmitTemplateReview(template);
+    expect(feedback).toHaveBeenCalledWith(expect.objectContaining({ title: 'Template review receipt', description: expect.stringContaining('Audit activity is incomplete') }));
+    expect(fetch).toHaveBeenCalledOnce(); expect(workspace.userTemplates[0].templatePipelineContext?.attempt?.key).toBeTruthy();
+  });
+  it('reconciles a retained identical attempt through exact GET receipt, without posting again or changing its key', async () => {
+    const template = draft(); template.templatePipelineContext!.attempt = { key: 'saved_review_key_123456789', requestFingerprint: '00'.repeat(32) }; workspace.userTemplates = [template];
+    vi.stubGlobal('crypto', { subtle: { digest: async () => new ArrayBuffer(32) } });
+    const fetch = vi.fn(async () => Response.json({ receipt: { ...receipt, requestFingerprint: '00'.repeat(32) } })); vi.stubGlobal('fetch', fetch);
+    await actions().handleSubmitTemplateReview(template);
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(expect.stringContaining('submissionKey=saved_review_key_123456789'));
+    expect(feedback).toHaveBeenCalledWith(expect.objectContaining({ description: expect.stringContaining('no new revision was created') }));
+    expect(workspace.userTemplates[0].templatePipelineContext?.attempt?.key).toBe('saved_review_key_123456789');
+  });
+  it('preserves saved attempt after a lost POST response and gives exact readback guidance without replay', async () => {
+    const template = draft(); workspace.userTemplates = [template];
+    vi.stubGlobal('crypto', { subtle: { digest: async () => new ArrayBuffer(32) } });
+    const fetch = vi.fn(async () => { throw new TypeError('Failed to fetch'); }); vi.stubGlobal('fetch', fetch);
+    await expect(actions().handleSubmitTemplateReview(template)).rejects.toThrow('Do not replay automatically');
+    expect(fetch).toHaveBeenCalledOnce(); expect(workspace.userTemplates[0].templatePipelineContext?.attempt).toMatchObject({ key: expect.any(String), requestFingerprint: '00'.repeat(32) }); expect(feedback).not.toHaveBeenCalled();
+  });
+  it('keeps an uncertain attempt and key when receipt read is unavailable, without POST or new attempt', async () => {
+    const template = draft(); template.templatePipelineContext!.attempt = { key: 'saved_review_key_123456789', requestFingerprint: '00'.repeat(32) }; workspace.userTemplates = [template];
+    vi.stubGlobal('crypto', { subtle: { digest: async () => new ArrayBuffer(32) } });
+    const fetch = vi.fn(async () => new Response('unavailable', { status: 503 })); vi.stubGlobal('fetch', fetch);
+    await expect(actions().handleSubmitTemplateReview(template)).rejects.toThrow('Read its exact saved receipt');
+    expect(fetch).toHaveBeenCalledOnce(); expect(workspace.userTemplates[0]).toEqual(template); expect(feedback).not.toHaveBeenCalled();
   });
 });

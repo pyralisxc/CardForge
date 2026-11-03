@@ -1,3 +1,4 @@
+import { registerOwnerReviewRevisionTools } from './mcpReviewRevisionTools';
 import { registerPublishedClassificationTools } from './mcpPublishedClassificationTools';
 import { createMcpHandler } from 'mcp-handler';
 import { createApiErrorResponse } from '@/infrastructure/http/apiResponses';
@@ -8,7 +9,7 @@ import { getMcpOwnerAccess } from './mcpOwnerAccess';
 import { registerOwnerReadTools } from './mcpOwnerTools';
 import { createOwnerMcpToolError } from './mcpOwnerToolError';
 
-export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.11.0';
+export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.12.0';
 
 const ownerMcpHandler = createMcpHandler(
   (server) => {
@@ -20,6 +21,7 @@ const ownerMcpHandler = createMcpHandler(
     registerOwnerReadTools(options);
     registerOwnerPipelineDecisionTools(options);
     registerPublishedClassificationTools(options);
+    registerOwnerReviewRevisionTools(options);
   },
   {
     serverInfo: {
@@ -41,6 +43,7 @@ const ownerMcpHandler = createMcpHandler(
       'In production, describe publish_owner_site_copy as a live publication. In Preview or another non-production environment, describe it as staging-only and never imply that production changed.',
       'For exact Pipeline review use get_pipeline_source_review_evidence, get_pipeline_editorial_review and get_pipeline_publication_decision before their paired record/save tools. Preserve native evidence versions, quality criteria and consequential publication rules. A committed receipt remains committed after refresh/activity warnings; uncertain writes require exact readback, never blind replay. These Owner decision tools are not exposed by Studio.',
       'Read get_pipeline_published_classification before save_pipeline_published_classification. Preserve its native expected publication identity and all seven previous classification values; taxonomy changes do not publish or create revisions. Unknown outcomes require exact readback, never automatic replay.',
+      'For Template or Style corrections read the exact get_pipeline_template_review_base / get_pipeline_style_review_base, then use the corresponding create_pipeline_*_review_revision with its original payload ID, complete expectedBase and saved submissionKey. Preserve native fingerprint/idempotent receipt semantics. On uncertainty use get_pipeline_*_review_receipt with the same actor-bound key; do not fabricate absence or replay automatically. These create unpublished reviews, never publication or media copies.',
       'CardForge Studio is a separate creator plugin. Do not use Owner tools as a substitute for Template, Set, card, or connected-project authoring.',
     ].join(' '),
     maxSubscriptions: 0,
