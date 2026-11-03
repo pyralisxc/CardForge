@@ -951,6 +951,70 @@ for (const mode of ['pendingUnknown','uncertain','createIdentity','dirty'] as co
   expect(evidence.errors).toEqual([]);expect(evidence.mutations).toEqual([]);
 });
 
+for (const mode of ['refreshFail', 'staleList', 'uncertain', 'absent', 'deferred']) test(`@golden personal index removal receipt ${mode}`, async ({ page }) => {
+  await mount(page, `?personalItemProof=${mode}`);
+  await expect(page.getByText('Synthetic indexed artwork', { exact: true })).toBeVisible();
+  let confirmation = '';
+  page.on('dialog', async dialog => { confirmation = dialog.message(); await dialog.accept(); });
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  expect(confirmation).toContain('10000000-0000-4000-8000-000000000001');
+  expect(confirmation).toContain('no index Trash or Undo');
+  expect(confirmation).toContain('does not restore this exact index identity');
+  const deletes = () => page.evaluate(() => (window as unknown as { libraryRequests: {method:string}[] }).libraryRequests.filter(row => row.method === 'DELETE').length);
+  if (mode === 'deferred') {
+    await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Read exact index entry' })).toBeDisabled();
+    await page.evaluate(() => (window as unknown as { releasePersonalRemoval: () => void }).releasePersonalRemoval());
+  }
+  if (mode === 'uncertain' || mode === 'absent') {
+    await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+    await page.getByRole('button', { name: 'Read exact index entry' }).click();
+    await expect(page.getByText(mode === 'absent' ? /does not prove the attempted removal committed/ : /does not establish the earlier operation outcome/)).toBeVisible();
+    expect(await deletes()).toBe(1);
+    if (mode === 'uncertain') {
+      await page.getByRole('button', { name: 'Allow a new removal confirmation' }).click();
+      await page.getByRole('button', { name: 'Remove', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+      expect(await deletes()).toBe(2); // New explicit confirmation, never automatic replay.
+    }
+  } else {
+    await expect(page.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Google Drive asset access' }).getByRole('status').filter({ hasText: 'The exact index entry was removed; its Drive original is untouched.' })).toBeVisible();
+    expect(await deletes()).toBe(1);
+  }
+});
+
+test('@golden personal index present then pending/unavailable clears stale removal eligibility', async ({ page }) => {
+  await mount(page, '?personalItemProof=readSequence');
+  page.on('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  const read = page.getByRole('button', { name: 'Read exact index entry' });
+  await read.click();
+  await expect(page.getByRole('button', { name: 'Allow a new removal confirmation' })).toBeVisible();
+  // Two same-turn activations must create only one pending exact read.
+  await read.evaluate(button => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
+  await expect(read).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Allow a new removal confirmation' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+  const requests = () => page.evaluate(() => (window as unknown as { libraryRequests: { method: string; url: string }[] }).libraryRequests);
+  expect((await requests()).filter(row => row.method === 'GET' && row.url.endsWith('10000000-0000-4000-8000-000000000001'))).toHaveLength(2);
+  await page.evaluate(() => (window as unknown as { releasePersonalRead: () => void }).releasePersonalRead());
+  await expect(page.getByText(/Exact readback is unavailable/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Allow a new removal confirmation' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+  expect((await requests()).filter(row => row.method === 'DELETE')).toHaveLength(1);
+});
+
+for (const mode of ['listEmpty', 'listMalformed']) test(`@golden personal index list ${mode} stays truthful`, async ({ page }) => {
+  await mount(page, `?personalItemProof=${mode}`);
+  if (mode === 'listEmpty') await expect(page.getByText(/No connected assets yet/)).toBeVisible();
+  else {
+    await expect(page.getByText('Personal library unavailable', { exact: true })).toBeVisible();
+    await expect(page.getByText(/No connected assets yet/)).toHaveCount(0);
+  }
+  expect(await page.evaluate(() => (window as unknown as { libraryRequests: { method: string }[] }).libraryRequests.some(row => row.method !== 'GET'))).toBe(false);
+});
+
 for (const decision of ['control', 'editorial'] as const) test(`@golden committed Owner decision keeps warning after swallowed ${decision} refresh failure`, async ({ page }) => {
   const evidence = await mount(page, '?ownerDecisionReceipt=1');
   await page.getByRole('button', { name: 'Review & manage', exact: true }).click();

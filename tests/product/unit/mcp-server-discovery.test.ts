@@ -35,7 +35,7 @@ describe('Studio MCP HTTP discovery', () => {
       'get_pipeline_revision_recovery', 'change_pipeline_revision_recovery',
       'discover_pipeline_previews', 'inspect_saved_source', 'preview_saved_source', 'export_saved_source',
     ]));
-    expect(tools).toHaveLength(55);
+    expect(tools).toHaveLength(57);
     expect(tools.map(tool => tool.name)).not.toContain('save_pipeline_editorial_review');
     expect(tools.map(tool => tool.name)).not.toContain('get_pipeline_publication_decision');
     expect(tools.map((tool) => tool.name).sort()).toMatchInlineSnapshot(`
@@ -64,6 +64,7 @@ describe('Studio MCP HTTP discovery', () => {
         "get_catalog_trash",
         "get_contributor_pipeline_draft",
         "get_editable_template",
+        "get_personal_library_item",
         "get_pipeline_content_health",
         "get_pipeline_engagement",
         "get_pipeline_revision",
@@ -84,6 +85,7 @@ describe('Studio MCP HTTP discovery', () => {
         "preview_cards",
         "preview_saved_source",
         "preview_template_draft",
+        "remove_personal_library_item",
         "save_campaign_draft",
         "save_contributor_pipeline_metadata",
         "search_personal_library",

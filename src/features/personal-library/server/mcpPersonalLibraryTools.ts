@@ -1,3 +1,4 @@
+import { registerPersonalLibraryItemTools } from './mcpPersonalLibraryItemTools';
 import { createMcpHandler } from 'mcp-handler';
 
 import type { AccountToolAccess } from '@/features/account/server';
@@ -28,6 +29,7 @@ export const registerPersonalLibraryTools = ({
   getAccess: () => Promise<AccountToolAccess>;
   toolError: (error: unknown) => ToolErrorResult;
 }) => {
+  registerPersonalLibraryItemTools({ server, getAccess, toolError });
   server.registerTool(
     'search_personal_library',
     {

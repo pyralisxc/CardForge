@@ -1,3 +1,4 @@
+import { personalLibraryExactInput, personalLibraryRemovalInput, personalLibraryItemMetadata, personalLibraryClientItem, personalLibraryListResult, uncertainPersonalLibraryRemoval, type PersonalLibraryRemovalReceipt } from '../itemContract';
 import { createHash } from 'node:crypto';
 
 import { isGoogleDriveFileId } from '@/features/project/server';
@@ -248,22 +249,31 @@ const mapWithConcurrency = async <Input, Output>(
   return results;
 };
 
+const projectPersonalLibraryMetadata = (data: unknown, ownerUserId: string) => {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new PersonalLibraryStoreError('Personal-library metadata is unavailable or malformed.', 503, { kind: 'unavailable' });
+  const row = data as Record<string, unknown>;
+  const parsed = personalLibraryItemMetadata.safeParse({ itemId: row.id, provider: row.provider, displayName: row.display_name, role: row.asset_role, mimeType: row.mime_type, byteSize: typeof row.byte_size === 'string' && /^[0-9]+$/u.test(row.byte_size) ? Number(row.byte_size) : row.byte_size, providerRevision: row.provider_revision, contentHash: row.content_hash });
+  if (!parsed.success || row.owner_user_id !== ownerUserId) throw new PersonalLibraryStoreError('Personal-library metadata is unavailable or malformed.', 503, { kind: 'unavailable' });
+  return parsed.data;
+};
+
 export const listPersonalLibraryItems = async (ownerUserId: string): Promise<PersonalLibraryListResult> => {
-  const { data, error, count } = await requireStore()
-    .from('cardforge_personal_library_items')
-    .select(LIBRARY_COLUMNS, { count: 'exact' })
-    .eq('owner_user_id', ownerUserId)
-    .order('updated_at', { ascending: false })
-    .limit(MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT);
-  if (error) {
-    console.error('Unable to list personal library items:', error);
-    throw new PersonalLibraryStoreError('Unable to load the personal library.', 503, { kind: 'unavailable' });
-  }
-  return {
-    items: (data ?? []).map((row) => toItem(row as unknown as LibraryRow)),
-    count: count ?? data?.length ?? 0,
-    limit: MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT,
-  };
+  let result;
+  try {
+    result = await requireStore().from('cardforge_personal_library_items').select(LIBRARY_COLUMNS, { count: 'exact' })
+      .eq('owner_user_id', ownerUserId).order('updated_at', { ascending: false }).limit(MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT);
+  } catch { throw new PersonalLibraryStoreError('Unable to load the personal library.', 503, { kind: 'unavailable' }); }
+  if (!result || result.error || !Array.isArray(result.data)) throw new PersonalLibraryStoreError('Unable to load the personal library.', 503, { kind: 'unavailable' });
+  const items = result.data.map(data => {
+    const { itemId, ...metadata } = projectPersonalLibraryMetadata(data, ownerUserId);
+    const row = data as unknown as Record<string, unknown>;
+    const parsed = personalLibraryClientItem.safeParse({ ...metadata, id: itemId, providerFileId: row.provider_file_id, providerModifiedAt: row.provider_modified_at, providerWebViewLink: row.provider_web_view_link, lastVerifiedAt: row.last_verified_at, createdAt: row.created_at, updatedAt: row.updated_at });
+    if (!parsed.success) throw new PersonalLibraryStoreError('Personal-library list metadata is unavailable or malformed.', 503, { kind: 'unavailable' });
+    return parsed.data;
+  });
+  const parsed = personalLibraryListResult.safeParse({ items, count: result.count, limit: MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT });
+  if (!parsed.success) throw new PersonalLibraryStoreError('Personal-library list/count is unavailable or malformed.', 503, { kind: 'unavailable' });
+  return parsed.data;
 };
 
 export const registerGoogleDrivePersonalLibraryFiles = async ({
@@ -354,16 +364,34 @@ export const registerGoogleDrivePersonalLibraryFiles = async ({
   return { items, registeredCount: items.length };
 };
 
-export const removePersonalLibraryItem = async (ownerUserId: string, itemId: string): Promise<void> => {
-  const { data, error } = await requireStore()
-    .from('cardforge_personal_library_items')
-    .delete()
-    .eq('id', itemId)
-    .eq('owner_user_id', ownerUserId)
-    .select('id')
-    .maybeSingle();
-  if (error) throw new PersonalLibraryStoreError('Unable to remove that personal-library item.', 503, { kind: 'unavailable' });
-  if (!data) throw new PersonalLibraryStoreError('Personal-library item not found.', 404, { kind: 'not_found' });
+/** Exact metadata only: no provider connection, download or profile mutation. */
+export const getPersonalLibraryItem = async (ownerUserId: string, itemId: string) => {
+  if (!personalLibraryExactInput.safeParse({ itemId }).success) throw new PersonalLibraryStoreError('An exact item UUID is required.', 400, { kind: 'invalid' });
+  const { data, error } = await requireStore().from('cardforge_personal_library_items')
+    .select('id,owner_user_id,provider,display_name,asset_role,mime_type,byte_size,provider_revision,content_hash')
+    .eq('id', itemId).eq('owner_user_id', ownerUserId).maybeSingle();
+  if (error || data === undefined) throw new PersonalLibraryStoreError('Unable to read that personal-library item.', 503, { kind: 'unavailable' });
+  if (data === null) return { itemId, item: null };
+  const item = projectPersonalLibraryMetadata(data, ownerUserId);
+  if (item.itemId !== itemId) throw new PersonalLibraryStoreError('Personal-library metadata returned a different identity.', 503, { kind: 'unavailable' });
+  return { itemId, item };
+};
+
+export const removePersonalLibraryItem = async (ownerUserId: string, input: unknown): Promise<PersonalLibraryRemovalReceipt> => {
+  const parsed = personalLibraryRemovalInput.safeParse(input);
+  if (!parsed.success || parsed.data.confirmation.itemId !== parsed.data.itemId) throw new PersonalLibraryStoreError('Confirm the exact index entry and index-only removal consequences.', 400, { kind: 'invalid' });
+  const { itemId } = parsed.data;
+  // Resolve configuration before issuing the irreversible index DELETE.
+  const database = requireStore();
+  let result;
+  try {
+    result = await database.from('cardforge_personal_library_items').delete()
+      .eq('id', itemId).eq('owner_user_id', ownerUserId).select('id').maybeSingle();
+  } catch { return uncertainPersonalLibraryRemoval(itemId); }
+  if (!result || result.error || result.data === undefined) return uncertainPersonalLibraryRemoval(itemId);
+  if (result.data === null) return { itemId, outcome: 'absent', committed: false, retryable: false, message: 'This exact index entry is absent. This does not prove a previous removal committed.' };
+  if (result.data.id !== itemId) return uncertainPersonalLibraryRemoval(itemId);
+  return { itemId, outcome: 'removed', committed: true, retryable: false, message: 'The exact CardForge index entry was permanently removed. The Drive original is untouched; there is no index Trash or Undo, and later registration does not recover this index identity.' };
 };
 
 const getPersonalLibraryRow = async (ownerUserId: string, itemId: string): Promise<LibraryRow> => {
