@@ -1053,6 +1053,40 @@ test('@golden personal index present then pending/unavailable clears stale remov
   expect((await requests()).filter(row => row.method === 'DELETE')).toHaveLength(1);
 });
 
+for (const mode of ['twoAbsentAck', 'twoAbsentStale', 'twoAbsentRefreshFail', 'twoAbsentUnavailable']) test(`@golden personal index two-item continuation ${mode}`, async ({ page }) => {
+  await mount(page, `?personalItemProof=${mode}`);
+  const confirmations: string[] = [];
+  page.on('dialog', async dialog => { confirmations.push(dialog.message()); await dialog.accept(); });
+  const remove = page.getByRole('button', { name: 'Remove', exact: true });
+  await expect(remove).toHaveCount(2);
+  await remove.first().click();
+  await expect(remove.nth(1)).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Continue with other items' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Read exact index entry' }).click();
+  if (mode === 'twoAbsentUnavailable') {
+    await expect(page.getByText(/Exact readback is unavailable/)).toBeVisible();
+    await expect(remove.nth(1)).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Continue with other items' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Read exact index entry' }).click();
+  }
+  await expect(page.getByText(/does not prove the attempted removal committed/)).toBeVisible();
+  await page.getByRole('button', { name: 'Continue with other items' }).click();
+  await expect(remove).toHaveCount(1); await expect(remove).toBeEnabled();
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  if (mode === 'twoAbsentRefreshFail') await expect(page.getByText('Personal library unavailable', { exact: true })).toBeVisible();
+  await expect(page.getByText('Synthetic indexed artwork', { exact: true })).toHaveCount(0);
+  await expect(remove).toBeEnabled();
+  await expect(page.getByText(/does not prove the attempted removal committed/)).toBeVisible();
+  await remove.click();
+  expect(confirmations).toHaveLength(2);
+  expect(confirmations[1]).toContain('Second indexed artwork');
+  expect(confirmations[1]).toContain('20000000-0000-4000-8000-000000000002');
+  await expect(page.getByRole('button', { name: 'Read exact index entry' })).toBeEnabled();
+  const requests = await page.evaluate(() => (window as unknown as { libraryRequests: { method: string; url: string }[] }).libraryRequests);
+  expect(requests.filter(r => r.method === 'DELETE' && r.url.endsWith('10000000-0000-4000-8000-000000000001'))).toHaveLength(1);
+  expect(requests.filter(r => r.method === 'DELETE' && r.url.endsWith('20000000-0000-4000-8000-000000000002'))).toHaveLength(1);
+});
+
 for (const mode of ['listEmpty', 'listMalformed']) test(`@golden personal index list ${mode} stays truthful`, async ({ page }) => {
   await mount(page, `?personalItemProof=${mode}`);
   if (mode === 'listEmpty') await expect(page.getByText(/No connected assets yet/)).toBeVisible();
