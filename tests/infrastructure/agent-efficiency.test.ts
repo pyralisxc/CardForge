@@ -1,4 +1,4 @@
-import { readFile, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -12,8 +12,61 @@ import {
   specializedJobsForPath,
 } from '../../scripts/report-affected-verification.mjs';
 import { compactFailureTail, formatCiSummary } from '../../scripts/run-ci-check.mjs';
+import { collectVerificationSources, isTestDeclaration } from '../../scripts/report-test-inventory.mjs';
 
 describe('agent verification routing', () => {
+  it('inventories TSX and every native/browser supporting source at an exact revision without claiming execution or equivalence', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'cardforge-evidence-inventory-'));
+    try {
+      const files = {
+        'tests/product/unit/owner-panel.test.tsx': 'test("retains an uncertain attempt", () => {});\n',
+        'tests/product/unit/plain.test.ts': 'it("observes a receipt", () => {});\n',
+        'tests/product/workflows/interaction.spec.tsx': 'test("pointer path", () => {});\n',
+        'tests/product/hosted-smoke/public.spec.ts': 'test("public route", () => {});\n',
+        'tests/infrastructure/guard.test.ts': 'it("guard", () => {});\n',
+        'tests/product/fixtures/panel.tsx': 'export const fixture = <div />;\n',
+        'supabase/tests/lock.sql': "do $$ begin raise exception 'synthetic'; end $$;\n",
+        '.github/workflows/ci.yml': 'name: fixture\non: pull_request\n',
+        'scripts/contention.py': 'assert first_claim != second_claim\n',
+        'vitest.config.ts': "export default { test: { include: ['tests/product/unit/**/*.test.ts'] } };\n",
+      };
+      for (const [file, content] of Object.entries(files)) {
+        await mkdir(path.dirname(path.join(root, file)), { recursive: true });
+        await writeFile(path.join(root, file), content);
+      }
+      await mkdir(path.join(root, 'tests/fixtures'), { recursive: true });
+      await writeFile(path.join(root, 'tests/fixtures/original.woff'), new Uint8Array([0, 255, 1]));
+      execFileSync('git', ['init', '-q'], { cwd: root });
+      execFileSync('git', ['add', '.'], { cwd: root });
+      execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-qm', 'source fixture'], { cwd: root });
+      const inventory = collectVerificationSources({ root });
+      expect(inventory.counts).toEqual({ declarationFiles: 5, unit: 2, browser: 1, hosted: 1, infrastructure: 1, nativeSql: 1, fixturesAndHelpers: 2, workflows: 1, scriptSources: 1, executionOwners: 1 });
+      expect(inventory.sources.map(source => source.path)).toEqual(inventory.sources.map(source => source.path).sort());
+      expect(inventory.sources.find(source => source.path.endsWith('original.woff'))).toMatchObject({ representation: 'binary-fixture', location: null, evidence: 'source-definition-only' });
+      expect(inventory.sources.find(source => source.path.endsWith('owner-panel.test.tsx'))).toMatchObject({ sourceId: 'repo:tests/product/unit/owner-panel.test.tsx', location: { startLine: 1, endLine: 2 }, evidence: 'source-definition-only' });
+      expect(inventory.interpretation.execution).toContain('Not observed');
+      expect(inventory.interpretation.redundancy).toContain('Not evaluated');
+      expect(collectVerificationSources({ root, ref: inventory.repositoryRevision })).toEqual(inventory);
+      // A working-tree edit must not be attributed to the immutable source revision.
+      await writeFile(path.join(root, 'tests/product/unit/plain.test.ts'), 'changed but not committed');
+      expect(collectVerificationSources({ root })).toEqual(inventory);
+      execFileSync('git', ['add', '.'], { cwd: root });
+      execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-qm', 'changed source'], { cwd: root });
+      const changed = collectVerificationSources({ root });
+      expect(changed.repositoryRevision).not.toBe(inventory.repositoryRevision);
+      expect(changed.inventorySha256).not.toBe(inventory.inventorySha256);
+      expect(changed.sources.find(source => source.path.endsWith('plain.test.ts'))?.sha256).not.toBe(inventory.sources.find(source => source.path.endsWith('plain.test.ts'))?.sha256);
+      expect(() => collectVerificationSources({ root, ref: 'unavailable-revision' })).toThrow();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('recognizes TS and TSX declarations without treating fixture names as tests', () => {
+    for (const file of ['a.test.ts', 'a.test.tsx', 'a.spec.ts', 'a.spec.tsx']) expect(isTestDeclaration(file)).toBe(true);
+    for (const file of ['fixture.tsx', 'a.test.tsx.bak', 'a.test.js']) expect(isTestDeclaration(file)).toBe(false);
+  });
+
   it('fails when the verification base is unavailable instead of reporting an empty diff', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'cardforge-verify-base-'));
     try {
