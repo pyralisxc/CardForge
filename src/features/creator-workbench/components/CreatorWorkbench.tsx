@@ -25,9 +25,7 @@ import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client
 import { useTemplateLibraryActions } from '@/features/template-editor/client';
 import { canUploadCustomLocalAssets } from '@/features/project/client/assets';
 import { readProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
-import { useStudioDocumentHandoff, fingerprintOutput, verifyPreparedOutput, type OutputIntent } from '@/features/studio-documents/client';
-import { useProjectStore, selectAllGeneratedDisplayCards } from '@/features/project/client/workspace';
-import { PAPER_SIZES } from '@/domain/rendering';
+import { useStudioDocumentHandoff, orderedOutputCards as resolveOrderedOutputCards, prepareOutputOnDevice, verifyPreparedOutput, type OutputIntent } from '@/features/studio-documents/client';
 import type { DisplayCard } from '@/domain/rendering';
 import type { DesignToolIntent } from '../model/designToolIntent';
 
@@ -264,11 +262,36 @@ export function CreatorWorkbench({
     userTemplates: userTemplatesFromStore,
   });
 
+  const [outputIntent, setOutputIntent] = useState<OutputIntent | null>(null);
+  const [preparedReference, setPreparedReference] = useState<string | null>(null);
+  const requestedOutputReference = searchParams.get('outputRef');
+  const outputBlocked = Boolean(requestedOutputReference) && requestedOutputReference !== preparedReference;
+  const outputSnapshot = useRef<string | null>(null);
+  const handleOutputPrepared = useCallback((intent: OutputIntent, reference: string) => {
+    outputSnapshot.current = prepareOutputOnDevice(intent);
+    setOutputIntent(intent);
+    setPreparedReference(reference);
+    const next = new URL(window.location.href);
+    next.searchParams.set('document', intent.documentId); next.searchParams.set('revision', String(intent.revision));
+    next.searchParams.set('outputRef', reference); next.searchParams.set('tool', 'output');
+    router.replace(`${next.pathname}${next.search}${next.hash}`);
+  }, [router]);
+  const beforePreparedExport = useCallback(async () => {
+    if (!outputIntent || !preparedReference || requestedOutputReference !== preparedReference || outputSnapshot.current === null) throw new Error('Prepare Output again before downloading.');
+    await verifyPreparedOutput(outputIntent, preparedReference, outputSnapshot.current, projectCapabilities.canExportClean);
+  }, [outputIntent, preparedReference, requestedOutputReference, projectCapabilities.canExportClean]);
+  let orderedOutputCards = generatedDisplayCards;
+  if (outputIntent && requestedOutputReference === preparedReference) {
+    try { orderedOutputCards = resolveOrderedOutputCards(outputIntent, generatedDisplayCards); }
+    catch { orderedOutputCards = []; }
+  }
+
   const { handleExportAllAsZip, handleExportPrintPngSet, handleExportPressCandidate, handleExportTabletopSimulatorSpritesheets, isZipExporting, zipExportKind, zipProgress } = useCardZipExportActions({
     canExportClean: projectCapabilities.canExportClean,
     exportDpi,
     exportMode,
-    generatedDisplayCards,
+    generatedDisplayCards: orderedOutputCards,
+    beforeExport: outputIntent || outputBlocked ? beforePreparedExport : undefined,
     richTextHighlightColor,
     toast,
   });
@@ -359,36 +382,10 @@ export function CreatorWorkbench({
     if (studioView !== 'template') setStudioViewAction('template');
   }, [contextSetId, contextTemplateId, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, studioView, templateEditorSelectedTemplateId, templatesFromStore]);
 
-  const [outputIntent, setOutputIntent] = useState<OutputIntent | null>(null);
-  const outputSnapshot = useRef<string | null>(null);
-  const handleOutputPrepared = useCallback((intent: OutputIntent) => {
-    const state = useProjectStore.getState();
-    const available = selectAllGeneratedDisplayCards(state);
-    if (intent.cardIds.some((id) => available.filter((card) => card.uniqueId === id && card.setId === intent.setId).length !== 1)) {
-      throw new Error('The imported Set did not retain every exact selected card. Review the source before retrying.');
-    }
-    const paper = PAPER_SIZES.find((candidate) => candidate.name === intent.paper);
-    if (!paper) throw new Error('The selected paper size is no longer available.');
-    state.setActiveCardSetId(intent.setId);
-    state.setSelectedPaperSize(paper);
-    state.setPdfOptions({ margin: intent.marginMm, spacing: intent.spacingMm, cutLines: intent.cutLines, duplexLayout: intent.duplex });
-    state.setExportMode(intent.mode);
-    state.setExportDpi(intent.quality);
-    outputSnapshot.current = fingerprintOutput(intent);
-    setOutputIntent(intent);
-    const next = new URL(window.location.href);
-    next.searchParams.delete('document'); next.searchParams.delete('revision'); next.searchParams.delete('outputIntent');
-    next.searchParams.set('tool', 'output');
-    router.replace(`${next.pathname}${next.search}${next.hash}`);
-  }, [router]);
-  const beforePreparedExport = useCallback(async () => {
-    if (!outputIntent || outputSnapshot.current === null) throw new Error('Prepare Output again before downloading.');
-    await verifyPreparedOutput(outputIntent, outputSnapshot.current, projectCapabilities.canExportClean);
-  }, [outputIntent, projectCapabilities.canExportClean]);
-  const orderedOutputCards = outputIntent ? outputIntent.cardIds.flatMap((id) => generatedDisplayCards.filter((card) => card.uniqueId === id && card.setId === outputIntent.setId)) : generatedDisplayCards;
   const isStudioReady = !isLoadingTemplates;
-  useStudioDocumentHandoff({
+  const cancelOutputHandoff = useStudioDocumentHandoff({
     onOutputPrepared: handleOutputPrepared,
+    navigationKey: searchParams.toString(),
     isAccountLoading: accountEntitlement.isLoadingEntitlement,
     isSignedIn: accountEntitlement.isSignedIn,
     isStudioReady,
@@ -397,6 +394,18 @@ export function CreatorWorkbench({
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     toast,
   });
+
+  const chooseFullSet = useCallback(() => {
+    cancelOutputHandoff();
+    setOutputIntent(null);
+    setPreparedReference(null);
+    const next = new URL(window.location.href);
+    next.searchParams.delete('document');
+    next.searchParams.delete('revision');
+    next.searchParams.delete('outputRef');
+    next.searchParams.set('tool', 'output');
+    router.replace(`${next.pathname}${next.search}${next.hash}`);
+  }, [cancelOutputHandoff, router]);
 
   const showTemplateTool = useCallback(() => { handleStudioViewChange('template'); setOpenStudioSheet(null); focusStudioRegion('[data-testid="layout-studio-panel"]'); }, [focusStudioRegion, handleStudioViewChange]);
 
@@ -420,6 +429,9 @@ export function CreatorWorkbench({
   }, [designIntent, handleCreateMatchingBack, handleEditCardBack, handleManageCardBacks, isLoadingTemplates, onDesignIntentConsumed]);
 
   if (!activeCardSet && (isOutput || studioView !== 'template')) {
+    if (isOutput && outputBlocked) {
+      return <div role="alert">This prepared Output is not active. Prepare a new handoff or choose the full Set deliberately.<button type="button" onClick={chooseFullSet}>Use full Set</button></div>;
+    }
     return <div className="flex min-h-full items-center justify-center bg-[var(--cf-canvas)] p-5 text-[var(--cf-text)]"><section className="w-full max-w-xl border-y border-[var(--cf-border-subtle)] py-10 text-center"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Studio</p><h1 className="mt-3 font-serif text-3xl text-[var(--cf-text-strong)]">Choose the work you want to edit</h1><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--cf-text-muted)]">Studio opens around a card or Template inside a Set. Start a Set here, or return to your Desk and open existing work.</p><div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row"><Button type="button" onClick={() => createCardSetAction('Untitled Set')}>Create a Set</Button><Button type="button" variant="outline" onClick={() => router.push('/account')}>Return to Desk</Button></div></section></div>;
   }
 
@@ -475,7 +487,8 @@ export function CreatorWorkbench({
         {activeCardSet ? <div hidden={studioView !== 'generate'} data-testid="generator-panel" className="min-h-0 flex-1 overflow-auto"><GenerationWorkspace onDirtyChange={studioView === 'generate' ? onDirtyChange : undefined} isLoadingTemplates={isLoadingTemplates} templates={freeformTemplatesForGenerator} backFaceTemplates={backFacePresetTemplates} activeCardSet={activeCardSet} generatorSelectedTemplateId={generatorSelectedTemplateId} generatorSelectedBackingTemplateId={generatorSelectedBackingTemplateId} richTextHighlightColor={richTextHighlightColor} generatedDisplayCards={generatedDisplayCards} canExportClean={projectCapabilities.canExportClean} onOpenTemplateMaker={showTemplateTool} onCreateMatchingBack={handleCreateMatchingBack} onEditSelectedBack={handleEditCardBack} onManageCardBacks={handleManageCardBacks} onBulkCardsGenerated={handleBulkCardsGenerated} onBulkCardsRevised={reviseGeneratedCardsAction} onUndoBulkRevision={undoLastBulkRevisionAction} onViewGeneratedCards={viewGeneratedCardsOnDesk} onTemplateSelectionChange={setGeneratorSelectedTemplateIdAction} onBackingTemplateSelectionChange={setGeneratorSelectedBackingTemplateIdAction} /></div> : null}
       </main></div> : null}
 
-      {activeCardSet ? <StudioContextTools
+      {requestedOutputReference && isOutput ? <div role={outputBlocked ? 'alert' : 'status'}>{outputBlocked ? 'This prepared Output is not active. Prepare a new handoff or choose the full Set deliberately.' : `Prepared selection: ${outputIntent?.cardIds.length ?? 0} cards, in the requested order.`}<button type="button" onClick={chooseFullSet}>Use full Set</button></div> : null}
+      {activeCardSet && !(outputBlocked && isOutput) ? <StudioContextTools
         inlineOutput={isOutput}
         activeSetName={activeCardSet.name}
         activeSetId={activeCardSet.id}
@@ -484,7 +497,7 @@ export function CreatorWorkbench({
         canSubmitToPipeline={canSubmitTemplateRevisions}
         saveMoveOpen={saveMoveOpen}
         onSaveMoveOpenChange={setSaveMoveOpen}
-        outputPanelProps={{ beforeExport: outputIntent ? beforePreparedExport : undefined, defaultPdfProfile: outputIntent?.layout, canExportClean: projectCapabilities.canExportClean, isEntitlementPending, exportDpi, exportEntitlementLabel, exportEntitlementMessage, exportGateMessage, exportMode, generatedDisplayCards: orderedOutputCards, isCheckoutStarting, isZipExporting, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, richTextHighlightColor, selectedPaperSize, zipExportKind, zipProgress, onExportAllAsZip: handleExportAllAsZip, onExportPrintPngSet: handleExportPrintPngSet, onExportPressCandidate: handleExportPressCandidate, onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets, onSelectPaperSize: setSelectedPaperSizeAction, onSetExportDpi: setExportDpiAction, onSetExportMode: setExportModeAction, onSetPdfOptions: setPdfOptionsAction, onStartCheckout: handleStartCheckout }}
+        outputPanelProps={{ beforeExport: outputIntent || outputBlocked ? beforePreparedExport : undefined, defaultPdfProfile: outputIntent?.layout, canExportClean: projectCapabilities.canExportClean, isEntitlementPending, exportDpi, exportEntitlementLabel, exportEntitlementMessage, exportGateMessage, exportMode, generatedDisplayCards: orderedOutputCards, isCheckoutStarting, isZipExporting, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, richTextHighlightColor, selectedPaperSize, zipExportKind, zipProgress, onExportAllAsZip: handleExportAllAsZip, onExportPrintPngSet: handleExportPrintPngSet, onExportPressCandidate: handleExportPressCandidate, onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets, onSelectPaperSize: setSelectedPaperSizeAction, onSetExportDpi: setExportDpiAction, onSetExportMode: setExportModeAction, onSetPdfOptions: setPdfOptionsAction, onStartCheckout: handleStartCheckout }}
         saveMoveDialogProps={{ isSignedIn: accountEntitlement.isSignedIn, canUseProjectFiles: projectCapabilities.canUseProjectFiles, setId: activeCardSet.id, setName: activeCardSet.name }}
       /> : null}
       </>}

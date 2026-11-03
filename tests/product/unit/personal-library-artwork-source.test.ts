@@ -188,8 +188,8 @@ it('lost document ACK uses existing exact operation readback, no automatic remat
 });
 const http = async (id: number, method: string, params: object) => { const response = await cardForgeMcpHandler(new Request('https://cardforge.test/mcp', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) })); const text = await response.text(); return JSON.parse(text.startsWith('event:') ? text.split('\n').find(line => line.startsWith('data: '))!.slice(6) : text); };
 it('initialized actual HTTP exposes the source alternative on existing tools and executes without private bytes/credentials in receipt', async () => {
- expect((await http(1, 'initialize', { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'test', version: '1' } })).result.serverInfo.version).toBe('1.0.15');
- const tools = (await http(2, 'tools/list', {})).result.tools; expect(tools).toHaveLength(57);
+ expect((await http(1, 'initialize', { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'test', version: '1' } })).result.serverInfo.version).toBe('1.0.16');
+ const tools = (await http(2, 'tools/list', {})).result.tools; expect(tools).toHaveLength(58);
  const attach = tools.find((t: { name: string }) => t.name === 'attach_template_artworks'); expect(attach.inputSchema.properties.artworks.items.properties.personalLibrary.additionalProperties).toBe(false);
  const request = input(); const result = (await http(3, 'tools/call', { name: 'attach_template_artworks', arguments: { documentId: request.documentId, expectedRevision: 60, operationId: request.operationId, artworks: request.templateArtworks } })).result;
  expect(result.isError, JSON.stringify(result)).not.toBe(true); expect(result.structuredContent.revision).toBe(61); expect(JSON.stringify(result)).not.toMatch(/synthetic-private-access|synthetic-resource-key|data:image|drive_source_1234/);

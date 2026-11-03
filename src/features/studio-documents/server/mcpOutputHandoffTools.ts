@@ -3,11 +3,11 @@ import { z } from 'zod/v4';
 import { requireAccountToolCapability } from '@/features/account/server';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import { outputIntentSchema, validateOutputIntentDocument } from '../outputIntent';
-import { getStudioDocument } from './studioDocumentStore';
+import { createStudioOutputIntent, getStudioDocument } from './studioDocumentStore';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 import type { registerRevisionRecoveryTools } from './mcpRevisionRecoveryTools';
 
-const output = z.object({ documentId: z.string(), revision: z.number(), setId: z.string(), cardIds: z.array(z.string()), openInStudioUrl: z.string(), status: z.literal('prepared') }).strict();
+const output = z.object({ documentId: z.string(), revision: z.number(), setId: z.string(), reference: z.string(), openInStudioUrl: z.string(), status: z.literal('prepared') }).strict();
 
 export function registerOutputHandoffTools({ server, publicOrigin, getReadAccess, toolError }: Pick<Parameters<typeof registerRevisionRecoveryTools>[0], 'server' | 'publicOrigin' | 'getReadAccess' | 'toolError'>) {
   server.registerTool('prepare_output_handoff', {
@@ -27,8 +27,9 @@ export function registerOutputHandoffTools({ server, publicOrigin, getReadAccess
           catch (error) { throw new StudioDocumentStoreError(error instanceof Error ? error.message : 'Invalid output source.', 409); }
         });
         if (document.revision !== intent.revision) throw new StudioDocumentStoreError('The exact document revision has changed. Read the current document before preparing Output.', 409);
-        const params = new URLSearchParams({ document: intent.documentId, revision: String(intent.revision), outputIntent: JSON.stringify(intent) });
-        const structuredContent = output.parse({ documentId: intent.documentId, revision: intent.revision, setId: intent.setId, cardIds: intent.cardIds, openInStudioUrl: `${publicOrigin}/studio?${params}`, status: 'prepared' });
+        const reference = await createStudioOutputIntent(access.user.id, intent);
+        const params = new URLSearchParams({ document: intent.documentId, revision: String(intent.revision), outputRef: reference });
+        const structuredContent = output.parse({ documentId: intent.documentId, revision: intent.revision, setId: intent.setId, reference, openInStudioUrl: `${publicOrigin}/studio?${params}`, status: 'prepared' });
         return { content: [{ type: 'text' as const, text: 'Output is prepared for review in Studio. Opening the link will not download a file.' }], structuredContent };
       } });
     } catch (error) { return toolError(error); }

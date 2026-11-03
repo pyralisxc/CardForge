@@ -565,6 +565,37 @@ try:
     print('PASS: consumer writer COMMIT invalidates old impact consent; fresh exact confirmation permits recoverable Move')
 
 
+    # A document update winning the row lock makes an older Output reference
+    # ineligible; the observer checks a real database blocking relationship.
+    output_doc = str(uuid.uuid4())
+    a.run(f"insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload) values('{output_doc}','output-race','Output race','{{\"version\":1,\"userTemplates\":[],\"storedCards\":[]}}'::jsonb);")
+    output_body = json.dumps({'documentId': output_doc, 'revision': 1, 'setId': 'set', 'cardIds': ['card']})
+    a.run('begin;')
+    a.run(f"update public.cardforge_studio_documents set revision=2 where id='{output_doc}';")
+    b.run("set statement_timeout='10s';")
+    peer_pid = b.run('select pg_backend_pid();')[-1]
+    result = queue.Queue()
+    def prepare_after_document_update():
+        try:
+            result.put(b.run("select coalesce(public.cardforge_prepare_studio_output_intent('output-race','" + output_doc + "',1,'" + output_body + "'::jsonb,'" + ('a' * 64) + "')::text,'stale');"))
+        except Exception as error:
+            result.put(error)
+    worker = threading.Thread(target=prepare_after_document_update)
+    worker.start()
+    deadline = time.monotonic() + 5
+    while a.run(f"select pg_backend_pid()=any(pg_blocking_pids({peer_pid}));")[-1] != 't':
+        assert worker.is_alive(), 'Output preparation completed without waiting for the document lock'
+        assert time.monotonic() < deadline, 'Output preparation did not wait for the document lock'
+        time.sleep(.02)
+    a.run('commit;')
+    worker.join(timeout=10)
+    assert not worker.is_alive()
+    observed = result.get(timeout=1)
+    assert not isinstance(observed, Exception) and observed[-1] == 'stale', str(observed)
+    assert a.run(f"select count(*) from public.cardforge_studio_output_intents where document_id='{output_doc}';")[-1] == '0'
+    print('PASS: Output preparation waits for document update and rejects its stale revision')
+
+
 finally:
     a.close()
     b.close()

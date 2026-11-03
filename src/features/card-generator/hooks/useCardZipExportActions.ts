@@ -42,6 +42,7 @@ interface UseCardZipExportActionsInput {
   exportDpi: number;
   exportMode: ExportMode;
   generatedDisplayCards: DisplayCard[];
+  beforeExport?: () => Promise<void>;
   richTextHighlightColor: string;
   toast: ToastFn;
 }
@@ -51,6 +52,7 @@ export function useCardZipExportActions({
   exportDpi,
   exportMode,
   generatedDisplayCards,
+  beforeExport,
   richTextHighlightColor,
   toast,
 }: UseCardZipExportActionsInput) {
@@ -75,6 +77,7 @@ export function useCardZipExportActions({
     setZipExportKind('press-candidate'); setIsZipExporting(true); setZipProgress({ done: 0, total: items.length });
     trackExportStarted('pdf', generatedDisplayCards.length);
     try {
+      await beforeExport?.();
       const [{ default: JSZip }, { createCardFaceExportRenderer }, { createPressPdfCandidate, compositeWhiteRgb }, { loadPressColorProfiles }] = await Promise.all([
         import('jszip'), import('../lib/cardPreviewExport'), import('../lib/pressPdfCandidate'), import('../lib/pressColorProfile'),
       ]);
@@ -125,16 +128,17 @@ export function useCardZipExportActions({
         ...(canExportClean ? [] : ['This Free export retains the CardForge watermark.']),
       ].join('\n'));
       const content = await zip.generateAsync({ type: 'blob' });
+      await beforeExport?.();
       const url = URL.createObjectURL(content); const link = document.createElement('a');
       link.href = url; link.download = `cardforge-press-candidate${canExportClean ? '' : '-watermarked'}.zip`;
       document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
       trackExportCompleted('pdf', generatedDisplayCards.length);
-      toast({ title: 'Press candidate exported', description: `${items.length} color-managed faces saved with hashes, geometry and pending-validation reports. Press ready: not yet.` });
+      toast({ title: 'Press candidate download requested', description: `${items.length} color-managed faces were generated with hashes, geometry and pending-validation reports. Check your browser downloads. Press ready: not yet.` });
     } catch (error) {
       trackExportFailed('pdf', 'press_candidate', generatedDisplayCards.length);
       toast({ title: 'Press candidate export failed', description: error instanceof Error ? error.message : 'The candidate could not be built. Your Set is unchanged; retry after resolving the export failure.', variant: 'destructive' });
     } finally { setIsZipExporting(false); setZipProgress(null); setZipExportKind(null); }
-  }, [canExportClean, exportDpi, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
+  }, [beforeExport, canExportClean, exportDpi, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
 
   const handleExportAllAsZip = useCallback(async () => {
     if (generatedDisplayCards.length === 0) return;
@@ -146,6 +150,7 @@ export function useCardZipExportActions({
     trackExportStarted('png_set', generatedDisplayCards.length);
 
     try {
+      await beforeExport?.();
       const exportProfile = getExportProfile(exportMode, exportDpi);
       const JSZip = (await import('jszip')).default;
       const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
@@ -165,6 +170,7 @@ export function useCardZipExportActions({
       }
 
       const content = await zip.generateAsync({ type: 'blob' });
+      await beforeExport?.();
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
@@ -176,8 +182,8 @@ export function useCardZipExportActions({
       URL.revokeObjectURL(url);
       trackExportCompleted('png_set', generatedDisplayCards.length);
       toast({
-        title: 'ZIP Exported',
-        description: `${exportItems.length} ${exportCopy.outputLabel} saved to ${fileNamePrefix}.zip using ${getRasterExportQualityOption(exportDpi).label.toLowerCase()} raster quality${canExportClean ? '' : ' with the CardForge watermark'}.`,
+        title: 'ZIP download requested',
+        description: `${exportItems.length} ${exportCopy.outputLabel} generated for ${fileNamePrefix}.zip using ${getRasterExportQualityOption(exportDpi).label.toLowerCase()} raster quality${canExportClean ? '' : ' with the CardForge watermark'}.`,
       });
     } catch (err) {
       trackExportFailed('png_set', 'render_or_archive', generatedDisplayCards.length);
@@ -187,7 +193,7 @@ export function useCardZipExportActions({
       setZipProgress(null);
       setZipExportKind(null);
     }
-  }, [canExportClean, exportDpi, exportMode, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
+  }, [beforeExport, canExportClean, exportDpi, exportMode, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
 
   const handleExportPrintPngSet = useCallback(async () => {
     if (generatedDisplayCards.length === 0) return;
@@ -208,6 +214,7 @@ export function useCardZipExportActions({
     trackExportStarted('print_png_set', generatedDisplayCards.length);
 
     try {
+      await beforeExport?.();
       const exportProfile = getExportProfile('physical', exportDpi);
       const JSZip = (await import('jszip')).default;
       const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
@@ -253,6 +260,7 @@ export function useCardZipExportActions({
       );
 
       const content = await zip.generateAsync({ type: 'blob' });
+      await beforeExport?.();
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
@@ -264,8 +272,8 @@ export function useCardZipExportActions({
       URL.revokeObjectURL(url);
       trackExportCompleted('print_png_set', generatedDisplayCards.length);
       toast({
-        title: 'Print production package exported',
-        description: `${exportItems.length} bleed-bearing face${exportItems.length === 1 ? '' : 's'} saved with geometry and preflight reports. Production prepared: yes. Press ready: ${preflight.pressReady ? 'yes' : 'not yet'}${canExportClean ? '' : ' · CardForge watermark included'}.`,
+        title: 'Print production download requested',
+        description: `${exportItems.length} bleed-bearing face${exportItems.length === 1 ? '' : 's'} generated with geometry and preflight reports. Check browser downloads. Production prepared: yes. Press ready: ${preflight.pressReady ? 'yes' : 'not yet'}${canExportClean ? '' : ' · CardForge watermark included'}.`,
       });
     } catch (err) {
       trackExportFailed('print_png_set', 'render_or_archive', generatedDisplayCards.length);
@@ -275,7 +283,7 @@ export function useCardZipExportActions({
       setZipProgress(null);
       setZipExportKind(null);
     }
-  }, [canExportClean, exportDpi, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
+  }, [beforeExport, canExportClean, exportDpi, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
 
   const handleExportTabletopSimulatorSpritesheets = useCallback(async (
     quality: TabletopSimulatorExportQuality = 'standard'
@@ -298,6 +306,7 @@ export function useCardZipExportActions({
     trackExportStarted('tabletop_simulator', generatedDisplayCards.length);
 
     try {
+      await beforeExport?.();
       const exportProfile = getTabletopSimulatorExportProfile(quality);
       const JSZip = (await import('jszip')).default;
       const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
@@ -414,6 +423,7 @@ export function useCardZipExportActions({
       );
 
       const content = await zip.generateAsync({ type: 'blob' });
+      await beforeExport?.();
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
@@ -424,8 +434,8 @@ export function useCardZipExportActions({
       URL.revokeObjectURL(url);
       trackExportCompleted('tabletop_simulator', generatedDisplayCards.length);
       toast({
-        title: 'Tabletop Simulator ZIP exported',
-        description: `${sheets.length} ${preset.label.toLowerCase()} sheet${sheets.length === 1 ? '' : 's'} saved with a manifest${canExportClean ? '' : ' and the CardForge watermark'}. Create each custom deck with ${preset.grid.columns} columns and ${preset.grid.rows} rows.`,
+        title: 'Tabletop Simulator download requested',
+        description: `${sheets.length} ${preset.label.toLowerCase()} sheet${sheets.length === 1 ? '' : 's'} generated with a manifest. Check browser downloads${canExportClean ? '' : ' and the CardForge watermark'}. Create each custom deck with ${preset.grid.columns} columns and ${preset.grid.rows} rows.`,
       });
     } catch (err) {
       trackExportFailed('tabletop_simulator', 'render_or_archive', generatedDisplayCards.length);
@@ -435,7 +445,7 @@ export function useCardZipExportActions({
       setZipProgress(null);
       setZipExportKind(null);
     }
-  }, [canExportClean, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
+  }, [beforeExport, canExportClean, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
 
   return {
     handleExportPressCandidate,

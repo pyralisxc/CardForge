@@ -19,4 +19,4 @@ export * from './ownerStudioDependencyContract';
 export { outputIntentSchema } from './outputIntent';
 export type { OutputIntent } from './outputIntent';
 
-export { fingerprintOutput, verifyPreparedOutput } from './client/outputHandoffVerification';
+export { fingerprintOutput, orderedOutputCards, prepareOutputOnDevice, verifyPreparedOutput } from './client/outputHandoffVerification';

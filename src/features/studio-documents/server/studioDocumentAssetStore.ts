@@ -291,10 +291,12 @@ export const getStudioDocumentAssetDownloads = async ({
   ownerUserId,
   documentId,
   value,
+  requireVerifiedSize = false,
 }: {
   ownerUserId: string;
   documentId: string;
   value: unknown;
+  requireVerifiedSize?: boolean;
 }): Promise<StudioDocumentAssetDownload[]> => {
   const imageIds = collectStudioDocumentAssetIds(value);
   const fontIds = collectStudioDocumentFontIds(value);
@@ -302,7 +304,7 @@ export const getStudioDocumentAssetDownloads = async ({
   const prefix = storagePrefix(ownerUserId, documentId);
   const imagePaths = imageIds.map((id) => imageStoragePath(ownerUserId, documentId, id));
   const fontPaths = fontIds.map((id) => fontStoragePath(ownerUserId, documentId, id));
-  const [imageSigned, fontSigned, fontList] = await Promise.all([
+  const [imageSigned, fontSigned, fontList, imageList] = await Promise.all([
     imagePaths.length > 0
       ? requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).createSignedUrls(imagePaths, 15 * 60)
       : Promise.resolve({ data: [], error: null }),
@@ -312,8 +314,11 @@ export const getStudioDocumentAssetDownloads = async ({
     fontIds.length > 0
       ? requireStore().storage.from(STUDIO_DOCUMENT_FONT_BUCKET).list(prefix, { limit: MAX_STUDIO_DOCUMENT_FONTS })
       : Promise.resolve({ data: [], error: null }),
+    requireVerifiedSize && imageIds.length > 0
+      ? requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).list(prefix, { limit: MAX_STUDIO_DOCUMENT_ASSETS })
+      : Promise.resolve({ data: [], error: null }),
   ]);
-  if (imageSigned.error || fontSigned.error || fontList.error) {
+  if (imageSigned.error || fontSigned.error || fontList.error || imageList.error) {
     throw new StudioDocumentStoreError('Unable to authorize private Studio asset downloads.');
   }
   const imageUrlByPath = new Map((imageSigned.data ?? []).map((item) => [item.path, item.signedUrl]));
@@ -328,7 +333,7 @@ export const getStudioDocumentAssetDownloads = async ({
   const imageDownloads = imageIds.map((id): StudioDocumentAssetDownload => {
     const signedUrl = imageUrlByPath.get(imageStoragePath(ownerUserId, documentId, id));
     if (!signedUrl) throw new StudioDocumentStoreError('One of this document’s private artwork files is unavailable.');
-    return { id, kind: 'image', mimeType: 'image/webp', size: null, signedUrl };
+    return { id, kind: 'image', mimeType: 'image/webp', size: readObjectSize((imageList.data ?? []).find((item) => item.name === `${id}.webp`)), signedUrl };
   });
   const fontDownloads = fontIds.map((id): StudioDocumentAssetDownload => {
     const signedUrl = fontUrlByPath.get(fontStoragePath(ownerUserId, documentId, id));
@@ -336,7 +341,7 @@ export const getStudioDocumentAssetDownloads = async ({
     if (!signedUrl || !isProjectFontMimeType(mimeType)) {
       throw new StudioDocumentStoreError('One of this document’s private font files is unavailable or has an unexpected format.');
     }
-    return { id, kind: 'font', mimeType, size: null, signedUrl };
+    return { id, kind: 'font', mimeType, size: readObjectSize((fontList.data ?? []).find((item) => item.name === id)), signedUrl };
   });
   return [...imageDownloads, ...fontDownloads];
 };

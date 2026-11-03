@@ -144,6 +144,7 @@ psql_local -f "$root/supabase/tests/catalog_trash_dependency_impact.sql" > "$pro
 psql_local -f "$root/supabase/tests/catalog_template_fragment_identity.sql" > "$proof/template-fragment-identity.log" 2>&1 || { cat "$proof/template-fragment-identity.log"; exit 1; }
 cat "$proof/template-fragment-identity.log"
 psql_local -f "$root/supabase/tests/effective_pipeline_trash_projection.sql" > "$proof/effective-trash-projection.log" 2>&1 || { cat "$proof/effective-trash-projection.log"; exit 1; }
+psql_local -f "$root/supabase/tests/studio_output_handoff.sql" > "$proof/studio-output-handoff.log" 2>&1 || { cat "$proof/studio-output-handoff.log"; exit 1; }
 psql_local -f "$root/supabase/tests/finite_decimal_template_aspect_ratio.sql" > "$proof/finite-decimal-ratio.log" 2>&1 || { cat "$proof/finite-decimal-ratio.log"; exit 1; }
 cat "$proof/dependency-impact.log"
 CARDFORGE_LOCAL_DB_CONTAINER="$cid" python3 "$root/scripts/test-catalog-trash-contention.py" > "$proof/contention.log" 2>&1 || { cat "$proof/contention.log"; exit 1; }
