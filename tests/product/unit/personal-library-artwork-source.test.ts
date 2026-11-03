@@ -1,3 +1,5 @@
+import { writeFileSync } from 'node:fs';
+import { replaceStudioDocumentAssetReferences } from '@/features/studio-documents/assetReferences';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -101,11 +103,12 @@ const access = { user: { id: 'oauth-user' }, entitlement: { isSignedIn: true, ac
 const source = () => ({ mimeType: 'image/png' as const, personalLibrary: { itemId, expectedProviderRevision: '7', authorization: PERSONAL_LIBRARY_ARTWORK_AUTHORIZATION as typeof PERSONAL_LIBRARY_ARTWORK_AUTHORIZATION } });
 const input = () => ({ documentId: current.id, expectedRevision: 60, operationId: 'original-library-copy', templateArtworks: [{ ...source(), templateId: 'template-1', binding: 'element.image' as const, targetElementIds: ['art-1'], requirementId: 'asset-1' }] });
 let current = makeCurrent();
+let declaredMime: 'image/png' | 'image/jpeg' | 'image/webp' = 'image/png';
 let png = Buffer.alloc(0), indexRow: Record<string, unknown> = {}, objects = new Map<string, Buffer>();
 let indexWrites = 0, metadataReads = 0, mediaReads = 0, drift = false, wrongIdentity = false, conflict = false, lostCommit = false, lostIndex = false, declaredSize: number | undefined, mediaBytes: Buffer | undefined;
 beforeEach(async () => {
  vi.clearAllMocks(); png = await sharp({ create: { width: 20, height: 30, channels: 4, background: '#22c55e' } }).png().toBuffer();
- current = makeCurrent(); objects = new Map(); indexWrites = metadataReads = mediaReads = 0; drift = wrongIdentity = conflict = lostCommit = lostIndex = false; declaredSize = undefined; mediaBytes = undefined;
+ current = makeCurrent(); declaredMime = 'image/png'; objects = new Map(); indexWrites = metadataReads = mediaReads = 0; drift = wrongIdentity = conflict = lostCommit = lostIndex = false; declaredSize = undefined; mediaBytes = undefined;
  indexRow = { id: itemId, owner_user_id: 'linked-account', provider: 'google-drive', provider_file_id: 'drive_source_1234', provider_revision: '7', provider_resource_key: 'synthetic-resource-key', display_name: 'Private artwork.png', mime_type: 'image/png', asset_role: 'artwork', byte_size: png.length, content_hash: null };
  vi.stubEnv('CARDFORGE_GOOGLE_STORAGE_CLIENT_ID', 'synthetic-client'); vi.stubEnv('CARDFORGE_GOOGLE_STORAGE_CLIENT_SECRET', 'synthetic-secret'); vi.stubGlobal('fetch', f.provider);
  f.access.mockResolvedValue(access);
@@ -115,9 +118,9 @@ beforeEach(async () => {
   const q = { select: () => q, eq: (key: string, value: unknown) => { filters.push([key, value]); return q; }, update: (value: Record<string, unknown>) => { update = value; indexWrites++; return q; }, maybeSingle: async () => ({ data: table === 'cardforge_project_storage_connections' ? { id: 'synthetic-connection' } : filters.every(([key, value]) => indexRow[key] === value) ? indexRow : null, error: null }), single: async () => { indexRow = { ...indexRow, ...update }; if (lostIndex) throw new Error('Index acknowledgement lost'); return { data: indexRow, error: null }; } }; return q;
  });
  f.provider.mockImplementation(async (url: URL | string) => {
-  if (String(url).includes('alt=media')) { mediaReads++; return new Response(new Uint8Array(mediaBytes ?? png), { headers: { 'Content-Type': 'image/png' } }); }
+  if (String(url).includes('alt=media')) { mediaReads++; return new Response(new Uint8Array(mediaBytes ?? png), { headers: { 'Content-Type': declaredMime } }); }
   metadataReads++;
-  return Response.json({ id: wrongIdentity ? 'different_source_1234' : 'drive_source_1234', version: drift && metadataReads > 1 ? '8' : '7', name: 'Private artwork.png', mimeType: 'image/png', modifiedTime: '2026-11-02T00:00:00Z', size: String(declaredSize ?? png.length), resourceKey: 'synthetic-resource-key' });
+  return Response.json({ id: wrongIdentity ? 'different_source_1234' : 'drive_source_1234', version: drift && metadataReads > 1 ? '8' : '7', name: 'Private artwork.png', mimeType: declaredMime, modifiedTime: '2026-11-02T00:00:00Z', size: String(declaredSize ?? png.length), resourceKey: 'synthetic-resource-key' });
  });
  f.upload.mockImplementation(async (path: string, bytes: Buffer) => { objects.set(path, bytes); return { error: null }; });
  f.update.mockImplementation(async (args: { ownerUserId: string; documentId: string; expectedRevision: number; document: ProjectDocumentV1 }) => {
@@ -219,4 +222,24 @@ it('a newer current revision cannot be substituted for the original receipt imag
  const result = await patchWorkingDocument({ access, input: request });
  expect(result).toMatchObject({ replayed: true, committedRevision: 61 }); expect(result.warnings.join(' ')).toContain('normalized stored-image SHA-256 unavailable at the currently observed revision');
  expect(f.provider).not.toHaveBeenCalled(); expect(f.from).not.toHaveBeenCalled(); expect(f.upload).not.toHaveBeenCalled();
+});
+
+it('local canonical browser handoff for synthetic PNG JPEG WebP personal-source bindings', async () => {
+ const packets = [];
+ for (const mime of ['image/png', 'image/jpeg', 'image/webp'] as const) {
+  current = makeCurrent(); objects = new Map(); metadataReads = 0; declaredMime = mime;
+  const original = sharp({ create: { width: 20, height: 30, channels: 4, background: '#22c55e' } });
+  png = await (mime === 'image/png' ? original.png() : mime === 'image/jpeg' ? original.jpeg({ quality: 100, chromaSubsampling: '4:4:4' }) : original.webp({ lossless: true })).toBuffer();
+  indexRow = { ...indexRow, mime_type: mime, byte_size: png.length };
+  current.document.userTemplates[0].freeformCanvas!.elements = current.document.userTemplates[0].freeformCanvas!.elements.map(element => element.id === 'art-1' ? { ...element, zIndex: 30 } : element);
+  const beforeTemplate = structuredClone(current.document.userTemplates[0]);
+  const request = input();
+  const result = await patchWorkingDocument({ access, input: { ...request, templateArtworks: [{ ...request.templateArtworks[0], mimeType: mime }] } });
+  expect(result.committedRevision).toBe(61);
+  const assets = new Map([...objects].map(([path, bytes]) => [path.split('/').pop()!.slice(0, -5), `data:image/webp;base64,${bytes.toString('base64')}`]));
+  const template = replaceStudioDocumentAssetReferences(current.document.userTemplates[0], assets);
+  packets.push({ format: mime.split('/')[1], originalSha256: createHash('sha256').update(png).digest('hex'), storedAssetSha256: [...assets.keys()][0], committedRevision: result.committedRevision, beforeTemplate, template });
+ }
+ if (process.env.CARDFORGE_PERSONAL_RENDER_PROOF) writeFileSync(process.env.CARDFORGE_PERSONAL_RENDER_PROOF, JSON.stringify(packets));
+ expect(packets).toHaveLength(3);
 });
