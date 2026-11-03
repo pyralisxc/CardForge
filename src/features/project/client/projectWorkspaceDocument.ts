@@ -249,11 +249,12 @@ export const captureCardProjectDocument = async (cardId: string): Promise<Projec
 export const applyProjectDocumentToWorkspace = async (
   document: ProjectDocumentV1,
   mode: ProjectWorkspaceApplyMode,
-  options: { expectedState?: ProjectState; replaceSetIds?: readonly string[]; signal?: AbortSignal } = {},
+  options: { expectedState?: ProjectState; replaceSetIds?: readonly string[]; signal?: AbortSignal; validatePreparedDocument?: (prepared: ProjectDocumentV1) => void } = {},
 ): Promise<ProjectWorkspaceApplySummary> => {
   options.signal?.throwIfAborted();
   const draft = createProjectWorkspaceDraft(options.expectedState);
   const cleanup = await prepareCompletedDeletionCleanup(document, options.signal);
+  options.validatePreparedDocument?.(cleanup.document);
   return applyPreparedProjectDocument(draft, cleanup, mode, options);
 };
 

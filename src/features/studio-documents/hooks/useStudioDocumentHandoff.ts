@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import { outputIntentSchema, type OutputIntent } from '../outputIntent';
+import { assertOutputContentUnchanged, outputIntentSchema, type OutputIntent } from '../outputIntent';
 
 import { applyProjectDocumentToState } from '@/features/project/client/package-document';
 import { applyProjectDocumentToWorkspace, normalizeStudioView, type StudioView, useProjectStore } from '@/features/project/client/workspace';
@@ -152,7 +152,7 @@ export function useStudioDocumentHandoff({
                 : template
             )),
           };
-          const adopted = await applyProjectDocumentToWorkspace(adoptionDocument, 'adopt', { expectedState: beforeState, signal: controller.signal });
+          const adopted = await applyProjectDocumentToWorkspace(adoptionDocument, 'adopt', { expectedState: beforeState, signal: controller.signal, ...(outputIntent ? { validatePreparedDocument: (prepared) => assertOutputContentUnchanged(outputIntent!, document, prepared) } : {}) });
           if (cancelled) return;
 
           const cardResult = {
@@ -233,6 +233,7 @@ export function useStudioDocumentHandoff({
         const opened = await applyProjectDocumentToWorkspace(document, 'replace', {
           expectedState: initiatingState,
           signal: controller.signal,
+          ...(outputIntent ? { validatePreparedDocument: (prepared) => assertOutputContentUnchanged(outputIntent!, document, prepared) } : {}),
         });
         if (cancelled) return;
         localAgentRevisionApplied = true;

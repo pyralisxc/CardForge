@@ -42,3 +42,16 @@ export function validateOutputIntentDocument(intent: OutputIntent, value: unknow
     } else if (card.backingData != null && (!object(card.backingData) || Object.keys(card.backingData).length)) throw new Error(`Card ${id} has back data without a back Template.`);
   }
 }
+
+/** A deletion repair must not silently alter the selected source during an exact Output handoff. */
+export function assertOutputContentUnchanged(intent: OutputIntent, before: unknown, after: unknown): void {
+  validateOutputIntentDocument(intent, before);
+  validateOutputIntentDocument(intent, after);
+  const content = (value: unknown) => {
+    const doc = value as { storedCards: Array<Record<string, unknown>>; userTemplates: Array<Record<string, unknown>> };
+    const cards = intent.cardIds.map((id) => doc.storedCards.find((card) => card.uniqueId === id));
+    const ids = new Set(cards.flatMap((card) => card ? [card.templateId, card.backingTemplateId].filter((id): id is string => typeof id === 'string') : []));
+    return JSON.stringify({ cards, templates: doc.userTemplates.filter((template) => typeof template.id === 'string' && ids.has(template.id)).sort((a, b) => String(a.id).localeCompare(String(b.id))) });
+  };
+  if (content(before) !== content(after)) throw new Error('The selected source needs repair and cannot be opened as exact Output.');
+}
