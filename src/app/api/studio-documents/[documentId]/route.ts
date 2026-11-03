@@ -10,6 +10,7 @@ import {
   StudioDocumentAccessError,
   StudioDocumentStoreError,
   updateStudioDocument,
+  outputIntentSchema, validateOutputIntentDocument,
 } from '@/features/studio-documents/server';
 import {
   parseJsonBodyWithLimit,
@@ -53,8 +54,20 @@ export async function GET(
     if (revisionValue !== null && (!Number.isSafeInteger(requestedRevision) || Number(requestedRevision) < 1)) {
       return createApiErrorResponse(400, 'studio_document_invalid', 'A valid positive Studio document revision is required.');
     }
+    const outputValue = new URL(request.url).searchParams.get('outputIntent');
+    let outputIntent: ReturnType<typeof outputIntentSchema.parse> | undefined;
+    if (outputValue !== null) {
+      try { outputIntent = outputIntentSchema.parse(JSON.parse(outputValue)); }
+      catch { return createApiErrorResponse(400, 'studio_document_invalid', 'The output handoff is invalid.'); }
+      if (outputIntent.documentId !== documentId || requestedRevision !== outputIntent.revision) {
+        return createApiErrorResponse(400, 'studio_document_invalid', 'The exact output document and revision are required.');
+      }
+    }
     const account = await getCurrentStudioDocumentAccount();
-    const document = await getStudioDocument(account.ownerUserId, documentId, account.retentionHours);
+    const document = await getStudioDocument(account.ownerUserId, documentId, account.retentionHours, outputIntent ? (raw) => {
+      try { validateOutputIntentDocument(outputIntent!, raw); }
+      catch (error) { throw new StudioDocumentStoreError(error instanceof Error ? error.message : 'The output source is invalid.', 409); }
+    } : undefined);
     if (requestedRevision !== null && document.revision !== requestedRevision) {
       throw new StudioDocumentStoreError(
         `This Studio document is now revision ${document.revision}. Reopen the latest revision-bound link before applying it.`,

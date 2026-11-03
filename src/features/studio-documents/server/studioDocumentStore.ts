@@ -213,6 +213,7 @@ export const getStudioDocument = async (
   ownerUserId: string,
   documentId: string,
   retentionHours?: number,
+  validateRaw?: (value: unknown) => void,
 ): Promise<StudioDocument> => {
   if (retentionHours) {
     const { data: touched, error: touchError } = await requireStore().rpc('cardforge_touch_studio_document', {
@@ -239,6 +240,7 @@ export const getStudioDocument = async (
     throw new StudioDocumentStoreError('Unable to load the Studio document.');
   }
   if (!data) throw new StudioDocumentStoreError('Studio document not found.', 404);
+  validateRaw?.((data as unknown as StudioDocumentRow).document_payload);
   return toDocument(data as unknown as StudioDocumentRow);
 };
 

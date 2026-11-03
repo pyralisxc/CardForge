@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
+import { outputIntentSchema, type OutputIntent } from '../outputIntent';
 
 import { applyProjectDocumentToState } from '@/features/project/client/package-document';
 import { applyProjectDocumentToWorkspace, normalizeStudioView, type StudioView, useProjectStore } from '@/features/project/client/workspace';
@@ -13,7 +14,6 @@ import {
 import { hydrateStudioDocumentAssets } from '../client/studioDocumentAssetHydration';
 import {
   acknowledgeStudioDocumentInstallation,
-  StudioDocumentInstallationAcknowledgementError,
 } from '../client/studioDocumentInstallation';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -24,6 +24,7 @@ interface ToastInput {
 }
 
 interface StudioDocumentHandoffOptions {
+  onOutputPrepared?: (intent: OutputIntent) => void;
   isAccountLoading: boolean;
   isSignedIn: boolean;
   isStudioReady: boolean;
@@ -43,6 +44,7 @@ const parseRequestedRevision = (value: string | null): number | null => {
 const handoffKey = (documentId: string, revision: number | null) => `${documentId}:${revision ?? 'latest'}`;
 
 export function useStudioDocumentHandoff({
+  onOutputPrepared,
   isAccountLoading,
   isSignedIn,
   isStudioReady,
@@ -60,6 +62,15 @@ export function useStudioDocumentHandoff({
     const url = new URL(window.location.href);
     const documentId = url.searchParams.get('document');
     const requestedRevision = parseRequestedRevision(url.searchParams.get('revision'));
+    const outputValue = url.searchParams.get('outputIntent');
+    let outputIntent: OutputIntent | undefined;
+    if (outputValue !== null) {
+      try { outputIntent = outputIntentSchema.parse(JSON.parse(outputValue)); }
+      catch { toast({ title: 'Output not opened', description: 'The Output handoff is invalid.', variant: 'destructive' }); return; }
+      if (!documentId || !requestedRevision || outputIntent.documentId !== documentId || outputIntent.revision !== requestedRevision) {
+        toast({ title: 'Output not opened', description: 'The exact document revision is required.', variant: 'destructive' }); return;
+      }
+    }
     if (!documentId) return;
     const requestedKey = handoffKey(documentId, requestedRevision);
     if (
@@ -67,6 +78,10 @@ export function useStudioDocumentHandoff({
       || inFlightRevisionKeyRef.current?.key === requestedKey
     ) return;
 
+    if (outputIntent && !window.confirm('Opening this exact Output source may replace or update work on this device. Save any unsaved work first. Continue?')) {
+      handledRevisionKeyRef.current = requestedKey;
+      return;
+    }
     const controller = new AbortController();
     const attempt = { key: requestedKey, controller };
     inFlightRevisionKeyRef.current = attempt;
@@ -76,7 +91,10 @@ export function useStudioDocumentHandoff({
     void (async () => {
       let localAgentRevisionApplied = false;
       try {
-        const revisionQuery = requestedRevision === null ? '' : `?revision=${requestedRevision}`;
+        const params = new URLSearchParams();
+        if (requestedRevision !== null) params.set('revision', String(requestedRevision));
+        if (outputIntent) params.set('outputIntent', JSON.stringify(outputIntent));
+        const revisionQuery = params.size ? `?${params}` : '';
         const response = await fetch(`/api/studio-documents/${encodeURIComponent(documentId)}${revisionQuery}`, {
           cache: 'no-store',
           credentials: 'same-origin',
@@ -182,9 +200,12 @@ export function useStudioDocumentHandoff({
           }
           if (cancelled) return;
 
-          url.searchParams.delete('document');
-          url.searchParams.delete('revision');
-          window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+          if (outputIntent) onOutputPrepared?.(outputIntent);
+          else {
+            url.searchParams.delete('document');
+            url.searchParams.delete('revision');
+            window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+          }
           const revisionLabel = actualRevision ? ` revision ${actualRevision}` : '';
           if (cardResult.successCount > 0) {
             toast({
@@ -214,12 +235,16 @@ export function useStudioDocumentHandoff({
           signal: controller.signal,
         });
         if (cancelled) return;
+        localAgentRevisionApplied = true;
         setStudioView('template');
 
         handledRevisionKeyRef.current = requestedKey;
-        url.searchParams.delete('document');
-        url.searchParams.delete('revision');
-        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+        if (outputIntent) onOutputPrepared?.(outputIntent);
+        else {
+          url.searchParams.delete('document');
+          url.searchParams.delete('revision');
+          window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+        }
         toast({
           title: 'Editable project opened',
           description: payload.watermark?.required === true
@@ -232,7 +257,7 @@ export function useStudioDocumentHandoff({
           toast({
             title: localAgentRevisionApplied ? 'Revision applied locally' : 'Draft not opened',
             description: localAgentRevisionApplied
-              ? `${error instanceof StudioDocumentInstallationAcknowledgementError ? error.message : 'CardForge could not confirm this locally applied revision with the server.'} The revision link remains in the address bar; reload it to retry confirmation.`
+              ? `${error instanceof Error ? error.message : 'CardForge could not complete the handoff.'} The source was applied locally; review the revision link before retrying.`
               : error instanceof Error ? error.message : 'Unable to open the Studio draft.',
             variant: 'destructive',
           });
@@ -254,6 +279,7 @@ export function useStudioDocumentHandoff({
     isSignedIn,
     isStudioReady,
     onInstalled,
+    onOutputPrepared,
     setStudioView,
     setSelectedTemplateId,
     setTemplateEditorSelectedTemplateId,

@@ -25,7 +25,9 @@ import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client
 import { useTemplateLibraryActions } from '@/features/template-editor/client';
 import { canUploadCustomLocalAssets } from '@/features/project/client/assets';
 import { readProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
-import { useStudioDocumentHandoff } from '@/features/studio-documents/client';
+import { useStudioDocumentHandoff, fingerprintOutput, verifyPreparedOutput, type OutputIntent } from '@/features/studio-documents/client';
+import { useProjectStore, selectAllGeneratedDisplayCards } from '@/features/project/client/workspace';
+import { PAPER_SIZES } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 import type { DesignToolIntent } from '../model/designToolIntent';
 
@@ -357,8 +359,36 @@ export function CreatorWorkbench({
     if (studioView !== 'template') setStudioViewAction('template');
   }, [contextSetId, contextTemplateId, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, studioView, templateEditorSelectedTemplateId, templatesFromStore]);
 
+  const [outputIntent, setOutputIntent] = useState<OutputIntent | null>(null);
+  const outputSnapshot = useRef<string | null>(null);
+  const handleOutputPrepared = useCallback((intent: OutputIntent) => {
+    const state = useProjectStore.getState();
+    const available = selectAllGeneratedDisplayCards(state);
+    if (intent.cardIds.some((id) => available.filter((card) => card.uniqueId === id && card.setId === intent.setId).length !== 1)) {
+      throw new Error('The imported Set did not retain every exact selected card. Review the source before retrying.');
+    }
+    const paper = PAPER_SIZES.find((candidate) => candidate.name === intent.paper);
+    if (!paper) throw new Error('The selected paper size is no longer available.');
+    state.setActiveCardSetId(intent.setId);
+    state.setSelectedPaperSize(paper);
+    state.setPdfOptions({ margin: intent.marginMm, spacing: intent.spacingMm, cutLines: intent.cutLines, duplexLayout: intent.duplex });
+    state.setExportMode(intent.mode);
+    state.setExportDpi(intent.quality);
+    outputSnapshot.current = fingerprintOutput(intent);
+    setOutputIntent(intent);
+    const next = new URL(window.location.href);
+    next.searchParams.delete('document'); next.searchParams.delete('revision'); next.searchParams.delete('outputIntent');
+    next.searchParams.set('tool', 'output');
+    router.replace(`${next.pathname}${next.search}${next.hash}`);
+  }, [router]);
+  const beforePreparedExport = useCallback(async () => {
+    if (!outputIntent || outputSnapshot.current === null) throw new Error('Prepare Output again before downloading.');
+    await verifyPreparedOutput(outputIntent, outputSnapshot.current, projectCapabilities.canExportClean);
+  }, [outputIntent, projectCapabilities.canExportClean]);
+  const orderedOutputCards = outputIntent ? outputIntent.cardIds.flatMap((id) => generatedDisplayCards.filter((card) => card.uniqueId === id && card.setId === outputIntent.setId)) : generatedDisplayCards;
   const isStudioReady = !isLoadingTemplates;
   useStudioDocumentHandoff({
+    onOutputPrepared: handleOutputPrepared,
     isAccountLoading: accountEntitlement.isLoadingEntitlement,
     isSignedIn: accountEntitlement.isSignedIn,
     isStudioReady,
@@ -454,7 +484,7 @@ export function CreatorWorkbench({
         canSubmitToPipeline={canSubmitTemplateRevisions}
         saveMoveOpen={saveMoveOpen}
         onSaveMoveOpenChange={setSaveMoveOpen}
-        outputPanelProps={{ canExportClean: projectCapabilities.canExportClean, isEntitlementPending, exportDpi, exportEntitlementLabel, exportEntitlementMessage, exportGateMessage, exportMode, generatedDisplayCards, isCheckoutStarting, isZipExporting, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, richTextHighlightColor, selectedPaperSize, zipExportKind, zipProgress, onExportAllAsZip: handleExportAllAsZip, onExportPrintPngSet: handleExportPrintPngSet, onExportPressCandidate: handleExportPressCandidate, onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets, onSelectPaperSize: setSelectedPaperSizeAction, onSetExportDpi: setExportDpiAction, onSetExportMode: setExportModeAction, onSetPdfOptions: setPdfOptionsAction, onStartCheckout: handleStartCheckout }}
+        outputPanelProps={{ beforeExport: outputIntent ? beforePreparedExport : undefined, defaultPdfProfile: outputIntent?.layout, canExportClean: projectCapabilities.canExportClean, isEntitlementPending, exportDpi, exportEntitlementLabel, exportEntitlementMessage, exportGateMessage, exportMode, generatedDisplayCards: orderedOutputCards, isCheckoutStarting, isZipExporting, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, richTextHighlightColor, selectedPaperSize, zipExportKind, zipProgress, onExportAllAsZip: handleExportAllAsZip, onExportPrintPngSet: handleExportPrintPngSet, onExportPressCandidate: handleExportPressCandidate, onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets, onSelectPaperSize: setSelectedPaperSizeAction, onSetExportDpi: setExportDpiAction, onSetExportMode: setExportModeAction, onSetPdfOptions: setPdfOptionsAction, onStartCheckout: handleStartCheckout }}
         saveMoveDialogProps={{ isSignedIn: accountEntitlement.isSignedIn, canUseProjectFiles: projectCapabilities.canUseProjectFiles, setId: activeCardSet.id, setName: activeCardSet.name }}
       /> : null}
       </>}

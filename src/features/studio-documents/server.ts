@@ -18,3 +18,5 @@ export { cardForgeMcpHandler } from './server/mcpServer';
 export { readSourcePreviewRequest } from './server/sourcePreviewRequest';
 
 export * from './ownerStudioDependencyContract';
+
+export { outputIntentSchema, validateOutputIntentDocument } from './outputIntent';
