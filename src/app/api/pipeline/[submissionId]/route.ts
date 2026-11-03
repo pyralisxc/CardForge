@@ -6,11 +6,11 @@ import {
   PipelineRegistryCommandError,
   readSourceReviewEvidence,
   changeOwnedPipelineSubmissionLifecycle,
-  finalizeContributorTemplatePipelineDraft,
+  finalizeContributorTemplateSubmission,
+  saveContributorPipelineMetadata,
   getCurrentPipelineRequestAccess,
   permanentlyDeletePipelineSubmission,
   requirePipelineRequestScope,
-  updatePipelineSubmissionDetails,
 } from '@/features/pipeline/server';
 import { getCurrentOwnerAccess, recordOwnerActivity, recordOwnerPipelineSourceReviewEvidence, saveOwnerPipelineEditorialReview, saveOwnerPipelinePublicationOverride } from '@/features/owner/server';
 
@@ -41,6 +41,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sub
   }
 }
 
+const contributorDraftResponse = async (result: Awaited<ReturnType<typeof saveContributorPipelineMetadata>>) => {
+  if (result.receipt.outcome === 'uncertain') {
+    const failure = createApiErrorResponse(503, 'pipeline_unavailable', 'The exact Contributor write outcome is unconfirmed.', { retryable: false, nextAction: 'Read the exact draft before any further write; do not replay automatically.' });
+    return createNoStoreJsonResponse({ ...(await failure.json()), ...result }, { status: 503, headers: failure.headers });
+  }
+  return createNoStoreJsonResponse({ ...result, updated: result.receipt.outcome === 'committed', submitted: result.receipt.submitted === true });
+};
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ submissionId: string }> }
@@ -64,14 +72,7 @@ export async function PATCH(
       compatibilityTags?: unknown;
       requestedStudioDestination?: unknown;
     };
-    await updatePipelineSubmissionDetails({
-      submissionId,
-      contributorId: access.user.id,
-      input: body,
-      allowOwnerEdit: access.isOwner,
-    });
-    revalidateCardForgeCatalog();
-    return createNoStoreJsonResponse({ updated: true });
+    return contributorDraftResponse(await saveContributorPipelineMetadata(access.user.id, { submissionId, metadata: body }));
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
@@ -126,13 +127,7 @@ export async function POST(
       return createNoStoreJsonResponse({ lifecycle });
     }
     requirePipelineRequestScope(access, 'library.submit');
-    await finalizeContributorTemplatePipelineDraft({
-      submissionId,
-      contributorId: access.user.id,
-      input: body,
-    });
-    revalidateCardForgeCatalog();
-    return createNoStoreJsonResponse({ submitted: true });
+    return contributorDraftResponse(await finalizeContributorTemplateSubmission(access.user.id, { submissionId, metadata: body }));
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');

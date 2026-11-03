@@ -365,7 +365,7 @@ export const createTemplatePipelineDraft = async ({
   return loadTemplatePipelineResult(String(submissionId), 'draft');
 };
 
-export const submitTemplatePipelineDraft = async ({
+export const commitTemplatePipelineDraft = async ({
   submissionId,
   contributorId,
   name,
@@ -385,7 +385,7 @@ export const submitTemplatePipelineDraft = async ({
   specialtyTags: string[];
   useCaseTags: string[];
   requestedStudioDestination: string;
-}): Promise<TemplatePipelineDraftResult> => {
+}): Promise<string> => {
   const supabase = requireSupabase();
   const { data: resultId, error } = await supabase.rpc('cardforge_submit_template_pipeline_draft', {
     p_submission_id: submissionId,
@@ -399,7 +399,13 @@ export const submitTemplatePipelineDraft = async ({
     p_requested_studio_destination: requestedStudioDestination,
   });
   if (error || !resultId) throwTemplateRevisionError(error?.message);
-  return loadTemplatePipelineResult(String(resultId), 'submitted');
+  if (String(resultId) !== submissionId) throw new PipelineRegistryCommandError('Exact Template submission acknowledgement is unconfirmed. Read the exact draft before any further action.', 503);
+  return String(resultId);
+};
+
+export const submitTemplatePipelineDraft = async (input: Parameters<typeof commitTemplatePipelineDraft>[0]): Promise<TemplatePipelineDraftResult> => {
+  const id = await commitTemplatePipelineDraft(input);
+  return loadTemplatePipelineResult(id, 'submitted');
 };
 
 const writeTemplateRevision = async ({
