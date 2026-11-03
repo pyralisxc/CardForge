@@ -1,3 +1,4 @@
+import { personalLibraryExactInput, personalLibraryRemovalInput, personalLibraryItemMetadata, personalLibraryClientItem, personalLibraryListResult, uncertainPersonalLibraryRemoval, type PersonalLibraryRemovalReceipt } from '../itemContract';
 import { createHash } from 'node:crypto';
 
 import { isGoogleDriveFileId } from '@/features/project/server';
@@ -248,22 +249,31 @@ const mapWithConcurrency = async <Input, Output>(
   return results;
 };
 
+const projectPersonalLibraryMetadata = (data: unknown, ownerUserId: string) => {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new PersonalLibraryStoreError('Personal-library metadata is unavailable or malformed.', 503, { kind: 'unavailable' });
+  const row = data as Record<string, unknown>;
+  const parsed = personalLibraryItemMetadata.safeParse({ itemId: row.id, provider: row.provider, displayName: row.display_name, role: row.asset_role, mimeType: row.mime_type, byteSize: typeof row.byte_size === 'string' && /^[0-9]+$/u.test(row.byte_size) ? Number(row.byte_size) : row.byte_size, providerRevision: row.provider_revision, contentHash: row.content_hash });
+  if (!parsed.success || row.owner_user_id !== ownerUserId) throw new PersonalLibraryStoreError('Personal-library metadata is unavailable or malformed.', 503, { kind: 'unavailable' });
+  return parsed.data;
+};
+
 export const listPersonalLibraryItems = async (ownerUserId: string): Promise<PersonalLibraryListResult> => {
-  const { data, error, count } = await requireStore()
-    .from('cardforge_personal_library_items')
-    .select(LIBRARY_COLUMNS, { count: 'exact' })
-    .eq('owner_user_id', ownerUserId)
-    .order('updated_at', { ascending: false })
-    .limit(MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT);
-  if (error) {
-    console.error('Unable to list personal library items:', error);
-    throw new PersonalLibraryStoreError('Unable to load the personal library.', 503, { kind: 'unavailable' });
-  }
-  return {
-    items: (data ?? []).map((row) => toItem(row as unknown as LibraryRow)),
-    count: count ?? data?.length ?? 0,
-    limit: MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT,
-  };
+  let result;
+  try {
+    result = await requireStore().from('cardforge_personal_library_items').select(LIBRARY_COLUMNS, { count: 'exact' })
+      .eq('owner_user_id', ownerUserId).order('updated_at', { ascending: false }).limit(MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT);
+  } catch { throw new PersonalLibraryStoreError('Unable to load the personal library.', 503, { kind: 'unavailable' }); }
+  if (!result || result.error || !Array.isArray(result.data)) throw new PersonalLibraryStoreError('Unable to load the personal library.', 503, { kind: 'unavailable' });
+  const items = result.data.map(data => {
+    const { itemId, ...metadata } = projectPersonalLibraryMetadata(data, ownerUserId);
+    const row = data as unknown as Record<string, unknown>;
+    const parsed = personalLibraryClientItem.safeParse({ ...metadata, id: itemId, providerFileId: row.provider_file_id, providerModifiedAt: row.provider_modified_at, providerWebViewLink: row.provider_web_view_link, lastVerifiedAt: row.last_verified_at, createdAt: row.created_at, updatedAt: row.updated_at });
+    if (!parsed.success) throw new PersonalLibraryStoreError('Personal-library list metadata is unavailable or malformed.', 503, { kind: 'unavailable' });
+    return parsed.data;
+  });
+  const parsed = personalLibraryListResult.safeParse({ items, count: result.count, limit: MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT });
+  if (!parsed.success) throw new PersonalLibraryStoreError('Personal-library list/count is unavailable or malformed.', 503, { kind: 'unavailable' });
+  return parsed.data;
 };
 
 export const registerGoogleDrivePersonalLibraryFiles = async ({
@@ -354,16 +364,34 @@ export const registerGoogleDrivePersonalLibraryFiles = async ({
   return { items, registeredCount: items.length };
 };
 
-export const removePersonalLibraryItem = async (ownerUserId: string, itemId: string): Promise<void> => {
-  const { data, error } = await requireStore()
-    .from('cardforge_personal_library_items')
-    .delete()
-    .eq('id', itemId)
-    .eq('owner_user_id', ownerUserId)
-    .select('id')
-    .maybeSingle();
-  if (error) throw new PersonalLibraryStoreError('Unable to remove that personal-library item.', 503, { kind: 'unavailable' });
-  if (!data) throw new PersonalLibraryStoreError('Personal-library item not found.', 404, { kind: 'not_found' });
+/** Exact metadata only: no provider connection, download or profile mutation. */
+export const getPersonalLibraryItem = async (ownerUserId: string, itemId: string) => {
+  if (!personalLibraryExactInput.safeParse({ itemId }).success) throw new PersonalLibraryStoreError('An exact item UUID is required.', 400, { kind: 'invalid' });
+  const { data, error } = await requireStore().from('cardforge_personal_library_items')
+    .select('id,owner_user_id,provider,display_name,asset_role,mime_type,byte_size,provider_revision,content_hash')
+    .eq('id', itemId).eq('owner_user_id', ownerUserId).maybeSingle();
+  if (error || data === undefined) throw new PersonalLibraryStoreError('Unable to read that personal-library item.', 503, { kind: 'unavailable' });
+  if (data === null) return { itemId, item: null };
+  const item = projectPersonalLibraryMetadata(data, ownerUserId);
+  if (item.itemId !== itemId) throw new PersonalLibraryStoreError('Personal-library metadata returned a different identity.', 503, { kind: 'unavailable' });
+  return { itemId, item };
+};
+
+export const removePersonalLibraryItem = async (ownerUserId: string, input: unknown): Promise<PersonalLibraryRemovalReceipt> => {
+  const parsed = personalLibraryRemovalInput.safeParse(input);
+  if (!parsed.success || parsed.data.confirmation.itemId !== parsed.data.itemId) throw new PersonalLibraryStoreError('Confirm the exact index entry and index-only removal consequences.', 400, { kind: 'invalid' });
+  const { itemId } = parsed.data;
+  // Resolve configuration before issuing the irreversible index DELETE.
+  const database = requireStore();
+  let result;
+  try {
+    result = await database.from('cardforge_personal_library_items').delete()
+      .eq('id', itemId).eq('owner_user_id', ownerUserId).select('id').maybeSingle();
+  } catch { return uncertainPersonalLibraryRemoval(itemId); }
+  if (!result || result.error || result.data === undefined) return uncertainPersonalLibraryRemoval(itemId);
+  if (result.data === null) return { itemId, outcome: 'absent', committed: false, retryable: false, message: 'This exact index entry is absent. This does not prove a previous removal committed.' };
+  if (result.data.id !== itemId) return uncertainPersonalLibraryRemoval(itemId);
+  return { itemId, outcome: 'removed', committed: true, retryable: false, message: 'The exact CardForge index entry was permanently removed. The Drive original is untouched; there is no index Trash or Undo, and later registration does not recover this index identity.' };
 };
 
 const getPersonalLibraryRow = async (ownerUserId: string, itemId: string): Promise<LibraryRow> => {
@@ -381,15 +409,26 @@ const getPersonalLibraryRow = async (ownerUserId: string, itemId: string): Promi
 export const materializePersonalLibraryItem = async (
   ownerUserId: string,
   itemId: string,
+  options: { expectedProviderRevision?: string; maximumBytes?: number; expectedMimeType?: string; consumeIncomingBytes?: (bytes: number) => void; onIndexUpdateAttempted?: () => void } = {},
 ): Promise<PersonalLibraryMaterializedAsset> => {
   const row = await getPersonalLibraryRow(ownerUserId, itemId);
   if (row.provider !== 'google-drive') throw new PersonalLibraryStoreError('That personal-library provider is not supported yet.', 400, { kind: 'invalid' });
+  if (options.expectedProviderRevision !== undefined) {
+    if (row.id !== itemId || row.owner_user_id !== ownerUserId || !isGoogleDriveFileId(row.provider_file_id)) throw new PersonalLibraryStoreError('Exact personal source metadata is unavailable.', 503, { kind: 'unavailable' });
+    if (row.provider_revision !== options.expectedProviderRevision || (options.expectedMimeType && row.mime_type !== options.expectedMimeType)) throw new PersonalLibraryStoreError('The observed personal Library source changed. Refresh its authorized metadata before a new attachment.', 409, { kind: 'conflict' });
+  }
   const accessToken = await getGoogleDriveAccessToken(ownerUserId);
   const persistedResourceKey = normalizeResourceKey(row.provider_resource_key);
   const before = normalizeDriveFile(
     await getDriveFile(accessToken, row.provider_file_id, persistedResourceKey),
     row.asset_role,
   );
+  // Drive v3 File.version is the observed monotonically increasing file version,
+  // persisted verbatim as provider_revision; never synthesize a pin from time/hash.
+  if (before.id !== row.provider_file_id || (options.expectedProviderRevision !== undefined && before.providerRevision !== options.expectedProviderRevision)) throw new PersonalLibraryStoreError('The selected Drive source revision changed. Read the exact Library entry and provider state before a new attachment.', 409, { kind: 'conflict' });
+  const maximumBytes = Math.min(options.maximumBytes ?? MAX_PERSONAL_LIBRARY_ITEM_BYTES, MAX_PERSONAL_LIBRARY_ITEM_BYTES);
+  if (!Number.isInteger(maximumBytes) || maximumBytes <= 0 || before.byteSize > maximumBytes) throw new PersonalLibraryStoreError('The selected source exceeds the permitted incoming artwork size.', 413, { kind: 'limit' });
+  if (options.expectedMimeType && before.mimeType !== options.expectedMimeType) throw new PersonalLibraryStoreError('The selected source MIME does not match the attachment.', 409, { kind: 'conflict' });
   const effectiveResourceKey = before.resourceKey ?? persistedResourceKey;
   const mediaUrl = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(row.provider_file_id)}`);
   mediaUrl.searchParams.set('alt', 'media');
@@ -401,24 +440,39 @@ export const materializePersonalLibraryItem = async (
   });
   if (!response.ok) throw await parsePersonalLibraryGoogleError(response, 'CardForge could not download that personal-library file.');
   const contentLength = Number(response.headers.get('content-length')) || 0;
-  if (contentLength > MAX_PERSONAL_LIBRARY_ITEM_BYTES) {
+  if (contentLength > maximumBytes) {
+    await response.body?.cancel().catch(() => undefined);
     throw new PersonalLibraryStoreError('That personal-library file is larger than the supported materialization limit.', 413, { kind: 'limit' });
   }
-  const buffer = await response.arrayBuffer();
-  if (buffer.byteLength <= 0 || buffer.byteLength > MAX_PERSONAL_LIBRARY_ITEM_BYTES) {
-    throw new PersonalLibraryStoreError('That personal-library file is empty or too large to use.', 413, { kind: 'limit' });
-  }
+  const reader = response.body?.getReader();
+  if (!reader) throw new PersonalLibraryStoreError('The source returned no readable bytes.', 503, { kind: 'unavailable' });
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const part = await reader.read();
+      if (part.done) break;
+      size += part.value.byteLength;
+      if (size > maximumBytes) { await reader.cancel().catch(() => undefined); throw new PersonalLibraryStoreError('The source exceeds the incoming artwork size limit.', 413, { kind: 'limit' }); }
+      options.consumeIncomingBytes?.(part.value.byteLength);
+      chunks.push(part.value);
+    }
+  } catch (error) { await reader.cancel().catch(() => undefined); throw error; } finally { reader.releaseLock(); }
+  if (size === 0) throw new PersonalLibraryStoreError('The source returned empty bytes.', 413, { kind: 'limit' });
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
   const after = normalizeDriveFile(
     await getDriveFile(accessToken, row.provider_file_id, effectiveResourceKey),
     row.asset_role,
   );
-  if (before.providerRevision !== after.providerRevision || before.byteSize !== after.byteSize || buffer.byteLength !== after.byteSize) {
+  if (after.id !== row.provider_file_id || before.id !== after.id || before.providerRevision !== after.providerRevision || before.mimeType !== after.mimeType || before.byteSize !== after.byteSize || bytes.byteLength !== after.byteSize) {
     throw new PersonalLibraryStoreError('That Google Drive asset changed while CardForge was reading it. Retry with the current Drive revision; no project asset was created.', 409, { kind: 'conflict' });
   }
 
-  const bytes = new Uint8Array(buffer);
   const contentHash = createHash('sha256').update(bytes).digest('hex');
   const verifiedAt = new Date().toISOString();
+  options.onIndexUpdateAttempted?.();
   const { data, error } = await requireStore()
     .from('cardforge_personal_library_items')
     .update({
@@ -437,7 +491,11 @@ export const materializePersonalLibraryItem = async (
     .eq('owner_user_id', ownerUserId)
     .select(LIBRARY_COLUMNS)
     .single();
-  if (error || !data) throw new PersonalLibraryStoreError('Unable to refresh the personal-library index.', 503, { kind: 'unavailable' });
+  if (error || !data) throw new PersonalLibraryStoreError('Unable to confirm the personal-library index refresh.', 503, { kind: 'unavailable' });
+  if (options.expectedProviderRevision !== undefined) {
+    const ack = data as unknown as Record<string, unknown>;
+    if (ack.id !== row.id || ack.owner_user_id !== ownerUserId || ack.provider_file_id !== row.provider_file_id || ack.provider_revision !== after.providerRevision || ack.content_hash !== contentHash) throw new PersonalLibraryStoreError('The exact source index refresh acknowledgement is unavailable.', 503, { kind: 'unavailable' });
+  }
   return {
     item: toItem(data as unknown as LibraryRow),
     bytes,

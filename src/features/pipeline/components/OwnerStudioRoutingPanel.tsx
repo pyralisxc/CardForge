@@ -1,5 +1,7 @@
 "use client";
 
+import { routingSaveResult } from '../lib/ownerProgramRoutingContract';
+
 import Link from 'next/link';
 
 import { useCallback, useEffect, useState } from 'react';
@@ -20,7 +22,7 @@ import type {
   OwnerStudioRoutingItem,
   OwnerStudioRoutingPage,
 } from '@/features/pipeline/lib/ownerStudioRouting';
-import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { ApiClientError, readApiError, readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { cn } from '@/shared/classNames';
 
 const GROUPS = ['Templates', 'Images', 'Elements', 'Styles', 'Typography'] as const;
@@ -34,6 +36,7 @@ export function OwnerStudioRoutingPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [savingAssetId, setSavingAssetId] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState('');
 
   const loadRouting = useCallback(async () => {
     setIsLoading(true);
@@ -45,8 +48,10 @@ export function OwnerStudioRoutingPanel() {
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load the Studio Map.'));
       const body = await response.json() as { page: OwnerStudioRoutingPage };
       setRoutingPage(body.page);
+      return true;
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to load the Studio Map.');
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -58,40 +63,28 @@ export function OwnerStudioRoutingPanel() {
   }, [loadRouting]);
 
   const saveRouting = async (item: OwnerStudioRoutingItem, draft: RoutingDraft) => {
-    setSavingAssetId(item.assetId);
+    setSavingAssetId(item.assetId); setSaveStatus(''); let committed = false;
     try {
-      const response = await fetch('/api/owner/studio-routing', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assetId: item.assetId,
-          mode: draft.mode,
-          destinations: draft.destinations,
-          sortOrder: draft.sortOrder,
-          featured: draft.featured,
-        }),
-      });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save Studio placement.'));
-      await loadRouting();
-      toast({
-        title: draft.mode === 'automatic' ? 'Automatic placement saved' : 'Studio placement saved',
-        description: draft.mode === 'automatic'
-          ? `${item.name} now follows its asset contract.`
-          : `${item.name} now appears only in the selected Studio sections.`,
-      });
+      const response = await fetch('/api/owner/studio-routing', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assetId: item.assetId, ...draft }) });
+      if (!response.ok) throw await readApiError(response, 'Studio placement outcome is unconfirmed. Read the exact asset before another write.');
+      const { ok: _ok, ...body } = await response.json(); const result = routingSaveResult.parse(body);
+      if (result.assetId !== item.assetId || result.receipt.outcome !== 'committed' || result.receipt.committed !== true) throw new Error('Exact placement receipt unconfirmed');
+      committed = true;
+      const warnings = [...result.receipt.warnings];
+      setSaveStatus(`Studio placement saved for ${item.name}. ${warnings.join(' ')}`);
+      toast({ title: 'Studio placement saved', description: 'Native placement commit is confirmed; no content approval or publication was performed.' });
+      if (await loadRouting() === false) warnings.push('Studio Map refresh is incomplete; reopen the view rather than repeating the committed save.');
+      setSaveStatus(`Studio placement saved for ${item.name}. ${warnings.join(' ')}`);
     } catch (error) {
-      toast({
-        title: 'Studio placement not saved',
-        description: error instanceof Error ? error.message : 'Unable to save Studio placement.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSavingAssetId(null);
-    }
+      const rejected = error instanceof ApiClientError && error.status < 500;
+      const message = committed ? 'Studio placement is confirmed; follow-up refresh is incomplete. Do not repeat the save.' : rejected ? error.message : 'Studio placement outcome is unconfirmed. Read the exact asset before any further write; do not replay automatically.';
+      setSaveStatus(message); toast({ title: committed ? 'Studio placement saved' : rejected ? 'Studio placement not saved' : 'Studio placement not confirmed', description: message, variant: committed ? 'default' : 'destructive' });
+    } finally { setSavingAssetId(null); }
   };
 
   return (
     <div className="space-y-4">
+      {saveStatus ? <p role="status">{saveStatus}</p> : null}
       <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -266,7 +259,7 @@ function StudioRoutingCard({
         </div>
       </div>
 
-      <div className="mt-3 grid gap-3 border-t border-[#342719] pt-3 sm:grid-cols-[10rem_1fr]">
+      <fieldset disabled={isSaving}><div className="mt-3 grid gap-3 border-t border-[#342719] pt-3 sm:grid-cols-[10rem_1fr]">
         <div>
           <Label className="text-[10px] uppercase tracking-[0.13em] text-[#8e795e]">Placement owner</Label>
           <Select value={draft.mode} onValueChange={(value) => setDraft((current) => ({ ...current, mode: value as StudioAssetRoutingMode }))}>
@@ -329,7 +322,7 @@ function StudioRoutingCard({
                 : 'Save placement'}
           </Button>
         </div>
-      </div>
+      </div></fieldset>
     </article>
   );
 }

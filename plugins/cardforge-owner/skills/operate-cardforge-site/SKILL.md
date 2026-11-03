@@ -14,3 +14,5 @@ Operate only after CardForge's server confirms the signed-in Owner role. Install
 5. Use CardForge native Owner tools, not direct database writes or credentials. Report denied access, stale revisions, and uncertain operations accurately.
 6. Never replay uncertain writes blindly; reconcile the existing receipt first.
 7. Keep CardForge Studio Template, card and Set authoring separate from the Owner control plane.
+
+For Pipeline review, read the exact submission with `get_pipeline_source_review_evidence`, `get_pipeline_editorial_review`, or `get_pipeline_publication_decision`, then use the paired record/save command only for an explicitly reviewed decision. Preserve evidence versions and canonical quality criteria; source observations do not approve content. Publication overrides and editorial rebalance can affect visibility under existing rules. Do not invent general CAS or operation IDs. A committed receipt remains terminal after refresh/activity warnings; uncertain outcomes require exact readback without blind replay. These tools require Owner authority and are separate from Studio authoring and existing lifecycle compatibility tools.

@@ -1,3 +1,4 @@
+import { PERSONAL_LIBRARY_ARTWORK_AUTHORIZATION, type PersonalLibraryArtworkSource } from '@/features/personal-library/server';
 import { fromJsonSchema } from '@modelcontextprotocol/server';
 
 import {
@@ -77,6 +78,7 @@ export interface TemplateArtworkAttachment {
   mimeType: EmbeddedTemplateAssetMimeType;
   data?: string;
   sourceUrl?: string;
+  personalLibrary?: PersonalLibraryArtworkSource;
   fileName?: string;
 }
 
@@ -236,6 +238,11 @@ const cardPatch = {
 } as const;
 
 const artworkSourceProperties = {
+  personalLibrary: { type: 'object', additionalProperties: false, required: ['itemId', 'expectedProviderRevision', 'authorization'], properties: {
+    itemId: { type: 'string', format: 'uuid' },
+    expectedProviderRevision: { type: 'string', minLength: 1, maxLength: 80, description: 'Observed exact Google Drive File.version, returned by personal Library metadata. Never invent a revision from a timestamp/hash.' },
+    authorization: { type: 'string', const: PERSONAL_LIBRARY_ARTWORK_AUTHORIZATION },
+  } },
   mimeType: {
     type: 'string',
     enum: [...EMBEDDED_TEMPLATE_ASSET_MIME_TYPES],
@@ -260,8 +267,9 @@ const artworkAttachment = {
   additionalProperties: false,
   required: ['templateId', 'binding', 'mimeType'],
   oneOf: [
-    { required: ['data'], not: { required: ['sourceUrl'] } },
-    { required: ['sourceUrl'], not: { required: ['data'] } },
+    { required: ['data'], not: { anyOf: [{ required: ['sourceUrl'] }, { required: ['personalLibrary'] }] } },
+    { required: ['sourceUrl'], not: { anyOf: [{ required: ['data'] }, { required: ['personalLibrary'] }] } },
+    { required: ['personalLibrary'], not: { anyOf: [{ required: ['data'] }, { required: ['sourceUrl'] }] } },
   ],
   properties: {
     templateId: { ...stableId, description: 'Existing stable Template id.' },

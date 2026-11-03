@@ -884,3 +884,386 @@ test('@golden Owner catalog Restore refreshes mounted Shared Trash without losin
   expect(requests.filter(request => request.method === 'POST')).toHaveLength(1);
   expect(evidence.errors).toEqual([]);
 });
+
+test('@golden Owner People committed deletion clears exact identity before failed refresh and permits only retained-history deactivation', async ({ page }) => {
+  const evidence = await mount(page, '?ownerPeople=committed');
+  await page.getByRole('button', { name: /Synthetic person person@example.invalid Connected/ }).click();
+  await page.getByRole('textbox', { name: 'Type person@example.invalid', exact: true }).fill('person@example.invalid');
+  await page.getByRole('button', { name: 'Delete account', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Choose a person', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Synthetic person/ })).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'Type person@example.invalid', exact: true })).toHaveCount(0);
+  const committedNotice = page.getByRole('listitem').filter({ hasText: 'Clerk account deleted' });
+  await expect(committedNotice).toContainText('Clerk deletion is committed. Directory refresh is pending.');
+  await expect(committedNotice).toContainText('retained-profile reconciliation is incomplete');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.evaluate(() => (window as typeof window & { releasePeopleRefresh: () => void }).releasePeopleRefresh());
+  await expect(page.getByRole('alert')).toContainText('Synthetic directory refresh unavailable');
+  await expect(committedNotice).toHaveCount(1);
+  await expect(committedNotice).toContainText('Directory refresh is incomplete');
+  await expect(committedNotice).not.toContainText('refresh is pending');
+  // A new search exercises fresh readback, first stale then retained history.
+  await page.getByRole('textbox', { name: 'Search name, email, or identity', exact: true }).fill('person');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('confirmed deleted sign-in');
+  await expect(page.getByRole('button', { name: /Synthetic person/ })).toHaveCount(0);
+  await page.getByRole('textbox', { name: 'Search name, email, or identity', exact: true }).fill('synthetic');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByRole('button', { name: /Synthetic person person@example.invalid History only/ }).click();
+  await expect(page.getByRole('button', { name: 'Delete account', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Deactivate retained profile', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Retained profile deactivated' })).toBeVisible();
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string; body?: string }[] }).libraryRequests);
+  expect(requests.filter(request => request.method === 'DELETE')).toHaveLength(1);
+  expect(requests.filter(request => request.method === 'PATCH').map(request => JSON.parse(request.body!))).toEqual([{ action: 'deactivate_history', userId: 'synthetic-person' }]);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+test('@golden Owner People unconfirmed deletion keeps identity and requires fresh confirmation without replay', async ({ page }) => {
+  const evidence = await mount(page, '?ownerPeople=uncertain');
+  await page.getByRole('button', { name: /Synthetic person person@example.invalid Connected/ }).click();
+  const confirmation = page.getByRole('textbox', { name: 'Type person@example.invalid', exact: true });
+  await confirmation.fill('person@example.invalid');
+  await page.getByRole('button', { name: 'Delete account', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Account deletion not confirmed' })).toContainText('do not replay automatically');
+  await expect(confirmation).toHaveValue('');
+  await expect(page.getByRole('button', { name: 'Delete account', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Synthetic person person@example.invalid Connected/ })).toBeVisible();
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests);
+  expect(requests.filter(request => request.method === 'DELETE')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+for (const outcome of ['partial', 'uncertain'] as const) test(`@golden Contributor draft ${outcome} receipt keeps authored form and requires readback`, async ({ page }) => {
+  const evidence = await mount(page, `?contributorReceipt=${outcome}`);
+  await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Newer private description');
+  await page.getByRole('button', { name: 'Submit for owner review', exact: true }).click();
+  const status = page.getByRole('status').filter({ hasText: outcome === 'partial' ? 'Classification saved; draft not submitted' : 'Submission outcome not confirmed' });
+  await expect(status).toContainText('Read the exact draft before any further write; do not replay automatically');
+  await expect(status).toContainText('Semantic classification was saved');
+  await expect(page.getByRole('textbox', { name: 'Description', exact: true })).toHaveValue('Newer private description');
+  expect(await page.evaluate(() => (window as typeof window & { contributorRefreshes?: number }).contributorRefreshes ?? 0)).toBe(0);
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'POST')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+for (const outcome of ['committed', 'submitted'] as const) test(`@golden Contributor draft ${outcome} remains committed through deferred failed Library refresh`, async ({ page }) => {
+  const evidence = await mount(page, `?contributorReceipt=${outcome}`);
+  await page.getByRole('button', { name: outcome === 'submitted' ? 'Submit for owner review' : 'Save Pipeline draft', exact: true }).click();
+  const notice = page.getByRole('listitem').filter({ hasText: outcome === 'submitted' ? 'Draft submitted' : 'Metadata committed' });
+  await expect(notice).toContainText('The exact write is committed. Library refresh is pending.');
+  await page.evaluate(() => (window as typeof window & { releaseContributorRefresh: () => void }).releaseContributorRefresh());
+  await expect(notice).toContainText('Library refresh is incomplete');
+  await expect(notice).not.toContainText('not submitted');
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method !== 'GET')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+for(const mode of ['success','readback','refreshFalse','refreshThrow','deferred','uncertain','unstructured','rejected','createUnknown','createIdentity','libraryRefresh'])test(`@golden Campaign draft ${mode} retains native outcome without replay`,async({page})=>{
+ const evidence=await mount(page,`?campaignDraftReceipt=${mode}`);
+ if(mode.startsWith('create')){
+   await page.getByLabel('Content title').fill('Synthetic new package');await page.getByLabel('Objective').fill('Synthetic goal');await page.getByLabel('Tracking key').fill('synthetic_key');await page.getByLabel('Facebook post copy').fill('Synthetic copy');
+ }else{await page.getByRole('button',{name:'Edit',exact:true}).click();await page.getByLabel('Content title').fill('Changed synthetic title');}
+ const save=page.getByRole('button',{name:mode.startsWith('create')?'Create campaign draft':'Save package changes',exact:true});await expect(save).toBeEnabled();await save.click();
+ if(['uncertain','unstructured','createUnknown'].includes(mode)){
+   await expect(page.getByText(/Campaign outcome is unconfirmed/).first()).toBeVisible();await expect(save).toBeDisabled();
+   await page.getByRole('button',{name:'Read retained Campaign state',exact:true}).click();await expect(page.getByRole('status')).toContainText('Observed retained Campaign');await expect(page.getByRole('status')).toContainText('does not prove');await expect(save).toBeDisabled();
+ }else if(mode==='createIdentity'){await expect(page.getByRole('status')).toContainText('acknowledged a retained Campaign identity');await expect(page.getByLabel('Content title')).toHaveValue('Synthetic new package');await expect(save).toBeDisabled();await expect(page.getByRole('alert')).toContainText('Do not repeat Create');}
+ else if(mode==='rejected'){await expect(page.getByRole('alert')).toContainText('changed elsewhere');await expect(save).toBeEnabled();await expect(page.getByLabel('Content title')).toHaveValue('Changed synthetic title');}
+ else{await expect(page.getByRole('status')).toContainText('native commit confirmed');if(mode==='deferred')await page.evaluate(()=>(window as typeof window & {releaseCampaignDraftRefresh:()=>void}).releaseCampaignDraftRefresh());if(['refreshFalse','refreshThrow','deferred','libraryRefresh'].includes(mode))await expect(page.getByRole('status')).toContainText('refresh is incomplete');if(mode==='readback')await expect(page.getByRole('status')).toContainText('readback is unavailable');}
+ const requests=await page.evaluate(()=>(window as typeof window & {libraryRequests:{url:string;method:string;body?:string}[]}).libraryRequests);const writes=requests.filter(r=>r.method==='POST'||r.method==='PATCH');expect(writes).toHaveLength(1);const body=JSON.parse(writes[0].body!);
+ if(mode.startsWith('create')){expect(writes[0].method).toBe('POST');if(mode==='createUnknown')expect(new URL(requests.at(-1)!.url,'http://localhost').searchParams.get('idempotencyKey')).toBe(body.idempotencyKey);}else{expect(body).toMatchObject({action:'save',campaignId:'10000000-0000-4000-8000-000000000001',expectedVersion:1});}
+ expect(evidence.errors).toEqual([]);expect(evidence.mutations).toEqual([]);
+});
+
+for (const mode of ['pendingUnknown','uncertain','createIdentity','dirty'] as const) test(`@golden Campaign draft navigation ${mode} preserves work until explicit discard`, async ({page}) => {
+  const evidence=await mount(page,`?campaignDraftReceipt=${mode}`);
+  if(mode==='createIdentity'){
+    await page.getByLabel('Content title').fill('Synthetic new package');await page.getByLabel('Objective').fill('Synthetic goal');await page.getByLabel('Tracking key').fill('synthetic_key');await page.getByLabel('Facebook post copy').fill('Synthetic copy');
+  }else{await page.getByRole('button',{name:'Edit',exact:true}).click();await page.getByLabel('Content title').fill('Preserved attempted title');}
+  const attempted=mode==='createIdentity'?'Synthetic new package':'Preserved attempted title';
+  const back=page.getByRole('button',{name:'Back to campaigns',exact:true}),close=page.getByRole('button',{name:'Close editor',exact:true});
+  if(mode!=='dirty')await page.getByRole('button',{name:mode==='createIdentity'?'Create campaign draft':'Save package changes',exact:true}).click();
+  if(mode==='pendingUnknown'){
+    await expect(back).toBeDisabled();await expect(close).toBeDisabled();await expect(page.getByLabel('Content title')).toHaveValue(attempted);
+    await page.evaluate(()=>(window as typeof window & {releaseCampaignDraftPost:()=>void}).releaseCampaignDraftPost());
+  }
+  if(mode==='pendingUnknown'||mode==='uncertain')await expect(page.getByText(/Campaign outcome is unconfirmed/).first()).toBeVisible();
+  if(mode==='createIdentity')await expect(page.getByRole('status')).toContainText('acknowledged a retained Campaign identity');
+  await expect(back).toBeEnabled();await back.click();
+  const dialog=page.getByRole('alertdialog',{name:'Leave with unsaved changes?'});await expect(dialog).toBeVisible();await page.getByRole('button',{name:'Keep editing',exact:true}).click();await expect(page.getByLabel('Content title')).toHaveValue(attempted);
+  await close.click();await expect(dialog).toBeVisible();if(mode!=='dirty')await expect(dialog).toContainText('does not cancel, undo or retry');await page.getByRole('button',{name:'Discard and continue',exact:true}).click();await expect(page.getByLabel('Content title')).toHaveCount(0);await expect(page.getByRole('button',{name:'New campaign package',exact:true})).toBeEnabled();
+  if(mode!=='dirty'){
+    await expect(page.getByRole('alert')).toContainText('Exact reference:');await page.getByRole('button',{name:'Read retained Campaign state',exact:true}).click();await expect(page.getByRole('status')).toContainText('Observed retained Campaign');
+  }
+  const requests=await page.evaluate(()=>(window as typeof window & {libraryRequests:{url:string;method:string;body?:string}[]}).libraryRequests);const writes=requests.filter(r=>r.method==='POST'||r.method==='PATCH');expect(writes).toHaveLength(mode==='dirty'?0:1);
+  if(mode==='createIdentity'){const body=JSON.parse(writes[0].body!);expect(new URL(requests.at(-1)!.url,'http://localhost').searchParams.get('idempotencyKey')).toBe(body.idempotencyKey);}
+  expect(evidence.errors).toEqual([]);expect(evidence.mutations).toEqual([]);
+});
+
+for (const mode of ['refreshFail', 'staleList', 'uncertain', 'absent', 'deferred']) test(`@golden personal index removal receipt ${mode}`, async ({ page }) => {
+  await mount(page, `?personalItemProof=${mode}`);
+  await expect(page.getByText('Synthetic indexed artwork', { exact: true })).toBeVisible();
+  let confirmation = '';
+  page.on('dialog', async dialog => { confirmation = dialog.message(); await dialog.accept(); });
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  expect(confirmation).toContain('10000000-0000-4000-8000-000000000001');
+  expect(confirmation).toContain('no index Trash or Undo');
+  expect(confirmation).toContain('does not restore this exact index identity');
+  const deletes = () => page.evaluate(() => (window as unknown as { libraryRequests: {method:string}[] }).libraryRequests.filter(row => row.method === 'DELETE').length);
+  if (mode === 'deferred') {
+    await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Read exact index entry' })).toBeDisabled();
+    await page.evaluate(() => (window as unknown as { releasePersonalRemoval: () => void }).releasePersonalRemoval());
+  }
+  if (mode === 'uncertain' || mode === 'absent') {
+    await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+    await page.getByRole('button', { name: 'Read exact index entry' }).click();
+    await expect(page.getByText(mode === 'absent' ? /does not prove the attempted removal committed/ : /does not establish the earlier operation outcome/)).toBeVisible();
+    expect(await deletes()).toBe(1);
+    if (mode === 'uncertain') {
+      await page.getByRole('button', { name: 'Allow a new removal confirmation' }).click();
+      await page.getByRole('button', { name: 'Remove', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+      expect(await deletes()).toBe(2); // New explicit confirmation, never automatic replay.
+    }
+  } else {
+    await expect(page.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Google Drive asset access' }).getByRole('status').filter({ hasText: 'The exact index entry was removed; its Drive original is untouched.' })).toBeVisible();
+    expect(await deletes()).toBe(1);
+  }
+});
+
+test('@golden personal index present then pending/unavailable clears stale removal eligibility', async ({ page }) => {
+  await mount(page, '?personalItemProof=readSequence');
+  page.on('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  const read = page.getByRole('button', { name: 'Read exact index entry' });
+  await read.click();
+  await expect(page.getByRole('button', { name: 'Allow a new removal confirmation' })).toBeVisible();
+  // Two same-turn activations must create only one pending exact read.
+  await read.evaluate(button => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
+  await expect(read).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Allow a new removal confirmation' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+  const requests = () => page.evaluate(() => (window as unknown as { libraryRequests: { method: string; url: string }[] }).libraryRequests);
+  expect((await requests()).filter(row => row.method === 'GET' && row.url.endsWith('10000000-0000-4000-8000-000000000001'))).toHaveLength(2);
+  await page.evaluate(() => (window as unknown as { releasePersonalRead: () => void }).releasePersonalRead());
+  await expect(page.getByText(/Exact readback is unavailable/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Allow a new removal confirmation' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeDisabled();
+  expect((await requests()).filter(row => row.method === 'DELETE')).toHaveLength(1);
+});
+
+for (const mode of ['listEmpty', 'listMalformed']) test(`@golden personal index list ${mode} stays truthful`, async ({ page }) => {
+  await mount(page, `?personalItemProof=${mode}`);
+  if (mode === 'listEmpty') await expect(page.getByText(/No connected assets yet/)).toBeVisible();
+  else {
+    await expect(page.getByText('Personal library unavailable', { exact: true })).toBeVisible();
+    await expect(page.getByText(/No connected assets yet/)).toHaveCount(0);
+  }
+  expect(await page.evaluate(() => (window as unknown as { libraryRequests: { method: string }[] }).libraryRequests.some(row => row.method !== 'GET'))).toBe(false);
+});
+
+for (const decision of ['control', 'editorial'] as const) test(`@golden committed Owner decision keeps warning after swallowed ${decision} refresh failure`, async ({ page }) => {
+  const evidence = await mount(page, '?ownerDecisionReceipt=1');
+  await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
+  await page.getByRole('button', { name: 'Manage', exact: true }).click();
+  if (decision === 'editorial') await page.getByRole('combobox', { name: 'Review outcome', exact: true }).selectOption('pending');
+  await page.getByRole('button', { name: decision === 'control' ? 'Save control' : 'Save editorial review', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: decision === 'control' ? 'Asset control committed' : 'Editorial review committed' })).toContainText('Refresh or activity is incomplete');
+  await expect(page.getByText('The owner override and automatic recommendation are now synchronized.', { exact: true })).toHaveCount(0);
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests);
+  expect(requests.filter(request => request.method === 'PUT')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+test('@golden source evidence receipt preserves committed observations and audit refresh warnings', async ({ page }) => {
+  const evidence = await mount(page, '?sourceEvidenceReceipt=followups');
+  const trace = page.getByRole('textbox', { name: 'Technical source trace', exact: true });
+  await trace.fill('Exact observed parent source');
+  await page.getByRole('button', { name: 'Record source evidence', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Recording…', exact: true })).toBeVisible();
+  await expect(trace).toBeDisabled();
+  await page.evaluate(() => (window as typeof window & { releaseEvidencePost: () => void }).releaseEvidencePost());
+  const status = page.getByRole('region', { name: 'Correction source evidence' }).getByRole('status');
+  await expect(status).toContainText('Evidence version 1 committed');
+  await expect(status).toContainText('Audit activity is incomplete');
+  await expect(status).toContainText('Library refresh is incomplete');
+  await expect(trace).toHaveValue('Exact observed parent source');
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'PUT')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+test('@golden source evidence receipt unstructured failure requires readback without blind replay', async ({ page }) => {
+  const evidence = await mount(page, '?sourceEvidenceReceipt=uncertain');
+  await page.getByRole('textbox', { name: 'Technical source trace', exact: true }).fill('Exact observed source');
+  await page.getByRole('button', { name: 'Record source evidence', exact: true }).click();
+  const status = page.getByRole('region', { name: 'Correction source evidence' }).getByRole('status');
+  await expect(status).toContainText('Read this exact revision/evidence before any further write');
+  await expect(status).toContainText('do not replay automatically');
+  await expect(status).not.toContainText('retry the same request');
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'PUT')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+for (const outcome of ['uncertain', 'rejected'] as const) for (const decision of ['control', 'editorial'] as const) test(`@golden Owner ${decision} decision distinguishes ${outcome} outcome without retry`, async ({ page }) => {
+  const evidence = await mount(page, `?ownerDecisionReceipt=${outcome}`);
+  await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
+  await page.getByRole('button', { name: 'Manage', exact: true }).click();
+  if (decision === 'editorial') await page.getByRole('combobox', { name: 'Review outcome', exact: true }).selectOption('pending');
+  await page.getByRole('button', { name: decision === 'control' ? 'Save control' : 'Save editorial review', exact: true }).click();
+  const title = `${decision === 'control' ? 'Asset control' : 'Editorial review'} ${outcome === 'uncertain' ? 'not confirmed' : 'not saved'}`;
+  const status = page.getByRole('status').filter({ hasText: title });
+  await expect(status).toBeVisible();
+  if (outcome === 'uncertain') {
+    await expect(status).toContainText('Read this exact revision before any further write; do not replay automatically');
+    await expect(status).not.toContainText('not saved');
+  } else await expect(status).toContainText('decision rejected');
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests);
+  expect(requests.filter(request => request.method === 'PUT')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+for (const outcome of ['uncertain', 'unstructured', 'conflict'] as const) test(`@golden Published classification ${outcome} keeps reviewed values without replay`, async ({ page }) => {
+  const evidence = await mount(page, `?classificationReceipt=${outcome}`);
+  const family = page.getByRole('textbox', { name: 'Visual family / pack', exact: true });
+  await family.fill('Reviewed family');
+  await page.getByRole('button', { name: 'Save classification', exact: true }).click();
+  const error = page.getByRole('alert');
+  if (outcome === 'conflict') await expect(error).toContainText('published revision or classification changed');
+  else { await expect(error).toContainText('do not replay automatically'); await expect(error).not.toContainText('Retry the same request'); }
+  await expect(family).toHaveValue('Reviewed family');
+  await expect(page.getByRole('button', { name: 'Reload current values', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => (window as typeof window & { classificationRefreshes?: number }).classificationRefreshes ?? 0)).toBe(0);
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'POST')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+for (const outcome of ['committed', 'readback'] as const) test(`@golden Published classification ${outcome} preserves commit through follow-up failure`, async ({ page }) => {
+  const evidence = await mount(page, `?classificationReceipt=${outcome}`);
+  await page.getByRole('textbox', { name: 'Visual family / pack', exact: true }).fill('Reviewed family');
+  await page.getByRole('button', { name: 'Save classification', exact: true }).click();
+  const status = page.getByRole('region', { name: 'Published classification', exact: true }).getByRole('status');
+  if (outcome === 'committed') {
+    await expect(status).toContainText('Classification committed.'); await expect(status).toContainText('Library refresh is pending');
+    await page.evaluate(() => (window as typeof window & { releaseClassificationRefresh: () => void }).releaseClassificationRefresh());
+    await expect(status).toContainText('Library refresh is incomplete');
+  } else await expect(status).toContainText('Exact classification readback is unavailable');
+  await expect(status).toContainText('Classification committed.'); await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Reload current values', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => (window as typeof window & { classificationCloses?: number }).classificationCloses ?? 0)).toBe(0);
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'POST')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+test('@golden Published classification healthy commit retains ordinary close behavior', async ({ page }) => {
+  const evidence = await mount(page, '?classificationReceipt=success');
+  await page.getByRole('textbox', { name: 'Visual family / pack', exact: true }).fill('Reviewed family');
+  await page.getByRole('button', { name: 'Save classification', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as typeof window & { classificationCloses?: number }).classificationCloses ?? 0)).toBe(1);
+  expect(await page.evaluate(() => (window as typeof window & { classificationRefreshes?: number }).classificationRefreshes ?? 0)).toBe(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+test('@golden Published classification preserves committed result when actual Library refresh reports failure', async ({ page }) => {
+  const evidence = await mount(page, '?classificationReceipt=libraryFailure');
+  await page.getByRole('textbox', { name: 'Visual family / pack', exact: true }).fill('Reviewed family');
+  await page.getByRole('button', { name: 'Save classification', exact: true }).click();
+  const status = page.getByRole('region', { name: 'Published classification', exact: true }).getByRole('status');
+  await expect(status).toContainText('Classification committed.');
+  await expect(status).toContainText('Library refresh is incomplete');
+  await expect(page.getByRole('button', { name: 'Reload current values', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => (window as typeof window & { classificationCloses?: number }).classificationCloses ?? 0)).toBe(0);
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'POST')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+for (const mode of ['success', 'activity', 'refreshFalse', 'refreshThrow', 'deferred']) test(`@golden Media presentation ${mode} preserves the confirmed receipt`, async ({ page }) => {
+  const evidence = await mount(page, `?mediaReceipt=${mode}`);
+  await page.getByRole('button', { name: 'Prepare presentation revision', exact: true }).click();
+  await page.getByLabel('Candidate tile mode').selectOption('contain');
+  await page.getByRole('button', { name: 'Create pending revision', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Revision 4 confirmed: submitted, editorial pending');
+  if (mode === 'activity') await expect(page.getByRole('status')).toContainText('activity recording is incomplete');
+  if (mode === 'deferred') await page.evaluate(() => (window as typeof window & { releaseMediaRefresh: () => void }).releaseMediaRefresh());
+  if (['refreshFalse','refreshThrow','deferred'].includes(mode)) await expect(page.getByRole('alert')).toContainText('revision is confirmed');
+  await expect(page.getByRole('button', { name: /Create pending revision|Read exact attempt receipt/ })).toHaveCount(0);
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests);
+  expect(requests.filter(request => request.method === 'POST')).toHaveLength(1); expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+for (const mode of ['uncertain', 'unstructured', 'nullReceipt', 'unavailableReceipt']) test(`@golden Media presentation ${mode} reconciles by read without another copy request`, async ({ page }) => {
+  const evidence = await mount(page, `?mediaReceipt=${mode}`);
+  await page.getByRole('button', { name: 'Prepare presentation revision', exact: true }).click();
+  await page.getByLabel('Candidate tile mode').selectOption('contain');
+  await page.getByRole('button', { name: 'Create pending revision', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('do not copy or replay automatically');
+  await expect(page.getByLabel('Candidate tile mode')).toBeDisabled();
+  await page.getByRole('button', { name: 'Read exact attempt receipt', exact: true }).click();
+  if (['uncertain','unstructured'].includes(mode)) await expect(page.getByRole('status')).toContainText('Revision 4 recovered: submitted, editorial pending');
+  else { await expect(page.getByRole('status')).toHaveCount(0); await expect(page.getByRole('alert')).toContainText(mode === 'nullReceipt' ? 'No receipt was observed' : 'outcome is unconfirmed'); }
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[] }).libraryRequests);
+  const post = requests.filter(request => request.method === 'POST'); expect(post).toHaveLength(1);
+  const lookup = new URL(requests.at(-1)!.url, 'http://localhost'); const saved = JSON.parse(post[0].body!);
+  expect(lookup.searchParams.get('submissionKey')).toBe(saved.submissionKey); expect(JSON.parse(lookup.searchParams.get('presentation')!)).toEqual(saved.presentation);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+for (const kind of ['program','routing'] as const) for (const mode of ['success','activity','refreshFalse','refreshThrow','deferred','uncertain','unstructured']) test(`@golden Pipeline configuration ${kind} ${mode} reports native outcome truthfully`, async ({ page }) => {
+  const evidence = await mount(page, `?${kind === 'program' ? 'programReceipt' : 'routingReceipt'}=${mode}`);
+  const save = kind === 'program' ? page.getByRole('button', { name: 'Save Contributor program', exact: true }) : page.getByRole('button', { name: 'Save automatic', exact: true });
+  await expect(save).toBeVisible(); await save.click();
+  const status = page.locator('p[role="status"]');
+  if (['uncertain','unstructured'].includes(mode)) {
+    await expect(status).toContainText('outcome is unconfirmed'); await expect(status).toContainText('do not replay automatically');
+  } else {
+    await expect(status).toContainText(kind === 'program' ? 'Program rules saved; governed global rebalance acknowledged' : 'Studio placement saved for Synthetic routed icon');
+    if (mode === 'activity') await expect(status).toContainText('audit activity is incomplete');
+    if (mode === 'deferred') { await expect(page.getByRole('button', { name: kind === 'program' ? 'Saving Contributor program...' : 'Saving...', exact: true })).toBeDisabled(); await page.evaluate(() => (window as typeof window & { releaseConfigurationRefresh: () => void }).releaseConfigurationRefresh()); }
+    if (['refreshFalse','refreshThrow','deferred'].includes(mode)) await expect(status).toContainText('refresh is incomplete');
+    await expect(status).not.toContainText('not saved');
+  }
+  const writes = (await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'PUT'); expect(writes).toHaveLength(1); expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+for (const mode of ['success','activity','refreshFalse','refreshThrow','deferred','uncertain','unstructured']) test(`@golden Owner Inbox ${mode} preserves exact committed or uncertain workflow status`, async ({ page }) => {
+  const evidence = await mount(page, `?inboxReceipt=${mode}`);
+  await expect(page.getByText('Synthetic Inbox workflow', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  const status = page.locator('p[role="status"]');
+  if (['uncertain','unstructured'].includes(mode)) {
+    await expect(status).toContainText('outcome is unconfirmed'); await expect(status).toContainText('do not replay automatically');
+    await expect(page.getByText('Synthetic Inbox workflow', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await expect(page.getByText('Synthetic Inbox workflow', { exact: true })).toHaveCount(0);
+    await expect(status).toContainText('outcome is unconfirmed');
+  } else {
+    await expect(status).toContainText('Message closed. Status commit is confirmed');
+    await expect(page.getByText('Synthetic Inbox workflow', { exact: true })).toHaveCount(0);
+    if (mode === 'activity') await expect(status).toContainText('Owner activity is incomplete');
+    if (mode === 'deferred') await page.evaluate(() => (window as typeof window & { releaseInboxRefresh: () => void }).releaseInboxRefresh());
+    if (['refreshFalse','refreshThrow','deferred'].includes(mode)) await expect(status).toContainText('Inbox refresh is incomplete');
+    await expect(status).not.toContainText('not updated');
+  }
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[] }).libraryRequests);
+  const writes = requests.filter(request => request.method === 'PATCH'); expect(writes).toHaveLength(1); expect(writes[0].url).toBe('/api/owner/contact-requests/1f5bd520-ff5c-4e25-bcb3-c1e828c277ab'); expect(JSON.parse(writes[0].body!)).toEqual({ status: 'closed' });
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+for (const mode of ['success','activity','readback','uncertain','unstructured','conflict']) test(`@golden Owner Studio dependency ${mode} keeps exact reconciliation receipt`, async ({ page }) => {
+  const evidence = await mount(page, `?dependencyReceipt=${mode}`);
+  await page.getByLabel('Studio document ID').fill('8856f600-6c95-4835-8733-3ecb0ceb951d');
+  await page.getByLabel('Expected Studio revision').fill('7');
+  const reconcile = page.getByRole('button', { name: 'Reconcile exact Studio revision', exact: true });
+  await reconcile.click();
+  if (mode === 'conflict') { await expect(page.getByRole('alert')).toContainText('Studio revision changed'); await expect(reconcile).toBeEnabled(); }
+  else if (['uncertain','unstructured'].includes(mode)) {
+    await expect(page.getByText(/Outcome uncertain:/)).toBeVisible(); await expect(reconcile).toBeDisabled();
+    await page.getByRole('button', { name: 'Read exact persisted dependency state', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Persisted dependency state: complete');
+    await expect(page.getByRole('status')).toContainText('does not prove a previous operation committed'); await expect(reconcile).toBeDisabled();
+    await expect(page.getByText(/Reconciliation acknowledged/)).toHaveCount(0);
+  } else {
+    await expect(page.getByText(/Reconciliation acknowledged for document/)).toBeVisible();
+    if (mode === 'activity') await expect(page.locator('p[role="status"]')).toContainText('Owner activity is incomplete');
+    if (mode === 'readback') await expect(page.locator('p[role="status"]')).toContainText('readback is unavailable');
+    await expect(page.getByText(/is not deletion permission/).first()).toBeVisible();
+  }
+  const writes = (await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string; body?: string }[] }).libraryRequests)).filter(request => request.method === 'POST');
+  expect(writes).toHaveLength(1); expect(JSON.parse(writes[0].body!)).toEqual({ documentId: '8856f600-6c95-4835-8733-3ecb0ceb951d', expectedRevision: 7 });
+  expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
+});

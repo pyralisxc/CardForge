@@ -331,3 +331,8 @@ export const normalizeCampaignInput = (input: CampaignInput): CampaignInputResul
 const contributorCampaignTransitions: Partial<Record<MarketingContentStatus, MarketingContentStatus[]>> = { draft: ['submitted', 'cancelled'], changes_requested: ['draft', 'submitted', 'cancelled'], submitted: ['cancelled'] };
 const ownerCampaignTransitions: Partial<Record<MarketingContentStatus, MarketingContentStatus[]>> = { draft: ['submitted', 'cancelled'], submitted: ['changes_requested', 'approved', 'cancelled'], changes_requested: ['cancelled'], approved: ['provider_draft', 'scheduled', 'failed', 'cancelled'], provider_draft: ['scheduled', 'published', 'failed', 'cancelled'], scheduled: ['published', 'failed', 'cancelled'], failed: ['approved', 'cancelled'] };
 export const canTransitionCampaign = (from: MarketingContentStatus, to: MarketingContentStatus, actor: 'contributor' | 'owner'): boolean => (actor === 'owner' ? ownerCampaignTransitions : contributorCampaignTransitions)[from]?.includes(to) ?? false;
+
+/** Shared Save eligibility only; submission and review transitions retain their existing policy. */
+export const canSaveCampaignDraft = (campaign: Pick<MarketingContentPackage, 'contributorId' | 'status'>, access: { isOwner: boolean; user: { id: string } }): boolean => (
+  (access.isOwner || campaign.contributorId === access.user.id) && ['draft', 'changes_requested'].includes(campaign.status)
+);

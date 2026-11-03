@@ -78,7 +78,7 @@ export const registerWorkingDocumentTools = ({
       type: 'text' as const,
       text: result.replayed
         ? `CardForge reconciled operation ${result.operationId}: it already committed at revision ${result.committedRevision}, so no duplicate mutation was performed.`
-        : `CardForge committed the atomic sparse patch as one transaction at revision ${result.committedRevision}.`,
+        : `CardForge committed the authored-document sparse patch as one transaction at revision ${result.committedRevision}.`,
     }],
     structuredContent: {
       documentId: result.document.id,
@@ -134,7 +134,7 @@ export const registerWorkingDocumentTools = ({
     'attach_template_artworks',
     {
       title: 'Attach multiple Template artworks atomically',
-      description: 'Normalize and bind up to 64 PNG/JPEG/WebP artwork sources to existing Template/binding targets in one expectedRevision transaction. The complete source schema is explicit: mimeType plus exactly one of data or sourceUrl. WebP is decoded and re-encoded before storage. One successful batch advances one revision.',
+      description: 'Normalize and bind up to 64 PNG/JPEG/WebP artwork sources to existing Template/binding targets in one expectedRevision transaction. The complete source schema is explicit: mimeType plus exactly one of data, sourceUrl, or personalLibrary (exact item UUID, observed provider revision and explicit private-copy/target-replacement authorization). Private-source download/index refresh and private uploads are separate from the authored-document CAS. WebP is decoded and re-encoded before storage. One successful batch advances one revision.',
       inputSchema: attachTemplateArtworksInputSchema,
       outputSchema: workingDocumentPatchOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
