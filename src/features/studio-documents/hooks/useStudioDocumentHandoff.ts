@@ -73,7 +73,7 @@ export function useStudioDocumentHandoff({
     if (handledRevisionKeyRef.current === requestedKey || inFlightRevisionKeyRef.current?.key === requestedKey) return;
     if (outputRef) {
       try {
-        if (sessionStorage.getItem(`cardforge:output:${outputRef}`) === 'applied') {
+        if (sessionStorage.getItem(`cardforge:output:${outputRef}`) !== null) {
           toast({ title: 'Output needs preparation', description: 'This handoff was already opened on this tab. Prepare a new handoff to avoid replacing current work.', variant: 'destructive' }); return;
         }
         sessionStorage.setItem(`cardforge:output-probe:${outputRef}`, 'ok');
@@ -141,6 +141,10 @@ export function useStudioDocumentHandoff({
         const document = await hydrateStudioDocumentAssets(storedDocument, payload.assets ?? [], controller.signal, Boolean(outputIntent));
         controller.signal.throwIfAborted();
         const patch = applyProjectDocumentToState(document);
+
+        // Persist the attempt before any workspace transaction. A lost or failed
+        // receipt cannot authorize a later reload to overwrite local work again.
+        if (outputIntent && outputRef) sessionStorage.setItem(`cardforge:output:${outputRef}`, 'installation-attempted');
 
         if (payload.document?.creationSource === 'gpt') {
           const beforeState = initiatingState;

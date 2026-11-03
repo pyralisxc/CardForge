@@ -16,7 +16,8 @@ create table public.cardforge_studio_output_intents (
 );
 alter table public.cardforge_studio_output_intents enable row level security;
 revoke all on public.cardforge_studio_output_intents from public, anon, authenticated;
-grant select, insert on public.cardforge_studio_output_intents to service_role;
+grant select, insert, delete on public.cardforge_studio_output_intents to service_role;
+create index cardforge_studio_output_intents_expiry_idx on public.cardforge_studio_output_intents(owner_user_id, expires_at, id);
 
 -- Serialize the revision check with document updates; a reference cannot be
 -- prepared against a revision that was already replaced or deleted.
@@ -30,6 +31,13 @@ begin
       and revision = p_revision and deleted_at is null and expires_at > now()
     for share;
   if not found then return null; end if;
+  -- Bounded opportunistic maintenance for this actor only. Dormant rows are
+  -- also removed by the existing parent-document purge through the FK.
+  delete from public.cardforge_studio_output_intents where id in (
+    select id from public.cardforge_studio_output_intents
+      where owner_user_id = p_owner_user_id and expires_at <= now()
+      order by expires_at, id limit 100
+  );
   insert into public.cardforge_studio_output_intents(owner_user_id, document_id, document_revision, intent, fingerprint, expires_at)
     values (p_owner_user_id, p_document_id, p_revision, p_intent, p_fingerprint, least(v_document_expiry, now() + interval '24 hours')) returning id into v_id;
   return v_id;

@@ -7,7 +7,7 @@ import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-a
 import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import { Toaster } from '@/components/ui/toaster';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
-const doc = createProjectScaleFixture(100); doc.storedCards = doc.storedCards.slice(0, 2);
+const doc = createProjectScaleFixture(100); doc.storedCards = doc.storedCards.slice(0, 3);
 doc.userTemplates[0].freeformCanvas!.elements = [{ id: 'label', name: 'Label', type: 'text', x: 20, y: 30, width: 500, height: 80, zIndex: 1, content: 'Synthetic {{cardName}}', fontSizePx: 30, textColor: '#000000' }];
 const back = { ...doc.userTemplates[0], id: 'synthetic-back', templateUsage: 'back-preset' as const, name: 'Back' }; doc.userTemplates.push(back); doc.storedCards[1].backingTemplateId = back.id; doc.storedCards[1].backingData = {};
 (window as unknown as { outputDocument: unknown }).outputDocument = doc;

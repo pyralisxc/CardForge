@@ -2,15 +2,19 @@
 begin;
 set local role service_role;
 do $$
-declare doc uuid := gen_random_uuid(); ref uuid; stale uuid; body jsonb; before_revision integer; after_revision integer;
+declare doc uuid := gen_random_uuid(); ref uuid; stale uuid; expired uuid := gen_random_uuid(); other_expired uuid := gen_random_uuid(); body jsonb; before_revision integer; after_revision integer;
 begin
   insert into public.cardforge_studio_documents(id, owner_user_id, title, document_payload)
     values(doc, 'output-owner', 'Synthetic Output', '{"version":1,"userTemplates":[],"cardSets":[],"storedCards":[]}'::jsonb);
   select revision into before_revision from public.cardforge_studio_documents where id = doc;
   select jsonb_build_object('documentId', doc::text, 'revision', before_revision, 'setId', 'synthetic',
     'cardIds', jsonb_agg('card-' || g::text order by g)) into body from generate_series(1, 10000) g;
+  insert into public.cardforge_studio_output_intents(id,owner_user_id,document_id,document_revision,intent,fingerprint,created_at,expires_at) values
+    (expired,'output-owner',doc,before_revision,body,repeat('a',64),now()-interval '2 days',now()-interval '1 day'),
+    (other_expired,'other-owner',doc,before_revision,body,repeat('a',64),now()-interval '2 days',now()-interval '1 day');
   ref := public.cardforge_prepare_studio_output_intent('output-owner', doc, before_revision, body, repeat('a',64));
   if ref is null then raise exception 'expected exact reference'; end if;
+  if exists(select 1 from public.cardforge_studio_output_intents where id=expired) or not exists(select 1 from public.cardforge_studio_output_intents where id=other_expired) then raise exception 'expired intent cleanup scope invalid'; end if;
   if (select jsonb_array_length(intent -> 'cardIds') from public.cardforge_studio_output_intents where id=ref and owner_user_id='output-owner') <> 10000 then raise exception 'selection was truncated'; end if;
   if (select count(*) from public.cardforge_studio_output_intents where id=ref and owner_user_id='other-owner') <> 0 then raise exception 'wrong owner resolved metadata'; end if;
   begin
