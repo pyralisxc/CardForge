@@ -1,5 +1,5 @@
 import { buildSync } from 'esbuild';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { expect, test } from '@playwright/test';
@@ -29,4 +29,50 @@ for(const width of [390,1440]) test(`@golden exact source renders branded and cl
  expect(marked.pixels.filter((v,i)=>Math.abs(v-clean.pixels[i])>2).length).toBeGreaterThan(1000);
  await image.screenshot({path:info.outputPath('clean-native.png')});await info.attach('Entitled clean native PNG',{path:info.outputPath('clean-native.png'),contentType:'image/png'});
  expect(errors).toEqual([]);
+});
+
+test('local personal Library PNG JPEG WebP committed bindings render intended pixels', async ({ page }, info) => {
+ test.setTimeout(90_000);
+ test.skip(!process.env.CARDFORGE_PERSONAL_RENDER_PROOF, 'Local synthetic handoff only; not a hosted-source test.');
+ const packets = JSON.parse(readFileSync(process.env.CARDFORGE_PERSONAL_RENDER_PROOF!, 'utf8')) as Array<{ format: string; originalSha256: string; storedAssetSha256: string; committedRevision: number; beforeTemplate: object; template: object }>;
+ const receipts: object[] = []; const unexpected: string[] = []; let selected: object;
+ await page.route('**/*', route => {
+  const url = new URL(route.request().url());
+  if (url.pathname === '/__saved-source') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head></head><body></body></html>' });
+  if (url.pathname === '/api/saved-source-preview') return route.fulfill({ json: { title: 'Synthetic personal Library attachment', sourceVersion: 'a'.repeat(64), identity: { submissionId: 'synthetic-personal-copy' }, branded: false, content: { kind: 'template', template: selected } } });
+  if (url.pathname.startsWith('/fonts/')) return route.fulfill({ body: readFileSync(join('public', url.pathname)) });
+  unexpected.push(url.pathname); return route.abort();
+ });
+ const render = async (template: object) => {
+  selected = template;
+  await page.goto('/__saved-source');
+  for (const file of bundle.outputFiles.filter(file => file.path.endsWith('.css'))) await page.addStyleTag({ content: file.text });
+  await page.addScriptTag({ content: bundle.outputFiles.find(file => file.path.endsWith('.js'))!.text });
+  const image = page.locator('img[data-cardforge-render-artifact="saved-source"]');
+  await expect(image).toBeVisible();
+  const result = await image.evaluate(async (node: HTMLImageElement) => { await node.decode(); const canvas = document.createElement('canvas'); canvas.width = node.naturalWidth; canvas.height = node.naturalHeight; const context = canvas.getContext('2d')!; context.drawImage(node, 0, 0); return { width: canvas.width, height: canvas.height, pixels: Array.from(context.getImageData(0, 0, canvas.width, canvas.height).data), bytes: Array.from(new Uint8Array(await (await fetch(node.src)).arrayBuffer())) }; });
+  return result;
+ };
+ const before = await render(packets[0].beforeTemplate);
+ for (const packet of packets) {
+  expect(packet.beforeTemplate).toEqual(packets[0].beforeTemplate);
+  const after = await render(packet.template);
+  expect(after.width).toBe(before.width); expect(after.height).toBe(before.height);
+  const sample = (x: number, y: number) => { const offset = (Math.floor(after.height * y / 880) * after.width + Math.floor(after.width * x / 630)) * 4; return after.pixels.slice(offset, offset + 4); };
+  const center = sample(160, 255);
+  for (const [index, expected] of [34, 197, 94, 255].entries()) expect(Math.abs(center[index] - expected)).toBeLessThanOrEqual(6);
+  let changed = 0, outside = 0;
+  for (let y = 0; y < after.height; y++) for (let x = 0; x < after.width; x++) {
+   const offset = (y * after.width + x) * 4;
+   if (after.pixels.slice(offset, offset + 4).some((value, index) => value !== before.pixels[offset + index])) {
+    changed++;
+    if (x < Math.floor(after.width * 60 / 630) - 2 || x > Math.ceil(after.width * 260 / 630) + 2 || y < Math.floor(after.height * 130 / 880) - 2 || y > Math.ceil(after.height * 380 / 880) + 2) outside++;
+   }
+  }
+  expect(changed).toBeGreaterThan(1000); expect(outside).toBe(0);
+  const path = info.outputPath(`personal-${packet.format}-native.png`); writeFileSync(path, Buffer.from(after.bytes)); await info.attach(`Personal ${packet.format} native output`, { path, contentType: 'image/png' });
+  receipts.push({ format: packet.format, sourceSha256: packet.originalSha256, storedSha256: packet.storedAssetSha256, committedRevision: packet.committedRevision, width: after.width, height: after.height, targetCenter: center, changedPixels: changed, changedPixelsOutsideTarget: outside, outputPath: path });
+ }
+ expect(unexpected).toEqual([]);
+ const path = info.outputPath('personal-render-receipts.json'); writeFileSync(path, JSON.stringify(receipts, null, 2)); await info.attach('Personal attachment native render receipts', { path, contentType: 'application/json' });
 });

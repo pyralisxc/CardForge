@@ -16,7 +16,7 @@ import { getCachedCardForgeCatalog, revalidateCardForgeCatalog } from './catalog
 import { readPipelineEngagementForViewer, readVisiblePipelineRevisionForViewer, type PipelineEngagementViewer } from './pipelineEngagement';
 
 const invalid = () => new PipelineStoreError('Provide a supported exact Pipeline request.', 400);
-async function viewerFor(actorUserId: string): Promise<PipelineEngagementViewer & { userId: string }> {
+export async function resolvePipelineAgentViewer(actorUserId: string): Promise<PipelineEngagementViewer & { userId: string }> {
   const account = await getAccountToolAccessForUserId(actorUserId);
   const contribution = await readContributorCapabilities(account);
   if (!getSupabaseServerClient()) throw new PipelineStoreError('Pipeline is unavailable.', 503);
@@ -31,7 +31,7 @@ function project(row: { id: string; lineageId?: string | null; name: string; des
 }
 export async function listAgentPipelineSubmissions(actorUserId: string, input: unknown) {
   const parsed = pipelineAgentListInput.safeParse(input); if (!parsed.success) throw invalid();
-  const viewer = await viewerFor(actorUserId); const { scope, ...query } = parsed.data;
+  const viewer = await resolvePipelineAgentViewer(actorUserId); const { scope, ...query } = parsed.data;
   if (scope === 'shared-trash') {
     // Native shared metadata is filtered before count/order/page and never hydrates authored payloads.
     const page = await getSharedPipelineTrashPage(viewer.userId, query);
@@ -46,17 +46,17 @@ export async function listAgentPipelineSubmissions(actorUserId: string, input: u
 }
 export async function inspectAgentPipelineRevision(actorUserId: string, input: unknown) {
   const parsed = pipelineAgentExactInput.safeParse(input); if (!parsed.success) throw invalid();
-  const viewer = await viewerFor(actorUserId); const row = await readVisiblePipelineRevisionForViewer(parsed.data.submissionId, viewer);
+  const viewer = await resolvePipelineAgentViewer(actorUserId); const row = await readVisiblePipelineRevisionForViewer(parsed.data.submissionId, viewer);
   return project({ id: row.id, lineageId: row.lineage_id, name: row.name, description: row.description ?? '', assetType: row.asset_type ?? '', status: row.status,
     revisionNumber: row.revision_number, trashActorRole: row.revision_trash_actor_role, publicationRetained: row.revision_publication_retained === true || Boolean(row.published_at) || row.catalog_source_published === true, trashedAt: row.trashed_at, purgeAfter: row.purge_after, retentionHold: row.retention_hold,
     catalogTrashedAt: row.catalog_trashed_at, catalogPurgeAfter: row.catalog_purge_after, catalogRetentionHold: row.catalog_retention_hold, catalogSubmissionId: row.catalog_submission_id }, row.contributor_id === viewer.userId);
 }
 export async function readAgentPipelineEngagement(actorUserId: string, input: unknown) {
   const parsed = pipelineAgentExactInput.safeParse(input); if (!parsed.success) throw invalid();
-  return readPipelineEngagementForViewer(parsed.data.submissionId, await viewerFor(actorUserId));
+  return readPipelineEngagementForViewer(parsed.data.submissionId, await resolvePipelineAgentViewer(actorUserId));
 }
 export async function readAgentPipelineHealth(actorUserId: string) {
-  const viewer = await viewerFor(actorUserId); requireScope(viewer, 'assets.review');
+  const viewer = await resolvePipelineAgentViewer(actorUserId); requireScope(viewer, 'assets.review');
   const [catalog, program] = await Promise.all([getCachedCardForgeCatalog(viewer.accessMode), getPipelineLibraryProgramView(viewer.userId)]);
   const visibleIds = new Set([...program.submissions, ...program.votingQueue].map(row => row.id));
   const health = buildPipelineContentHealth({ catalog, program, dependencyImpacts: program.dependencyImpacts?.filter(row => row.submissionId && visibleIds.has(row.submissionId)) });
@@ -77,7 +77,7 @@ async function afterCommit(submissionId: string, lineageId: string | null, viewe
 }
 export async function voteAgentPipelineRevision(actorUserId: string, input: unknown) {
   const parsed = pipelineAgentVoteInput.safeParse(input); if (!parsed.success) throw invalid();
-  const viewer = await viewerFor(actorUserId); requireScope(viewer, 'assets.review');
+  const viewer = await resolvePipelineAgentViewer(actorUserId); requireScope(viewer, 'assets.review');
   const before = await readPipelineEngagementForViewer(parsed.data.submissionId, viewer);
   if (before.voteIssue) throw new PipelineStoreError(before.voteIssue, 403);
   await limit('contributor-vote', viewer.userId);
@@ -90,7 +90,7 @@ export async function voteAgentPipelineRevision(actorUserId: string, input: unkn
 }
 export async function heartAgentPipelineLineage(actorUserId: string, input: unknown) {
   const parsed = pipelineAgentHeartInput.safeParse(input); if (!parsed.success) throw invalid();
-  const viewer = await viewerFor(actorUserId); const before = await readPipelineEngagementForViewer(parsed.data.submissionId, viewer);
+  const viewer = await resolvePipelineAgentViewer(actorUserId); const before = await readPipelineEngagementForViewer(parsed.data.submissionId, viewer);
   if (before.lineageId !== parsed.data.lineageId) throw new PipelineStoreError('The exact revision and lineage do not match.', 409);
   if (before.heartIssue) throw new PipelineStoreError(before.heartIssue, 403);
   await limit('pipeline-heart', viewer.userId);

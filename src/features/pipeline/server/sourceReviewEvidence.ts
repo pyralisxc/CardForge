@@ -17,7 +17,7 @@ export async function readSourceReviewEvidence(submissionId: string) {
   const { data, error } = await client().rpc('cardforge_read_source_review_evidence', { p_submission_id: submissionId });
   if (error) failure(error.message);
   const parsed = sourceReviewSnapshotSchema.safeParse(data);
-  return parsed.success ? parsed.data : fail('The source-evidence snapshot could not be verified.');
+  return parsed.success && parsed.data.submissionId === submissionId ? parsed.data : fail('The source-evidence snapshot could not be verified.');
 }
 export async function recordSourceReviewEvidence(submissionId: string, input: unknown, actorId: string) {
   const parsed = z.object({
@@ -32,5 +32,5 @@ export async function recordSourceReviewEvidence(submissionId: string, input: un
   });
   if (error) failure(error.message);
   const result = sourceReviewSnapshotSchema.safeParse(data);
-  return result.success ? result.data : fail('Evidence may have been recorded but its receipt could not be verified. Read this exact revision before changing the request.');
+  return result.success && result.data.submissionId === submissionId ? result.data : fail('Evidence may have been recorded but its receipt could not be verified. Read this exact revision before changing the request.');
 }

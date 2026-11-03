@@ -365,7 +365,7 @@ export const createTemplatePipelineDraft = async ({
   return loadTemplatePipelineResult(String(submissionId), 'draft');
 };
 
-export const submitTemplatePipelineDraft = async ({
+export const commitTemplatePipelineDraft = async ({
   submissionId,
   contributorId,
   name,
@@ -385,7 +385,7 @@ export const submitTemplatePipelineDraft = async ({
   specialtyTags: string[];
   useCaseTags: string[];
   requestedStudioDestination: string;
-}): Promise<TemplatePipelineDraftResult> => {
+}): Promise<string> => {
   const supabase = requireSupabase();
   const { data: resultId, error } = await supabase.rpc('cardforge_submit_template_pipeline_draft', {
     p_submission_id: submissionId,
@@ -399,7 +399,13 @@ export const submitTemplatePipelineDraft = async ({
     p_requested_studio_destination: requestedStudioDestination,
   });
   if (error || !resultId) throwTemplateRevisionError(error?.message);
-  return loadTemplatePipelineResult(String(resultId), 'submitted');
+  if (String(resultId) !== submissionId) throw new PipelineRegistryCommandError('Exact Template submission acknowledgement is unconfirmed. Read the exact draft before any further action.', 503);
+  return String(resultId);
+};
+
+export const submitTemplatePipelineDraft = async (input: Parameters<typeof commitTemplatePipelineDraft>[0]): Promise<TemplatePipelineDraftResult> => {
+  const id = await commitTemplatePipelineDraft(input);
+  return loadTemplatePipelineResult(id, 'submitted');
 };
 
 const writeTemplateRevision = async ({
@@ -540,9 +546,9 @@ export const castPipelineVote = async ({
 export const savePipelineProgramSettings = async (
   settings: PipelineProgramSettings,
   ownerContributorId: string,
-): Promise<void> => {
+): Promise<number> => {
   const supabase = requireSupabase();
-  const { error } = await supabase.rpc('cardforge_update_contributor_program_settings', {
+  const { data, error } = await supabase.rpc('cardforge_update_contributor_program_settings', {
     p_settings: settings,
     p_owner_contributor_id: ownerContributorId,
   });
@@ -553,6 +559,8 @@ export const savePipelineProgramSettings = async (
       500,
     );
   }
+  if (typeof data !== 'number' || !Number.isInteger(data) || data < 0) throw new PipelineRegistryCommandError('The program save acknowledgement is unconfirmed. Read current settings before any further write.', 503);
+  return data;
 };
 
 export const setPipelineOwnerOverride = async ({
@@ -758,9 +766,9 @@ export const updatePipelineAssetStudioRouting = async ({
   destinations,
   sortOrder,
   featured,
-}: UpdatePipelineAssetStudioRoutingInput): Promise<void> => {
+}: UpdatePipelineAssetStudioRoutingInput): Promise<true> => {
   const supabase = requireSupabase();
-  const { error } = await supabase.rpc('cardforge_update_asset_studio_routing', {
+  const { data, error } = await supabase.rpc('cardforge_update_asset_studio_routing', {
     p_asset_id: assetId,
     p_mode: mode,
     p_destinations: destinations,
@@ -768,12 +776,15 @@ export const updatePipelineAssetStudioRouting = async ({
     p_featured: featured,
   });
 
-  if (!error) return;
+  if (!error) {
+    if (data !== true) throw new PipelineRegistryCommandError('The Studio placement acknowledgement is unconfirmed. Read the exact asset before any further write.', 503);
+    return true;
+  }
   if (error.message.includes('incompatible_studio_asset_destination')) {
     throw new PipelineRegistryCommandError('That asset cannot be used in one or more selected Studio sections.', 400);
   }
   if (error.message.includes('invalid_studio_routing_mode') || error.message.includes('invalid_studio_sort_order')) {
     throw new PipelineRegistryCommandError('The Studio placement settings are invalid.', 400);
   }
-  throwRegistryCommandError('Unable to update the asset Studio placement.', error.message);
+  return throwRegistryCommandError('Unable to update the asset Studio placement.', error.message);
 };

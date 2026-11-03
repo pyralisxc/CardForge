@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ExternalLink, FolderSearch, Library, Loader2, LogIn, RefreshCw, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -12,6 +12,8 @@ import {
   chooseGoogleDrivePersonalLibraryItems,
   getPersonalLibraryRoleLabel,
   loadPersonalLibrary,
+  getPersonalLibraryItem,
+  PERSONAL_LIBRARY_REMOVAL_NOTICE,
   PERSONAL_LIBRARY_ROLES,
   removePersonalLibraryItem,
   type PersonalLibraryItem,
@@ -38,6 +40,38 @@ export function ConnectedPersonalLibraryPanel({
   const [library, setLibrary] = useState<PersonalLibraryListResult | null>(null);
   const [role, setRole] = useState<PersonalLibraryRole>('artwork');
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
+  const [removalMessage, setRemovalMessage] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState<{ item: PersonalLibraryItem; message: string; present?: boolean } | null>(null);
+  const removeItem = async (item: PersonalLibraryItem) => {
+    setBusyAction(`remove:${item.id}`);
+    setAttempt({ item, message: 'Removal is in progress. Do not repeat this request.' });
+    try {
+      const receipt = await removePersonalLibraryItem(item.id);
+      if (receipt.outcome === 'removed') {
+        setRemovedIds(ids => [...ids, item.id]);
+        setAttempt(null);
+        setRemovalMessage(receipt.message);
+        toast({ title: 'Removed from CardForge library', description: receipt.message });
+        await refresh();
+      } else setAttempt({ item, message: receipt.message });
+    } finally { setBusyAction(null); }
+  };
+  const readInFlight = useRef(false);
+  const readAttempt = async () => {
+    if (!attempt || readInFlight.current) return;
+    readInFlight.current = true;
+    const original = attempt;
+    setAttempt({ item: original.item, message: 'Exact readback is pending. Do not repeat DELETE.' });
+    setBusyAction(`read:${original.item.id}`);
+    try {
+      const result = await getPersonalLibraryItem(original.item.id);
+      if (!result.item) setRemovedIds(ids => [...ids, original.item.id]);
+      setAttempt({ ...original, present: Boolean(result.item), message: result.item ? 'This exact entry is currently present. This does not establish the earlier operation outcome. A new removal requires a new explicit confirmation.' : 'This exact entry is currently absent. This does not prove the attempted removal committed. No DELETE was replayed.' });
+    } catch {
+      setAttempt({ item: original.item, message: 'Exact readback is unavailable. The earlier removal remains unconfirmed. Do not repeat DELETE.' });
+    } finally { readInFlight.current = false; setBusyAction(null); }
+  };
 
   const refresh = useCallback(async () => {
     if (!isSignedIn) {
@@ -101,6 +135,12 @@ export function ConnectedPersonalLibraryPanel({
         </Button>
       </div>
 
+      {isSignedIn && removalMessage ? <p role="status">{removalMessage}</p> : null}
+      {isSignedIn && attempt ? <div role="status" className="mt-3 border p-3">
+        <p>{attempt.item.displayName}: {attempt.message}</p>
+        <Button type="button" disabled={Boolean(busyAction)} onClick={() => void readAttempt()}>Read exact index entry</Button>
+        {attempt.present ? <Button type="button" disabled={Boolean(busyAction)} onClick={() => setAttempt(null)}>Allow a new removal confirmation</Button> : null}
+      </div> : null}
       {!isSignedIn ? (
         <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
           <p className="text-sm text-[var(--cf-text-muted)]">Sign in to build a connected personal library.</p>
@@ -151,21 +191,18 @@ export function ConnectedPersonalLibraryPanel({
 
           {!library ? (
             <p className="mt-4 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Loading your personal library…</p>
-          ) : library.items.length === 0 ? (
+          ) : library.items.filter(item => !removedIds.includes(item.id)).length === 0 ? (
             <p className="mt-4 text-sm text-[var(--cf-text-muted)]">No connected assets yet. Choose a role, then explicitly select existing files from Google Drive.</p>
           ) : (
             <div className="mt-4 space-y-2">
               <p className="text-xs text-[var(--cf-text-subtle)]">{library.count} / {library.limit} indexed references. Removing an item here never deletes the source file from Google Drive.</p>
-              {library.items.map((item) => (
+              {library.items.filter(item => !removedIds.includes(item.id)).map((item) => (
                 <ConnectedLibraryItemRow
                   key={item.id}
                   item={item}
                   busy={busyAction === `remove:${item.id}`}
-                  disabled={Boolean(busyAction)}
-                  onRemove={() => void run(`remove:${item.id}`, async () => {
-                    await removePersonalLibraryItem(item.id);
-                    toast({ title: 'Removed from CardForge library', description: `“${item.displayName}” remains untouched in Google Drive.` });
-                  })}
+                  disabled={Boolean(busyAction) || Boolean(attempt)}
+                  onRemove={() => void removeItem(item)}
                 />
               ))}
             </div>
@@ -207,7 +244,7 @@ function ConnectedLibraryItemRow({
           variant="ghost"
           disabled={disabled}
           onClick={() => {
-            if (window.confirm(`Remove “${item.displayName}” from your CardForge library index? The Google Drive file will not be deleted.`)) onRemove();
+            if (window.confirm(`Remove “${item.displayName}” (${item.id})? ${PERSONAL_LIBRARY_REMOVAL_NOTICE}`)) onRemove();
           }}
         >
           {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}

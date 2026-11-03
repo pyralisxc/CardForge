@@ -5,8 +5,9 @@ import { Archive, ChevronLeft, ChevronRight, Mail, RefreshCw, RotateCcw, Search 
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import { ownerInboxStatusResult } from '@/features/contact/client';
 import type { ContactRequest } from '@/features/contact/client';
-import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { ApiClientError, readApiError, readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { formatOwnerDateTime, OwnerMetricTile } from './OwnerPanelPrimitives';
 
 const PAGE_SIZE = 8;
@@ -21,6 +22,7 @@ export function OwnerInboxPanel() {
   const [kind, setKind] = useState<'all' | ContactRequest['kind']>('all');
   const [page, setPage] = useState(1);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [mutationStatus, setMutationStatus] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -30,8 +32,10 @@ export function OwnerInboxPanel() {
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load owner inbox.'));
       const body = await response.json() as { requests: ContactRequest[] };
       setRequests(body.requests);
+      return true;
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to load owner inbox.');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -54,33 +58,37 @@ export function OwnerInboxPanel() {
   const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const changeStatus = async (contact: ContactRequest, nextStatus: 'received' | 'closed') => {
-    setBusyId(contact.id);
+    setBusyId(contact.id); setMutationStatus(''); let committed = false;
     try {
-      const response = await fetch(`/api/owner/contact-requests/${contact.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus }),
-      });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update this message.'));
-      const body = await response.json() as { activityRecorded: boolean };
-      setRequests((current) => current.map((item) => item.id === contact.id ? { ...item, status: nextStatus } : item));
-      toast({ title: nextStatus === 'closed' ? 'Message closed' : 'Message reopened', description: body.activityRecorded ? 'Inbox state and owner history were updated.' : 'Inbox state changed, but owner history was unavailable.', variant: body.activityRecorded ? 'default' : 'destructive' });
+      const response = await fetch(`/api/owner/contact-requests/${contact.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: nextStatus }) });
+      if (!response.ok) throw await readApiError(response, 'Inbox status outcome is unconfirmed. Read the exact request before another write.');
+      const { activityRecorded: _activity, ...body } = await response.json(); const result = ownerInboxStatusResult.parse(body);
+      if (result.requestId !== contact.id || result.status !== nextStatus || result.receipt.outcome !== 'committed' || result.receipt.committed !== true) throw new Error('Exact Inbox receipt unconfirmed');
+      committed = true;
+      const warnings = [...result.receipt.warnings];
+      const title = nextStatus === 'closed' ? 'Message closed' : 'Message reopened';
+      setRequests(current => current.map(item => item.id === contact.id ? result.snapshot ?? { ...item, status: result.status } : item));
+      setMutationStatus(`${title}. Status commit is confirmed. ${warnings.join(' ')}`);
+      toast({ title, description: warnings.length ? warnings.join(' ') : 'Inbox status commit is confirmed.' });
+      if (await load() === false) warnings.push('Inbox refresh is incomplete; read the exact request rather than repeating the committed update.');
+      setMutationStatus(`${title}. Status commit is confirmed. ${warnings.join(' ')}`);
     } catch (error) {
-      toast({ title: 'Message not updated', description: error instanceof Error ? error.message : 'Unable to update this message.', variant: 'destructive' });
-    } finally {
-      setBusyId(null);
-    }
+      const rejected = error instanceof ApiClientError && error.status < 500;
+      const message = committed ? 'Inbox status commit is confirmed; follow-up refresh is incomplete. Do not repeat the update.' : rejected ? error.message : 'Inbox status outcome is unconfirmed. Read the exact request before any further write; do not replay automatically.';
+      setMutationStatus(message); toast({ title: committed ? 'Inbox status updated' : rejected ? 'Message not updated' : 'Message update not confirmed', description: message, variant: committed ? 'default' : 'destructive' });
+    } finally { setBusyId(null); }
   };
 
   if (loading && requests.length === 0) {
     return <section className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5 text-sm text-[var(--cf-text-muted)]" role="status">Loading owner inbox…</section>;
   }
   if (loadError && requests.length === 0) {
-    return <section className="border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-5 text-sm text-[var(--cf-danger)]"><p>{loadError}</p><Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => void load()}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button></section>;
+    return <section className="border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-5 text-sm text-[var(--cf-danger)]"><p>{loadError}</p>{mutationStatus ? <p role="status">{mutationStatus}</p> : null}<Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => void load()}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button></section>;
   }
 
   return (
     <section className="space-y-4">
+      {mutationStatus ? <p role="status">{mutationStatus}</p> : null}
       <header className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
         <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><Mail className="h-5 w-5" aria-hidden="true" /><div><p className="text-xs uppercase tracking-[0.16em]">Owner inbox</p><h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Support, contributor &amp; business requests</h2></div></div><Button type="button" size="sm" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh</Button></div>
         <p className="mt-3 text-sm leading-6 text-[var(--cf-text-muted)]">Search the latest 50 recorded requests, reply through your mail client, and close work that is finished. Resend delivery state remains visible as provider history.</p>

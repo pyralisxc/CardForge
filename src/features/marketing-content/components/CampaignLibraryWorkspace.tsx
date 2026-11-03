@@ -24,11 +24,13 @@ export function CampaignLibraryWorkspace({ initialCampaignId = null, onDirtyChan
     setError(null);
     try {
       setWorkspace(await loadMarketingContentWorkspace());
+      return true;
     } catch (nextError) {
       if (nextError instanceof ApiClientError && mustClearScopedSourceForFailure(nextError.kind)) {
         setWorkspace(null);
       }
       setError(nextError instanceof Error ? nextError.message : 'Campaign work is unavailable.');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -42,6 +44,7 @@ export function CampaignLibraryWorkspace({ initialCampaignId = null, onDirtyChan
   if (!workspace) return <div role="alert" className="flex min-h-32 flex-wrap items-center justify-between gap-3 border border-[var(--cf-warning-border)] bg-[var(--cf-surface-inset)] p-4"><div><strong className="text-[var(--cf-text-strong)]">Campaigns are unavailable</strong><p className="mt-1 text-sm text-[var(--cf-text-muted)]">{error ?? 'CardForge could not load campaign work.'}</p></div><Button type="button" size="sm" variant="outline" onClick={() => void load()}>Retry</Button></div>;
 
   return <div className="space-y-4" data-library-campaign-workspace>
+    {error ? <p role="alert" className="text-sm text-[var(--cf-warning)]">Campaign refresh is unavailable: {error}</p> : null}
     {selectedCampaign ? <p role="status" className="border border-[var(--cf-accent)] bg-[var(--cf-surface-inset)] px-3 py-2 text-sm text-[var(--cf-accent-text)]">Opened from Desk: {selectedCampaign.title}</p> : null}
     <CampaignWorkspace onDirtyChange={onDirtyChange} onCloseBlockedChange={onCloseBlockedChange} workspace={workspace} searchQuery={searchQuery} onSearchQueryChange={onSearchQueryChange} initialCampaignId={initialCampaignId} onRefresh={load} />
   </div>;

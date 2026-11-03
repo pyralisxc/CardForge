@@ -85,6 +85,39 @@ const clampInteger = (value: unknown, fallback: number, minimum: number, maximum
   return Math.min(maximum, Math.max(minimum, parsed));
 };
 
+const ROUTING_COLUMNS = 'asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode';
+const projectRoutingItem = (row: RegistryRoutingRow): OwnerStudioRoutingItem | null => {
+  if (!isStudioRegistryAssetKind(row.asset_type)) return null;
+  return {
+      assetId: row.asset_id,
+      name: row.name,
+      assetType: row.asset_type,
+      url: row.url,
+      status: row.status,
+      accessTier: row.access_tier,
+      librarySource: row.library_source,
+      pipelineSubmissionId: row.contributor_submission_id,
+      studioDestinations: resolveStudioAssetDestinations({
+        kind: row.asset_type,
+        metadata: row.metadata,
+        mode: row.studio_routing_mode,
+        destinations: row.studio_destinations,
+      }),
+      compatibleDestinations: getCompatibleStudioAssetDestinations({ kind: row.asset_type, metadata: row.metadata }),
+      studioSortOrder: clampInteger(row.studio_sort_order, 100, 0, 100000),
+      studioFeatured: row.studio_featured === true,
+      studioRoutingMode: row.studio_routing_mode === 'owner' ? 'owner' : 'automatic',
+    } satisfies OwnerStudioRoutingItem;
+};
+export const getOwnerStudioRoutingAsset = async (assetId: string): Promise<OwnerStudioRoutingItem> => {
+  const { data, error } = await requireSupabase().from('cardforge_asset_registry').select(ROUTING_COLUMNS).eq('asset_id', assetId).maybeSingle();
+  if (error) throw new PipelineRegistryCommandError('The exact Studio routing asset is unavailable.', 503);
+  if (!data) throw new PipelineRegistryCommandError('The exact Studio routing asset was not found; no sibling was substituted.', 404);
+  const item = projectRoutingItem(data as RegistryRoutingRow);
+  if (!item || item.assetId !== assetId) throw new PipelineRegistryCommandError('The exact Studio routing asset could not be verified.', 503);
+  return item;
+};
+
 export const getOwnerStudioRoutingPage = async ({
   destination,
   query,
@@ -104,7 +137,7 @@ export const getOwnerStudioRoutingPage = async ({
 
   let registryQuery = supabase
     .from('cardforge_asset_registry')
-    .select('asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode', { count: 'exact' });
+    .select(ROUTING_COLUMNS, { count: 'exact' });
   if (destination) registryQuery = registryQuery.contains('studio_destinations', [destination]);
   if (normalizedQuery) registryQuery = registryQuery.ilike('name', `%${normalizedQuery}%`);
 
@@ -122,29 +155,7 @@ export const getOwnerStudioRoutingPage = async ({
     throw new PipelineRegistryCommandError('Unable to load the Studio Map.', 503);
   }
 
-  const items = ((registryResult.data ?? []) as RegistryRoutingRow[]).flatMap((row) => {
-    if (!isStudioRegistryAssetKind(row.asset_type)) return [];
-    return [{
-      assetId: row.asset_id,
-      name: row.name,
-      assetType: row.asset_type,
-      url: row.url,
-      status: row.status,
-      accessTier: row.access_tier,
-      librarySource: row.library_source,
-      pipelineSubmissionId: row.contributor_submission_id,
-      studioDestinations: resolveStudioAssetDestinations({
-        kind: row.asset_type,
-        metadata: row.metadata,
-        mode: row.studio_routing_mode,
-        destinations: row.studio_destinations,
-      }),
-      compatibleDestinations: getCompatibleStudioAssetDestinations({ kind: row.asset_type, metadata: row.metadata }),
-      studioSortOrder: clampInteger(row.studio_sort_order, 100, 0, 100000),
-      studioFeatured: row.studio_featured === true,
-      studioRoutingMode: row.studio_routing_mode === 'owner' ? 'owner' : 'automatic',
-    } satisfies OwnerStudioRoutingItem];
-  });
+  const items = ((registryResult.data ?? []) as RegistryRoutingRow[]).flatMap(row => { const item = projectRoutingItem(row); return item ? [item] : []; });
 
   const countRows = (countsResult.data ?? []) as Array<{
     destination: unknown;
@@ -177,7 +188,7 @@ export const updateOwnerStudioRouting = async (input: {
   destinations: unknown;
   sortOrder: unknown;
   featured: unknown;
-}): Promise<void> => {
+}): Promise<true> => {
   const assetId = typeof input.assetId === 'string' ? input.assetId.trim() : '';
   const mode: StudioAssetRoutingMode | null = input.mode === 'owner' || input.mode === 'automatic'
     ? input.mode
@@ -191,7 +202,7 @@ export const updateOwnerStudioRouting = async (input: {
     throw new PipelineRegistryCommandError('One or more Studio destinations are invalid.', 400);
   }
 
-  await updatePipelineAssetStudioRouting({
+  return updatePipelineAssetStudioRouting({
     assetId,
     mode,
     destinations,

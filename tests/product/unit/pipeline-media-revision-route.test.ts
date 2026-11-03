@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PipelineRegistryCommandError } from '@/features/pipeline/lib/pipelineRegistryCommandsError';
 const boundary = vi.hoisted(() => ({ owner: vi.fn(), activity: vi.fn(), create: vi.fn(), read: vi.fn() }));
-vi.mock('@/features/owner/server', () => ({ getCurrentOwnerAccess: boundary.owner, recordOwnerActivity: boundary.activity }));
+vi.mock('@/features/owner/server', () => ({ getCurrentOwnerAccess: boundary.owner, recordOwnerActivity: boundary.activity, getOwnerMediaRevisionBase: boundary.read, getOwnerMediaRevisionReceipt: vi.fn(), createOwnerMediaRevision: boundary.create }));
 vi.mock('@/features/pipeline/server', () => ({ createMediaPresentationRevision: boundary.create, readMediaPresentationRevision: boundary.read, PipelineRegistryCommandError }));
 import { GET, POST } from '@/app/api/owner/pipeline/media-revisions/route';
-beforeEach(() => { vi.clearAllMocks(); boundary.owner.mockResolvedValue({ isOwner: true, userId: 'acting-owner', email: 'owner@example.invalid' }); boundary.activity.mockResolvedValue(true); boundary.create.mockResolvedValue({ id: 'candidate', status: 'submitted', revisionNumber: 2 }); });
+beforeEach(() => { vi.clearAllMocks(); boundary.owner.mockResolvedValue({ isOwner: true, userId: 'acting-owner', email: 'owner@example.invalid' }); boundary.activity.mockResolvedValue(true); boundary.create.mockResolvedValue({ receipt: { id: 'candidate', status: 'submitted', revisionNumber: 2 }, outcome: 'committed', committed: true, activityRecorded: true, warnings: [] }); });
 describe('Owner media presentation action', () => {
   it.each([{ isOwner: false, userId: null }, { isOwner: false, userId: 'contributor' }])('denies non-Owner reads and writes before source access', async (access) => {
     boundary.owner.mockResolvedValue(access);
@@ -15,8 +15,8 @@ describe('Owner media presentation action', () => {
   it('records the acting Owner separately from inherited creator identity', async () => {
     const response = await POST(new Request('https://example.invalid', { method: 'POST', body: JSON.stringify({ assetId: 'texture' }) }));
     expect(response.status).toBe(200);
-    expect(boundary.create).toHaveBeenCalledWith({ assetId: 'texture' });
-    expect(boundary.activity).toHaveBeenCalledWith(expect.objectContaining({ actorUserId: 'acting-owner', targetId: 'candidate', action: 'library.asset.presentation_revision' }));
+    expect(boundary.create).toHaveBeenCalledWith('acting-owner', { assetId: 'texture' });
+    expect(boundary.activity).not.toHaveBeenCalled(); // Shared command owns confirmed-receipt activity.
   });
   it('preserves conflict and unavailable failure meanings and reports no approval', async () => {
     boundary.create.mockRejectedValueOnce(new PipelineRegistryCommandError('Reload base', 409));

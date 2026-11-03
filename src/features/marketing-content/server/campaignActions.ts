@@ -1,5 +1,5 @@
 import type { ContributorAccess } from '@/features/contributor-access/server';
-import type { MarketingContentPackage as SocialCampaign } from '@/features/marketing-content/model';
+import { canSaveCampaignDraft, type MarketingContentPackage as SocialCampaign } from '@/features/marketing-content/model';
 
 export const getAllowedCampaignActions = (
   campaign: SocialCampaign,
@@ -15,6 +15,7 @@ export const getAllowedCampaignActions = (
   ) {
     return ['save', 'submit', 'cancel'];
   }
+  if (access.isOwner && canSaveCampaignDraft(campaign, access)) return ['save'];
   if (access.isOwner && campaign.status === 'approved') {
     return ['create_provider_draft'];
   }

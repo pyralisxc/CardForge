@@ -13,3 +13,5 @@ export {
 } from './lib/agentTemplateRoundTrip';
 
 export { SavedSourcePreviewClient } from './components/SavedSourcePreviewClient';
+
+export * from './ownerStudioDependencyContract';
