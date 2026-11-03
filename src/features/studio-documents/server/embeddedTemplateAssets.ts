@@ -100,7 +100,7 @@ export const normalizeEmbeddedTemplateAsset = async ({
 
 const isElementBinding = (binding: ProjectAssetBinding): boolean => binding.startsWith('element.');
 
-const validateBindingTargets = (
+export const validateBindingTargets = (
   template: TCGCardTemplate,
   binding: ProjectAssetBinding,
   targetElementIds: string[],

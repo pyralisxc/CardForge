@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import type { AccountToolAccess } from '@/features/account/server';
+import { materializePersonalLibraryItem, PersonalLibraryStoreError, PERSONAL_LIBRARY_ARTWORK_AUTHORIZATION, type PersonalLibraryArtworkSource } from '@/features/personal-library/server';
 import { lookup } from 'node:dns/promises';
 import type { IncomingMessage } from 'node:http';
 import { request as httpsRequest, type RequestOptions } from 'node:https';
@@ -5,6 +8,7 @@ import { isIP } from 'node:net';
 
 import {
   MAX_EMBEDDED_TEMPLATE_ASSET_BYTES,
+  EMBEDDED_TEMPLATE_ASSET_MIME_TYPES,
   normalizeEmbeddedTemplateAsset,
   type EmbeddedTemplateAssetMimeType,
 } from './embeddedTemplateAssets';
@@ -14,6 +18,7 @@ export interface McpArtworkSource {
   mimeType: EmbeddedTemplateAssetMimeType;
   data?: string;
   sourceUrl?: string;
+  personalLibrary?: PersonalLibraryArtworkSource;
 }
 
 export const MAX_MCP_ARTWORK_ITEMS_PER_OPERATION = 64;
@@ -199,17 +204,39 @@ const downloadArtwork = async (
   throw new StudioDocumentStoreError('CardForge could not download the remote artwork.', 400);
 };
 
+export const validateMcpArtworkSource = (source: McpArtworkSource, access?: AccountToolAccess) => {
+  if (!EMBEDDED_TEMPLATE_ASSET_MIME_TYPES.includes(source.mimeType)) throw new StudioDocumentStoreError('Artwork must be PNG, JPEG or WebP.', 400);
+  const hasData = typeof source.data === 'string' && source.data.length > 0;
+  const hasUrl = typeof source.sourceUrl === 'string' && source.sourceUrl.length > 0;
+  const personal = source.personalLibrary;
+  if (Number(hasData) + Number(hasUrl) + Number(Boolean(personal)) !== 1) {
+    throw new StudioDocumentStoreError('Artwork requires exactly one source: inline bytes, public HTTPS or an explicitly authorized personal Library reference.', 400);
+  }
+  if (personal) {
+    if (!access?.entitlement.isSignedIn || !access.entitlement.accountUserId) throw new PersonalLibraryStoreError('A linked account is required for private-source artwork.', 401, { kind: 'authentication' });
+    if (personal.authorization !== PERSONAL_LIBRARY_ARTWORK_AUTHORIZATION || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(personal.itemId) || typeof personal.expectedProviderRevision !== 'string' || !personal.expectedProviderRevision.trim() || personal.expectedProviderRevision.length > 80) throw new StudioDocumentStoreError('An exact personal item, observed Drive version and copy/replacement authorization are required.', 400);
+  }
+};
+
 export const normalizeMcpArtworkSource = async (
   source: McpArtworkSource,
   budget = createMcpArtworkOperationBudget([source]),
+  access?: AccountToolAccess,
+  onPersonalIndexRefreshed?: (observation: { itemId: string; providerRevision: string; originalSha256: string }) => void,
+  onIndexUpdateAttempted?: () => void,
 ) => {
+  validateMcpArtworkSource(source, access);
   const hasData = typeof source.data === 'string' && source.data.length > 0;
-  const hasUrl = typeof source.sourceUrl === 'string' && source.sourceUrl.length > 0;
-  if (hasData === hasUrl) {
-    throw new StudioDocumentStoreError('Artwork requires exactly one source: raw base64 data or an HTTPS sourceUrl.', 400);
+  const personal = source.personalLibrary;
+  if (personal) {
+    const materialized = await materializePersonalLibraryItem(access!.entitlement.accountUserId!, personal.itemId, { expectedProviderRevision: personal.expectedProviderRevision, expectedMimeType: source.mimeType, maximumBytes: MAX_EMBEDDED_TEMPLATE_ASSET_BYTES, consumeIncomingBytes: budget.consumeRemoteBytes, onIndexUpdateAttempted });
+    const observation = { itemId: personal.itemId, providerRevision: materialized.item.providerRevision, originalSha256: createHash('sha256').update(materialized.bytes).digest('hex') };
+    onPersonalIndexRefreshed?.(observation);
+    const normalized = await normalizeEmbeddedTemplateAsset({ data: Buffer.from(materialized.bytes).toString('base64'), mimeType: source.mimeType });
+    return { ...normalized, personalLibraryObservation: observation };
   }
   const data = hasData
     ? source.data!
     : (await downloadArtwork(source.sourceUrl!, source.mimeType, budget)).toString('base64');
-  return normalizeEmbeddedTemplateAsset({ data, mimeType: source.mimeType });
+  return { ...await normalizeEmbeddedTemplateAsset({ data, mimeType: source.mimeType }), personalLibraryObservation: undefined };
 };

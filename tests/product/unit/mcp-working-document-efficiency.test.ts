@@ -27,7 +27,8 @@ vi.mock('@/features/studio-documents/server/studioDocumentAccess', () => ({
   getStudioDocumentRetentionHours: vi.fn(async () => 24),
 }));
 vi.mock('@/features/studio-documents/server/studioDocumentStore', () => storeMocks);
-vi.mock('@/features/studio-documents/server/mcpArtworkSources', () => ({
+vi.mock('@/features/studio-documents/server/mcpArtworkSources', async original => ({
+  ...await original<object>(),
   createMcpArtworkOperationBudget: vi.fn(() => ({ consumeRemoteBytes: vi.fn() })),
   normalizeMcpArtworkSource: artworkMocks.normalizeMcpArtworkSource,
 }));

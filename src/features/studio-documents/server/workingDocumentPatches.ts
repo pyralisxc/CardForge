@@ -11,10 +11,14 @@ import {
 import { requireAccountToolCapability, type AccountToolAccess } from '@/features/account/server';
 import type { ProjectDocumentV1 } from '@/features/project/server';
 
-import { bindEmbeddedTemplateAsset } from './embeddedTemplateAssets';
+import { PersonalLibraryStoreError } from '@/features/personal-library/server';
+import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
+import { getStudioDocumentAssetIdFromReference } from '../assetReferences';
+import { bindEmbeddedTemplateAsset, validateBindingTargets, readEmbeddedTemplateAssetDataUri } from './embeddedTemplateAssets';
 import {
   createMcpArtworkOperationBudget,
   normalizeMcpArtworkSource,
+  validateMcpArtworkSource,
 } from './mcpArtworkSources';
 import type {
   PatchWorkingDocumentInput,
@@ -334,14 +338,37 @@ const assertNoNewStructuralErrors = (before: ProjectDocumentV1, after: ProjectDo
   }
 };
 
-const normalizeArtworkBatch = async (artworks: TemplateArtworkAttachment[] | undefined) => {
-  if (!artworks?.length) return [];
-  const budget = createMcpArtworkOperationBudget(artworks);
-  return Promise.all(artworks.map(async (artwork) => ({
-    artwork,
-    normalized: await normalizeMcpArtworkSource(artwork, budget),
-  })));
+const requireArtworkRequirement = (document: ProjectDocumentV1, artwork: TemplateArtworkAttachment) => {
+  if (!artwork.requirementId) return;
+  if (!document.productionPlan) throw new StudioDocumentStoreError('This working document does not have a production plan.', 409);
+  const requirement = document.productionPlan.assets.find(asset => asset.id === artwork.requirementId);
+  if (!requirement) throw new StudioDocumentStoreError(`Production-plan asset ${artwork.requirementId} does not exist. Batch artwork binding never creates replacement requirements.`, 404);
+  if (!['custom-generated', 'user-provided', 'cardforge-output'].includes(requirement.source)) throw new StudioDocumentStoreError(`Production-plan asset ${artwork.requirementId} is not an attachable generated/user-provided/CardForge-output requirement.`, 400);
 };
+
+const normalizeArtworkBatch = async (artworks: TemplateArtworkAttachment[] | undefined, access: AccountToolAccess, effects: { sourceWorkAttempted: boolean; indexRefreshes: number; indexAttempts: number }, budget: ReturnType<typeof createMcpArtworkOperationBudget>) => {
+  if (!artworks?.length) return [];
+  if (!artworks.some(artwork => artwork.personalLibrary)) return Promise.all(artworks.map(async artwork => ({ artwork, normalized: await normalizeMcpArtworkSource(artwork, budget) })));
+  // Sequential materialization stops after a failure; it never starts another
+  // avoidable private-source copy after an earlier source has already failed.
+  const result = [];
+  for (const artwork of artworks) {
+    if (artwork.personalLibrary) effects.sourceWorkAttempted = true;
+    result.push({ artwork, normalized: await normalizeMcpArtworkSource(artwork, budget, access, () => { effects.indexRefreshes++; }, () => { effects.indexAttempts++; }) });
+  }
+  return result;
+};
+
+const storedDigestWarnings = (document: ProjectDocumentV1, artworks: TemplateArtworkAttachment[] | undefined, exactCommittedRevision: boolean) => (artworks ?? []).flatMap(artwork => {
+  if (!artwork.personalLibrary) return [];
+  let digest: string | null = null;
+  try {
+    const template = document.userTemplates.find(candidate => candidate.id === artwork.templateId);
+    const reference = exactCommittedRevision && template ? readEmbeddedTemplateAssetDataUri({ template, binding: artwork.binding, targetElementIds: artwork.targetElementIds ?? [] }) : undefined;
+    digest = reference ? getStudioDocumentAssetIdFromReference(reference) : null;
+  } catch { /* Receipt remains committed even if digest projection is unavailable. */ }
+  return [`Personal Library ${artwork.personalLibrary.itemId}: normalized stored-image SHA-256 ${digest ?? 'unavailable at the currently observed revision'}. This differs from the original provider-byte SHA-256.`];
+});
 
 const applyArtworkBatch = ({
   document,
@@ -374,19 +401,10 @@ const applyArtworkBatch = ({
     targetElementIds.forEach((id) => changedElementIds.add(id));
 
     if (artwork.requirementId) {
-      if (!productionPlan) throw new StudioDocumentStoreError('This working document does not have a production plan.', 409);
-      const index = productionPlan.assets.findIndex((asset) => asset.id === artwork.requirementId);
-      const requirement = productionPlan.assets[index];
-      if (!requirement) {
-        throw new StudioDocumentStoreError(`Production-plan asset ${artwork.requirementId} does not exist. Batch artwork binding never creates replacement requirements.`, 404);
-      }
-      if (!['custom-generated', 'user-provided', 'cardforge-output'].includes(requirement.source)) {
-        throw new StudioDocumentStoreError(
-          `Production-plan asset ${artwork.requirementId} is not an attachable generated/user-provided/CardForge-output requirement.`,
-          400,
-        );
-      }
-      const assets = [...productionPlan.assets];
+      requireArtworkRequirement(document, artwork);
+      const index = productionPlan!.assets.findIndex(asset => asset.id === artwork.requirementId);
+      const requirement = productionPlan!.assets[index]!;
+      const assets = [...productionPlan!.assets];
       assets[index] = {
         ...requirement,
         status: 'selected',
@@ -397,7 +415,7 @@ const applyArtworkBatch = ({
         width: normalized.width,
         height: normalized.height,
       };
-      productionPlan = { ...productionPlan, assets };
+      productionPlan = { ...productionPlan!, assets };
       changedAssetRequirementIds.add(requirement.id);
     }
   }
@@ -430,7 +448,7 @@ export const patchWorkingDocument = async ({
         changedElementIds: receipt.changedElementIds,
         changedCardIds: receipt.changedCardIds,
         changedAssetRequirementIds: receipt.changedAssetRequirementIds,
-        warnings: receipt.warnings,
+        warnings: [...receipt.warnings, ...storedDigestWarnings(current.document, input.templateArtworks, current.revision === receipt.revision)],
         canonicalRenderingRecommended: receipt.canonicalRenderingRecommended,
         operationId: input.operationId,
       };
@@ -443,7 +461,7 @@ export const patchWorkingDocument = async ({
     );
   }
 
-  const normalizedArtworks = await normalizeArtworkBatch(input.templateArtworks);
+  const artworkBudget = createMcpArtworkOperationBudget(input.templateArtworks ?? []);
   const changedTemplateIds = new Set<string>();
   const changedElementIds = new Set<string>();
   const changedCardIds = new Set<string>();
@@ -468,15 +486,6 @@ export const patchWorkingDocument = async ({
     changedTemplateIds.add(patch.templateId);
   }
 
-  const artworkApplied = applyArtworkBatch({
-    document: current.document,
-    templates,
-    normalizedArtworks,
-    changedTemplateIds,
-    changedElementIds,
-    changedAssetRequirementIds,
-  });
-  templates = artworkApplied.templates;
   const storedCards = applyCardPatches({
     document: current.document,
     templates,
@@ -485,55 +494,94 @@ export const patchWorkingDocument = async ({
     warnings,
   });
 
-  const canonicalRenderingRecommended = changedTemplateIds.size > 0
-    || changedElementIds.size > 0
-    || changedCardIds.size > 0
-    || normalizedArtworks.length > 0;
-  const committedRevision = input.expectedRevision + 1;
-  const receipt: McpWorkingDocumentOperationReceipt | undefined = input.operationId ? {
-    operationId: input.operationId,
-    requestHash: hash,
-    revision: committedRevision,
-    changedTemplateIds: [...changedTemplateIds],
-    changedElementIds: [...changedElementIds],
-    changedCardIds: [...changedCardIds],
-    changedAssetRequirementIds: [...changedAssetRequirementIds],
-    warnings: [...new Set(warnings)],
-    canonicalRenderingRecommended,
-  } : undefined;
-  const nextDocument: ProjectDocumentWithReceipts = {
-    ...current.document,
-    userTemplates: templates,
-    storedCards,
-    productionPlan: artworkApplied.productionPlan,
-    ...(receipt ? {
-      mcpOperationReceipts: [
-        ...(currentDocument.mcpOperationReceipts ?? []).filter((candidate) => candidate.operationId !== receipt.operationId),
-        receipt,
-      ].slice(-MAX_OPERATION_RECEIPTS),
-    } : {}),
-  };
-  assertNoNewStructuralErrors(current.document, nextDocument);
-  const document = await updateStudioDocument({
-    ownerUserId: access.user.id,
-    documentId: input.documentId,
-    expectedRevision: input.expectedRevision,
-    title: current.title,
-    document: nextDocument,
-    retentionHours,
-  });
-  return {
-    document,
-    committedRevision: document.revision,
-    replayed: false,
-    changedTemplateIds: [...changedTemplateIds],
-    changedElementIds: [...changedElementIds],
-    changedCardIds: [...changedCardIds],
-    changedAssetRequirementIds: [...changedAssetRequirementIds],
-    warnings: [...new Set(warnings)],
-    canonicalRenderingRecommended,
-    operationId: input.operationId,
-  };
+  const occupied = new Set<string>();
+  for (const artwork of input.templateArtworks ?? []) {
+    if (artwork.personalLibrary) validateMcpArtworkSource(artwork, access);
+    validateBindingTargets(requireTemplate(templates, artwork.templateId), artwork.binding, artwork.targetElementIds ?? []);
+    requireArtworkRequirement(current.document, artwork);
+    if (input.templateArtworks?.some(candidate => candidate.personalLibrary)) {
+      for (const target of artwork.targetElementIds?.length ? artwork.targetElementIds : ['template']) {
+        const key = JSON.stringify([artwork.templateId, artwork.binding, target]);
+        if (occupied.has(key)) throw new StudioDocumentStoreError('Private-source attachment requires unambiguous, non-overlapping artwork targets.', 400);
+        occupied.add(key);
+      }
+    }
+  }
+  const effects = { sourceWorkAttempted: false, indexRefreshes: 0, indexAttempts: 0, privateStorageAttempted: false };
+  try {
+    const normalizedArtworks = await normalizeArtworkBatch(input.templateArtworks, access, effects, artworkBudget);
+    for (const { normalized } of normalizedArtworks) {
+      const observation = normalized.personalLibraryObservation;
+      if (observation) warnings.push(`Personal Library ${observation.itemId}, observed Drive File.version ${observation.providerRevision}: original provider-byte SHA-256 ${observation.originalSha256}. Index metadata refresh acknowledged independently before the authored-document CAS.`);
+    }
+    const artworkApplied = applyArtworkBatch({
+      document: current.document,
+      templates,
+      normalizedArtworks,
+      changedTemplateIds,
+      changedElementIds,
+      changedAssetRequirementIds,
+    });
+    templates = artworkApplied.templates;
+
+    const canonicalRenderingRecommended = changedTemplateIds.size > 0
+      || changedElementIds.size > 0
+      || changedCardIds.size > 0
+      || normalizedArtworks.length > 0;
+    const committedRevision = input.expectedRevision + 1;
+    const receipt: McpWorkingDocumentOperationReceipt | undefined = input.operationId ? {
+      operationId: input.operationId,
+      requestHash: hash,
+      revision: committedRevision,
+      changedTemplateIds: [...changedTemplateIds],
+      changedElementIds: [...changedElementIds],
+      changedCardIds: [...changedCardIds],
+      changedAssetRequirementIds: [...changedAssetRequirementIds],
+      warnings: [...new Set(warnings)],
+      canonicalRenderingRecommended,
+    } : undefined;
+    const nextDocument: ProjectDocumentWithReceipts = {
+      ...current.document,
+      userTemplates: templates,
+      storedCards,
+      productionPlan: artworkApplied.productionPlan,
+      ...(receipt ? {
+        mcpOperationReceipts: [
+          ...(currentDocument.mcpOperationReceipts ?? []).filter((candidate) => candidate.operationId !== receipt.operationId),
+          receipt,
+        ].slice(-MAX_OPERATION_RECEIPTS),
+      } : {}),
+    };
+    assertNoNewStructuralErrors(current.document, nextDocument);
+    effects.privateStorageAttempted = true;
+    const document = await updateStudioDocument({
+      ownerUserId: access.user.id,
+      documentId: input.documentId,
+      expectedRevision: input.expectedRevision,
+      title: current.title,
+      document: nextDocument,
+      retentionHours,
+    });
+    return {
+      document,
+      committedRevision: document.revision,
+      replayed: false,
+      changedTemplateIds: [...changedTemplateIds],
+      changedElementIds: [...changedElementIds],
+      changedCardIds: [...changedCardIds],
+      changedAssetRequirementIds: [...changedAssetRequirementIds],
+      warnings: [...new Set(warnings), ...storedDigestWarnings(document.document, input.templateArtworks, true)],
+      canonicalRenderingRecommended,
+      operationId: input.operationId,
+    };
+  } catch (error) {
+    if (!effects.sourceWorkAttempted) throw error;
+    const failure = describeAgentBoundaryFailure(error);
+    const detail = error instanceof StudioDocumentStoreError || error instanceof PersonalLibraryStoreError ? error.message : 'The private-source attachment outcome is not confirmed.';
+    const wrapped = new PersonalLibraryStoreError(`${detail} Private-source work was attempted; ${effects.indexAttempts} index update(s) were attempted; ${effects.indexRefreshes} index refresh(es) were acknowledged. Any unacknowledged index attempt has an uncertain outcome.${effects.privateStorageAttempted ? ' Private content-addressed uploads may remain under normal retention; no compensating deletion was performed.' : ''} The provider/index steps and authored-document CAS are not atomic.`, failure.status, { kind: failure.kind, nextAction: 'Read the exact working document and, if supplied, its original operationId receipt. Do not automatically repeat materialization or attachment; matching state alone is not operation causation.' });
+    Object.assign(wrapped, { retryable: false });
+    throw wrapped;
+  }
 };
 
 export const getWorkingDocumentOperationStatus = async ({

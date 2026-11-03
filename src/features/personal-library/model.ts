@@ -116,3 +116,6 @@ export const getPersonalLibraryRoleLabel = (role: PersonalLibraryRole): string =
     case 'reference': return 'Reference';
   }
 };
+
+export const PERSONAL_LIBRARY_ARTWORK_AUTHORIZATION = 'Download and copy this exact personal Library source into the specified private working document and replace the specified artwork bindings. The Drive original remains untouched.';
+export interface PersonalLibraryArtworkSource { itemId: string; expectedProviderRevision: string; authorization: typeof PERSONAL_LIBRARY_ARTWORK_AUTHORIZATION }
