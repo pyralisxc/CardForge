@@ -26,7 +26,7 @@ const presentation = () => mediaPresentationSchema.parse({
   baseline: base.baseline, proposed: { tileMode: 'contain', seamless: false },
 });
 const input = () => ({ assetId: base.assetId, submissionKey: '95d641b4-8c9d-4bf3-8292-17319118be1e', presentation: presentation() });
-const saved = (path: string, p = presentation()) => ({ id: candidate, revision_number: 8, status: 'submitted', editorial_review_status: 'pending', media_presentation: p, source_storage_bucket: 'pipeline', source_storage_path: path, trashed_at: null, purge_state: null });
+const saved = (path: string, p = presentation()) => ({ id: candidate, target_registry_asset_id: base.assetId, submission_key: input().submissionKey, revision_number: 8, status: 'submitted', editorial_review_status: 'pending', media_presentation: p, source_storage_bucket: 'pipeline', source_storage_path: path, trashed_at: null, purge_state: null });
 let receipts: Array<{ data: unknown; error: unknown }>;
 let references: { data: unknown; error: unknown };
 let rpc: ReturnType<typeof vi.fn>;

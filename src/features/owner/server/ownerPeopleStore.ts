@@ -239,3 +239,19 @@ export const getOwnerPeople = async ({
     summary,
   };
 };
+
+/** Exact identity uses the directory's sanctioned mapper, never name search or missing-provider inference. */
+export const getOwnerPerson = async (userId: string): Promise<OwnerPerson | null> => {
+  const client = await clerkClient();
+  const profile = (await fetchContributorProfileRowsForOwner()).find(row => row.clerk_user_id === userId);
+  let user: ClerkUser | null;
+  try { user = await client.users.getUser(userId); }
+  catch (error) {
+    if (!error || typeof error !== 'object' || !('status' in error) || error.status !== 404) throw new Error('The exact account provider read is unavailable; absence was not established.');
+    user = null;
+  }
+  if (user && user.id !== userId) throw new Error('The exact account identity could not be verified.');
+  if (!user && !profile) return null;
+  const counts = await readSubmissionCounts([userId]);
+  return user ? mapPerson(user, profile, counts) : mapHistoryPerson(profile!, counts);
+};

@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto';
 const access = vi.hoisted(() => vi.fn());
 const build = vi.hoisted(() => vi.fn());
 const packet = vi.hoisted(() => vi.fn());
-vi.mock('@/features/plugin-distribution/server', () => ({
+vi.mock('@/features/plugin-distribution/server', async () => ({
+  RetainedReleaseReadError: (await import('@/features/plugin-distribution/model/retainedReleaseReadContract')).RetainedReleaseReadError,
   pluginDownloadAccess: access,
   buildCurrentPlugin: build,
   buildStudioReviewerPacket: packet,

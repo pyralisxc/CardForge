@@ -261,17 +261,22 @@ export const updateContributorProfileOverrides = async ({
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 
+/** Commit seam: native settings + global rebalance ACK precedes derived program reload. */
+export const commitPipelineProgramSettings = async (
+  input: Partial<Record<keyof PipelineProgramSettings, unknown>>, currentUserId: string,
+): Promise<number> => {
+  if (!getSupabaseServerClient()) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
+  if (!currentUserId) throw new PipelineStoreError('Owner identity is required to update pipeline rules.', 403);
+  const normalized = normalizePipelineProgramSettingsInput(input);
+  return runRegistryCommand(() => savePipelineProgramSettings(normalized, currentUserId));
+};
+
 export const updatePipelineProgramSettings = async (
   input: Partial<Record<keyof PipelineProgramSettings, unknown>>,
   currentUserId = '',
   currentContributorIds: string[] = currentUserId ? [currentUserId] : [],
 ): Promise<PipelineProgramView> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
-
-  const normalized = normalizePipelineProgramSettingsInput(input);
-  if (!currentUserId) throw new PipelineStoreError('Owner identity is required to update pipeline rules.', 403);
-  await runRegistryCommand(() => savePipelineProgramSettings(normalized, currentUserId));
+  await commitPipelineProgramSettings(input, currentUserId);
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 
@@ -627,13 +632,12 @@ export const finalizeContributorTemplatePipelineDraft = async ({
     committedMetadataFields: [...committedMetadataFields, 'name', 'description', 'previewUrl', 'sourceNotes', 'specialtyTags', 'useCaseTags', 'requestedStudioDestination'], warnings: [], retryable: false, nextAction: 'none' };
 };
 
-export const updatePipelineSubmissionStatus = async ({
+export const commitPipelineSubmissionStatus = async ({
   submissionId,
   ownerStatusOverride,
   ownerNote,
   ownerAccessTierOverride,
   currentUserId = '',
-  currentContributorIds = currentUserId ? [currentUserId] : [],
 }: {
   submissionId: string;
   ownerStatusOverride?: unknown;
@@ -641,7 +645,7 @@ export const updatePipelineSubmissionStatus = async ({
   ownerAccessTierOverride?: unknown;
   currentUserId?: string;
   currentContributorIds?: string[];
-}): Promise<PipelineProgramView> => {
+}): Promise<void> => {
   if (!currentUserId) throw new PipelineStoreError('Owner identity is required to override an asset.', 403);
   const normalizedStatusOverride = ownerStatusOverride === null || ownerStatusOverride === ''
     ? null
@@ -667,16 +671,19 @@ export const updatePipelineSubmissionStatus = async ({
     ...(ownerAccessTierOverride !== undefined ? { ownerAccessTierOverride: normalizedTierOverride ?? null } : {}),
   }));
 
+};
+
+export const updatePipelineSubmissionStatus = async ({ submissionId, ownerStatusOverride, ownerNote, ownerAccessTierOverride, currentUserId = '', currentContributorIds = currentUserId ? [currentUserId] : [] }: Parameters<typeof commitPipelineSubmissionStatus>[0]): Promise<PipelineProgramView> => {
+  await commitPipelineSubmissionStatus({ submissionId, ownerStatusOverride, ownerNote, ownerAccessTierOverride, currentUserId });
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 
-export const updatePipelineEditorialReview = async ({
+export const commitPipelineEditorialReview = async ({
   submissionId,
   reviewStatus,
   reviewNote,
   expectedEvidenceVersion,
   currentUserId,
-  currentContributorIds = [currentUserId],
 }: {
   submissionId: string;
   reviewStatus: unknown;
@@ -684,7 +691,7 @@ export const updatePipelineEditorialReview = async ({
   expectedEvidenceVersion?: unknown;
   currentUserId: string;
   currentContributorIds?: string[];
-}): Promise<PipelineProgramView> => {
+}): Promise<void> => {
   if (!currentUserId) throw new PipelineStoreError('Owner identity is required to review an asset.', 403);
   if (expectedEvidenceVersion != null && (!Number.isInteger(expectedEvidenceVersion) || Number(expectedEvidenceVersion) < 0 || Number(expectedEvidenceVersion) > 2_147_483_647)) throw new PipelineStoreError('Read the exact source evidence version before reviewing.', 400);
   const normalizedStatus: PipelineEditorialReviewStatus | null = (
@@ -710,6 +717,10 @@ export const updatePipelineEditorialReview = async ({
     reviewerContributorId: currentUserId,
     expectedEvidenceVersion: typeof expectedEvidenceVersion === 'number' ? expectedEvidenceVersion : null,
   }));
+};
+
+export const updatePipelineEditorialReview = async ({ submissionId, reviewStatus, reviewNote, expectedEvidenceVersion, currentUserId, currentContributorIds = [currentUserId] }: Parameters<typeof commitPipelineEditorialReview>[0]): Promise<PipelineProgramView> => {
+  await commitPipelineEditorialReview({ submissionId, reviewStatus, reviewNote, expectedEvidenceVersion, currentUserId });
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 

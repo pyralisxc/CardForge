@@ -1,4 +1,5 @@
-import { interpretStudioDependencies } from './studioDependencyInterpretation';
+import { sanitizeStudioDependencyReasons } from '../ownerStudioDependencyContract';
+import { STUDIO_DEPENDENCY_CONTRACT_VERSION, interpretStudioDependencies } from './studioDependencyInterpretation';
 import { randomUUID } from 'node:crypto';
 
 import type { ProjectDocumentV1 } from '@/features/project/server';
@@ -530,8 +531,37 @@ const reconcileStudioDependencySnapshot = async (
     p_interpretation: { ...interpretation, sourcePayload: payload },
   });
   if (writeError) throw new StudioDocumentStoreError('Studio reconciliation outcome is unavailable. Inspect the document before retrying.', 503);
-  if (!reconciled) throw new StudioDocumentStoreError('Studio source changed during dependency reconciliation. Reload before retrying.', 409);
+  if (reconciled === false) throw new StudioDocumentStoreError('Studio source changed during dependency reconciliation. Reload before retrying.', 409);
+  if (reconciled !== true) throw new StudioDocumentStoreError('Studio reconciliation acknowledgement is unknown. Read exact persisted dependency state; do not replay automatically.', 503);
   // Never return another author's payload or ownership identity to the caller.
   return { documentId, revision: data.revision as number, contractVersion: interpretation.contractVersion,
-    complete: interpretation.complete, opaqueReasons: interpretation.opaqueReasons };
+    complete: interpretation.complete, opaqueReasons: sanitizeStudioDependencyReasons(interpretation.opaqueReasons) };
+};
+
+/** Persisted projection only: never invokes the interpreter or mutates a document. */
+export const readOwnerStudioDocumentDependencies = async (documentId: string, expectedRevision: number) => {
+  const { data, error } = await requireStore().from('cardforge_studio_documents')
+    .select('id,revision,catalog_dependencies').eq('id', documentId).maybeSingle();
+  if (error) throw new StudioDocumentStoreError('Persisted Studio dependency metadata is unavailable.', 503);
+  if (!data) throw new StudioDocumentStoreError('Exact Studio document not found.', 404);
+  if (data.id !== documentId || !Number.isSafeInteger(data.revision)) throw new StudioDocumentStoreError('Persisted Studio identity is invalid.', 503);
+  if (data.revision !== expectedRevision) throw new StudioDocumentStoreError('Studio revision changed; no newer revision was substituted.', 409);
+  const base = { documentId, revision: expectedRevision, contractVersion: null, complete: null, opaqueReasons: [] as string[] };
+  if (data.catalog_dependencies === null) return { ...base, state: 'absent' as const };
+  const proof = data.catalog_dependencies as Record<string, unknown> | null;
+  if (!proof || typeof proof !== 'object' || Array.isArray(proof) || !Number.isSafeInteger(proof.revision)
+    || !Number.isSafeInteger(proof.contractVersion) || Number(proof.contractVersion) <= 0
+    || typeof proof.complete !== 'boolean' || !Array.isArray(proof.opaqueReasons)
+    || !proof.opaqueReasons.every(reason => typeof reason === 'string')
+    || typeof proof.payloadDigest !== 'string' || !/^[a-f0-9]{64}$/.test(proof.payloadDigest)
+    || !proof.references || typeof proof.references !== 'object' || Array.isArray(proof.references)
+    || !['identities','sources'].every(key => Array.isArray((proof.references as Record<string, unknown>)[key]) && ((proof.references as Record<string, unknown>)[key] as unknown[]).every(value => typeof value === 'string'))) {
+    throw new StudioDocumentStoreError('Persisted Studio dependency metadata is invalid; completeness was not established.', 503);
+  }
+  if (proof.revision !== expectedRevision || proof.contractVersion !== STUDIO_DEPENDENCY_CONTRACT_VERSION) {
+    return { ...base, contractVersion: Number(proof.contractVersion), state: 'stale' as const };
+  }
+  return { documentId, revision: expectedRevision, contractVersion: Number(proof.contractVersion),
+    state: proof.complete ? 'complete' as const : 'incomplete' as const, complete: proof.complete,
+    opaqueReasons: sanitizeStudioDependencyReasons(proof.opaqueReasons as string[]) };
 };

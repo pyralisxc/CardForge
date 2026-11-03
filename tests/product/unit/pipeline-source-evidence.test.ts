@@ -39,4 +39,10 @@ describe('correction reviewer source evidence', () => {
     await expect(recordSourceReviewEvidence(id, { facts: { ...facts, rightsFacts: 'x'.repeat(1201) }, expectedCandidateVersion: snapshot.candidateVersion, expectedEvidenceVersion: 1 }, 'acting-owner')).rejects.toMatchObject({ status: 400 });
     expect(rpc).not.toHaveBeenCalled();
   });
+  it('does not confirm a different revision returned by an exact native read or write', async () => {
+    rpc.mockResolvedValue({ data: { ...snapshot, submissionId: '10000000-0000-4000-8000-000000000099' }, error: null });
+    await expect(readSourceReviewEvidence(id)).rejects.toMatchObject({ status: 503 });
+    await expect(recordSourceReviewEvidence(id, { facts, expectedCandidateVersion: snapshot.candidateVersion, expectedEvidenceVersion: 1 }, 'acting-owner')).rejects.toMatchObject({ status: 503 });
+  });
+
 });

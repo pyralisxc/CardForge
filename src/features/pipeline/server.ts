@@ -18,7 +18,7 @@ export * from './server/catalogCache';
 export * from './server/pipelineRequestAccess';
 export { classifyPublishedPipelineAsset, readPublishedPipelineClassification } from './server/classifyPublishedAsset';
 
-export { readMediaPresentationRevision, createMediaPresentationRevision } from './server/mediaPresentationRevision';
+export { readMediaPresentationRevision, readMediaPresentationReceipt, createMediaPresentationRevision } from './server/mediaPresentationRevision';
 export { readTemplateReviewBase, readTemplateReviewReceipt, createTemplateReviewRevision } from './server/templateReviewRevision';
 export { readSourceReviewEvidence, recordSourceReviewEvidence } from './server/sourceReviewEvidence';
 
@@ -42,8 +42,17 @@ export { RevisionRecoveryError, REVISION_RECOVERY_NEXT_ACTION } from './lib/revi
 
 export { dependencyImpactJsonSchema } from './lib/dependencyImpactContract';
 
+export { ownerPipelineExactInput, ownerPipelineEvidenceInput, ownerPipelineEditorialInput, ownerPipelinePublicationInput, ownerPipelineEvidenceSnapshot, ownerPipelineEditorialSnapshot, ownerPipelinePublicationSnapshot, ownerPipelineDecisionReceipt, ownerPipelineEvidenceResult, ownerPipelineEditorialResult, ownerPipelinePublicationResult } from './lib/ownerPipelineDecisionContract';
+
+export { getSourceReviewVersion } from './lib/sourceReviewEvidence';
+export { CONTENT_QUALITY_AI, CONTENT_QUALITY_BY_ROLE, CONTENT_QUALITY_FINISH, CONTENT_QUALITY_STANDARD_VERSION, CONTENT_QUALITY_UNIVERSAL } from './lib/contentQualityStandard';
+
 export { listAgentPipelineSubmissions, inspectAgentPipelineRevision, readAgentPipelineHealth, readAgentPipelineEngagement, voteAgentPipelineRevision, heartAgentPipelineLineage } from './server/pipelineAgentActions';
 export { pipelineAgentListInput, pipelineAgentExactInput, pipelineAgentVoteInput, pipelineAgentHeartInput, pipelineAgentPage, pipelineAgentRevision, pipelineAgentHealth, pipelineAgentEngagement, pipelineAgentMutationReceipt } from './lib/pipelineAgentContract';
 
 export { getContributorPipelineDraft, saveContributorPipelineMetadata, finalizeContributorTemplateSubmission } from './server/contributorDraftCommands';
 export { contributorDraftExactInput, contributorDraftWriteInput, contributorDraftSnapshot, contributorDraftMutationResult } from './lib/contributorDraftContract';
+export { publishedClassificationReadInput, publishedClassificationInput, publishedClassificationSnapshot, publishedClassificationReceipt, publishedClassificationResult } from './lib/publishedClassificationContract';
+
+export { mediaRevisionBaseInput, mediaRevisionAttemptInput, mediaRevisionBaseOutput, mediaRevisionReceipt, mediaRevisionReceiptOutput, mediaRevisionCommandResult } from './lib/mediaRevisionCommand';
+export { editablePipelineSettings, pipelineSettingsSnapshot, pipelineSettingsReadInput, pipelineSettingsSaveInput, routingReadInput, routingSaveInput, routingItem, routingReadOutput, configurationReceipt, settingsSaveResult, routingSaveResult } from './lib/ownerProgramRoutingContract';

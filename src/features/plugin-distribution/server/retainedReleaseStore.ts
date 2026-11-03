@@ -1,7 +1,8 @@
 import 'server-only';
 
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import type { ReleaseStore, RetainedRelease } from './retainedReleaseCommands';
+import { validateRetainedRelease, type ReleaseStore, type RetainedRelease } from './retainedReleaseCommands';
+import { RetainedReleaseReadError } from '../model/retainedReleaseReadContract';
 import type { ReleaseCandidate } from '../model/releaseArtifactIdentity';
 
 const BUCKET = 'cardforge-plugin-releases';
@@ -13,11 +14,19 @@ type Row = {
   source_sha: string; checksum_sha256: string; byte_length: number;
   storage_path: string; changes: string; released_at: string;
 };
-const mapRow = (r: Row): RetainedRelease => ({
-  product: r.product, environment: r.environment, packageVersion: r.package_version,
-  sourceSha: r.source_sha, checksumSha256: r.checksum_sha256, byteLength: r.byte_length,
-  storagePath: r.storage_path, changes: r.changes, releasedAt: r.released_at,
-});
+const COLUMNS = 'product,environment,package_version,source_sha,checksum_sha256,byte_length,storage_path,changes,released_at';
+const mapRow = (value: unknown): RetainedRelease => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+    || Object.keys(value).sort().join(',') !== COLUMNS.split(',').sort().join(',')) {
+    throw new RetainedReleaseReadError('Retained release metadata is malformed.');
+  }
+  const r = value as Row;
+  return validateRetainedRelease({
+    product: r.product, environment: r.environment, packageVersion: r.package_version,
+    sourceSha: r.source_sha, checksumSha256: r.checksum_sha256, byteLength: r.byte_length,
+    storagePath: r.storage_path, changes: r.changes, releasedAt: r.released_at,
+  });
+};
 const requireServer = () => {
   const client = getSupabaseServerClient();
   if (!client) throw new Error('Private release storage is unavailable');
@@ -34,18 +43,23 @@ export function createRetainedReleaseStore(): ReleaseStore {
   const db = requireServer();
   return {
     async find(product: Product, environment: Environment, version: string) {
-      const { data, error } = await db.from(TABLE).select('*')
+      const { data, error } = await db.from(TABLE).select(COLUMNS)
         .eq('product', product).eq('environment', environment)
         .eq('package_version', version).maybeSingle();
-      if (error) throw new Error('Release metadata read unavailable');
-      return data ? mapRow(data as Row) : null;
+      if (error) throw new RetainedReleaseReadError('Release metadata read unavailable.');
+      if (data === null) return null;
+      const record = mapRow(data);
+      if (record.product !== product || record.environment !== environment || record.packageVersion !== version) throw new RetainedReleaseReadError('Retained metadata returned a different exact identity.');
+      return record;
     },
     async list(product: Product, environment: Environment) {
-      const { data, error } = await db.from(TABLE).select('*')
+      const { data, error } = await db.from(TABLE).select(COLUMNS)
         .eq('product', product).eq('environment', environment)
         .order('released_at', { ascending: false });
-      if (error) throw new Error('Release history unavailable');
-      return (data as Row[] | null ?? []).map(mapRow);
+      if (error || !Array.isArray(data)) throw new RetainedReleaseReadError('Release history unavailable; an empty result was not established.');
+      const records = data.map(mapRow);
+      if (records.some(record => record.product !== product || record.environment !== environment)) throw new RetainedReleaseReadError('Release history returned a different scope.');
+      return records;
     },
     async uploadOnce(path: string, bytes: Uint8Array) {
       const { error } = await db.storage.from(BUCKET).upload(path, bytes, {

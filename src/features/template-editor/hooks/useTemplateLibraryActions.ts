@@ -18,7 +18,7 @@ import {
 } from '@/domain/templates';
 import { useProjectStore, selectAllTemplates, type TemplateCommitChangeInput } from '@/features/project/client/workspace';
 import { forgetAgentTemplateLink, syncAgentTemplateSave } from '@/features/studio-documents/client';
-import { requireOkResponse } from '@/infrastructure/http/clientResponses';
+import { ApiClientError, requireOkResponse } from '@/infrastructure/http/clientResponses';
 import { buildTemplateSaveImpact, type TemplateSaveImpact } from '../lib/templateSaveImpact';
 import { templateReviewBaseSchema, templateReviewReceiptSchema, templateReviewPayload, templateReviewRequestText } from '@/features/pipeline/client';
 
@@ -339,25 +339,35 @@ export function useTemplateLibraryActions({
     if (!current.id || !context) throw new Error('Prepare an exact published review base before editing. Existing browser work is preserved.');
     const requestFingerprint = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(templateReviewRequestText(current)))))
       .map((value) => value.toString(16).padStart(2, '0')).join('');
-    if (context.attempt && context.attempt.requestFingerprint !== requestFingerprint) {
+    if (context.attempt) {
       const response = await fetch(`/api/owner/pipeline/template-revisions?assetId=${encodeURIComponent(context.expectedBase.assetId)}&submissionKey=${encodeURIComponent(context.attempt.key)}`);
-      await requireOkResponse(response, 'The previous attempt is still uncertain. Retry its exact saved snapshot before changing the submission.');
+      await requireOkResponse(response, 'The previous attempt is still uncertain. Read its exact saved receipt before changing the submission; retain its snapshot and key.');
       const previous = await response.json() as { receipt?: unknown };
       if (!Object.hasOwn(previous, 'receipt')) throw new Error('The previous attempt receipt could not be verified. Your saved attempt is preserved.');
       if (previous.receipt !== null) {
         const receipt = templateReviewReceiptSchema.parse(previous.receipt);
-        throw new Error(`Revision ${receipt.revisionNumber} already has status ${receipt.status}. Your newer browser edits remain saved; resolve that exact review before another submission.`);
+        if (receipt.assetId !== context.expectedBase.assetId || context.attempt.requestFingerprint !== requestFingerprint || receipt.requestFingerprint !== requestFingerprint) throw new Error(`Revision ${receipt.revisionNumber} already has status ${receipt.status}. Your newer browser edits remain saved; resolve that exact review before another submission.`);
+        toast({ title: 'Template review receipt', description: `Revision ${receipt.revisionNumber} · ${receipt.status} · editorial ${receipt.editorialReviewStatus}. Recovered the exact saved attempt; no new revision was created. The live Template and your browser draft are unchanged.` });
+        return;
       }
     }
     const submissionKey = context.attempt?.requestFingerprint === requestFingerprint ? context.attempt.key : nanoid(32);
     const latest = selectAllTemplates(useProjectStore.getState()).find((item) => item.id === current.id);
     if (JSON.stringify(latest) !== baseline) throw new Error('Your saved Template changed while this attempt was prepared. The newer work is preserved; submit that snapshot when ready.');
     addOrUpdateTemplate({ ...current, templatePipelineContext: { ...context, attempt: { key: submissionKey, requestFingerprint } } }, 'user');
-    const result = await mutateShippedLibrary('/api/owner/pipeline/template-revisions', 'POST', {
-      template: templateReviewPayload(current), expectedBase: context.expectedBase, submissionKey,
-    }, 'The review outcome is unavailable. Retry the same saved snapshot.');
-    const receipt = templateReviewReceiptSchema.parse(result);
-    toast({ title: 'Template review receipt', description: `Revision ${receipt.revisionNumber} · ${receipt.status} · editorial ${receipt.editorialReviewStatus}. The live Template and your browser draft are unchanged.` });
+    let result: Record<string, unknown>;
+    let receipt;
+    try {
+      result = await mutateShippedLibrary('/api/owner/pipeline/template-revisions', 'POST', {
+        template: templateReviewPayload(current), expectedBase: context.expectedBase, submissionKey,
+      }, 'The review outcome is unconfirmed.');
+      receipt = templateReviewReceiptSchema.parse(result);
+      if (receipt.assetId !== context.expectedBase.assetId || receipt.requestFingerprint !== requestFingerprint) throw new Error('The exact saved receipt could not be verified.');
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status < 500) throw error;
+      throw new Error('The review outcome is unconfirmed. Read the exact saved receipt before any further write; retain the snapshot and key. Do not replay automatically.');
+    }
+    toast({ title: 'Template review receipt', description: `Revision ${receipt.revisionNumber} · ${receipt.status} · editorial ${receipt.editorialReviewStatus}. The live Template and your browser draft are unchanged.${result.activityRecorded === true ? '' : ' Audit activity is incomplete; read the retained receipt rather than repeating creation.'}` });
   }, [addOrUpdateTemplate, projectCapabilities.canPublishSharedLibrary, toast]);
 
   const handleContinueNewTemplateInPipeline = useCallback(async (template: TCGCardTemplate, managedRasterSelection?: ManagedRasterSelection): Promise<string> => {
