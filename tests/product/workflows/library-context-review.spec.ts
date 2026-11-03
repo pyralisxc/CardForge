@@ -942,3 +942,55 @@ for (const outcome of ['uncertain', 'rejected'] as const) for (const decision of
   expect(requests.filter(request => request.method === 'PUT')).toHaveLength(1);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+for (const outcome of ['uncertain', 'unstructured', 'conflict'] as const) test(`@golden Published classification ${outcome} keeps reviewed values without replay`, async ({ page }) => {
+  const evidence = await mount(page, `?classificationReceipt=${outcome}`);
+  const family = page.getByRole('textbox', { name: 'Visual family / pack', exact: true });
+  await family.fill('Reviewed family');
+  await page.getByRole('button', { name: 'Save classification', exact: true }).click();
+  const error = page.getByRole('alert');
+  if (outcome === 'conflict') await expect(error).toContainText('published revision or classification changed');
+  else { await expect(error).toContainText('do not replay automatically'); await expect(error).not.toContainText('Retry the same request'); }
+  await expect(family).toHaveValue('Reviewed family');
+  await expect(page.getByRole('button', { name: 'Reload current values', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => (window as typeof window & { classificationRefreshes?: number }).classificationRefreshes ?? 0)).toBe(0);
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'POST')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+for (const outcome of ['committed', 'readback'] as const) test(`@golden Published classification ${outcome} preserves commit through follow-up failure`, async ({ page }) => {
+  const evidence = await mount(page, `?classificationReceipt=${outcome}`);
+  await page.getByRole('textbox', { name: 'Visual family / pack', exact: true }).fill('Reviewed family');
+  await page.getByRole('button', { name: 'Save classification', exact: true }).click();
+  const status = page.getByRole('region', { name: 'Published classification', exact: true }).getByRole('status');
+  if (outcome === 'committed') {
+    await expect(status).toContainText('Classification committed.'); await expect(status).toContainText('Library refresh is pending');
+    await page.evaluate(() => (window as typeof window & { releaseClassificationRefresh: () => void }).releaseClassificationRefresh());
+    await expect(status).toContainText('Library refresh is incomplete');
+  } else await expect(status).toContainText('Exact classification readback is unavailable');
+  await expect(status).toContainText('Classification committed.'); await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Reload current values', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => (window as typeof window & { classificationCloses?: number }).classificationCloses ?? 0)).toBe(0);
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'POST')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+test('@golden Published classification healthy commit retains ordinary close behavior', async ({ page }) => {
+  const evidence = await mount(page, '?classificationReceipt=success');
+  await page.getByRole('textbox', { name: 'Visual family / pack', exact: true }).fill('Reviewed family');
+  await page.getByRole('button', { name: 'Save classification', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as typeof window & { classificationCloses?: number }).classificationCloses ?? 0)).toBe(1);
+  expect(await page.evaluate(() => (window as typeof window & { classificationRefreshes?: number }).classificationRefreshes ?? 0)).toBe(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+test('@golden Published classification preserves committed result when actual Library refresh reports failure', async ({ page }) => {
+  const evidence = await mount(page, '?classificationReceipt=libraryFailure');
+  await page.getByRole('textbox', { name: 'Visual family / pack', exact: true }).fill('Reviewed family');
+  await page.getByRole('button', { name: 'Save classification', exact: true }).click();
+  const status = page.getByRole('region', { name: 'Published classification', exact: true }).getByRole('status');
+  await expect(status).toContainText('Classification committed.');
+  await expect(status).toContainText('Library refresh is incomplete');
+  await expect(page.getByRole('button', { name: 'Reload current values', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => (window as typeof window & { classificationCloses?: number }).classificationCloses ?? 0)).toBe(0);
+  expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'POST')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});

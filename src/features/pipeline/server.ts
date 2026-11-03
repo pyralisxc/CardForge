@@ -49,3 +49,5 @@ export { CONTENT_QUALITY_AI, CONTENT_QUALITY_BY_ROLE, CONTENT_QUALITY_FINISH, CO
 
 export { listAgentPipelineSubmissions, inspectAgentPipelineRevision, readAgentPipelineHealth, readAgentPipelineEngagement, voteAgentPipelineRevision, heartAgentPipelineLineage } from './server/pipelineAgentActions';
 export { pipelineAgentListInput, pipelineAgentExactInput, pipelineAgentVoteInput, pipelineAgentHeartInput, pipelineAgentPage, pipelineAgentRevision, pipelineAgentHealth, pipelineAgentEngagement, pipelineAgentMutationReceipt } from './lib/pipelineAgentContract';
+
+export { publishedClassificationReadInput, publishedClassificationInput, publishedClassificationSnapshot, publishedClassificationReceipt, publishedClassificationResult } from './lib/publishedClassificationContract';

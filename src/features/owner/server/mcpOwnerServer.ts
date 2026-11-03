@@ -1,3 +1,4 @@
+import { registerPublishedClassificationTools } from './mcpPublishedClassificationTools';
 import { createMcpHandler } from 'mcp-handler';
 import { createApiErrorResponse } from '@/infrastructure/http/apiResponses';
 import { AccountToolAccessError } from '@/features/account/server';
@@ -7,7 +8,7 @@ import { getMcpOwnerAccess } from './mcpOwnerAccess';
 import { registerOwnerReadTools } from './mcpOwnerTools';
 import { createOwnerMcpToolError } from './mcpOwnerToolError';
 
-export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.10.0';
+export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.11.0';
 
 const ownerMcpHandler = createMcpHandler(
   (server) => {
@@ -18,6 +19,7 @@ const ownerMcpHandler = createMcpHandler(
     };
     registerOwnerReadTools(options);
     registerOwnerPipelineDecisionTools(options);
+    registerPublishedClassificationTools(options);
   },
   {
     serverInfo: {
@@ -38,6 +40,7 @@ const ownerMcpHandler = createMcpHandler(
       'Before any site-copy publication, read the current Owner snapshot, preserve its exact updatedAt revision, explain the proposed public change, and never retry a conflict against stale state.',
       'In production, describe publish_owner_site_copy as a live publication. In Preview or another non-production environment, describe it as staging-only and never imply that production changed.',
       'For exact Pipeline review use get_pipeline_source_review_evidence, get_pipeline_editorial_review and get_pipeline_publication_decision before their paired record/save tools. Preserve native evidence versions, quality criteria and consequential publication rules. A committed receipt remains committed after refresh/activity warnings; uncertain writes require exact readback, never blind replay. These Owner decision tools are not exposed by Studio.',
+      'Read get_pipeline_published_classification before save_pipeline_published_classification. Preserve its native expected publication identity and all seven previous classification values; taxonomy changes do not publish or create revisions. Unknown outcomes require exact readback, never automatic replay.',
       'CardForge Studio is a separate creator plugin. Do not use Owner tools as a substitute for Template, Set, card, or connected-project authoring.',
     ].join(' '),
     maxSubscriptions: 0,
