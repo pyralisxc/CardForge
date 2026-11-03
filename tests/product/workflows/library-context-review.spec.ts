@@ -994,3 +994,33 @@ test('@golden Published classification preserves committed result when actual Li
   expect((await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'POST')).toHaveLength(1);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+for (const mode of ['success', 'activity', 'refreshFalse', 'refreshThrow', 'deferred']) test(`@golden Media presentation ${mode} preserves the confirmed receipt`, async ({ page }) => {
+  const evidence = await mount(page, `?mediaReceipt=${mode}`);
+  await page.getByRole('button', { name: 'Prepare presentation revision', exact: true }).click();
+  await page.getByLabel('Candidate tile mode').selectOption('contain');
+  await page.getByRole('button', { name: 'Create pending revision', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Revision 4 confirmed: submitted, editorial pending');
+  if (mode === 'activity') await expect(page.getByRole('status')).toContainText('activity recording is incomplete');
+  if (mode === 'deferred') await page.evaluate(() => (window as typeof window & { releaseMediaRefresh: () => void }).releaseMediaRefresh());
+  if (['refreshFalse','refreshThrow','deferred'].includes(mode)) await expect(page.getByRole('alert')).toContainText('revision is confirmed');
+  await expect(page.getByRole('button', { name: /Create pending revision|Read exact attempt receipt/ })).toHaveCount(0);
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests);
+  expect(requests.filter(request => request.method === 'POST')).toHaveLength(1); expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+for (const mode of ['uncertain', 'unstructured', 'nullReceipt', 'unavailableReceipt']) test(`@golden Media presentation ${mode} reconciles by read without another copy request`, async ({ page }) => {
+  const evidence = await mount(page, `?mediaReceipt=${mode}`);
+  await page.getByRole('button', { name: 'Prepare presentation revision', exact: true }).click();
+  await page.getByLabel('Candidate tile mode').selectOption('contain');
+  await page.getByRole('button', { name: 'Create pending revision', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('do not copy or replay automatically');
+  await expect(page.getByLabel('Candidate tile mode')).toBeDisabled();
+  await page.getByRole('button', { name: 'Read exact attempt receipt', exact: true }).click();
+  if (['uncertain','unstructured'].includes(mode)) await expect(page.getByRole('status')).toContainText('Revision 4 recovered: submitted, editorial pending');
+  else { await expect(page.getByRole('status')).toHaveCount(0); await expect(page.getByRole('alert')).toContainText(mode === 'nullReceipt' ? 'No receipt was observed' : 'outcome is unconfirmed'); }
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[] }).libraryRequests);
+  const post = requests.filter(request => request.method === 'POST'); expect(post).toHaveLength(1);
+  const lookup = new URL(requests.at(-1)!.url, 'http://localhost'); const saved = JSON.parse(post[0].body!);
+  expect(lookup.searchParams.get('submissionKey')).toBe(saved.submissionKey); expect(JSON.parse(lookup.searchParams.get('presentation')!)).toEqual(saved.presentation);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});

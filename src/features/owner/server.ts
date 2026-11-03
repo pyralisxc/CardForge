@@ -12,3 +12,5 @@ export { getOwnerPipelineSourceReviewEvidence, recordOwnerPipelineSourceReviewEv
 export { getOwnerPublishedClassification, saveOwnerPublishedClassification } from './server/ownerPublishedClassificationCommands';
 
 export { createOwnerReviewRevision, getOwnerReviewRevisionBase, getOwnerReviewRevisionReceipt } from './server/ownerReviewRevisionCommands';
+
+export { getOwnerMediaRevisionBase, getOwnerMediaRevisionReceipt, createOwnerMediaRevision } from './server/ownerMediaRevisionCommands';
