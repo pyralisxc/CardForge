@@ -1,3 +1,4 @@
+import { registerOwnerRetainedPluginReadTools } from './mcpRetainedPluginReadTools';
 import { registerOwnerStudioDependencyTools } from './mcpStudioDependencyTools';
 import { registerOwnerPeopleInboxTools } from './mcpPeopleInboxTools';
 import { registerOwnerProgramRoutingTools } from './mcpProgramRoutingTools';
@@ -13,7 +14,7 @@ import { getMcpOwnerAccess } from './mcpOwnerAccess';
 import { registerOwnerReadTools } from './mcpOwnerTools';
 import { createOwnerMcpToolError } from './mcpOwnerToolError';
 
-export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.16.0';
+export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.17.0';
 
 const ownerMcpHandler = createMcpHandler(
   (server) => {
@@ -30,6 +31,7 @@ const ownerMcpHandler = createMcpHandler(
     registerOwnerProgramRoutingTools(options);
     registerOwnerPeopleInboxTools(options);
     registerOwnerStudioDependencyTools(options);
+    registerOwnerRetainedPluginReadTools(options);
   },
   {
     serverInfo: {

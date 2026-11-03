@@ -19,11 +19,11 @@ const request = (id: number, method: string, params: object) => cardForgeOwnerMc
 const initialize = () => request(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'owner-pipeline-protocol', version: '1' } });
 it('serializes six explicit Owner tool contracts and calls the exact canonical read through real HTTP handler', async () => {
   const initialized = await read(await initialize());
-  expect(initialized.result.serverInfo).toEqual({ name: 'cardforge-owner', version: '1.16.0' });
+  expect(initialized.result.serverInfo).toEqual({ name: 'cardforge-owner', version: '1.17.0' });
   const listed = await read(await request(2, 'tools/list', {}));
   const names = ['get_pipeline_source_review_evidence','record_pipeline_source_review_evidence','get_pipeline_editorial_review','save_pipeline_editorial_review','get_pipeline_publication_decision','save_pipeline_publication_override'];
   expect(listed, JSON.stringify(listed)).toHaveProperty("result.tools");
-  expect(listed.result.tools).toHaveLength(55);
+  expect(listed.result.tools).toHaveLength(57);
   for (const name of names) { const tool = listed.result.tools.find((tool: { name: string }) => tool.name === name); expect(tool.inputSchema.type).toBe('object'); expect(tool.outputSchema.type).toBe('object'); expect(tool.annotations.readOnlyHint).toBe(false); }
   const result = await read(await request(3, 'tools/call', { name: 'get_pipeline_editorial_review', arguments: { submissionId: id } }));
   expect(result.result.isError).not.toBe(true); expect(result.result.structuredContent).toMatchObject({ submissionId: id, revisionNumber: 2, evidenceVersion: 0, qualityStandard: { version: 'CF-CQS-1' } });
