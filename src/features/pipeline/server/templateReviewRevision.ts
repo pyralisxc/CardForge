@@ -19,7 +19,7 @@ function rpcFailure(message: string | undefined): never {
   if (message?.includes('not_permitted')) fail('Choose a published native Template with an intact revision lineage.', 400);
   if (message?.includes('conflict')) fail('The published source, review history or attempt changed. Your local work is preserved; compare with the current published revision.', 409);
   if (message?.includes('invalid')) fail('The Template review request is invalid.', 400);
-  fail('The revision outcome could not be confirmed. Retry this exact attempt; do not discard your draft.');
+  fail('The revision outcome could not be confirmed. Read the exact saved receipt before any further write; retain your draft and attempt key.');
 }
 
 async function rawBase(assetId: string) {
@@ -49,7 +49,7 @@ export async function readTemplateReviewReceipt(assetId: string, key: string, ac
   if (error) rpcFailure(error.message);
   if (data === null) return null;
   const parsed = templateReviewReceiptSchema.safeParse(data);
-  return parsed.success ? parsed.data : fail('The saved revision receipt could not be verified. Retry the same attempt.');
+  return parsed.success ? parsed.data : fail('The saved revision receipt could not be verified. Read the exact saved receipt; this failed read does not establish absence.');
 }
 
 // Restore only the exact known hydration of parent-owned references. Never
@@ -125,5 +125,5 @@ export async function createTemplateReviewRevision(input: unknown, actorId: stri
   });
   if (error || !data) rpcFailure(error?.message);
   const receipt = await readTemplateReviewReceipt(expectedBase.assetId, submissionKey, actorId);
-  return receipt ?? fail('The submission may have succeeded but its receipt is unavailable. Retry the same saved snapshot and key.');
+  return receipt ?? fail('The submission may have succeeded but its receipt is unavailable. Read the exact saved receipt before any further write; retain the same snapshot and key.');
 }

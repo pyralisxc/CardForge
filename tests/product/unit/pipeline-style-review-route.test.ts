@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PipelineRegistryCommandError } from '@/features/pipeline/lib/pipelineRegistryCommandsError';
 const boundary = vi.hoisted(() => ({ owner: vi.fn(), activity: vi.fn(), create: vi.fn(), read: vi.fn(), receipt: vi.fn(), sourceRead: vi.fn(), sourceRecord: vi.fn() }));
-vi.mock('@/features/owner/server', () => ({ getCurrentOwnerAccess: boundary.owner, recordOwnerActivity: boundary.activity }));
+vi.mock('@/features/owner/server', () => ({ getCurrentOwnerAccess: boundary.owner, recordOwnerActivity: boundary.activity, createOwnerReviewRevision: boundary.create, getOwnerReviewRevisionBase: boundary.read, getOwnerReviewRevisionReceipt: boundary.receipt }));
 vi.mock('@/features/pipeline/server', () => ({ createStyleReviewRevision: boundary.create, readStyleReviewBase: boundary.read, readStyleReviewReceipt: boundary.receipt, readSourceReviewEvidence: boundary.sourceRead, recordSourceReviewEvidence: boundary.sourceRecord, PipelineRegistryCommandError }));
 import { GET, POST } from '@/app/api/owner/pipeline/style-revisions/route';
 beforeEach(() => {
   vi.clearAllMocks(); boundary.owner.mockResolvedValue({ isOwner: true, userId: 'acting-owner', email: 'owner@example.invalid' });
-  boundary.activity.mockResolvedValue(true); boundary.create.mockResolvedValue({ id: 'candidate', status: 'submitted', editorialReviewStatus: 'pending', revisionNumber: 2 });
+  boundary.activity.mockResolvedValue(true); boundary.create.mockResolvedValue({ receipt: { id: 'candidate', status: 'submitted', editorialReviewStatus: 'pending', revisionNumber: 2 }, outcome: 'committed', committed: true, activityRecorded: true, warnings: [] });
 });
 describe('Owner Style review action', () => {
   it.each([{ isOwner: false, userId: null }, { isOwner: false, userId: 'contributor' }])('denies reads and writes before protected source access', async (access) => {
@@ -19,11 +19,11 @@ describe('Owner Style review action', () => {
     const response = await POST(new Request('https://example.invalid', { method: 'POST', body: '{}' }));
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ status: 'submitted', editorialReviewStatus: 'pending' });
-    expect(boundary.create).toHaveBeenCalledWith({}, 'acting-owner');
-    expect(boundary.activity).toHaveBeenCalledWith(expect.objectContaining({ actorUserId: 'acting-owner', targetId: 'candidate', action: 'library.style.review_revision' }));
+    expect(boundary.create).toHaveBeenCalledWith('acting-owner', 'style', {});
+    expect(boundary.activity).not.toHaveBeenCalled(); // Shared command owns the post-receipt observer.
   });
   it('distinguishes absent receipts, conflicts and unavailable reads without rewriting a draft', async () => {
-    boundary.receipt.mockResolvedValueOnce(null);
+    boundary.receipt.mockResolvedValueOnce({ receipt: null });
     expect(await (await GET(new Request('https://example.invalid?assetId=style&submissionKey=known-key'))).json()).toEqual({ receipt: null });
     boundary.create.mockRejectedValueOnce(new PipelineRegistryCommandError('Reload exact base', 409));
     const conflict = await POST(new Request('https://example.invalid', { method: 'POST', body: '{}' }));

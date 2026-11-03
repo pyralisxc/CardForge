@@ -16,7 +16,7 @@ function rpcFailure(message: string | undefined): never {
   if (message?.includes('not_permitted')) fail('Choose a published style with an intact revision lineage.', 400);
   if (message?.includes('conflict')) fail('The published style, review history or attempt changed. Compare with the current published revision; your draft is preserved.', 409);
   if (message?.includes('invalid')) fail('The style review request is invalid.', 400);
-  fail('The revision outcome could not be confirmed. Retry the exact saved snapshot and attempt key.');
+  fail('The revision outcome could not be confirmed. Read the exact saved receipt before any further write; retain the saved snapshot and attempt key.');
 }
 export async function readStyleReviewBase(assetId: string) {
   if (!assetSchema.safeParse(assetId).success) fail('Choose a published style.', 400);
@@ -34,7 +34,7 @@ export async function readStyleReviewReceipt(assetId: string, key: string, actor
   if (error) rpcFailure(error.message);
   if (data === null) return null;
   const parsed = templateReviewReceiptSchema.safeParse(data);
-  return parsed.success ? parsed.data : fail('The saved revision receipt could not be verified. Retry the same attempt.');
+  return parsed.success ? parsed.data : fail('The saved revision receipt could not be verified. Read the exact saved receipt; this failed read does not establish absence.');
 }
 const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
   : value && typeof value === 'object'
@@ -64,5 +64,5 @@ export async function createStyleReviewRevision(input: unknown, actorId: string)
   });
   if (error || !data) rpcFailure(error?.message);
   return await readStyleReviewReceipt(expectedBase.assetId, submissionKey, actorId)
-    ?? fail('The submission may have succeeded but its receipt is unavailable. Retry the same saved snapshot and key.');
+    ?? fail('The submission may have succeeded but its receipt is unavailable. Read the exact saved receipt before any further write; retain the same snapshot and key.');
 }

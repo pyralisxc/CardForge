@@ -344,6 +344,7 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
   }, [pipelineEnabled]);
 
   const refresh = useCallback(async () => {
+    let complete = true;
     const needsPipelineProgram = shouldLoadLibraryPipelineProgram(activeScope, pipelineEnabled);
     if (activeScope === 'published' || activeScope === 'pipeline') {
       setCatalogLoading(true);
@@ -360,6 +361,7 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
       })
       .then(setCatalog)
       .catch((error: unknown) => {
+        complete = false;
         const failure = sharedFailure(error, 'The published Library is unavailable.');
         setCatalogFailure(failure);
         if (mustClearScopedSourceForFailure(failure.kind)) setCatalog(null);
@@ -375,6 +377,7 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
             if (pipelineEnabledRef.current) setProgram(payload.program);
           })
           .catch((error: unknown) => {
+            complete = false;
             if (!pipelineEnabledRef.current) return;
             const failure = sharedFailure(error, 'Forge Review is unavailable.');
             setPipelineFailure(failure);
@@ -385,6 +388,7 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
           })
       : Promise.resolve();
     await Promise.all([catalogRequest, pipelineRequest]);
+    return complete;
   }, [activeScope, pipelineEnabled]);
 
   const acceptProgram = useCallback((nextProgram: PipelineProgramView) => {
