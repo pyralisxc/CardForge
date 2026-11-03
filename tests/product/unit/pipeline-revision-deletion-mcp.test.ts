@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({ inspect: vi.fn(), remove: vi.fn(), activity: vi.fn() }));
 vi.mock('@/features/pipeline/server', () => ({ inspectOwnerRevisionDeletion: m.inspect, deleteOwnerRevision: m.remove }));
-vi.mock('@/features/owner/server', () => ({ recordOwnerActivity: m.activity }));
+vi.mock('@/infrastructure/database/ownerActivityWriter', () => ({ recordOwnerActivity: m.activity }));
 vi.mock('@/features/mcp-usage/server', () => ({ observeMcpToolExecution: ({ execute }: { execute: () => unknown }) => execute() }));
 import { registerRevisionDeletionTools } from '@/features/studio-documents/server/mcpRevisionDeletionTools';
 type Options = Parameters<typeof registerRevisionDeletionTools>[0];

@@ -1,3 +1,4 @@
+import { StudioDocumentStoreError } from '@/features/studio-documents/server';
 import { OwnerPeopleOperationError } from './ownerPeopleOperations';
 import { ContactRequestStoreError } from '@/features/contact/server';
 import 'server-only';
@@ -20,7 +21,8 @@ import { WebsiteEditionStoreError } from '@/features/public-site/server/websiteE
 import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
 
 const isSafeOwnerMcpError = (error: unknown): error is Error => (
-  error instanceof OwnerPeopleOperationError
+  error instanceof StudioDocumentStoreError
+  || error instanceof OwnerPeopleOperationError
   || error instanceof ContactRequestStoreError
   || error instanceof AccountToolAccessError
   || error instanceof PipelineStoreError
