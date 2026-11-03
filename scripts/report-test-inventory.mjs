@@ -1,5 +1,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const root = process.cwd();
 const checkOnly = process.argv.includes('--check');
@@ -11,9 +14,8 @@ const walk = (directory) => readdirSync(directory, { withFileTypes: true }).flat
   return entry.isDirectory() ? walk(path) : [path];
 });
 
-const testFiles = (directory) => walk(directory).filter((path) => (
-  path.endsWith('.test.ts') || path.endsWith('.spec.ts')
-));
+export const isTestDeclaration = (path) => /\.(?:test|spec)\.tsx?$/u.test(path);
+const testFiles = (directory) => walk(directory).filter(isTestDeclaration);
 
 const countDeclaredChecks = (source) => (
   source.match(/\b(?:it|test)(?:\.each(?:<[^>]+>)?\([^;]*?\))?\s*\(/gs)?.length ?? 0
@@ -68,6 +70,69 @@ const sourceReaderContracts = [
   ['tests/product/workflows/browser-workspace-recovery.spec.ts', 'native browser recovery downloads and verified package artwork; no implementation source reads'],
 ];
 
+// This is a source-input inventory for the existing DI analyzer, not a second
+// assertion extractor or redundancy evaluator. A definition is never execution.
+export const collectVerificationSources = ({ root, ref = 'HEAD' }) => {
+  const git = (...args) => execFileSync('git', args, { cwd: root, maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+  const revision = git('rev-parse', '--verify', `${ref}^{commit}`).toString().trim();
+  const tree = git('rev-parse', `${revision}^{tree}`).toString().trim();
+  const paths = git('ls-tree', '-r', '--name-only', '-z', revision).toString().split('\0').filter(Boolean).sort();
+  const executionOwners = new Set([
+    'package.json', 'vitest.config.ts', 'vitest.infrastructure.config.ts', 'vitest.setup.ts',
+    'playwright.config.ts', 'playwright.hosted.config.ts',
+  ]);
+  const kindOf = (path) => {
+    if (path.startsWith('tests/') && isTestDeclaration(path)) return 'test-declaration';
+    if (path.startsWith('supabase/tests/') && path.endsWith('.sql')) return 'native-sql';
+    if (path.startsWith('tests/') && path !== 'tests/README.md') return 'fixture-helper';
+    if (/^\.github\/workflows\/[^/]+\.ya?ml$/u.test(path)) return 'workflow';
+    // Scripted health, migration, contention, routing and artifact checks are
+    // inputs too. Their semantics/execution ownership remain DI's responsibility.
+    if (path.startsWith('scripts/')) return 'script-source';
+    if (executionOwners.has(path)) return 'execution-owner';
+    return null;
+  };
+  const laneOf = (path) => path.startsWith('tests/product/unit/') ? 'unit'
+    : path.startsWith('tests/product/workflows/') ? 'browser'
+      : path.startsWith('tests/product/hosted-smoke/') ? 'hosted'
+        : path.startsWith('tests/infrastructure/') ? 'infrastructure' : null;
+  const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
+  const sources = paths.flatMap((path) => {
+    const kind = kindOf(path);
+    if (!kind) return [];
+    const bytes = git('show', `${revision}:${path}`);
+    const text = bytes.toString('utf8');
+    const isText = !bytes.includes(0) && Buffer.from(text).equals(bytes);
+    return [{
+      sourceId: `repo:${path}`, path, kind, lane: kind === 'test-declaration' ? laneOf(path) : null,
+      sha256: hash(bytes), byteLength: bytes.length,
+      location: isText ? { startLine: 1, endLine: text.split(/\r?\n/u).length } : null,
+      representation: isText ? 'utf8-source' : 'binary-fixture',
+      evidence: 'source-definition-only',
+      sourceReaderRationale: new Map(sourceReaderContracts).get(path) ?? null,
+    }];
+  });
+  const count = (kind, lane) => sources.filter(source => source.kind === kind && (!lane || source.lane === lane)).length;
+  const inventory = {
+    version: 1,
+    repositoryRevision: revision, repositoryTree: tree,
+    collectorSha256: hash(readFileSync(new URL(import.meta.url))),
+    scope: { roots: ['.github/workflows', 'scripts', 'supabase/tests', 'tests'], executionOwners: [...executionOwners].sort() },
+    counts: { declarationFiles: count('test-declaration'), unit: count('test-declaration', 'unit'),
+      browser: count('test-declaration', 'browser'), infrastructure: count('test-declaration', 'infrastructure'),
+      hosted: count('test-declaration', 'hosted'), nativeSql: count('native-sql'),
+      fixturesAndHelpers: count('fixture-helper'), workflows: count('workflow'), scriptSources: count('script-source'), executionOwners: count('execution-owner') },
+    sources,
+    interpretation: {
+      claimsAndAssertions: 'Owned by the canonical DI analyzer; not inferred from names, file counts, matchers or lanes.',
+      execution: 'Not observed by this source inventory. Runner configuration, fixtures and source-reader rationales are inputs, not execution receipts.',
+      redundancy: 'Not evaluated. No deletion, equivalence or replacement eligibility follows from inventory membership.',
+      sourceReaderRationales: 'Existing file-level classifications; they do not classify every assertion in a mixed file.',
+    },
+  };
+  return { ...inventory, inventorySha256: hash(JSON.stringify(inventory)) };
+};
+
 const summarize = (files, classify) => {
   const rows = new Map();
   for (const path of files) {
@@ -85,9 +150,17 @@ const summarize = (files, classify) => {
 const classifyProduct = (path) => {
   const name = relative(productRoot, path).replaceAll('\\', '/').toLowerCase();
   if (name.startsWith('workflows/')) return 'Browser workflows';
+  if (name.startsWith('hosted-smoke/')) return 'Hosted smoke';
   return productDomains.find(([, pattern]) => pattern.test(name))?.[0] ?? 'Shared product boundaries';
 };
 
+const main = () => {
+if (process.argv.includes('--json')) {
+  const refIndex = process.argv.indexOf('--ref');
+  if (refIndex >= 0 && !process.argv[refIndex + 1]) throw new Error('--ref requires a Git revision.');
+  console.log(JSON.stringify(collectVerificationSources({ root, ref: refIndex < 0 ? 'HEAD' : process.argv[refIndex + 1] }), null, 2));
+  return;
+}
 const allFiles = [...testFiles(productRoot), ...testFiles(infrastructureRoot)];
 
 if (!checkOnly) {
@@ -135,3 +208,6 @@ if (unclassified.length > 0 || staleClassifications.length > 0) {
 } else if (checkOnly) {
   console.log(`Test inventory passed (${allFiles.length} files; ${sourceReadingFiles.length} classified source readers).`);
 }
+};
+
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) main();

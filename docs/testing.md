@@ -76,6 +76,10 @@ Tests that pin a component path, internal helper name, one-time migration shape,
 
 `npm run test:inventory` also lists every test file that reads repository source or artifacts. Each remaining reader must be classified there as a literal security, legal, published-artifact, or repository-tooling contract. An unclassified reader fails the inventory report; ordinary component/helper composition belongs in behavioral tests instead.
 
+For the DI-owned whole-suite assessment, `npm run test:inventory -- --json --ref <exact-sha>` exports the immutable verification-source inputs: TS/TSX declaration files, native SQL, tracked fixtures/helpers (including original binaries), workflows, scripts and runner configuration. It records exact revision/tree, ordered paths, source hashes/line ranges and the collector digest. Repeating the same revision with the same collector produces the same inventory; uncommitted work is not attributed to that revision. This opt-in export does not modify the merge gate, extract semantic claims, prove execution or decide redundancy. DI owns assertion-level claims, evidence modality, normalized query/config provenance and replacement assessment; runtime/browser/native/provider receipts remain distinct. Existing source-reader rationales apply at file level and must not classify every assertion in a mixed file.
+
+Inventory membership is not runner enrollment. In particular, the current default Vitest unit include matches `.test.ts` only, while the inventory also includes `.test.tsx`; preserve that explicit coverage qualification until the test owner changes the runner contract. No removal or replacement eligibility follows from a file count or inventory digest.
+
 Test count is not a quality metric. CardForge should prefer fewer tests with broad, stable value over many tests that freeze implementation details.
 
 
