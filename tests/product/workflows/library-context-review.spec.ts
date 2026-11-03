@@ -1041,3 +1041,27 @@ for (const kind of ['program','routing'] as const) for (const mode of ['success'
   }
   const writes = (await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'PUT'); expect(writes).toHaveLength(1); expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+for (const mode of ['success','activity','refreshFalse','refreshThrow','deferred','uncertain','unstructured']) test(`@golden Owner Inbox ${mode} preserves exact committed or uncertain workflow status`, async ({ page }) => {
+  const evidence = await mount(page, `?inboxReceipt=${mode}`);
+  await expect(page.getByText('Synthetic Inbox workflow', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  const status = page.locator('p[role="status"]');
+  if (['uncertain','unstructured'].includes(mode)) {
+    await expect(status).toContainText('outcome is unconfirmed'); await expect(status).toContainText('do not replay automatically');
+    await expect(page.getByText('Synthetic Inbox workflow', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await expect(page.getByText('Synthetic Inbox workflow', { exact: true })).toHaveCount(0);
+    await expect(status).toContainText('outcome is unconfirmed');
+  } else {
+    await expect(status).toContainText('Message closed. Status commit is confirmed');
+    await expect(page.getByText('Synthetic Inbox workflow', { exact: true })).toHaveCount(0);
+    if (mode === 'activity') await expect(status).toContainText('Owner activity is incomplete');
+    if (mode === 'deferred') await page.evaluate(() => (window as typeof window & { releaseInboxRefresh: () => void }).releaseInboxRefresh());
+    if (['refreshFalse','refreshThrow','deferred'].includes(mode)) await expect(status).toContainText('Inbox refresh is incomplete');
+    await expect(status).not.toContainText('not updated');
+  }
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[] }).libraryRequests);
+  const writes = requests.filter(request => request.method === 'PATCH'); expect(writes).toHaveLength(1); expect(writes[0].url).toBe('/api/owner/contact-requests/1f5bd520-ff5c-4e25-bcb3-c1e828c277ab'); expect(JSON.parse(writes[0].body!)).toEqual({ status: 'closed' });
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});

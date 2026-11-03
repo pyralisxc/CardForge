@@ -85,11 +85,11 @@ const http = async (id: number, method: string, params: object) => {
   const response = await cardForgeOwnerMcpHandler(new Request('https://cardforge.test/mcp/owner', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) }));
   const text = await response.text(); return { status: response.status, body: JSON.parse(response.headers.get('content-type')?.includes('text/event-stream') ? text.split('\n').find(line => line.startsWith('data: '))!.slice(6) : text) };
 };
-it('discovers 50 Owner tools and executes the exact pair through real local HTTP', async () => {
+it('discovers 53 Owner tools and executes the exact pair through real local HTTP', async () => {
   const initialized = await http(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'classification-proof', version: '1' } });
-  expect(initialized.body.result.serverInfo).toEqual({ name: 'cardforge-owner', version: '1.14.0' });
+  expect(initialized.body.result.serverInfo).toEqual({ name: 'cardforge-owner', version: '1.15.0' });
   const listed = await http(2, 'tools/list', {});
-  expect(listed.body.result.tools).toHaveLength(50);
+  expect(listed.body.result.tools).toHaveLength(53);
   for (const name of ['get_pipeline_published_classification', 'save_pipeline_published_classification']) expect(listed.body.result.tools.find((tool: { name: string }) => tool.name === name)).toMatchObject({ inputSchema: { type: 'object' }, outputSchema: { type: 'object' }, annotations: { readOnlyHint: false } });
   const read = await http(3, 'tools/call', { name: 'get_pipeline_published_classification', arguments: { assetId: input.assetId } });
   expect(read.body.result.structuredContent.expectedSubmissionId).toBe(submissionId);

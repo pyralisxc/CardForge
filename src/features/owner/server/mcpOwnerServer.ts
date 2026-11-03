@@ -1,3 +1,4 @@
+import { registerOwnerPeopleInboxTools } from './mcpPeopleInboxTools';
 import { registerOwnerProgramRoutingTools } from './mcpProgramRoutingTools';
 import { registerOwnerMediaRevisionTools } from './mcpMediaRevisionTools';
 import { registerOwnerReviewRevisionTools } from './mcpReviewRevisionTools';
@@ -11,7 +12,7 @@ import { getMcpOwnerAccess } from './mcpOwnerAccess';
 import { registerOwnerReadTools } from './mcpOwnerTools';
 import { createOwnerMcpToolError } from './mcpOwnerToolError';
 
-export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.14.0';
+export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.15.0';
 
 const ownerMcpHandler = createMcpHandler(
   (server) => {
@@ -26,6 +27,7 @@ const ownerMcpHandler = createMcpHandler(
     registerOwnerReviewRevisionTools(options);
     registerOwnerMediaRevisionTools(options);
     registerOwnerProgramRoutingTools(options);
+    registerOwnerPeopleInboxTools(options);
   },
   {
     serverInfo: {
@@ -50,6 +52,7 @@ const ownerMcpHandler = createMcpHandler(
       'For Template or Style corrections read the exact get_pipeline_template_review_base / get_pipeline_style_review_base, then use the corresponding create_pipeline_*_review_revision with its original payload ID, complete expectedBase and saved submissionKey. Preserve native fingerprint/idempotent receipt semantics. On uncertainty use get_pipeline_*_review_receipt with the same actor-bound key; do not fabricate absence or replay automatically. These create unpublished reviews, never publication or media copies.',
       'Managed texture presentation reviews use get_pipeline_media_presentation_base, get_pipeline_media_presentation_receipt and create_pipeline_media_presentation_revision. Preserve the existing UUID key and complete saved presentation; server/native service alone owns candidate UUID and byte-copy identity. Unknown outcomes require receipt-only reconciliation, never blind copy/replay. Cleanup flags concern the current invocation and never prove global orphan cleanup.',
       'Pipeline program settings and Studio routing have separate get/save tools. Program Save runs a consequential global governed rebalance that may change status, access, vote-driven Trash and registry publication; it is not merely a draft settings edit. Routing changes registry placement only. Neither command has caller CAS, versions or operation keys; preserve existing policy and reconcile unknown acknowledgement by exact reads without replay or causal inference from matching state.',
+      'get_owner_people and get_owner_inbox expose private Owner-only canonical reads, including exact identity. Inbox search/counts cover the latest 50 window unless an exact request is read. save_owner_inbox_status only closes/reopens a request; it sends no message and changes no People authority. Preserve committed/uncertain receipts and never infer absence from provider failure or causal commit from matching readback. No People mutation, send/reply or deletion tool is added by this slice.',
       'CardForge Studio is a separate creator plugin. Do not use Owner tools as a substitute for Template, Set, card, or connected-project authoring.',
     ].join(' '),
     maxSubscriptions: 0,

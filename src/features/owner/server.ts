@@ -16,3 +16,5 @@ export { createOwnerReviewRevision, getOwnerReviewRevisionBase, getOwnerReviewRe
 export { getOwnerMediaRevisionBase, getOwnerMediaRevisionReceipt, createOwnerMediaRevision } from './server/ownerMediaRevisionCommands';
 
 export { getOwnerPipelineProgramSettings, saveOwnerPipelineProgramSettings, getOwnerPipelineStudioRouting, saveOwnerPipelineStudioRouting } from './server/ownerProgramRoutingCommands';
+
+export { readOwnerPeople, readOwnerInbox, saveOwnerInboxStatus } from './server/ownerPeopleInboxCommands';
