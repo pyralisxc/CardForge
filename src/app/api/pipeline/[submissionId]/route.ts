@@ -5,17 +5,14 @@ import {
   PipelineStoreError,
   PipelineRegistryCommandError,
   readSourceReviewEvidence,
-  recordSourceReviewEvidence,
   changeOwnedPipelineSubmissionLifecycle,
   finalizeContributorTemplatePipelineDraft,
   getCurrentPipelineRequestAccess,
   permanentlyDeletePipelineSubmission,
   requirePipelineRequestScope,
-  updatePipelineEditorialReview,
   updatePipelineSubmissionDetails,
-  updatePipelineSubmissionStatus,
 } from '@/features/pipeline/server';
-import { getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
+import { getCurrentOwnerAccess, recordOwnerActivity, recordOwnerPipelineSourceReviewEvidence, saveOwnerPipelineEditorialReview, saveOwnerPipelinePublicationOverride } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -175,57 +172,28 @@ export async function PUT(
       editorialReviewStatus?: unknown;
       editorialReviewNote?: unknown;
     };
+    const respondDecision = async (result: { snapshot: unknown; program: unknown; receipt: Awaited<ReturnType<typeof saveOwnerPipelineEditorialReview>>['receipt'] }) => {
+      if (result.receipt.outcome === 'uncertain') {
+        const failure = createApiErrorResponse(503, 'pipeline_unavailable', result.receipt.message, { retryable: false, nextAction: 'Read the exact revision/evidence before any further write; do not replay automatically.' });
+        return createNoStoreJsonResponse({ ...(await failure.json()), receipt: result.receipt }, { status: 503, headers: failure.headers });
+      }
+      return createNoStoreJsonResponse({ snapshot: result.snapshot, program: result.program, receipt: result.receipt, activityRecorded: result.receipt.activityRecorded });
+    };
     if (Object.prototype.hasOwnProperty.call(body, 'sourceReviewEvidence')) {
       if (Object.keys(body).length !== 1) return createApiErrorResponse(400, 'pipeline_request_invalid', 'Record source evidence separately from an editorial or publication decision.');
-      const snapshot = await recordSourceReviewEvidence(submissionId, body.sourceReviewEvidence, owner.userId);
-      const activityRecorded = await recordOwnerActivity({ actorUserId: owner.userId, actorEmail: owner.email,
-        action: 'library.asset.source_evidence', targetType: 'contributor_asset_revision', targetId: submissionId,
-        summary: 'Recorded correction-review source observations without changing inherited source claims, artwork or publication.' });
-      return createNoStoreJsonResponse({ snapshot, activityRecorded });
+      const evidence = body.sourceReviewEvidence;
+      if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence) || Object.prototype.hasOwnProperty.call(evidence, 'submissionId')) return createApiErrorResponse(400, 'pipeline_request_invalid', 'Provide the exact evidence request without another target.');
+      return respondDecision(await recordOwnerPipelineSourceReviewEvidence(owner.userId, { ...evidence, submissionId }));
     }
     if (Object.prototype.hasOwnProperty.call(body, 'editorialReviewStatus')) {
-      const program = await updatePipelineEditorialReview({
-        submissionId,
-        reviewStatus: body.editorialReviewStatus,
-        reviewNote: body.editorialReviewNote,
-        expectedEvidenceVersion: body.expectedEvidenceVersion,
-        currentUserId: owner.userId,
-        currentContributorIds: getContributorIds(owner.userId),
-      });
-      revalidateCardForgeCatalog();
-      await recordOwnerActivity({
-        actorUserId: owner.userId,
-        actorEmail: owner.email,
-        action: 'library.asset.editorial_review',
-        targetType: 'contributor_asset_revision',
-        targetId: submissionId,
-        summary: `Recorded editorial review outcome: ${String(body.editorialReviewStatus)}.`,
-      });
-      return createNoStoreJsonResponse({ program });
+      if (Object.keys(body).some(key => !['editorialReviewStatus', 'editorialReviewNote', 'expectedEvidenceVersion'].includes(key))) return createApiErrorResponse(400, 'pipeline_request_invalid', 'Record one editorial decision separately from publication controls.');
+      return respondDecision(await saveOwnerPipelineEditorialReview(owner.userId, { submissionId, reviewStatus: body.editorialReviewStatus, reviewNote: body.editorialReviewNote, expectedEvidenceVersion: body.expectedEvidenceVersion ?? null }, { includeProgram: true }));
     }
-
-    const ownerStatusOverride = Object.prototype.hasOwnProperty.call(body, 'ownerStatusOverride')
-      ? body.ownerStatusOverride
-      : body.status;
-    const program = await updatePipelineSubmissionStatus({
-      submissionId,
-      ownerStatusOverride,
-      ownerNote: body.ownerNote,
-      ownerAccessTierOverride: body.ownerAccessTierOverride,
-      currentUserId: owner.userId,
-      currentContributorIds: getContributorIds(owner.userId),
-    });
-    revalidateCardForgeCatalog();
-    await recordOwnerActivity({
-      actorUserId: owner.userId,
-      actorEmail: owner.email,
-      action: 'library.asset.override',
-      targetType: 'contributor_asset',
-      targetId: submissionId,
-      summary: 'Updated an owner publication or access-tier override for a shared library asset.',
-    });
-
-    return createNoStoreJsonResponse({ program });
+    if (Object.keys(body).some(key => !['ownerStatusOverride', 'status', 'ownerNote', 'ownerAccessTierOverride'].includes(key))) return createApiErrorResponse(400, 'pipeline_request_invalid', 'Provide supported publication controls only; no general CAS or operation ID is available.');
+    const ownerStatusOverride = Object.prototype.hasOwnProperty.call(body, 'ownerStatusOverride') ? body.ownerStatusOverride : body.status;
+    return respondDecision(await saveOwnerPipelinePublicationOverride(owner.userId, { submissionId,
+      ...(ownerStatusOverride !== undefined ? { ownerStatusOverride } : {}),
+      ...(body.ownerAccessTierOverride !== undefined ? { ownerAccessTierOverride: body.ownerAccessTierOverride } : {}), ownerNote: body.ownerNote ?? '' }, { includeProgram: true }));
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');

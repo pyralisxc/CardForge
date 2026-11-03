@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { PipelineStoreError, PipelineRegistryCommandError } from '@/features/pipeline/server';
+
 import { AccountToolAccessError } from '@/features/account/server';
 import { BusinessIdentityStoreError } from '@/features/business-identity/server';
 import { LegalDocumentStoreError } from '@/features/legal/server';
@@ -17,6 +19,8 @@ import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
 
 const isSafeOwnerMcpError = (error: unknown): error is Error => (
   error instanceof AccountToolAccessError
+  || error instanceof PipelineStoreError
+  || error instanceof PipelineRegistryCommandError
   || error instanceof BusinessIdentityStoreError
   || error instanceof LegalDocumentStoreError
   || error instanceof McpUsageStoreError

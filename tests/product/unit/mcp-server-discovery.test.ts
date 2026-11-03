@@ -36,6 +36,8 @@ describe('Studio MCP HTTP discovery', () => {
       'discover_pipeline_previews', 'inspect_saved_source', 'preview_saved_source', 'export_saved_source',
     ]));
     expect(tools).toHaveLength(46);
+    expect(tools.map(tool => tool.name)).not.toContain('save_pipeline_editorial_review');
+    expect(tools.map(tool => tool.name)).not.toContain('get_pipeline_publication_decision');
     expect(tools.map((tool) => tool.name).sort()).toMatchInlineSnapshot(`
       [
         "attach_template_artwork",

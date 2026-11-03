@@ -42,5 +42,10 @@ export { RevisionRecoveryError, REVISION_RECOVERY_NEXT_ACTION } from './lib/revi
 
 export { dependencyImpactJsonSchema } from './lib/dependencyImpactContract';
 
+export { ownerPipelineExactInput, ownerPipelineEvidenceInput, ownerPipelineEditorialInput, ownerPipelinePublicationInput, ownerPipelineEvidenceSnapshot, ownerPipelineEditorialSnapshot, ownerPipelinePublicationSnapshot, ownerPipelineDecisionReceipt, ownerPipelineEvidenceResult, ownerPipelineEditorialResult, ownerPipelinePublicationResult } from './lib/ownerPipelineDecisionContract';
+
+export { getSourceReviewVersion } from './lib/sourceReviewEvidence';
+export { CONTENT_QUALITY_AI, CONTENT_QUALITY_BY_ROLE, CONTENT_QUALITY_FINISH, CONTENT_QUALITY_STANDARD_VERSION, CONTENT_QUALITY_UNIVERSAL } from './lib/contentQualityStandard';
+
 export { listAgentPipelineSubmissions, inspectAgentPipelineRevision, readAgentPipelineHealth, readAgentPipelineEngagement, voteAgentPipelineRevision, heartAgentPipelineLineage } from './server/pipelineAgentActions';
 export { pipelineAgentListInput, pipelineAgentExactInput, pipelineAgentVoteInput, pipelineAgentHeartInput, pipelineAgentPage, pipelineAgentRevision, pipelineAgentHealth, pipelineAgentEngagement, pipelineAgentMutationReceipt } from './lib/pipelineAgentContract';

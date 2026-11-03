@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PipelineRegistryCommandError } from '@/features/pipeline/lib/pipelineRegistryCommandsError';
-const boundary = vi.hoisted(() => ({ owner: vi.fn(), activity: vi.fn(), create: vi.fn(), read: vi.fn(), receipt: vi.fn(), sourceRead: vi.fn(), sourceRecord: vi.fn() }));
-vi.mock('@/features/owner/server', () => ({ getCurrentOwnerAccess: boundary.owner, recordOwnerActivity: boundary.activity }));
+const boundary = vi.hoisted(() => ({ owner: vi.fn(), activity: vi.fn(), create: vi.fn(), read: vi.fn(), receipt: vi.fn(), sourceRead: vi.fn(), sourceRecord: vi.fn(), sourceCommand: vi.fn(), editorialCommand: vi.fn(), publicationCommand: vi.fn() }));
+vi.mock('@/features/owner/server', () => ({ getCurrentOwnerAccess: boundary.owner, recordOwnerActivity: boundary.activity, recordOwnerPipelineSourceReviewEvidence: boundary.sourceCommand, saveOwnerPipelineEditorialReview: boundary.editorialCommand, saveOwnerPipelinePublicationOverride: boundary.publicationCommand, }));
 vi.mock('@/features/pipeline/server', () => ({ createTemplateReviewRevision: boundary.create, readTemplateReviewBase: boundary.read, readTemplateReviewReceipt: boundary.receipt, readSourceReviewEvidence: boundary.sourceRead, recordSourceReviewEvidence: boundary.sourceRecord, PipelineRegistryCommandError }));
 import { GET, POST } from '@/app/api/owner/pipeline/template-revisions/route';
 import { GET as readEvidence, PUT as writeEvidence } from '@/app/api/pipeline/[submissionId]/route';
@@ -46,13 +46,13 @@ describe('Owner correction source-evidence action', () => {
     expect(boundary.sourceRead).not.toHaveBeenCalled(); expect(boundary.sourceRecord).not.toHaveBeenCalled();
   });
   it('records evidence separately from approval/publication with the authenticated recorder', async () => {
-    boundary.sourceRecord.mockResolvedValueOnce({ evidence: { version: 1 } });
+    boundary.sourceCommand.mockResolvedValueOnce({ snapshot: { evidence: { version: 1 } }, program: null, receipt: { outcome: 'committed', committed: true, activityRecorded: true } });
     const evidence = { facts: { technicalTrace: 'Exact parent', rightsFacts: null }, expectedEvidenceVersion: 0 };
     const response = await writeEvidence(new Request('https://example.invalid', { method: 'PUT', body: JSON.stringify({ sourceReviewEvidence: evidence }) }), params);
     expect(response.status).toBe(200);
-    expect(boundary.sourceRecord).toHaveBeenCalledWith('candidate', evidence, 'acting-owner');
-    expect(boundary.activity).toHaveBeenCalledWith(expect.objectContaining({ action: 'library.asset.source_evidence' }));
+    expect(boundary.sourceCommand).toHaveBeenCalledWith('acting-owner', { ...evidence, submissionId: 'candidate' });
+    expect(await response.json()).toMatchObject({ receipt: { committed: true } });
     const mixed = await writeEvidence(new Request('https://example.invalid', { method: 'PUT', body: JSON.stringify({ sourceReviewEvidence: evidence, editorialReviewStatus: 'approved' }) }), params);
-    expect(mixed.status).toBe(400); expect(boundary.sourceRecord).toHaveBeenCalledTimes(1);
+    expect(mixed.status).toBe(400); expect(boundary.sourceCommand).toHaveBeenCalledTimes(1);
   });
 });

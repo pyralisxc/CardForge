@@ -10,6 +10,8 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 
 **Provider owns:** session cookies, OAuth/social sign-in, sign-in/sign-up UI, request authentication, current-user identity, and Backend API user records.
 
+Studio MCP Pipeline discovery uses the native scoped, paginated submission and sanitized effective Shared Trash readers. Exact revision inspection and engagement share the browser visibility policy; technical Content Health excludes editorial packets and private consumer identities. Votes remain exact-revision Contributor operations, while hearts explicitly set the matching lineage state under the existing native policy and rate limits. OAuth-derived actor identity is re-resolved server-side without profile enrollment. A confirmed mutation with unavailable engagement refresh remains committed; an uncertain result requires readback and never automatic replay. Discovery grants neither recovery nor physical-deletion authority.
+
 **Start here:**
 
 1. `src/app/layout.tsx` — the single root `ClerkProvider`.
@@ -96,7 +98,7 @@ Owner-only `get_pipeline_revision_deletion` discovers one exact submission UUID,
 
 **Protocol/auth owners:** MCP owns the tool/resource protocol; Clerk owns OAuth token verification and linked account identity.
 
-Studio MCP Pipeline discovery uses the native scoped, paginated submission and sanitized effective Shared Trash readers. Exact revision inspection and engagement share the browser visibility policy; technical Content Health excludes editorial packets and private consumer identities. Votes remain exact-revision Contributor operations, while hearts explicitly set the matching lineage state under the existing native policy and rate limits. OAuth-derived actor identity is re-resolved server-side without profile enrollment. A confirmed mutation with unavailable engagement refresh remains committed; an uncertain result requires readback and never automatic replay. Discovery grants neither recovery nor physical-deletion authority.
+The separate Owner MCP `/mcp/owner` exact Pipeline review tools share browser commands for source observations, editorial decisions and publication/access overrides. Every call resolves current server Owner authority. Evidence uses its existing candidate/evidence versions; publication overrides do not claim unsupported timestamp CAS or operation IDs. Editorial decisions retain the native quality standard and rebalance/registry effects; agents must not infer editorial approval from technical validity. Shared receipts distinguish native commit, unconfirmed outcome, incomplete refresh and activity failure. Confirmed decisions remain committed; unconfirmed writes require exact readback, not automatic replay. Recording source observations does not approve or publish them. Owner contract 1.10.0 (35 tools) and Owner package 0.8.0 carry this additive decision surface; Studio retains 46 tools and its existing lifecycle compatibility. Owner discovery and calls both require current server-resolved Owner authority.
 
 **Start here:**
 

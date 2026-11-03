@@ -77,10 +77,12 @@ export const getCachedCardForgeStudioAssets = (access: RegistryViewerAccess = 'f
   cachedStudioAssets[access]()
 );
 
-export const revalidateCardForgeCatalog = (): void => {
+export const revalidateCardForgeCatalog = (): boolean => {
   try {
     revalidateTag(CARDFORGE_CATALOG_TAG, { expire: 0 });
+    return true;
   } catch (error) {
     console.error('Unable to invalidate CardForge catalog cache:', error);
+    return false;
   }
 };

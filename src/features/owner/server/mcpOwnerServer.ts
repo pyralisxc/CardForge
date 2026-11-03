@@ -1,18 +1,23 @@
 import { createMcpHandler } from 'mcp-handler';
+import { createApiErrorResponse } from '@/infrastructure/http/apiResponses';
+import { AccountToolAccessError } from '@/features/account/server';
+import { registerOwnerPipelineDecisionTools } from './mcpOwnerPipelineDecisionTools';
 
 import { getMcpOwnerAccess } from './mcpOwnerAccess';
 import { registerOwnerReadTools } from './mcpOwnerTools';
 import { createOwnerMcpToolError } from './mcpOwnerToolError';
 
-export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.9.2';
+export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.10.0';
 
-export const cardForgeOwnerMcpHandler = createMcpHandler(
+const ownerMcpHandler = createMcpHandler(
   (server) => {
-    registerOwnerReadTools({
+    const options = {
       server,
       getAccess: getMcpOwnerAccess,
       toolError: createOwnerMcpToolError,
-    });
+    };
+    registerOwnerReadTools(options);
+    registerOwnerPipelineDecisionTools(options);
   },
   {
     serverInfo: {
@@ -32,8 +37,21 @@ export const cardForgeOwnerMcpHandler = createMcpHandler(
       'When the Owner asks for a supported homepage walkthrough change, inspect with get_owner_homepage_showcase, then publish_owner_homepage_showcase with the exact settingsRevision. The focused tool preserves other sections and demonstration Sets; no separate revision dashboard or routine human approval ceremony is required for reversible Preview changes. Screenshot selection references existing media slots; actual images must be published separately with Owner media tools, never guessed or represented as captured browser state.',
       'Before any site-copy publication, read the current Owner snapshot, preserve its exact updatedAt revision, explain the proposed public change, and never retry a conflict against stale state.',
       'In production, describe publish_owner_site_copy as a live publication. In Preview or another non-production environment, describe it as staging-only and never imply that production changed.',
+      'For exact Pipeline review use get_pipeline_source_review_evidence, get_pipeline_editorial_review and get_pipeline_publication_decision before their paired record/save tools. Preserve native evidence versions, quality criteria and consequential publication rules. A committed receipt remains committed after refresh/activity warnings; uncertain writes require exact readback, never blind replay. These Owner decision tools are not exposed by Studio.',
       'CardForge Studio is a separate creator plugin. Do not use Owner tools as a substitute for Template, Set, card, or connected-project authoring.',
     ].join(' '),
     maxSubscriptions: 0,
   },
 );
+
+// Gate discovery as well as invocation: a linked non-Owner cannot list Owner tools.
+export const cardForgeOwnerMcpHandler = async (request: Request): Promise<Response> => {
+  try {
+    await getMcpOwnerAccess();
+  } catch (error) {
+    const status = error instanceof AccountToolAccessError ? error.status : 503;
+    return createApiErrorResponse(status, status === 401 ? 'sign_in_required' : status === 403 ? 'owner_access_required' : 'owner_account_unavailable',
+      error instanceof AccountToolAccessError ? error.message : 'CardForge Owner access is unavailable.');
+  }
+  return ownerMcpHandler(request);
+};
