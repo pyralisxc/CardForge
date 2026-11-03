@@ -1,82 +1,29 @@
-import { revalidatePath } from 'next/cache';
-
-import { isStudioAssetDestination } from '@/domain/templates';
-import {
-  PipelineRegistryCommandError,
-  getOwnerStudioRoutingPage,
-  revalidateCardForgeCatalog,
-  updateOwnerStudioRouting,
-} from '@/features/pipeline/server';
-import { getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
+import { AccountToolAccessError } from '@/features/account/server';
+import { PipelineRegistryCommandError } from '@/features/pipeline/server';
+import { getCurrentOwnerAccess, getOwnerPipelineStudioRouting, saveOwnerPipelineStudioRouting } from '@/features/owner/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-
 export const dynamic = 'force-dynamic';
-
-const requireOwner = async () => {
-  const owner = await getCurrentOwnerAccess();
-  if (!owner.isOwner) {
-    return { ok: false as const, response: createApiErrorResponse(403, 'owner_access_required', 'Owner access is required for the Studio Map.') };
-  }
-  return { ok: true as const, owner };
+const failure = (error: unknown) => {
+  const status = error instanceof PipelineRegistryCommandError || error instanceof AccountToolAccessError ? error.status : error instanceof SyntaxError ? 400 : 503;
+  return createApiErrorResponse(status, status === 403 ? 'owner_access_required' : status === 400 ? 'owner_request_invalid' : 'pipeline_unavailable', error instanceof PipelineRegistryCommandError || error instanceof AccountToolAccessError ? error.message : 'Studio placement outcome is unconfirmed. Read the exact asset before any further write.', { retryable: false, nextAction: 'Read exact asset routing; do not replay automatically or infer commit from matching state.' });
 };
-
 export async function GET(request: Request) {
   try {
-    const owner = await requireOwner();
-    if (!owner.ok) return owner.response;
-    const url = new URL(request.url);
-    const destinationValue = url.searchParams.get('destination');
-    const destination = isStudioAssetDestination(destinationValue) ? destinationValue : null;
-    const page = await getOwnerStudioRoutingPage({
-      destination,
-      query: url.searchParams.get('query') ?? '',
-      page: Number(url.searchParams.get('page') ?? 1),
-      pageSize: Number(url.searchParams.get('pageSize') ?? 12),
-    });
-    return createNoStoreJsonResponse({ page });
-  } catch (error) {
-    if (error instanceof PipelineRegistryCommandError) {
-      return createApiErrorResponse(error.status, 'pipeline_unavailable', error.message);
-    }
-    console.error('Unable to load owner Studio routing:', error);
-    return createApiErrorResponse(500, 'pipeline_unavailable', 'Unable to load the Studio Map.');
-  }
+    const owner = await getCurrentOwnerAccess(); if (!owner.isOwner || !owner.userId) return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required for the Studio Map.');
+    const params = new URL(request.url).searchParams;
+    const input: Record<string, unknown> = {};
+    for (const name of ['assetId','destination','query','page','pageSize']) if (params.has(name)) input[name] = name === 'page' || name === 'pageSize' ? Number(params.get(name)) : params.get(name);
+    return createNoStoreJsonResponse(await getOwnerPipelineStudioRouting(owner.userId, input));
+  } catch (error) { return failure(error); }
 }
-
 export async function PUT(request: Request) {
   try {
-    const owner = await requireOwner();
-    if (!owner.ok) return owner.response;
-    const body = await request.json() as Record<string, unknown>;
-    await updateOwnerStudioRouting({
-      assetId: body.assetId,
-      mode: body.mode,
-      destinations: body.destinations,
-      sortOrder: body.sortOrder,
-      featured: body.featured,
-    });
-    revalidateCardForgeCatalog();
-    revalidatePath('/studio');
-    const assetId = typeof body.assetId === 'string' ? body.assetId : null;
-    const activityRecorded = await recordOwnerActivity({
-      actorUserId: owner.owner.userId ?? 'owner',
-      actorEmail: owner.owner.email,
-      action: 'pipeline.studio-routing.update',
-      targetType: 'asset_registry',
-      targetId: assetId,
-      summary: body.mode === 'automatic'
-        ? 'Restored automatic Studio placement for a Pipeline asset.'
-        : 'Updated owner-controlled Studio placement for a Pipeline asset.',
-    });
-    return createNoStoreJsonResponse({ ok: true, activityRecorded });
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
+    const owner = await getCurrentOwnerAccess(); if (!owner.isOwner || !owner.userId) return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required for the Studio Map.');
+    const result = await saveOwnerPipelineStudioRouting(owner.userId, await request.json());
+    if (result.receipt.outcome === 'uncertain') {
+      const unavailable = createApiErrorResponse(503, 'pipeline_unavailable', result.receipt.warnings.join(' '), { retryable: false, nextAction: 'Read exact asset routing; do not replay automatically.' });
+      return createNoStoreJsonResponse({ ...(await unavailable.json()), ...result }, { status: 503, headers: unavailable.headers });
     }
-    if (error instanceof PipelineRegistryCommandError) {
-      return createApiErrorResponse(error.status, error.status === 400 ? 'owner_request_invalid' : 'pipeline_unavailable', error.message);
-    }
-    console.error('Unable to update owner Studio routing:', error);
-    return createApiErrorResponse(500, 'pipeline_unavailable', 'Unable to update the Studio Map.');
-  }
+    return createNoStoreJsonResponse({ ok: true, ...result });
+  } catch (error) { return failure(error); }
 }

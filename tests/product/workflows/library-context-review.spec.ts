@@ -1024,3 +1024,20 @@ for (const mode of ['uncertain', 'unstructured', 'nullReceipt', 'unavailableRece
   expect(lookup.searchParams.get('submissionKey')).toBe(saved.submissionKey); expect(JSON.parse(lookup.searchParams.get('presentation')!)).toEqual(saved.presentation);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+
+for (const kind of ['program','routing'] as const) for (const mode of ['success','activity','refreshFalse','refreshThrow','deferred','uncertain','unstructured']) test(`@golden Pipeline configuration ${kind} ${mode} reports native outcome truthfully`, async ({ page }) => {
+  const evidence = await mount(page, `?${kind === 'program' ? 'programReceipt' : 'routingReceipt'}=${mode}`);
+  const save = kind === 'program' ? page.getByRole('button', { name: 'Save Contributor program', exact: true }) : page.getByRole('button', { name: 'Save automatic', exact: true });
+  await expect(save).toBeVisible(); await save.click();
+  const status = page.locator('p[role="status"]');
+  if (['uncertain','unstructured'].includes(mode)) {
+    await expect(status).toContainText('outcome is unconfirmed'); await expect(status).toContainText('do not replay automatically');
+  } else {
+    await expect(status).toContainText(kind === 'program' ? 'Program rules saved; governed global rebalance acknowledged' : 'Studio placement saved for Synthetic routed icon');
+    if (mode === 'activity') await expect(status).toContainText('audit activity is incomplete');
+    if (mode === 'deferred') { await expect(page.getByRole('button', { name: kind === 'program' ? 'Saving Contributor program...' : 'Saving...', exact: true })).toBeDisabled(); await page.evaluate(() => (window as typeof window & { releaseConfigurationRefresh: () => void }).releaseConfigurationRefresh()); }
+    if (['refreshFalse','refreshThrow','deferred'].includes(mode)) await expect(status).toContainText('refresh is incomplete');
+    await expect(status).not.toContainText('not saved');
+  }
+  const writes = (await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests)).filter(request => request.method === 'PUT'); expect(writes).toHaveLength(1); expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});

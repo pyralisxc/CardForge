@@ -14,3 +14,5 @@ export { getOwnerPublishedClassification, saveOwnerPublishedClassification } fro
 export { createOwnerReviewRevision, getOwnerReviewRevisionBase, getOwnerReviewRevisionReceipt } from './server/ownerReviewRevisionCommands';
 
 export { getOwnerMediaRevisionBase, getOwnerMediaRevisionReceipt, createOwnerMediaRevision } from './server/ownerMediaRevisionCommands';
+
+export { getOwnerPipelineProgramSettings, saveOwnerPipelineProgramSettings, getOwnerPipelineStudioRouting, saveOwnerPipelineStudioRouting } from './server/ownerProgramRoutingCommands';

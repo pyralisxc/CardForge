@@ -1,5 +1,7 @@
 "use client";
 
+import { configurationReceipt, pipelineSettingsSnapshot } from '../lib/ownerProgramRoutingContract';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Crown, Save, Users } from 'lucide-react';
 
@@ -30,7 +32,7 @@ import {
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
 import type { PipelineTemplateSpecimenRenderer } from './PipelineContributionModel';
 import { getPipelineTypeLabel } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
-import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { ApiClientError, readApiError, readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import { readReviewPublication, resolvePipelineReviewTarget, type PipelineReviewTarget } from '../lib/pipelineReviewTarget';
 
@@ -51,7 +53,7 @@ export function OwnerContributorProgramPanel({
   onOpenRevisionQueue?: () => void;
   navigationBlocked?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
-  onSelectionMutated?: () => void;
+  onSelectionMutated?: () => void | boolean | Promise<void | boolean>;
   onRevise?: (submission: PipelineProgramView['submissions'][number]) => void;
   renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
 }) {
@@ -62,6 +64,7 @@ export function OwnerContributorProgramPanel({
   const [updatingSubmissionId, setUpdatingSubmissionId] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [configurationStatus, setConfigurationStatus] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const hasLoadedRef = useRef(false);
@@ -122,29 +125,32 @@ export function OwnerContributorProgramPanel({
 
   const saveSettings = async () => {
     if (!settings) return;
-    setIsSaving(true);
+    setIsSaving(true); setConfigurationStatus(''); let committed = false;
     try {
-      const response = await fetch('/api/pipeline', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings }),
-      });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save the Contributor program.'));
-      const body = await response.json() as PipelineItemsResponse;
-      setSettingsState(body.program.settings);
-      if (target && onSelectionMutated) onSelectionMutated(); else await loadProgram();
+      const response = await fetch('/api/pipeline', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings }) });
+      if (!response.ok) throw await readApiError(response, 'Program save outcome is unconfirmed. Read exact current settings before another write.');
+      const body = await response.json(); const receipt = configurationReceipt.parse(body.receipt);
+      if (receipt.outcome !== 'committed' || receipt.committed !== true) throw new Error('Unconfirmed program receipt');
+      committed = true;
+      const warnings = [...receipt.warnings];
+      setConfigurationStatus(`Program rules saved; governed global rebalance acknowledged. ${warnings.join(' ')}`);
+      toast({ title: 'Contributor program saved', description: 'Program rules and governed global rebalance are committed. Publication/status/access follow existing policy.' });
+      const snapshot = pipelineSettingsSnapshot.safeParse(body.snapshot);
+      if (snapshot.success && snapshot.data.configured) { setSettingsState(snapshot.data.settings); onDirtyChange?.(false); }
+      else warnings.push('Persisted settings readback is unavailable; do not repeat the committed save.');
+      if (body.program) setProgram(body.program);
+      try {
+        const refreshed = target && onSelectionMutated ? await onSelectionMutated() : await loadProgram();
+        if (refreshed === false) warnings.push('Program refresh is incomplete; reopen the view rather than repeating the committed save.');
+      } catch { warnings.push('Program refresh is unavailable; reopen the view rather than repeating the committed save.'); }
+      setConfigurationStatus(`Program rules saved; governed global rebalance acknowledged. ${warnings.join(' ')}`);
       setLastSavedAt(new Date().toISOString());
-      onDirtyChange?.(false);
-      toast({ title: 'Contributor program saved', description: 'Roster, voting, and publish rules are updated.' });
     } catch (error) {
-      toast({
-        title: 'Contributor program not saved',
-        description: error instanceof Error ? error.message : 'Unable to save the Contributor program.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSaving(false);
-    }
+      const rejected = error instanceof ApiClientError && error.status < 500;
+      const message = committed ? 'Program save is confirmed; follow-up refresh is incomplete. Do not repeat the save.' : rejected ? error.message : 'Program save outcome is unconfirmed. Read exact current settings before any further write; do not replay automatically.';
+      setConfigurationStatus(message);
+      toast({ title: committed ? 'Contributor program saved' : rejected ? 'Contributor program not saved' : 'Contributor program not confirmed', description: message, variant: committed ? 'default' : 'destructive' });
+    } finally { setIsSaving(false); }
   };
 
   const updateOverride = async (
@@ -275,6 +281,7 @@ export function OwnerContributorProgramPanel({
   if (loadError || !program || !settings) {
     return (
       <section className="border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-6 text-[var(--cf-danger)]">
+        {configurationStatus ? <p role="status">{configurationStatus}</p> : null}
         <div className="flex items-center gap-3 text-[#ffb8a8]">
           <Crown className="h-5 w-5" />
           <h2 className="font-serif text-2xl text-[#ffe1d8]">Contributor program unavailable</h2>
@@ -307,7 +314,7 @@ export function OwnerContributorProgramPanel({
       query="" assetTypeFilter="all" statusFilter="all" page={1} onQueryChange={() => {}} onAssetTypeFilterChange={() => {}}
       onStatusFilterChange={() => {}} onPageChange={() => {}} updatingSubmissionId={updatingSubmissionId}
       onUpdateOverride={updateOverride} onUpdateEditorialReview={updateEditorialReview} onDeletePermanently={deletePermanently}
-      onDeleteRevisionNow={deleteRevisionNow} onRevisionCreated={target && onSelectionMutated ? onSelectionMutated : loadProgram} onRevise={onRevise} />
+      onDeleteRevisionNow={deleteRevisionNow} onRevisionCreated={async () => { const refreshed = target && onSelectionMutated ? await onSelectionMutated() : await loadProgram(); if (refreshed === false) throw new Error('Contributor program refresh is incomplete.'); }} onRevise={onRevise} />
   </section></TooltipProvider>;
 
   return (
@@ -330,6 +337,8 @@ export function OwnerContributorProgramPanel({
           <OwnerStudioRoutingPanel />
         </TabsContent>
         <TabsContent value="rules" className="mt-0">
+          {configurationStatus ? <p role="status" className="text-sm">{configurationStatus}</p> : null}
+          <fieldset disabled={isSaving}>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
         <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
@@ -503,6 +512,7 @@ export function OwnerContributorProgramPanel({
         <Save className="mr-2 h-4 w-4" />
         {isSaving ? 'Saving Contributor program...' : 'Save Contributor program'}
       </Button>
+          </fieldset>
         </TabsContent>
       </Tabs>
 
