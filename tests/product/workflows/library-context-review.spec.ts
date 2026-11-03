@@ -885,6 +885,54 @@ test('@golden Owner catalog Restore refreshes mounted Shared Trash without losin
   expect(evidence.errors).toEqual([]);
 });
 
+test('@golden Owner People committed deletion clears exact identity before failed refresh and permits only retained-history deactivation', async ({ page }) => {
+  const evidence = await mount(page, '?ownerPeople=committed');
+  await page.getByRole('button', { name: /Synthetic person person@example.invalid Connected/ }).click();
+  await page.getByRole('textbox', { name: 'Type person@example.invalid', exact: true }).fill('person@example.invalid');
+  await page.getByRole('button', { name: 'Delete account', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Choose a person', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Synthetic person/ })).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'Type person@example.invalid', exact: true })).toHaveCount(0);
+  const committedNotice = page.getByRole('listitem').filter({ hasText: 'Clerk account deleted' });
+  await expect(committedNotice).toContainText('Clerk deletion is committed. Directory refresh is pending.');
+  await expect(committedNotice).toContainText('retained-profile reconciliation is incomplete');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.evaluate(() => (window as typeof window & { releasePeopleRefresh: () => void }).releasePeopleRefresh());
+  await expect(page.getByRole('alert')).toContainText('Synthetic directory refresh unavailable');
+  await expect(committedNotice).toHaveCount(1);
+  await expect(committedNotice).toContainText('Directory refresh is incomplete');
+  await expect(committedNotice).not.toContainText('refresh is pending');
+  // A new search exercises fresh readback, first stale then retained history.
+  await page.getByRole('textbox', { name: 'Search name, email, or identity', exact: true }).fill('person');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('confirmed deleted sign-in');
+  await expect(page.getByRole('button', { name: /Synthetic person/ })).toHaveCount(0);
+  await page.getByRole('textbox', { name: 'Search name, email, or identity', exact: true }).fill('synthetic');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByRole('button', { name: /Synthetic person person@example.invalid History only/ }).click();
+  await expect(page.getByRole('button', { name: 'Delete account', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Deactivate retained profile', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Retained profile deactivated' })).toBeVisible();
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string; body?: string }[] }).libraryRequests);
+  expect(requests.filter(request => request.method === 'DELETE')).toHaveLength(1);
+  expect(requests.filter(request => request.method === 'PATCH').map(request => JSON.parse(request.body!))).toEqual([{ action: 'deactivate_history', userId: 'synthetic-person' }]);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+test('@golden Owner People unconfirmed deletion keeps identity and requires fresh confirmation without replay', async ({ page }) => {
+  const evidence = await mount(page, '?ownerPeople=uncertain');
+  await page.getByRole('button', { name: /Synthetic person person@example.invalid Connected/ }).click();
+  const confirmation = page.getByRole('textbox', { name: 'Type person@example.invalid', exact: true });
+  await confirmation.fill('person@example.invalid');
+  await page.getByRole('button', { name: 'Delete account', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Account deletion not confirmed' })).toContainText('do not replay automatically');
+  await expect(confirmation).toHaveValue('');
+  await expect(page.getByRole('button', { name: 'Delete account', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Synthetic person person@example.invalid Connected/ })).toBeVisible();
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests);
+  expect(requests.filter(request => request.method === 'DELETE')).toHaveLength(1);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
 for (const outcome of ['partial', 'uncertain'] as const) test(`@golden Contributor draft ${outcome} receipt keeps authored form and requires readback`, async ({ page }) => {
   const evidence = await mount(page, `?contributorReceipt=${outcome}`);
   await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Newer private description');

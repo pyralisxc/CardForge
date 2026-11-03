@@ -23,6 +23,8 @@ Studio MCP Pipeline discovery uses the native scoped, paginated submission and s
 
 **CardForge owns:** same-site return-path sanitization and the access policy layered over Clerk identity: free, Creator Pass, Designer Pass, contributor, and owner. Auth and hosted-checkout interruptions carry the exact sanitized originating Desk/Library/Profile context back through the native provider flow. CardForge does not own a parallel session or sign-in lifecycle.
 
+Owner People deletion follows `/api/owner/people` → `ownerPeopleOperations.deleteOwnerPerson` → Clerk's exact user deletion. A provider acknowledgement is the commit boundary; retained-profile reconciliation and Owner activity are independent follow-ups whose failures return committed warnings. An unconfirmed provider response requires exact identity/history readback, never automatic replay. The mounted browser removes the confirmed deleted sign-in before refreshing and does not resurrect it from a stale live-account response. Authoritative history-only readback retains the existing `deactivate_history` command; it never repeats Clerk deletion. Self/Owner protection and exact confirmation remain unchanged.
+
 ## Supabase — shared platform state
 
 **Provider owns:** Postgres, Storage, database transactions/RPCs, and service authentication.
