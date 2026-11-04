@@ -1,7 +1,7 @@
 "use client";
 import { getPipelineTrashState } from '@/features/pipeline/client';
 
-import { PIPELINE_ENGAGEMENT_CHANGED, notifyPipelineEngagementChanged, loadPipelineEngagement, PipelineSourceDisclosure, type PipelineDesignSource } from '@/features/pipeline/client/engagement';
+import { PIPELINE_ENGAGEMENT_CHANGED, notifyPipelineEngagementChanged, loadPipelineEngagement, parsePipelineVoteReceipt, PipelineSourceDisclosure, type PipelineDesignSource } from '@/features/pipeline/client/engagement';
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { HardDrive } from 'lucide-react';
@@ -440,8 +440,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         if (response.status < 500) { toast({ title: 'Vote rejected', description: await readApiErrorMessage(response, 'Unable to record this vote.'), variant: 'destructive' }); return; }
         throw new Error('Vote acknowledgement is unavailable.');
       }
-      const { program, receipt } = await response.json() as { program: Parameters<typeof shared.acceptProgram>[0] | null; receipt?: { submissionId: string; outcome: string; warnings: string[] } };
-      if (receipt?.submissionId !== submissionId || receipt.outcome !== 'committed' || !Array.isArray(receipt.warnings)) throw new Error('Vote outcome is unconfirmed.');
+      const { program, receipt: rawReceipt } = await response.json() as { program: Parameters<typeof shared.acceptProgram>[0] | null; receipt?: { submissionId: string; outcome: string; warnings: string[] } };
+      const receipt = parsePipelineVoteReceipt(rawReceipt, submissionId);
+      if (receipt.outcome !== 'committed') throw new Error('Vote outcome is unconfirmed.');
       committed = true;
       notifyPipelineEngagementChanged();
       if (program) shared.acceptProgram(program);

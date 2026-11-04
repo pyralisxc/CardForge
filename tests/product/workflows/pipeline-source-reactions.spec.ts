@@ -7,7 +7,7 @@ const bundle = buildSync({ entryPoints: ['tests/product/fixtures/pipelineSourceR
 const first = '10000000-0000-4000-8000-000000000001';
 const second = '10000000-0000-4000-8000-000000000002';
 const lineageId = '20000000-0000-4000-8000-000000000001';
-async function mount(page: Page, options: { blocked?: boolean; failure?: boolean; delayed?: boolean; legacyProjection?: boolean; voteOutcome?: 'committed' | 'uncertain' } = {}) {
+async function mount(page: Page, options: { blocked?: boolean; failure?: boolean; delayed?: boolean; legacyProjection?: boolean; voteOutcome?: 'committed' | 'uncertain'; readbackFault?: 'partial' | 'malformed' | 'wrong-id' | 'unavailable' | 'valid' } = {}) {
   page.on('pageerror', error => console.error('SOURCE_FIXTURE_ERROR', error.message));
   const rawFonts = [
     { asset_id: 'Heading / Regular', name: 'Governed Heading', url: 'https://example.invalid/heading.woff2', metadata: {} },
@@ -37,9 +37,11 @@ async function mount(page: Page, options: { blocked?: boolean; failure?: boolean
     if (url.pathname === '/api/catalog/studio-bootstrap') return route.fulfill({ json: { templates: { defaults: [{ id: 'bootstrap-original', templateRevision: 1, templateRevisionId: 'published-r1' }] }, styles: { styles: [material] }, fonts: { fonts: governedFonts }, ...(options.legacyProjection ? {} : { pipeline: [{ assetId: 'bootstrap-original', submissionId: first }, { assetId: material.id, submissionId: first }, ...rawFonts.map((row, index) => ({ assetId: row.asset_id, submissionId: index === 0 ? second : first, fontValue: governedFonts[index].value }))] }) } });
     if (url.pathname === '/api/pipeline/engagement') {
       const id = url.searchParams.get('submissionId')!; reads.push(id);
-      if (options.failure || (options.voteOutcome && mutations.length)) return route.fulfill({ status: 503, json: { error: { message: 'Source service unavailable', code: 'pipeline_reaction_unavailable', kind: 'unavailable' } } });
+      if (options.failure || (options.voteOutcome && mutations.length && (!options.readbackFault || options.readbackFault==='unavailable'))) return route.fulfill({ status: 503, json: { error: { message: 'Source service unavailable', code: 'pipeline_reaction_unavailable', kind: 'unavailable' } } });
+      if(mutations.length && options.readbackFault==='partial')return route.fulfill({json:{submissionId:id}});
+      if(mutations.length && options.readbackFault==='malformed')return route.fulfill({json:{submissionId:id,status:'invented'}});
       if (options.delayed && id === first) await new Promise(resolve => setTimeout(resolve, 500));
-      return route.fulfill({ json: { submissionId: id, lineageId, name: id === first ? 'Original revision one' : 'Original revision two', revisionNumber: id === first ? 1 : 2, status: 'published', trashedAt: null, purgeState: null, positiveVotes: values.positive, negativeVotes: values.negative, currentUserVote: values.vote, voteIssue: options.blocked ? 'Contributor review access required' : null, heart: { count: values.heart, hearted: values.hearted }, heartIssue: options.blocked ? 'Sign in to heart Pipeline work.' : null } });
+      return route.fulfill({ json: { submissionId: mutations.length && options.readbackFault==='wrong-id' ? '99999999-9999-4999-8999-999999999999' : id, lineageId, name: id === first ? 'Original revision one' : 'Original revision two', revisionNumber: id === first ? 1 : 2, status: 'published', trashedAt: null, purgeState: null, positiveVotes: values.positive, negativeVotes: values.negative, currentUserVote: values.vote, voteIssue: options.blocked ? 'Contributor review access required' : null, heart: { count: values.heart, hearted: values.hearted }, heartIssue: options.blocked ? 'Sign in to heart Pipeline work.' : null } });
     }
     return route.abort();
   });
@@ -157,3 +159,5 @@ test('@golden a pre-projection bootstrap reports unavailable without declaring t
 });
 
 for(const outcome of ['committed','uncertain'] as const)test(`@golden source feedback ${outcome} with unavailable readback never replays vote`,async({page})=>{const evidence=await mount(page,{voteOutcome:outcome});const source=page.getByLabel('Studio original');await expect(source.getByText(/Original revision one/)).toBeVisible();await source.getByRole('button',{name:'Like 2',exact:true}).click();await expect(source.getByRole('alert').filter({hasText:outcome==='committed'?'Vote committed':'Vote outcome is unconfirmed'})).toBeVisible();await expect(source.getByText(/Original revision one/)).toBeVisible();if(outcome==='uncertain')await expect(source.getByRole('button',{name:'Like 2',exact:true})).toBeDisabled();expect(evidence.mutations).toHaveLength(1);});
+
+for(const fault of ['partial','malformed','wrong-id','unavailable','valid'] as const)test(`@golden source feedback exact readback ${fault} preserves uncertain vote`,async({page})=>{const evidence=await mount(page,{voteOutcome:'uncertain',readbackFault:fault});const source=page.getByLabel('Studio original');const like=source.getByRole('button',{name:'Like 2',exact:true});await expect(like).toBeEnabled();await like.click();await expect(source.getByRole('alert').filter({hasText:'Vote outcome is unconfirmed'})).toBeVisible();await expect(source.getByText(/Original revision one/)).toBeVisible();if(fault==='valid')await expect(source.getByRole('button',{name:'Like 3',exact:true})).toBeEnabled();else{await expect(like).toBeDisabled();await source.getByRole('button',{name:'Refresh source reactions'}).click();await expect(like).toBeDisabled();}expect(evidence.mutations).toHaveLength(1);});

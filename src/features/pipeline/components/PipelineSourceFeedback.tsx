@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Heart, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { readApiError } from '@/infrastructure/http/clientResponses';
-import { loadPipelineEngagement, notifyPipelineEngagementChanged, PIPELINE_ENGAGEMENT_CHANGED } from '../client/engagementRequests';
+import { loadPipelineEngagement, parsePipelineVoteReceipt, notifyPipelineEngagementChanged, PIPELINE_ENGAGEMENT_CHANGED } from '../client/engagementRequests';
 import { loadCardForgeStudioAssets, loadCardForgeStudioBootstrap } from '../client/catalog';
 import { PROJECT_PERSISTENCE_SCOPE_CHANGE_EVENT } from '@/features/project/client/persistence-workspace';
 import type { TCGCardTemplate, AppearanceStylePreset, CardAssetOption } from '@/domain/templates';
@@ -50,10 +50,11 @@ export function PipelineSourceFeedback({ submissionId }: { submissionId: string 
       });
       if (!response.ok) { rejected = response.status < 500; throw await readApiError(response, 'The reaction could not be confirmed. Read exact reactions before a new action.'); }
       const payload = await response.json();
-      if (voteValue && (payload.receipt?.submissionId !== submissionId || payload.receipt?.outcome !== 'committed')) { setUnconfirmedVote(submissionId); throw new Error('Vote outcome is unconfirmed. Read exact reactions before a new explicit vote; no request was replayed.'); }
+      const receipt = voteValue ? parsePipelineVoteReceipt(payload.receipt, submissionId) : null;
+      if (voteValue && receipt?.outcome !== 'committed') { setUnconfirmedVote(submissionId); throw new Error('Vote outcome is unconfirmed. Read exact reactions before a new explicit vote; no request was replayed.'); }
       committed = Boolean(voteValue);
       notifyPipelineEngagementChanged();
-      if (voteValue && payload.receipt.warnings?.length) setMutationIssue('Vote committed; refresh is incomplete. Read current source reactions before further action.');
+      if (voteValue && receipt?.warnings.length) setMutationIssue('Vote committed; refresh is incomplete. Read current source reactions before further action.');
     } catch (error) {
       if (currentId.current !== submissionId) return;
       if (voteValue && !rejected && !committed) setUnconfirmedVote(submissionId);
