@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { pipelineEngagementSchema as pipelineAgentEngagement } from './pipelineEngagement';
 import { PIPELINE_STATUSES, PIPELINE_TYPES } from './pipelineItems';
 const uuid = z.string().uuid();
 const nullableText = z.string().nullable();
@@ -18,12 +19,7 @@ export const pipelineAgentRevision = z.object({
     trashedAt: nullableText, purgeAfter: nullableText, held: z.boolean(), catalogSubmissionId: uuid.nullable() }).strict(),
 }).strict();
 export const pipelineAgentPage = z.object({ items: z.array(pipelineAgentRevision), total: z.number().int().nonnegative(), page: z.number().int().positive(), pageSize: z.number().int().positive() }).strict();
-export const pipelineAgentEngagement = z.object({
-  submissionId: uuid, lineageId: uuid.nullable(), name: z.string(), revisionNumber: z.number().int().nonnegative().nullable(),
-  status: z.enum(PIPELINE_STATUSES), trashedAt: nullableText, purgeState: z.literal('pending').nullable(),
-  positiveVotes: z.number().int().nonnegative(), negativeVotes: z.number().int().nonnegative(), currentUserVote: z.enum(['positive', 'negative']).nullable(),
-  voteIssue: nullableText, heart: z.object({ count: z.number().int().nonnegative(), hearted: z.boolean() }).strict().nullable(), heartIssue: nullableText,
-}).strict();
+export { pipelineEngagementSchema as pipelineAgentEngagement } from './pipelineEngagement';
 export const pipelineAgentHealth = z.object({ checkedCount: z.number().int().nonnegative(), errors: z.number().int().nonnegative(), warnings: z.number().int().nonnegative(), issues: z.array(z.object({
   code: z.string(), severity: z.enum(['error', 'warning']), objectId: nullableText, submissionId: uuid.optional(), objectName: z.string(), message: z.string(), repair: z.string(),
 }).strict()) }).strict();

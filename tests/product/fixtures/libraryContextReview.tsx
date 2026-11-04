@@ -150,6 +150,19 @@ window.fetch = async (input, init) => {
   }
   const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   const requestMethod = init?.method ?? 'GET';
+  if (params.has('voteReceipt') && requestUrl.endsWith('/vote') && requestMethod === 'POST') {
+    proof.libraryRequests.push({url:requestUrl,method:requestMethod}); campaignDraftWritten=true;
+    const mode=params.get('voteReceipt'); const submissionId=requestUrl.split('/').at(-2);
+    if(mode==='rejected')return Response.json({error:{message:'Native vote rejected'}},{status:403});
+    return Response.json({program:mode==='healthy'?{...program,submissions:queueRows}:null,receipt:{submissionId,outcome:mode?.startsWith('unknown')?'uncertain':'committed',warnings:mode==='healthy'?[]:[mode==='invalidation'?'catalog_invalidation_unavailable':'program_refresh_unavailable']}});
+  }
+  if(params.has('voteReceipt') && requestUrl.startsWith('/api/pipeline/engagement?')) {
+    const submissionId=new URL(requestUrl,location.origin).searchParams.get('submissionId'); const mode=params.get('voteReceipt');
+    if(mode==='unknownUnavailable')return Response.json({error:{message:'read unavailable'}},{status:503});
+    if(mode==='unknownPartial')return Response.json({submissionId});
+    return Response.json({submissionId:mode==='unknownWrongId'?'99999999-9999-4999-8999-999999999999':submissionId,lineageId:row.lineageId,name:'Exact vote revision',revisionNumber:1,status:'published',trashedAt:null,purgeState:null,positiveVotes:mode==='unknownMalformed'?-1:2,negativeVotes:1,currentUserVote:null,voteIssue:null,heart:null,heartIssue:'Unavailable'});
+  }
+  if(params.has('voteReceipt') && campaignDraftWritten && requestUrl.startsWith('/api/pipeline/library')) return Response.json({error:{message:'Optional Library read unavailable'}},{status:503});
   if (params.has('personalItemProof') && requestUrl.startsWith('/api/personal-library')) {
     const id = '10000000-0000-4000-8000-000000000001';
     const item = { id, provider: 'google-drive', providerFileId: 'synthetic-file', providerRevision: 'v1', displayName: 'Synthetic indexed artwork', mimeType: 'image/png', role: 'artwork', byteSize: 100, providerModifiedAt: '2026-11-02T00:00:00Z', providerWebViewLink: null, contentHash: null, lastVerifiedAt: '2026-11-02T00:00:00Z', createdAt: '2026-11-02T00:00:00Z', updatedAt: '2026-11-02T00:00:00Z' };
@@ -367,7 +380,7 @@ window.fetch = async (input, init) => {
     }
     if (url.endsWith('/vote') && method === 'POST') {
       proof.libraryRequests.push({ url, method, body: String(init?.body ?? '') });
-      return params.has('sharedDenied') ? Response.json({ error: { message: 'Voting not permitted' } }, { status: 403 }) : Response.json({ voteValue: 'positive' });
+      return params.has('sharedDenied') ? Response.json({ error: { message: 'Voting not permitted' } }, { status: 403 }) : Response.json({ receipt: { submissionId: url.split('/').at(-2), outcome: 'committed', warnings: [] } });
     }
     if (url.startsWith('/api/pipeline/hearts?')) return Response.json({ metrics: [] });
     if (url === '/api/catalog') return Response.json(queueCatalog);
