@@ -17,6 +17,14 @@ describe('Studio navigation contract', () => {
     })).toBe('/account?tool=design&document=document-1&revision=4&returnTo=%2Faccount%3Fsection%3Dlibrary%26scope%3Dpersonal');
   });
 
+  it('preserves prepared Output references without changing ordinary Design ingress', () => {
+    const href = createContextualStudioHref({ documentId: 'exact-document', revision: 3, outputRef: 'exact-reference', returnTo: '/account?section=library' });
+    const params = new URL(href, 'https://cardforge.test').searchParams;
+    expect(Object.fromEntries(params)).toEqual({ tool: 'output', outputRef: 'exact-reference', document: 'exact-document', revision: '3', returnTo: '/account?section=library' });
+    expect(createContextualStudioHref({ outputRef: '' })).toBe('/account?tool=output&outputRef=');
+    expect(createContextualStudioHref({ tool: 'output', documentId: 'doc', revision: 2 })).toBe('/account?tool=output&document=doc&revision=2');
+  });
+
   it('round-trips a focused Desk Set through Studio', () => {
     const returnTo = createDeskReturnHref('set:playing-cards', 'desk-context');
 

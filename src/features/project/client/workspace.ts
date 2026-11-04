@@ -1,5 +1,6 @@
 export {
   applyProjectDocumentToWorkspace,
+  hasProjectDocumentStateChanged,
   captureCurrentProjectDocument,
   captureCardSetProjectDocument,
 } from '../client/projectWorkspaceDocument';

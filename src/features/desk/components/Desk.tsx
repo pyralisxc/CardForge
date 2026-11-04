@@ -193,6 +193,7 @@ export function Desk({
     commitTemplateChange,
     createPublishedWorkingCopy,
     closeContextStudio,
+    completeOutputHandoff,
     closeGenerate,
     closePipelineSubmission,
     commitRename,
@@ -809,6 +810,7 @@ export function Desk({
             designIntent={designIntent}
             onDesignIntentConsumed={() => setDesignIntent(null)}
             onReturnToGenerator={closeActiveTool}
+            onOutputPrepared={completeOutputHandoff}
             contextSetId={studioTool.setId}
             contextTemplateId={studioTool.templateId}
           />

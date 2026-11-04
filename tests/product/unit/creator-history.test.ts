@@ -21,6 +21,15 @@ import {
 } from '@/features/desk/model/creatorHistory';
 
 describe('Desk creator history', () => {
+  it('retains the non-authorizing Output reference across Desk context history', () => {
+    const href = preserveCreatorLaunchIntent('/account?focus=set%3Aincoming&tool=output', 'https://cardforge.test/account?document=exact-doc&revision=3&outputRef=exact-ref');
+    const params = new URL(href, 'https://cardforge.test').searchParams;
+    expect(params.get('document')).toBe('exact-doc');
+    expect(params.get('revision')).toBe('3');
+    expect(params.get('outputRef')).toBe('exact-ref');
+    expect(params.get('tool')).toBe('output');
+  });
+
   it('hydrates an Artifact deep link into the focused Set interaction session', () => {
     expect(createCreatorInitialSession('set:set-1', 'card-2')).toMatchObject({
       focusPath: { setId: 'set-1', artifactId: 'card-2' },

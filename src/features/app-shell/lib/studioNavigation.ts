@@ -9,9 +9,10 @@ type StudioHrefOptions = {
   revision?: string | number | null;
   returnTo?: string | null;
   tool?: 'output' | null;
+  outputRef?: string | null;
 };
 
-type ContextualStudioHrefOptions = Pick<StudioHrefOptions, 'documentId' | 'revision' | 'returnTo'>;
+type ContextualStudioHrefOptions = StudioHrefOptions;
 
 const MAX_RETURN_PATH_LENGTH = 600;
 
@@ -40,11 +41,12 @@ export const createLibraryReturnHref = (scope: string = 'personal', returnContex
   return `/account?${params.toString()}`;
 };
 
-export const createStudioHref = ({ documentId, revision, returnTo, tool }: StudioHrefOptions = {}): string => {
+export const createStudioHref = ({ documentId, revision, returnTo, tool, outputRef }: StudioHrefOptions = {}): string => {
   const params = new URLSearchParams();
   if (documentId) params.set('document', documentId);
   if (revision !== null && revision !== undefined && String(revision)) params.set('revision', String(revision));
   if (tool) params.set('tool', tool);
+  if (outputRef !== null && outputRef !== undefined) params.set('outputRef', outputRef);
   const safeReturnTo = normalizeStudioReturnTo(returnTo);
   if (safeReturnTo) params.set('returnTo', safeReturnTo);
   const query = params.toString();
@@ -55,8 +57,11 @@ export const createContextualStudioHref = ({
   documentId,
   revision,
   returnTo,
+  tool,
+  outputRef,
 }: ContextualStudioHrefOptions = {}): string => {
-  const params = new URLSearchParams({ tool: 'design' });
+  const params = new URLSearchParams({ tool: outputRef !== null && outputRef !== undefined || tool === 'output' ? 'output' : 'design' });
+  if (outputRef !== null && outputRef !== undefined) params.set('outputRef', outputRef);
   if (documentId) params.set('document', documentId);
   if (revision !== null && revision !== undefined && String(revision)) params.set('revision', String(revision));
   const safeReturnTo = normalizeStudioReturnTo(returnTo);

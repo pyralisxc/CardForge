@@ -51,7 +51,7 @@ export const metadata: Metadata = createPageMetadata({
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ artifact?: string; checkout?: string; document?: string; focus?: string; intent?: string; storage?: string; message?: string; returnContext?: string; returnTo?: string; revision?: string; section?: string; utility?: string; ownerWorkspace?: string; meta?: string; tool?: string }>;
+  searchParams: Promise<{ artifact?: string; checkout?: string; document?: string; outputRef?: string; focus?: string; intent?: string; storage?: string; message?: string; returnContext?: string; returnTo?: string; revision?: string; section?: string; utility?: string; ownerWorkspace?: string; meta?: string; tool?: string }>;
 }) {
   const params = await searchParams;
   const initialFocusedWorkId = typeof params.focus === 'string' && params.focus.length <= 256
@@ -63,7 +63,7 @@ export default async function AccountPage({
   const initialReturnContextKey = typeof params.returnContext === 'string' && params.returnContext.length <= 128
     ? params.returnContext
     : null;
-  const initialDeskTool = params.tool === 'design' || params.tool === 'generate' || params.tool === 'output' || params.tool === 'pipeline'
+  const initialDeskTool = params.outputRef !== undefined ? 'output' : params.tool === 'design' || params.tool === 'generate' || params.tool === 'output' || params.tool === 'pipeline'
     ? params.tool
     : null;
   const initialPlanIntent = params.intent === 'creator' || params.intent === 'designer'
