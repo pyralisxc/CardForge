@@ -47,8 +47,8 @@ const http = async (id: number, method: string, params: object) => {
   const text = await response.text(); return JSON.parse(text.startsWith('event:') ? text.split('\n').find(line => line.startsWith('data: '))!.slice(6) : text);
 };
 it('initialized actual HTTP exposes strict two-tool schemas and executes account-scoped read/removal', async () => {
-  expect((await http(1, 'initialize', { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'test', version: '1' } })).result.serverInfo.version).toBe('1.0.15');
-  const tools = (await http(2, 'tools/list', {})).result.tools; expect(tools).toHaveLength(57);
+  expect((await http(1, 'initialize', { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'test', version: '1' } })).result.serverInfo.version).toBe('1.0.16');
+  const tools = (await http(2, 'tools/list', {})).result.tools; expect(tools).toHaveLength(58);
   for (const name of ['get_personal_library_item', 'remove_personal_library_item']) { const tool = tools.find((t: { name: string }) => t.name === name); expect(tool.inputSchema.additionalProperties).toBe(false); expect(tool.outputSchema.additionalProperties).toBe(false); }
   expect((await http(3, 'tools/call', { name: 'get_personal_library_item', arguments: { itemId: id } })).result.structuredContent.item.itemId).toBe(id);
   f.result = { id }; f.telemetry.mockRejectedValueOnce(new Error('Usage unavailable'));

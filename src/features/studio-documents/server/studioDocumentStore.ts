@@ -213,6 +213,7 @@ export const getStudioDocument = async (
   ownerUserId: string,
   documentId: string,
   retentionHours?: number,
+  validateRaw?: (value: unknown) => void,
 ): Promise<StudioDocument> => {
   if (retentionHours) {
     const { data: touched, error: touchError } = await requireStore().rpc('cardforge_touch_studio_document', {
@@ -239,6 +240,7 @@ export const getStudioDocument = async (
     throw new StudioDocumentStoreError('Unable to load the Studio document.');
   }
   if (!data) throw new StudioDocumentStoreError('Studio document not found.', 404);
+  validateRaw?.((data as unknown as StudioDocumentRow).document_payload);
   return toDocument(data as unknown as StudioDocumentRow);
 };
 
@@ -564,4 +566,34 @@ export const readOwnerStudioDocumentDependencies = async (documentId: string, ex
   return { documentId, revision: expectedRevision, contractVersion: Number(proof.contractVersion),
     state: proof.complete ? 'complete' as const : 'incomplete' as const, complete: proof.complete,
     opaqueReasons: sanitizeStudioDependencyReasons(proof.opaqueReasons as string[]) };
+};
+
+/** Immutable, actor-scoped Output metadata. It does not contain generated files. */
+export const createStudioOutputIntent = async (ownerUserId: string, intent: import('../outputIntent').OutputIntent): Promise<string> => {
+  const { createHash } = await import('node:crypto');
+  const fingerprint = createHash('sha256').update(JSON.stringify(intent)).digest('hex');
+  const { data, error } = await requireStore().rpc('cardforge_prepare_studio_output_intent', {
+    p_owner_user_id: ownerUserId, p_document_id: intent.documentId, p_revision: intent.revision,
+    p_intent: intent, p_fingerprint: fingerprint,
+  });
+  if (error) throw new StudioDocumentStoreError('Output preparation could not be confirmed. No authored revision was changed; do not automatically retry.', 503);
+  if (data === null) throw new StudioDocumentStoreError('The exact document revision changed or is unavailable.', 409);
+  if (typeof data !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data)) throw new StudioDocumentStoreError('Output preparation returned an invalid receipt. No authored revision was changed; do not automatically retry.', 503);
+  return data;
+};
+
+export const readStudioOutputIntent = async (ownerUserId: string, documentId: string, reference: string): Promise<import('../outputIntent').OutputIntent> => {
+  const { createHash } = await import('node:crypto');
+  const { outputIntentSchema } = await import('../outputIntent');
+  const { data, error } = await requireStore().from('cardforge_studio_output_intents')
+    .select('document_id,document_revision,intent,fingerprint').eq('id', reference)
+    .eq('owner_user_id', ownerUserId).eq('document_id', documentId).gt('expires_at', new Date().toISOString()).maybeSingle();
+  if (error) throw new StudioDocumentStoreError('Unable to resolve the Output handoff.', 503);
+  if (!data) throw new StudioDocumentStoreError('The Output handoff is unavailable or expired.', 404);
+  const parsed = outputIntentSchema.safeParse(data.intent);
+  if (!parsed.success || parsed.data.documentId !== data.document_id || parsed.data.revision !== data.document_revision ||
+    createHash('sha256').update(JSON.stringify(parsed.data)).digest('hex') !== data.fingerprint) {
+    throw new StudioDocumentStoreError('The stored Output handoff is invalid.', 503);
+  }
+  return parsed.data;
 };

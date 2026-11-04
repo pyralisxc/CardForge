@@ -15,3 +15,8 @@ export {
 export { SavedSourcePreviewClient } from './components/SavedSourcePreviewClient';
 
 export * from './ownerStudioDependencyContract';
+
+export { outputIntentSchema } from './outputIntent';
+export type { OutputIntent } from './outputIntent';
+
+export { fingerprintOutput, orderedOutputCards, prepareOutputOnDevice, verifyPreparedOutput } from './client/outputHandoffVerification';

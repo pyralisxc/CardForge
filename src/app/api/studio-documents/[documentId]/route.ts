@@ -10,6 +10,7 @@ import {
   StudioDocumentAccessError,
   StudioDocumentStoreError,
   updateStudioDocument,
+  readStudioOutputIntent, validateOutputIntentDocument,
 } from '@/features/studio-documents/server';
 import {
   parseJsonBodyWithLimit,
@@ -53,8 +54,17 @@ export async function GET(
     if (revisionValue !== null && (!Number.isSafeInteger(requestedRevision) || Number(requestedRevision) < 1)) {
       return createApiErrorResponse(400, 'studio_document_invalid', 'A valid positive Studio document revision is required.');
     }
+    const outputRef = new URL(request.url).searchParams.get('outputRef');
+    if (outputRef !== null && (!idSchema.safeParse(outputRef).success || requestedRevision === null)) {
+      return createApiErrorResponse(400, 'studio_document_invalid', 'A valid Output reference and exact revision are required.');
+    }
     const account = await getCurrentStudioDocumentAccount();
-    const document = await getStudioDocument(account.ownerUserId, documentId, account.retentionHours);
+    const outputIntent = outputRef ? await readStudioOutputIntent(account.ownerUserId, documentId, outputRef) : undefined;
+    if (outputIntent && outputIntent.revision !== requestedRevision) return createApiErrorResponse(409, 'studio_document_conflict', 'The Output revision does not match.');
+    const document = await getStudioDocument(account.ownerUserId, documentId, account.retentionHours, outputIntent ? (raw) => {
+      try { validateOutputIntentDocument(outputIntent!, raw); }
+      catch (error) { throw new StudioDocumentStoreError(error instanceof Error ? error.message : 'The output source is invalid.', 409); }
+    } : undefined);
     if (requestedRevision !== null && document.revision !== requestedRevision) {
       throw new StudioDocumentStoreError(
         `This Studio document is now revision ${document.revision}. Reopen the latest revision-bound link before applying it.`,
@@ -65,8 +75,9 @@ export async function GET(
       ownerUserId: account.ownerUserId,
       documentId,
       value: document.document,
+      requireVerifiedSize: Boolean(outputIntent),
     });
-    return createNoStoreJsonResponse({ document, assets, watermark: account.watermark });
+    return createNoStoreJsonResponse({ document, assets, watermark: account.watermark, ...(outputIntent ? { outputIntent } : {}) });
   } catch (error) {
     return toErrorResponse(error, 'Unable to load the Studio document.');
   }

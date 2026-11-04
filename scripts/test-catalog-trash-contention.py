@@ -86,10 +86,43 @@ def expect_busy(session, expression):
 
 
 def expect_conflict(session, expression, reason):
-    session.run(f"""do $$ begin
-      begin perform {expression}; raise exception 'expected_native_conflict';
-      exception when raise_exception then if sqlerrm<>'{reason}' then raise; end if; end;
-    end $$;""")
+    try:
+        session.run(f"""do $$ begin
+          begin perform {expression}; raise exception 'expected_native_conflict';
+          exception
+            when lock_not_available then
+              raise notice 'unexpected relation locks: %', (select jsonb_agg(jsonb_build_object(
+                'pid',pid,'mode',mode,'granted',granted,'relation',relation::regclass::text,
+                'ownBackend',pid=pg_backend_pid(),'virtualTransaction',virtualtransaction))
+                from pg_locks where relation in ('public.cardforge_contributor_asset_submissions'::regclass,
+                  'public.cardforge_asset_registry'::regclass,'public.cardforge_studio_documents'::regclass));
+              raise;
+            when raise_exception then if sqlerrm<>'{reason}' then raise; end if;
+          end;
+        end $$;""")
+    except Exception:
+        # The local observer retains postgres statistics visibility; production
+        # service_role receives no new privileges. No query text/payload is read.
+        observer = None
+        try:
+            observer = Session()
+            observer.run('set default_transaction_read_only=on;')
+            print('Unexpected conflict backend snapshot:', observer.run("""select coalesce(jsonb_agg(jsonb_build_object(
+              'pid',a.pid,'backendType',a.backend_type,'state',a.state,'xactStart',a.xact_start,
+              'waitType',a.wait_event_type,'waitEvent',a.wait_event,'mode',l.mode,'granted',l.granted,
+              'relation',l.relation::regclass::text)), '[]'::jsonb)::text
+              from pg_locks l left join pg_stat_activity a on a.pid=l.pid
+              where l.relation in ('public.cardforge_contributor_asset_submissions'::regclass,
+                'public.cardforge_asset_registry'::regclass,'public.cardforge_studio_documents'::regclass);"""), flush=True)
+        except Exception as diagnostic_error:
+            print('Backend snapshot unavailable:', str(diagnostic_error), flush=True)
+        finally:
+            if observer is not None:
+                try:
+                    observer.close()
+                except Exception as diagnostic_error:
+                    print('Observer close failed:', str(diagnostic_error), flush=True)
+        raise
 
 
 a, b = Session(), Session()
@@ -563,6 +596,46 @@ try:
     b.run('select ' + explicit_move + ';')
     assert b.run(f"select catalog_trashed_at is not null from public.cardforge_pipeline_asset_lineages where id='{impact_lineage}';")[-1] == 't'
     print('PASS: consumer writer COMMIT invalidates old impact consent; fresh exact confirmation permits recoverable Move')
+
+
+    # A document update winning the row lock makes an older Output reference
+    # ineligible; the observer checks a real database blocking relationship.
+    output_doc = str(uuid.uuid4())
+    output_payload = {"version": 1, "userTemplates": [], "storedCards": [], "cardSets": []}
+    # Trusted synthetic interpretation, as in the other native Studio fixtures.
+    # The production trigger binds the exact payload digest and current revision.
+    output_request = {"contractVersion": 1, "sourcePayload": output_payload, "complete": True,
+                      "references": {"identities": [], "sources": []}, "opaqueReasons": []}
+    output_payload_sql = "'" + json.dumps(output_payload) + "'::jsonb"
+    output_request_sql = "'" + json.dumps(output_request) + "'::jsonb"
+    a.run(f"insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies) values('{output_doc}','output-race','Output race',{output_payload_sql},{output_request_sql});")
+    assert a.run(f"select public.cardforge_studio_dependency_binding_valid(document_payload,revision,catalog_dependencies) from public.cardforge_studio_documents where id='{output_doc}';")[-1] == 't'
+    output_body = json.dumps({'documentId': output_doc, 'revision': 1, 'setId': 'set', 'cardIds': ['card']})
+    a.run('begin;')
+    a.run(f"update public.cardforge_studio_documents set revision=2,catalog_dependencies={output_request_sql} where id='{output_doc}';")
+    assert a.run(f"select public.cardforge_studio_dependency_binding_valid(document_payload,revision,catalog_dependencies) from public.cardforge_studio_documents where id='{output_doc}';")[-1] == 't'
+    b.run("set statement_timeout='10s';")
+    peer_pid = b.run('select pg_backend_pid();')[-1]
+    result = queue.Queue()
+    def prepare_after_document_update():
+        try:
+            result.put(b.run("select coalesce(public.cardforge_prepare_studio_output_intent('output-race','" + output_doc + "',1,'" + output_body + "'::jsonb,'" + ('a' * 64) + "')::text,'stale');"))
+        except Exception as error:
+            result.put(error)
+    worker = threading.Thread(target=prepare_after_document_update)
+    worker.start()
+    deadline = time.monotonic() + 5
+    while a.run(f"select pg_backend_pid()=any(pg_blocking_pids({peer_pid}));")[-1] != 't':
+        assert worker.is_alive(), 'Output preparation completed without waiting for the document lock'
+        assert time.monotonic() < deadline, 'Output preparation did not wait for the document lock'
+        time.sleep(.02)
+    a.run('commit;')
+    worker.join(timeout=10)
+    assert not worker.is_alive()
+    observed = result.get(timeout=1)
+    assert not isinstance(observed, Exception) and observed[-1] == 'stale', str(observed)
+    assert a.run(f"select count(*) from public.cardforge_studio_output_intents where document_id='{output_doc}';")[-1] == '0'
+    print('PASS: Output preparation waits for document update and rejects its stale revision')
 
 
 finally:

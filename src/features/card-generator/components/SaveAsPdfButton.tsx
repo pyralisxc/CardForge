@@ -152,6 +152,7 @@ export function SaveAsPdfButton({
     });
 
     trackExportStarted('pdf', generatedDisplayCards.length);
+    let requestedChunks = 0;
     try {
       await beforeExport?.();
       for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
@@ -262,6 +263,7 @@ export function SaveAsPdfButton({
         const chunkSuffix = totalChunks > 1 ? `-part-${chunkIndex + 1}-of-${totalChunks}` : '';
         await beforeExport?.(); // Revalidate externally pinned specimens after rendering, before delivery.
         pdf.save(`${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}${chunkSuffix}.pdf`);
+        requestedChunks += 1;
 
         // Yield to the browser between chunk downloads to reduce UI stalls.
         await new Promise<void>((resolve) => {
@@ -273,13 +275,13 @@ export function SaveAsPdfButton({
 
       if (totalChunks > 1) {
         toast({
-          title: 'Chunked PDF export complete',
-          description: `${totalChunks} PDF files downloaded. Next step: merge files if you need a single document.`,
+          title: 'PDF downloads requested',
+          description: `CardForge requested ${totalChunks} downloads. Check your browser downloads to confirm each file.`,
         });
       } else {
         toast({
-          title: 'PDF saved',
-          description: `${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}.pdf downloaded${canExportClean ? '' : ' with the CardForge watermark'}.${isScreenPdf ? ' Each card face is a separate trimmed page, without print bleed or crop marks. It is a visual copy, not an editable CardForge project.' : exportMode === 'physical' ? ' Physical faces include CardForge format bleed and trim crop marks when enabled; this remains RGB raster PDF output, not PDF/X or a printer-specific ICC contract.' : ''}`,
+          title: 'PDF download requested',
+          description: `${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}.pdf requested${canExportClean ? '' : ' with the CardForge watermark'}. Check your browser downloads to confirm the file.${isScreenPdf ? ' Each card face is a separate trimmed page, without print bleed or crop marks. It is a visual copy, not an editable CardForge project.' : exportMode === 'physical' ? ' Physical faces include CardForge format bleed and trim crop marks when enabled; this remains RGB raster PDF output, not PDF/X or a printer-specific ICC contract.' : ''}`,
         });
       }
 
@@ -288,7 +290,9 @@ export function SaveAsPdfButton({
       console.error("Error generating PDF:", error);
       toast({
         title: 'PDF export failed',
-        description: withNextStep(extractErrorMessage(error), 'Retry export after reviewing card quality warnings and ensuring your browser allows multiple downloads.'),
+        description: requestedChunks > 0
+          ? `${requestedChunks} of ${totalChunks} PDF downloads were requested before the export stopped. Check your browser downloads before retrying. ${extractErrorMessage(error)}`
+          : withNextStep(extractErrorMessage(error), 'Review the source and quality warnings before retrying.'),
         variant: "destructive",
       });
     } finally {

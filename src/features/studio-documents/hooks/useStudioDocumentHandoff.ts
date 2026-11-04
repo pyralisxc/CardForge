@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { assertOutputContentUnchanged, outputIntentSchema, validateOutputIntentDocument, type OutputIntent } from '../outputIntent';
 
 import { applyProjectDocumentToState } from '@/features/project/client/package-document';
 import { applyProjectDocumentToWorkspace, normalizeStudioView, type StudioView, useProjectStore } from '@/features/project/client/workspace';
@@ -13,7 +14,6 @@ import {
 import { hydrateStudioDocumentAssets } from '../client/studioDocumentAssetHydration';
 import {
   acknowledgeStudioDocumentInstallation,
-  StudioDocumentInstallationAcknowledgementError,
 } from '../client/studioDocumentInstallation';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -24,6 +24,8 @@ interface ToastInput {
 }
 
 interface StudioDocumentHandoffOptions {
+  onOutputPrepared?: (intent: OutputIntent, reference: string) => void;
+  navigationKey?: string;
   isAccountLoading: boolean;
   isSignedIn: boolean;
   isStudioReady: boolean;
@@ -43,6 +45,8 @@ const parseRequestedRevision = (value: string | null): number | null => {
 const handoffKey = (documentId: string, revision: number | null) => `${documentId}:${revision ?? 'latest'}`;
 
 export function useStudioDocumentHandoff({
+  onOutputPrepared,
+  navigationKey,
   isAccountLoading,
   isSignedIn,
   isStudioReady,
@@ -60,13 +64,27 @@ export function useStudioDocumentHandoff({
     const url = new URL(window.location.href);
     const documentId = url.searchParams.get('document');
     const requestedRevision = parseRequestedRevision(url.searchParams.get('revision'));
+    const outputRef = url.searchParams.get('outputRef');
+    if (outputRef !== null && (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(outputRef) || !documentId || !requestedRevision)) {
+      toast({ title: 'Output not opened', description: 'A valid Output reference and exact document revision are required.', variant: 'destructive' }); return;
+    }
     if (!documentId) return;
-    const requestedKey = handoffKey(documentId, requestedRevision);
-    if (
-      handledRevisionKeyRef.current === requestedKey
-      || inFlightRevisionKeyRef.current?.key === requestedKey
-    ) return;
+    const requestedKey = `${handoffKey(documentId, requestedRevision)}:${outputRef ?? ''}`;
+    if (handledRevisionKeyRef.current === requestedKey || inFlightRevisionKeyRef.current?.key === requestedKey) return;
+    if (outputRef) {
+      try {
+        if (sessionStorage.getItem(`cardforge:output:${outputRef}`) !== null) {
+          toast({ title: 'Output needs preparation', description: 'This handoff was already opened on this tab. Prepare a new handoff to avoid replacing current work.', variant: 'destructive' }); return;
+        }
+        sessionStorage.setItem(`cardforge:output-probe:${outputRef}`, 'ok');
+        sessionStorage.removeItem(`cardforge:output-probe:${outputRef}`);
+      } catch { toast({ title: 'Output not opened', description: 'This browser cannot safely retain the handoff state.', variant: 'destructive' }); return; }
+    }
 
+    if (outputRef && !window.confirm('Opening this exact Output source may replace or update work on this device. Save any unsaved work first. Continue?')) {
+      handledRevisionKeyRef.current = requestedKey;
+      return;
+    }
     const controller = new AbortController();
     const attempt = { key: requestedKey, controller };
     inFlightRevisionKeyRef.current = attempt;
@@ -76,7 +94,10 @@ export function useStudioDocumentHandoff({
     void (async () => {
       let localAgentRevisionApplied = false;
       try {
-        const revisionQuery = requestedRevision === null ? '' : `?revision=${requestedRevision}`;
+        const params = new URLSearchParams();
+        if (requestedRevision !== null) params.set('revision', String(requestedRevision));
+        if (outputRef) params.set('outputRef', outputRef);
+        const revisionQuery = params.size ? `?${params}` : '';
         const response = await fetch(`/api/studio-documents/${encodeURIComponent(documentId)}${revisionQuery}`, {
           cache: 'no-store',
           credentials: 'same-origin',
@@ -87,13 +108,15 @@ export function useStudioDocumentHandoff({
         }
         const payload = await response.json() as {
           document?: {
+            id?: unknown;
             title?: unknown;
             creationSource?: StudioDocumentSource;
             revision?: unknown;
             document?: unknown;
           };
           assets?: StudioDocumentAssetDownload[];
-          watermark?: { required?: unknown };
+          watermark?: { required?: unknown; canExportClean?: unknown };
+          outputIntent?: unknown;
         };
         const actualRevision = Number.isInteger(payload.document?.revision)
           ? Number(payload.document?.revision)
@@ -106,11 +129,22 @@ export function useStudioDocumentHandoff({
           );
         }
 
+        let outputIntent: OutputIntent | undefined;
+        if (outputRef) {
+          const parsed = outputIntentSchema.safeParse(payload.outputIntent);
+          if (!parsed.success || payload.document?.id !== documentId || actualRevision !== requestedRevision || parsed.data.documentId !== documentId || parsed.data.revision !== requestedRevision || !['studio', 'gpt', 'import'].includes(String(payload.document?.creationSource)) || typeof payload.watermark?.required !== 'boolean' || typeof payload.watermark?.canExportClean !== 'boolean' || payload.watermark.required === payload.watermark.canExportClean || !Array.isArray(payload.assets)) throw new Error('The exact Output source response is invalid.');
+          outputIntent = parsed.data;
+          validateOutputIntentDocument(outputIntent, payload.document?.document);
+        }
         const storedDocument = normalizeStudioDocumentPayload(payload.document?.document);
         if (!storedDocument) throw new Error('The account document is not a valid CardForge project.');
-        const document = await hydrateStudioDocumentAssets(storedDocument, payload.assets ?? [], controller.signal);
+        const document = await hydrateStudioDocumentAssets(storedDocument, payload.assets ?? [], controller.signal, Boolean(outputIntent));
         controller.signal.throwIfAborted();
         const patch = applyProjectDocumentToState(document);
+
+        // Persist the attempt before any workspace transaction. A lost or failed
+        // receipt cannot authorize a later reload to overwrite local work again.
+        if (outputIntent && outputRef) sessionStorage.setItem(`cardforge:output:${outputRef}`, 'installation-attempted');
 
         if (payload.document?.creationSource === 'gpt') {
           const beforeState = initiatingState;
@@ -134,7 +168,7 @@ export function useStudioDocumentHandoff({
                 : template
             )),
           };
-          const adopted = await applyProjectDocumentToWorkspace(adoptionDocument, 'adopt', { expectedState: beforeState, signal: controller.signal });
+          const adopted = await applyProjectDocumentToWorkspace(adoptionDocument, 'adopt', { expectedState: beforeState, signal: controller.signal, ...(outputIntent ? { validatePreparedDocument: (prepared) => assertOutputContentUnchanged(outputIntent!, adoptionDocument, prepared) } : {}) });
           if (cancelled) return;
 
           const cardResult = {
@@ -182,9 +216,12 @@ export function useStudioDocumentHandoff({
           }
           if (cancelled) return;
 
-          url.searchParams.delete('document');
-          url.searchParams.delete('revision');
-          window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+          if (outputIntent && outputRef) { sessionStorage.setItem(`cardforge:output:${outputRef}`, 'applied'); onOutputPrepared?.(outputIntent, outputRef); }
+          else {
+            url.searchParams.delete('document');
+            url.searchParams.delete('revision');
+            window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+          }
           const revisionLabel = actualRevision ? ` revision ${actualRevision}` : '';
           if (cardResult.successCount > 0) {
             toast({
@@ -212,14 +249,19 @@ export function useStudioDocumentHandoff({
         const opened = await applyProjectDocumentToWorkspace(document, 'replace', {
           expectedState: initiatingState,
           signal: controller.signal,
+          ...(outputIntent ? { validatePreparedDocument: (prepared) => assertOutputContentUnchanged(outputIntent!, document, prepared) } : {}),
         });
         if (cancelled) return;
+        localAgentRevisionApplied = true;
         setStudioView('template');
 
         handledRevisionKeyRef.current = requestedKey;
-        url.searchParams.delete('document');
-        url.searchParams.delete('revision');
-        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+        if (outputIntent && outputRef) { sessionStorage.setItem(`cardforge:output:${outputRef}`, 'applied'); onOutputPrepared?.(outputIntent, outputRef); }
+        else {
+          url.searchParams.delete('document');
+          url.searchParams.delete('revision');
+          window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+        }
         toast({
           title: 'Editable project opened',
           description: payload.watermark?.required === true
@@ -232,7 +274,7 @@ export function useStudioDocumentHandoff({
           toast({
             title: localAgentRevisionApplied ? 'Revision applied locally' : 'Draft not opened',
             description: localAgentRevisionApplied
-              ? `${error instanceof StudioDocumentInstallationAcknowledgementError ? error.message : 'CardForge could not confirm this locally applied revision with the server.'} The revision link remains in the address bar; reload it to retry confirmation.`
+              ? `${error instanceof Error ? error.message : 'CardForge could not complete the handoff.'} The source was applied locally; review the revision link before retrying.`
               : error instanceof Error ? error.message : 'Unable to open the Studio draft.',
             variant: 'destructive',
           });
@@ -254,9 +296,15 @@ export function useStudioDocumentHandoff({
     isSignedIn,
     isStudioReady,
     onInstalled,
+    onOutputPrepared,
+    navigationKey,
     setStudioView,
     setSelectedTemplateId,
     setTemplateEditorSelectedTemplateId,
     toast,
   ]);
+  return useCallback(() => {
+    inFlightRevisionKeyRef.current?.controller.abort();
+    inFlightRevisionKeyRef.current = null;
+  }, []);
 }

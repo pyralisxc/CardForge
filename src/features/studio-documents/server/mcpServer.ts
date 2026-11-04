@@ -1,3 +1,4 @@
+import { registerOutputHandoffTools } from './mcpOutputHandoffTools';
 import { registerCampaignDraftTools } from './mcpCampaignDraftTools';
 import { registerContributorDraftTools } from './mcpContributorDraftTools';
 import { registerPipelineTools } from './mcpPipelineTools';
@@ -28,6 +29,7 @@ export const cardForgeMcpHandler = createMcpHandler(
       toolError: createMcpToolError,
     };
     registerAgentTemplateTools(options);
+    registerOutputHandoffTools(options);
     registerCatalogTrashTools(options);
     registerRevisionDeletionTools(options);
     registerRevisionRecoveryTools(options);

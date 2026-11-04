@@ -287,14 +287,36 @@ const collectFontMimeTypes = (value: unknown, output = new Map<string, ProjectFo
   return output;
 };
 
+// Historical revisions retain objects in the same prefix. Inspect every page
+// until the exact current references are found or the listing is exhausted.
+const listReferencedMetadata = async (bucket: string, prefix: string, names: string[]) => {
+  const remaining = new Set(names);
+  const found = new Map<string, { name: string; metadata?: unknown }>();
+  const pageSize = 256;
+  let previousLast: string | undefined;
+  for (let offset = 0; remaining.size > 0; offset += pageSize) {
+    const { data, error } = await requireStore().storage.from(bucket).list(prefix, { limit: pageSize, offset, sortBy: { column: 'name', order: 'asc' } });
+    if (error || !Array.isArray(data) || data.some((item) => !item || typeof item.name !== 'string')) {
+      throw new StudioDocumentStoreError('Private Studio asset metadata listing is unavailable or incomplete.', 503);
+    }
+    if (data.length > 0 && previousLast !== undefined && data[0].name <= previousLast) throw new StudioDocumentStoreError('Private Studio asset metadata listing did not advance.', 503);
+    previousLast = data.at(-1)?.name;
+    for (const item of data) if (remaining.delete(item.name)) found.set(item.name, item);
+    if (data.length < pageSize) break;
+  }
+  return found;
+};
+
 export const getStudioDocumentAssetDownloads = async ({
   ownerUserId,
   documentId,
   value,
+  requireVerifiedSize = false,
 }: {
   ownerUserId: string;
   documentId: string;
   value: unknown;
+  requireVerifiedSize?: boolean;
 }): Promise<StudioDocumentAssetDownload[]> => {
   const imageIds = collectStudioDocumentAssetIds(value);
   const fontIds = collectStudioDocumentFontIds(value);
@@ -302,7 +324,7 @@ export const getStudioDocumentAssetDownloads = async ({
   const prefix = storagePrefix(ownerUserId, documentId);
   const imagePaths = imageIds.map((id) => imageStoragePath(ownerUserId, documentId, id));
   const fontPaths = fontIds.map((id) => fontStoragePath(ownerUserId, documentId, id));
-  const [imageSigned, fontSigned, fontList] = await Promise.all([
+  const [imageSigned, fontSigned, fontList, imageList] = await Promise.all([
     imagePaths.length > 0
       ? requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).createSignedUrls(imagePaths, 15 * 60)
       : Promise.resolve({ data: [], error: null }),
@@ -310,17 +332,20 @@ export const getStudioDocumentAssetDownloads = async ({
       ? requireStore().storage.from(STUDIO_DOCUMENT_FONT_BUCKET).createSignedUrls(fontPaths, 15 * 60)
       : Promise.resolve({ data: [], error: null }),
     fontIds.length > 0
-      ? requireStore().storage.from(STUDIO_DOCUMENT_FONT_BUCKET).list(prefix, { limit: MAX_STUDIO_DOCUMENT_FONTS })
-      : Promise.resolve({ data: [], error: null }),
+      ? listReferencedMetadata(STUDIO_DOCUMENT_FONT_BUCKET, prefix, fontIds)
+      : Promise.resolve(new Map()),
+    requireVerifiedSize && imageIds.length > 0
+      ? listReferencedMetadata(STUDIO_DOCUMENT_ASSET_BUCKET, prefix, imageIds.map((id) => `${id}.webp`))
+      : Promise.resolve(new Map()),
   ]);
-  if (imageSigned.error || fontSigned.error || fontList.error) {
+  if (imageSigned.error || fontSigned.error) {
     throw new StudioDocumentStoreError('Unable to authorize private Studio asset downloads.');
   }
   const imageUrlByPath = new Map((imageSigned.data ?? []).map((item) => [item.path, item.signedUrl]));
   const fontUrlByPath = new Map((fontSigned.data ?? []).map((item) => [item.path, item.signedUrl]));
   const mimeFromDocument = collectFontMimeTypes(value);
   const mimeFromStorage = new Map<string, string>();
-  (fontList.data ?? []).forEach((item) => {
+  fontList.forEach((item) => {
     const mimeType = readObjectMimeType(item);
     if (item.name && mimeType) mimeFromStorage.set(item.name, mimeType);
   });
@@ -328,7 +353,9 @@ export const getStudioDocumentAssetDownloads = async ({
   const imageDownloads = imageIds.map((id): StudioDocumentAssetDownload => {
     const signedUrl = imageUrlByPath.get(imageStoragePath(ownerUserId, documentId, id));
     if (!signedUrl) throw new StudioDocumentStoreError('One of this document’s private artwork files is unavailable.');
-    return { id, kind: 'image', mimeType: 'image/webp', size: null, signedUrl };
+    const size = readObjectSize(imageList.get(`${id}.webp`));
+    if (requireVerifiedSize && size === null) throw new StudioDocumentStoreError('Exact private artwork metadata is unavailable.', 503);
+    return { id, kind: 'image', mimeType: 'image/webp', size, signedUrl };
   });
   const fontDownloads = fontIds.map((id): StudioDocumentAssetDownload => {
     const signedUrl = fontUrlByPath.get(fontStoragePath(ownerUserId, documentId, id));
@@ -336,7 +363,9 @@ export const getStudioDocumentAssetDownloads = async ({
     if (!signedUrl || !isProjectFontMimeType(mimeType)) {
       throw new StudioDocumentStoreError('One of this document’s private font files is unavailable or has an unexpected format.');
     }
-    return { id, kind: 'font', mimeType, size: null, signedUrl };
+    const size = readObjectSize(fontList.get(id));
+    if (requireVerifiedSize && size === null) throw new StudioDocumentStoreError('Exact private font metadata is unavailable.', 503);
+    return { id, kind: 'font', mimeType, size, signedUrl };
   });
   return [...imageDownloads, ...fontDownloads];
 };
