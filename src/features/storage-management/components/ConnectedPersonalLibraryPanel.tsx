@@ -140,6 +140,10 @@ export function ConnectedPersonalLibraryPanel({
         <p>{attempt.item.displayName}: {attempt.message}</p>
         <Button type="button" disabled={Boolean(busyAction)} onClick={() => void readAttempt()}>Read exact index entry</Button>
         {attempt.present ? <Button type="button" disabled={Boolean(busyAction)} onClick={() => setAttempt(null)}>Allow a new removal confirmation</Button> : null}
+        {attempt.present === false ? <Button type="button" disabled={Boolean(busyAction)} onClick={() => {
+          setRemovalMessage(`${attempt.item.displayName}: ${attempt.message}`);
+          setAttempt(null);
+        }}>Continue with other items</Button> : null}
       </div> : null}
       {!isSignedIn ? (
         <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">

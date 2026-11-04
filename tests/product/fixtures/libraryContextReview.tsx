@@ -153,22 +153,26 @@ window.fetch = async (input, init) => {
   if (params.has('personalItemProof') && requestUrl.startsWith('/api/personal-library')) {
     const id = '10000000-0000-4000-8000-000000000001';
     const item = { id, provider: 'google-drive', providerFileId: 'synthetic-file', providerRevision: 'v1', displayName: 'Synthetic indexed artwork', mimeType: 'image/png', role: 'artwork', byteSize: 100, providerModifiedAt: '2026-11-02T00:00:00Z', providerWebViewLink: null, contentHash: null, lastVerifiedAt: '2026-11-02T00:00:00Z', createdAt: '2026-11-02T00:00:00Z', updatedAt: '2026-11-02T00:00:00Z' };
+    const mode = params.get('personalItemProof') ?? '';
+    const second = { ...item, id: '20000000-0000-4000-8000-000000000002', providerFileId: 'second-file', displayName: 'Second indexed artwork' };
     proof.libraryRequests.push({ url: requestUrl, method: requestMethod, body: String(init?.body ?? '') });
     if (requestMethod === 'DELETE') {
       campaignDraftWritten = true;
+      if (mode === 'twoAbsentAck') return Response.json({ receipt: { itemId: requestUrl.split('/').at(-1), outcome: 'absent', committed: false, retryable: false, message: 'The exact index entry is already absent. This request did not remove it.' } }, { status: 404 });
       if (params.get('personalItemProof') === 'deferred') await new Promise<void>(resolve => { proof.releasePersonalRemoval = resolve; });
-      if (params.get('personalItemProof') === 'uncertain' || params.get('personalItemProof') === 'absent' || params.get('personalItemProof') === 'readSequence') throw new Error('Synthetic lost DELETE response');
+      if (mode === 'uncertain' || mode === 'absent' || mode === 'readSequence' || mode.startsWith('twoAbsent')) throw new Error('Synthetic lost DELETE response');
       return new Response(null, { status: 204 });
     }
+    if (requestUrl.endsWith(id) && mode === 'twoAbsentUnavailable' && ++personalExactReads === 1) return Response.json({ error: { message: 'Synthetic exact read unavailable' } }, { status: 503 });
     if (requestUrl.endsWith(id) && params.get('personalItemProof') === 'readSequence' && ++personalExactReads > 1) {
       await new Promise<void>(resolve => { proof.releasePersonalRead = resolve; });
       return Response.json({ error: { message: 'Synthetic exact read unavailable' } }, { status: 503 });
     }
-    if (requestUrl.endsWith(id)) return Response.json({ itemId: id, item: params.get('personalItemProof') === 'absent' ? null : { itemId: id, provider: item.provider, displayName: item.displayName, mimeType: item.mimeType, role: item.role, byteSize: item.byteSize, providerRevision: item.providerRevision, contentHash: null } });
-    if (campaignDraftWritten && params.get('personalItemProof') === 'refreshFail') return Response.json({ error: { message: 'Synthetic index refresh failed' } }, { status: 503 });
+    if (requestUrl.endsWith(id)) return Response.json({ itemId: id, item: mode === 'absent' || mode.startsWith('twoAbsent') ? null : { itemId: id, provider: item.provider, displayName: item.displayName, mimeType: item.mimeType, role: item.role, byteSize: item.byteSize, providerRevision: item.providerRevision, contentHash: null } });
+    if (campaignDraftWritten && (mode === 'refreshFail' || mode === 'twoAbsentRefreshFail')) return Response.json({ error: { message: 'Synthetic index refresh failed' } }, { status: 503 });
     if (params.get('personalItemProof') === 'listMalformed') return Response.json({ items: null, count: 0, limit: 2000 });
     if (params.get('personalItemProof') === 'listEmpty') return Response.json({ items: [], count: 0, limit: 2000 });
-    return Response.json({ items: [item], count: 1, limit: 2000 }); // Deliberately stale list after confirmed commit.
+    return Response.json({ items: mode.startsWith('twoAbsent') ? [item, second] : [item], count: mode.startsWith('twoAbsent') ? 2 : 1, limit: 2000 }); // Deliberately stale list after confirmed commit.
   }
 
   if (params.get('campaignDraftReceipt') === 'libraryRefresh' && requestUrl === '/api/marketing-content') {
