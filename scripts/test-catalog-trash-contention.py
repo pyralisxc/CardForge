@@ -86,10 +86,43 @@ def expect_busy(session, expression):
 
 
 def expect_conflict(session, expression, reason):
-    session.run(f"""do $$ begin
-      begin perform {expression}; raise exception 'expected_native_conflict';
-      exception when raise_exception then if sqlerrm<>'{reason}' then raise; end if; end;
-    end $$;""")
+    try:
+        session.run(f"""do $$ begin
+          begin perform {expression}; raise exception 'expected_native_conflict';
+          exception
+            when lock_not_available then
+              raise notice 'unexpected relation locks: %', (select jsonb_agg(jsonb_build_object(
+                'pid',pid,'mode',mode,'granted',granted,'relation',relation::regclass::text,
+                'ownBackend',pid=pg_backend_pid(),'virtualTransaction',virtualtransaction))
+                from pg_locks where relation in ('public.cardforge_contributor_asset_submissions'::regclass,
+                  'public.cardforge_asset_registry'::regclass,'public.cardforge_studio_documents'::regclass));
+              raise;
+            when raise_exception then if sqlerrm<>'{reason}' then raise; end if;
+          end;
+        end $$;""")
+    except Exception:
+        # The local observer retains postgres statistics visibility; production
+        # service_role receives no new privileges. No query text/payload is read.
+        observer = None
+        try:
+            observer = Session()
+            observer.run('set default_transaction_read_only=on;')
+            print('Unexpected conflict backend snapshot:', observer.run("""select coalesce(jsonb_agg(jsonb_build_object(
+              'pid',a.pid,'backendType',a.backend_type,'state',a.state,'xactStart',a.xact_start,
+              'waitType',a.wait_event_type,'waitEvent',a.wait_event,'mode',l.mode,'granted',l.granted,
+              'relation',l.relation::regclass::text)), '[]'::jsonb)::text
+              from pg_locks l left join pg_stat_activity a on a.pid=l.pid
+              where l.relation in ('public.cardforge_contributor_asset_submissions'::regclass,
+                'public.cardforge_asset_registry'::regclass,'public.cardforge_studio_documents'::regclass);"""), flush=True)
+        except Exception as diagnostic_error:
+            print('Backend snapshot unavailable:', str(diagnostic_error), flush=True)
+        finally:
+            if observer is not None:
+                try:
+                    observer.close()
+                except Exception as diagnostic_error:
+                    print('Observer close failed:', str(diagnostic_error), flush=True)
+        raise
 
 
 a, b = Session(), Session()
