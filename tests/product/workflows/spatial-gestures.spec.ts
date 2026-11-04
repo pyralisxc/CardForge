@@ -85,8 +85,69 @@ test.describe('spatial touch workspace', () => {
     const frameBox = (await workspace.locator('[data-focused-artifact-frame]').boundingBox())!;
     const backdropPoint = { x: stageBox.x + 8, y: stageBox.y + 8 };
     expect(backdropPoint.x < frameBox.x || backdropPoint.y < frameBox.y).toBe(true);
-    await stage.tap({ position: { x: backdropPoint.x - stageBox.x, y: backdropPoint.y - stageBox.y } });
-    await expect(workspace).toHaveCount(0);
+    // Keep the real tap and exit assertion; emit bounded synthetic diagnostics
+    // even on failure so CI can distinguish interception from gesture suppression.
+    await page.evaluate((point) => {
+      const stageNode = document.querySelector('[data-focused-artifact-workspace] [data-desk-artifact-stage]')!;
+      const workspaceNode = stageNode.closest('[data-focused-artifact-workspace]')!;
+      const describe = (node: EventTarget | null) => node instanceof Element ? {
+        tag: node.tagName, id: node.id, role: node.getAttribute('role'),
+        label: node.getAttribute('aria-label'),
+        stage: node.hasAttribute('data-desk-artifact-stage'),
+        frame: node.hasAttribute('data-focused-artifact-frame'),
+        artifact: node.getAttribute('data-artifact-id'),
+      } : null;
+      const bounds = (node: Element | null) => node?.getBoundingClientRect().toJSON() ?? null;
+      const events: unknown[] = [];
+      const report = {
+        point,
+        viewport: { width: innerWidth, height: innerHeight, scale: visualViewport?.scale },
+        stage: bounds(stageNode),
+        frame: bounds(workspaceNode.querySelector('[data-focused-artifact-frame]')),
+        editing: workspaceNode.getAttribute('data-editing'),
+        autoFit: stageNode.getAttribute('data-auto-fit'),
+        hitStack: document.elementsFromPoint(point.x, point.y).slice(0, 8).map(describe),
+        browseTriggerState: workspaceNode.querySelector('[data-artifact-browse]')?.getAttribute('data-state'),
+        browsePopover: Array.from(document.querySelectorAll('[role="dialog"][aria-label="Browse this Set"]')).map(node => ({
+          state: node.getAttribute('data-state'), bounds: bounds(node),
+        })),
+        activeElement: describe(document.activeElement),
+        events,
+      };
+      const cleanups: Array<() => void> = [];
+      for (const type of ['pointerdown', 'gotpointercapture', 'pointermove', 'pointerup', 'pointercancel', 'lostpointercapture', 'click']) {
+        for (const capture of [true, false]) {
+          const listener = (event: Event) => {
+            if (events.length >= 60) return;
+            const pointer = event instanceof PointerEvent ? event : null;
+            events.push({
+              type, capture, defaultPrevented: event.defaultPrevented,
+              target: describe(event.target),
+              path: event.composedPath().slice(0, 10).map(describe),
+              pointerId: pointer?.pointerId, pointerType: pointer?.pointerType,
+              isPrimary: pointer?.isPrimary, x: pointer?.clientX, y: pointer?.clientY,
+              capturedByStage: pointer ? stageNode.hasPointerCapture(pointer.pointerId) : undefined,
+              detail: event instanceof MouseEvent ? event.detail : undefined,
+              workspaceConnected: workspaceNode.isConnected,
+            });
+          };
+          document.addEventListener(type, listener, capture);
+          cleanups.push(() => document.removeEventListener(type, listener, capture));
+        }
+      }
+      (window as unknown as { backdropDiagnostic: () => unknown }).backdropDiagnostic = () => {
+        cleanups.forEach(cleanup => cleanup());
+        return { ...report, workspaceConnectedAfterTap: workspaceNode.isConnected };
+      };
+    }, backdropPoint);
+    try {
+      await stage.tap({ position: { x: backdropPoint.x - stageBox.x, y: backdropPoint.y - stageBox.y } });
+      await expect(workspace).toHaveCount(0);
+    } finally {
+      console.log('FOCUSED_ARTIFACT_BACKDROP_DIAGNOSTIC', JSON.stringify(await page.evaluate(() => (
+        window as unknown as { backdropDiagnostic: () => unknown }
+      ).backdropDiagnostic())));
+    }
     await page.screenshot({ path: testInfo.outputPath('focused-artifact-browse.png') });
   });
 
