@@ -35,13 +35,13 @@ test('explicit confirmation imports ordered exact source and does not request a 
  expect(faces).toHaveLength(3); for (const [, value] of faces) { const image = value as PDFRawStream; expect(String(image.dict.get(PDFName.of('Width')))).toBe('744'); expect(String(image.dict.get(PDFName.of('Height')))).toBe('1040'); }
  expect(state.requests()).toBe(3);
 });
-test('cancel leaves workspace untouched and concurrent local work aborts import', async ({ page }) => {
+test('@golden cancel leaves workspace untouched and concurrent local work aborts import', async ({ page }) => {
  const cancelled = await mount(page, false, false, 0, '2', 0, false, 'studio', true); await expect(page.getByTestId('selected')).toHaveText(''); expect(cancelled.requests()).toBe(0); expect(await page.evaluate(() => (window as unknown as { localCardIds: () => string[] }).localCardIds())).toContain('existing-local');
  await page.goto('about:blank'); const pending = await mount(page, true, true); await expect.poll(() => pending.requests()).toBe(1); await page.evaluate(() => (window as unknown as { changeWorkspace: () => void }).changeWorkspace()); pending.release();
  await expect(page.getByTestId('message')).toContainText('workspace changed'); await expect(page.getByTestId('selected')).toHaveText('');
 });
 
-test('stale source blocks PDF download before rendering', async ({ page }) => {
+test('@golden stale source blocks PDF download before rendering', async ({ page }) => {
  let downloads = 0; page.on('download', () => downloads++); const state = await mount(page, true, false, 1);
  await expect(page.getByTestId('selected')).toHaveText('scale-card-2,scale-card-1');
  await page.getByRole('button', { name: /PDF/i }).click();
@@ -49,7 +49,7 @@ test('stale source blocks PDF download before rendering', async ({ page }) => {
  expect(state.requests()).toBe(2); expect(downloads).toBe(0);
 });
 
-test('a source change during render blocks the download request', async ({ page }) => {
+test('@golden a source change during render blocks the download request', async ({ page }) => {
  let downloads = 0; page.on('download', () => downloads++); const state = await mount(page, true, false, 2);
  await expect(page.getByTestId('selected')).toHaveText('scale-card-2,scale-card-1');
  await page.getByRole('button', { name: /PDF/i }).click();
@@ -81,7 +81,7 @@ test('GPT adoption accepts its known metadata normalization', async ({ page }) =
  await expect(page.getByTestId('selected')).toHaveText('scale-card-2,scale-card-1'); expect(state.requests()).toBe(1);
 });
 
-test('lost installation acknowledgement cannot cause reload to reimport local work', async ({ page }) => {
+test('@golden lost installation acknowledgement cannot cause reload to reimport local work', async ({ page }) => {
  const state = await mount(page, true, false, 0, '2', 0, false, 'gpt', false, null, true);
  await expect(page.getByTestId('message')).toContainText('applied locally');
  expect(state.requests()).toBe(1);
@@ -114,7 +114,7 @@ for (const fault of ['wrong-id', 'source', 'watermark'] as const) test(`malforme
  await expect(page.getByTestId('selected')).toHaveText('');
 });
 
-test('actual Workbench applies exact selection and settings before the explicit PDF action', async ({ page }) => {
+test('@golden actual Workbench applies exact selection and settings before the explicit PDF action', async ({ page }) => {
  let sourceRequests = 0; let downloads = 0; let stale = false; page.on('download', () => downloads++); page.on('dialog', dialog => dialog.accept());
  page.on('pageerror', error => console.log('WORKBENCH_ERROR', error.message));
  await page.route('**/*', async (route) => {
