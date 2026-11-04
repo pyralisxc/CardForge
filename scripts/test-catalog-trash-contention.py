@@ -601,10 +601,19 @@ try:
     # A document update winning the row lock makes an older Output reference
     # ineligible; the observer checks a real database blocking relationship.
     output_doc = str(uuid.uuid4())
-    a.run(f"insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload) values('{output_doc}','output-race','Output race','{{\"version\":1,\"userTemplates\":[],\"storedCards\":[]}}'::jsonb);")
+    output_payload = {"version": 1, "userTemplates": [], "storedCards": [], "cardSets": []}
+    # Trusted synthetic interpretation, as in the other native Studio fixtures.
+    # The production trigger binds the exact payload digest and current revision.
+    output_request = {"contractVersion": 1, "sourcePayload": output_payload, "complete": True,
+                      "references": {"identities": [], "sources": []}, "opaqueReasons": []}
+    output_payload_sql = "'" + json.dumps(output_payload) + "'::jsonb"
+    output_request_sql = "'" + json.dumps(output_request) + "'::jsonb"
+    a.run(f"insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload,catalog_dependencies) values('{output_doc}','output-race','Output race',{output_payload_sql},{output_request_sql});")
+    assert a.run(f"select public.cardforge_studio_dependency_binding_valid(document_payload,revision,catalog_dependencies) from public.cardforge_studio_documents where id='{output_doc}';")[-1] == 't'
     output_body = json.dumps({'documentId': output_doc, 'revision': 1, 'setId': 'set', 'cardIds': ['card']})
     a.run('begin;')
-    a.run(f"update public.cardforge_studio_documents set revision=2 where id='{output_doc}';")
+    a.run(f"update public.cardforge_studio_documents set revision=2,catalog_dependencies={output_request_sql} where id='{output_doc}';")
+    assert a.run(f"select public.cardforge_studio_dependency_binding_valid(document_payload,revision,catalog_dependencies) from public.cardforge_studio_documents where id='{output_doc}';")[-1] == 't'
     b.run("set statement_timeout='10s';")
     peer_pid = b.run('select pg_backend_pid();')[-1]
     result = queue.Queue()
