@@ -419,17 +419,27 @@ export const voteOnPipelineSubmission = async ({
   voteValue,
   currentContributorIds = [contributorId],
   ownerContributorId,
+  invalidateCatalog,
 }: {
   submissionId: string;
   contributorId: string;
   voteValue: unknown;
   currentContributorIds?: string[];
   ownerContributorId?: string | null;
-}): Promise<PipelineProgramView> => {
-  await recordPipelineSubmissionVote({ submissionId, contributorId, voteValue, ownerContributorId });
-  return getPipelineProgramView(contributorId, currentContributorIds, {
-    includeRegistryRecipePayloads: Boolean(ownerContributorId),
-  });
+  invalidateCatalog: () => boolean;
+}) => {
+  const nextAction = 'Read exact engagement before any further write; never retry an uncertain mutation automatically.';
+  try { await recordPipelineSubmissionVote({ submissionId, contributorId, voteValue, ownerContributorId }); }
+  catch (error) {
+    if ((error instanceof PipelineStoreError || error instanceof PipelineRegistryCommandError) && error.status < 500) throw error;
+    return { program: null, receipt: { submissionId, outcome: 'uncertain' as const, warnings: ['vote_outcome_unconfirmed'], nextAction } };
+  }
+  const warnings: string[] = [];
+  try { if (!invalidateCatalog()) warnings.push('catalog_invalidation_unavailable'); } catch { warnings.push('catalog_invalidation_unavailable'); }
+  let program: PipelineProgramView | null = null;
+  try { program = await getPipelineProgramView(contributorId, currentContributorIds, { includeRegistryRecipePayloads: Boolean(ownerContributorId) }); }
+  catch { warnings.push('program_refresh_unavailable'); }
+  return { program, receipt: { submissionId, outcome: 'committed' as const, warnings, nextAction } };
 };
 
 export const updatePipelineSubmissionDetails = async ({

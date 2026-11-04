@@ -7,7 +7,7 @@ const bundle = buildSync({ entryPoints: ['tests/product/fixtures/pipelineSourceR
 const first = '10000000-0000-4000-8000-000000000001';
 const second = '10000000-0000-4000-8000-000000000002';
 const lineageId = '20000000-0000-4000-8000-000000000001';
-async function mount(page: Page, options: { blocked?: boolean; failure?: boolean; delayed?: boolean; legacyProjection?: boolean } = {}) {
+async function mount(page: Page, options: { blocked?: boolean; failure?: boolean; delayed?: boolean; legacyProjection?: boolean; voteOutcome?: 'committed' | 'uncertain' } = {}) {
   page.on('pageerror', error => console.error('SOURCE_FIXTURE_ERROR', error.message));
   const rawFonts = [
     { asset_id: 'Heading / Regular', name: 'Governed Heading', url: 'https://example.invalid/heading.woff2', metadata: {} },
@@ -26,7 +26,7 @@ async function mount(page: Page, options: { blocked?: boolean; failure?: boolean
       const body = route.request().postDataJSON(); mutations.push({ path: url.pathname, body });
       if (url.pathname.endsWith('/vote')) { values.vote = body.voteValue; values.positive += body.voteValue === 'positive' ? 1 : 0; values.negative += body.voteValue === 'negative' ? 1 : 0; }
       else { values.hearted = body.hearted; values.heart += body.hearted ? 1 : -1; }
-      return route.fulfill({ json: { confirmed: true } });
+      return route.fulfill({ json: url.pathname.endsWith('/vote') ? { receipt: { submissionId: url.pathname.split('/').at(-2), outcome: options.voteOutcome ?? 'committed', warnings: options.voteOutcome ? ['program_refresh_unavailable'] : [] } } : { confirmed: true } });
     }
     if (url.pathname === '/api/personal-library') return route.fulfill({ json: { items: [] } });
     if (url.pathname === '/api/catalog') return route.fulfill({ json: { sets: { items: [{ id: 'starter-one', submissionId: first, name: 'Governed starter', description: 'Independent Set copy', revision: 1, packageUrl: 'https://example.invalid/starter.cardforge' }] } } });
@@ -37,7 +37,7 @@ async function mount(page: Page, options: { blocked?: boolean; failure?: boolean
     if (url.pathname === '/api/catalog/studio-bootstrap') return route.fulfill({ json: { templates: { defaults: [{ id: 'bootstrap-original', templateRevision: 1, templateRevisionId: 'published-r1' }] }, styles: { styles: [material] }, fonts: { fonts: governedFonts }, ...(options.legacyProjection ? {} : { pipeline: [{ assetId: 'bootstrap-original', submissionId: first }, { assetId: material.id, submissionId: first }, ...rawFonts.map((row, index) => ({ assetId: row.asset_id, submissionId: index === 0 ? second : first, fontValue: governedFonts[index].value }))] }) } });
     if (url.pathname === '/api/pipeline/engagement') {
       const id = url.searchParams.get('submissionId')!; reads.push(id);
-      if (options.failure) return route.fulfill({ status: 503, json: { error: { message: 'Source service unavailable', code: 'pipeline_reaction_unavailable', kind: 'unavailable' } } });
+      if (options.failure || (options.voteOutcome && mutations.length)) return route.fulfill({ status: 503, json: { error: { message: 'Source service unavailable', code: 'pipeline_reaction_unavailable', kind: 'unavailable' } } });
       if (options.delayed && id === first) await new Promise(resolve => setTimeout(resolve, 500));
       return route.fulfill({ json: { submissionId: id, lineageId, name: id === first ? 'Original revision one' : 'Original revision two', revisionNumber: id === first ? 1 : 2, status: 'published', trashedAt: null, purgeState: null, positiveVotes: values.positive, negativeVotes: values.negative, currentUserVote: values.vote, voteIssue: options.blocked ? 'Contributor review access required' : null, heart: { count: values.heart, hearted: values.hearted }, heartIssue: options.blocked ? 'Sign in to heart Pipeline work.' : null } });
     }
@@ -155,3 +155,5 @@ test('@golden a pre-projection bootstrap reports unavailable without declaring t
   await expect(page.getByRole('heading', { name: 'Personal Template · not shared', exact: true })).toBeVisible();
   expect(evidence.mutations).toEqual([]);
 });
+
+for(const outcome of ['committed','uncertain'] as const)test(`@golden source feedback ${outcome} with unavailable readback never replays vote`,async({page})=>{const evidence=await mount(page,{voteOutcome:outcome});const source=page.getByLabel('Studio original');await expect(source.getByText(/Original revision one/)).toBeVisible();await source.getByRole('button',{name:'Like 2',exact:true}).click();await expect(source.getByRole('alert').filter({hasText:outcome==='committed'?'Vote committed':'Vote outcome is unconfirmed'})).toBeVisible();await expect(source.getByText(/Original revision one/)).toBeVisible();if(outcome==='uncertain')await expect(source.getByRole('button',{name:'Like 2',exact:true})).toBeDisabled();expect(evidence.mutations).toHaveLength(1);});

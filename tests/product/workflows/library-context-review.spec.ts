@@ -1301,3 +1301,19 @@ for (const mode of ['success','activity','readback','uncertain','unstructured','
   expect(writes).toHaveLength(1); expect(JSON.parse(writes[0].body!)).toEqual({ documentId: '8856f600-6c95-4835-8733-3ecb0ceb951d', expectedRevision: 7 });
   expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
 });
+
+for(const mode of ['healthy','refresh','invalidation','unknown','rejected'])test(`@golden actual Library vote receipt ${mode} preserves exact outcome`,async({page})=>{
+ await mount(page,`?queueActual=1&scope=pipeline&voteReceipt=${mode}`);
+ await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
+ await page.getByLabel('pipeline Library objects').locator('article').first().click();
+ const vote=page.getByRole('button',{name:/Vote up on/}).first();await expect(vote).toBeEnabled();await vote.click();
+ if(mode==='unknown'){
+  await expect(page.getByText('Vote not confirmed',{exact:true})).toBeVisible();
+  await vote.click();
+  await page.getByRole('button',{name:'Read exact vote engagement'}).click();
+  await expect(page.getByRole('button',{name:'Allow a new explicit vote'})).toBeVisible();
+ }else await expect(page.getByText(mode==='rejected'?'Vote rejected':'Vote recorded',{exact:true})).toBeVisible();
+ if(mode==='refresh'||mode==='invalidation')await expect(page.getByRole('region',{name:'Notifications (F8)'}).getByText(/vote committed; refresh is incomplete/)).toBeVisible();
+ const writes=await page.evaluate(()=>(window as unknown as {libraryRequests:{url:string;method:string}[]}).libraryRequests.filter(r=>r.method==='POST'&&r.url.endsWith('/vote')));expect(writes).toHaveLength(1);
+ await expect(page.getByLabel('pipeline Library objects').locator('article').first()).toBeVisible();
+});

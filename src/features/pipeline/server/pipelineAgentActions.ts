@@ -71,7 +71,7 @@ async function limit(action: 'contributor-vote' | 'pipeline-heart', userId: stri
 }
 async function afterCommit(submissionId: string, lineageId: string | null, viewer: PipelineEngagementViewer) {
   const warnings: string[] = []; let engagement = null;
-  revalidateCardForgeCatalog();
+  try { if (!revalidateCardForgeCatalog()) warnings.push('catalog_invalidation_unavailable'); } catch { warnings.push('catalog_invalidation_unavailable'); }
   try { engagement = await readPipelineEngagementForViewer(submissionId, viewer); } catch { warnings.push('engagement_refresh_unavailable'); }
   return { submissionId, lineageId, outcome: 'committed' as const, engagement, warnings, nextAction };
 }

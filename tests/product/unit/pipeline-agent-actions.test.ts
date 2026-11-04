@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const f = vi.hoisted(() => ({ account: vi.fn(), capabilities: vi.fn(), rpc: vi.fn(), from: vi.fn(), recordVote: vi.fn(), heart: vi.fn(), read: vi.fn(), exact: vi.fn(), rate: vi.fn(), settings: vi.fn(), health: vi.fn(), catalog: vi.fn(), healthView: vi.fn() }));
+const f = vi.hoisted(() => ({ account: vi.fn(), capabilities: vi.fn(), rpc: vi.fn(), from: vi.fn(), recordVote: vi.fn(), heart: vi.fn(), read: vi.fn(), exact: vi.fn(), rate: vi.fn(), settings: vi.fn(), health: vi.fn(), catalog: vi.fn(), healthView: vi.fn(), invalidate: vi.fn() }));
 vi.mock('@/features/account/server', () => ({ getAccountToolAccessForUserId: f.account }));
 vi.mock('@/features/contributor-access/server', () => ({ readContributorCapabilities: f.capabilities, hasContributionScope: (scopes: string[], scope: string) => scopes.includes(scope) }));
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ rpc: f.rpc, from: f.from }) }));
@@ -7,7 +7,7 @@ vi.mock('@/features/pipeline/lib/pipelineStore', () => ({ recordPipelineSubmissi
 vi.mock('@/features/pipeline/lib/pipelineHearts', () => ({ setPipelineHeart: f.heart, PipelineHeartMutationError: class extends Error { constructor(message: string, public status: number) { super(message); } } }));
 vi.mock('@/features/pipeline/lib/pipelineLibraryStore', async importOriginal => ({ ...(await importOriginal<typeof import('@/features/pipeline/lib/pipelineLibraryStore')>()), getPipelineLibraryProgramView: f.healthView }));
 vi.mock('@/features/pipeline/server/pipelineEngagement', () => ({ readPipelineEngagementForViewer: f.read, readVisiblePipelineRevisionForViewer: f.exact }));
-vi.mock('@/features/pipeline/server/catalogCache', () => ({ revalidateCardForgeCatalog: vi.fn(), getCachedCardForgeCatalog: f.catalog }));
+vi.mock('@/features/pipeline/server/catalogCache', () => ({ revalidateCardForgeCatalog: f.invalidate, getCachedCardForgeCatalog: f.catalog }));
 vi.mock('@/infrastructure/security/abuseProtection', () => ({ consumeRateLimit: f.rate, RateLimitExceededError: class extends Error {} }));
 import { listAgentPipelineSubmissions, inspectAgentPipelineRevision, readAgentPipelineHealth, readAgentPipelineEngagement, voteAgentPipelineRevision, heartAgentPipelineLineage } from '@/features/pipeline/server/pipelineAgentActions';
 import { PipelineStoreError } from '@/features/pipeline/lib/pipelineStoreError';
@@ -15,7 +15,7 @@ const id = '10000000-0000-4000-8000-000000000001', lineageId = '20000000-0000-40
 const metadata = { catalogTrashedAt: '2026-11-01T00:00:00Z', catalogPurgeAfter: '2026-12-01T00:00:00Z', catalogRetentionHold: false, catalogSubmissionId: id, id, lineageId, assetType: 'icons', name: 'Shared', description: 'Safe metadata', status: 'published', revisionNumber: 1, trashedAt: null, purgeAfter: null, trashActorRole: null, trashPreviousStatus: null, publicationRetained: true, positiveVotes: 1, negativeVotes: 0, ownedByViewer: false };
 const engagement = { submissionId: id, lineageId, name: 'Exact', revisionNumber: 1, status: 'published', trashedAt: null, purgeState: null, positiveVotes: 1, negativeVotes: 0, currentUserVote: null, voteIssue: null, heart: { count: 0, hearted: false }, heartIssue: null };
 beforeEach(() => {
-  vi.resetAllMocks(); f.account.mockResolvedValue({ user: { id: 'resolved-viewer' }, entitlement: { accessMode: 'free' }, isOwner: false }); f.capabilities.mockResolvedValue({ active: false, scopes: [] });
+  vi.resetAllMocks(); f.invalidate.mockReturnValue(true); f.account.mockResolvedValue({ user: { id: 'resolved-viewer' }, entitlement: { accessMode: 'free' }, isOwner: false }); f.capabilities.mockResolvedValue({ active: false, scopes: [] });
   f.rpc.mockResolvedValue({ data: [{ submission_id: id, total_count: 7, shared_metadata: metadata }], error: null });
   f.from.mockImplementation(() => { throw new Error('No authored payload or profile writes permitted'); });
   f.settings.mockResolvedValue({ settings: { allowContributorSelfVoting: false } }); f.read.mockResolvedValue(engagement); f.rate.mockResolvedValue({ allowed: true });
@@ -95,3 +95,5 @@ describe('canonical agent Pipeline actions', () => {
   });
 
 });
+
+it('agent retains commit with invalidation false warning',async()=>{f.capabilities.mockResolvedValue({active:true,scopes:['assets.review']});f.invalidate.mockReturnValue(false);expect(await voteAgentPipelineRevision('oauth-actor',{submissionId:id,voteValue:'positive'})).toMatchObject({outcome:'committed',warnings:['catalog_invalidation_unavailable']});expect(f.recordVote).toHaveBeenCalledOnce();});

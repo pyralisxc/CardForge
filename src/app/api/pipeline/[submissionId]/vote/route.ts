@@ -59,21 +59,21 @@ export async function POST(
     }
 
     const body = await request.json() as { voteValue?: unknown };
-    const program = await voteOnPipelineSubmission({
+    const result = await voteOnPipelineSubmission({
       submissionId,
       contributorId: access.user.id,
       voteValue: body.voteValue,
       currentContributorIds: contributorIds,
       ownerContributorId: access.isOwner ? access.user.id : null,
+      invalidateCatalog: revalidateCardForgeCatalog,
     });
-    revalidateCardForgeCatalog();
 
-    return createNoStoreJsonResponse({
-      program: projectPipelineProgramForViewer(program, {
-        currentUserId: access.user.id,
-        isOwner: access.isOwner,
-      }),
-    });
+    let program = null;
+    if (result.program) {
+      try { program = projectPipelineProgramForViewer(result.program, { currentUserId: access.user.id, isOwner: access.isOwner }); }
+      catch { result.receipt.warnings.push('viewer_projection_unavailable'); }
+    }
+    return createNoStoreJsonResponse({ receipt: result.receipt, program });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');

@@ -17,37 +17,47 @@ export function PipelineSourceFeedback({ submissionId }: { submissionId: string 
   const [refresh, setRefresh] = useState(0);
   const [busy, setBusy] = useState(false);
   const [mutationIssue, setMutationIssue] = useState<string | null>(null);
+  const [unconfirmedVote, setUnconfirmedVote] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     const epoch = ++readEpoch.current;
-    setRead(null);
-    void loadPipelineEngagement(submissionId).then(value => { if (!cancelled && epoch === readEpoch.current) setRead({ id: submissionId, value }); })
-      .catch(error => { if (!cancelled && epoch === readEpoch.current) setRead({ id: submissionId, error: error instanceof Error ? error.message : 'Pipeline source reactions are unavailable.' }); });
+    setRead(previous => previous?.id === submissionId ? { ...previous, error: undefined } : null);
+    void loadPipelineEngagement(submissionId).then(value => { if (!cancelled && epoch === readEpoch.current) { setRead({ id: submissionId, value }); setUnconfirmedVote(null); } })
+      .catch(error => { if (!cancelled && epoch === readEpoch.current) setRead(previous => ({ id: submissionId,
+        ...(previous?.id === submissionId && (!(error && typeof error === 'object' && 'status' in error) || Number(error.status) >= 500) ? { value: previous.value } : {}),
+        error: error instanceof Error ? error.message : 'Pipeline source reactions are unavailable.' })); });
     return () => { cancelled = true; };
   }, [submissionId, refresh]);
   useEffect(() => {
-    const reload = () => { ++readEpoch.current; setRead(null); setMutationIssue(null); setRefresh(value => value + 1); };
+    const reload = () => { ++readEpoch.current; setRefresh(value => value + 1); };
+    const resetScope = () => { setRead(null); setMutationIssue(null); setUnconfirmedVote(null); reload(); };
     window.addEventListener(PIPELINE_ENGAGEMENT_CHANGED, reload);
     window.addEventListener('focus', reload);
-    window.addEventListener(PROJECT_PERSISTENCE_SCOPE_CHANGE_EVENT, reload);
-    return () => { window.removeEventListener(PIPELINE_ENGAGEMENT_CHANGED, reload); window.removeEventListener('focus', reload); window.removeEventListener(PROJECT_PERSISTENCE_SCOPE_CHANGE_EVENT, reload); };
+    window.addEventListener(PROJECT_PERSISTENCE_SCOPE_CHANGE_EVENT, resetScope);
+    return () => { window.removeEventListener(PIPELINE_ENGAGEMENT_CHANGED, reload); window.removeEventListener('focus', reload); window.removeEventListener(PROJECT_PERSISTENCE_SCOPE_CHANGE_EVENT, resetScope); };
   }, []);
   const value = read?.id === submissionId ? read.value : undefined;
   const issue = read?.id === submissionId ? read.error : undefined;
   const mutate = async (voteValue?: 'positive' | 'negative') => {
-    if (!value || busy) return;
+    if (!value || busy || (voteValue && unconfirmedVote === submissionId)) return;
     setBusy(true); setMutationIssue(null);
+    let rejected = false;
+    let committed = false;
     try {
       const response = await fetch(voteValue ? `/api/pipeline/${encodeURIComponent(submissionId)}/vote` : '/api/pipeline/hearts', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(voteValue ? { voteValue } : { lineageId: value.lineageId, hearted: !value.heart!.hearted }),
       });
-      if (!response.ok) throw await readApiError(response, 'The reaction could not be confirmed. Refresh before trying again.');
-      await response.json();
+      if (!response.ok) { rejected = response.status < 500; throw await readApiError(response, 'The reaction could not be confirmed. Read exact reactions before a new action.'); }
+      const payload = await response.json();
+      if (voteValue && (payload.receipt?.submissionId !== submissionId || payload.receipt?.outcome !== 'committed')) { setUnconfirmedVote(submissionId); throw new Error('Vote outcome is unconfirmed. Read exact reactions before a new explicit vote; no request was replayed.'); }
+      committed = Boolean(voteValue);
       notifyPipelineEngagementChanged();
+      if (voteValue && payload.receipt.warnings?.length) setMutationIssue('Vote committed; refresh is incomplete. Read current source reactions before further action.');
     } catch (error) {
       if (currentId.current !== submissionId) return;
-      setMutationIssue(error instanceof Error ? error.message : 'The reaction could not be confirmed. Refresh before trying again.');
+      if (voteValue && !rejected && !committed) setUnconfirmedVote(submissionId);
+      setMutationIssue(committed ? 'Vote committed; local refresh is incomplete.' : error instanceof Error ? error.message : 'The reaction could not be confirmed. Read exact reactions before a new action.');
       // Native rejection/uncertainty may reflect changed lifecycle or account access.
       setRefresh(current => current + 1);
     } finally { setBusy(false); }
@@ -56,13 +66,14 @@ export function PipelineSourceFeedback({ submissionId }: { submissionId: string 
     {value ? <>
       <p>Original Pipeline source: <strong>{value.name}</strong> · revision {value.revisionNumber ?? 'unassigned'}</p>
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={busy || Boolean(value.voteIssue)} title={value.voteIssue ?? 'Like this exact original revision'} aria-pressed={value.currentUserVote === 'positive'} onClick={() => void mutate('positive')} className="inline-flex min-h-9 items-center gap-1 rounded border px-2 aria-pressed:bg-[var(--cf-accent-soft)] aria-pressed:text-[var(--cf-accent-text)] disabled:cursor-not-allowed disabled:opacity-50"><ThumbsUp className="h-3 w-3" aria-hidden="true" />Like {value.positiveVotes}</button>
-        <button type="button" disabled={busy || Boolean(value.voteIssue)} title={value.voteIssue ?? 'Dislike this exact original revision'} aria-pressed={value.currentUserVote === 'negative'} onClick={() => void mutate('negative')} className="inline-flex min-h-9 items-center gap-1 rounded border px-2 aria-pressed:bg-[var(--cf-accent-soft)] aria-pressed:text-[var(--cf-accent-text)] disabled:cursor-not-allowed disabled:opacity-50"><ThumbsDown className="h-3 w-3" aria-hidden="true" />Dislike {value.negativeVotes}</button>
+        <button type="button" disabled={busy || unconfirmedVote === submissionId || Boolean(value.voteIssue)} title={value.voteIssue ?? 'Like this exact original revision'} aria-pressed={value.currentUserVote === 'positive'} onClick={() => void mutate('positive')} className="inline-flex min-h-9 items-center gap-1 rounded border px-2 aria-pressed:bg-[var(--cf-accent-soft)] aria-pressed:text-[var(--cf-accent-text)] disabled:cursor-not-allowed disabled:opacity-50"><ThumbsUp className="h-3 w-3" aria-hidden="true" />Like {value.positiveVotes}</button>
+        <button type="button" disabled={busy || unconfirmedVote === submissionId || Boolean(value.voteIssue)} title={value.voteIssue ?? 'Dislike this exact original revision'} aria-pressed={value.currentUserVote === 'negative'} onClick={() => void mutate('negative')} className="inline-flex min-h-9 items-center gap-1 rounded border px-2 aria-pressed:bg-[var(--cf-accent-soft)] aria-pressed:text-[var(--cf-accent-text)] disabled:cursor-not-allowed disabled:opacity-50"><ThumbsDown className="h-3 w-3" aria-hidden="true" />Dislike {value.negativeVotes}</button>
         <button type="button" disabled={busy || Boolean(value.heartIssue)} title={value.heartIssue ?? 'Heart this source lineage'} aria-pressed={value.heart?.hearted ?? false} onClick={() => void mutate()} className="inline-flex min-h-9 items-center gap-1 rounded border px-2 aria-pressed:bg-[var(--cf-accent-soft)] aria-pressed:text-[var(--cf-accent-text)] disabled:cursor-not-allowed disabled:opacity-50"><Heart className="h-3 w-3" aria-hidden="true" />Heart {value.heart?.count ?? 'unavailable'}</button>
       </div>
       {value.voteIssue ? <p>{value.voteIssue}</p> : null}{value.heartIssue ? <p>{value.heartIssue}</p> : null}
     </> : <p role="status">{issue ?? 'Loading exact Pipeline source…'}</p>}
     {mutationIssue ? <p role="alert">{mutationIssue}</p> : null}
+    {value && issue ? <p role="alert">{issue}</p> : null}
     {issue || mutationIssue ? <button type="button" className="underline" disabled={busy} onClick={() => setRefresh(current => current + 1)}>Refresh source reactions</button> : null}
   </section>;
 }

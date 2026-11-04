@@ -1,7 +1,7 @@
 "use client";
 import { getPipelineTrashState } from '@/features/pipeline/client';
 
-import { PIPELINE_ENGAGEMENT_CHANGED, notifyPipelineEngagementChanged, PipelineSourceDisclosure, type PipelineDesignSource } from '@/features/pipeline/client/engagement';
+import { PIPELINE_ENGAGEMENT_CHANGED, notifyPipelineEngagementChanged, loadPipelineEngagement, PipelineSourceDisclosure, type PipelineDesignSource } from '@/features/pipeline/client/engagement';
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { HardDrive } from 'lucide-react';
@@ -166,6 +166,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [requestedSubmissionId, setRequestedSubmissionId] = useState<string | null>(null);
   const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
   const [votingId, setVotingId] = useState<string | null>(null);
+  const voteInFlight = useRef(false);
+  const [voteAttempt, setVoteAttempt] = useState<{ submissionId: string; message: string; readConfirmed?: boolean } | null>(null);
   const [heartingId, setHeartingId] = useState<string | null>(null);
   const [heartMetrics, setHeartMetrics] = useState<Record<string, { count: number; hearted: boolean }>>({});
   const [heartMetricsLoading, setHeartMetricsLoading] = useState(false);
@@ -428,18 +430,28 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     } finally { setHeartingId(null); }
   };
   const vote = async (submissionId: string, name: string, value: 'positive' | 'negative') => {
+    if (voteAttempt || voteInFlight.current) return;
+    voteInFlight.current = true;
     setVotingId(submissionId);
+    let committed = false;
     try {
       const response = await fetch(`/api/pipeline/${submissionId}/vote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voteValue: value }) });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to record this vote.'));
-      const { program } = await response.json() as { program: Parameters<typeof shared.acceptProgram>[0] };
-      shared.acceptProgram(program);
+      if (!response.ok) {
+        if (response.status < 500) { toast({ title: 'Vote rejected', description: await readApiErrorMessage(response, 'Unable to record this vote.'), variant: 'destructive' }); return; }
+        throw new Error('Vote acknowledgement is unavailable.');
+      }
+      const { program, receipt } = await response.json() as { program: Parameters<typeof shared.acceptProgram>[0] | null; receipt?: { submissionId: string; outcome: string; warnings: string[] } };
+      if (receipt?.submissionId !== submissionId || receipt.outcome !== 'committed' || !Array.isArray(receipt.warnings)) throw new Error('Vote outcome is unconfirmed.');
+      committed = true;
       notifyPipelineEngagementChanged();
+      if (program) shared.acceptProgram(program);
       if (revisionsEnabled) revisionQueue.refresh();
-      toast({ title: 'Vote recorded', description: `${name} has been updated in Forge Review.` });
-    } catch (error) {
-      toast({ title: 'Vote was not recorded', description: error instanceof Error ? error.message : 'Forge Review is unavailable.', variant: 'destructive' });
-    } finally { setVotingId(null); }
+      toast({ title: 'Vote recorded', description: !program || receipt.warnings.length ? `${name}: vote committed; refresh is incomplete. Read current engagement before further action.` : `${name} has been updated in Forge Review.` });
+    } catch {
+      if (committed) { toast({ title: 'Vote recorded', description: 'The vote committed; local refresh is incomplete. Read current engagement before further action.' }); return; }
+      setVoteAttempt({ submissionId, message: 'Vote outcome is unconfirmed. Read exact engagement; do not repeat the vote automatically.' });
+      toast({ title: 'Vote not confirmed', description: 'Read exact engagement before any further vote. No request was replayed.', variant: 'destructive' });
+    } finally { voteInFlight.current = false; setVotingId(null); }
   };
 
   const {
@@ -579,6 +591,17 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   >
     <div className={styles.library} data-library-surface data-density={density} data-tool-open={Boolean(activeTool)}>
       <h1 className="sr-only">Library</h1>
+      {voteAttempt ? <div role="status"><p>{voteAttempt.message}</p><button type="button" disabled={Boolean(votingId)} onClick={async () => {
+        if (voteInFlight.current) return;
+        voteInFlight.current = true;
+        setVotingId(voteAttempt.submissionId);
+        setVoteAttempt({ submissionId: voteAttempt.submissionId, message: 'Exact engagement read is pending. Do not repeat the vote.' });
+        try {
+          await loadPipelineEngagement(voteAttempt.submissionId);
+          setVoteAttempt({ ...voteAttempt, readConfirmed: true, message: 'Exact engagement was read. Current state does not prove the earlier operation outcome. You may choose a new vote explicitly.' });
+        } catch { setVoteAttempt({ submissionId: voteAttempt.submissionId, message: 'Exact engagement is unavailable. The vote remains unconfirmed; do not repeat it.' }); }
+        finally { voteInFlight.current = false; setVotingId(null); }
+      }}>Read exact vote engagement</button>{voteAttempt.readConfirmed ? <button type="button" disabled={Boolean(votingId)} onClick={() => setVoteAttempt(null)}>Allow a new explicit vote</button> : null}</div> : null}
       <nav className={styles.scopeTabs} aria-label="Library scopes">
         {scopeDefinitions.map((definition) => <button key={definition.id} type="button" aria-current={activeScope === definition.id ? 'page' : undefined} disabled={Boolean(activeTool)} onClick={() => chooseScope(definition.id)}><span>{definition.label}</span><small>{definition.owner}</small></button>)}
       </nav>
