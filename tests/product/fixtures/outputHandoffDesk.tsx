@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { SearchParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
+import { getAccountDeskKey } from '@/features/account/lib/accountSections';
 import { Desk } from '@/features/desk/components/Desk';
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
 import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
@@ -16,19 +17,24 @@ document.userTemplates.push({ ...document.userTemplates[0], id: 'synthetic-back'
 document.storedCards[2].backingTemplateId = 'synthetic-back';
 document.storedCards[2].backingData = { cardName: 'CHARLIE BACK' };
 const entitlement = resolveAccountEntitlement({ authConfigured: true, isSignedIn: true, accountUserId: 'synthetic', privateMetadata: { cardforgeAccess: 'paid' } });
-const proof = window as unknown as { outputDocument: unknown; outputEntitlement: unknown; outputState: () => unknown; changeWorkspace: () => void };
+const proof = window as unknown as { outputDocument: unknown; outputEntitlement: unknown; outputState: () => unknown; changeWorkspace: () => void; outputLifecycle: { mounts: number; unmounts: number; routes: string[] } };
+proof.outputLifecycle = { mounts: 0, unmounts: 0, routes: [] };
 proof.outputDocument = document;
 proof.outputEntitlement = entitlement;
 proof.outputState = () => ({ cards: useProjectStore.getState().storedCards.map(card => card.uniqueId), activeSet: useProjectStore.getState().activeCardSet?.id });
 proof.changeWorkspace = () => useProjectStore.setState(state => ({ storedCards: [...state.storedCards, { uniqueId: 'concurrent-local', templateId: 'local', data: {} }] }));
 
+function TrackedDesk({ params }: { params: URLSearchParams }) {
+  useEffect(() => { proof.outputLifecycle.mounts++; return () => { proof.outputLifecycle.unmounts++; }; }, []);
+  return <Desk businessIdentity={{ brandName: 'Synthetic', copyrightHolder: 'Synthetic' }} persistenceScope="account:synthetic-output-proof" initialTool="output" initialFocusedWorkId={params.get('focus')} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={projectAccountExperience({ entitlement, contribution: { active: false, canSubmit: false, canReview: false, canPublish: false, canDraftCampaigns: false } })} />;
+}
 function App() {
   const [params, setParams] = useState(() => new URLSearchParams(location.search));
   useEffect(() => { const onPop = () => setParams(new URLSearchParams(location.search)); window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop); }, []);
-  const navigate = (href: string) => { history.replaceState({}, '', href); setParams(new URLSearchParams(location.search)); };
+  const navigate = (href: string) => { proof.outputLifecycle.routes.push(href); history.replaceState({}, '', href); setParams(new URLSearchParams(location.search)); };
   const router = { bfcacheId: 'desk-output-proof', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: navigate, replace: navigate, prefetch: async () => {} };
   return <AppRouterContext.Provider value={router as never}><SearchParamsContext.Provider value={params}>
-    <Desk businessIdentity={{ brandName: 'Synthetic', copyrightHolder: 'Synthetic' }} persistenceScope="account:synthetic-output-proof" initialTool="output" initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={projectAccountExperience({ entitlement, contribution: { active: false, canSubmit: false, canReview: false, canPublish: false, canDraftCampaigns: false } })} />
+    <TrackedDesk key={getAccountDeskKey({ focusedWorkId: params.get('focus'), focusedArtifactId: params.get('artifact'), returnContextKey: params.get('returnContext'), documentId: params.get('document'), revision: params.get('revision'), outputRef: params.get('outputRef') })} params={params} />
     <Toaster />
   </SearchParamsContext.Provider></AppRouterContext.Provider>;
 }
