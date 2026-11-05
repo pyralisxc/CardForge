@@ -29,3 +29,19 @@ export const resolveAccountSection = ({
 export const getAccountSectionHref = (section: AccountSection): string => (
   section === 'desk' ? '/account' : `/account?section=${section}`
 );
+
+/** Prepared Output owns one account-entry lifetime across its internal Set navigation. */
+export const getAccountDeskKey = ({ focusedWorkId, focusedArtifactId, returnContextKey, documentId, revision, outputRef }: {
+  focusedWorkId?: string | null;
+  focusedArtifactId?: string | null;
+  returnContextKey?: string | null;
+  documentId?: string | null;
+  revision?: string | null;
+  outputRef?: string | null;
+}): string => outputRef !== null && outputRef !== undefined
+  // A prepared source owns one mounted Desk for its complete install -> Output
+  // transition. Internal Set focus changes must not discard preparation state.
+  ? `desk:output:${JSON.stringify([documentId ?? null, revision ?? null, outputRef])}`
+  : focusedWorkId || focusedArtifactId || returnContextKey
+  ? `desk:${focusedWorkId ?? 'overview'}:${focusedArtifactId ?? 'set'}:${returnContextKey ?? 'fresh'}`
+  : 'desk';

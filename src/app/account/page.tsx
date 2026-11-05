@@ -4,6 +4,7 @@ import { AccountDeskBoundary } from '@/features/account/client/profile';
 import {
   getCurrentCardforgeEntitlement,
   getAccountAccessLabel,
+  getAccountDeskKey,
   isClerkAuthConfigured,
   projectAccountExperience,
   resolveAccountEntitlement,
@@ -222,7 +223,7 @@ export default async function AccountPage({
           <GoogleDrivePreviewWarmupBoundary enabled={entitlement.isSignedIn}>
             <AccountDeskBoundary initialAuthConfigured={authConfigured}>
               <Desk
-                key={initialFocusedWorkId || initialFocusedArtifactId || initialReturnContextKey ? `desk:${initialFocusedWorkId ?? 'overview'}:${initialFocusedArtifactId ?? 'set'}:${initialReturnContextKey ?? 'fresh'}` : 'desk'}
+                key={getAccountDeskKey({ focusedWorkId: initialFocusedWorkId, focusedArtifactId: initialFocusedArtifactId, returnContextKey: initialReturnContextKey, documentId: params.document, revision: params.revision, outputRef: params.outputRef })}
                 persistenceScope={persistenceScope}
                 experience={experience}
                 businessIdentity={{
