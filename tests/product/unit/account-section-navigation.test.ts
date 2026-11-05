@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getAccountSectionHref,
+  getAccountDeskKey,
   resolveAccountSection,
 } from '@/features/account/lib/accountSections';
 
@@ -28,4 +29,19 @@ describe('account section navigation', () => {
     expect(getAccountSectionHref('library')).toBe('/account?section=library');
     expect(getAccountSectionHref('profile')).toBe('/account?section=profile');
   });
+});
+
+
+it('keeps a prepared Output Desk mounted through internal focus and return-context changes', () => {
+  const prepared = { documentId: 'exact-document', revision: '3', outputRef: 'exact-reference' };
+  const initial = getAccountDeskKey(prepared);
+  expect(getAccountDeskKey({ ...prepared, focusedWorkId: 'set:incoming', focusedArtifactId: 'card', returnContextKey: 'restored' })).toBe(initial);
+  expect(getAccountDeskKey({ ...prepared, outputRef: 'new-reference' })).not.toBe(initial);
+  expect(getAccountDeskKey({ ...prepared, documentId: 'other-document' })).not.toBe(initial);
+  expect(getAccountDeskKey({ ...prepared, revision: '4' })).not.toBe(initial);
+});
+it('preserves ordinary Desk focus identity and fails closed with an explicit invalid Output reference', () => {
+  expect(getAccountDeskKey({})).toBe('desk');
+  expect(getAccountDeskKey({ focusedWorkId: 'set:local' })).toBe('desk:set:local:set:fresh');
+  expect(getAccountDeskKey({ outputRef: '' })).not.toBe('desk');
 });
