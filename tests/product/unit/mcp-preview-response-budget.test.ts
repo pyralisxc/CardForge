@@ -76,7 +76,10 @@ describe('bounded native MCP display responses', () => {
     const bytes = await png(800, 1000);
     const small = await png(10, 20, 4);
     const result = await resultFor([artifact(bytes), artifact(small, 'small')]);
-    expect(images(result).map((image) => Buffer.from(image.data, 'base64'))).toEqual([bytes, small]);
+    const displayImages = images(result);
+    expect(displayImages).toHaveLength(2);
+    expect(Buffer.compare(Buffer.from(displayImages[0]!.data, 'base64'), bytes)).toBe(0);
+    expect(Buffer.compare(Buffer.from(displayImages[1]!.data, 'base64'), small)).toBe(0);
     expect(result.structuredContent.displayImages.map((image) => image.representation)).toEqual(['canonical', 'canonical']);
     expect(result.structuredContent.displayImages[0]).toMatchObject({ width: 800, height: 1000, byteLength: bytes.length });
   });
