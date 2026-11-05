@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { assertOutputContentUnchanged, outputIntentSchema, validateOutputIntentDocument, type OutputIntent } from '../outputIntent';
 
 import { applyProjectDocumentToState } from '@/features/project/client/package-document';
-import { applyProjectDocumentToWorkspace, normalizeStudioView, type StudioView, useProjectStore } from '@/features/project/client/workspace';
+import { applyProjectDocumentToWorkspace, hasProjectDocumentStateChanged, normalizeStudioView, type StudioView, useProjectStore } from '@/features/project/client/workspace';
 import {
   normalizeStudioDocumentPayload,
   type StudioDocumentAssetDownload,
@@ -141,13 +141,20 @@ export function useStudioDocumentHandoff({
         const document = await hydrateStudioDocumentAssets(storedDocument, payload.assets ?? [], controller.signal, Boolean(outputIntent));
         controller.signal.throwIfAborted();
         const patch = applyProjectDocumentToState(document);
+        // Desk camera/selection updates may replace the Zustand object while
+        // the exact source is loading. Reuse the canonical authored-document
+        // comparison, then retain the native transaction's final strict CAS.
+        const expectedState = outputIntent ? useProjectStore.getState() : initiatingState;
+        if (outputIntent && hasProjectDocumentStateChanged(initiatingState, expectedState)) {
+          throw new Error('The workspace changed while the project was opening. Your edits were left unchanged.');
+        }
 
         // Persist the attempt before any workspace transaction. A lost or failed
         // receipt cannot authorize a later reload to overwrite local work again.
         if (outputIntent && outputRef) sessionStorage.setItem(`cardforge:output:${outputRef}`, 'installation-attempted');
 
         if (payload.document?.creationSource === 'gpt') {
-          const beforeState = initiatingState;
+          const beforeState = expectedState;
           const existingTemplateIds = new Set(beforeState.userTemplates.map((template) => template.id).filter(Boolean));
           const existingCardIds = new Set(beforeState.storedCards.map((card) => card.uniqueId));
           const personalTemplates = patch.userTemplates.filter((template) => (
@@ -247,7 +254,7 @@ export function useStudioDocumentHandoff({
         // complete document (workspace settings, fonts, assets, Templates, Sets,
         // cards, and styles) before the resulting live state is exposed.
         const opened = await applyProjectDocumentToWorkspace(document, 'replace', {
-          expectedState: initiatingState,
+          expectedState,
           signal: controller.signal,
           ...(outputIntent ? { validatePreparedDocument: (prepared) => assertOutputContentUnchanged(outputIntent!, document, prepared) } : {}),
         });

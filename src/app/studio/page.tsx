@@ -15,14 +15,16 @@ export const metadata = createPageMetadata({
 export default async function StudioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ document?: string; returnTo?: string; revision?: string }>;
+  searchParams: Promise<{ document?: string; returnTo?: string; revision?: string; outputRef?: string; tool?: string }>;
 }) {
   const params = await searchParams;
   const documentId = params.document;
-  if (!documentId) redirect('/account?tool=design');
+  if (!documentId && params.outputRef === undefined) redirect('/account?tool=design');
   const requestedReturnTo = normalizeStudioReturnTo(params.returnTo);
   const contextualHref = createContextualStudioHref({
     documentId,
+    outputRef: params.outputRef,
+    tool: params.tool === 'output' ? 'output' : null,
     revision: params.revision,
     returnTo: requestedReturnTo,
   });

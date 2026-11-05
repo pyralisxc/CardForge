@@ -40,6 +40,7 @@ export interface CreatorWorkbenchProps {
   onDirtyChange?: (dirty: boolean) => void;
   tool?: 'design' | 'output';
   onCloseTool?: () => void;
+  onOutputPrepared?: (setId: string, reference: string) => void;
   designIntent?: DesignToolIntent | null;
   onDesignIntentConsumed?: () => void;
   onReturnToGenerator?: () => void;
@@ -56,6 +57,7 @@ export function CreatorWorkbench({
   onDirtyChange,
   tool,
   onCloseTool,
+  onOutputPrepared,
   designIntent,
   onDesignIntentConsumed,
   onReturnToGenerator,
@@ -265,17 +267,18 @@ export function CreatorWorkbench({
   const [outputIntent, setOutputIntent] = useState<OutputIntent | null>(null);
   const [preparedReference, setPreparedReference] = useState<string | null>(null);
   const requestedOutputReference = searchParams.get('outputRef');
-  const outputBlocked = Boolean(requestedOutputReference) && requestedOutputReference !== preparedReference;
+  const outputBlocked = requestedOutputReference !== null && requestedOutputReference !== preparedReference;
   const outputSnapshot = useRef<string | null>(null);
   const handleOutputPrepared = useCallback((intent: OutputIntent, reference: string) => {
     outputSnapshot.current = prepareOutputOnDevice(intent);
     setOutputIntent(intent);
     setPreparedReference(reference);
+    onOutputPrepared?.(intent.setId, reference);
     const next = new URL(window.location.href);
     next.searchParams.set('document', intent.documentId); next.searchParams.set('revision', String(intent.revision));
     next.searchParams.set('outputRef', reference); next.searchParams.set('tool', 'output');
     router.replace(`${next.pathname}${next.search}${next.hash}`);
-  }, [router]);
+  }, [onOutputPrepared, router]);
   const beforePreparedExport = useCallback(async () => {
     if (!outputIntent || !preparedReference || requestedOutputReference !== preparedReference || outputSnapshot.current === null) throw new Error('Prepare Output again before downloading.');
     await verifyPreparedOutput(outputIntent, preparedReference, outputSnapshot.current, projectCapabilities.canExportClean);
@@ -487,7 +490,7 @@ export function CreatorWorkbench({
         {activeCardSet ? <div hidden={studioView !== 'generate'} data-testid="generator-panel" className="min-h-0 flex-1 overflow-auto"><GenerationWorkspace onDirtyChange={studioView === 'generate' ? onDirtyChange : undefined} isLoadingTemplates={isLoadingTemplates} templates={freeformTemplatesForGenerator} backFaceTemplates={backFacePresetTemplates} activeCardSet={activeCardSet} generatorSelectedTemplateId={generatorSelectedTemplateId} generatorSelectedBackingTemplateId={generatorSelectedBackingTemplateId} richTextHighlightColor={richTextHighlightColor} generatedDisplayCards={generatedDisplayCards} canExportClean={projectCapabilities.canExportClean} onOpenTemplateMaker={showTemplateTool} onCreateMatchingBack={handleCreateMatchingBack} onEditSelectedBack={handleEditCardBack} onManageCardBacks={handleManageCardBacks} onBulkCardsGenerated={handleBulkCardsGenerated} onBulkCardsRevised={reviseGeneratedCardsAction} onUndoBulkRevision={undoLastBulkRevisionAction} onViewGeneratedCards={viewGeneratedCardsOnDesk} onTemplateSelectionChange={setGeneratorSelectedTemplateIdAction} onBackingTemplateSelectionChange={setGeneratorSelectedBackingTemplateIdAction} /></div> : null}
       </main></div> : null}
 
-      {requestedOutputReference && isOutput ? <div role={outputBlocked ? 'alert' : 'status'}>{outputBlocked ? 'This prepared Output is not active. Prepare a new handoff or choose the full Set deliberately.' : `Prepared selection: ${outputIntent?.cardIds.length ?? 0} cards, in the requested order.`}<button type="button" onClick={chooseFullSet}>Use full Set</button></div> : null}
+      {requestedOutputReference !== null && isOutput ? <div role={outputBlocked ? 'alert' : 'status'}>{outputBlocked ? 'This prepared Output is not active. Prepare a new handoff or choose the full Set deliberately.' : `Prepared selection: ${outputIntent?.cardIds.length ?? 0} cards, in the requested order.`}<button type="button" onClick={chooseFullSet}>Use full Set</button></div> : null}
       {activeCardSet && !(outputBlocked && isOutput) ? <StudioContextTools
         inlineOutput={isOutput}
         activeSetName={activeCardSet.name}

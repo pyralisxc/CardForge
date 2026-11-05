@@ -141,3 +141,59 @@ test('@golden actual Workbench applies exact selection and settings before the e
  await expect(page.getByRole('alert').filter({ hasText: 'This prepared Output is not active' })).toBeVisible();
  expect(sourceRequests).toBe(beforeReload); await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toHaveCount(0);
 });
+
+const deskBuild = buildSync({ minify: true, entryPoints: ['tests/product/fixtures/outputHandoffDesk.tsx'], bundle: true, platform: 'browser', format: 'iife', write: false, outfile: '/tmp/cardforge-output-desk-fixture.js', define: { 'process.env.NODE_ENV': '"production"', 'process.env.NEXT_RUNTIME': '"browser"', 'process.env': '{}' } });
+const deskBundle = deskBuild.outputFiles.find(file => file.path.endsWith('.js'))!.text;
+async function mountDesk(page: import('@playwright/test').Page, fault: 'stale' | 'invalid' | 'cancel' | 'concurrent' | null = null) {
+ let requests = 0; let confirmations = 0; let release!: () => void;
+ const pending = new Promise<void>(resolve => { release = resolve; });
+ page.on('dialog', dialog => { confirmations++; return fault === 'cancel' ? dialog.dismiss() : dialog.accept(); });
+ page.on('pageerror', error => console.log('DESK_OUTPUT_ERROR', error.message));
+ await page.route('**/*', async route => {
+  const url = new URL(route.request().url());
+  if (url.pathname === '/account') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head></head><body></body></html>' });
+  if (url.pathname === '/api/account/entitlement') return route.fulfill({ json: await page.evaluate(() => (window as unknown as { outputEntitlement: unknown }).outputEntitlement) });
+  if (url.pathname === '/api/catalog/studio-bootstrap') return route.fulfill({ json: { templates: { defaults: [], userTemplates: [] }, styles: { styles: [] }, fonts: { fonts: [] }, studioDefaults: { defaultTemplateId: null } } });
+  if (url.pathname === '/api/catalog/completed-deletions') return route.fulfill({ json: { deleted: [] } });
+  if (url.pathname === `/api/studio-documents/${id}`) {
+   requests++; if (fault === 'concurrent') await pending;
+   if (fault === 'stale') return route.fulfill({ status: 409, json: { error: { code: 'revision_conflict', kind: 'conflict', message: 'Exact source revision is stale', retryable: false, correlationId: 'synthetic-output-stale' } } });
+   return route.fulfill({ json: { document: { id, revision: 2, creationSource: 'studio', document: await page.evaluate(() => (window as unknown as { outputDocument: unknown }).outputDocument) }, assets: [], watermark: { required: false, canExportClean: true }, outputIntent: { ...intent, cardIds: ['scale-card-3', 'scale-card-1'], layout: 'sheet' } } });
+  }
+  return route.fulfill({ status: 503, json: { error: { code: 'fixture_unavailable', kind: 'unavailable', message: 'Provider excluded from synthetic Output proof', retryable: false } } });
+ });
+ const params = new URLSearchParams({ tool: 'output', document: id, revision: '2', outputRef: fault === 'invalid' ? '' : '10000000-0000-4000-8000-000000000001' });
+ if (fault === 'cancel') params.set('seedLocal', '1');
+ await page.goto(`http://localhost/account?${params}`);
+ for (const file of deskBuild.outputFiles.filter(file => file.path.endsWith('.css'))) await page.addStyleTag({ content: file.text });
+ await page.addScriptTag({ content: deskBundle });
+ return { requests: () => requests, confirmations: () => confirmations, release };
+}
+
+test('@golden actual Desk bootstraps exact prepared Output before a local Set exists', async ({ page }) => {
+ let downloads = 0; page.on('download', () => downloads++);
+ const source = await mountDesk(page);
+ await expect(page.getByText('Prepared selection: 2 cards, in the requested order.')).toBeVisible();
+ await expect(page.getByLabel(/Margins/)).toHaveValue('7'); await expect(page.getByLabel(/Card spacing/)).toHaveValue('2');
+ expect(source.requests()).toBe(1); expect(downloads).toBe(0);
+ expect(new URL(page.url()).searchParams.get('outputRef')).toBe('10000000-0000-4000-8000-000000000001');
+ const download = page.waitForEvent('download'); await page.getByRole('button', { name: /Download PNG set/ }).click();
+ const zip = await JSZip.loadAsync(await readFile((await (await download).path())!));
+ expect(Object.keys(zip.files).filter(name => name.endsWith('.png'))).toEqual(['digital-output-images/001_CHARLIE_front.png', 'digital-output-images/001_CHARLIE_back.png', 'digital-output-images/002_ALPHA_front.png']);
+ await page.reload(); await page.addScriptTag({ content: deskBundle });
+ await expect(page.getByRole('alert').filter({ hasText: 'This prepared Output is not active' })).toBeVisible();
+ await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toHaveCount(0);
+});
+
+for (const fault of ['stale', 'invalid', 'cancel', 'concurrent'] as const) test(`@golden actual Desk keeps ${fault} Output handoff fail-closed`, async ({ page }) => {
+ let downloads = 0; page.on('download', () => downloads++);
+ const source = await mountDesk(page, fault);
+ if (fault === 'concurrent') { await expect.poll(source.requests).toBe(1); await page.evaluate(() => (window as unknown as { changeWorkspace: () => void }).changeWorkspace()); source.release(); }
+ const notices = page.getByRole('region', { name: 'Notifications (F8)' });
+ if (fault === 'cancel') await expect.poll(source.confirmations).toBe(1);
+ else await expect(notices.getByText(fault === 'stale' ? /source revision is stale/ : fault === 'invalid' ? /valid Output reference/ : /workspace changed/)).toBeVisible();
+ await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toHaveCount(0);
+ const state = await page.evaluate(() => (window as unknown as { outputState: () => { cards: string[] } }).outputState());
+ expect(state.cards).toEqual(fault === 'cancel' ? ['existing-local'] : fault === 'concurrent' ? ['concurrent-local'] : []);
+ expect(source.requests()).toBe(fault === 'invalid' || fault === 'cancel' ? 0 : 1); expect(downloads).toBe(0);
+});

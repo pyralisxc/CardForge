@@ -27,7 +27,7 @@ export interface CreatorHistorySnapshot {
 }
 
 export const DESK_CREATOR_HISTORY_KEY = 'cardforgeCreatorContext';
-const CREATOR_LAUNCH_INTENT_KEYS = ['document', 'revision', 'returnTo', 'editTemplate'] as const;
+const CREATOR_LAUNCH_INTENT_KEYS = ['document', 'revision', 'outputRef', 'returnTo', 'editTemplate'] as const;
 
 export const createCreatorInitialSession = (
   focusedWorkId?: string | null,
