@@ -26,7 +26,7 @@ async function mount(page: import('@playwright/test').Page) {
 }
 // Credential-free native component proof. API replies are intercepted; this is
 // neither hosted account authority nor PostgreSQL/Storage acceptance.
-test('@golden revision recovery fences pending reads across exact target and account switches', async ({ page }) => {
+test('@golden @preview revision recovery fences pending reads across exact target and account switches', async ({ page }) => {
   let release: (() => void) | undefined;
   const pending = new Promise<void>(resolve => { release = resolve; });
   await page.route('**/api/pipeline/*/lifecycle', async route => {
@@ -46,7 +46,7 @@ test('@golden revision recovery fences pending reads across exact target and acc
   await expect(page.getByRole('status')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Restore' })).toHaveCount(0);
 });
-test('@golden revision recovery requires a new read after uncertainty and ignores old account mutation receipts', async ({ page }) => {
+test('@golden @preview revision recovery requires a new read after uncertainty and ignores old account mutation receipts', async ({ page }) => {
   let posts = 0;
   let release: (() => void) | undefined;
   const pending = new Promise<void>(resolve => { release = resolve; });

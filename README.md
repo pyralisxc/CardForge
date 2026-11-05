@@ -55,7 +55,7 @@ Maintained operational commands:
 
 ```bash
 npm run health:production
-npm run smoke:golden
+npm run smoke:preview
 npm run smoke:hosted
 npm run smoke:ui
 npm run smoke:scale
@@ -63,9 +63,9 @@ npm run pipeline:sync-defaults
 npm run brand:export
 ```
 
-`smoke:golden` is the conditionally routed Playwright merge lane for representative Desk mouse/touch behavior. `smoke:hosted` is the smaller deployed-site lane for the public entry point, guest Studio opening, and compact-screen navigation. `smoke:ui` adds generated 100/500/1,000-Artifact fixtures, culling and interaction-latency evidence, a repeated Desk/Design cleanup soak, and lazy contextual-bundle observation. `smoke:scale` runs only that generated scale lane. Chromium heap/long-task readings are practical guardrails rather than cross-browser memory certification; browser-loaded chunk markers plus the source-owned `next/dynamic` boundaries prove that Design, Output, Pipeline, and Owner implementations are absent from the initial Desk script set.
+`smoke:preview` is the small representative browser lane, routed by affected owner in Preview and run in full for a Main candidate. `smoke:hosted` is the deployed-site lane for the public entry point, guest Studio opening, and compact-screen navigation. `smoke:ui` adds generated 100/500/1,000-Artifact fixtures, culling and interaction-latency evidence, a repeated Desk/Design cleanup soak, and lazy contextual-bundle observation. `smoke:scale` runs only that generated scale lane. Chromium heap/long-task readings are practical guardrails rather than cross-browser memory certification; browser-loaded chunk markers plus the source-owned `next/dynamic` boundaries prove that Design, Output, Pipeline, and Owner implementations are absent from the initial Desk script set.
 
-Hosted smoke and scheduled production health install only the private `scripts/hosted-verification` npm workspace (Playwright, HTML parsing, and ZIP validation), using the root lockfile. They check an already-deployed app and do not need application/build dependencies or a repeated npm advisory request. Local development, CI's full gate, and golden browser tests retain the full install and npm's advisory reporting. Keep the workspace's dependency ranges aligned with the root package; infrastructure tests enforce this.
+Hosted smoke and scheduled production health install only the private `scripts/hosted-verification` npm workspace (Playwright, HTML parsing, and ZIP validation), using the root lockfile. They check an already-deployed app and do not need application/build dependencies or a repeated npm advisory request. Local development, CI's full gate, and browser tests retain the full install and npm's advisory reporting. Keep the workspace's dependency ranges aligned with the root package; infrastructure tests enforce this.
 
 ## Source map
 
@@ -133,7 +133,7 @@ Use `.env.example` as the complete variable catalog. `SUPABASE_SERVICE_ROLE_KEY`
 
 ## Verification posture
 
-Agents normally run focused/affected checks locally. The required GitHub `verify` job is authoritative for the complete deterministic non-browser gate, while the existing golden Playwright job runs only when the shared affected-verification router identifies a browser-owned change. Vercel's native successful-deployment event starts a smaller exact-deployment Preview smoke and an immediate production route and starter-catalog smoke; the six-hour production health schedule remains the deeper operational check. Provider-backed auth, owner, billing, email, and protected workflows still require a real signed-in production check on `cardforges.com` when affected.
+Agents normally run focused/affected checks locally. The required GitHub `verify` job is authoritative for the complete deterministic non-browser gate, while the browser job runs affected Preview smoke, changed browser specs, or the full small smoke for Main. Vercel's native successful-deployment event starts a smaller exact-deployment Preview smoke and an immediate production route and starter-catalog smoke; the six-hour production health schedule remains the deeper operational check. Provider-backed auth, owner, billing, email, and protected workflows still require a real signed-in production check on `cardforges.com` when affected.
 
 CI runs Development Intelligence in checkpointless analysis mode pinned to an immutable reviewed commit. The exact CardForge revision must remain fully analyzable, derived semantic candidates must remain factual and non-authoritative, and semantic acceptance/verification is owned by DI's Preview-to-Main review lifecycle rather than by generated files committed to CardForge.
 

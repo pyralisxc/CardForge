@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -56,13 +56,45 @@ const toPosixPath = (value) => value.replaceAll('\\', '/').replace(/^\.\//u, '')
 export const specializedJobsForPath = (inputPath) => {
   const filePath = toPosixPath(inputPath);
   const browserSurface = (
-    /^src\/app\/(?!api\/)/u.test(filePath)
-    || (/^src\/features\//u.test(filePath) && !/\/server\//u.test(filePath))
-    || /^src\/(?:components\/ui|shared)\//u.test(filePath)
-    || /^tests\/product\/(?:hosted-smoke|workflows)\//u.test(filePath)
-    || /^(?:package(?:-lock)?\.json|playwright(?:\.hosted)?\.config\.ts)$/u.test(filePath)
+    /^src\//u.test(filePath)
+    || /^tests\/product\/(?:fixtures|hosted-smoke|workflows)\//u.test(filePath)
+    || /^(?:package(?:-lock)?\.json|playwright(?:\.hosted)?\.config\.ts|scripts\/(?:report-affected-verification|run-changed-browser-specs)\.mjs|\.github\/workflows\/ci\.yml)$/u.test(filePath)
   );
   return browserSurface ? ['browser-golden'] : [];
+};
+
+const BROWSER_SMOKE = {
+  account: ['account-workspace-lifecycle.spec.ts', 'completed-deletion-cleanup.spec.ts'],
+  desk: ['desk-tool-context.spec.ts', 'desk-desktop-drag.spec.ts', 'spatial-gestures.spec.ts'],
+  library: ['library-context-review.spec.ts', 'catalog-trash.spec.ts', 'revision-recovery.spec.ts'],
+  design: ['studio-controls.spec.ts', 'output-artifacts.spec.ts'],
+  output: ['output-artifacts.spec.ts', 'output-handoff.spec.ts'],
+  pipeline: ['library-context-review.spec.ts', 'catalog-trash.spec.ts', 'pipeline-source-reactions.spec.ts'],
+  site: ['website-updates.spec.ts'],
+};
+const SMOKE_ROOT = 'tests/product/workflows/';
+const ALL_BROWSER_SMOKE = [...new Set(Object.values(BROWSER_SMOKE).flat())].map((file) => SMOKE_ROOT + file).sort();
+const FEATURE_SMOKE = {
+  desk: ['desk', 'account', 'output'],
+  'storage-management': ['library', 'account', 'desk'], 'personal-library': ['library', 'account', 'desk'], 'library-picker': ['library', 'account', 'desk'],
+  'template-editor': ['design', 'desk', 'output'],
+  'card-generator': ['output', 'design', 'desk'],
+  'studio-documents': ['output', 'account'],
+};
+
+// Unknown and shared browser surfaces deliberately run all small smoke journeys.
+export const browserSmokeForPaths = (changedPaths, { all = false } = {}) => {
+  if (all) return [...ALL_BROWSER_SMOKE];
+  const selected = new Set();
+  for (const changedPath of changedPaths) {
+    const filePath = toPosixPath(changedPath);
+    if (specializedJobsForPath(filePath).length === 0) continue;
+    const feature = /^src\/features\/([^/]+)\//u.exec(filePath)?.[1];
+    const groups = !filePath.includes('/server/') && feature && FEATURE_SMOKE[feature];
+    const files = groups ? groups.flatMap((group) => BROWSER_SMOKE[group].map((file) => SMOKE_ROOT + file)) : ALL_BROWSER_SMOKE;
+    for (const file of files) selected.add(file);
+  }
+  return [...selected].sort();
 };
 
 const areaForFeature = (feature) => FEATURE_AREAS.find(({ features }) => features.includes(feature));
@@ -168,7 +200,7 @@ const testMatchesChange = ({ relativeTestPath, source, changedPath, classificati
   return false;
 };
 
-export const buildAffectedVerification = async ({ root, changedPaths }) => {
+export const buildAffectedVerification = async ({ root, changedPaths, allBrowserSmoke = false }) => {
   const normalizedPaths = [...new Set(changedPaths.map(toPosixPath))].sort();
   const classifications = normalizedPaths.map(classifyChangedPath);
   const tests = [];
@@ -185,6 +217,8 @@ export const buildAffectedVerification = async ({ root, changedPaths }) => {
     }
   }
 
+  const changedBrowserSpecs = normalizedPaths.filter((file) => file.startsWith('tests/product/workflows/') && file.endsWith('.spec.ts') && existsSync(path.join(root, file)));
+  const browserSmoke = browserSmokeForPaths(normalizedPaths, { all: allBrowserSmoke }).filter((file) => !changedBrowserSpecs.includes(file));
   const riskOrder = { routine: 0, product: 1, high: 2 };
   const risk = classifications.reduce(
     (highest, classification) => riskOrder[classification.risk] > riskOrder[highest] ? classification.risk : highest,
@@ -198,6 +232,8 @@ export const buildAffectedVerification = async ({ root, changedPaths }) => {
     risk,
     architectureBoundaryAffected: classifications.some(({ architectureBoundaryAffected }) => architectureBoundaryAffected),
     providerVerification: [...new Set(classifications.map(({ providerVerification }) => providerVerification).filter(Boolean))].sort(),
+    browserSmoke,
+    changedBrowserSpecs,
     specializedJobs: [...new Set(normalizedPaths.flatMap(specializedJobsForPath))].sort(),
     fullGateRequired: normalizedPaths.length > 0,
   };
@@ -212,7 +248,8 @@ const runGit = (root, args) => execFileSync('git', args, {
 export const collectChangedPaths = (root, explicitBase) => {
   const changedPaths = new Set();
   const addOutput = (output) => {
-    for (const filePath of output.split(/\r?\n/u).map((value) => value.trim()).filter(Boolean)) {
+    for (const filePath of output.split('\0').filter(Boolean)) {
+      if (filePath.includes('\\')) throw new Error('Unsupported backslash in changed Git path; inspect it manually.');
       changedPaths.add(toPosixPath(filePath));
     }
   };
@@ -220,12 +257,12 @@ export const collectChangedPaths = (root, explicitBase) => {
     ?? (process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : 'origin/main');
   try {
     runGit(root, ['rev-parse', '--verify', base]);
-    addOutput(runGit(root, ['diff', '--name-only', `${base}...HEAD`]));
+    addOutput(runGit(root, ['diff', '--no-renames', '--name-only', '-z', `${base}...HEAD`]));
   } catch (error) {
     throw new Error(`Unable to compare verification base ${base} with HEAD; ensure the base and merge history are fetched.`, { cause: error });
   }
-  addOutput(runGit(root, ['diff', '--name-only', 'HEAD']));
-  addOutput(runGit(root, ['ls-files', '--others', '--exclude-standard']));
+  addOutput(runGit(root, ['diff', '--no-renames', '--name-only', '-z', 'HEAD']));
+  addOutput(runGit(root, ['ls-files', '--others', '--exclude-standard', '-z']));
   return [...changedPaths]
     .filter((filePath) => !filePath.startsWith('.codex-remote-attachments/'))
     .sort();
@@ -238,6 +275,8 @@ const printResult = (result) => {
   console.log(`Architecture boundary affected: ${result.architectureBoundaryAffected ? 'yes' : 'no'}`);
   console.log(`Provider verification: ${result.providerVerification.join(', ') || 'none'}`);
   console.log(`Specialized CI: ${result.specializedJobs.join(', ') || 'none'}`);
+  console.log(`Browser smoke: ${result.browserSmoke.join(', ') || 'none'}`);
+  console.log(`Changed browser specs: ${result.changedBrowserSpecs.join(', ') || 'none'}`);
   console.log(`Full gate before PR: ${result.fullGateRequired ? 'yes' : 'no'}`);
   if (result.docs.length > 0) console.log(`Read: ${result.docs.join(', ')}`);
   if (result.tests.length > 0) {
@@ -279,13 +318,16 @@ if (isDirectExecution) {
     const result = await buildAffectedVerification({
       root,
       changedPaths: args.paths.length > 0 ? args.paths : collectChangedPaths(root, args.base),
+      allBrowserSmoke: process.env.CARDFORGE_BROWSER_ALL === 'true',
     });
     printResult(result);
     if (args.githubOutput) {
       const outputPath = process.env.GITHUB_OUTPUT?.trim();
       if (!outputPath) throw new Error('--github-output requires GITHUB_OUTPUT.');
       appendFileSync(outputPath, [
-        `browser_golden=${result.specializedJobs.includes('browser-golden')}`,
+        `browser_golden=${result.browserSmoke.length + result.changedBrowserSpecs.length > 0}`,
+        `browser_smoke_files=${result.browserSmoke.join(' ')}`,
+        `browser_changed_specs=${JSON.stringify(result.changedBrowserSpecs)}`,
         `risk=${result.risk}`,
         `changed_count=${result.changedPaths.length}`,
         '',

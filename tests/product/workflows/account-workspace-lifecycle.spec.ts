@@ -7,7 +7,7 @@ import type { useProjectStore, persistProjectWorkspaceNow } from '@/features/pro
 import type { adoptGuestWorkspaceForAccount } from '@/features/project/persistence/guestWorkspaceAdoption';
 import type { hydrateProjectWorkspaceForScope } from '@/features/project/store/workspaceStore';
 
-test('@golden native owner → guest startup → same owner resumes saved authored work', async ({ page }, testInfo) => {
+test('@golden @preview native owner → guest startup → same owner resumes saved authored work', async ({ page }, testInfo) => {
   // Bundle the real startup owner into a disposable browser page. No auth mock,
   // injected storage implementation, production test route, or provider session.
   const bundle = await build({
@@ -81,7 +81,7 @@ test('@golden native owner → guest startup → same owner resumes saved author
   await testInfo.attach('native-account-lifecycle', { body: JSON.stringify(result), contentType: 'application/json' });
 });
 
-test('@golden untouched tabs do not write catalog no-ops and dismissed conflicts retain native CAS protection', async ({ context }, testInfo) => {
+test('@golden @preview untouched tabs do not write catalog no-ops and dismissed conflicts retain native CAS protection', async ({ context }, testInfo) => {
   const bundle = await build({
     stdin: { contents: `
       import React from 'react'; import {createRoot} from 'react-dom/client';

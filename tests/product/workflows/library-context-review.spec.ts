@@ -23,7 +23,7 @@ async function mount(page: import('@playwright/test').Page, query = '') {
   await page.addScriptTag({ content: bundle.outputFiles.find(f => f.path.endsWith('.js'))!.text });
   return { mutations, errors };
 }
-for (const width of [390, 1440]) test(`@golden Library exact governance, revision entry and close at ${width}px`, async ({ page }, info) => {
+for (const width of [390, 1440]) test(`@golden @preview Library exact governance, revision entry and close at ${width}px`, async ({ page }, info) => {
   await page.setViewportSize({ width, height: 900 }); const evidence = await mount(page);
   await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
   await expect(page.getByLabel('Exact revision governance')).toBeVisible();
@@ -45,7 +45,7 @@ for (const width of [390, 1440]) test(`@golden Library exact governance, revisio
   await page.getByRole('button', { name: 'Close Pipeline tool', exact: true }).click();
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
-for (const condition of ['missing', 'stale', 'historical']) test(`@golden Library blocks ${condition} exact selection without substitution`, async ({ page }) => {
+for (const condition of ['missing', 'stale', 'historical']) test(`@golden @preview Library blocks ${condition} exact selection without substitution`, async ({ page }) => {
   const evidence = await mount(page, `?${condition}=1`);
   await page.getByRole('button', { name: 'Review & manage', exact: true }).click();
   if (condition === 'historical') {

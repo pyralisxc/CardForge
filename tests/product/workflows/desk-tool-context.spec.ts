@@ -16,7 +16,7 @@ for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
     test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });
 
-    test('@golden creates, designs, generates, edits and reopens a fresh Set without seeded cards', async ({ page }, testInfo) => {
+    test('@golden @preview creates, designs, generates, edits and reopens a fresh Set without seeded cards', async ({ page }, testInfo) => {
       test.setTimeout(180_000);
       page.setDefaultTimeout(15_000);
       if (!mobile) await page.setViewportSize({ width: 1180, height: 757 });

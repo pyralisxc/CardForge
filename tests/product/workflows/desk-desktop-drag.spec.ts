@@ -10,7 +10,7 @@ const READY_TIMEOUT = 120_000;
 test.describe('Desk desktop spatial interaction', () => {
   test.describe.configure({ timeout: READY_TIMEOUT });
 
-  test('@golden desktop Desk uses direct grab-and-drag movement without entering Move mode', async ({ page }) => {
+  test('@golden @preview desktop Desk uses direct grab-and-drag movement without entering Move mode', async ({ page }) => {
     await installBrowserPerformanceObservers(page);
     await seedGuestScaleWorkspace(page, 100);
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });

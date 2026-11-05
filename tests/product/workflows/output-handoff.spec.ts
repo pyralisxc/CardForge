@@ -35,13 +35,13 @@ test('explicit confirmation imports ordered exact source and does not request a 
  expect(faces).toHaveLength(3); for (const [, value] of faces) { const image = value as PDFRawStream; expect(String(image.dict.get(PDFName.of('Width')))).toBe('744'); expect(String(image.dict.get(PDFName.of('Height')))).toBe('1040'); }
  expect(state.requests()).toBe(3);
 });
-test('@golden cancel leaves workspace untouched and concurrent local work aborts import', async ({ page }) => {
+test('@golden @preview cancel leaves workspace untouched and concurrent local work aborts import', async ({ page }) => {
  const cancelled = await mount(page, false, false, 0, '2', 0, false, 'studio', true); await expect(page.getByTestId('selected')).toHaveText(''); expect(cancelled.requests()).toBe(0); expect(await page.evaluate(() => (window as unknown as { localCardIds: () => string[] }).localCardIds())).toContain('existing-local');
  await page.goto('about:blank'); const pending = await mount(page, true, true); await expect.poll(() => pending.requests()).toBe(1); await page.evaluate(() => (window as unknown as { changeWorkspace: () => void }).changeWorkspace()); pending.release();
  await expect(page.getByTestId('message')).toContainText('workspace changed'); await expect(page.getByTestId('selected')).toHaveText('');
 });
 
-test('@golden stale source blocks PDF download before rendering', async ({ page }) => {
+test('@golden @preview stale source blocks PDF download before rendering', async ({ page }) => {
  let downloads = 0; page.on('download', () => downloads++); const state = await mount(page, true, false, 1);
  await expect(page.getByTestId('selected')).toHaveText('scale-card-2,scale-card-1');
  await page.getByRole('button', { name: /PDF/i }).click();
@@ -49,7 +49,7 @@ test('@golden stale source blocks PDF download before rendering', async ({ page 
  expect(state.requests()).toBe(2); expect(downloads).toBe(0);
 });
 
-test('@golden a source change during render blocks the download request', async ({ page }) => {
+test('@golden @preview a source change during render blocks the download request', async ({ page }) => {
  let downloads = 0; page.on('download', () => downloads++); const state = await mount(page, true, false, 2);
  await expect(page.getByTestId('selected')).toHaveText('scale-card-2,scale-card-1');
  await page.getByRole('button', { name: /PDF/i }).click();
@@ -81,7 +81,7 @@ test('GPT adoption accepts its known metadata normalization', async ({ page }) =
  await expect(page.getByTestId('selected')).toHaveText('scale-card-2,scale-card-1'); expect(state.requests()).toBe(1);
 });
 
-test('@golden lost installation acknowledgement cannot cause reload to reimport local work', async ({ page }) => {
+test('@golden @preview lost installation acknowledgement cannot cause reload to reimport local work', async ({ page }) => {
  const state = await mount(page, true, false, 0, '2', 0, false, 'gpt', false, null, true);
  await expect(page.getByTestId('message')).toContainText('applied locally');
  expect(state.requests()).toBe(1);
@@ -171,7 +171,7 @@ async function mountDesk(page: import('@playwright/test').Page, fault: 'stale' |
  return { requests: () => requests, acknowledgements: () => acknowledgements, confirmations: () => confirmations, release };
 }
 
-test('@golden actual Desk bootstraps exact prepared Output before a local Set exists', async ({ page }) => {
+test('@golden @preview actual Desk bootstraps exact prepared Output before a local Set exists', async ({ page }) => {
  let downloads = 0; page.on('download', () => downloads++);
  const source = await mountDesk(page);
  await expect(page.getByText('Prepared selection: 2 cards, in the requested order.')).toBeVisible();
@@ -186,7 +186,7 @@ test('@golden actual Desk bootstraps exact prepared Output before a local Set ex
  await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toHaveCount(0);
 });
 
-for (const fault of ['stale', 'invalid', 'cancel', 'concurrent'] as const) test(`@golden actual Desk keeps ${fault} Output handoff fail-closed`, async ({ page }) => {
+for (const fault of ['stale', 'invalid', 'cancel', 'concurrent'] as const) test(`@golden @preview actual Desk keeps ${fault} Output handoff fail-closed`, async ({ page }) => {
  let downloads = 0; page.on('download', () => downloads++);
  const source = await mountDesk(page, fault);
  if (fault === 'concurrent') { await expect.poll(source.requests).toBe(1); await page.evaluate(() => (window as unknown as { changeWorkspace: () => void }).changeWorkspace()); source.release(); }

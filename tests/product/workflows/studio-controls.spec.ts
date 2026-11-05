@@ -8,7 +8,7 @@ import tailwindConfig from '../../../tailwind.config';
 import { expect, test } from '@playwright/test';
 const bundle = buildSync({ entryPoints:['tests/product/fixtures/studioControls.tsx'],bundle:true,platform:'browser',format:'iife',write:false,outfile:join(tmpdir(),'studio-controls.js'),define:{'process.env.NODE_ENV':'"production"','process.env':'{}'} });
 const css=postcss([tailwindcss(tailwindConfig)]).process((readFileSync('src/app/cardforgePresentation.css','utf8')+readFileSync('src/app/globals.css','utf8')).replace(/@import ['"]([^'"]+)['"];?/g,(_,path:string)=>readFileSync(join('src/app',path),'utf8')),{from:'src/app/globals.css'});
-for(const width of [390,1440]) test(`@golden Studio controls preserve selected geometry and texture-only strength at ${width}px`,async({page},info)=>{
+for(const width of [390,1440]) test(`@golden @preview Studio controls preserve selected geometry and texture-only strength at ${width}px`,async({page},info)=>{
   test.setTimeout(90_000);
   await page.setViewportSize({width,height:960});
   const unexpected:string[]=[];

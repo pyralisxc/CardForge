@@ -151,7 +151,7 @@ test.describe('spatial touch workspace', () => {
     await page.screenshot({ path: testInfo.outputPath('focused-artifact-browse.png') });
   });
 
-  test('@golden pans, holds to move, pinches, and restores the same Set camera', async ({ page, context }, testInfo) => {
+  test('@golden @preview pans, holds to move, pinches, and restores the same Set camera', async ({ page, context }, testInfo) => {
     test.setTimeout(120_000);
     await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true });
     await page.goto('/account');
