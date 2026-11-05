@@ -55,6 +55,8 @@ jobs:
           fetch-depth: 0
       - name: Route specialized verification
         id: route
+        env:
+          CARDFORGE_BROWSER_ALL: ${{ github.event_name == 'push' || github.event.pull_request.base.ref == 'main' }}
         run: node scripts/report-affected-verification.mjs --base "$CARDFORGE_VERIFY_BASE" --github-output
       - if: steps.route.outputs.browser_golden != 'true'
         run: echo "No browser-owned surface changed; browser setup and tests were skipped." >> "$GITHUB_STEP_SUMMARY"
@@ -69,9 +71,16 @@ jobs:
       - if: steps.route.outputs.browser_golden == 'true'
         name: Install Chromium
         run: node scripts/run-ci-check.mjs --title "Chromium install" -- npx playwright install --with-deps chromium
-      - if: steps.route.outputs.browser_golden == 'true'
-        name: Run compact browser gate
-        run: node scripts/run-ci-check.mjs --title "Golden browser gate" -- npm run smoke:golden
+      - if: steps.route.outputs.browser_smoke_files != ''
+        name: Run affected browser smoke
+        env:
+          BROWSER_SMOKE_FILES: ${{ steps.route.outputs.browser_smoke_files }}
+        run: node scripts/run-ci-check.mjs --title "Affected browser smoke" -- npm run smoke:preview -- $BROWSER_SMOKE_FILES
+      - if: steps.route.outputs.browser_changed_specs != '[]'
+        name: Run changed browser specifications
+        env:
+          CHANGED_BROWSER_SPECS: ${{ steps.route.outputs.browser_changed_specs }}
+        run: node scripts/run-ci-check.mjs --title "Changed browser specifications" -- node scripts/run-changed-browser-specs.mjs
       - if: ${{ !cancelled() && steps.route.outputs.browser_golden == 'true' }}
         name: Retain browser review evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

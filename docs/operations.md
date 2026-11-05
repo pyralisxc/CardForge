@@ -239,7 +239,7 @@ Rollback native provider calls by setting `CARDFORGE_META_PUBLISHING_ENABLED=fal
 
 The former reusable QA accounts were retired. Do not recreate them for generic coverage. For auth, billing, entitlement, provider-domain, owner/contributor, or protected-recovery changes, use the real signed-in owner/contributor account and verify only the affected path.
 
-`npm run smoke:golden` is the compact merge-protected mocked browser lane. `npm run smoke:ui` is the extended browser lane, including scale and soak. Neither proves a real Clerk/Stripe/provider session.
+`npm run smoke:preview` is the small CI browser smoke, selected by affected owner for Preview; changed browser specifications also run in full. `npm run smoke:ui` is the broader opt-in lane. Neither proves a real Clerk/Stripe/provider session.
 
 ## ChatGPT plugin publication
 
@@ -298,7 +298,7 @@ Safe support rollback disables/removes support checkout configuration while reta
 - `npm run verify:full`: canonical complete non-browser repository gate for the final candidate and CI.
 - `npm run architecture:report`: on-demand dependency-gravity, public-interface, and oversized-file analysis. Normal architecture enforcement is concise.
 - `npm run health:production`: canonical non-mutating production route, product, and provider health. Add `-- --category=route`, `catalog`, `product`, or `provider` to isolate a lane. Immediate post-deploy checks use `deployment` for routes plus catalog shape and free starter discovery in both Sets and Pipeline; these checks use native fetch without installing packages. Product health also downloads and validates the official 52-card starter package. Provider health distinguishes an unavailable catalog from an empty collection and verifies Stripe/Clerk readiness and truthful anonymous Drive authentication classification. Publication changes additionally run `supabase/tests/pipeline_publication.sql` inside a rolled-back staging transaction after the candidate migration.
-- `npm run smoke:golden`: compact browser merge protection for representative Desk mouse/touch behavior.
+- `npm run smoke:preview`: small representative browser smoke; Preview CI routes affected owners, while Main candidates run all smoke cases.
 - `npm run smoke:hosted`: exact-deployment signed-out smoke for the public entry point, guest Studio opening, and compact-screen navigation; requires `CARDFORGE_E2E_BASE_URL` and the Vercel bypass secret when the deployment is protected.
 - `npm run smoke:ui`: extended mocked browser/accessibility, scale, and soak regression.
 - `npm run pipeline:sync-defaults`: import missing bootstrap assets into the reviewed Pipeline without overwriting decisions/tombstones.

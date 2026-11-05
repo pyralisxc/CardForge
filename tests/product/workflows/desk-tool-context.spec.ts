@@ -1,4 +1,5 @@
 import { devices, expect, test } from '@playwright/test';
+import sharp from 'sharp';
 
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
@@ -16,7 +17,7 @@ for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
     test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });
 
-    test('@golden creates, designs, generates, edits and reopens a fresh Set without seeded cards', async ({ page }, testInfo) => {
+    test('@golden @preview creates, designs, generates, edits and reopens a fresh Set without seeded cards', async ({ page }, testInfo) => {
       test.setTimeout(180_000);
       page.setDefaultTimeout(15_000);
       if (!mobile) await page.setViewportSize({ width: 1180, height: 757 });
@@ -168,7 +169,7 @@ for (const mobile of [false, true]) {
       await expect(page.getByRole('button', { name: 'Uncommitted card. Creator loop Template Variant', exact: true })).toHaveCount(0);
     });
 
-    test('protects an edited card and opens Output without mounting another editor', async ({ page }) => {
+    test('@preview protects an edited card and opens Output without mounting another editor', async ({ page }) => {
       test.setTimeout(120_000);
       await seedGuestScaleWorkspace(page, 100);
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
@@ -178,22 +179,30 @@ for (const mobile of [false, true]) {
       await expect(firstCard).toHaveAttribute('aria-pressed', 'true');
       await firstCard.press('Enter');
       await page.getByRole('button', { name: 'Edit', exact: true }).click();
-      const artwork = page.getByRole('textbox', { name: /Artwork \(Image URL or Upload\)/ });
+      const editor = page.locator('[data-artifact-edit-workspace]');
+      const openFields = async () => {
+        if (mobile) {
+          await editor.getByRole('button', { name: 'More focused Artifact actions', exact: true }).click();
+          await page.getByRole('menuitem', { name: 'All fields', exact: true }).click();
+        } else await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+      };
+      await openFields();
+      const artwork = editor.getByRole('textbox', { name: /Artwork \(Image URL or Upload\)/ });
       const original = await artwork.inputValue();
       await artwork.fill('https://example.com/draft.png');
-      await page.getByRole('button', { name: 'Review & close', exact: true }).click();
-      await expect(page.getByRole('alertdialog')).toContainText('unsaved changes');
-      await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
+      await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await expect(page.getByRole('alertdialog')).toContainText('Discard unsaved Artifact changes');
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Keep editing', exact: true }).click();
       await expect(artwork).toHaveValue('https://example.com/draft.png');
-      await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-      await expect(page.getByRole('alertdialog')).toContainText('Discard unsaved card changes');
+      await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
       await page.keyboard.press('Escape');
       await expect(artwork).toHaveValue('https://example.com/draft.png');
-      await page.getByRole('button', { name: 'Review & close', exact: true }).click();
-      await page.getByRole('alertdialog').getByRole('button', { name: 'Close Edit card', exact: true }).click();
+      await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Discard changes', exact: true }).click();
       await page.getByRole('button', { name: 'Edit', exact: true }).click();
+      await openFields();
       await expect(artwork).toHaveValue(original);
-      await page.getByRole('button', { name: 'Done', exact: true }).click();
+      await editor.getByRole('button', { name: 'Done', exact: true }).click();
       await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
       if (mobile) {
         await page.getByRole('button', { name: 'More Set actions', exact: true }).click();
@@ -208,6 +217,50 @@ for (const mobile of [false, true]) {
       await expect(page.getByRole('region', { name: 'Template canvas', exact: true })).toHaveCount(0);
       await expect(artwork).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Remove all cards', exact: true })).toHaveCount(0);
+    });
+
+    test('@preview discarded edit ignores an image upload that finishes in a later session', async ({ page }) => {
+      test.setTimeout(120_000);
+      await seedGuestScaleWorkspace(page, 100);
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await openScaleSet(page, 100);
+      await page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true }).press('Enter');
+      await page.getByRole('button', { name: 'Edit', exact: true }).click();
+      const editor = page.locator('[data-artifact-edit-workspace]');
+      const openFields = async () => {
+        if (mobile) {
+          await editor.getByRole('button', { name: 'More focused Artifact actions', exact: true }).click();
+          await page.getByRole('menuitem', { name: 'All fields', exact: true }).click();
+        } else await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+      };
+      await openFields();
+      const artwork = editor.getByRole('textbox', { name: /Artwork \(Image URL or Upload\)/ });
+      const original = await artwork.inputValue();
+      await page.evaluate(() => {
+        const native = window.createImageBitmap.bind(window);
+        const gate = new Promise<void>((resolve) => { (window as unknown as { releaseUpload: () => void }).releaseUpload = resolve; });
+        const read = FileReader.prototype.readAsDataURL;
+        FileReader.prototype.readAsDataURL = function (blob) {
+          this.addEventListener('loadend', () => { (window as unknown as { uploadReadFinished: boolean }).uploadReadFinished = true; }, { once: true });
+          return read.call(this, blob);
+        };
+        window.createImageBitmap = (async (...args: Parameters<typeof createImageBitmap>) => {
+          (window as unknown as { uploadStarted: boolean }).uploadStarted = true;
+          await gate;
+          return native(...args);
+        }) as typeof createImageBitmap;
+      });
+      await editor.locator('input[type="file"]').first().setInputFiles({
+        name: 'one.png', mimeType: 'image/png',
+        buffer: await sharp({ create: { width: 2, height: 2, channels: 4, background: '#f80' } }).png().toBuffer(),
+      });
+      await expect.poll(() => page.evaluate(() => (window as unknown as { uploadStarted?: boolean }).uploadStarted)).toBe(true);
+      await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await page.getByRole('button', { name: 'Edit', exact: true }).click();
+      await openFields();
+      await page.evaluate(() => (window as unknown as { releaseUpload: () => void }).releaseUpload());
+      await expect.poll(() => page.evaluate(() => (window as unknown as { uploadReadFinished?: boolean }).uploadReadFinished)).toBe(true);
+      await expect(artwork).toHaveValue(original);
     });
 
     test('@golden opens the Set template and back instead of stale tool selections', async ({ page }) => {

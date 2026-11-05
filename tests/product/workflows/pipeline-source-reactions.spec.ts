@@ -49,7 +49,7 @@ async function mount(page: Page, options: { blocked?: boolean; failure?: boolean
   await page.addScriptTag({ content: bundle.outputFiles.find(file => file.path.endsWith('.js'))!.text });
   return { mutations, reads };
 }
-test('@golden Studio exact source, lineage heart and other mounted representations refresh through native commands', async ({ page }) => {
+test('@golden @preview Studio exact source, lineage heart and other mounted representations refresh through native commands', async ({ page }) => {
   const evidence = await mount(page); const studio = page.getByLabel('Studio original');
   await expect(studio.getByText(/Original revision one/)).toBeVisible();
   await studio.getByRole('button', { name: 'Like 2', exact: true }).click();

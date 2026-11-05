@@ -63,7 +63,7 @@ for (const width of [320, 1180]) test(`@golden catalog recovery exposes guarded 
 });
 
 // Native component proof; PostgreSQL independently owns real impact/CAS evidence.
-test('@golden catalog impact requires explicit consent and reconciles stale evidence', async ({ page }) => {
+test('@golden @preview catalog impact requires explicit consent and reconciles stale evidence', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 850 });
   let fingerprint = 'a'.repeat(64);
   let moved = false;

@@ -10,7 +10,9 @@ import {
   collectChangedPaths,
   classifyChangedPath,
   specializedJobsForPath,
+  browserSmokeForPaths,
 } from '../../scripts/report-affected-verification.mjs';
+import { playwrightPatternsForSpecs } from '../../scripts/run-changed-browser-specs.mjs';
 import { compactFailureTail, formatCiSummary } from '../../scripts/run-ci-check.mjs';
 import { collectVerificationSources, isTestDeclaration } from '../../scripts/report-test-inventory.mjs';
 
@@ -78,6 +80,28 @@ describe('agent verification routing', () => {
     }
   });
 
+  it('retains both renamed paths and filenames with spaces when collecting changes', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'cardforge-renamed-test-'));
+    try {
+      const oldPath = 'tests/product/workflows/old name.spec.ts';
+      const newPath = 'tests/product/workflows/nested/new name.spec.ts';
+      await mkdir(path.dirname(path.join(root, oldPath)), { recursive: true });
+      await writeFile(path.join(root, oldPath), 'test content');
+      execFileSync('git', ['init', '-q'], { cwd: root });
+      execFileSync('git', ['add', '.'], { cwd: root });
+      execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-qm', 'fixture'], { cwd: root });
+      await mkdir(path.dirname(path.join(root, newPath)), { recursive: true });
+      execFileSync('git', ['mv', oldPath, newPath], { cwd: root });
+      expect(collectChangedPaths(root, 'HEAD')).toEqual([newPath, oldPath].sort());
+      const result = await buildAffectedVerification({ root, changedPaths: [oldPath, newPath] });
+      expect(result.changedBrowserSpecs).toEqual([newPath]);
+      const [pattern] = playwrightPatternsForSpecs([newPath], root);
+      expect(new RegExp(pattern).test(newPath)).toBe(true);
+      expect(new RegExp(pattern).test(`${newPath}.other`)).toBe(false);
+      expect(() => playwrightPatternsForSpecs(['tests/product/workflows/../../outside.spec.ts'], root)).toThrow();
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
   it('routes a feature change to its exact owner, focused tests, and relevant documentation', async () => {
     const result = await buildAffectedVerification({
       root: process.cwd(),
@@ -126,11 +150,43 @@ describe('agent verification routing', () => {
     expect(result.tests.some((testPath) => testPath.includes('billing'))).toBe(true);
   });
 
-  it('routes browser-owned changes to the existing golden job without treating server-only work as browser work', () => {
+  it('routes runtime, shared and browser-owned changes to the browser job', () => {
     expect(specializedJobsForPath('src/features/desk/components/Desk.tsx')).toEqual(['browser-golden']);
     expect(specializedJobsForPath('src/app/account/page.tsx')).toEqual(['browser-golden']);
-    expect(specializedJobsForPath('src/features/billing/server/processStripeWebhook.ts')).toEqual([]);
+    expect(specializedJobsForPath('src/features/billing/server/processStripeWebhook.ts')).toEqual(['browser-golden']);
+    expect(specializedJobsForPath('src/app/api/studio-documents/[documentId]/route.ts')).toEqual(['browser-golden']);
+    expect(specializedJobsForPath('src/domain/rendering/model.ts')).toEqual(['browser-golden']);
+    expect(specializedJobsForPath('src/infrastructure/security/guard.ts')).toEqual(['browser-golden']);
     expect(specializedJobsForPath('docs/testing.md')).toEqual([]);
+  });
+
+  it('selects affected browser smoke and falls back to the complete smoke for shared or unknown impact', () => {
+    const desk = browserSmokeForPaths(['src/features/desk/components/Desk.tsx']);
+    const library = browserSmokeForPaths(['src/features/storage-management/components/UnifiedAccountLibrary.tsx']);
+    expect(desk).toContain('tests/product/workflows/desk-tool-context.spec.ts');
+    expect(desk).not.toContain('tests/product/workflows/library-context-review.spec.ts');
+    expect(library).toContain('tests/product/workflows/library-context-review.spec.ts');
+    expect(library).toContain('tests/product/workflows/desk-tool-context.spec.ts');
+    expect(browserSmokeForPaths(['src/features/desk/client.ts', 'src/features/storage-management/client.ts'])).toEqual([...new Set([...desk, ...library])].sort());
+    expect(browserSmokeForPaths(['src/shared/unknown.ts'])).toContain('tests/product/workflows/desk-tool-context.spec.ts');
+    expect(browserSmokeForPaths(['src/shared/unknown.ts'])).toContain('tests/product/workflows/library-context-review.spec.ts');
+    expect(browserSmokeForPaths(['src/features/unmapped/client.ts'])).toEqual(browserSmokeForPaths(['package-lock.json']));
+    expect(browserSmokeForPaths(['src/features/pipeline/client/catalog.ts'])).toContain('tests/product/workflows/studio-controls.spec.ts');
+    expect(browserSmokeForPaths(['src/features/card-rendering/client.ts'])).toContain('tests/product/workflows/desk-tool-context.spec.ts');
+    expect(browserSmokeForPaths(['src/features/public-site/components/PublicSiteShell.tsx'])).toEqual(browserSmokeForPaths(['package-lock.json']));
+    expect(browserSmokeForPaths(['docs/testing.md'])).toEqual([]);
+    expect(browserSmokeForPaths(['docs/testing.md'], { all: true })).toEqual(browserSmokeForPaths(['package-lock.json']));
+  });
+
+  it('routes directly changed browser specifications without shell metacharacters or deleted paths', async () => {
+    const result = await buildAffectedVerification({ root: process.cwd(), changedPaths: [
+      'tests/product/workflows/output-handoff.spec.ts',
+      'tests/product/workflows/deleted.spec.ts',
+      'tests/product/workflows/unsafe name.spec.ts',
+    ] });
+    expect(result.changedBrowserSpecs).toEqual(['tests/product/workflows/output-handoff.spec.ts']);
+    expect(result.browserSmoke).not.toContain('tests/product/workflows/output-handoff.spec.ts');
+    expect(result.browserSmoke.length).toBeGreaterThan(0);
   });
 
   it('writes compact pass/failure summaries instead of requiring the full log for triage', () => {
@@ -145,7 +201,7 @@ describe('agent verification routing', () => {
     })).toContain('Failure tail');
   });
 
-  it('owns the non-browser gate once and keeps the compact browser lane independently merge-protected', async () => {
+  it('owns the non-browser gate once and routes the small browser lane independently', async () => {
     const packageJson = JSON.parse(await readFile(path.join(process.cwd(), 'package.json'), 'utf8')) as {
       scripts: Record<string, string>;
       workspaces: string[];
@@ -180,20 +236,7 @@ describe('agent verification routing', () => {
     ].join(' && '));
     expect(scripts['test:inventory:check']).toBe('node scripts/report-test-inventory.mjs --check');
 
-    const golden = scripts['smoke:golden'];
-    expect(golden).toContain('playwright test');
-    expect(golden).toContain('--grep @golden');
-    expect(golden).toContain('--workers=1');
-    for (const representativeDeskWorkflow of [
-      'tests/product/workflows/desk-desktop-drag.spec.ts',
-      'tests/product/workflows/desk-tool-context.spec.ts',
-      'tests/product/workflows/spatial-gestures.spec.ts',
-    ]) expect(golden).toContain(representativeDeskWorkflow);
-    for (const extendedWorkflow of [
-      'artifact-scale-performance.spec.ts',
-      'browser-workspace-recovery.spec.ts',
-      'mobile-dropdowns.spec.ts',
-    ]) expect(golden).not.toContain(extendedWorkflow);
+    expect(scripts['smoke:preview']).toBe('playwright test --grep @preview --workers=1');
 
     expect(scripts['smoke:hosted']).toBe('playwright test --config playwright.hosted.config.ts --workers=1');
     expect(scripts['verify:full']).not.toContain('playwright');
@@ -202,7 +245,9 @@ describe('agent verification routing', () => {
     expect(browserCheckout).toContain('fetch-depth: 0');
     expect(ci).toContain('--github-output');
     expect(ci).toContain('npx playwright install --with-deps chromium');
-    expect(ci).toContain('npm run smoke:golden');
+    expect(ci).toContain('npm run smoke:preview');
+    expect(ci).toContain('CARDFORGE_BROWSER_ALL');
+    expect(ci).toContain('browser_smoke_files');
     expect(deploymentSmoke).toContain('types: [vercel.deployment.success]');
     expect(deploymentSmoke).toContain("github.event.client_payload.git.ref == 'vercel-preview'");
     expect(deploymentSmoke).toContain("github.event.client_payload.git.ref == 'main'");

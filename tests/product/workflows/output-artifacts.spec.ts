@@ -56,7 +56,7 @@ test('does not download a success artifact when authored artwork fails to load',
   expect(downloads).toBe(0);
 });
 
-test('@golden downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', async ({ page }, testInfo) => {
+test('@golden @preview downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   await page.addInitScript(() => {
     Object.defineProperty(window, 'showSaveFilePicker', {
