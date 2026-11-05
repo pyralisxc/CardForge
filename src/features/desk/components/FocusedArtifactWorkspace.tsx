@@ -93,6 +93,8 @@ export function FocusedArtifactWorkspace({
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [showAllFields, setShowAllFields] = useState(false);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const editSessionRef = useRef(0);
+  useEffect(() => () => { editSessionRef.current += 1; }, [editing, card.uniqueId]);
   const template = getCardFaceTemplate(card, face);
   const data = face === 'back' ? backData : frontData;
   const setData = face === 'back' ? setBackData : setFrontData;
@@ -136,6 +138,12 @@ export function FocusedArtifactWorkspace({
     activeDirectPointersRef.current.clear();
     setSwipeOffset({ x: 0, y: 0, active: false });
   }, [card.uniqueId, initialBack, initialFront]);
+  useEffect(() => {
+    if (!editing) {
+      setFrontData(initialFront[1]);
+      setBackData(initialBack[1]);
+    }
+  }, [editing, initialBack, initialFront]);
   useEffect(() => onDirtyChange(editing && dirty), [dirty, editing, onDirtyChange]);
   useEffect(() => {
     if (!editing || !dirty) return;
@@ -264,6 +272,7 @@ export function FocusedArtifactWorkspace({
       toast({ title: 'Image not added', description: validation.message, variant: 'destructive' });
       return;
     }
+    const session = editSessionRef.current;
     try {
       const storedFile = await optimizeLocalAssetFile(file);
       const dataUri = await new Promise<string>((resolve, reject) => {
@@ -272,9 +281,9 @@ export function FocusedArtifactWorkspace({
         reader.onerror = () => reject(new Error('Failed to read image file.'));
         reader.readAsDataURL(storedFile);
       });
-      setData((current) => ({ ...current, [fieldKey]: dataUri }));
+      if (session === editSessionRef.current) setData((current) => ({ ...current, [fieldKey]: dataUri }));
     } catch (error) {
-      toast({ title: 'Image not added', description: error instanceof Error ? error.message : 'Unable to validate the image.', variant: 'destructive' });
+      if (session === editSessionRef.current) toast({ title: 'Image not added', description: error instanceof Error ? error.message : 'Unable to validate the image.', variant: 'destructive' });
     }
   };
 
