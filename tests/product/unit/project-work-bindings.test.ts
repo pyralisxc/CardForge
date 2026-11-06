@@ -60,7 +60,7 @@ const folder = (name: string) => {
     name,
     queryPermission: vi.fn(async (): Promise<'granted' | 'denied' | 'prompt'> => 'granted'),
     isSameEntry: vi.fn(async (other: { name: string }) => other.name === name),
-    getFileHandle: vi.fn(async () => ({ getFile: async () => new Blob(['package']), createWritable: async () => ({ abort: async () => {} }) })),
+    getFileHandle: vi.fn(async (_filename: string, _options?: { create: boolean }) => ({ getFile: async () => new Blob(['package']), createWritable: async () => ({ abort: async () => {} }) })),
   };
   return handle;
 };
@@ -168,26 +168,24 @@ describe('one authoritative Set location across save entry points', () => {
     expect(mock.values.get('test:local-project-folder-binding')).toEqual({ workId: 'set-c' });
   });
 
-  it('saves and reopens the same Set and revision through the owner filename', async () => {
+  it('saves and reopens using the same owner filename', async () => {
     const handle = folder('C');
     const revision = 'b'.repeat(64);
     const document = { cardSets: [{ id: 'set-c', name: 'C' }] };
+    const filename = localFolder.getLocalProjectFileName();
+    handle.getFileHandle.mockImplementation(async (requestedName: string) => {
+      if (requestedName !== filename) throw new DOMException('File not found', 'NotFoundError');
+      return { getFile: async () => new Blob(['package']), createWritable: async () => ({ abort: async () => {} }) };
+    });
     mock.values.set('test:local-work-folder-binding:set-c', { handle, folderName: 'C', workId: 'set-c', sourceRevision: revision });
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: revision, document });
-    const filename = localFolder.getLocalProjectFileName();
-    const getter = vi.spyOn(localFolder, 'getLocalProjectFileName');
-    try {
-      const saved = await saveCardSetToAttachedFolder('set-c');
-      expect(saved).toMatchObject({ workId: 'set-c', sourceRevision: revision });
-      expect(handle.getFileHandle).toHaveBeenCalledWith(filename, { create: true });
-      handle.getFileHandle.mockClear();
-      expect(await openRememberedLocalProject('set-c')).toEqual({ setId: 'set-c', sourceRevision: revision });
-      expect(getter).toHaveBeenCalled();
-      expect(handle.getFileHandle).toHaveBeenCalledWith(filename);
-      expect(mock.apply).toHaveBeenCalledWith(document, 'merge', { expectedState: expect.any(Object) });
-    } finally {
-      getter.mockRestore();
-    }
+    const saved = await saveCardSetToAttachedFolder('set-c');
+    expect(saved).toMatchObject({ workId: 'set-c', sourceRevision: revision });
+    expect(handle.getFileHandle).toHaveBeenCalledWith(filename, { create: true });
+    handle.getFileHandle.mockClear();
+    expect(await openRememberedLocalProject('set-c')).toEqual({ setId: 'set-c', sourceRevision: revision });
+    expect(handle.getFileHandle).toHaveBeenCalledWith(filename);
+    expect(mock.apply).toHaveBeenCalledWith(document, 'merge', { expectedState: expect.any(Object) });
   });
 
   it('preserves verified workspace backup saves', async () => {
