@@ -5,7 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-const TEST_EXTENSIONS = ['.test.ts', '.spec.ts'];
+const TEST_EXTENSIONS = ['.test.ts', '.test.tsx', '.spec.ts'];
 
 const FEATURE_AREAS = [
   {
