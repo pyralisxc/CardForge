@@ -10,7 +10,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    include: ['tests/product/unit/**/*.test.ts'],
+    include: ['tests/product/unit/**/*.test.{ts,tsx}'],
     setupFiles: ['./vitest.setup.ts'],
     testTimeout: 15_000,
   },

@@ -116,6 +116,14 @@ describe('agent verification routing', () => {
     expect(result.providerVerification).toEqual([]);
   });
 
+  it('routes the Owner panel TSX test for both its owner and direct changes', async () => {
+    const testPath = 'tests/product/unit/owner-studio-dependency-panel.test.tsx';
+    for (const changedPath of [testPath, 'src/features/owner/components/OwnerStudioDependencyPanel.tsx']) {
+      const result = await buildAffectedVerification({ root: process.cwd(), changedPaths: [changedPath] });
+      expect(result.tests).toContain(testPath);
+    }
+  });
+
   it('preserves provider and risk guidance for a billing change', () => {
     expect(classifyChangedPath('src/features/billing/server/processStripeWebhook.ts')).toMatchObject({
       owner: 'billing',
