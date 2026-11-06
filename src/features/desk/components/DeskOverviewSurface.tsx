@@ -257,7 +257,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
       actionLabel={props.failure.retryable ? 'Retry' : undefined}
       onAction={props.failure.retryable ? props.onRetry : undefined}
     /> : null}
-    <section className={styles.workSurface} data-grid={props.showGrid} aria-label="Open work on Desk">
+    <section className={styles.workSurface} data-desk-work-surface data-grid={props.showGrid} aria-label="Open work on Desk">
       <div className={styles.deskToolbar} data-desk-toolbar>
         <div className={styles.deskFilterRow} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         <details ref={mobileFiltersRef} className={styles.mobileDeskFilters} data-mobile-desk-filters>

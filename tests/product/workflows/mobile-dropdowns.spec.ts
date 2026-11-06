@@ -206,7 +206,7 @@ test.describe('mobile Desk controls', () => {
     }
     await rail.getByRole('button', { name: 'Back to Desk', exact: true }).tap({ position: { x: 3, y: 3 } });
     await expect(page.locator('[data-desk="overview"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: `Selected ${longName}. Press Enter to open.` })).toBeFocused();
+    await expect(page.getByRole('button', { name: `Selected ${longName}. Drag to move; press Enter to open.` })).toBeFocused();
   });
 
   test('@golden keeps Generate bounded as a mobile Task while preserving Desk context', async ({ page }) => {

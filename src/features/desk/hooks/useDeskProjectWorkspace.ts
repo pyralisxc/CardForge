@@ -147,9 +147,11 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
     }
     return 'All cards';
   };
-  sortedCards.forEach((card) => {
+  if (organization.groupBy !== 'template') sortedCards.forEach((card) => {
     const label = groupLabel(card);
-    groups.set(label, [...(groups.get(label) ?? []), card]);
+    const group = groups.get(label);
+    if (group) group.push(card);
+    else groups.set(label, [card]);
   });
   const selectedCards = focusedCards.filter((card) => options.selectedCardIds.includes(card.uniqueId));
   const selectedCard = selectedCards.length === 1 ? selectedCards[0] : null;
