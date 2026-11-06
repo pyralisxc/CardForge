@@ -1,4 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { getDeskSelectionLabel } from '@/features/desk/model/desk';
+
+describe('Desk selection labels', () => {
+  it('describes Sets, non-Sets, and mixed selections without merging them', () => {
+    expect(getDeskSelectionLabel([{ kind: 'set' }])).toBe('Set');
+    expect(getDeskSelectionLabel([{ kind: 'set' }, { kind: 'set' }])).toBe('2 Sets');
+    expect(getDeskSelectionLabel([{ kind: 'campaign' }])).toBe('Campaign');
+    expect(getDeskSelectionLabel([{ kind: 'set' }, { kind: 'campaign' }])).toBe('2 items');
+    expect(getDeskSelectionLabel([{ kind: 'published-resource' }])).toBe('published resource');
+  });
+});
 import { normalizeCardSet, type StoredDisplayCard } from '@/domain/cards';
 import { DESK_METADATA_SEPARATOR, getDeskSourceFacets, getDeskToolCard, getDeskWorkKeyboardIntent, getWorkActions, joinDeskMetadata, matchesDeskTagFilters, matchesDeskViews, matchesSourceFilter, normalizeDeskOrder, preserveDeskOrder, workDetailRecord } from '@/features/desk/model/desk';
 import { normalizeDeskViewPreferences } from '@/features/desk/hooks/useDeskViewPreferences';

@@ -46,8 +46,8 @@ test.describe('mobile Desk controls', () => {
     const panel = filters.locator('[aria-label="Desk views and filters"]');
     await panel.getByRole('button', { name: 'Organize Set', exact: true }).tap();
     await expect(panel.getByLabel('Organize selected work')).toBeInViewport({ ratio: 1 });
-    await expect(panel.getByRole('combobox', { name: 'Choose a supported or reusable Set type' })).toBeInViewport({ ratio: 1 });
-    const typeSelect = panel.getByRole('combobox', { name: 'Choose a supported or reusable Set type' });
+    await expect(panel.getByRole('combobox', { name: 'Choose a supported or reusable type' })).toBeInViewport({ ratio: 1 });
+    const typeSelect = panel.getByRole('combobox', { name: 'Choose a supported or reusable type' });
     await typeSelect.tap();
     const typeOptions = page.locator('[data-cardforge-select-content][role="listbox"]');
     await expect(typeOptions).toBeVisible();
@@ -66,7 +66,7 @@ test.describe('mobile Desk controls', () => {
     await filters.locator('summary').tap();
     const panel = filters.locator('[aria-label="Desk views and filters"]');
     await panel.getByRole('button', { name: 'Organize Set', exact: true }).tap();
-    await panel.getByRole('combobox', { name: 'Choose a supported or reusable Set type' }).tap();
+    await panel.getByRole('combobox', { name: 'Choose a supported or reusable type' }).tap();
     const options = page.locator('[data-cardforge-select-content][role="listbox"]');
     await options.getByRole('option', { name: 'Playing deck', exact: true }).tap();
     await expect(options).toHaveCount(0);
@@ -206,7 +206,7 @@ test.describe('mobile Desk controls', () => {
     }
     await rail.getByRole('button', { name: 'Back to Desk', exact: true }).tap({ position: { x: 3, y: 3 } });
     await expect(page.locator('[data-desk="overview"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: `Selected ${longName}. Press Enter to open.` })).toBeFocused();
+    await expect(page.getByRole('button', { name: `Selected ${longName}. Drag to move; press Enter to open.` })).toBeFocused();
   });
 
   test('@golden keeps Generate bounded as a mobile Task while preserving Desk context', async ({ page }) => {

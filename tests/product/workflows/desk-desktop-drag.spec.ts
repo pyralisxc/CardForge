@@ -20,6 +20,10 @@ test.describe('Desk desktop spatial interaction', () => {
     const viewport = page.locator('[data-desk-viewport]');
 
     await expect(setButton).toBeVisible();
+    const workSurface = page.getByRole('region', { name: 'Open work on Desk' });
+    await expect(workSurface).toHaveCSS('display', 'flex');
+    await workSurface.evaluate((node) => node.setAttribute('aria-label', 'Renamed Desk work'));
+    await expect(page.getByRole('region', { name: 'Renamed Desk work' })).toHaveCSS('display', 'flex');
     await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
     // Featured work must keep the same physical proxy footprint. The retired
     // featured-card minimum must not override a positioned Set's visual size.

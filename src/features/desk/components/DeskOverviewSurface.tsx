@@ -22,7 +22,7 @@ import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
 
 import type { DeskCamera } from '../hooks/useDeskCamera';
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
-import type { DeskOrganizationFacet, DeskSourceFacet } from '../model/desk';
+import { getDeskSelectionLabel, type DeskOrganizationFacet, type DeskSourceFacet } from '../model/desk';
 import type { DeskSavedView, DeskTagMatch, DeskViewId } from '../hooks/useDeskViewPreferences';
 import type { DeskWorldSize } from '../model/deskSpatialGeometry';
 import { DeskWorkObject } from './DeskWorkObject';
@@ -199,7 +199,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     <Button type="button" size="sm" variant="ghost" onClick={props.onResetViews}>Reset</Button>
     {props.selectedWorkItems.length ? <>
       <Button type="button" size="sm" variant="ghost" aria-expanded={isOrganizingSelection} onClick={() => setIsOrganizingSelection((open) => !open)}>
-        {isOrganizingSelection ? 'Close organize' : `Organize ${props.selectedWorkItems.length === 1 ? 'Set' : `${props.selectedWorkItems.length} Sets`}`}
+        {isOrganizingSelection ? 'Close organize' : `Organize ${getDeskSelectionLabel(props.selectedWorkItems)}`}
       </Button>
       {isOrganizingSelection ? <div className={styles.deskOrganizer} aria-label="Organize selected work">
       <Select value={organizationType || '__choose_type'} onValueChange={(type) => {
@@ -207,7 +207,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         props.onUpdateSelectedOrganization({ kind: 'set-type', type });
         setOrganizationType('');
       }}>
-        <SelectTrigger className={styles.deskTypeSelect} aria-label="Choose a supported or reusable Set type"><span>{organizationType || 'Set type'}</span></SelectTrigger>
+        <SelectTrigger className={styles.deskTypeSelect} aria-label="Choose a supported or reusable type"><span>{organizationType || 'Type'}</span></SelectTrigger>
         <SelectContent><SelectItem value="__choose_type">Set type</SelectItem>{typeVocabulary.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent></Select>
       <Input value={organizationType} onChange={(event) => setOrganizationType(event.target.value)} className={styles.deskSaveViewInput} aria-label="Set custom descriptive type" placeholder="Custom type, e.g. Postcards" />
       <Button type="button" size="sm" variant="ghost" onClick={() => { props.onUpdateSelectedOrganization({ kind: 'set-type', type: organizationType }); setOrganizationType(''); }} disabled={!organizationType.trim()}>Set type</Button>
@@ -233,7 +233,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     <Button type="button" size="sm" variant="ghost" disabled={!props.camera.hasSelectionTarget} aria-pressed={props.camera.mode === 'fit-selection'} onClick={props.camera.fitSelection}>Selection</Button>
     <Button type="button" size="sm" variant="ghost" aria-pressed={props.camera.mode === 'whole'} onClick={props.camera.whole}>Whole Desk</Button>
     <Button type="button" size="icon" variant="ghost" title={props.showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-label={props.showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-pressed={props.showGrid} onClick={props.onShowGridChange}><LayoutGrid aria-hidden="true" /></Button>
-    <Button type="button" size="sm" variant="ghost" title="Snap moved Sets to the Desk grid" aria-pressed={props.snapToGrid} onClick={props.onSnapToGridChange}>Snap</Button>
+    <Button type="button" size="sm" variant="ghost" title="Snap moved items to the Desk grid" aria-pressed={props.snapToGrid} onClick={props.onSnapToGridChange}>Snap</Button>
   </div>;
   const compactViewControls = <DropdownMenu modal={false}>
     <DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" aria-label="Desk view controls" title="Desk view controls"><Maximize2 aria-hidden="true" /><span>View</span></Button></DropdownMenuTrigger>
@@ -257,14 +257,14 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
       actionLabel={props.failure.retryable ? 'Retry' : undefined}
       onAction={props.failure.retryable ? props.onRetry : undefined}
     /> : null}
-    <section className={styles.workSurface} data-grid={props.showGrid} aria-label="Open Sets on Desk">
+    <section className={styles.workSurface} data-desk-work-surface data-grid={props.showGrid} aria-label="Open work on Desk">
       <div className={styles.deskToolbar} data-desk-toolbar>
         <div className={styles.deskFilterRow} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         <details ref={mobileFiltersRef} className={styles.mobileDeskFilters} data-mobile-desk-filters>
           <summary aria-label="Open Desk filters"><SlidersHorizontal aria-hidden="true" /><span>Filters</span><span className={styles.mobileDeskFilterSummary}>{props.activeRestrictionsLabel}</span></summary>
           <div className={styles.mobileDeskFilterPanel} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         </details>
-        {!props.focusedItemId ? <Button type="button" size="sm" variant={touchMultiSelect ? 'secondary' : 'ghost'} aria-pressed={touchMultiSelect} onClick={() => setTouchMultiSelect((enabled) => !enabled)} title="Add Sets to selection by tapping; tap again to finish">{touchMultiSelect ? 'Done selecting' : 'Select multiple'}</Button> : null}
+        {!props.focusedItemId ? <Button type="button" size="sm" variant={touchMultiSelect ? 'secondary' : 'ghost'} aria-pressed={touchMultiSelect} onClick={() => setTouchMultiSelect((enabled) => !enabled)} title="Add items to selection by tapping; tap again to finish">{touchMultiSelect ? 'Done selecting' : 'Select multiple'}</Button> : null}
         {fullViewControls}
         <div className={`${styles.spatialControls} ${styles.compactSpatialControls}`} aria-label="Compact Desk view controls">{compactViewControls}</div>
       </div>
