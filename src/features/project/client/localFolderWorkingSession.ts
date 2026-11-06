@@ -4,14 +4,12 @@ import { ProjectPackageError } from '../lib/projectPackageCodec';
 import { getScopedProjectStorageNamespace } from '../persistence/projectPersistenceScope';
 import { useProjectStore } from '../store/workspaceStore';
 import { decodeBrowserProjectFile } from './browserProjectPackage';
-import { getLocalProjectWorkBinding } from './localProjectFolder';
+import { getLocalProjectFileName, getLocalProjectWorkBinding } from './localProjectFolder';
 import { applyProjectDocumentToWorkspace } from './projectWorkspaceDocument';
 
 type PermissionAwareDirectoryHandle = FileSystemDirectoryHandle & {
   queryPermission?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<'granted' | 'denied' | 'prompt'>;
 };
-
-const LOCAL_PROJECT_FILE_NAME = 'project.cardforge';
 
 /**
  * Continue a remembered, already-authorized folder-backed Set without opening
@@ -32,7 +30,7 @@ export const openRememberedLocalProject = async (workId: string): Promise<{ setI
   const expectedState = useProjectStore.getState();
   let file: File;
   try {
-    file = await (await binding.handle.getFileHandle(LOCAL_PROJECT_FILE_NAME)).getFile();
+    file = await (await binding.handle.getFileHandle(getLocalProjectFileName())).getFile();
   } catch (error) {
     throw new ProjectPackageError(error instanceof Error
       ? `The saved folder project is unavailable. ${error.message}`
