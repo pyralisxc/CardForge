@@ -155,7 +155,7 @@ test.describe('large Artifact browser evidence', () => {
     await first.press('Enter');
     const focusedStage = page.locator('[data-focused-artifact-workspace] [data-desk-artifact-stage]');
     const primarySurface = page.locator('main[data-scroll="contained"]');
-    const workSurface = page.getByRole('region', { name: 'Open Sets on Desk' });
+    const workSurface = page.getByRole('region', { name: 'Open work on Desk' });
     await expect(focusedStage).toHaveAttribute('data-artifact-focus-exclusive', 'false');
     await expect.poll(() => primarySurface.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual({ left: 0, top: 0 });
     await expect.poll(() => workSurface.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual({ left: 0, top: 0 });

@@ -14,7 +14,7 @@ import {
   migrateLegacySetPositionsToMm,
 } from '../model/focusedArtifactLayout';
 import { getCardTitle } from '../model/desk';
-import { deriveReflectiveOrganization, getSemanticOrganizationField } from '../model/reflectiveOrganization';
+import { deriveReflectiveOrganization, getSemanticOrganizationField, groupCardsByTemplate } from '../model/reflectiveOrganization';
 
 const DEFAULT_FOCUSED_ORGANIZATION: CardSetOrganization = {
   spatialVersion: SET_SPATIAL_VERSION,
@@ -136,7 +136,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const groupLabel = (card: DisplayCard): string => {
     if (organization.groupBy === 'tag') return organization.tags.find((tag) => card.tagIds?.includes(tag.id))?.label ?? 'Untagged';
     if (organization.groupBy === 'field' && organization.groupField) return String(card.data[organization.groupField] ?? 'No value');
-    if (organization.groupBy === 'template') return card.template.name;
+
     if (organization.groupBy === 'content-type') {
       const field = getSemanticOrganizationField(availableFields, 'contentType');
       return field ? String(card.data[field.id] ?? 'No value') : 'All cards';
@@ -168,7 +168,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
       availableFields, reflectiveGroupings: reflectiveOrganization.groupings, cardSets, displayCards,
       effectiveMoveTargetId: otherSets.some((set) => set.id === options.moveTargetId) ? options.moveTargetId : otherSets[0]?.id ?? '',
       focusedCards, focusedSet, generationCards, generationSet, generatorSelectedBackingTemplateId, generatorSelectedTemplateId,
-      organization, organizedGroups: [...groups.entries()], otherSets, richTextHighlightColor,
+      organization, organizedGroups: organization.groupBy === 'template' ? groupCardsByTemplate(sortedCards) : [...groups.entries()], otherSets, richTextHighlightColor,
       selectedCard, selectedCardIndex: selectedCard ? focusedCards.findIndex((card) => card.uniqueId === selectedCard.uniqueId) : -1,
       selectedCards, selectionScope: getArtifactSelectionScope(options.selectedCardIds, visibleCards.map((card) => card.uniqueId)),
       sortedCards, storedCards, templates, visibleCards,

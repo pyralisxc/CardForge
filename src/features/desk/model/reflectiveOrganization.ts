@@ -37,6 +37,25 @@ export const getSemanticOrganizationField = (
   semanticFieldNames[kind].includes(normalizeFieldIdentity(field.id) as never)
 )) ?? null;
 
+export const groupCardsByTemplate = (cards: readonly DisplayCard[]): Array<[string, DisplayCard[]]> => {
+  const groups = new Map<string, { label: string; cards: DisplayCard[] }>();
+  for (const card of cards) {
+    const id = card.template.id;
+    const key = id ? `template:${id}` : `unknown:${card.uniqueId}`;
+    const group = groups.get(key);
+    if (group) group.cards.push(card);
+    else groups.set(key, { label: id ? card.template.name : `${card.template.name} (identity unavailable)`, cards: [card] });
+  }
+  const used = new Set<string>();
+  return [...groups.values()].map(({ label, cards: members }) => {
+    let uniqueLabel = label;
+    let suffix = 2;
+    while (used.has(uniqueLabel)) uniqueLabel = `${label} (${suffix++})`;
+    used.add(uniqueLabel);
+    return [uniqueLabel, members];
+  });
+};
+
 export const deriveReflectiveOrganization = (cards: readonly DisplayCard[]): ReflectiveOrganization => {
   const definitionByKey = new Map(cards.flatMap((card) => extractTemplateFieldDefinitions(card.template)).map((field) => [field.key, field]));
   const allKeys = Array.from(new Set(cards.flatMap((card) => Object.keys(card.data))));
@@ -65,7 +84,7 @@ export const deriveReflectiveOrganization = (cards: readonly DisplayCard[]): Ref
     }];
   }).toSorted((left, right) => left.label.localeCompare(right.label));
 
-  const templateCount = new Set(cards.map((card) => card.template.id ?? card.template.name)).size;
+  const templateCount = groupCardsByTemplate(cards).length;
   const hasTags = cards.some((card) => (card.tagIds?.length ?? 0) > 0);
   const contentType = getSemanticOrganizationField(fields, 'contentType');
   const batch = getSemanticOrganizationField(fields, 'batch');

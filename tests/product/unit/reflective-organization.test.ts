@@ -5,6 +5,7 @@ import type { TCGCardTemplate } from '@/domain/templates';
 import {
   deriveReflectiveOrganization,
   getSemanticOrganizationField,
+  groupCardsByTemplate,
 } from '@/features/desk/model/reflectiveOrganization';
 
 const template = (id: string, name = 'Playing Card'): TCGCardTemplate => ({
@@ -75,5 +76,19 @@ describe('reflective Set organization', () => {
       card(2, {}, template('front-b', 'Front B')),
     ]);
     expect(organization.groupings).toEqual(['template']);
+  });
+
+  it('groups by identity rather than a shared or changed display name', () => {
+    const cards = [card(1, {}, template('a', 'Same')), card(2, {}, template('b', 'Same')), card(3, {}, template('a', 'Renamed'))];
+    const groups = groupCardsByTemplate(cards);
+    expect(groups.map(([, members]) => members.map((member) => member.uniqueId))).toEqual([['card-1', 'card-3'], ['card-2']]);
+    expect(new Set(groups.map(([label]) => label)).size).toBe(2);
+  });
+
+  it('does not infer matching Template identities from missing IDs', () => {
+    const missing = template('', 'Same');
+    const cards = [card(1, {}, missing), card(2, {}, missing)];
+    expect(groupCardsByTemplate(cards).map(([, members]) => members.length)).toEqual([1, 1]);
+    expect(deriveReflectiveOrganization(cards).groupings).toContain('template');
   });
 });
