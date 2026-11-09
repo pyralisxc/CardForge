@@ -1,10 +1,10 @@
 # CardForge
 
-CardForge is a live local-first creative environment for building reusable front/back layouts, generating and revising complete card Sets, arranging them on a spatial Desk, and exporting PNG, ZIP, PDF, or Tabletop Simulator output. The browser workspace is the normal working copy; durable user-owned copies can live in downloaded project files, authorized local folders, or connected Google Drive, while shared product state and reviewed Library content live in Supabase.
+CardForge is a local-first creative environment for building reusable front/back layouts, generating and revising card Sets, arranging them on a spatial Desk, and producing output. The browser workspace is the normal working copy; creator copies can live in downloaded project files, authorized local folders, or connected Google Drive, while shared product state and reviewed Library content use Supabase. These descriptions are repository context, not proof that a specific deployed environment or provider path is currently working; see the [revision guide](docs/revision-guide.md) for source, scope and verification limits.
 
 CardForge Studio is created and operated by Cameron Locke, an independent sole proprietor based in Oregon.
 
-## Live product
+## Product map for this revision
 
 - Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/contributors`, `/contact`, and legal pages.
 - Desk: `/account`; one persistent artifact layer carries the same rendered cards from three-to-five-card Set stacks into the expanded Set and focused editing. Desk, focused Set, and focused Artifact share the available center workspace while contextual tools preserve the underlying authored objects. Design promotes the focused object into the precision canvas inside the environment; Generate, Output, and Pipeline dock beside or below the visible scene. `/studio` is a compatibility translator into contextual Desk Design, including exact temporary Studio-document handoffs.
@@ -13,15 +13,16 @@ CardForge Studio is created and operated by Cameron Locke, an independent sole p
 - Owner operations compose inside Profile; `/owner` is protected compatibility ingress for older callbacks and deep links.
 - Agent/MCP entry: `/mcp` with OAuth discovery under `/.well-known/`.
 
-Production runs at [cardforges.com](https://cardforges.com).
+The production domain is [cardforges.com](https://cardforges.com); its current deployed revision and provider health require separate verification.
 
 ## Repository authority
 
 A fresh maintainer or agent should be able to understand this revision without prior chat history or Cameron's account-level skills. Read source and docs at the exact revision being examined; `main` is the production branch, while `vercel-preview` is the accumulating development branch. Live provider state and deployment behavior require separate evidence. Start with:
 
 1. `AGENTS.md` for working rules and repo-local workflow authority.
-2. `docs/agent-map.md` to identify the affected owner, tests, and exact documentation sections.
-3. Only the routed source and documentation needed for the objective.
+2. [Revision guide](docs/revision-guide.md) for journeys, surface navigation, evidence limits, and how documentation travels to Main.
+3. `docs/agent-map.md` to identify the affected owner, tests, and exact documentation sections.
+4. Only the routed source and documentation needed for the objective.
 
 For branch roles, CI cadence, accumulated Preview integration, exact-SHA production promotion, provider-migration boundaries, and the final human merge gate, read `ORCHESTRATION.md`.
 

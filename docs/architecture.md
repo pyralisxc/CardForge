@@ -2,7 +2,7 @@
 
 Last updated: September 26, 2026
 
-CardForge is a live local-first card production studio at `https://cardforges.com`. This document describes current product ownership and runtime invariants only. Historical rollout steps belong in Git/provider history; provider-specific ownership details belong in `docs/integrations.md`.
+CardForge is a local-first card production studio whose production domain is `https://cardforges.com`. This document describes the implementation ownership and invariants documented for this repository revision; validate consequential claims against source and execution. It does not establish the production deployment or current provider state. Historical rollout steps belong in Git/provider history; provider-specific ownership details belong in `docs/integrations.md`. For journey navigation and explicit coverage limits see the [revision guide](revision-guide.md).
 
 ## Product truth
 

@@ -2,6 +2,8 @@
 
 Use this page after `AGENTS.md` to find the smallest trustworthy slice of CardForge. It routes work; it does not redefine product behavior. Read the listed source owner and linked document sections, then let the code and tests answer local details.
 
+For journey-first orientation, surface coverage and the distinction among source, executed tests and deployed behavior, start with the [revision guide](revision-guide.md). Its coverage map explicitly marks areas that still need behavioral review.
+
 Run `npm run verify:focused` to derive the route from the current Git diff. For a proposed path before editing, run `npm run verify:focused -- <path>`; omit `--run` by calling `node scripts/report-affected-verification.mjs <path>` when only a report is wanted. Push one coherent candidate and let the required GitHub `verify` job own `npm run verify:full`; run it locally only for high-risk work or a local/CI discrepancy.
 
 For broad cross-feature/current-topology questions, use Development Intelligence as the structural discovery layer, then inspect the routed CardForge owner/source before changing behavior. DI canonical persistence owns accepted machine semantic authority; current CardForge source remains the implementation truth and DI evidence remains distinct from product intent.
