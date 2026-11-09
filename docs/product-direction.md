@@ -55,7 +55,7 @@ The public site remains CardForge's entrance and explanation surface, not anothe
 
 ## Product Language
 
-Use these terms consistently:
+The following vocabulary records this revision's product model and proposed concepts. Specialty, Kit, and future Artifact families are not a verified inventory of implemented features:
 
 - **Studio:** the focused authoring, generation, review, validation, save, and output workbench opened for a selected Set, Artifact, Template, record, or revision.
 - **Desk:** the persistent work-container-scale spatial surface and personal account home over real CardForge objects. It preserves selection, grouping, position, and return context without becoming a new persistence owner.
@@ -68,14 +68,16 @@ Use these terms consistently:
 - **Work container:** the creator's durable body of coordinated work: records, layouts, Artifacts, assets, output settings, and selected Specialty/Kit context. The current CardForge domain name is **Set**; provider/package surfaces may still say **Project**. These are one product object, not a parent/child hierarchy or parallel registry. A Set may intentionally reference reusable Templates before any Artifact has been generated. The final public label remains a naming decision, not an architectural split.
 - **Artifact:** one produced/content-bearing thing inside a work container. In the current card domain, one Artifact is one whole card with stable identity, a required front face, and an optional back face. Future artifact families may be single-surface documents such as posters, badges, boards, tokens, or social graphics without changing the identity rule.
 - **Face:** a rendering side inside a multi-face Artifact. Card fronts are required; card backs are optional. A face is not a second card Artifact.
-- **Template/master:** reusable design authority for layout, style, field contract, and face role. Sets reference Templates without owning them; multiple Sets may intentionally share the same Template lineage.
+- **Template/master:** reusable design authority for layout, style, field contract, and face role. In this revision's model, Sets reference Templates without owning them; multiple Sets may intentionally share the same Template lineage. This is not the blueprint's newer independent Set-owned Template direction; see the [revision guide](revision-guide.md#journey-duplicate-save-export-and-reopen-work) and Confluence blueprint before changing ownership.
 - **Component recipe:** a semantic insertable assembly made from existing Studio primitives.
 - **Field contract:** the typed structured data expected by a Template or component recipe.
-- **Output profile:** a validated destination contract for download, digital publishing, print preparation, or provider fulfillment. A CardForge **print-ready** profile owns vendor-neutral trim/bleed/safe geometry, front/back orientation, imposition/preflight, color/output-intent behavior, and deterministic production packaging; a printer/provider profile specializes that contract for a real vendor rather than defining the generic model.
+- **Output profile:** a recorded intended destination contract for download, digital publishing, print preparation, or provider fulfillment. The proposed CardForge **print-ready** profile owns vendor-neutral trim/bleed/safe geometry, front/back orientation, imposition/preflight, color/output-intent behavior, and deterministic production packaging; a printer/provider profile specializes that contract for a real vendor rather than defining the generic model. This is not proof of independent press validation or printer acceptance.
 
 The recommended internal/owner-facing phrase remains **Studio Specialty**. Specialty is guidance, not a prison.
 
 ## Workbench Doctrine
+
+The following interaction doctrine records the model for this revision; individual implementations, accessibility and deployed behavior require verification.
 
 CardForge should reveal capability progressively without turning each feature, Specialty, Artifact, permission, or provider into a page.
 
@@ -107,7 +109,7 @@ Desk is no longer only a router or recent-work dashboard. It is the user's perso
 
 Work containers should read as authored work sitting on a working surface rather than folders in a filesystem. A work container may appear as a rendered stack, project board, product group, or compact visual cluster. The layout should provide breathing room and spatial identity without becoming an unconstrained infinite-canvas toy.
 
-Desk supports:
+The recorded Desk model calls for the following, where supported:
 
 - organize, group, stack, sort, and saved views;
 - select one or several owned work objects;
@@ -152,7 +154,7 @@ Templates and their generated cards must be distinguishable inside a Set: show t
 
 Editing an individual Artifact preserves its visual identity while card tools appear around it. The Set spread remains recognizable behind the focused Artifact; tool controls must not replace it with another preview. **Edit** is an explicit mode that changes Artifact content only: the rendered field regions are direct targets, the same field grammar remains available as an accessible complete list, and live draft pixels stay on the focused Artifact until Save & Done or Cancel resolves them. Swipe/pan navigation is inactive while field editing owns the gesture. **Design** changes reusable Template structure; selecting a Template-owned region explains that boundary and offers the exact current face Template. A compatible multi-selection uses the same conceptual editor with mixed values and sparse patches: untouched fields remain unchanged. Artifact-scoped Design begins from the referenced face Template without cloning or rebinding anything merely because the tool opened. If the creator saves design divergence for the selected Artifact scope, Save creates an independent personal Template lineage and rebinds exactly that scope atomically; cancel or no saved divergence creates no extra Template. Shared Template Save updates the reusable design lineage and makes consequences explicit when field requirements/removals affect linked Artifacts. Keep existing field contracts and layer locks rather than adding an override hierarchy. Shared Template Design can use the full viewport for element-level precision, with its distinct editing target explicit. The selected canvas is centered and fully visible at Fit across desktop and mobile; only deliberate zoom introduces scrolling, and that scrolling remains inside the canvas rather than the surrounding document. Tool-local controls replace page navigation, and one close path returns to the originating object.
 
-The focused Studio workbench supports:
+The recorded focused Studio model calls for the following, where supported:
 
 - multiple Templates/masters and Artifact types;
 - precise Template/master and element editing;
@@ -489,6 +491,8 @@ Do not create permanent geography merely because a permission exists. A future c
 
 ## Studio Entry and Specialties
 
+This section and the Specialty and Games sections that follow preserve historical product exploration, not a verified inventory or current cross-branch delivery plan. Consult the Confluence blueprint for current future direction.
+
 The public site's primary action enters **Desk**. A future launcher may guide users through:
 
 1. choose a Specialty or Fully Custom;
@@ -693,7 +697,7 @@ Avoid:
 
 Desk should be **more spatial than Library**. Library should intentionally remain the denser structured collection. Studio should be the most precise and tool-dense surface because it is entered for a specific change. Profile is the quietest structured utility surface.
 
-The prior alpha concept images remain historical hierarchy references, but the canonical visual direction is now:
+The prior alpha concept images remain historical hierarchy references; this revision records the following visual hierarchy:
 
 - Desk: spatial authored-work organization over the current Set/project object;
 - Library: Personal / Published / Pipeline collection with object inspectors;
@@ -703,11 +707,14 @@ The prior alpha concept images remain historical hierarchy references, but the c
 
 The old Developer-zone concept is superseded by Contributor enhancements across the three navigation surfaces and focused Studio tools.
 
-## Next Delivery Sequence
+<a id="next-delivery-sequence"></a>
+## Historical Branch Delivery Context
 
-The three-surface navigation, spatial Desk, focused Studio workbench, Library scopes, Pipeline lifecycle, contextual Owner/public controls, recovery boundaries, starter Set, and core agent-authoring bridge are shipped foundations rather than future milestones.
+This section preserves the sequence and priorities recorded on this branch, not the current cross-branch roadmap or evidence of deployment. Current future direction and decisions belong to the Confluence blueprint; verify source, tests and deployed state separately.
 
-The current next-crunch road is a **coherent set of parallel programs**, not a reason to reopen those foundations:
+The branch described the three-surface navigation, spatial Desk, focused Studio workbench, Library scopes, Pipeline lifecycle, contextual Owner/public controls, recovery boundaries, starter Set, and core agent-authoring bridge as foundations rather than future milestones.
+
+The recorded next-crunch road was a **coherent set of parallel programs**, not a reason to reopen those foundations:
 
 1. **Launch truth and Owner control plane** — consolidate Owner-sovereign live presentation, truthful Preview/live publication semantics, provider-owned commercial facts, exact-revision public demonstrations, resilient public delivery, and browser/agent parity through a separate CardForge Owner plugin.
 2. **CardForge Studio public release** — finish real MCP/OAuth/reviewer acceptance and publish the focused creator plugin without broadening it into Owner operations or waiting for unrelated future platform work.
@@ -726,7 +733,7 @@ Individual card changes belong in direct Template/card editing. The dedicated si
 
 Do not:
 
-- create a fifth permanent Contributor zone;
+- create another permanent Contributor zone;
 - create a second Studio/editor for Contributors;
 - create a second renderer, asset registry, vote model, persistence owner, or Pipeline;
 - expose unpublished Pipeline content to normal creators;
@@ -739,9 +746,10 @@ Do not:
 - retire a shipped capability before its new home proves parity;
 - use radial/gesture-only interaction as a prerequisite for basic workflows.
 
-## Remaining Product Questions
+<a id="remaining-product-questions"></a>
+## Questions Recorded on This Branch
 
-The next product decisions should focus on implementation details rather than reopening the three-surface navigation plus focused-workbench model:
+These are questions recorded with this branch's product context, not an authoritative list of questions still open. Check Confluence for later decisions and current open questions:
 
 1. Exact focused Studio geometry for Template, record, generation, validation, and output tools across desktop/tablet/mobile.
 2. Final public naming for the one authored-work container currently called Set in CardForge and Project by some provider/package paths.
@@ -751,4 +759,4 @@ The next product decisions should focus on implementation details rather than re
 6. Which personal Studio defaults belong in Profile versus the active work container.
 7. When a future Production/Orders lifecycle becomes durable enough to earn a separate zone.
 
-The three-surface navigation model, focused Studio workbench, Contributor capability layer, spatial Desk ownership, and provider-owned durable storage direction are considered approved product direction.
+The branch recorded the three-surface navigation model, focused Studio workbench, Contributor capability layer, spatial Desk ownership, and provider-owned durable storage as approved direction at that time; check Confluence for subsequent decisions.
