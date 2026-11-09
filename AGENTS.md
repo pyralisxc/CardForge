@@ -4,7 +4,7 @@ CardForge is a live service app with local development. A fresh agent must be ab
 
 ## Repository authority
 
-Treat `main` plus live provider state as authoritative. Orient in this order:
+Use the exact checked-out revision for repository behavior; `main` is the production branch, while `vercel-preview` accumulates development. Live provider and deployed behavior require separate verification. Orient in this order:
 
 1. `README.md` for the live product/source map.
 2. `docs/agent-map.md` for the affected owner, focused tests, and relevant document sections.
@@ -14,13 +14,15 @@ Treat `main` plus live provider state as authoritative. Orient in this order:
 
 The durable truth sources are:
 
-- `docs/architecture.md` for shipped ownership and invariants;
-- `docs/product-direction.md` for intended product meaning and delivery sequence;
+- `docs/architecture.md` for this revision's documented implementation ownership and invariants, subject to source and execution verification;
+- `docs/product-direction.md` for the branch-local product and interaction contract and its context, not proof of implemented behavior;
 - `docs/integrations.md` for provider seams;
 - `docs/operations.md` for current release/recovery/provider procedure;
 - `docs/risk-register.md` for unresolved or explicitly accepted risk.
 
 Supporting documents such as `docs/testing.md` and provider setup runbooks may explain verification or configuration, but they do not override the canonical owners above. Do not preload every document when the routed slice answers the question.
+
+The [CardForge Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) owns the greater cross-branch future direction, founder decisions, and unresolved product questions. Before substantial product changes, consult its relevant decisions when access is available and compare them with this revision's source and documents. Confluence intent does not establish current implementation, provider state, or approval to implement. If unavailable, use the self-contained branch-local context, flag that newer cross-branch direction was not checked, and do not invent a decision. Record an actual conflict or missing decision for resolution; never silently replace branch implementation facts with a future goal.
 
 Do not reconstruct current requirements from old chats, closed PR prose, completed migration instructions, audit reports, or historical branches when current code/docs/provider state answer the question. Git history remains evidence; it is not a second specification.
 
@@ -32,7 +34,7 @@ An audit, critique, product discussion, UX reaction, or “what if” is not imp
 
 Once the behavioral contract is Ready — or immediately for routine copy, styling, docs, narrow visual polish, and contained fixes whose contract already exists — load and follow `.agents/skills/lean-repository-execution/SKILL.md` before generic process guidance.
 
-For broad audits and **code-structure discovery** — topology, ownership, callers/references, cross-file paths, architecture, dependency and impact paths, APIs, providers, MCP exposure, semantic source search, and structural evidence — use Development Intelligence as the repository-intelligence owner. Prefer its revision-bound search, tracing, architecture, coverage, evidence, change, and impact capabilities, then inspect the exact current source for consequential behavior conclusions. DI canonical persistence owns accepted machine semantic authority; CardForge keeps no repository-local machine semantic checkpoint, and current source remains authoritative for implementation. Use `npm run architecture:report` for CardForge-local dependency/public-interface enforcement. `docs/product-direction.md` still owns what should change.
+For broad audits and **code-structure discovery** — topology, ownership, callers/references, cross-file paths, architecture, dependency and impact paths, APIs, providers, MCP exposure, semantic source search, and structural evidence — use Development Intelligence as the repository-intelligence owner. Prefer its revision-bound search, tracing, architecture, coverage, evidence, change, and impact capabilities, then inspect the exact current source for consequential behavior conclusions. DI canonical persistence owns accepted machine semantic authority; CardForge keeps no repository-local machine semantic checkpoint, and current source remains authoritative for implementation. Use `npm run architecture:report` for CardForge-local dependency/public-interface enforcement. Branch-local product direction describes the revision's product context; the Confluence blueprint owns greater future direction.
 
 The lean skill remains CardForge's sole execution workflow. Founder-to-Feature resolves **what must be true**; Lean Repository Execution governs **how the approved objective is changed and verified**. Do not create planning ledgers, status diaries, progress folders, permanent feature-spec layers, or `docs/superpowers/**` unless Cameron explicitly requests that artifact. Use compact inline working context instead.
 
@@ -78,7 +80,7 @@ Do not add speculative guards for impossible states. A new failure branch must c
 
 ## Roadmap and completed work
 
-`docs/product-direction.md` owns the durable intended product model and delivery sequence. The live `/roadmap` and Supabase roadmap tables own publicly presented future/completed capability status and votes. Development Intelligence may describe current repository structure, but it owns no future product intent. Keep Product Direction and the public roadmap consistent. When an official roadmap capability ships, mark it `shipped` so it appears as completed history while preserving votes. Do not leave completed work `planned` or `in_progress`. Delete only mistaken/duplicate rows when history has no value; normal completed roadmap records should remain shipped.
+The Confluence blueprint owns greater future product direction; `docs/product-direction.md` records the branch-local product model, interaction context, and relevant delivery boundaries. The live `/roadmap` and Supabase roadmap tables own publicly presented future/completed capability status and votes. Development Intelligence may describe current repository structure, but it owns no future product intent. Reconcile material differences among the blueprint, branch context, and public roadmap without presenting planned capability as shipped. When an official roadmap capability ships, mark it `shipped` so it appears as completed history while preserving votes. Do not leave completed work `planned` or `in_progress`. Delete only mistaken/duplicate rows when history has no value; normal completed roadmap records should remain shipped.
 
 Closed implementation plans, audits, migration cutovers, and rollout checklists belong in Git/provider history, not in current docs.
 

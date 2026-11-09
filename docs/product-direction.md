@@ -2,7 +2,9 @@
 
 Last updated: October 10, 2026
 
-Status: living product direction. This document records the intended product model and next delivery sequence. It does not describe shipped behavior. [architecture.md](architecture.md) remains authoritative for shipped ownership and invariants and the live `/roadmap` owns publicly presented capability status and votes.
+Status: branch-local product and interaction context. This document retains the product model, experience contracts, and delivery context recorded on this revision; it mixes current-context descriptions with intended direction and is not proof that any particular behavior is implemented or deployed. [architecture.md](architecture.md) describes this revision's implementation ownership and invariants, subject to source and execution verification, and the live `/roadmap` owns publicly presented capability status and votes.
+
+The [CardForge Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) owns the greater cross-branch future direction, newer founder decisions, and open product questions. Where it differs from this branch, preserve the distinction: for example, the blueprint's desired independently owned Set Templates differ from this revision's shared reusable Template-reference model. Do not present the future model as already implemented or erase the current context. When Confluence is unavailable, this document remains usable branch-local context, but newer decisions have not been checked. Before substantial changes, compare the relevant blueprint decision, current source, and provider/runtime evidence; reconcile the difference explicitly without treating this document as proof of deployed behavior.
 
 ## Product Thesis
 

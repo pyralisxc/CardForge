@@ -2,7 +2,7 @@
 
 This file owns CardForge's stable branch, CI, hosted Preview, provider-migration, and human acceptance boundaries. It is not a status ledger. Always query GitHub, Vercel, Supabase, and other providers for current state rather than recording transient SHAs, deployments, limits, or active work here.
 
-`AGENTS.md` and the repo-local Founder-to-Feature and Lean Repository Execution skills remain the development authority. Product meaning belongs in `docs/product-direction.md`; shipped ownership belongs in `docs/architecture.md`; provider seams belong in `docs/integrations.md`; operational procedure belongs in `docs/operations.md`.
+`AGENTS.md` and the repo-local Founder-to-Feature and Lean Repository Execution skills remain the development workflow authority. The [CardForge Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) owns greater cross-branch future direction; `docs/product-direction.md` records branch-local product and interaction context. Implementation ownership for this revision is described in `docs/architecture.md`, provider seams in `docs/integrations.md`, and operational procedure in `docs/operations.md`; source, live providers, and deployed behavior require their own verification.
 
 ## Branch roles
 

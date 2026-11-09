@@ -17,7 +17,7 @@ Production runs at [cardforges.com](https://cardforges.com).
 
 ## Repository authority
 
-A fresh maintainer or agent should be able to work from the repository without prior chat history or Cameron's account-level skills. Treat `main` plus live provider state as authoritative. Start with:
+A fresh maintainer or agent should be able to understand this revision without prior chat history or Cameron's account-level skills. Read source and docs at the exact revision being examined; `main` is the production branch, while `vercel-preview` is the accumulating development branch. Live provider state and deployment behavior require separate evidence. Start with:
 
 1. `AGENTS.md` for working rules and repo-local workflow authority.
 2. `docs/agent-map.md` to identify the affected owner, tests, and exact documentation sections.
@@ -25,7 +25,9 @@ A fresh maintainer or agent should be able to work from the repository without p
 
 For branch roles, CI cadence, accumulated Preview integration, exact-SHA production promotion, provider-migration boundaries, and the final human merge gate, read `ORCHESTRATION.md`.
 
-PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; Development Intelligence owns rebuildable repository topology/semantic analysis plus durable accepted semantic authority in its canonical persistence; CardForge does not store a parallel machine semantic checkpoint; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
+The [CardForge Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) owns greater cross-branch future direction and founder decisions. `docs/product-direction.md` retains the branch-local product and interaction context; `docs/architecture.md` describes this revision's implementation ownership and invariants, subject to source and execution verification. Where future direction differs from this branch, identify the difference rather than rewriting a planned capability as shipped. If the blueprint is unavailable, use this repository's self-contained context and explicitly flag that newer decisions were not checked.
+
+PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. Development Intelligence owns rebuildable repository topology/semantic analysis plus durable accepted semantic authority in its canonical persistence; CardForge does not store a parallel machine semantic checkpoint. The live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
 
 Cameron may use global Founder-to-Feature or Lean Repository Execution skills in ChatGPT/Codex, but CardForge does not depend on them. The repo-local copies specialize those methods for CardForge and win on CardForge-specific ownership, provider, verification, and documentation rules.
 
@@ -147,7 +149,7 @@ Extended contributor lanes and native Meta publishing remain separate release ga
 
 - `docs/architecture.md`: current shipped ownership, invariants, and source-of-truth behavior.
 - **Development Intelligence (external):** rebuildable repository topology plus durable accepted semantic/review authority. Its graph evidence is derived from current source and remains distinct from CardForge product intent.
-- `docs/product-direction.md`: intended product meaning, boundaries, and delivery sequence.
+- `docs/product-direction.md`: branch-local product and interaction context, boundaries, and delivery context; the Confluence blueprint owns greater future direction.
 - `docs/integrations.md`: provider-native ownership and human journey traces.
 - `docs/operations.md`: current release, provider, roadmap, and recovery procedures.
 - `docs/risk-register.md`: unresolved or explicitly accepted risks only.
