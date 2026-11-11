@@ -4,6 +4,8 @@ Status: branch-local product and interaction context, not an implementation inve
 
 The [Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) owns cross-branch future direction, founder decisions, and open questions; its [version roadmap](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/1966082) owns milestone targets. In particular, desired independently owned Set Templates differ from this revision's shared Template-reference model. Resolve that difference before changing ownership; do not present the goal as shipped. If Confluence is unavailable, retain this branch's context and flag newer direction as unchecked. Source, tests, deployment, and provider evidence remain separate.
 
+The [Experience, Surfaces and Authority protocol](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/2785295) owns the durable intended UX/UI geography, authority projection, placement rules, states and handoffs. This document retains branch-local interaction context; the [shared shell source map](revision-guide.md#shared-shell-source-map) identifies the implemented projection and its verification limits, not a second intended surface matrix.
+
 ## Product Thesis
 
 CardForge is one structured visual-production environment for repeatable, coordinated visual sets. It is not a collection of separate editors and it is not limited to game cards.
@@ -41,7 +43,7 @@ CardForge has three permanent user-navigation surfaces and one focused workbench
 
 **Contributor is not another surface.** Contributor is a protected capability layer that enhances Desk, Library, focused Studio tools, and Profile.
 
-**Owner is a protected capability layer within Profile.** The Owner's recurring job remains operating CardForge itself—publishing reviewed truth, managing people/services, inspecting accountable history, and resolving operational queues—but it does not create a fourth navigation surface.
+**Owner is a protected capability layer across native surfaces, with cross-product operations composed in Profile.** The Owner's recurring job remains operating CardForge itself—publishing reviewed truth, managing people/services, inspecting accountable history, and resolving operational queues—but it does not create a fourth navigation surface. Object-specific authority stays with its native job, such as Pipeline review in Library or website editing on the public page.
 
 The browser Owner experience and the dedicated **CardForge Owner** agent/plugin surface are two clients of the same feature-owned control plane. The Owner plugin is not a fourth private navigation zone and does not share CardForge Studio's creator tool catalog. It reuses the same Clerk identity plus server-resolved Owner authority, canonical state, validation, revision/conflict rules, cache invalidation, and activity history as browser Owner operations.
 
