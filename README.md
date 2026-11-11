@@ -146,19 +146,24 @@ Extended contributor lanes and native Meta publishing remain separate release ga
 
 ## Documentation
 
+Follow one chain: **Confluence intent → this revision's product/source context → tests and exact-deployment/provider evidence**. Update the existing owner when its facts change; link across that chain rather than maintaining matching plans or status lists in each place. A milestone target, indexed wiki page, or branch name is not a release receipt.
+
 ### Canonical living truth
 
+- [Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) and [version roadmap](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/1966082): cross-branch product direction, founder decisions, unresolved questions, and milestone targets; not implementation or deployment status.
 - `docs/architecture.md`: current shipped ownership, invariants, and source-of-truth behavior.
 - **Development Intelligence (external):** rebuildable repository topology plus durable accepted semantic/review authority. Its graph evidence is derived from current source and remains distinct from CardForge product intent.
-- `docs/product-direction.md`: branch-local product and interaction context, boundaries, and delivery context; the Confluence blueprint owns greater future direction.
+- `docs/product-direction.md`: branch-local product and interaction context and boundaries; not a second future roadmap.
 - `docs/integrations.md`: provider-native ownership and human journey traces.
 - `docs/operations.md`: current release, provider, roadmap, and recovery procedures.
 - `docs/risk-register.md`: unresolved or explicitly accepted risks only.
 
 ### Routing and supporting references
 
+- [Revision guide](docs/revision-guide.md): human journey/source entry points and explicit limits of the inspected evidence. Read it at the Git revision under review, not automatically on Main.
 - `docs/agent-map.md`: objective-to-owner/test/documentation router; it does not redefine behavior.
 - `docs/testing.md`: durable testing philosophy and verification-lane ownership.
 - `docs/google-drive-project-storage-setup.md`: environment-specific Google Drive/Picker setup runbook subordinate to `integrations.md`, `operations.md`, and current provider state.
+- **Generated CardForge wiki (DeepWiki):** optional derived navigation. Establish its indexed revision before using it for a current claim; when that revision is unknown or differs from Preview, verify against exact source. Index freshness is not deployment evidence.
 
 Keep these documents current and focused. Completed audits, rollout instructions, migration cutovers, and feature-specific reasoning belong in Git/provider history, not in live docs.

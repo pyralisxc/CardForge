@@ -46,6 +46,8 @@ The agent owns the work of deriving the technical and behavioral consequences th
 
 Do not ask Cameron to decide an engineering consequence that is already implied by current product or architecture rules. Escalate only a **founder decision**: a choice that would materially change product philosophy, user expectation, ownership, identity, permission, destructive behavior, or another durable rule and cannot be resolved from current authority.
 
+An initial configurable default, save scheduler, revision engine, file schema, or migration mechanism is not automatically a founder decision. Derive it from the agreed interaction and existing native lifecycle. Identify the proper Owner's defaults/policies, the user's preferences, work-specific choices, and non-overridable constraints; do not replace those controls with a hard-coded preference or a new general configuration system. Bring back a question only when materially different user outcomes remain valid under current authority. Manual Save with optional autosave is the desired saving contract in Product Direction; automatic mechanics do not mean automatic saving or incoming Updates.
+
 A useful distinction:
 
 - **Founder decision:** “Should guest work merge into an account that already has work, or remain separate?”
@@ -62,7 +64,7 @@ Use Explore when Cameron is brainstorming, comparing approaches, reacting to UX,
 In Explore:
 
 - reason about the experience and consequences;
-- identify conflicts with current Product Direction or Architecture;
+- compare the relevant Confluence direction, branch-local Product Direction, and current Architecture; surface conflicts rather than choosing one silently;
 - surface consequential choices and useful alternatives;
 - use prototypes, Product Design tooling, reference research, or flow audits when helpful;
 - **do not implement merely because an idea is promising.**
@@ -100,7 +102,8 @@ Implementation agents may choose local engineering details inside the contract, 
 
 Follow `AGENTS.md` and `docs/agent-map.md`. Read only the affected slices of the canonical authorities:
 
-- `docs/product-direction.md` — intended product model and delivery sequence;
+- [Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) — cross-branch future direction, founder decisions, and unresolved product questions; its [version roadmap](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/1966082) sets milestone targets, not shipped status;
+- `docs/product-direction.md` — branch-local product model, interaction context, and boundaries, not a second future roadmap;
 - `docs/architecture.md` — shipped ownership and invariants;
 - Development Intelligence — external current-topology evidence plus accepted machine semantic authority when available; CardForge does not store a second machine semantic checkpoint, and current source remains authoritative for implementation;
 - `docs/integrations.md` — provider seams;
@@ -125,7 +128,7 @@ State explicitly whether each additional representation is:
 
 Do not add a second persistent owner merely because it makes one implementation path easier.
 
-Before proposing a new store, registry, queue, sync layer, route protocol, abstraction, entitlement, location concept, or user choice, prove that the existing owner cannot express the required behavior.
+Before proposing a new store, registry, queue, sync layer, route protocol, abstraction, entitlement, or location concept, prove that the existing owner cannot express the required behavior. Meaningful user/Owner controls should extend that native owner rather than create another persistent authority.
 
 ### 3. Extract invariants
 
@@ -221,9 +224,9 @@ Specialist tools may strengthen a phase but never become CardForge's source of t
 - **Product Design** can help during Explore or adversarial UX review.
 - **Linear** can receive the resolved contract and split it into implementation work after semantic freeze.
 - **GitHub** remains the code/history surface and implementation review boundary.
-- CardForge's canonical living docs remain the durable product and architecture authorities.
+- Confluence retains cross-branch product direction; CardForge's canonical repository docs retain branch-local context, architecture, integrations, operations, and risk. Link to the relevant authority rather than copying the full plan into both places.
 
-Do not require an optional external tool for the workflow to function. A fresh agent working only from the repository must still be able to complete the process.
+Do not require an optional external tool for routine work with an established contract. If Confluence is unavailable for a substantial product change, use branch-local context, flag unchecked newer direction, and stop only the affected behavior when a material decision remains unresolved; do not invent it.
 
 ## Living Truth Reconciliation
 
@@ -233,14 +236,15 @@ Ask: **What is now durably true about CardForge that a new agent must know witho
 
 Promote only verified durable truth into its existing canonical owner:
 
-- `docs/product-direction.md` for durable product meaning, desired placement, or intended model;
+- the relevant Confluence blueprint page for changed future direction or founder decisions;
+- `docs/product-direction.md` for verified branch-local product meaning, interaction context, or placement;
 - `docs/architecture.md` for shipped ownership, identity, persistence, and architectural invariants;
 - `docs/integrations.md` for intentional provider seams and supported provider journeys;
 - `docs/operations.md` for durable operational/release procedure;
 - `docs/risk-register.md` for unresolved material risk;
 - `AGENTS.md` only for repository-wide agent behavior that truly applies across objectives.
 
-Development Intelligence is derived structural evidence, not an authored destination for product doctrine. Do not encode desired placement or future intent into repository-intelligence metadata; change CardForge code and canonical product/architecture documents, then let Development Intelligence observe the resulting repository.
+Development Intelligence and the generated CardForge wiki are derived structural evidence, not authored destinations for product doctrine. Do not encode desired placement or future intent into repository-intelligence metadata; update the existing product/architecture authority, then let generated tools observe the resulting repository. Check an index's revision before using it to reason about Preview.
 
 Use **promote, consolidate, replace**:
 

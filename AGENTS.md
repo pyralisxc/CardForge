@@ -26,6 +26,8 @@ The [CardForge Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/
 
 Do not reconstruct current requirements from old chats, closed PR prose, completed migration instructions, audit reports, or historical branches when current code/docs/provider state answer the question. Git history remains evidence; it is not a second specification.
 
+The generated CardForge wiki (DeepWiki) is optional derived navigation, not another product authority. Establish its indexed revision before relying on a current claim; an unknown or different revision requires checking the exact source under review. See the [README documentation map](README.md#documentation); do not add a parallel plan or evidence ledger to keep these surfaces synchronized.
+
 ## Workflow authority
 
 For a substantial new feature, changed product behavior, cross-owner user journey, persistence/identity rule, provider-backed workflow, or founder request whose desired experience is clearer than its complete behavioral contract, load and follow `.agents/skills/founder-to-feature/SKILL.md` **before implementation**. It is CardForge's pre-execution product-resolution gate: Explore the intent when needed, Resolve ownership/invariants/transitions/acceptance, and enter Build only after the feature is Ready.
@@ -50,6 +52,8 @@ Cameron may also have account-level/global Founder-to-Feature or Lean Repository
 ## Native-first integration rule
 
 CardForge owns CardForge product policy. Providers/frameworks own their supported identity, payment, database, email, analytics, delivery, protocol, cache, redirect, retry, and deployment lifecycles whenever those native paths satisfy the requirement.
+
+Prefer meaningful, safely configurable choices over hard-coded product preferences. Put defaults and supported policies on the proper authorized Owner surface; personal preferences belong to the user and work-specific settings to the selected work. Distinguish an overridable default from a mandatory policy, permission, service allowance, or provider constraint. Preserve explicit user choices when defaults change. Derive mechanisms and initial configurable values from the accepted experience instead of repeatedly asking Cameron to decide engineering consequences; escalate only a genuine unresolved product/authority decision. Reuse familiar native lifecycles and existing feature owners, not a new settings engine or parallel workflow.
 
 Before changing an external integration:
 

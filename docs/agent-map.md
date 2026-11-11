@@ -28,7 +28,7 @@ For broad cross-feature/current-topology questions, use Development Intelligence
 
 - Owners: `src/features/project`, `storage-management`, `personal-library`, `library-picker`.
 - Interfaces: focused project `client/*` entry points; do not restore an aggregate barrel.
-- Read: `docs/architecture.md#storage-lanes` and `docs/integrations.md#browser-workspace--zustand-and-indexeddb`.
+- Read: `docs/product-direction.md#save-semantics` for desired manual/default and optional-autosave behavior; `docs/revision-guide.md#planning-differences-that-affect-the-foundation-milestone` for current gaps; `docs/architecture.md#storage-lanes` and `docs/integrations.md#browser-workspace--zustand-and-indexeddb` for existing owners.
 - Tests: direct project/storage imports plus package, persistence, work-location, Library, and provider-boundary tests. Contextual Pipeline tools use `library-review-selection.test.ts` and `library-context-review.spec.ts` (synthetic native components; no hosted authority).
 - Risk: Product; High risk for destructive persistence or provider permission changes. Google Drive paths require one real provider proof.
 
@@ -66,8 +66,9 @@ For broad cross-feature/current-topology questions, use Development Intelligence
 
 ## Public, owner, legal, and roadmap
 
-- Owners: `src/features/public-site`, `brand-presentation`, `business-identity`, `contact`, `legal`, `roadmap`, `owner`.
+- Owners: `src/features/public-site`, `brand-presentation`, `business-identity`, `contact`, `legal`, `roadmap`, `owner`, `experience-settings`.
 - Interfaces: feature public entries; Owner composes controls but does not absorb their policies.
+- Settings: use `docs/product-direction.md#controls-defaults-and-familiar-lifecycles`; trace `experience-settings/model/experienceSettings.ts` and `/api/owner/experience-settings` for existing controls. Do not infer planned save controls or independent website/product authority from the current shared Owner route.
 - Read: `docs/architecture.md#core-ownership`; use `docs/operations.md` for release/provider checks and `docs/risk-register.md` only when unresolved risk is relevant.
 - Tests: direct owner imports plus public, site, legal, identity, contact, roadmap, and owner tests.
 - Risk: Routine for copy/presentation, Product for behavior, High for legal identity, permissions, email, or destructive operations.
