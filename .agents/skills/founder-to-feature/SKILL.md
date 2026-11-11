@@ -46,6 +46,8 @@ The agent owns the work of deriving the technical and behavioral consequences th
 
 Do not ask Cameron to decide an engineering consequence that is already implied by current product or architecture rules. Escalate only a **founder decision**: a choice that would materially change product philosophy, user expectation, ownership, identity, permission, destructive behavior, or another durable rule and cannot be resolved from current authority.
 
+An initial configurable default, save scheduler, revision engine, file schema, or migration mechanism is not automatically a founder decision. Derive it from the agreed interaction and existing native lifecycle. Identify the proper Owner's defaults/policies, the user's preferences, work-specific choices, and non-overridable constraints; do not replace those controls with a hard-coded preference or a new general configuration system. Bring back a question only when materially different user outcomes remain valid under current authority. Manual Save with optional autosave is the desired saving contract in Product Direction; automatic mechanics do not mean automatic saving or incoming Updates.
+
 A useful distinction:
 
 - **Founder decision:** “Should guest work merge into an account that already has work, or remain separate?”
@@ -126,7 +128,7 @@ State explicitly whether each additional representation is:
 
 Do not add a second persistent owner merely because it makes one implementation path easier.
 
-Before proposing a new store, registry, queue, sync layer, route protocol, abstraction, entitlement, location concept, or user choice, prove that the existing owner cannot express the required behavior.
+Before proposing a new store, registry, queue, sync layer, route protocol, abstraction, entitlement, or location concept, prove that the existing owner cannot express the required behavior. Meaningful user/Owner controls should extend that native owner rather than create another persistent authority.
 
 ### 3. Extract invariants
 

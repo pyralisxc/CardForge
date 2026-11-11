@@ -20,6 +20,14 @@ The engine stays broad. Specialties, Kits, permissions, and connected providers 
 
 The **current offered product remains card-first**. Broader Artifact families are architectural runway, not a marketing claim or a reason to make today's CardForge generic. New families earn product status only after their native authoring, validation, output, and continuity contracts are real.
 
+## Controls, defaults, and familiar lifecycles
+
+Desired contract: offer a coherent normal flow and meaningful safe alternatives, not one hard-coded implementation preference. The [Confluence configurability principle](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/917505) owns the cross-branch direction. Product defaults and supported policies belong on the proper authorized Owner surface; personal preferences belong in the user's settings and work-specific choices stay with the Set. Separate website and product authority where the setup requires it; that separation is not established merely by the current shared Owner role. Reveal advanced controls progressively instead of requiring configuration before ordinary work.
+
+A default supplies an initial value, not permission to silently replace an explicit user choice. Mandatory policy, authorization, commercial entitlement, finite service capacity, provider permission and file/runtime constraints are different facts. Explain which one actually limits an action and offer a supported alternative; unknown/loading/unavailable is not zero capacity or a Free-plan downgrade. Browser space is not a CardForge-metered allowance. An Owner setting cannot invent an unsupported provider feature or bypass safety, authorization or accepted commitments. See [Technical Contracts](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/917545) for the authority distinctions.
+
+Use familiar object lifecycles through their existing feature owners: Save commits the advertised work; Save As/Copy creates an independent destination/identity; Move removes the exact source only after verified destination persistence; Trash/Restore differs from permanent deletion; disconnect/revoke/uninstall differs from deleting work or canceling external billing; Save/Submit/Publish are distinct commitments. Preserve scope, dirty-state warnings, Cancel before commitment, and truthful committed/failed/unknown results. After a possible external commit, reconcile before retrying rather than promising that Cancel or a generic Undo reverses it. Do not add a universal sync, version-control UI, retry queue, or settings framework merely to make these interactions consistent.
+
 ## The Three Private Surfaces and Focused Workbench
 
 CardForge has three permanent user-navigation surfaces and one focused workbench mode:
@@ -253,11 +261,13 @@ The direction is to recompose them around the selected object:
 
 ### Save semantics
 
+Desired contract: **manual Save by default; automatic mechanics after the chosen Save**. The initial autosave default is off. Offer optional autosave with meaningful supported frequency/trigger controls through saving preferences and the appropriate Owner defaults/policy surface, not a fixed hidden timer. Resolve effective settings within the advertised scope without overwriting explicit user choices or silently enabling external writes for existing work. Manual and enabled automatic saves use the same feature-owned safe commit path; neither requires a manual version bump or named checkpoint. Any required compatible conversion, revision bookkeeping and recovery support belongs inside that path, not an extra user chore. Do not imply every-keystroke history or unlimited cloud retention.
+
 These commitments must remain unmistakably different:
 
-- **Background working-copy persistence:** browser-local workspace persistence happens independently of provider/publication state. A visible status such as **Working copy saved** says only that the current browser working copy is persisted.
-- **Editor Save:** commit the current authored draft into the working copy. Safe content/design changes save directly; consequential Template-contract changes surface impact before commit. Artifact-scoped saved design divergence creates a new personal Template lineage only at this boundary.
-- **Save / Update · This device / Local folder / Google Drive / future provider:** write a durable Set snapshot to the named location. Saved Sets capture the exact Template revisions they intentionally reference so they remain reproducible.
+- **Draft/recovery persistence:** if used, preserve unsaved working state separately from the last confirmed Set save. Browser recovery is not a saved provider file, backup, publication or acceptance of source Updates; do not label the whole Set saved merely because a cache write succeeded.
+- **Editor Save:** commit the advertised authored draft scope; consequential Template-contract changes surface impact before commit. Artifact-scoped saved design divergence creates a new personal Template lineage only at this boundary. If this commits only a working draft, name that consequence rather than claiming the destination file was saved.
+- **Save · This device / Local folder / Google Drive / future provider:** commit the scoped Set and its required Templates/assets to the named destination without separate dependency-saving or revision-management chores. Do not include unrelated Sets or unaccepted drafts. Advance saved state only after the native boundary confirms it; failed/uncertain outcomes retain recoverable edits and remain visibly unsaved/unconfirmed.
 - **Save As / Copy / Move:** choose or create another durable destination; Move removes a source only after verified destination persistence.
 - **Send to Pipeline:** create a reviewable new shared candidate.
 - **Submit Revision:** create a reviewable revision of an existing shared lineage.
@@ -392,7 +402,7 @@ Never-published work that is declined, withdrawn, expired, or superseded enters 
 
 CardForge is local-first and provider-friendly. It does not operate durable first-party creator backup storage.
 
-Durable creator locations include:
+Working and durable creator locations include:
 
 - browser workspace as fast local working/recovery copy;
 - portable `.cardforge` Project/Set packages;
@@ -400,7 +410,9 @@ Durable creator locations include:
 - Google Drive projects;
 - future providers chosen deliberately.
 
-Free is a durable creator studio, not a storage trial: a signed-in Free creator may use portable Set packages, browser-authorized local folders, and their personally connected Google Drive location. Paid plans may improve finished output and CardForge-operated services, but must never block the creator from keeping, reopening, copying, or moving their own work. Google Drive remains a narrow provider location rather than a CardForge realtime-collaboration service: one CardForge account connects one Google identity at a time, and Google remains authoritative for folder membership, sharing, permissions, storage, and revisions. A Set already linked to Drive coalesces ordinary edits into its one provider document after a short idle period and reports pending, saved, offline, and conflict states in the Desk context. Open clients keep that shared file reasonably fresh by checking its exact provider revision periodically and on focus/reconnect, applying newer saved revisions only when the browser copy is clean. Conflicting local work is preserved for explicit reconciliation, and read-only collaborators may refresh without gaining write access. This is provider-backed shared-file freshness, not live presence, CRDT co-editing, or a CardForge-managed universal sync engine.
+Free is a durable creator studio, not a storage trial: a signed-in Free creator may use portable Set packages, browser-authorized local folders, and their personally connected Google Drive location. Paid plans may improve finished output and CardForge-operated services, but must never block the creator from keeping, reopening, copying, or moving their own work. Google Drive remains a narrow provider location rather than a CardForge realtime-collaboration service: one CardForge account connects one Google identity at a time, and Google remains authoritative for folder membership, sharing, permissions, storage, and revisions.
+
+Source distinction: this revision's linked Drive working session coalesces edits into its provider document after a fixed idle delay; that differs from the desired manual-default, configurable saving contract above. The [revision guide](revision-guide.md#planning-differences-that-affect-the-foundation-milestone) records the inspected owner and settings gap. Its existing freshness checks apply newer saved provider revisions only when browser work is clean, preserve dirty conflicts, and do not grant read-only collaborators write access. This is shared-file freshness, not consent to incoming creative Updates, live presence, or a universal sync engine.
 
 Temporary AI Studio documents remain CardForge-owned bounded collaboration storage with explicit capacity, inactivity retention, recoverable trash, and cleanup. They are not project backups.
 

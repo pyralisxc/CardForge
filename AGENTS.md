@@ -53,6 +53,8 @@ Cameron may also have account-level/global Founder-to-Feature or Lean Repository
 
 CardForge owns CardForge product policy. Providers/frameworks own their supported identity, payment, database, email, analytics, delivery, protocol, cache, redirect, retry, and deployment lifecycles whenever those native paths satisfy the requirement.
 
+Prefer meaningful, safely configurable choices over hard-coded product preferences. Put defaults and supported policies on the proper authorized Owner surface; personal preferences belong to the user and work-specific settings to the selected work. Distinguish an overridable default from a mandatory policy, permission, service allowance, or provider constraint. Preserve explicit user choices when defaults change. Derive mechanisms and initial configurable values from the accepted experience instead of repeatedly asking Cameron to decide engineering consequences; escalate only a genuine unresolved product/authority decision. Reuse familiar native lifecycles and existing feature owners, not a new settings engine or parallel workflow.
+
 Before changing an external integration:
 
 - read current official provider/framework guidance once;
