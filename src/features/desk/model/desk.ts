@@ -1,4 +1,15 @@
 import type { DisplayCard } from '@/domain/rendering';
+
+export const getDeskSelectionLabel = (items: readonly Pick<AccountLibraryItem, 'kind'>[]): string => {
+  const names: Record<AccountLibraryItem['kind'], [string, string]> = {
+    set: ['Set', 'Sets'], template: ['Template', 'Templates'], asset: ['asset', 'assets'],
+    'working-draft': ['draft', 'drafts'], campaign: ['Campaign', 'Campaigns'],
+    'published-resource': ['published resource', 'published resources'],
+  };
+  const kind = items[0]?.kind;
+  if (!kind || !items.every((item) => item.kind === kind)) return `${items.length} items`;
+  return items.length === 1 ? names[kind][0] : `${items.length} ${names[kind][1]}`;
+};
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { ActionDescriptor, EnvironmentDetailRecord } from '@/features/app-shell/client/environment';
 import { createSendToPipelineActionDescriptor } from '@/features/pipeline/client';

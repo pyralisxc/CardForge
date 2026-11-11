@@ -81,7 +81,7 @@
 /* The whole remaining center rectangle is the Desk. Controls sit outside the
    camera viewport instead of occupying logical world coordinates or covering
    movable Sets. */
-[aria-label="CardForge Desk"] section[aria-label="Open Sets on Desk"] {
+section[data-desk-work-surface] {
   display: flex !important;
   min-height: 0 !important;
   flex: 1 1 auto;
