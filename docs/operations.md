@@ -194,6 +194,8 @@ Deleted provider identities are history, not active users. Retired aliases remai
 
 The live `/roadmap` and Supabase `cardforge_roadmap_items` / `cardforge_roadmap_votes` are authoritative.
 
+- The [Confluence version roadmap](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/1966082) owns the greater milestone direction and target months; live roadmap items communicate public status. Target months are plans, not evidence of implementation, a provider commitment, or a production release. Check the live item, exact revision and deployed behavior separately.
+- A version milestone describes a coherent group of work. Do not mark the entire version shipped merely because one feature PR merged; update its status when the milestone's actual release is verified. Patch releases may be planned alongside work on the next milestone, but the isolation and Preview review path for a patch while Preview is ahead still require verification; do not infer approval for a direct-to-Main shortcut.
 - Mark a legitimate official capability `shipped` as soon as production has the described behavior. Shipped items remain visible as completed history and keep their votes.
 - Use `in_progress` or `testing` only for active unfinished work.
 - Do not leave completed features in future months merely because their original target date was later.
