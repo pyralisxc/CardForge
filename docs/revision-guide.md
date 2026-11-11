@@ -1,6 +1,6 @@
 # CardForge: understanding this revision
 
-This guide is a starting point for reading the product and source **at the Git revision containing it**. It is not a deployment report or a complete independent verification of every workflow. The [greater product blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) records future direction and decisions across branches. The [agent map](agent-map.md) routes implementation work, while [architecture](architecture.md), [integration ownership](integrations.md), [operations](operations.md), [testing](testing.md), and the [risk register](risk-register.md) retain their existing responsibilities.
+This guide is a starting point for reading the product and source **at the Git revision containing it**. It is not a deployment report or a complete independent verification of every workflow. The [greater product blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) records future direction and decisions across branches; its [version roadmap](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/1966082) sets milestone goals, not proof of what this revision contains. The [agent map](agent-map.md) routes implementation work, while [architecture](architecture.md), [integration ownership](integrations.md), [operations](operations.md), [testing](testing.md), and the [risk register](risk-register.md) retain their existing responsibilities.
 
 ## How to read and verify
 
