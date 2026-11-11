@@ -26,6 +26,8 @@ The [CardForge Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/
 
 Do not reconstruct current requirements from old chats, closed PR prose, completed migration instructions, audit reports, or historical branches when current code/docs/provider state answer the question. Git history remains evidence; it is not a second specification.
 
+The generated CardForge wiki (DeepWiki) is optional derived navigation, not another product authority. Establish its indexed revision before relying on a current claim; an unknown or different revision requires checking the exact source under review. See the [README documentation map](README.md#documentation); do not add a parallel plan or evidence ledger to keep these surfaces synchronized.
+
 ## Workflow authority
 
 For a substantial new feature, changed product behavior, cross-owner user journey, persistence/identity rule, provider-backed workflow, or founder request whose desired experience is clearer than its complete behavioral contract, load and follow `.agents/skills/founder-to-feature/SKILL.md` **before implementation**. It is CardForge's pre-execution product-resolution gate: Explore the intent when needed, Resolve ownership/invariants/transitions/acceptance, and enter Build only after the feature is Ready.

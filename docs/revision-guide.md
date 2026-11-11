@@ -12,6 +12,14 @@ This guide is a starting point for reading the product and source **at the Git r
 
 The original observations were inspected at baseline `322e921c7a9273731424a2c237a979a70f10b81f`; additional source inspection was performed against `dd2800364b812b874d6cf6f9d49b991c3a8f71a7`. They are not claims of hosted execution, and inspection does not cover every branch of each linked owner. This document ships in a later commit: use Git history to identify changes since an observation and recheck the source at the revision under review.
 
+## Planning differences that affect the foundation milestone
+
+The ownership and package-scope observations below were rechecked against Preview source `a36f83965f46f75070b7a7644a7ae2fed47ba465`. They are source findings, not browser/provider acceptance or claims about unmerged fixes.
+
+- **Independent Sets are the goal, not the current Template model.** [Set duplication](../src/features/project/store/settingsSlice.ts) gives the Set and cards new identities but retains referenced Template IDs. [Template changes and deletion](../src/features/project/store/templateSlice.ts) operate on shared collections and referring cards. The [Studio and Sets blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/622613) instead wants Set-owned Templates. Reconcile identity, migration, and destructive behavior before implementing that transition.
+- **A Set filename does not prove a Set-only download.** The [project-file export action](../src/features/project/hooks/useProjectFileActions.ts) captures the current project document, then names it from an active/first Set. The [workspace-document owner](../src/features/project/client/projectWorkspaceDocument.ts) also exposes a distinct Set-isolating capture. Check the exact caller and reopen/collision behavior rather than treating these paths as equivalent.
+- **Resource revisions do not settle the new creator-history design.** Existing exact Pipeline revisions and provider save-conflict controls are not a decision on the desired Set Updates, named paths, comparison engine, or portable review ledger. [Studio and Sets](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/622613) retains that unresolved design; [Delivery and Verification](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/983041) routes the pre-implementation decisions.
+
 ## Journey: enter work and navigate its context
 
 1. The account route composes the creator environment and accepts context such as section, focus, tool, and return context. Inspect the [account route](../src/app/account/page.tsx) and [Desk controller](../src/features/desk/hooks/useDeskController.ts), not just a URL, to determine access and initialization for a particular entry.

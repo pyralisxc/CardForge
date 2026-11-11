@@ -1,10 +1,8 @@
 # CardForge Product Direction
 
-Last updated: October 10, 2026
+Status: branch-local product and interaction context, not an implementation inventory or second future roadmap. These experience contracts include intended behavior; use the [revision guide](revision-guide.md) and [architecture](architecture.md) to check source ownership and evidence limits. The live `/roadmap` owns publicly presented capability status and votes.
 
-Status: branch-local product and interaction context. This document retains the product model, experience contracts, and delivery context recorded on this revision; it mixes current-context descriptions with intended direction and is not proof that any particular behavior is implemented or deployed. Wording such as “current,” “shipped,” “supports,” “should,” and delivery sequences below needs source and, where material, execution verification; it is not a uniform release-status inventory. Use the [revision guide](revision-guide.md) to navigate reviewed journeys and explicit gaps. [architecture.md](architecture.md) describes this revision's implementation ownership and invariants, subject to source and execution verification, and the live `/roadmap` owns publicly presented capability status and votes.
-
-The [CardForge Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) owns the greater cross-branch future direction, newer founder decisions, and open product questions; its [version roadmap](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/1966082) is the current milestone plan, not evidence that a version has shipped. Where it differs from this branch, preserve the distinction: for example, the blueprint's desired independently owned Set Templates differ from this revision's shared reusable Template-reference model. Do not present the future model as already implemented or erase the current context. When Confluence is unavailable, this document remains usable branch-local context, but newer decisions have not been checked. Before substantial changes, compare the relevant blueprint decision, current source, and provider/runtime evidence; reconcile the difference explicitly without treating this document as proof of deployed behavior.
+The [Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) owns cross-branch future direction, founder decisions, and open questions; its [version roadmap](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/1966082) owns milestone targets. In particular, desired independently owned Set Templates differ from this revision's shared Template-reference model. Resolve that difference before changing ownership; do not present the goal as shipped. If Confluence is unavailable, retain this branch's context and flag newer direction as unchecked. Source, tests, deployment, and provider evidence remain separate.
 
 ## Product Thesis
 
@@ -489,161 +487,9 @@ First integration rule:
 
 Do not create permanent geography merely because a permission exists. A future campaign/production environment earns a separate zone only if it develops a durable recurring object/queue users intentionally revisit outside normal editing.
 
-## Studio Entry and Specialties
+## Future expansion
 
-This section and the Specialty and Games sections that follow preserve historical product exploration, not a verified inventory or current cross-branch delivery plan. Consult the Confluence blueprint for current future direction.
-
-The public site's primary action enters **Desk**. A future launcher may guide users through:
-
-1. choose a Specialty or Fully Custom;
-2. choose a Kit or no Kit;
-3. start with sample content, import structured data, or blank;
-4. enter the same Studio with relevant recommendations already active.
-
-Initial Specialty lanes remain:
-
-- Games and decks;
-- Events and signage;
-- Products and retail;
-- Learning and reference;
-- Fully Custom.
-
-A Specialty may declaratively configure:
-
-- launcher name/summary/imagery/order;
-- vocabulary;
-- Kits and suggested starting points;
-- featured Templates/styles/fonts/media/component recipes;
-- suggested field contracts/import mappings;
-- suggested Artifact types/order;
-- contextual Add Element/Section recommendations;
-- code-supported validation/preflight;
-- code-supported output profiles;
-- contextual help/examples/completion guidance.
-
-A Specialty must not deliver arbitrary executable code, unvalidated CSS, database expressions, or unrestricted UI definitions. Code owns the finite capability vocabulary; published configuration selects/arranges validated capabilities.
-
-## Specialty Specification Standard
-
-Every Specialty should answer:
-
-1. Audience and job.
-2. Domain hierarchy.
-3. Kits.
-4. Artifacts.
-5. Shared/repeated/imported fields.
-6. Semantic component recipes.
-7. Import mappings.
-8. Validation.
-9. Outputs.
-10. Recurring value.
-11. Proof project.
-12. Boundaries/exclusions.
-
-A Specialty is complete when a real user can begin with their information and finish the intended coordinated outcome, not when it merely has Templates.
-
-## Games Specialty
-
-Games remains the first active Specialty and first proof of CardForge as a coordinated physical-product system rather than only an individual-card editor.
-
-### Audience and outcome
-
-Games serves tabletop designers, independent publishers, playtesters, game masters, educators using game mechanics, and creators producing collectible/reference systems.
-
-The outcome is a coherent playable/publishable game product.
-
-### Domain hierarchy
-
-- **Game work container (currently Set):** shared identity, branding, credits, legal text, icon vocabulary, terminology, default production settings, and the organized body of related card pools/decks, rules Artifacts, packaging, boards/tokens/reference materials, and promotional outputs. It references reusable Templates relevant to the work without owning those Template lineages.
-- **Card/record Artifact:** one stable structured game object with a required front design/data relationship and optional independent back design/data relationship.
-- **Deck/collection:** ordered/counted references to records; quantity does not duplicate source identity.
-- **Product/pack:** distributable configuration defining included Artifacts/quantities without becoming their source owner.
-- **Face:** front or optional back rendering side inside a card Artifact.
-- **Other Artifact:** token, divider, rules surface, package surface, reference sheet, board, sell sheet, or promotional graphic as those families become native.
-
-Bulk generation adds results to an active Set. Legacy loose content imports into a clearly named recovered Set rather than becoming a permanent second model.
-
-### Candidate Kits
-
-Initial/future Kits may include:
-
-- Playing Card Deck;
-- Tarot or Oracle Deck;
-- Trading or Collectible Card Set;
-- Prototype Deck;
-- Tabletop/RPG Reference Deck;
-- Prompt/Party/Trivia Deck;
-- Game Product Kit;
-- later complete tabletop, board, tile/counter, roll-and-write, party/social-deduction, scenario/campaign, and educational tabletop projects where shared Artifact foundations justify them.
-
-The Arcane Playing Card proof remains a useful first physical proof, but the product architecture must support broader coordinated Sets.
-
-### Shared game data
-
-Games should eventually distinguish scoped values:
-
-- Game-level identity and terminology;
-- Set-level code/symbol/version/back/numbering/rarity/legal text;
-- Record/card-level content;
-- Deck-level references/quantities/order;
-- Artifact-level role/master/output settings;
-- Product-level included components/quantities/package copy/provider profile.
-
-Templates bind to scoped values explicitly. Intentional local overrides are visible.
-
-### Semantic components
-
-Games should feature semantic recipes before generic primitives, including title blocks, artwork frames, cost/action badges, type lines, rules boxes, reminder text, structured stats, paired stats, rarity/set marks, collector numbers, credit/legal lines, flavor text, icon/resource rows, card/deck positions, and playtest/version markers.
-
-Recipes assemble existing primitives and field contracts whenever possible rather than creating unnecessary renderer element types.
-
-### Rules, packaging, boards, tokens, and player aids
-
-Rules should progress from rich text to rules cards/reference sheets to fixed-page booklets; flowing automatic document layout is a separate capability and should use a mature paged-layout foundation rather than casually building another publishing engine.
-
-Packaging remains provider-aware artwork preparation using exact provider dielines, semantic panels, guide layers, shared identity, preflight, and provider output profiles. CardForge does not issue retail identifiers or certify legal/structural compliance.
-
-Boards, tokens, tiles, mats, dashboards, player aids, scorepads, labels, and trackers can reuse structured records/Templates/assets/output foundations, but each Artifact type needs deliberate geometry, performance, duplex/cut/imposition, and provider rules.
-
-A future Game component manifest should coordinate designed and externally supplied components, quantities, references, packaging copy, setup/rules descriptions, and later fulfillment preparation without pretending CardForge authors every physical part.
-
-## Existing Foundation and Remaining Orchestration
-
-CardForge already has much of the lower-level engine:
-
-- Template Studio primitives and semantic roles;
-- typed field contracts;
-- reusable appearance/element recipes;
-- canonical rendering;
-- bulk generation;
-- Set and card models;
-- reviewed shared asset registry;
-- controlled Studio destinations;
-- browser-local projects and portable packages;
-- local-folder and Google Drive project persistence;
-- connected personal assets/fonts;
-- temporary AI documents and MCP collaboration;
-- Pipeline submissions/votes/publication/archive/attribution.
-- a select-first constrained spatial Desk with persistent grouping, shared-object Set opening, reflective organization, and equivalent pointer/touch/keyboard paths;
-- one semantic action runtime presented through Desk and exact focused-work menus;
-- Personal/Published/Pipeline Library scopes, exact revision editing, contributor withdrawal/retirement, and Content Health;
-- one source-agnostic Library Picker contract used by resource-selecting tools;
-- fault-visible browser recovery, revision-safe Google Drive boundaries, exact checkout return, and independent commercial/authority entitlement axes;
-- a complete 52-card Published Set starter on the same immutable portable-package contract;
-- contextual Owner editing and Roadmap controls on their native public surfaces.
-
-The remaining product direction is orchestration that builds on those shipped owners:
-
-- generalized revision lineage beyond Templates;
-- exact candidate pinning/materialization;
-- shared source-capability projection;
-- multi-artifact work-container model;
-- Specialty manifests and versioned Kits;
-- composite semantic component recipes;
-- shared scoped data;
-- output bundles/provider profiles.
-
-This direction does not require a replacement renderer or a separate editor per market.
+Specialty/Kit launchers, broader Artifact families, and fulfillment belong to the [Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018), not a second delivery sequence here. Historical explorations remain in Git history. Configuration must select finite code-supported capabilities; it must not introduce arbitrary executable code, unvalidated CSS, database expressions, or unrestricted UI definitions.
 
 ## Ownership and Persistence
 
@@ -652,7 +498,7 @@ Preserve ownership separation:
 | Owner | Responsibilities |
 | --- | --- |
 | Code | Allowed capabilities, renderer behavior, element/field types, validation, compatibility, access control, output engines, provider interfaces. |
-| Supabase | Published Specialty/Kit metadata, Pipeline/review state, shared registry, owner decisions, public/platform control records. |
+| Supabase | Pipeline/review state, shared registry, owner decisions, public/platform control records; proposed published Specialty/Kit metadata is future direction, not an implemented inventory. |
 | Browser/work owner | Working records/layouts/local assets/preferences/recovery, Set → Template references, and portable work-package contracts. |
 | Connected provider/local folder | Durable user-owned project files, permissions, provider revisions, provider deletion. |
 | Temporary AI workspace | Bounded private revisioned collaboration only; not durable creator backup. |
@@ -660,7 +506,9 @@ Preserve ownership separation:
 
 `cardforge_asset_registry` remains the canonical shared Studio catalog for Templates, styles, media, fonts, and similar reusable assets. Specialties/Kits orchestrate those assets; they are not forced into the asset registry.
 
-### Version behavior
+### Published-resource expectations
+
+These are intended resource/persistence constraints, including future Specialty/Kit configuration. They do not select the Set versioning/comparison engine or establish that creator Updates, named paths, or a portable Set history ledger are implemented; resolve those questions in [Studio and Sets](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/622613).
 
 - Published Specialty/Kit revisions are immutable snapshots.
 - Reusable Templates have lineage plus exact revision identity; a fork creates a new lineage with provenance rather than transferring source ownership.
@@ -708,27 +556,6 @@ The prior alpha concept images remain historical hierarchy references; this revi
 The old Developer-zone concept is superseded by Contributor enhancements across the three navigation surfaces and focused Studio tools.
 
 <a id="next-delivery-sequence"></a>
-## Historical Branch Delivery Context
-
-This section preserves the sequence and priorities recorded on this branch, not the current cross-branch roadmap or evidence of deployment. Current future direction and decisions belong to the Confluence blueprint; verify source, tests and deployed state separately.
-
-The branch described the three-surface navigation, spatial Desk, focused Studio workbench, Library scopes, Pipeline lifecycle, contextual Owner/public controls, recovery boundaries, starter Set, and core agent-authoring bridge as foundations rather than future milestones.
-
-The recorded next-crunch road was a **coherent set of parallel programs**, not a reason to reopen those foundations:
-
-1. **Launch truth and Owner control plane** — consolidate Owner-sovereign live presentation, truthful Preview/live publication semantics, provider-owned commercial facts, exact-revision public demonstrations, resilient public delivery, and browser/agent parity through a separate CardForge Owner plugin.
-2. **CardForge Studio public release** — finish real MCP/OAuth/reviewer acceptance and publish the focused creator plugin without broadening it into Owner operations or waiting for unrelated future platform work.
-3. **Launch content quality** — separate technical health from editorial readiness, establish semantic asset roles/families and enforceable first-party/AI-assisted standards, govern fonts, then curate the actual Starter Library into coherent useful families rather than maximizing object count.
-4. **Creator continuity completion** — re-baseline the Creator Spatial Environment and Drive-backed Desk work against current shipped behavior, then finish only the remaining observable interaction/provider gaps. Do not rebuild already-shipped scene, identity, or provider foundations.
-5. **Operating headroom and engineering confidence** — establish the intentionally supported public-beta user/concurrency envelope, complete material real-provider acceptance, and reduce verification cost where current evidence shows avoidable feedback friction without weakening durable safety guarantees.
-6. **Print-ready production** — make professional vendor-neutral print preparation a first-class CardForge Output contract, then evaluate print/fulfillment partners and specialty-finish profiles as consumers/extensions of that contract.
-
-These programs are intended to complete substantially within the same product crunch where their dependencies permit. A program may stop only at a genuine external/provider/human acceptance boundary, not merely because a branch or implementation artifact exists.
-
-After this crunch, broader Specialty/Kit orchestration, generalized non-card Artifact families, generic reusable Sites/Owner products, native social publishing, and realtime collaboration remain runway. Preserve cheap seams for them without making today's CardForge pay their implementation cost.
-
-Individual card changes belong in direct Template/card editing. The dedicated single-card generation form is intentionally retired; do not restore it as a parity requirement. Bulk input remains the creation path. Individual image downloads, sharing, editable-card packages, print-ready production packages, and provider-specific output profiles remain distinct supported output concerns.
-
 ## Product Constraints
 
 Do not:
@@ -746,17 +573,11 @@ Do not:
 - retire a shipped capability before its new home proves parity;
 - use radial/gesture-only interaction as a prerequisite for basic workflows.
 
+Individual card changes belong in direct Template/card editing; the dedicated single-card generation form is retired, while bulk input remains the creation path. Individual image downloads, sharing, editable-card packages, print preparation, and provider-specific output profiles are distinct output concerns, not interchangeable evidence of acceptance.
+
 <a id="remaining-product-questions"></a>
-## Questions Recorded on This Branch
+## Open product questions
 
-These are questions recorded with this branch's product context, not an authoritative list of questions still open. Check Confluence for later decisions and current open questions:
-
-1. Exact focused Studio geometry for Template, record, generation, validation, and output tools across desktop/tablet/mobile.
-2. Final public naming for the one authored-work container currently called Set in CardForge and Project by some provider/package paths.
-3. Which object types receive direct Generate/Export from Desk versus opening the focused Studio tool.
-4. Exact stable lineage/schema for revisionable fonts/media/component recipes.
-5. Retention policy for heavyweight old revision payloads while preserving lightweight audit history.
-6. Which personal Studio defaults belong in Profile versus the active work container.
-7. When a future Production/Orders lifecycle becomes durable enough to earn a separate zone.
+Use [Confluence Delivery and Verification](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/983041) and its linked topic decisions. Resolve only the selected work's material semantics before implementation; later Marketplace, physical-commerce, and reusable site-core questions do not all block foundation work. Do not maintain another open-question list here.
 
 The branch recorded the three-surface navigation model, focused Studio workbench, Contributor capability layer, spatial Desk ownership, and provider-owned durable storage as approved direction at that time; check Confluence for subsequent decisions.
