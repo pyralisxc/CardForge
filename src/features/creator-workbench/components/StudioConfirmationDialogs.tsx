@@ -113,13 +113,13 @@ export function StudioConfirmationDialogs({
             <AlertDialogTitle>Import project file?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm leading-6">
-                <p>{pendingProjectImport?.preview.fileName || 'Selected file'} includes {pendingProjectImport?.preview.templateCount ?? 0} Template{pendingProjectImport?.preview.templateCount === 1 ? '' : 's'}, {pendingProjectImport?.preview.outputCount ?? 0} card{pendingProjectImport?.preview.outputCount === 1 ? '' : 's'}, {pendingProjectImport?.preview.appearanceStyleCount ?? 0} style preset{pendingProjectImport?.preview.appearanceStyleCount === 1 ? '' : 's'}, and {pendingProjectImport?.preview.customAssetCount ?? 0} custom asset{pendingProjectImport?.preview.customAssetCount === 1 ? '' : 's'}.</p>
+                <p>{pendingProjectImport?.preview.fileName || 'Selected file'} includes {pendingProjectImport?.preview.setCount ?? 0} Set{pendingProjectImport?.preview.setCount === 1 ? '' : 's'}, {pendingProjectImport?.preview.templateCount ?? 0} Template{pendingProjectImport?.preview.templateCount === 1 ? '' : 's'}, {pendingProjectImport?.preview.outputCount ?? 0} card{pendingProjectImport?.preview.outputCount === 1 ? '' : 's'}, {pendingProjectImport?.preview.appearanceStyleCount ?? 0} style preset{pendingProjectImport?.preview.appearanceStyleCount === 1 ? '' : 's'}, and {pendingProjectImport?.preview.customAssetCount ?? 0} custom asset{pendingProjectImport?.preview.customAssetCount === 1 ? '' : 's'}.</p>
                 {(pendingProjectImport?.preview.templateIdConflicts.length || pendingProjectImport?.preview.templateNameConflicts.length) ? <p>Matching Templates found: {[...(pendingProjectImport?.preview.templateIdConflicts ?? []), ...(pendingProjectImport?.preview.templateNameConflicts ?? [])].slice(0, 4).join(', ')}. Different snapshots are kept independent rather than silently replacing another Set&apos;s design.</p> : null}
-                <p>Replace loads the file as the local project. Merge adds its work while preserving independent Template snapshots when designs differ.</p>
+                <p>Replace restores the file as the browser workspace. {Number(pendingProjectImport?.preview.setCount ?? 0) > 1 ? 'Add copies imports separate Sets without replacing current work; some older files with shared resources cannot yet be copied safely.' : 'Merge adds its work while preserving independent Template snapshots when designs differ.'}</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><Button type="button" variant="outline" onClick={() => onApplyProjectImport('merge')}>Merge Into Current</Button><AlertDialogAction onClick={() => onApplyProjectImport('replace')}>Replace Project</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><Button type="button" variant="outline" onClick={() => onApplyProjectImport('merge')}>{(pendingProjectImport?.preview.setCount ?? 0) > 1 ? 'Add separate copies' : 'Merge Into Current'}</Button><AlertDialogAction onClick={() => onApplyProjectImport('replace')}>Replace Project</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

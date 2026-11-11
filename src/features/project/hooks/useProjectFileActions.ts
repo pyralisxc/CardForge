@@ -13,7 +13,8 @@ import { buildBrowserCardForgeProjectSnapshot, decodeBrowserProjectFile } from '
 import { saveCardForgeProjectPackageToDevice } from '../client/projectPackageDeviceSave';
 import { CARDFORGE_PROJECT_FILE_EXTENSION, normalizeProjectFileName } from '../model/projectPackage';
 import { applyProjectDocumentToState, type ProjectDocumentStatePatch, type ProjectDocumentV1 } from '../model/projectDocument';
-import { applyProjectDocumentToWorkspace, captureCurrentProjectDocument } from '../client/projectWorkspaceDocument';
+import { applyProjectDocumentToWorkspace, captureCardSetProjectDocument } from '../client/projectWorkspaceDocument';
+import { useProjectStore } from '../store/workspaceStore';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
@@ -146,7 +147,6 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
     canUseProjectFiles,
     fileInputRef,
     projectFileGateMessage,
-    storedCards,
     toast,
     userTemplates,
   } = input;
@@ -169,23 +169,22 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
     }
 
     try {
-      const document = await captureCurrentProjectDocument();
-      const activeSetName = document.cardSets.find((set) => set.id === document.activeCardSetId)?.name
-        ?? document.cardSets[0]?.name
-        ?? 'CardForge Project';
-      const projectName = normalizeProjectFileName(activeSetName);
+      const setId = useProjectStore.getState().activeCardSet?.id;
+      if (!setId) throw new Error('Open a Set before downloading its portable file.');
+      const document = await captureCardSetProjectDocument(setId);
+      const projectName = normalizeProjectFileName(document.cardSets[0].name);
       const snapshot = await buildBrowserCardForgeProjectSnapshot({ document, name: projectName });
-      trackExportStarted('project', storedCards.length);
+      trackExportStarted('project', document.storedCards.length);
       await saveCardForgeProjectPackageToDevice({
         fileName: `${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION}`,
         snapshot,
         // Download creates a portable copy, not a file-system write grant.
         pickerWindow: {},
       });
-      trackExportCompleted('project', storedCards.length);
+      trackExportCompleted('project', document.storedCards.length);
       toast({
-        title: 'Project exported',
-        description: `${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION} contains the project document and its embedded artwork as one portable CardForge package.`,
+        title: 'Set downloaded',
+        description: `${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION} contains the current Set and its referenced artwork and Templates.`,
       });
     } catch (error) {
       toast({
@@ -196,7 +195,7 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
         variant: 'destructive',
       });
     }
-  }, [canUseProjectFiles, showProjectFileGate, storedCards.length, toast]);
+  }, [canUseProjectFiles, showProjectFileGate, toast]);
 
   const handleChooseImportProject = useCallback(() => {
     if (!canUseProjectFiles) {
@@ -240,7 +239,16 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
   const applyPendingProjectImport = useCallback(async (mode: ProjectImportMode) => {
     if (!pendingProjectImport) return;
     try {
-      const result = await applyProjectDocumentToWorkspace(pendingProjectImport.document, mode);
+      if (pendingProjectImport.document.productionPlan) {
+        throw new Error('This file contains a document-level production plan that cannot yet be safely imported. Keep the original file unchanged.');
+      }
+      const importMode = mode === 'merge' && pendingProjectImport.document.cardSets.length > 1 ? 'copy' : mode;
+      if (importMode === 'copy' && (pendingProjectImport.document.appearanceStyles.length
+        || pendingProjectImport.document.customFonts?.length
+        || Object.values(pendingProjectImport.document.customAssets).some((assets) => assets.length))) {
+        throw new Error('This multi-Set file contains resources that cannot yet be safely copied separately. Keep the original file; workspace replacement remains available as a recovery operation.');
+      }
+      const result = await applyProjectDocumentToWorkspace(pendingProjectImport.document, importMode);
       setPendingProjectImport(null);
       toast({
         title: mode === 'merge' ? 'Project merged' : 'Project imported',
