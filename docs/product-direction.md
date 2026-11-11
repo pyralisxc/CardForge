@@ -487,6 +487,7 @@ First integration rule:
 
 Do not create permanent geography merely because a permission exists. A future campaign/production environment earns a separate zone only if it develops a durable recurring object/queue users intentionally revisit outside normal editing.
 
+<a id="next-delivery-sequence"></a>
 ## Future expansion
 
 Specialty/Kit launchers, broader Artifact families, and fulfillment belong to the [Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018), not a second delivery sequence here. Historical explorations remain in Git history. Configuration must select finite code-supported capabilities; it must not introduce arbitrary executable code, unvalidated CSS, database expressions, or unrestricted UI definitions.
@@ -555,7 +556,6 @@ The prior alpha concept images remain historical hierarchy references; this revi
 
 The old Developer-zone concept is superseded by Contributor enhancements across the three navigation surfaces and focused Studio tools.
 
-<a id="next-delivery-sequence"></a>
 ## Product Constraints
 
 Do not:
@@ -579,5 +579,3 @@ Individual card changes belong in direct Template/card editing; the dedicated si
 ## Open product questions
 
 Use [Confluence Delivery and Verification](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/983041) and its linked topic decisions. Resolve only the selected work's material semantics before implementation; later Marketplace, physical-commerce, and reusable site-core questions do not all block foundation work. Do not maintain another open-question list here.
-
-The branch recorded the three-surface navigation model, focused Studio workbench, Contributor capability layer, spatial Desk ownership, and provider-owned durable storage as approved direction at that time; check Confluence for subsequent decisions.
