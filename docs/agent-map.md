@@ -12,7 +12,7 @@ For broad cross-feature/current-topology questions, use Development Intelligence
 
 - Owners: `src/features/app-shell`, `creator-workbench`, `desk`, `experience-settings`.
 - Interfaces: each owner's `client.ts` or `server.ts`; routes compose them from `src/app`.
-- Read: `docs/architecture.md#core-ownership`, `docs/product-direction.md#workbench-doctrine`, and `#spatial-model` when interaction geometry changes.
+- Read: [Desk current-state surface map](revision-guide.md#desk-current-state-surface-map) for controls, authority/source projection and evidence limits; `docs/architecture.md#core-ownership`, `docs/product-direction.md#workbench-doctrine`, and `#spatial-model` when interaction geometry changes.
 - Tests: direct owner consumers plus focused `desk`, `environment`, `focused-artifact`, `studio-navigation`, and `surface-return` tests; compact interaction also uses `tests/product/workflows/mobile-dropdowns.spec.ts` when the browser journey changes.
 - Risk: Product. Preview browser evidence is expected for visible interaction changes.
 
