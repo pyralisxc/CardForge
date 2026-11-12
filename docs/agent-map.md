@@ -28,7 +28,7 @@ For broad cross-feature/current-topology questions, use Development Intelligence
 
 - Owners: `src/features/project`, `storage-management`, `personal-library`, `library-picker`.
 - Interfaces: focused project `client/*` entry points; do not restore an aggregate barrel.
-- Read: `docs/product-direction.md#save-semantics` for desired manual/default and optional-autosave behavior; `docs/revision-guide.md#planning-differences-that-affect-the-foundation-milestone` for current gaps; `docs/architecture.md#storage-lanes` and `docs/integrations.md#browser-workspace--zustand-and-indexeddb` for existing owners.
+- Read: `docs/product-direction.md#library-personal-pipeline-published` for intended Desk/Library parity, resource application, personal versus canonical tags and shared-revision boundaries; `docs/product-direction.md#save-semantics` for desired manual/default and optional-autosave behavior; `docs/revision-guide.md#planning-differences-that-affect-the-foundation-milestone` for current gaps; `docs/architecture.md#storage-lanes` and `docs/integrations.md#browser-workspace--zustand-and-indexeddb` for existing owners.
 - Tests: direct project/storage imports plus package, persistence, work-location, Library, and provider-boundary tests. Contextual Pipeline tools use `library-review-selection.test.ts` and `library-context-review.spec.ts` (synthetic native components; no hosted authority).
 - Risk: Product; High risk for destructive persistence or provider permission changes. Google Drive paths require one real provider proof.
 

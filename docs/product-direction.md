@@ -36,8 +36,8 @@ CardForge has three permanent user-navigation surfaces and one focused workbench
 
 | Surface | Core question | Product role |
 | --- | --- | --- |
-| **Desk** | What am I working on? | The user's spatial home for authored work, active work, organization, and quick object actions. |
-| **Library** | What resources can I access? | The user's structured collection across Personal and entitlement-filtered Pipeline scopes, with a Published scope added for Contributors and Owners. |
+| **Desk** | How am I working on my content? | The spatial, context-first route from the Set overview into the user's authored work, selected objects, fields and tools. |
+| **Library** | How do I browse and work with my content? | The structured, tab-based route through Sets, Templates, Artifacts and reusable resources across Personal, Pipeline and authorized Published scopes, with the same valid native actions as Desk. |
 | **Profile** | Who am I here, and what follows me? | Identity, security, plan/access, preferences, provider summary, temporary AI capacity, and personal role configuration. |
 | **Studio workbench** | What am I changing or producing right now? | A focused mode entered from selected work for authoring, generation, review-in-context, validation, saving, and output. It is not another collection or permanent navigation destination. |
 
@@ -182,7 +182,7 @@ Desk and Studio use the same object/action grammar with distinct jobs:
 
 ## Desk: My Work
 
-Desk's primary content is user-owned Sets/Projects and active work. It is not an account metrics dashboard.
+Desk's primary content is user-owned Sets/Projects and active work. The Set overview is the broadest personal-work context; spatial investigation moves inward through a Set, its Templates and Artifacts, then fields, values and focused tools. Desk makes the destination and action scope clear through that depth, rather than defining a different capability set from [Library](#library-personal-pipeline-published). It is not an account metrics dashboard.
 
 Desk may surface browser-local work, Google Drive projects, attached local-folder projects, portable packages the user opens/indexes, and temporary AI work. Location is metadata on the work, not Desk's organizing principle.
 
@@ -214,19 +214,31 @@ An empty account begins with an empty Desk. CardForge must not manufacture an `U
 
 ## Library: Personal, Pipeline, Published
 
-Library is one structured collection of reusable resources and object identities.
+Library is the structured, tab-based or folder-like route into the same object world as Desk: Sets, Templates, Artifacts, field values, artwork, fonts and other supported resources. It is not only a resource shelf or a reduced editor. Both routes expose the same valid object actions and editing authority; navigation and context framing differ, not object ownership or persistence.
+
+A person can open a Set, navigate its Templates and Artifacts, and edit field values from Library without first going to Desk. Either route opens the same Studio workbench when precision Design is needed and preserves its originating context on return. A Template defines fields or slots; an Artifact holds field values; artwork and fonts are reusable resources assignable to compatible fields or design properties. Text can remain a field value without becoming a separate Library or Pipeline resource.
+
+Primary tabs remain working layers with search and filters inside them. Object type describes what a thing is; provenance describes its personal, shared or provider-governed origin. Location, compatibility, status and tags are separate facets, not interchangeable ownership trees. Personal, Pipeline and Published remain the relevant collection scopes/projections rather than a forced redesign around either object type or source. Reusable resources do not become physically owned by every Set that references them merely because Library presents a structured path.
+
+Library can inspect or edit an owned resource before it occupies a field. For **Apply**, resolve missing working context: the relevant Set, Artifact or Template, then the compatible field, role or design property as needed. Show the destination and consequences before commitment; applying artwork to one Artifact is different from changing a Template used by several Artifacts. Use the native action and offer the resulting context without requiring a manual spatial retrace. Unavailable, incompatible or unauthorized destinations must not cause a partial application or lose authored work. Applying is not saving, submitting or publishing.
 
 Recommended scopes:
 
 ### Personal
 
-User-owned reusable resources and provider-backed objects, including Templates, assets, fonts, styles, working drafts, and project resources where appropriate.
+User-owned Sets, Artifacts, reusable resources and provider-backed objects, including Templates, assets, fonts, styles, working drafts, and project resources where appropriate. An owner can add, rename or remove their resource's tags and supported organization metadata.
 
 ### Pipeline
 
 Every user sees stable published CardForge shared resources available to their entitlement/compatibility. Signed-in users can heart any visible Pipeline lineage; the heart follows later revisions and never changes review thresholds or publication state.
 
 Published Sets are reusable starting work, beginning with complete outcomes such as a standard playing-card deck. Their catalog entry points to one immutable portable package revision. Creators receive an independent Set copy; publication remains owned by Pipeline and durable creator storage remains browser, package, folder, or connected-provider owned.
+
+Using shared Pipeline work retains attribution, lineage and the exact acquired revision as provenance, not a live dependency on its publisher. Editing creates an independent private derivative with its own identity or, when authorized, a new revision candidate against the shared lineage; it never overwrites a published revision in place. Existing Sets retain their acquired state until the creator explicitly reviews and accepts an available Update. Source retirement must not silently change or break acquired work. These behavior rules constrain file/version handling without selecting a version engine, schema or unlimited history policy; see [Product and Direction](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/917505) and [Studio and Sets](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/622613).
+
+Canonical Pipeline tags and classification belong to the governed shared revision. Only authorized author/governance and revision/publication paths may change them; access or use does not grant shared metadata editing authority. Canonical content or classification changes are revision-governed, not in-place edits of published content.
+
+Every user can organize resources they can access through private tags, saved filters and views/collections without rewriting the shared classification or another account's organization. Personal overlays do not create shared revisions. Filters must distinguish personal organization from canonical classification; detailed filter controls and matching behavior still need resolution and current Preview verification, not an assumption of implemented parity.
 
 ### Published — Contributor and Owner
 
