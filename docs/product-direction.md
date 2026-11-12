@@ -208,6 +208,8 @@ Desk quick actions use the same scope contract as Studio:
 | One contained Artifact | Edit, Design, Generate, Export, Duplicate, Pipeline/revision actions where valid. |
 | Multiple contained Artifacts | Edit selected when the exact Template contract is compatible; Move, Duplicate, Tag, Output, or Remove where supported. Mixed Template scopes never silently retarget or infer semantic field equivalence. |
 
+Desired recovery: ordinary **Remove from Set** is immediately undoable, without a separate individual-card Trash system, as accepted in [Studio and Sets](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/622613). This does not change device-copy deletion, provider Trash or shared-catalog retirement; the [Desk source map](revision-guide.md#desk-current-state-surface-map) records the current implementation gap.
+
 An empty account begins with an empty Desk. CardForge must not manufacture an `Untitled Set`, assign a starting Template, or present internal bootstrap state as user-authored work. A Set is a neutral spatial container that may intentionally reference reusable Templates before generation; each card Artifact owns its own front/back Template references and content data.
 
 ## Library: Personal, Pipeline, Published
