@@ -272,6 +272,8 @@ Production cleanup is owned by Supabase Cron and the `purge-assistant-drafts` Ed
 
 Pipeline revision cleanup uses the separate `purge-pipeline-revisions` function and `pipeline_revision_retention_cron_secret`. Its migration deliberately creates the authorization secret but does not schedule the worker. Before enabling a schedule, deploy it to Staging, create one disposable never-published fixture with an isolated Storage path, let it become purge-eligible, invoke the function with the Vault secret, and prove that the object is removed before the row. Also prove a current registry pointer, a previously published revision, a retention-held revision, and a referenced revision cannot be claimed. Only after that controlled proof may Staging receive a schedule; repeat the exact-head migration and smoke evidence before separately scheduling Production.
 
+**Purge uncertainty is not retry permission.** The [revision purge processor](../supabase/functions/purge-pipeline-revisions/processor.ts) retains its committed claim after Storage errors, unconfirmed finalization or other failure: Storage may already have acted. Do not release/reissue the claim, treat lease expiry as revoking an old worker's authority, or report the revision purged without confirmed finalization. Inspect the exact claim and Storage/database outcomes for reconciliation; do not substitute an automatic retry/reset procedure. Device-copy removal, provider Trash/Restore, reversible revision recovery and whole-lineage Owner purge retain their separate native owners.
+
 For a development-beta release:
 
 1. Complete the normal exact-head Preview and migration sequence, including the private Studio artwork bucket.

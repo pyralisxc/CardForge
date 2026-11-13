@@ -12,7 +12,7 @@ For broad cross-feature/current-topology questions, use Development Intelligence
 
 - Owners: `src/features/app-shell`, `creator-workbench`, `desk`, `experience-settings`.
 - Interfaces: each owner's `client.ts` or `server.ts`; routes compose them from `src/app`.
-- Read: `docs/architecture.md#core-ownership`, `docs/product-direction.md#workbench-doctrine`, and `#spatial-model` when interaction geometry changes.
+- Read: [Desk current-state surface map](revision-guide.md#desk-current-state-surface-map) for controls, authority/source projection and evidence limits; [shared filtering and current view behavior](revision-guide.md#journey-organize-filter-and-reuse-a-view); `docs/architecture.md#core-ownership`, `docs/product-direction.md#workbench-doctrine`, and `#spatial-model` when interaction geometry changes.
 - Tests: direct owner consumers plus focused `desk`, `environment`, `focused-artifact`, `studio-navigation`, and `surface-return` tests; compact interaction also uses `tests/product/workflows/mobile-dropdowns.spec.ts` when the browser journey changes.
 - Risk: Product. Preview browser evidence is expected for visible interaction changes.
 
@@ -20,7 +20,7 @@ For broad cross-feature/current-topology questions, use Development Intelligence
 
 - Owners: `src/features/template-editor`, `card-generator`, `card-rendering`, `render-artifacts`.
 - Interfaces: owner `client.ts`/`server.ts`; pure Card/Template policy remains in `src/domain`.
-- Read: `docs/architecture.md#card-and-template-model` and `#canonical-rendering-doctrine`.
+- Read: `docs/architecture.md#card-and-template-model` and `#canonical-rendering-doctrine`; [per-path output gates](revision-guide.md#finished-output-validation-and-delivery) before generalizing print preflight.
 - Tests: directly importing `template`, `canvas`, `element`, `layer`, `field`, `rendering`, or generation tests.
 - Risk: Product. Inspect real rendered output when pixels, export, fonts, or rich text change.
 
@@ -28,7 +28,7 @@ For broad cross-feature/current-topology questions, use Development Intelligence
 
 - Owners: `src/features/project`, `storage-management`, `personal-library`, `library-picker`.
 - Interfaces: focused project `client/*` entry points; do not restore an aggregate barrel.
-- Read: `docs/product-direction.md#save-semantics` for desired manual/default and optional-autosave behavior; `docs/revision-guide.md#planning-differences-that-affect-the-foundation-milestone` for current gaps; `docs/architecture.md#storage-lanes` and `docs/integrations.md#browser-workspace--zustand-and-indexeddb` for existing owners.
+- Read: `docs/product-direction.md#library-personal-pipeline-published` for intended Desk/Library parity, resource application, personal versus canonical tags and shared-revision boundaries; `docs/product-direction.md#save-semantics` for desired manual/default and optional-autosave behavior; `docs/revision-guide.md#planning-differences-that-affect-the-foundation-milestone` for current gaps; `docs/architecture.md#storage-lanes` and `docs/integrations.md#browser-workspace--zustand-and-indexeddb` for existing owners.
 - Tests: direct project/storage imports plus package, persistence, work-location, Library, and provider-boundary tests. Contextual Pipeline tools use `library-review-selection.test.ts` and `library-context-review.spec.ts` (synthetic native components; no hosted authority).
 - Risk: Product; High risk for destructive persistence or provider permission changes. Google Drive paths require one real provider proof.
 
@@ -52,7 +52,7 @@ For broad cross-feature/current-topology questions, use Development Intelligence
 
 - Owners: `src/features/pipeline`, `contributor-program`; shared catalog persistence stays with Pipeline. `src/features/pipeline/lib/contentQualityStandard.ts` owns the single role-specific quality/AI standard shown to contributors and Owner reviewers and used by repository-aware agents; do not create another editorial rubric.
 - Interfaces: feature `client.ts`/`server.ts` and immutable revision contracts.
-- Read: `docs/architecture.md#contributor-pipeline` and `docs/product-direction.md#pipeline-revisions-voting-and-publication`.
+- Read: `docs/architecture.md#contributor-pipeline` and `docs/product-direction.md#pipeline-revisions-voting-and-publication`; [cleanup procedure and retained purge claims](operations.md#staging-collaboration-contention-and-capacity-proof) for destructive uncertainty.
 - Tests: direct owner imports plus pipeline, registry, publication, vote, and asset tests.
 - Risk: High for permissions, publication, retirement, or destructive lineage. Supabase proof is required when shared state changes.
 

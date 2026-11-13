@@ -4,6 +4,8 @@ Status: branch-local product and interaction context, not an implementation inve
 
 The [Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) owns cross-branch future direction, founder decisions, and open questions; its [version roadmap](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/1966082) owns milestone targets. In particular, desired independently owned Set Templates differ from this revision's shared Template-reference model. Resolve that difference before changing ownership; do not present the goal as shipped. If Confluence is unavailable, retain this branch's context and flag newer direction as unchecked. Source, tests, deployment, and provider evidence remain separate.
 
+The [Experience, Surfaces and Authority protocol](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/2785295) owns the durable intended UX/UI geography, authority projection, placement rules, states and handoffs. This document retains branch-local interaction context; the [shared shell source map](revision-guide.md#shared-shell-source-map) identifies the implemented projection and its verification limits, not a second intended surface matrix.
+
 ## Product Thesis
 
 CardForge is one structured visual-production environment for repeatable, coordinated visual sets. It is not a collection of separate editors and it is not limited to game cards.
@@ -34,14 +36,14 @@ CardForge has three permanent user-navigation surfaces and one focused workbench
 
 | Surface | Core question | Product role |
 | --- | --- | --- |
-| **Desk** | What am I working on? | The user's spatial home for authored work, active work, organization, and quick object actions. |
-| **Library** | What resources can I access? | The user's structured collection across Personal and entitlement-filtered Pipeline scopes, with a Published scope added for Contributors and Owners. |
+| **Desk** | How am I working on my content? | The spatial, context-first route from the Set overview into the user's authored work, selected objects, fields and tools. |
+| **Library** | How do I browse and work with my content? | The structured, tab-based route through Sets, Templates, Artifacts and reusable resources across Personal, Pipeline and authorized Published scopes, with the same valid native actions as Desk. |
 | **Profile** | Who am I here, and what follows me? | Identity, security, plan/access, preferences, provider summary, temporary AI capacity, and personal role configuration. |
 | **Studio workbench** | What am I changing or producing right now? | A focused mode entered from selected work for authoring, generation, review-in-context, validation, saving, and output. It is not another collection or permanent navigation destination. |
 
 **Contributor is not another surface.** Contributor is a protected capability layer that enhances Desk, Library, focused Studio tools, and Profile.
 
-**Owner is a protected capability layer within Profile.** The Owner's recurring job remains operating CardForge itself—publishing reviewed truth, managing people/services, inspecting accountable history, and resolving operational queues—but it does not create a fourth navigation surface.
+**Owner is a protected capability layer across native surfaces, with cross-product operations composed in Profile.** The Owner's recurring job remains operating CardForge itself—publishing reviewed truth, managing people/services, inspecting accountable history, and resolving operational queues—but it does not create a fourth navigation surface. Object-specific authority stays with its native job, such as Pipeline review in Library or website editing on the public page.
 
 The browser Owner experience and the dedicated **CardForge Owner** agent/plugin surface are two clients of the same feature-owned control plane. The Owner plugin is not a fourth private navigation zone and does not share CardForge Studio's creator tool catalog. It reuses the same Clerk identity plus server-resolved Owner authority, canonical state, validation, revision/conflict rules, cache invalidation, and activity history as browser Owner operations.
 
@@ -180,7 +182,7 @@ Desk and Studio use the same object/action grammar with distinct jobs:
 
 ## Desk: My Work
 
-Desk's primary content is user-owned Sets/Projects and active work. It is not an account metrics dashboard.
+Desk's primary content is user-owned Sets/Projects and active work. The Set overview is the broadest personal-work context; spatial investigation moves inward through a Set, its Templates and Artifacts, then fields, values and focused tools. Desk makes the destination and action scope clear through that depth, rather than defining a different capability set from [Library](#library-personal-pipeline-published). It is not an account metrics dashboard.
 
 Desk may surface browser-local work, Google Drive projects, attached local-folder projects, portable packages the user opens/indexes, and temporary AI work. Location is metadata on the work, not Desk's organizing principle.
 
@@ -206,23 +208,45 @@ Desk quick actions use the same scope contract as Studio:
 | One contained Artifact | Edit, Design, Generate, Export, Duplicate, Pipeline/revision actions where valid. |
 | Multiple contained Artifacts | Edit selected when the exact Template contract is compatible; Move, Duplicate, Tag, Output, or Remove where supported. Mixed Template scopes never silently retarget or infer semantic field equivalence. |
 
+Desired recovery: ordinary **Remove from Set** is immediately undoable, without a separate individual-card Trash system, as accepted in [Studio and Sets](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/622613). This does not change device-copy deletion, provider Trash or shared-catalog retirement; the [Desk source map](revision-guide.md#desk-current-state-surface-map) records the current implementation gap.
+
 An empty account begins with an empty Desk. CardForge must not manufacture an `Untitled Set`, assign a starting Template, or present internal bootstrap state as user-authored work. A Set is a neutral spatial container that may intentionally reference reusable Templates before generation; each card Artifact owns its own front/back Template references and content data.
 
 ## Library: Personal, Pipeline, Published
 
-Library is one structured collection of reusable resources and object identities.
+**Intended direction, not implemented Preview behavior:** Library should be the structured, tab-based or folder-like route into the same object world as Desk: Sets, Templates, Artifacts, field values, artwork, fonts and other supported resources. It should not be only a resource shelf or a reduced editor. Both routes should expose the same valid object actions and editing authority; navigation and context framing should differ, not object ownership or persistence. The [Experience, Surfaces and Authority protocol](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/2785295) owns this intended model.
+
+**Intended navigation and return:** A person should be able to open a Set, navigate its Templates and Artifacts, and edit field values from Library without first going to Desk. Either route should open the same Studio workbench when precision Design is needed and preserve its originating context on return. A Template defines fields or slots; an Artifact holds field values; artwork and fonts are reusable resources assignable to compatible fields or design properties. Text can remain a field value without becoming a separate Library or Pipeline resource.
+
+**Current-source distinction:** Opening a local Set from Library currently routes to Desk. That handoff does not establish the intended structured Set-to-field editing or return-context parity as implemented Preview behavior; see the [Library handoffs and evidence boundaries](revision-guide.md#journey-boundaries-pipeline-review-and-site-operations).
+
+Primary tabs remain working layers with search and filters inside them. Object type describes what a thing is; provenance describes its personal, shared or provider-governed origin. Location, compatibility, status and tags are separate facets, not interchangeable ownership trees. Personal, Pipeline and Published remain the relevant collection scopes/projections rather than a forced redesign around either object type or source.
+
+**One filtering and tagging model:** Desk and Library share tag ownership and the meaning of matching, clearing and saved views within the applicable object/source scope. Different presentations or context-specific controls do not create separate product lifecycles. This does not require one global active filter, one flattened tag namespace, or shared spatial layout state. Set-level tags, Artifact tags, canonical Pipeline classification and private organization retain their own owners. The [current filter/view source map](revision-guide.md#journey-organize-filter-and-reuse-a-view) distinguishes existing behavior from this contract; current search, persistence or Reset differences are not automatically desired policy.
+
+**Saved-view capture (intended):** Include text search alongside the selected filters by default, with an explicit option to save a filters-only view. This rule applies across Desk and Library within the compatible scope. Current Desk presets omit text search; that is not implementation of the intended default.
+
+**Source resources versus Set-owned copies (intended):** A reusable source resource retains its source identity and governing authority. Separately, the [Studio and Sets blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/622613) requires acquired Templates and assets to be independent Set-owned working copies. Source identity, attribution and exact revision remain provenance for optional accepted Updates, not a live shared dependency or a transfer of ownership of the source itself. This does not declare the current shared Template-reference model migrated; the [ownership gap](revision-guide.md#planning-differences-that-affect-the-foundation-milestone) remains explicit.
+
+Library can inspect or edit an owned resource before it occupies a field. For **Apply**, resolve missing working context: the relevant Set, Artifact or Template, then the compatible field, role or design property as needed. Show the destination and consequences before commitment; applying artwork to one Artifact is different from changing a Template used by several Artifacts. Use the native action and offer the resulting context without requiring a manual spatial retrace. Unavailable, incompatible or unauthorized destinations must not cause a partial application or lose authored work. Applying is not saving, submitting or publishing.
 
 Recommended scopes:
 
 ### Personal
 
-User-owned reusable resources and provider-backed objects, including Templates, assets, fonts, styles, working drafts, and project resources where appropriate.
+User-owned Sets, Artifacts, reusable resources and provider-backed objects, including Templates, assets, fonts, styles, working drafts, and project resources where appropriate. An owner can add, rename or remove their resource's tags and supported organization metadata.
 
 ### Pipeline
 
 Every user sees stable published CardForge shared resources available to their entitlement/compatibility. Signed-in users can heart any visible Pipeline lineage; the heart follows later revisions and never changes review thresholds or publication state.
 
 Published Sets are reusable starting work, beginning with complete outcomes such as a standard playing-card deck. Their catalog entry points to one immutable portable package revision. Creators receive an independent Set copy; publication remains owned by Pipeline and durable creator storage remains browser, package, folder, or connected-provider owned.
+
+Using shared Pipeline work retains attribution, lineage and the exact acquired revision as provenance, not a live dependency on its publisher. Editing creates an independent private derivative with its own identity or, when authorized, a new revision candidate against the shared lineage; it never overwrites a published revision in place. Existing Sets retain their acquired state until the creator explicitly reviews and accepts an available Update. Source retirement must not silently change or break acquired work. These behavior rules constrain file/version handling without selecting a version engine, schema or unlimited history policy; see [Product and Direction](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/917505) and [Studio and Sets](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/622613).
+
+Canonical Pipeline tags and classification belong to the governed shared revision. Only authorized author/governance and revision/publication paths may change them; access or use does not grant shared metadata editing authority. Canonical content or classification changes are revision-governed, not in-place edits of published content.
+
+Every user can organize resources they can access through private tags, saved filters and views/collections without rewriting the shared classification or another account's organization. Personal overlays do not create shared revisions. Filters must distinguish personal organization from canonical classification. Saved-view capture follows the shared rule above; compatible reuse and Reset interactions still need path-specific acceptance within that model, not separate Desk and Library lifecycles or an assumption of implemented parity.
 
 ### Published — Contributor and Owner
 
