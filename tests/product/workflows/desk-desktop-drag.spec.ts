@@ -242,6 +242,10 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(focused).toBeVisible();
     await expect(focused).toHaveAttribute('data-editing', 'false');
     await expect(page.locator('[data-artifact-edit-workspace]')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(focused).toHaveCount(0);
+    await artifact.dblclick();
+    await expect(focused).toBeVisible();
 
     // Editing remains an explicit second step after focus settles.
     await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();
