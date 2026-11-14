@@ -106,7 +106,7 @@ Verify the native access path before claiming installation acceptance:
 
 Vercel offers project protection and domain-specific Deployment Protection Exceptions. Inspect current official guidance and the actual account UI before choosing the smallest native setting; a domain exception can retain protection on other URLs but may carry a paid requirement. Do not enable a paid add-on or widen the scope to Production/unrelated deployments without a separate owner decision. Keep protected sourcemaps and server-side CardForge permissions. If a browser confirmation is required, stage the exact change and explain its scope before submission. Roll back a domain exception by removing that exact hostname, then verify the Vercel gate returns; removal does not revoke Clerk grants or undo Staging writes.
 
-Before any merge into `main`, the agent must send Cameron the stable Preview link, the exact candidate SHA, and the specific review scope, then wait for explicit approval. A READY Vercel deployment does not authorize a merge.
+Before any merge into `main`, the agent must send Cameron the exact candidate SHA, scope, verification and remaining risks, then wait for explicit approval. Accumulated feature releases use the stable Preview link. Isolated Main-based maintenance follows [the separate maintenance lane](../ORCHESTRATION.md#main-maintenance-lane), with its own hosted candidate evidence when needed rather than presenting accumulated Preview as its candidate. A READY Vercel deployment does not authorize a merge.
 
 Accumulated Preview and release sequence:
 
@@ -127,6 +127,14 @@ Cloud Set Mirror retirement is complete. The recorded retirement identified the 
 The immutable historical chain still creates the now-retired `cardforge-cloud-set-assets` bucket when provisioning a fresh Supabase project. Provisioning postflight must verify that bucket is empty and delete it through the native Storage API; do not mutate Supabase-owned `storage.*` tables from a database migration.
 
 Rollback application behavior with a forward code fix or existing feature gate. Never delete migrations, ledgers, votes, campaign history, delivery history, or financial records to simulate rollback.
+
+### Versioned releases and plugin assets
+
+The accepted distribution model uses GitHub Releases, not a third hosted environment or a new package registry. After an approved release reaches Main and the applicable production postflight passes, tag the exact released Main commit `vX.Y.Z` and publish release notes covering changes, migrations, compatibility and known limitations. A reviewed Preview SHA and the resulting Main merge commit are distinct identities; record the released commit. Patch releases may maintain the current version while Preview develops the next milestone. Do not move an existing version tag or overwrite its published binary; ship a new version.
+
+Build authorized production plugin ZIPs from that exact tag using the existing allowlisted packager. Attach versioned ZIPs and SHA-256 checksums to the release, and identify each plugin's canonical manifest version and supported hosted service/client compatibility in the notes. Plugin versions are independent of the app release: do not renumber them merely to match an app tag, reuse an existing plugin version for changed package bytes, or regenerate a retained release from today's source. A ZIP pins its manifest and skill bytes, not the live MCP backend; installation and host/provider acceptance remain separate gates.
+
+Current packaging uploads expiring GitHub Actions artifacts; it does not publish GitHub Release assets. The release model above is intended procedure, not a claim that publication automation has been implemented. GitHub Packages is unnecessary for ZIP distribution unless a native package-manager consumer later requires it. Existing website download paths remain unchanged until deliberately migrated. Only explicitly authorized public assets belong on a public release; unpublished Preview variants and gated Owner materials retain their own distribution boundaries. Never include credentials, connection overrides or bypass material.
 
 ### Preview acceptance and reset
 
@@ -151,7 +159,7 @@ Reset through the owning product/provider path:
 
 ### Solo-maintainer branch rule
 
-While `@pyralisxc` is the only trusted code owner, requiring an independent approval would deadlock releases because a PR author cannot approve their own change. Keep resolved review threads, GitHub `verify`, a READY exact-head Vercel Preview, and the relevant live workflow proof mandatory. Require one independent approval when a second trusted reviewer joins.
+While `@pyralisxc` is the only trusted code owner, requiring an independent approval would deadlock releases because a PR author cannot approve their own change. Keep resolved review threads, GitHub `verify`, exact-candidate evidence under the applicable release lane, and the relevant live workflow proof mandatory. Accumulated feature releases require a READY exact-SHA Vercel Preview; Main maintenance follows the separate lane rather than an unrelated Preview deployment. Require one independent approval when a second trusted reviewer joins.
 
 ## Supabase migration and security procedure
 
