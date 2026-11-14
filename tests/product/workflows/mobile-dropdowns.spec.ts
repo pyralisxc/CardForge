@@ -14,6 +14,31 @@ const expectTouchTarget = async (control: Locator) => {
 test.describe('mobile Desk controls', () => {
   test.describe.configure({ timeout: 120_000 });
 
+  test('@golden keeps focused Set search visible and touchable on mobile', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100, { cardLimit: 4 });
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+    const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+    await set.tap();
+    await set.press('Enter');
+    const search = page.getByRole('searchbox', { name: 'Search cards in this Set', exact: true });
+    for (const width of [320, 390, 767]) {
+      await page.setViewportSize({ width, height: 844 });
+      await expectTouchTarget(search);
+      await expect(page.getByRole('searchbox')).toHaveCount(1);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await search.fill('0001');
+    const cards = page.locator('[data-desk-artifact-stage] [data-artifact-id]');
+    await expect(cards).toHaveCount(1);
+    await expect(cards).toHaveAttribute('data-artifact-id', 'scale-card-1');
+    const clear = page.getByRole('button', { name: 'Clear search cards in this set', exact: true });
+    await expectTouchTarget(clear);
+    await clear.tap();
+    await expect(search).toBeFocused();
+    await expect(cards).toHaveCount(4);
+  });
+
   test('@golden keeps Desk filtering in a compact, touchable disclosure', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
@@ -220,6 +245,7 @@ test.describe('mobile Desk controls', () => {
 
     const tool = page.getByRole('region', { name: 'Generate into 100 Card Scale Set' });
     await expect(tool).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Search cards in this Set', exact: true })).toHaveCount(0);
     await expect(tool).toHaveAttribute('data-presentation', 'sheet');
     await expect(page.locator('[aria-label="CardForge Desk"] > [data-presentation-mode]')).toHaveAttribute('data-presentation-mode', 'task');
     await expect(page.locator('[data-desk-context-rail][data-depth="tool"]')).toContainText('Generate');
@@ -238,6 +264,7 @@ test.describe('mobile Desk controls', () => {
     await page.locator('[data-desk-context-rail][data-depth="tool"]').getByRole('button', { name: 'Done' }).tap();
     await expect(tool).toHaveCount(0);
     await expect(page.locator('[data-desk-context-rail][data-depth="set"]')).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Search cards in this Set', exact: true })).toBeVisible();
     await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'More Set actions', exact: true }).tap();
     await page.getByRole('menuitem', { name: 'Output', exact: true }).tap();
     await expect(page.getByRole('region', { name: 'Output Set', exact: true })).toBeVisible();
