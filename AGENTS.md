@@ -101,7 +101,7 @@ Closed implementation plans, audits, migration cutovers, and rollout checklists 
 - Code health: run focused/affected checks while implementing. The required GitHub `verify` job is authoritative for `npm run verify:full`; run that full gate locally only for a high-risk change, a local/CI discrepancy, or targeted CI diagnosis.
 - Public UI: localhost can prove provider-independent page/component behavior.
 - Hosted integration: Vercel Preview proves a coherent branch deploys and supports browser inspection.
-- Before any merge into `main`, send Cameron the stable Preview review link `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`, identify the exact candidate SHA, summarize what needs review, and wait for explicit approval. A READY deployment is evidence, not merge permission.
+- Before any merge into `main`, identify the exact candidate SHA, summarize scope, verification and risks, and wait for Cameron's explicit approval. For an accumulated feature release, send the stable Preview review link `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`. For isolated Main-based maintenance, follow `ORCHESTRATION.md`'s maintenance lane and provide the candidate's own hosted evidence when needed; accumulated Preview is not that candidate. A READY deployment is evidence, not merge permission.
 - Auth/provider flows: verify affected behavior on `https://cardforges.com` with the real signed-in owner/developer account when required.
 - Do not use raw HTTP to judge signed-in browser behavior; it lacks the real Clerk session.
 - Do not recreate retired QA identities merely to satisfy broad tests.
