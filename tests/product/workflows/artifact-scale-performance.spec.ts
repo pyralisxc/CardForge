@@ -70,7 +70,7 @@ test.describe('large Artifact browser evidence', () => {
       });
 
       const searchMs = await elapsed(async () => {
-        const cardSearch = page.getByRole('textbox', { name: 'Search cards in this Set', exact: true });
+        const cardSearch = page.getByRole('textbox', { name: 'Search cards in this work', exact: true });
         await cardSearch.fill(`Scale Card ${String(cardCount).padStart(4, '0')}`);
         await expect(page.getByRole('button', { name: /^Organize/ })).toContainText('1 card');
         await cardSearch.fill('');
@@ -269,9 +269,9 @@ test.describe('large Artifact browser evidence', () => {
     const runCycle = async () => {
       await openScaleSet(page, 100);
       await page.getByRole('button', { name: 'Design', exact: true }).click();
-      await expect(page.getByRole('region', { name: 'Design Artifacts' })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'Design', exact: true })).toBeVisible();
       await page.locator('[data-desk-context-rail][data-depth="tool"]').getByRole('button', { name: 'Done' }).click();
-      await expect(page.getByRole('region', { name: 'Design Artifacts' })).toHaveCount(0);
+      await expect(page.getByRole('region', { name: 'Design', exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
       await closeScaleSet(page);
       const closeStorageNotice = page.getByRole('button', { name: 'Close notification' });
@@ -341,7 +341,7 @@ test.describe('large Artifact browser evidence', () => {
 
     await openScaleSet(page, 100);
     await page.getByRole('button', { name: 'Design', exact: true }).click();
-    await expect(page.getByRole('region', { name: 'Design Artifacts' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Design', exact: true })).toBeVisible();
     await expect.poll(() => [...scripts].filter((url) => !baselineScripts.has(url)).length).toBeGreaterThan(0);
     const designDelta = [...scripts].filter((url) => !baselineScripts.has(url));
     await expect.poll(async () => (await Promise.all(scriptPayloads.slice(baselinePayloadCount))).join('\n').includes('studio-ready')).toBe(true);

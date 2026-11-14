@@ -1,4 +1,13 @@
 import type { DisplayCard } from '@/domain/rendering';
+import type { StoredDisplayCard } from '@/domain/cards';
+import type { ActionDescriptor, EnvironmentDetailRecord } from '@/features/app-shell/client/environment';
+import { createSendToPipelineActionDescriptor } from '@/features/pipeline/client';
+import {
+  getAccountLibraryActionSources,
+  getAccountLibraryEnvironmentActions,
+  type AccountLibraryItem,
+  type AccountLibrarySource,
+} from '@/features/storage-management/client';
 
 export const getDeskSelectionLabel = (items: readonly Pick<AccountLibraryItem, 'kind'>[]): string => {
   const names: Record<AccountLibraryItem['kind'], [string, string]> = {
@@ -10,15 +19,6 @@ export const getDeskSelectionLabel = (items: readonly Pick<AccountLibraryItem, '
   if (!kind || !items.every((item) => item.kind === kind)) return `${items.length} items`;
   return items.length === 1 ? names[kind][0] : `${items.length} ${names[kind][1]}`;
 };
-import type { StoredDisplayCard } from '@/domain/cards';
-import type { ActionDescriptor, EnvironmentDetailRecord } from '@/features/app-shell/client/environment';
-import { createSendToPipelineActionDescriptor } from '@/features/pipeline/client';
-import {
-  getAccountLibraryActionSources,
-  getAccountLibraryEnvironmentActions,
-  type AccountLibraryItem,
-  type AccountLibrarySource,
-} from '@/features/storage-management/client';
 
 type LegacyDeskSourceFilter = 'connected' | 'temporary';
 
