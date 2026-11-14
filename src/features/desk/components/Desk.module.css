@@ -998,11 +998,8 @@
 }
 
 .selectionBar {
-  position: absolute;
+  position: relative;
   z-index: 10;
-  top: 3.2rem;
-  right: 0.5rem;
-  left: 0.5rem;
   flex: 1;
   flex-wrap: nowrap;
   justify-content: flex-start;

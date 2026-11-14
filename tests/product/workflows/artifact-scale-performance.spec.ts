@@ -99,6 +99,21 @@ test.describe('large Artifact browser evidence', () => {
         box.right <= other.left || other.right <= box.left || box.bottom <= other.top || other.bottom <= box.top
       )));
     })).toBe(true);
+    await page.getByRole('button', { name: /^Organize/ }).click();
+    await page.getByRole('combobox', { name: 'Arrange cards', exact: true }).click();
+    await page.getByRole('option', { name: 'Arrange as grid', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await expect(headers).toHaveCount(2);
+    await expect(page.locator('[data-desk-artifact-stage] [data-artifact-id]')).toHaveCount(4);
+    await expect.poll(async () => {
+      const toolbar = await page.getByRole('toolbar', { name: 'Selection actions', exact: true }).boundingBox();
+      const stage = await page.locator('[data-desk-artifact-stage]').boundingBox();
+      const headingBoxes = await headers.evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().y));
+      return toolbar !== null && stage !== null && stage.y >= toolbar.y + toolbar.height
+        && headingBoxes.every((y) => y >= stage.y);
+    }).toBe(true);
   });
 
   for (const cardCount of [100, 500, 1000] as const) {
