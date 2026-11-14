@@ -436,6 +436,7 @@ export const instantiateProjectDocumentCopy = (
     cardSets: document.cardSets.map((set) => ({
       ...set,
       id: setIds.get(set.id)!,
+      ...(set.templateIds ? { templateIds: set.templateIds.map((id) => remapTemplateId(id) ?? id) } : {}),
       ...(set.organization ? { organization: {
         ...set.organization,
         tags: set.organization.tags.map((tag) => ({ ...tag, id: tagIds.get(`${set.id}:${tag.id}`)! })),
