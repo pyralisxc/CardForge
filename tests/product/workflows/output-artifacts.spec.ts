@@ -189,7 +189,7 @@ test('@golden @preview downloads actual card PNG, Set ZIP, PDF and Tabletop shee
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   const projectDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download project', exact: true }).click();
+  await page.getByRole('button', { name: 'Download Set', exact: true }).click();
   const projectZip = await JSZip.loadAsync(await save(await projectDownload));
   const project = JSON.parse(await projectZip.file('cardforge-project.json')!.async('string'));
   expect(project.projectRevision).toMatch(/^[a-f0-9]{64}$/u);
@@ -241,7 +241,7 @@ test(`@golden keeps complete SVG ${variant} Stretch composition in the native ca
 });
 }
 
-test('downloads a whole-workspace package with remote artwork and frame bytes or fails without a download', async ({ page }, testInfo) => {
+test('downloads one Set with remote artwork and frame bytes or fails without a download', async ({ page }, testInfo) => {
   const artUrl = 'https://portable-art.example/card.png';
   const frameUrl = 'https://portable-art.example/frame.png';
   const art = await sharp({ create: { width: 32, height: 32, channels: 4, background: '#4f7dc8' } }).png().toBuffer();
@@ -275,7 +275,7 @@ test('downloads a whole-workspace package with remote artwork and frame bytes or
   await page.locator('button[data-artifact-id="scale-card-1"]').press('Enter');
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   const downloading = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download project', exact: true }).click();
+  await page.getByRole('button', { name: 'Download Set', exact: true }).click();
   const download = await downloading;
   const path = testInfo.outputPath('remote-artwork.cardforge');
   await download.saveAs(path);
@@ -283,7 +283,7 @@ test('downloads a whole-workspace package with remote artwork and frame bytes or
   const zip = await JSZip.loadAsync(await readFile(path));
   const manifest = JSON.parse(await zip.file('cardforge-project.json')!.async('string'));
   expect(manifest.assets.filter((asset: { mimeType: string }) => asset.mimeType === 'image/png')).toHaveLength(2);
-  expect(manifest.project.cardSets).toHaveLength(2);
+  expect(manifest.project.cardSets).toHaveLength(1);
   expect(manifest.project.artifacts).toHaveLength(2);
   expect(JSON.stringify(manifest.project)).toContain('QA REV R2 SAVED 20261021');
   expect(JSON.stringify(manifest.project)).not.toContain('portable-art.example');
@@ -296,7 +296,23 @@ test('downloads a whole-workspace package with remote artwork and frame bytes or
   await page.route('https://portable-art.example/**', (route) => route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' } }));
   let extraDownloads = 0;
   page.on('download', () => { extraDownloads += 1; });
-  await page.getByRole('button', { name: 'Download project', exact: true }).click();
-  await expect(page.getByText('Project not exported', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Download Set', exact: true }).click();
+  await expect(page.getByText('Set not downloaded', { exact: true })).toBeVisible();
   expect(extraDownloads).toBe(0);
+
+  await page.locator('input[type="file"][accept*=".cardforge"]').first().setInputFiles(path);
+  await expect(page.getByRole('alertdialog', { name: 'Import project file?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Replace Workspace', exact: true }).click();
+  await expect(page.getByRole('alertdialog', { name: 'Replace the entire workspace?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  const savedWorkspaces = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('cardforge-browser-storage', 1); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    const records = await Promise.all(['guest', 'local'].map((scope) => new Promise<string>((resolve, reject) => { const request = db.transaction('key-value').objectStore('key-value').get(`project-workspace:${scope}:workspace`); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); })));
+    db.close();
+    return records.map((record) => JSON.parse(JSON.parse(record).value).state.cardSets as Array<{ id: string; name: string }>);
+  });
+  const savedSets = savedWorkspaces.find((sets) => sets.length === 2);
+  expect(savedSets).toBeDefined();
+  expect(savedSets!.filter((set) => set.name === '100 Card Scale Set')).toHaveLength(1);
 });

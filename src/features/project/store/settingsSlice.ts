@@ -4,6 +4,7 @@ import type { StateCreator } from 'zustand';
 import { reconcileCardSets, resolveActiveCardSet, type CardSet } from '@/domain/cards';
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { PAPER_SIZES } from '@/domain/rendering';
+import { createPersonalTemplateFork, reconstructMinimalTemplateObject } from '@/domain/templates';
 
 import { selectAllTemplates } from './selectors';
 import type { ProjectState, SettingsSlice } from './types';
@@ -87,12 +88,30 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     return true;
   },
   duplicateCardSet: (id) => {
-    const source = get().cardSets.find((candidate) => candidate.id === id);
+    const current = get();
+    const source = current.cardSets.find((candidate) => candidate.id === id);
     if (!source) return null;
+    const sourceCards = current.storedCards.filter((card) => (
+      card.setId === id || (!card.setId && current.cardSets[0]?.id === id)
+    ));
+    const templateIds = new Set([
+      ...(source.templateIds ?? []),
+      ...sourceCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
+    ].filter((templateId): templateId is string => Boolean(templateId)));
+    const availableTemplates = selectAllTemplates(current);
+    const sourceTemplates = [...templateIds].map((templateId) => availableTemplates.find((template) => template.id === templateId));
+    if (sourceTemplates.some((template) => !template)) return null;
+    const copiedTemplates = sourceTemplates.map((template) => {
+      const sourceTemplate = template!;
+      return reconstructMinimalTemplateObject({
+        ...createPersonalTemplateFork(structuredClone(sourceTemplate)),
+        templateContributorName: sourceTemplate.templateContributorName,
+      });
+    });
+    const copiedTemplateIds = new Map([...templateIds].map((templateId, index) => [templateId, copiedTemplates[index].id!]));
     const duplicateId = `set-${nanoid()}`;
     const duplicateName = `${source.name} copy`;
     set((state) => {
-      const sourceCards = state.storedCards.filter((card) => card.setId === id);
       const cardIds = new Map(sourceCards.map((card) => [card.uniqueId, `card-${nanoid()}`]));
       const tagIds = new Map((source.organization?.tags ?? []).map((tag) => [tag.id, `tag-${nanoid()}`]));
       const organization = source.organization ? {
@@ -108,11 +127,12 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
         ...source,
         id: duplicateId,
         name: duplicateName,
-        templateIds: [...(source.templateIds ?? [])],
+        templateIds: [...templateIds].map((templateId) => copiedTemplateIds.get(templateId)!),
         ...(organization ? { organization } : {}),
       };
       return {
         ...activateCardSet(state, duplicate),
+        userTemplates: [...state.userTemplates, ...copiedTemplates],
         storedCards: [
           ...state.storedCards,
           ...sourceCards.map((card) => ({
@@ -120,6 +140,8 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
             uniqueId: cardIds.get(card.uniqueId)!,
             setId: duplicateId,
             setName: duplicateName,
+            templateId: copiedTemplateIds.get(card.templateId)!,
+            backingTemplateId: card.backingTemplateId ? copiedTemplateIds.get(card.backingTemplateId)! : card.backingTemplateId,
             tagIds: card.tagIds?.flatMap((tagId) => tagIds.get(tagId) ? [tagIds.get(tagId)!] : []),
           })),
         ],

@@ -735,6 +735,7 @@ describe('app store helpers', () => {
 
   it('duplicates a set and its cards as independently owned work', () => {
     useProjectStore.setState({
+      userTemplates: [reconstructMinimalTemplateObject({ id: 'template', name: 'Template', templateSource: 'user' })],
       cardSets: [{
         id: 'set-a',
         name: 'Alpha',

@@ -1,8 +1,10 @@
 # CardForge Product Direction
 
-Last updated: October 10, 2026
+Status: branch-local product and interaction context, not an implementation inventory or second future roadmap. These experience contracts include intended behavior; use the [revision guide](revision-guide.md) and [architecture](architecture.md) to check source ownership and evidence limits. The live `/roadmap` owns publicly presented capability status and votes.
 
-Status: living product direction. This document records the intended product model and next delivery sequence. It does not describe shipped behavior. [architecture.md](architecture.md) remains authoritative for shipped ownership and invariants and the live `/roadmap` owns publicly presented capability status and votes.
+The [Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) owns cross-branch future direction, founder decisions, and open questions; its [version roadmap](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/1966082) owns milestone targets. In particular, desired independently owned Set Templates differ from this revision's shared Template-reference model. Resolve that difference before changing ownership; do not present the goal as shipped. If Confluence is unavailable, retain this branch's context and flag newer direction as unchecked. Source, tests, deployment, and provider evidence remain separate.
+
+The [Experience, Surfaces and Authority protocol](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/2785295) owns the durable intended UX/UI geography, authority projection, placement rules, states and handoffs. This document retains branch-local interaction context; the [shared shell source map](revision-guide.md#shared-shell-source-map) identifies the implemented projection and its verification limits, not a second intended surface matrix.
 
 ## Product Thesis
 
@@ -20,20 +22,28 @@ The engine stays broad. Specialties, Kits, permissions, and connected providers 
 
 The **current offered product remains card-first**. Broader Artifact families are architectural runway, not a marketing claim or a reason to make today's CardForge generic. New families earn product status only after their native authoring, validation, output, and continuity contracts are real.
 
+## Controls, defaults, and familiar lifecycles
+
+Desired contract: offer a coherent normal flow and meaningful safe alternatives, not one hard-coded implementation preference. The [Confluence configurability principle](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/917505) owns the cross-branch direction. Product defaults and supported policies belong on the proper authorized Owner surface; personal preferences belong in the user's settings and work-specific choices stay with the Set. Separate website and product authority where the setup requires it; that separation is not established merely by the current shared Owner role. Reveal advanced controls progressively instead of requiring configuration before ordinary work.
+
+A default supplies an initial value, not permission to silently replace an explicit user choice. Mandatory policy, authorization, commercial entitlement, finite service capacity, provider permission and file/runtime constraints are different facts. Explain which one actually limits an action and offer a supported alternative; unknown/loading/unavailable is not zero capacity or a Free-plan downgrade. Browser space is not a CardForge-metered allowance. An Owner setting cannot invent an unsupported provider feature or bypass safety, authorization or accepted commitments. See [Technical Contracts](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/917545) for the authority distinctions.
+
+Use familiar object lifecycles through their existing feature owners: Save commits the advertised work; Save As/Copy creates an independent destination/identity; Move removes the exact source only after verified destination persistence; Trash/Restore differs from permanent deletion; disconnect/revoke/uninstall differs from deleting work or canceling external billing; Save/Submit/Publish are distinct commitments. Preserve scope, dirty-state warnings, Cancel before commitment, and truthful committed/failed/unknown results. After a possible external commit, reconcile before retrying rather than promising that Cancel or a generic Undo reverses it. Do not add a universal sync, version-control UI, retry queue, or settings framework merely to make these interactions consistent.
+
 ## The Three Private Surfaces and Focused Workbench
 
 CardForge has three permanent user-navigation surfaces and one focused workbench mode:
 
 | Surface | Core question | Product role |
 | --- | --- | --- |
-| **Desk** | What am I working on? | The user's spatial home for authored work, active work, organization, and quick object actions. |
-| **Library** | What resources can I access? | The user's structured collection across Personal and entitlement-filtered Pipeline scopes, with a Published scope added for Contributors and Owners. |
+| **Desk** | How am I working on my content? | The spatial, context-first route from the Set overview into the user's authored work, selected objects, fields and tools. |
+| **Library** | How do I browse and work with my content? | The structured, tab-based route through Sets, Templates, Artifacts and reusable resources across Personal, Pipeline and authorized Published scopes, with the same valid native actions as Desk. |
 | **Profile** | Who am I here, and what follows me? | Identity, security, plan/access, preferences, provider summary, temporary AI capacity, and personal role configuration. |
 | **Studio workbench** | What am I changing or producing right now? | A focused mode entered from selected work for authoring, generation, review-in-context, validation, saving, and output. It is not another collection or permanent navigation destination. |
 
 **Contributor is not another surface.** Contributor is a protected capability layer that enhances Desk, Library, focused Studio tools, and Profile.
 
-**Owner is a protected capability layer within Profile.** The Owner's recurring job remains operating CardForge itself—publishing reviewed truth, managing people/services, inspecting accountable history, and resolving operational queues—but it does not create a fourth navigation surface.
+**Owner is a protected capability layer across native surfaces, with cross-product operations composed in Profile.** The Owner's recurring job remains operating CardForge itself—publishing reviewed truth, managing people/services, inspecting accountable history, and resolving operational queues—but it does not create a fourth navigation surface. Object-specific authority stays with its native job, such as Pipeline review in Library or website editing on the public page.
 
 The browser Owner experience and the dedicated **CardForge Owner** agent/plugin surface are two clients of the same feature-owned control plane. The Owner plugin is not a fourth private navigation zone and does not share CardForge Studio's creator tool catalog. It reuses the same Clerk identity plus server-resolved Owner authority, canonical state, validation, revision/conflict rules, cache invalidation, and activity history as browser Owner operations.
 
@@ -53,7 +63,7 @@ The public site remains CardForge's entrance and explanation surface, not anothe
 
 ## Product Language
 
-Use these terms consistently:
+The following vocabulary records this revision's product model and proposed concepts. Specialty, Kit, and future Artifact families are not a verified inventory of implemented features:
 
 - **Studio:** the focused authoring, generation, review, validation, save, and output workbench opened for a selected Set, Artifact, Template, record, or revision.
 - **Desk:** the persistent work-container-scale spatial surface and personal account home over real CardForge objects. It preserves selection, grouping, position, and return context without becoming a new persistence owner.
@@ -66,14 +76,16 @@ Use these terms consistently:
 - **Work container:** the creator's durable body of coordinated work: records, layouts, Artifacts, assets, output settings, and selected Specialty/Kit context. The current CardForge domain name is **Set**; provider/package surfaces may still say **Project**. These are one product object, not a parent/child hierarchy or parallel registry. A Set may intentionally reference reusable Templates before any Artifact has been generated. The final public label remains a naming decision, not an architectural split.
 - **Artifact:** one produced/content-bearing thing inside a work container. In the current card domain, one Artifact is one whole card with stable identity, a required front face, and an optional back face. Future artifact families may be single-surface documents such as posters, badges, boards, tokens, or social graphics without changing the identity rule.
 - **Face:** a rendering side inside a multi-face Artifact. Card fronts are required; card backs are optional. A face is not a second card Artifact.
-- **Template/master:** reusable design authority for layout, style, field contract, and face role. Sets reference Templates without owning them; multiple Sets may intentionally share the same Template lineage.
+- **Template/master:** reusable design authority for layout, style, field contract, and face role. In this revision's model, Sets reference Templates without owning them; multiple Sets may intentionally share the same Template lineage. This is not the blueprint's newer independent Set-owned Template direction; see the [revision guide](revision-guide.md#journey-duplicate-save-export-and-reopen-work) and Confluence blueprint before changing ownership.
 - **Component recipe:** a semantic insertable assembly made from existing Studio primitives.
 - **Field contract:** the typed structured data expected by a Template or component recipe.
-- **Output profile:** a validated destination contract for download, digital publishing, print preparation, or provider fulfillment. A CardForge **print-ready** profile owns vendor-neutral trim/bleed/safe geometry, front/back orientation, imposition/preflight, color/output-intent behavior, and deterministic production packaging; a printer/provider profile specializes that contract for a real vendor rather than defining the generic model.
+- **Output profile:** a recorded intended destination contract for download, digital publishing, print preparation, or provider fulfillment. The proposed CardForge **print-ready** profile owns vendor-neutral trim/bleed/safe geometry, front/back orientation, imposition/preflight, color/output-intent behavior, and deterministic production packaging; a printer/provider profile specializes that contract for a real vendor rather than defining the generic model. This is not proof of independent press validation or printer acceptance.
 
 The recommended internal/owner-facing phrase remains **Studio Specialty**. Specialty is guidance, not a prison.
 
 ## Workbench Doctrine
+
+The following interaction doctrine records the model for this revision; individual implementations, accessibility and deployed behavior require verification.
 
 CardForge should reveal capability progressively without turning each feature, Specialty, Artifact, permission, or provider into a page.
 
@@ -105,7 +117,7 @@ Desk is no longer only a router or recent-work dashboard. It is the user's perso
 
 Work containers should read as authored work sitting on a working surface rather than folders in a filesystem. A work container may appear as a rendered stack, project board, product group, or compact visual cluster. The layout should provide breathing room and spatial identity without becoming an unconstrained infinite-canvas toy.
 
-Desk supports:
+The recorded Desk model calls for the following, where supported:
 
 - organize, group, stack, sort, and saved views;
 - select one or several owned work objects;
@@ -150,7 +162,7 @@ Templates and their generated cards must be distinguishable inside a Set: show t
 
 Editing an individual Artifact preserves its visual identity while card tools appear around it. The Set spread remains recognizable behind the focused Artifact; tool controls must not replace it with another preview. **Edit** is an explicit mode that changes Artifact content only: the rendered field regions are direct targets, the same field grammar remains available as an accessible complete list, and live draft pixels stay on the focused Artifact until Save & Done or Cancel resolves them. Swipe/pan navigation is inactive while field editing owns the gesture. **Design** changes reusable Template structure; selecting a Template-owned region explains that boundary and offers the exact current face Template. A compatible multi-selection uses the same conceptual editor with mixed values and sparse patches: untouched fields remain unchanged. Artifact-scoped Design begins from the referenced face Template without cloning or rebinding anything merely because the tool opened. If the creator saves design divergence for the selected Artifact scope, Save creates an independent personal Template lineage and rebinds exactly that scope atomically; cancel or no saved divergence creates no extra Template. Shared Template Save updates the reusable design lineage and makes consequences explicit when field requirements/removals affect linked Artifacts. Keep existing field contracts and layer locks rather than adding an override hierarchy. Shared Template Design can use the full viewport for element-level precision, with its distinct editing target explicit. The selected canvas is centered and fully visible at Fit across desktop and mobile; only deliberate zoom introduces scrolling, and that scrolling remains inside the canvas rather than the surrounding document. Tool-local controls replace page navigation, and one close path returns to the originating object.
 
-The focused Studio workbench supports:
+The recorded focused Studio model calls for the following, where supported:
 
 - multiple Templates/masters and Artifact types;
 - precise Template/master and element editing;
@@ -170,7 +182,7 @@ Desk and Studio use the same object/action grammar with distinct jobs:
 
 ## Desk: My Work
 
-Desk's primary content is user-owned Sets/Projects and active work. It is not an account metrics dashboard.
+Desk's primary content is user-owned Sets/Projects and active work. The Set overview is the broadest personal-work context; spatial investigation moves inward through a Set, its Templates and Artifacts, then fields, values and focused tools. Desk makes the destination and action scope clear through that depth, rather than defining a different capability set from [Library](#library-personal-pipeline-published). It is not an account metrics dashboard.
 
 Desk may surface browser-local work, Google Drive projects, attached local-folder projects, portable packages the user opens/indexes, and temporary AI work. Location is metadata on the work, not Desk's organizing principle.
 
@@ -196,23 +208,45 @@ Desk quick actions use the same scope contract as Studio:
 | One contained Artifact | Edit, Design, Generate, Export, Duplicate, Pipeline/revision actions where valid. |
 | Multiple contained Artifacts | Edit selected when the exact Template contract is compatible; Move, Duplicate, Tag, Output, or Remove where supported. Mixed Template scopes never silently retarget or infer semantic field equivalence. |
 
+Desired recovery: ordinary **Remove from Set** is immediately undoable, without a separate individual-card Trash system, as accepted in [Studio and Sets](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/622613). This does not change device-copy deletion, provider Trash or shared-catalog retirement; the [Desk source map](revision-guide.md#desk-current-state-surface-map) records the current implementation gap.
+
 An empty account begins with an empty Desk. CardForge must not manufacture an `Untitled Set`, assign a starting Template, or present internal bootstrap state as user-authored work. A Set is a neutral spatial container that may intentionally reference reusable Templates before generation; each card Artifact owns its own front/back Template references and content data.
 
 ## Library: Personal, Pipeline, Published
 
-Library is one structured collection of reusable resources and object identities.
+**Intended direction, not implemented Preview behavior:** Library should be the structured, tab-based or folder-like route into the same object world as Desk: Sets, Templates, Artifacts, field values, artwork, fonts and other supported resources. It should not be only a resource shelf or a reduced editor. Both routes should expose the same valid object actions and editing authority; navigation and context framing should differ, not object ownership or persistence. The [Experience, Surfaces and Authority protocol](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/2785295) owns this intended model.
+
+**Intended navigation and return:** A person should be able to open a Set, navigate its Templates and Artifacts, and edit field values from Library without first going to Desk. Either route should open the same Studio workbench when precision Design is needed and preserve its originating context on return. A Template defines fields or slots; an Artifact holds field values; artwork and fonts are reusable resources assignable to compatible fields or design properties. Text can remain a field value without becoming a separate Library or Pipeline resource.
+
+**Current-source distinction:** Opening a local Set from Library currently routes to Desk. That handoff does not establish the intended structured Set-to-field editing or return-context parity as implemented Preview behavior; see the [Library handoffs and evidence boundaries](revision-guide.md#journey-boundaries-pipeline-review-and-site-operations).
+
+Primary tabs remain working layers with search and filters inside them. Object type describes what a thing is; provenance describes its personal, shared or provider-governed origin. Location, compatibility, status and tags are separate facets, not interchangeable ownership trees. Personal, Pipeline and Published remain the relevant collection scopes/projections rather than a forced redesign around either object type or source.
+
+**One filtering and tagging model:** Desk and Library share tag ownership and the meaning of matching, clearing and saved views within the applicable object/source scope. Different presentations or context-specific controls do not create separate product lifecycles. This does not require one global active filter, one flattened tag namespace, or shared spatial layout state. Set-level tags, Artifact tags, canonical Pipeline classification and private organization retain their own owners. The [current filter/view source map](revision-guide.md#journey-organize-filter-and-reuse-a-view) distinguishes existing behavior from this contract; current search, persistence or Reset differences are not automatically desired policy.
+
+**Saved-view capture (intended):** Include text search alongside the selected filters by default, with an explicit option to save a filters-only view. This rule applies across Desk and Library within the compatible scope. Current Desk presets omit text search; that is not implementation of the intended default.
+
+**Source resources versus Set-owned copies (intended):** A reusable source resource retains its source identity and governing authority. Separately, the [Studio and Sets blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/622613) requires acquired Templates and assets to be independent Set-owned working copies. Source identity, attribution and exact revision remain provenance for optional accepted Updates, not a live shared dependency or a transfer of ownership of the source itself. This does not declare the current shared Template-reference model migrated; the [ownership gap](revision-guide.md#planning-differences-that-affect-the-foundation-milestone) remains explicit.
+
+Library can inspect or edit an owned resource before it occupies a field. For **Apply**, resolve missing working context: the relevant Set, Artifact or Template, then the compatible field, role or design property as needed. Show the destination and consequences before commitment; applying artwork to one Artifact is different from changing a Template used by several Artifacts. Use the native action and offer the resulting context without requiring a manual spatial retrace. Unavailable, incompatible or unauthorized destinations must not cause a partial application or lose authored work. Applying is not saving, submitting or publishing.
 
 Recommended scopes:
 
 ### Personal
 
-User-owned reusable resources and provider-backed objects, including Templates, assets, fonts, styles, working drafts, and project resources where appropriate.
+User-owned Sets, Artifacts, reusable resources and provider-backed objects, including Templates, assets, fonts, styles, working drafts, and project resources where appropriate. An owner can add, rename or remove their resource's tags and supported organization metadata.
 
 ### Pipeline
 
 Every user sees stable published CardForge shared resources available to their entitlement/compatibility. Signed-in users can heart any visible Pipeline lineage; the heart follows later revisions and never changes review thresholds or publication state.
 
 Published Sets are reusable starting work, beginning with complete outcomes such as a standard playing-card deck. Their catalog entry points to one immutable portable package revision. Creators receive an independent Set copy; publication remains owned by Pipeline and durable creator storage remains browser, package, folder, or connected-provider owned.
+
+Using shared Pipeline work retains attribution, lineage and the exact acquired revision as provenance, not a live dependency on its publisher. Editing creates an independent private derivative with its own identity or, when authorized, a new revision candidate against the shared lineage; it never overwrites a published revision in place. Existing Sets retain their acquired state until the creator explicitly reviews and accepts an available Update. Source retirement must not silently change or break acquired work. These behavior rules constrain file/version handling without selecting a version engine, schema or unlimited history policy; see [Product and Direction](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/917505) and [Studio and Sets](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/622613).
+
+Canonical Pipeline tags and classification belong to the governed shared revision. Only authorized author/governance and revision/publication paths may change them; access or use does not grant shared metadata editing authority. Canonical content or classification changes are revision-governed, not in-place edits of published content.
+
+Every user can organize resources they can access through private tags, saved filters and views/collections without rewriting the shared classification or another account's organization. Personal overlays do not create shared revisions. Filters must distinguish personal organization from canonical classification. Saved-view capture follows the shared rule above; compatible reuse and Reset interactions still need path-specific acceptance within that model, not separate Desk and Library lifecycles or an assumption of implemented parity.
 
 ### Published — Contributor and Owner
 
@@ -251,11 +285,13 @@ The direction is to recompose them around the selected object:
 
 ### Save semantics
 
+Desired contract: **manual Save by default; automatic mechanics after the chosen Save**. The initial autosave default is off. Offer optional autosave with meaningful supported frequency/trigger controls through saving preferences and the appropriate Owner defaults/policy surface, not a fixed hidden timer. Resolve effective settings within the advertised scope without overwriting explicit user choices or silently enabling external writes for existing work. Manual and enabled automatic saves use the same feature-owned safe commit path; neither requires a manual version bump or named checkpoint. Any required compatible conversion, revision bookkeeping and recovery support belongs inside that path, not an extra user chore. Do not imply every-keystroke history or unlimited cloud retention.
+
 These commitments must remain unmistakably different:
 
-- **Background working-copy persistence:** browser-local workspace persistence happens independently of provider/publication state. A visible status such as **Working copy saved** says only that the current browser working copy is persisted.
-- **Editor Save:** commit the current authored draft into the working copy. Safe content/design changes save directly; consequential Template-contract changes surface impact before commit. Artifact-scoped saved design divergence creates a new personal Template lineage only at this boundary.
-- **Save / Update · This device / Local folder / Google Drive / future provider:** write a durable Set snapshot to the named location. Saved Sets capture the exact Template revisions they intentionally reference so they remain reproducible.
+- **Draft/recovery persistence:** if used, preserve unsaved working state separately from the last confirmed Set save. Browser recovery is not a saved provider file, backup, publication or acceptance of source Updates; do not label the whole Set saved merely because a cache write succeeded.
+- **Editor Save:** commit the advertised authored draft scope; consequential Template-contract changes surface impact before commit. Artifact-scoped saved design divergence creates a new personal Template lineage only at this boundary. If this commits only a working draft, name that consequence rather than claiming the destination file was saved.
+- **Save · This device / Local folder / Google Drive / future provider:** commit the scoped Set and its required Templates/assets to the named destination without separate dependency-saving or revision-management chores. Do not include unrelated Sets or unaccepted drafts. Advance saved state only after the native boundary confirms it; failed/uncertain outcomes retain recoverable edits and remain visibly unsaved/unconfirmed.
 - **Save As / Copy / Move:** choose or create another durable destination; Move removes a source only after verified destination persistence.
 - **Send to Pipeline:** create a reviewable new shared candidate.
 - **Submit Revision:** create a reviewable revision of an existing shared lineage.
@@ -326,6 +362,8 @@ Use **Contributor** for the creative/product role across public and private UI a
 
 The existing Forge Pipeline remains the shared reviewed-content owner.
 
+For revision-specific source behavior, defaults, authorization and recovery limits, see the [Pipeline lifecycle evidence](pipeline-lifecycle.md). The product direction below is not evidence of current hosted configuration or execution.
+
 Studio should project each published resource where it is useful, not repeat every resource in every picker. Explicit Pipeline destinations override kind defaults. Counterpart suggestions must remain contextual: Template-derived treatments match the current face and physical format, a front may reveal compatible published backs, and foundation or border artwork with declared orientation compatibility should not be offered to an opposing canvas orientation. Unclassified artwork remains broadly available rather than disappearing through inference. Published Library details should name contextual Studio placement instead of advertising a generic action that cannot be completed. Future family or specialty relationships should refine this same projection without creating duplicate assets or a second Studio catalog.
 
 The initial Template surface is a representative quick view, not the full catalog rendered at once. It prefers distinct creation domains, keeps the complete catalog in the selector, and lets the creator deliberately expand Templates or card backs in place. Catalog growth targets each supported use case with roughly three to five Starter Templates and two to five Creator Pass Templates, subject to quality review rather than filler quotas.
@@ -336,9 +374,9 @@ Supported lifecycle concepts include draft, submitted, voting, publish candidate
 
 ### Voting
 
-Votes attach to the exact submission/revision, not to an eternal asset name. A new substantive revision earns its own signal. Previous revision votes remain historical evidence. Each Contributor has one positive preference per lineage and may move it atomically to another revision; that same Contributor may record one negative objection on any visible non-Trash revision. Contributors and the Owner may vote on their own submitted work. One person always contributes one unit of signal, and Owner authority is an explicit audited override rather than a weighted community vote. Voting begins after draft submission. Hearts remain a separate reaction to the lineage.
+Votes attach to the exact submission/revision, not to an eternal asset name. A new substantive revision earns its own signal. Previous revision votes remain historical evidence. Each Contributor has one vote per exact revision; changing its direction replaces that vote. Each Contributor has one positive preference per lineage and may move it atomically to another revision; negative objections can remain on multiple eligible visible revisions, including eligible shared Trash. The route reads self-voting policy, while the checked-in database migration requires self-voting to remain enabled. One person contributes one unit of signal, and Owner authority is a separate override rather than a weighted community vote. Voting begins after draft submission. Hearts remain a separate reaction to the lineage.
 
-Contributor voting follows the exact displayed revision anywhere a visible Pipeline object appears. Votes may be recorded after publication/archive/rejection as durable feedback, but only active review states may rebalance automatic publication policy:
+Contributor voting follows the exact displayed revision wherever the operation and account are eligible. The source rebalance includes active review, eligible current publications and eligible vote-origin Trash; recording feedback does not by itself guarantee a publication or recovery outcome:
 
 - vote directly in Pipeline or Published Library;
 - vote from the Studio inspector while actually using/testing the revision;
@@ -384,13 +422,13 @@ Revision recovery uses one exact-revision Trash clock, normally 30 days, whether
 
 Manual recoverable removal of eligible catalog media previews known exact consumers and requires fresh impact confirmation when references exist. Affected current Pipeline objects receive technical dependency-unavailable findings in Content Health, independently of human editorial revise decisions; normal Open and exact-lineage revision workflows own repair. Incomplete unrelated dependency interpretation is a coverage warning, not proof of a target reference. Private consumer identities remain hidden from unauthorized Contributors, who receive redacted counts. Restore and corrected current revisions reevaluate health rather than blindly clearing it. Physical erasure, committed claims, holds and installed-runtime type restrictions remain separate boundaries.
 
-Never-published work that is declined, withdrawn, expired, or superseded enters recoverable Trash. The Owner controls the minimum review age, inactivity window, Trash recovery window, and retention holds. When native retention eligibility is established, the worker removes Storage bytes before finalizing the database row. An uncertain Storage or finalization outcome retains its durable claim for reconciliation; time alone never reissues authority. Previously published revisions retain publication evidence and are never treated as disposable failed content. Their displayed recovery deadline does not authorize physical expiry. The currently live registry pointer is never automatically purged or displaced by later dislikes.
+Never-published work that is declined, withdrawn, expired, or superseded enters recoverable Trash. The Owner controls the minimum review age, inactivity window, Trash recovery window, and retention holds. When native retention eligibility is established, the worker removes Storage bytes before finalizing the database row. An uncertain Storage or finalization outcome retains its durable claim for reconciliation; time alone never reissues authority. Previously published revisions retain publication evidence and are never treated as disposable failed content. Their displayed recovery deadline does not authorize physical expiry. Qualifying votes can move a current publication to recoverable Trash and archive its registry visibility when the native consumer-admission and decision checks pass; the initial-Template candidate branch and Owner overrides also affect the result. Vote-origin removal preserves the exact pointer and retained material; it is not a guarantee that the publication remains publicly discoverable or that those bytes can be physically purged.
 
 ## Library, Storage, and Source Ownership
 
 CardForge is local-first and provider-friendly. It does not operate durable first-party creator backup storage.
 
-Durable creator locations include:
+Working and durable creator locations include:
 
 - browser workspace as fast local working/recovery copy;
 - portable `.cardforge` Project/Set packages;
@@ -398,7 +436,9 @@ Durable creator locations include:
 - Google Drive projects;
 - future providers chosen deliberately.
 
-Free is a durable creator studio, not a storage trial: a signed-in Free creator may use portable Set packages, browser-authorized local folders, and their personally connected Google Drive location. Paid plans may improve finished output and CardForge-operated services, but must never block the creator from keeping, reopening, copying, or moving their own work. Google Drive remains a narrow provider location rather than a CardForge realtime-collaboration service: one CardForge account connects one Google identity at a time, and Google remains authoritative for folder membership, sharing, permissions, storage, and revisions. A Set already linked to Drive coalesces ordinary edits into its one provider document after a short idle period and reports pending, saved, offline, and conflict states in the Desk context. Open clients keep that shared file reasonably fresh by checking its exact provider revision periodically and on focus/reconnect, applying newer saved revisions only when the browser copy is clean. Conflicting local work is preserved for explicit reconciliation, and read-only collaborators may refresh without gaining write access. This is provider-backed shared-file freshness, not live presence, CRDT co-editing, or a CardForge-managed universal sync engine.
+Free is a durable creator studio, not a storage trial: a signed-in Free creator may use portable Set packages, browser-authorized local folders, and their personally connected Google Drive location. Paid plans may improve finished output and CardForge-operated services, but must never block the creator from keeping, reopening, copying, or moving their own work. Google Drive remains a narrow provider location rather than a CardForge realtime-collaboration service: one CardForge account connects one Google identity at a time, and Google remains authoritative for folder membership, sharing, permissions, storage, and revisions.
+
+Source distinction: this revision's linked Drive working session coalesces edits into its provider document after a fixed idle delay; that differs from the desired manual-default, configurable saving contract above. The [revision guide](revision-guide.md#planning-differences-that-affect-the-foundation-milestone) records the inspected owner and settings gap. Its existing freshness checks apply newer saved provider revisions only when browser work is clean, preserve dirty conflicts, and do not grant read-only collaborators write access. This is shared-file freshness, not consent to incoming creative Updates, live presence, or a universal sync engine.
 
 Temporary AI Studio documents remain CardForge-owned bounded collaboration storage with explicit capacity, inactivity retention, recoverable trash, and cleanup. They are not project backups.
 
@@ -485,159 +525,10 @@ First integration rule:
 
 Do not create permanent geography merely because a permission exists. A future campaign/production environment earns a separate zone only if it develops a durable recurring object/queue users intentionally revisit outside normal editing.
 
-## Studio Entry and Specialties
+<a id="next-delivery-sequence"></a>
+## Future expansion
 
-The public site's primary action enters **Desk**. A future launcher may guide users through:
-
-1. choose a Specialty or Fully Custom;
-2. choose a Kit or no Kit;
-3. start with sample content, import structured data, or blank;
-4. enter the same Studio with relevant recommendations already active.
-
-Initial Specialty lanes remain:
-
-- Games and decks;
-- Events and signage;
-- Products and retail;
-- Learning and reference;
-- Fully Custom.
-
-A Specialty may declaratively configure:
-
-- launcher name/summary/imagery/order;
-- vocabulary;
-- Kits and suggested starting points;
-- featured Templates/styles/fonts/media/component recipes;
-- suggested field contracts/import mappings;
-- suggested Artifact types/order;
-- contextual Add Element/Section recommendations;
-- code-supported validation/preflight;
-- code-supported output profiles;
-- contextual help/examples/completion guidance.
-
-A Specialty must not deliver arbitrary executable code, unvalidated CSS, database expressions, or unrestricted UI definitions. Code owns the finite capability vocabulary; published configuration selects/arranges validated capabilities.
-
-## Specialty Specification Standard
-
-Every Specialty should answer:
-
-1. Audience and job.
-2. Domain hierarchy.
-3. Kits.
-4. Artifacts.
-5. Shared/repeated/imported fields.
-6. Semantic component recipes.
-7. Import mappings.
-8. Validation.
-9. Outputs.
-10. Recurring value.
-11. Proof project.
-12. Boundaries/exclusions.
-
-A Specialty is complete when a real user can begin with their information and finish the intended coordinated outcome, not when it merely has Templates.
-
-## Games Specialty
-
-Games remains the first active Specialty and first proof of CardForge as a coordinated physical-product system rather than only an individual-card editor.
-
-### Audience and outcome
-
-Games serves tabletop designers, independent publishers, playtesters, game masters, educators using game mechanics, and creators producing collectible/reference systems.
-
-The outcome is a coherent playable/publishable game product.
-
-### Domain hierarchy
-
-- **Game work container (currently Set):** shared identity, branding, credits, legal text, icon vocabulary, terminology, default production settings, and the organized body of related card pools/decks, rules Artifacts, packaging, boards/tokens/reference materials, and promotional outputs. It references reusable Templates relevant to the work without owning those Template lineages.
-- **Card/record Artifact:** one stable structured game object with a required front design/data relationship and optional independent back design/data relationship.
-- **Deck/collection:** ordered/counted references to records; quantity does not duplicate source identity.
-- **Product/pack:** distributable configuration defining included Artifacts/quantities without becoming their source owner.
-- **Face:** front or optional back rendering side inside a card Artifact.
-- **Other Artifact:** token, divider, rules surface, package surface, reference sheet, board, sell sheet, or promotional graphic as those families become native.
-
-Bulk generation adds results to an active Set. Legacy loose content imports into a clearly named recovered Set rather than becoming a permanent second model.
-
-### Candidate Kits
-
-Initial/future Kits may include:
-
-- Playing Card Deck;
-- Tarot or Oracle Deck;
-- Trading or Collectible Card Set;
-- Prototype Deck;
-- Tabletop/RPG Reference Deck;
-- Prompt/Party/Trivia Deck;
-- Game Product Kit;
-- later complete tabletop, board, tile/counter, roll-and-write, party/social-deduction, scenario/campaign, and educational tabletop projects where shared Artifact foundations justify them.
-
-The Arcane Playing Card proof remains a useful first physical proof, but the product architecture must support broader coordinated Sets.
-
-### Shared game data
-
-Games should eventually distinguish scoped values:
-
-- Game-level identity and terminology;
-- Set-level code/symbol/version/back/numbering/rarity/legal text;
-- Record/card-level content;
-- Deck-level references/quantities/order;
-- Artifact-level role/master/output settings;
-- Product-level included components/quantities/package copy/provider profile.
-
-Templates bind to scoped values explicitly. Intentional local overrides are visible.
-
-### Semantic components
-
-Games should feature semantic recipes before generic primitives, including title blocks, artwork frames, cost/action badges, type lines, rules boxes, reminder text, structured stats, paired stats, rarity/set marks, collector numbers, credit/legal lines, flavor text, icon/resource rows, card/deck positions, and playtest/version markers.
-
-Recipes assemble existing primitives and field contracts whenever possible rather than creating unnecessary renderer element types.
-
-### Rules, packaging, boards, tokens, and player aids
-
-Rules should progress from rich text to rules cards/reference sheets to fixed-page booklets; flowing automatic document layout is a separate capability and should use a mature paged-layout foundation rather than casually building another publishing engine.
-
-Packaging remains provider-aware artwork preparation using exact provider dielines, semantic panels, guide layers, shared identity, preflight, and provider output profiles. CardForge does not issue retail identifiers or certify legal/structural compliance.
-
-Boards, tokens, tiles, mats, dashboards, player aids, scorepads, labels, and trackers can reuse structured records/Templates/assets/output foundations, but each Artifact type needs deliberate geometry, performance, duplex/cut/imposition, and provider rules.
-
-A future Game component manifest should coordinate designed and externally supplied components, quantities, references, packaging copy, setup/rules descriptions, and later fulfillment preparation without pretending CardForge authors every physical part.
-
-## Existing Foundation and Remaining Orchestration
-
-CardForge already has much of the lower-level engine:
-
-- Template Studio primitives and semantic roles;
-- typed field contracts;
-- reusable appearance/element recipes;
-- canonical rendering;
-- bulk generation;
-- Set and card models;
-- reviewed shared asset registry;
-- controlled Studio destinations;
-- browser-local projects and portable packages;
-- local-folder and Google Drive project persistence;
-- connected personal assets/fonts;
-- temporary AI documents and MCP collaboration;
-- Pipeline submissions/votes/publication/archive/attribution.
-- a select-first constrained spatial Desk with persistent grouping, shared-object Set opening, reflective organization, and equivalent pointer/touch/keyboard paths;
-- one semantic action runtime presented through Desk and exact focused-work menus;
-- Personal/Published/Pipeline Library scopes, exact revision editing, contributor withdrawal/retirement, and Content Health;
-- one source-agnostic Library Picker contract used by resource-selecting tools;
-- fault-visible browser recovery, revision-safe Google Drive boundaries, exact checkout return, and independent commercial/authority entitlement axes;
-- a complete 52-card Published Set starter on the same immutable portable-package contract;
-- contextual Owner editing and Roadmap controls on their native public surfaces.
-
-The remaining product direction is orchestration that builds on those shipped owners:
-
-- generalized revision lineage beyond Templates;
-- exact candidate pinning/materialization;
-- shared source-capability projection;
-- multi-artifact work-container model;
-- Specialty manifests and versioned Kits;
-- composite semantic component recipes;
-- shared scoped data;
-- output bundles/provider profiles.
-
-This direction does not require a replacement renderer or a separate editor per market.
+Specialty/Kit launchers, broader Artifact families, and fulfillment belong to the [Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018), not a second delivery sequence here. Historical explorations remain in Git history. Configuration must select finite code-supported capabilities; it must not introduce arbitrary executable code, unvalidated CSS, database expressions, or unrestricted UI definitions.
 
 ## Ownership and Persistence
 
@@ -646,7 +537,7 @@ Preserve ownership separation:
 | Owner | Responsibilities |
 | --- | --- |
 | Code | Allowed capabilities, renderer behavior, element/field types, validation, compatibility, access control, output engines, provider interfaces. |
-| Supabase | Published Specialty/Kit metadata, Pipeline/review state, shared registry, owner decisions, public/platform control records. |
+| Supabase | Pipeline/review state, shared registry, owner decisions, public/platform control records; proposed published Specialty/Kit metadata is future direction, not an implemented inventory. |
 | Browser/work owner | Working records/layouts/local assets/preferences/recovery, Set → Template references, and portable work-package contracts. |
 | Connected provider/local folder | Durable user-owned project files, permissions, provider revisions, provider deletion. |
 | Temporary AI workspace | Bounded private revisioned collaboration only; not durable creator backup. |
@@ -654,7 +545,9 @@ Preserve ownership separation:
 
 `cardforge_asset_registry` remains the canonical shared Studio catalog for Templates, styles, media, fonts, and similar reusable assets. Specialties/Kits orchestrate those assets; they are not forced into the asset registry.
 
-### Version behavior
+### Published-resource expectations
+
+These are intended resource/persistence constraints, including future Specialty/Kit configuration. They do not select the Set versioning/comparison engine or establish that creator Updates, named paths, or a portable Set history ledger are implemented; resolve those questions in [Studio and Sets](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/622613).
 
 - Published Specialty/Kit revisions are immutable snapshots.
 - Reusable Templates have lineage plus exact revision identity; a fork creates a new lineage with provenance rather than transferring source ownership.
@@ -691,7 +584,7 @@ Avoid:
 
 Desk should be **more spatial than Library**. Library should intentionally remain the denser structured collection. Studio should be the most precise and tool-dense surface because it is entered for a specific change. Profile is the quietest structured utility surface.
 
-The prior alpha concept images remain historical hierarchy references, but the canonical visual direction is now:
+The prior alpha concept images remain historical hierarchy references; this revision records the following visual hierarchy:
 
 - Desk: spatial authored-work organization over the current Set/project object;
 - Library: Personal / Published / Pipeline collection with object inspectors;
@@ -701,30 +594,11 @@ The prior alpha concept images remain historical hierarchy references, but the c
 
 The old Developer-zone concept is superseded by Contributor enhancements across the three navigation surfaces and focused Studio tools.
 
-## Next Delivery Sequence
-
-The three-surface navigation, spatial Desk, focused Studio workbench, Library scopes, Pipeline lifecycle, contextual Owner/public controls, recovery boundaries, starter Set, and core agent-authoring bridge are shipped foundations rather than future milestones.
-
-The current next-crunch road is a **coherent set of parallel programs**, not a reason to reopen those foundations:
-
-1. **Launch truth and Owner control plane** — consolidate Owner-sovereign live presentation, truthful Preview/live publication semantics, provider-owned commercial facts, exact-revision public demonstrations, resilient public delivery, and browser/agent parity through a separate CardForge Owner plugin.
-2. **CardForge Studio public release** — finish real MCP/OAuth/reviewer acceptance and publish the focused creator plugin without broadening it into Owner operations or waiting for unrelated future platform work.
-3. **Launch content quality** — separate technical health from editorial readiness, establish semantic asset roles/families and enforceable first-party/AI-assisted standards, govern fonts, then curate the actual Starter Library into coherent useful families rather than maximizing object count.
-4. **Creator continuity completion** — re-baseline the Creator Spatial Environment and Drive-backed Desk work against current shipped behavior, then finish only the remaining observable interaction/provider gaps. Do not rebuild already-shipped scene, identity, or provider foundations.
-5. **Operating headroom and engineering confidence** — establish the intentionally supported public-beta user/concurrency envelope, complete material real-provider acceptance, and reduce verification cost where current evidence shows avoidable feedback friction without weakening durable safety guarantees.
-6. **Print-ready production** — make professional vendor-neutral print preparation a first-class CardForge Output contract, then evaluate print/fulfillment partners and specialty-finish profiles as consumers/extensions of that contract.
-
-These programs are intended to complete substantially within the same product crunch where their dependencies permit. A program may stop only at a genuine external/provider/human acceptance boundary, not merely because a branch or implementation artifact exists.
-
-After this crunch, broader Specialty/Kit orchestration, generalized non-card Artifact families, generic reusable Sites/Owner products, native social publishing, and realtime collaboration remain runway. Preserve cheap seams for them without making today's CardForge pay their implementation cost.
-
-Individual card changes belong in direct Template/card editing. The dedicated single-card generation form is intentionally retired; do not restore it as a parity requirement. Bulk input remains the creation path. Individual image downloads, sharing, editable-card packages, print-ready production packages, and provider-specific output profiles remain distinct supported output concerns.
-
 ## Product Constraints
 
 Do not:
 
-- create a fifth permanent Contributor zone;
+- create another permanent Contributor zone;
 - create a second Studio/editor for Contributors;
 - create a second renderer, asset registry, vote model, persistence owner, or Pipeline;
 - expose unpublished Pipeline content to normal creators;
@@ -737,16 +611,9 @@ Do not:
 - retire a shipped capability before its new home proves parity;
 - use radial/gesture-only interaction as a prerequisite for basic workflows.
 
-## Remaining Product Questions
+Individual card changes belong in direct Template/card editing; the dedicated single-card generation form is retired, while bulk input remains the creation path. Individual image downloads, sharing, editable-card packages, print preparation, and provider-specific output profiles are distinct output concerns, not interchangeable evidence of acceptance.
 
-The next product decisions should focus on implementation details rather than reopening the three-surface navigation plus focused-workbench model:
+<a id="remaining-product-questions"></a>
+## Open product questions
 
-1. Exact focused Studio geometry for Template, record, generation, validation, and output tools across desktop/tablet/mobile.
-2. Final public naming for the one authored-work container currently called Set in CardForge and Project by some provider/package paths.
-3. Which object types receive direct Generate/Export from Desk versus opening the focused Studio tool.
-4. Exact stable lineage/schema for revisionable fonts/media/component recipes.
-5. Retention policy for heavyweight old revision payloads while preserving lightweight audit history.
-6. Which personal Studio defaults belong in Profile versus the active work container.
-7. When a future Production/Orders lifecycle becomes durable enough to earn a separate zone.
-
-The three-surface navigation model, focused Studio workbench, Contributor capability layer, spatial Desk ownership, and provider-owned durable storage direction are considered approved product direction.
+Use [Confluence Delivery and Verification](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/983041) and its linked topic decisions. Resolve only the selected work's material semantics before implementation; later Marketplace, physical-commerce, and reusable site-core questions do not all block foundation work. Do not maintain another open-question list here.
