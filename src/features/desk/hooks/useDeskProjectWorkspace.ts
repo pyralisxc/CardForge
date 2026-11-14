@@ -50,6 +50,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const reorderGeneratedCard = useProjectStore((state) => state.reorderGeneratedCard);
   const addGeneratedCards = useProjectStore((state) => state.addGeneratedCards);
   const removeGeneratedCards = useProjectStore((state) => state.removeGeneratedCards);
+  const removeGeneratedCardsWithUndo = useProjectStore((state) => state.removeGeneratedCardsWithUndo);
   const updateGeneratedCard = useProjectStore((state) => state.updateGeneratedCard);
   const reviseGeneratedCards = useProjectStore((state) => state.reviseGeneratedCards);
   const undoLastBulkRevision = useProjectStore((state) => state.undoLastBulkRevision);
@@ -158,7 +159,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   return {
     actions: {
       addCardSetTag, addGeneratedCards, closeEditDialog, commitTemplateChange, createCardSet, deleteCardSet, duplicateCardSet, moveGeneratedCardsToSet,
-      removeGeneratedCards, renameCardSet, reorderGeneratedCard, reviseGeneratedCards, setActiveCardSetId, setCardPositions,
+      removeGeneratedCards, removeGeneratedCardsWithUndo, renameCardSet, reorderGeneratedCard, reviseGeneratedCards, setActiveCardSetId, setCardPositions,
       setCardsTag, setGeneratorSelectedBackingTemplateId, setGeneratorSelectedTemplateId,
       setTemplateEditorSelectedTemplateId, undoLastBulkRevision, unreferenceTemplateFromCardSet, updateGeneratedCard, updateCardSetMetadata, updateCardSetOrganization,
     },

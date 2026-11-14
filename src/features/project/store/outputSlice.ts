@@ -4,6 +4,7 @@ import type { StateCreator } from 'zustand';
 import { ensureCardSetTemplateReferences, normalizeCardTagIds, type StoredDisplayCard } from '@/domain/cards';
 
 import { selectAllTemplates } from './selectors';
+import { getProjectPersistenceScopeGeneration } from '../persistence/projectPersistenceScope';
 import type { OutputSlice, ProjectState } from './types';
 
 const toStoredCard = (updatedCard: import('@/domain/rendering').DisplayCard, previous?: StoredDisplayCard): StoredDisplayCard => ({
@@ -80,6 +81,48 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
       };
     });
     return removedCount;
+  },
+  removeGeneratedCardsWithUndo: (cardUniqueIds) => {
+    const before = get().storedCards;
+    const selected = new Set(cardUniqueIds);
+    const removed = before.filter((card) => selected.has(card.uniqueId));
+    if (!removed.length) return null;
+    const existingTemplateIds = new Set(selectAllTemplates(get()).map((template) => template.id));
+    const scopeGeneration = getProjectPersistenceScopeGeneration();
+    const legacySetId = get().cardSets[0]?.id;
+    const count = get().removeGeneratedCards(cardUniqueIds);
+    let used = false;
+    return {
+      count,
+      undo: () => {
+        const state = get();
+        const templates = selectAllTemplates(state);
+        if (used || getProjectPersistenceScopeGeneration() !== scopeGeneration
+          || removed.some((card) => state.storedCards.some((existing) => existing.uniqueId === card.uniqueId))) return false;
+        if (removed.some((card) => {
+          const setId = card.setId ?? legacySetId;
+          return !setId || !state.cardSets.some((set) => set.id === setId)
+            || (!card.setId && state.cardSets[0]?.id !== legacySetId)
+            || (existingTemplateIds.has(card.templateId) && !templates.some((template) => template.id === card.templateId))
+            || Boolean(card.backingTemplateId && existingTemplateIds.has(card.backingTemplateId) && !templates.some((template) => template.id === card.backingTemplateId));
+        })) return false;
+        const restored = [...state.storedCards];
+        for (const card of removed) {
+          const originalIndex = before.indexOf(card);
+          const nextId = before.slice(originalIndex + 1).find((candidate) => restored.some((item) => item.uniqueId === candidate.uniqueId))?.uniqueId;
+          const nextIndex = nextId ? restored.findIndex((item) => item.uniqueId === nextId) : -1;
+          if (nextIndex >= 0) restored.splice(nextIndex, 0, card);
+          else {
+            const previousId = before.slice(0, originalIndex).reverse().find((candidate) => restored.some((item) => item.uniqueId === candidate.uniqueId))?.uniqueId;
+            const previousIndex = previousId ? restored.findIndex((item) => item.uniqueId === previousId) : -1;
+            restored.splice(previousIndex >= 0 ? previousIndex + 1 : restored.length, 0, card);
+          }
+        }
+        used = true;
+        set((current) => withCardSetTemplateReferences(current, restored));
+        return true;
+      },
+    };
   },
   moveGeneratedCardToSet: (cardUniqueId, setId) => (
     get().moveGeneratedCardsToSet([cardUniqueId], setId) === 1

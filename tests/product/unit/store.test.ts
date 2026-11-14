@@ -25,6 +25,76 @@ describe('app store helpers', () => {
     });
   });
 
+  it('undoes ordinary removal without losing order or overwriting a newly created card', () => {
+    const template = reconstructMinimalTemplateObject({ id: 'front', name: 'Front', templateSource: 'user' });
+    const set = { id: 'set-a', name: 'Alpha' };
+    const cards = ['a', 'b', 'c'].map((uniqueId) => ({ uniqueId, setId: set.id, templateId: 'front', data: { title: uniqueId } }));
+    useProjectStore.setState({ cardSets: [set], activeCardSet: set, userTemplates: [template], storedCards: cards });
+    const removal = useProjectStore.getState().removeGeneratedCardsWithUndo(['a', 'c']);
+    expect(removal?.count).toBe(2);
+    expect(useProjectStore.getState().storedCards.map((card) => card.uniqueId)).toEqual(['b']);
+    expect(removal?.undo()).toBe(true);
+    expect(useProjectStore.getState().storedCards).toEqual(cards);
+    expect(removal?.undo()).toBe(false);
+
+    const nextRemoval = useProjectStore.getState().removeGeneratedCardsWithUndo(['a']);
+    useProjectStore.setState((state) => ({ storedCards: [...state.storedCards, { ...cards[0], data: { title: 'new work' } }] }));
+    expect(nextRemoval?.undo()).toBe(false);
+    expect(useProjectStore.getState().storedCards.find((card) => card.uniqueId === 'a')?.data.title).toBe('new work');
+  });
+
+  it('does not undo a removal into a different workspace or a deleted Set', () => {
+    setProjectPersistenceScope('guest');
+    const template = reconstructMinimalTemplateObject({ id: 'front', name: 'Front', templateSource: 'user' });
+    const set = { id: 'set-a', name: 'Alpha' };
+    const card = { uniqueId: 'a', setId: set.id, templateId: 'front', data: { title: 'A' } };
+    useProjectStore.setState({ cardSets: [set], activeCardSet: set, userTemplates: [template], storedCards: [card] });
+    const removal = useProjectStore.getState().removeGeneratedCardsWithUndo(['a'])!;
+    setProjectPersistenceScope('account:other');
+    expect(removal.undo()).toBe(false);
+    setProjectPersistenceScope('guest');
+    expect(removal.undo()).toBe(false);
+    useProjectStore.setState({ cardSets: [], activeCardSet: null });
+    expect(removal.undo()).toBe(false);
+    expect(useProjectStore.getState().storedCards).toEqual([]);
+  });
+
+  it('restores removed cards without overwriting cards added or edited afterward', () => {
+    const template = reconstructMinimalTemplateObject({ id: 'front', name: 'Front', templateSource: 'user' });
+    const set = { id: 'set-a', name: 'Alpha' };
+    const cards = ['a', 'b', 'c'].map((uniqueId) => ({ uniqueId, setId: set.id, templateId: 'front', data: { title: uniqueId } }));
+    useProjectStore.setState({ cardSets: [set], activeCardSet: set, userTemplates: [template], storedCards: cards });
+    const removal = useProjectStore.getState().removeGeneratedCardsWithUndo(['b'])!;
+    useProjectStore.setState((state) => ({ storedCards: [...state.storedCards.map((card) => card.uniqueId === 'a' ? { ...card, data: { title: 'edited' } } : card), { ...cards[0], uniqueId: 'd' }] }));
+    expect(removal.undo()).toBe(true);
+    expect(useProjectStore.getState().storedCards.map((card) => [card.uniqueId, card.data.title])).toEqual([['a', 'edited'], ['b', 'b'], ['c', 'c'], ['d', 'a']]);
+  });
+
+  it('keeps earlier removals recoverable when a later removal has an ID conflict', () => {
+    const template = reconstructMinimalTemplateObject({ id: 'front', name: 'Front', templateSource: 'user' });
+    const set = { id: 'set-a', name: 'Alpha' };
+    const cards = ['a', 'b'].map((uniqueId) => ({ uniqueId, setId: set.id, templateId: 'front', data: { title: uniqueId } }));
+    useProjectStore.setState({ cardSets: [set], activeCardSet: set, userTemplates: [template], storedCards: cards });
+    const first = useProjectStore.getState().removeGeneratedCardsWithUndo(['a'])!;
+    const second = useProjectStore.getState().removeGeneratedCardsWithUndo(['b'])!;
+    useProjectStore.setState({ storedCards: [{ ...cards[1], data: { title: 'new b' } }] });
+    expect(second.undo()).toBe(false);
+    expect(first.undo()).toBe(true);
+    expect(useProjectStore.getState().storedCards.map((card) => [card.uniqueId, card.data.title])).toEqual([['a', 'a'], ['b', 'new b']]);
+    expect(second.undo()).toBe(false);
+  });
+
+  it('restores a visible card even if its back template was already missing', () => {
+    const template = reconstructMinimalTemplateObject({ id: 'front', name: 'Front', templateSource: 'user' });
+    const set = { id: 'set-a', name: 'Alpha' };
+    const card = { uniqueId: 'a', setId: set.id, templateId: 'front', backingTemplateId: 'missing', data: { title: 'A' } };
+    useProjectStore.setState({ cardSets: [set], activeCardSet: set, userTemplates: [template], storedCards: [card] });
+    expect(selectGeneratedDisplayCards(useProjectStore.getState())).toHaveLength(1);
+    const removal = useProjectStore.getState().removeGeneratedCardsWithUndo(['a'])!;
+    expect(removal.undo()).toBe(true);
+    expect(useProjectStore.getState().storedCards).toEqual([card]);
+  });
+
   it('reconstructs an empty new template with a freeform canvas', () => {
     const template = reconstructMinimalTemplateObject({
       id: '',

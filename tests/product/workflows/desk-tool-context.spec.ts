@@ -13,6 +13,31 @@ const pixel7Context = {
   hasTouch: pixel7.hasTouch,
 };
 
+test('can undo consecutive card removals and retain them after reloading', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible({ timeout: 60_000 });
+  await openScaleSet(page, 100);
+  const first = page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true });
+  await first.click();
+  await page.getByRole('toolbar', { name: 'Selection actions' }).getByRole('button', { name: 'Remove', exact: true }).first().click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Remove card', exact: true }).click();
+  await expect(first).toHaveCount(0);
+  const second = page.getByRole('button', { name: 'Scale Card 0002. Scale Fixture Template', exact: true });
+  await second.click();
+  await page.getByRole('toolbar', { name: 'Selection actions' }).getByRole('button', { name: 'Remove', exact: true }).first().click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Remove card', exact: true }).click();
+  await expect(second).toHaveCount(0);
+  await page.getByRole('button', { name: 'Undo card removal 2', exact: true }).click();
+  await expect(second).toBeVisible();
+  await page.getByRole('button', { name: 'Undo card removal 1', exact: true }).click();
+  await expect(first).toBeVisible();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible({ timeout: 60_000 });
+  await expect(first).toBeVisible();
+});
+
 for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
     test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });

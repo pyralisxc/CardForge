@@ -30,6 +30,7 @@ import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
+
 import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
 import { ArtifactScene, type ArtifactSceneHandle, AuthoredObjectPreview } from '@/features/card-rendering/client';
@@ -174,6 +175,7 @@ export function Desk({
   const [artifactEditDirty, setArtifactEditDirty] = useState(false);
   const [artifactDiscardOpen, setArtifactDiscardOpen] = useState(false);
   const [touchMultiSelect, setTouchMultiSelect] = useState(false);
+  const [cardRemovalUndo, setCardRemovalUndo] = useState<Array<{ count: number; undo: () => boolean }>>([]);
   const pendingArtifactExitRef = useRef<(() => void) | null>(null);
   const {
     actions,
@@ -256,7 +258,7 @@ export function Desk({
     publishedSetsFailure,
     publishedSetsLoading,
     query,
-    removeGeneratedCards,
+    removeGeneratedCardsWithUndo,
     reflectiveGroupings,
     refreshDeskSources,
     requestDeskReturn,
@@ -889,9 +891,24 @@ export function Desk({
           })();
         }}
         onDeleteCardsOpenChange={(open) => { if (!open) setPendingDeleteCards([]); }}
-        onConfirmDeleteCards={() => { removeGeneratedCards(pendingDeleteCards.map((card) => card.uniqueId)); setPendingDeleteCards([]); setSelectedCardIds([]); }}
+        onConfirmDeleteCards={() => {
+          const removal = removeGeneratedCardsWithUndo(pendingDeleteCards.map((card) => card.uniqueId));
+          setPendingDeleteCards([]);
+          setSelectedCardIds([]);
+          if (removal) setCardRemovalUndo((previous) => [...previous, removal]);
+        }}
       />
       </ArtifactScene>
+      {cardRemovalUndo.length ? <div className="fixed bottom-4 right-4 z-50 max-h-48 overflow-auto rounded-md border bg-background p-3 text-sm shadow-lg" aria-label="Card removal recovery">
+        {cardRemovalUndo.map((removal, index) => <div className="flex items-center gap-3" key={index}>
+          <span>{removal.count} card{removal.count === 1 ? '' : 's'} removed</span>
+          <button type="button" aria-label={`Undo card removal ${index + 1}`} className="rounded-md border px-3 py-1 font-medium" onClick={() => {
+            if (removal.undo()) setCardRemovalUndo((previous) => previous.filter((item) => item !== removal));
+            else toast({ title: 'Could not undo removal', description: 'The workspace changed after removal. Current work and other recovery options were left unchanged.', variant: 'destructive' });
+          }}>Undo</button>
+          <button type="button" aria-label={`Dismiss card removal ${index + 1}`} className="rounded-md px-2 py-1" onClick={() => setCardRemovalUndo((previous) => previous.filter((item) => item !== removal))}>Dismiss</button>
+        </div>)}
+      </div> : null}
       {!deskArrival.ready ? <div className={styles.environmentArrival} data-desk-arrival={deskArrival.phase} role="status" aria-live="polite" aria-label="Preparing CardForge Desk">
         <div className={styles.environmentArrivalContent}>
           <Boxes aria-hidden="true" />

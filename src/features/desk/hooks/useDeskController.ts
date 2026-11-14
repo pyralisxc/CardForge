@@ -287,7 +287,7 @@ export function useDeskController({
     moveTargetId,
   });
   const {
-    addGeneratedCards, closeEditDialog, commitTemplateChange, createCardSet, deleteCardSet, duplicateCardSet, removeGeneratedCards, renameCardSet, reviseGeneratedCards,
+    addGeneratedCards, closeEditDialog, commitTemplateChange, createCardSet, deleteCardSet, duplicateCardSet, removeGeneratedCardsWithUndo, renameCardSet, reviseGeneratedCards,
     setActiveCardSetId, setCardPositions, setCardsTag, setGeneratorSelectedBackingTemplateId,
     setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, undoLastBulkRevision, unreferenceTemplateFromCardSet, updateGeneratedCard,
     updateCardSetMetadata,
@@ -843,7 +843,7 @@ export function useDeskController({
     projection: deskProjection,
     refreshDeskSources,
     query,
-    removeGeneratedCards,
+    removeGeneratedCardsWithUndo,
     reflectiveGroupings,
     renameDraft,
     renaming,

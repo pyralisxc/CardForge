@@ -45,6 +45,7 @@ export interface OutputSlice {
   clearGeneratedCards: () => void;
   removeGeneratedCard: (cardUniqueId: string) => void;
   removeGeneratedCards: (cardUniqueIds: string[]) => number;
+  removeGeneratedCardsWithUndo: (cardUniqueIds: string[]) => { count: number; undo: () => boolean } | null;
   moveGeneratedCardToSet: (cardUniqueId: string, setId: string) => boolean;
   moveGeneratedCardsToSet: (cardUniqueIds: string[], setId: string) => number;
   reorderGeneratedCard: (cardUniqueId: string, direction: 'earlier' | 'later') => boolean;

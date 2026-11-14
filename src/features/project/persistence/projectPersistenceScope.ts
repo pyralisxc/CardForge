@@ -18,6 +18,7 @@ export type { ProjectPersistenceScope } from '../lib/projectPersistenceIdentity'
 
 const DISABLED_SCOPE = 'unscoped-disabled';
 let activeProjectPersistenceScope: ProjectPersistenceScope | typeof DISABLED_SCOPE = DISABLED_SCOPE;
+let projectPersistenceScopeGeneration = 0;
 const workspaceRevisions = new Map<string, number>();
 // Last loaded or committed bytes, not permission to adopt another tab's revision.
 const workspaceValues = new Map<string, string>();
@@ -71,12 +72,14 @@ const getWorkspaceRevisionChannel = () => {
 export const setProjectPersistenceScope = (scope: ProjectPersistenceScope) => {
   if (activeProjectPersistenceScope === scope) return;
   activeProjectPersistenceScope = scope;
+  projectPersistenceScopeGeneration += 1;
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(PROJECT_PERSISTENCE_SCOPE_CHANGE_EVENT, { detail: { scope } }));
   }
 };
 
 export const getProjectPersistenceScope = () => activeProjectPersistenceScope;
+export const getProjectPersistenceScopeGeneration = () => projectPersistenceScopeGeneration;
 
 export const getScopedProjectStorageNamespace = (
   baseNamespace: 'project-workspace' | 'project-assets',
