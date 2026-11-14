@@ -968,7 +968,8 @@
 }
 
 .contentToolbar {
-  flex-wrap: wrap;
+  height: 3.5rem;
+  flex-wrap: nowrap;
   justify-content: space-between;
   gap: 0.55rem;
   margin-top: 0.15rem;
@@ -2252,7 +2253,7 @@
     gap: 0.4rem;
   }
 
-  .focusWorkspace[data-has-selection="true"] > .contentToolbar {
+  .focusWorkspace[data-has-selection="true"] .contentToolbar > [data-set-organization-trigger] {
     display: none;
   }
   .contentToolbar > .searchField { flex: 1; width: auto; }

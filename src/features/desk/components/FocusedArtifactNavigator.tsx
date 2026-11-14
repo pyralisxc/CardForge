@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Focus } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -43,6 +43,7 @@ export function FocusedArtifactNavigator({
   onToggleArtifact,
 }: FocusedArtifactNavigatorProps) {
   const [open, setOpen] = useState(false);
+  const indexById = useMemo(() => new Map(entries.map((entry, index) => [entry.identity.artifactId, index])), [entries]);
   const activeEntry = entries.find((entry) => entry.identity.artifactId === navigatorFocusId) ?? null;
   return <Popover open={open && !hidden} onOpenChange={(nextOpen) => { if (!hidden) setOpen(nextOpen); }}>
     <PopoverTrigger asChild><Button type="button" size="sm" variant="outline" hidden={hidden} aria-label={`Ordered Artifact navigator · ${entries.length}`}>Cards · {entries.length}</Button></PopoverTrigger>
@@ -59,11 +60,11 @@ export function FocusedArtifactNavigator({
       </> : null}
     </div>
     <div className={styles.orderedArtifactList} role="listbox" aria-label={`Ordered Artifacts in ${setName}`} aria-multiselectable="true">
-      {groups.map((group) => <div key={group.label} className={styles.orderedArtifactGroup} role="group" aria-label={`${group.label}, ${group.entries.length} Artifacts`}>
+      {open ? groups.map((group) => <div key={group.label} className={styles.orderedArtifactGroup} role="group" aria-label={`${group.label}, ${group.entries.length} Artifacts`}>
         <div className={styles.orderedArtifactGroupHeading} aria-hidden="true"><strong>{group.label}</strong><span>{group.entries.length}</span></div>
         {group.entries.map((entry) => {
           const artifactId = entry.identity.artifactId;
-          const index = entries.findIndex((candidate) => candidate.identity.artifactId === artifactId);
+          const index = indexById.get(artifactId) ?? -1;
           return <button
             id={`ordered-artifact-${artifactId}`}
             key={artifactId}
@@ -88,7 +89,7 @@ export function FocusedArtifactNavigator({
             }}
           ><span>{index + 1}</span><strong>{entry.title}</strong><small>{entry.subtitle}</small></button>;
         })}
-      </div>)}
+      </div>) : null}
     </div>
     </PopoverContent> : null}
   </Popover>;

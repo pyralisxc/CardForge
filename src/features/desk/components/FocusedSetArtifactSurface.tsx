@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
 import { Minus, Plus, Redo2, RefreshCcw, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -58,6 +58,37 @@ interface FocusedSetArtifactSurfaceProps {
 }
 
 type ClientPoint = { clientX: number; clientY: number };
+
+const ArtifactTileVisual = memo(function ArtifactTileVisual({ card, face, setId, width, height, fullPreview, showImage, canExportClean, title, groupLabel, showGroupLabel, ordinal }: {
+  card: DisplayCard;
+  face: CardFace;
+  setId: string;
+  width: number;
+  height: number;
+  fullPreview: boolean;
+  showImage: boolean;
+  canExportClean: boolean;
+  title: string;
+  groupLabel: string;
+  showGroupLabel: boolean;
+  ordinal: number;
+}) {
+  const template = face === 'back' && card.backingTemplate ? card.backingTemplate : card.template;
+  return <>
+    {fullPreview ? <ArtifactSlot card={card} face={face} width={width} depth="board" setId={setId} watermark={!canExportClean} /> : (
+      <span className={styles.artifactLodPreview} data-artifact-thumbnail={card.uniqueId} aria-hidden="true">
+        <ArtifactThumbnail card={card} face={face} width={width} height={height} showImage={showImage} />
+        {!canExportClean && showImage ? <CardWatermarkOverlay testId={`artifact-thumbnail-watermark-${card.uniqueId}`} /> : null}
+        <span className={styles.artifactLodBorder} data-artifact-template-border style={{ borderColor: getTemplateAccent(template.id ?? template.name) }}>
+          <span className={styles.artifactLodOrdinal}>{ordinal}</span>
+        </span>
+      </span>
+    )}
+    <strong className={styles.artifactTileTitle} title={title}>{title}</strong>
+    <span className={styles.cardTemplateLabel} title={`Card from ${template.name}`}>Card · {template.name}</span>
+    {showGroupLabel ? <small className={styles.cardGroupLabel} title={groupLabel}>{groupLabel}</small> : null}
+  </>;
+});
 
 type DragState = {
   pointerId: number;
@@ -796,24 +827,10 @@ export function FocusedSetArtifactSurface({
                     toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey || (touch && touchMultiSelect));
                   }}
                 >
-                  {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" setId={setId} watermark={!canExportClean} /> : (
-                    <span className={styles.artifactLodPreview} data-artifact-thumbnail={artifactId} aria-hidden="true">
-                      <ArtifactThumbnail
-                        card={card}
-                        face={face}
-                        width={previewWidth}
-                        height={previewHeight}
-                        showImage={showThumbnailImage}
-                      />
-                      {!canExportClean && showThumbnailImage ? <CardWatermarkOverlay testId={`artifact-thumbnail-watermark-${artifactId}`} /> : null}
-                      <span className={styles.artifactLodBorder} data-artifact-template-border style={{ borderColor: getTemplateAccent(visibleTemplate.id ?? visibleTemplate.name) }}>
-                        <span className={styles.artifactLodOrdinal}>{entry.index + 1}</span>
-                      </span>
-                    </span>
-                  )}
-                  <strong className={styles.artifactTileTitle} title={entry.title}>{entry.title}</strong>
-                  <span className={styles.cardTemplateLabel} title={`Card from ${visibleTemplate.name}`}>Card · {visibleTemplate.name}</span>
-                  {organization.groupBy !== 'none' ? <small className={styles.cardGroupLabel} title={entry.groupLabel}>{entry.groupLabel}</small> : null}
+                  <ArtifactTileVisual card={card} face={face} setId={setId} width={previewWidth} height={previewHeight}
+                    fullPreview={useFullPreview || artifactId === artifactFocusId} showImage={showThumbnailImage}
+                    canExportClean={canExportClean} title={entry.title} groupLabel={entry.groupLabel}
+                    showGroupLabel={organization.groupBy !== 'none'} ordinal={entry.index + 1} />
                 </button>
                 {hasCardBacking(card) ? <button
                   type="button"

@@ -231,6 +231,12 @@ test.describe('Desk desktop spatial interaction', () => {
     expect(boardBox!.width).toBeGreaterThan(mainBox!.width * 0.92);
 
     const artifact = page.locator('button[data-artifact-id="scale-card-1"]');
+    const stageBeforeSelection = await stage.boundingBox();
+    await artifact.click();
+    await expect(artifact).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => stage.boundingBox()).toEqual(stageBeforeSelection);
+    await page.getByRole('button', { name: 'Clear Artifact selection', exact: true }).click();
+    await expect(artifact).toHaveAttribute('aria-pressed', 'false');
     await artifact.dblclick();
     const focused = page.locator('[data-focused-artifact-workspace]');
     await expect(focused).toBeVisible();
