@@ -40,6 +40,46 @@ const elapsed = async (action: () => Promise<void>) => {
 test.describe('large Artifact browser evidence', () => {
   test.describe.configure({ timeout: READY_TIMEOUT });
 
+  test('keeps same-name Template group headers inside Fit Work and clear of Artifacts', async ({ page }) => {
+    const name = 'A long shared Template name that must not wrap into the Artifacts below it';
+    await seedGuestScaleWorkspace(page, 100, { mixedTemplates: true, cardLimit: 4, templatePatch: { name } });
+    await page.goto('/account', { waitUntil: 'domcontentloaded' });
+    await openScaleSet(page, 100);
+    await page.getByRole('button', { name: /^Organize/ }).click();
+    await page.getByRole('combobox', { name: 'Arrange cards', exact: true }).click();
+    await page.getByRole('option', { name: 'Arrange as grid', exact: true }).click();
+    await page.getByRole('combobox', { name: 'Group cards', exact: true }).click();
+    await page.getByRole('option', { name: 'By Template', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
+    const headers = page.locator('[data-artifact-group-label]');
+    await expect(headers).toHaveCount(2);
+    await expect(headers.locator('strong')).toHaveText([`1. ${name}`, `2. ${name}`]);
+    await expect(headers.locator('span')).toHaveText(['3', '1']);
+    await expect(page.locator('[data-desk-artifact-stage] [data-artifact-id]')).toHaveCount(4);
+    await expect.poll(async () => {
+      const stage = await page.locator('[data-desk-artifact-stage]').boundingBox();
+      const headingBoxes = await headers.evaluateAll((nodes) => nodes.map((node) => {
+        const { x, y, width, height } = node.getBoundingClientRect();
+        return { x, y, width, height };
+      }));
+      const cardBoxes = await page.locator('[data-desk-artifact-stage] [data-artifact-id]').evaluateAll((nodes) => nodes.map((node) => {
+        const { x, y, width, height } = node.getBoundingClientRect();
+        return { x, y, width, height };
+      }));
+      return stage !== null && headingBoxes.every((heading) => (
+        heading.x >= stage.x && heading.y >= stage.y
+        && heading.x + heading.width <= stage.x + stage.width
+        && heading.y + heading.height <= stage.y + stage.height
+        && cardBoxes.every((card) => (
+          heading.x + heading.width <= card.x || card.x + card.width <= heading.x
+          || heading.y + heading.height <= card.y || card.y + card.height <= heading.y
+        ))
+      ));
+    }).toBe(true);
+    for (const header of await headers.all()) await expect(header).toHaveCSS('white-space', 'nowrap');
+  });
+
   for (const cardCount of [100, 500, 1000] as const) {
     test(`${cardCount} Artifacts stay complete, culled, and responsive`, async ({ page }, testInfo) => {
       await prepareScalePage(page, cardCount);
@@ -70,7 +110,7 @@ test.describe('large Artifact browser evidence', () => {
       });
 
       const searchMs = await elapsed(async () => {
-        const cardSearch = page.getByRole('textbox', { name: 'Search cards in this work', exact: true });
+        const cardSearch = page.getByRole('searchbox', { name: 'Search cards in this Set', exact: true });
         await cardSearch.fill(`Scale Card ${String(cardCount).padStart(4, '0')}`);
         await expect(page.getByRole('button', { name: /^Organize/ })).toContainText('1 card');
         await cardSearch.fill('');
@@ -182,7 +222,7 @@ test.describe('large Artifact browser evidence', () => {
       const style = getComputedStyle(node);
       return Number.parseFloat(style.opacity) > 0 && style.pointerEvents === 'none';
     })).toBe(true);
-    const contextSceneArtifact = page.locator('[data-scene-depth="board"]').first();
+    const contextSceneArtifact = contextField.locator('[data-scene-slot-depth="board"][data-scene-inline-settled="board"]').first();
     await expect(contextSceneArtifact).toBeVisible();
     expect(await contextSceneArtifact.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
     const inlineFocusedArtifact = focusedStage.locator(`[data-scene-slot-depth="focus"][data-scene-inline-settled="focus"]`);
@@ -211,7 +251,8 @@ test.describe('large Artifact browser evidence', () => {
       zoom: node.getAttribute('data-zoom'),
       mode: node.getAttribute('data-camera-mode'),
     }))).toEqual(before);
-    await expect.poll(async () => stage.locator('[data-artifact-id][aria-pressed="true"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-artifact-id')))).toEqual(selectedBefore);
+    for (const id of selectedBefore) await expect(stage.locator(`[data-artifact-id="${id}"]`)).toHaveAttribute('aria-pressed', 'true');
+    await expect(stage.locator('[data-artifact-id][aria-pressed="true"]')).toHaveCount(selectedBefore.length);
 
     await page.locator(`[data-artifact-id="${firstId}"]`).focus();
     await page.keyboard.press('Enter');

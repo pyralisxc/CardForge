@@ -163,7 +163,8 @@ export function FocusedSetArtifactSurface({
     entries: layout.entries,
     viewportWidth: viewportSize.width,
     viewportHeight: viewportSize.height,
-  }), [layout, viewportSize.height, viewportSize.width]);
+    includeGroupLabels: organization.arrangement !== 'manual' && organization.groupBy !== 'none',
+  }), [layout, organization.arrangement, organization.groupBy, viewportSize.height, viewportSize.width]);
   const wholeFrame = useMemo(() => getFocusedArtifactFrame({
     layout,
     entries: [],
@@ -736,7 +737,7 @@ export function FocusedSetArtifactSurface({
           <div data-artifact-world className={styles.artifactWorld} style={{ left: 0, top: 0, width: 1, height: 1, transform: `translate(${camera.offsetX}px, ${camera.offsetY}px) scale(${camera.camera.zoom})` }}>
             {marquee ? <span className={styles.deskMarquee} style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }} aria-hidden="true" /> : null}
             {organization.arrangement !== 'manual' && organization.groupBy !== 'none' ? layout.groups.map((group) => (
-              <div key={group.label} className={styles.artifactGroupLabel} style={{ left: group.x, top: group.y, width: group.width }}><strong>{group.label}</strong><span>{group.count}</span></div>
+              <div key={group.label} data-artifact-group-label className={styles.artifactGroupLabel} style={{ left: group.x, top: group.y, width: group.width, height: group.height }}><strong title={group.label}>{group.label}</strong><span>{group.count}</span></div>
             )) : null}
             {projectedEntries.map((entry) => {
               const artifactId = entry.identity.artifactId;

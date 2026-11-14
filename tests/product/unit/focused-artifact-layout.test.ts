@@ -33,6 +33,24 @@ const buildLayout = (count: number) => buildFocusedArtifactLayout({
 });
 
 describe('focused Artifact spatial layout', () => {
+  it.each(['grid', 'stack'] as const)('includes group headers in %s Fit Work without changing Artifact positions', (arrangement) => {
+    const layout = buildFocusedArtifactLayout({
+      arrangement, minimumWidth: 1_000, groups: [{ label: 'All Artifacts', artifacts: artifacts(4) }],
+    });
+    const before = layout.entries.map((entry) => ({ ...entry.position }));
+    const viewportWidth = 1_000;
+    const viewportHeight = 900;
+    const frame = getFocusedArtifactFrame({
+      layout, entries: layout.entries, viewportWidth, viewportHeight, includeGroupLabels: true,
+    });
+    for (const group of layout.groups) {
+      const top = viewportHeight / 2 + (group.y - frame.y) * frame.zoom;
+      expect(top).toBeGreaterThanOrEqual(40 - 0.001);
+      expect(group.y + group.height).toBeLessThanOrEqual(Math.min(...layout.entries.map((entry) => entry.position.y)));
+    }
+    expect(layout.entries.map((entry) => entry.position)).toEqual(before);
+  });
+
   it.each([100, 500, 1_000])('retains all %i Artifacts while culling the mounted visual projection', (count) => {
     const layout = buildLayout(count);
     const firstViewport = projectVisibleArtifacts(layout, { x: 0, y: 0, width: 900, height: 520 });

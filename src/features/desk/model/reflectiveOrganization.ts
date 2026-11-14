@@ -53,8 +53,11 @@ export const groupCardsByTemplate = (cards: readonly DisplayCard[]): Array<[stri
   for (const { label } of groups.values()) labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
   const used = new Set<string>();
   const labels = new Map<string, string>();
+  const labelOrdinals = new Map<string, number>();
   for (const [key, { label }] of [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-    const base = labelCounts.get(label)! > 1 ? `${label} (${key})` : label;
+    const ordinal = (labelOrdinals.get(label) ?? 0) + 1;
+    labelOrdinals.set(label, ordinal);
+    const base = labelCounts.get(label)! > 1 ? `${ordinal}. ${label}` : label;
     let uniqueLabel = base;
     let suffix = 2;
     while (used.has(uniqueLabel)) uniqueLabel = `${base} (${suffix++})`;

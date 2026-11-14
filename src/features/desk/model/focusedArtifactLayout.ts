@@ -52,6 +52,7 @@ export interface FocusedArtifactGroupLayout {
   x: number;
   y: number;
   width: number;
+  height: number;
   count: number;
 }
 
@@ -221,20 +222,24 @@ export const getFocusedArtifactFrame = ({
   viewportWidth,
   viewportHeight,
   padding = 40,
+  includeGroupLabels = false,
 }: {
   layout: FocusedArtifactLayout;
   entries: readonly FocusedArtifactLayoutEntry[];
   viewportWidth: number;
   viewportHeight: number;
   padding?: number;
+  includeGroupLabels?: boolean;
 }): FocusedArtifactFrame => {
   const targetBounds = entries.length === 0
     ? layout.bounds
     : (() => {
-        const left = Math.min(...entries.map((entry) => entry.position.x));
-        const top = Math.min(...entries.map((entry) => entry.position.y));
-        const right = Math.max(...entries.map((entry) => entry.position.x + entry.width));
-        const bottom = Math.max(...entries.map((entry) => entry.position.y + entry.height));
+        const groupLabels = includeGroupLabels ? new Set(entries.map((entry) => entry.groupLabel)) : null;
+        const groups = groupLabels ? layout.groups.filter((group) => groupLabels.has(group.label)) : [];
+        const left = Math.min(...entries.map((entry) => entry.position.x), ...groups.map((group) => group.x));
+        const top = Math.min(...entries.map((entry) => entry.position.y), ...groups.map((group) => group.y));
+        const right = Math.max(...entries.map((entry) => entry.position.x + entry.width), ...groups.map((group) => group.x + group.width));
+        const bottom = Math.max(...entries.map((entry) => entry.position.y + entry.height), ...groups.map((group) => group.y + group.height));
         return { x: left, y: top, width: right - left, height: bottom - top };
       })();
   return fitSpatialCameraToRect({
@@ -317,6 +322,7 @@ export const buildFocusedArtifactLayout = ({
       x: 24,
       y: groupTop,
       width: Math.max(1, groupRight - 24),
+      height: 24,
       count: group.artifacts.length,
     });
 

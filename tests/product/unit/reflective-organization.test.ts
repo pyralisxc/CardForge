@@ -92,13 +92,18 @@ describe('reflective Set organization', () => {
     expect(deriveReflectiveOrganization(cards).groupings).toContain('template');
   });
 
+  it('keeps repeated group names compact', () => {
+    const cards = [card(1, {}, template('draft-alpha', 'Same')), card(2, {}, template('draft-beta', 'Same'))];
+    expect(groupCardsByTemplate(cards).map(([label]) => label)).toEqual(['1. Same', '2. Same']);
+  });
+
   it('keeps duplicate Template labels distinguishable and stable when cards reorder', () => {
     const cards = [card(1, {}, template('alpha', 'Same')), card(2, {}, template('beta', 'Same'))];
     const labels = (input: DisplayCard[]) => Object.fromEntries(groupCardsByTemplate(input).map(([label, members]) => [members[0].template.id, label]));
     const forward = labels(cards);
     expect(labels([...cards].reverse())).toEqual(forward);
     expect(forward.alpha).not.toEqual(forward.beta);
-    expect(forward.alpha).toContain('alpha');
-    expect(forward.beta).toContain('beta');
+    expect(forward.alpha).toBe('1. Same');
+    expect(forward.beta).toBe('2. Same');
   });
 });

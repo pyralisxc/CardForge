@@ -1141,14 +1141,28 @@
   position: absolute;
   z-index: 2;
   display: flex;
-  right: 1rem;
-  left: 1rem;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  overflow: hidden;
   border-bottom: 1px solid var(--cf-border-subtle);
   color: var(--cf-text-muted);
   font-size: 0.66rem;
+  line-height: 1.2;
+  white-space: nowrap;
   pointer-events: none;
+}
+
+.artifactGroupLabel strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: auto;
+}
+
+.artifactGroupLabel span {
+  flex-shrink: 0;
 }
 
 .cardButton {
