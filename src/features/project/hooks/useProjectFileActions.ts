@@ -46,7 +46,7 @@ interface UseProjectFileActionsInput {
   userTemplates: TCGCardTemplate[];
 }
 
-export type ProjectImportMode = 'replace' | 'merge' | 'copy';
+export type ProjectImportMode = 'replace' | 'merge';
 
 export interface ProjectImportPreview {
   fileName: string;
@@ -58,7 +58,6 @@ export interface ProjectImportPreview {
   exportSettingCount: number;
   templateIdConflicts: string[];
   templateNameConflicts: string[];
-  copyBlockReason?: string | null;
 }
 
 interface PendingProjectImport {
@@ -67,21 +66,6 @@ interface PendingProjectImport {
   patch: ProjectDocumentStatePatch;
   preview: ProjectImportPreview;
 }
-
-export const getProjectCopyBlockReason = (document: ProjectDocumentV1): string | null => {
-  if (Object.values(document.customAssets).some((assets) => assets.length) || document.appearanceStyles.length || document.productionPlan) {
-    return 'This file contains resources that cannot yet be copied independently without risking their references. Your current work remains unchanged.';
-  }
-  const templateIds = new Set(document.userTemplates.map((template) => template.id));
-  const referenced = [
-    ...document.cardSets.flatMap((set) => set.templateIds ?? []),
-    ...document.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
-  ];
-  if (referenced.some((id) => id && !templateIds.has(id))) {
-    return 'A Template required by this file is missing. Your current work remains unchanged.';
-  }
-  return null;
-};
 
 export const buildProjectImportSummary = ({
   importedTemplateCount,
@@ -248,10 +232,7 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
           fileName: file.name,
           document: decoded.document,
           patch,
-          preview: {
-            ...buildProjectImportPreview({ fileName: file.name, patch, currentUserTemplates: userTemplates }),
-            copyBlockReason: getProjectCopyBlockReason(decoded.document),
-          },
+          preview: buildProjectImportPreview({ fileName: file.name, patch, currentUserTemplates: userTemplates }),
         });
       })
       .catch((error) => {
@@ -269,14 +250,10 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
   const applyPendingProjectImport = useCallback(async (mode: ProjectImportMode) => {
     if (!pendingProjectImport) return;
     try {
-      if (mode === 'copy') {
-        const reason = getProjectCopyBlockReason(pendingProjectImport.document);
-        if (reason) throw new Error(reason);
-      }
       const result = await applyProjectDocumentToWorkspace(pendingProjectImport.document, mode);
       setPendingProjectImport(null);
       toast({
-        title: mode === 'copy' ? 'Independent copy opened' : mode === 'merge' ? 'Project merged' : 'Project imported',
+        title: mode === 'merge' ? 'Project merged' : 'Project imported',
         description: buildProjectImportSummary(result),
         duration: 7000,
       });

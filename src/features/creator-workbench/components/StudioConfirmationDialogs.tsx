@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from 'react';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +57,7 @@ export function StudioConfirmationDialogs({
   onClearProjectImport,
   onApplyProjectImport,
 }: StudioConfirmationDialogsProps) {
+  const [importConfirmation, setImportConfirmation] = useState<ProjectImportMode | null>(null);
   const template = templates.find((item) => item.id === templatePendingDeleteId);
   const frontDependentCount = storedCards.filter((card) => card.templateId === templatePendingDeleteId).length;
   const backDependentCount = storedCards.filter((card) => card.backingTemplateId === templatePendingDeleteId && card.templateId !== templatePendingDeleteId).length;
@@ -107,20 +110,29 @@ export function StudioConfirmationDialogs({
         </AlertDialogContent>
       </AlertDialog> : null}
 
-      <AlertDialog open={Boolean(pendingProjectImport)} onOpenChange={(open) => !open && onClearProjectImport()}>
+      <AlertDialog open={Boolean(pendingProjectImport)} onOpenChange={(open) => { if (!open) { setImportConfirmation(null); onClearProjectImport(); } }}>
         <AlertDialogContent>
+          {importConfirmation ? <>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{importConfirmation === 'merge' ? 'Merge and overwrite matching work?' : 'Replace the entire workspace?'}</AlertDialogTitle>
+              <AlertDialogDescription>{importConfirmation === 'merge'
+                ? 'Matching Sets, cards, and resources may be overwritten by the file. Make a backup first if you need to keep the current versions.'
+                : 'All current Sets, cards, Templates, and resources in this workspace will be replaced by the file. Make a backup first if you need to keep them.'}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter><Button type="button" variant="outline" onClick={() => setImportConfirmation(null)}>Back</Button><Button type="button" onClick={() => { onApplyProjectImport(importConfirmation); setImportConfirmation(null); }}>{importConfirmation === 'merge' ? 'Confirm Merge' : 'Confirm Replace Workspace'}</Button></AlertDialogFooter>
+          </> : <>
           <AlertDialogHeader>
             <AlertDialogTitle>Import project file?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm leading-6">
                 <p>{pendingProjectImport?.preview.fileName || 'Selected file'} includes {pendingProjectImport?.preview.templateCount ?? 0} Template{pendingProjectImport?.preview.templateCount === 1 ? '' : 's'}, {pendingProjectImport?.preview.outputCount ?? 0} card{pendingProjectImport?.preview.outputCount === 1 ? '' : 's'}, {pendingProjectImport?.preview.appearanceStyleCount ?? 0} style preset{pendingProjectImport?.preview.appearanceStyleCount === 1 ? '' : 's'}, and {pendingProjectImport?.preview.customAssetCount ?? 0} custom asset{pendingProjectImport?.preview.customAssetCount === 1 ? '' : 's'}.</p>
                 {(pendingProjectImport?.preview.templateIdConflicts.length || pendingProjectImport?.preview.templateNameConflicts.length) ? <p>Matching Templates found: {[...(pendingProjectImport?.preview.templateIdConflicts ?? []), ...(pendingProjectImport?.preview.templateNameConflicts ?? [])].slice(0, 4).join(', ')}. Different snapshots are kept independent rather than silently replacing another Set&apos;s design.</p> : null}
-                <p>Open copy creates separate work. Merge can overwrite Sets and cards with matching IDs, and Replace replaces the entire current workspace with this file.</p>
-                {pendingProjectImport?.preview.copyBlockReason ? <p>{pendingProjectImport.preview.copyBlockReason}</p> : null}
+                <p>Merge can overwrite Sets, cards, and resources with matching IDs. Replace replaces the entire current workspace with this file.</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-wrap"><AlertDialogCancel>Cancel</AlertDialogCancel><Button type="button" variant="outline" onClick={() => onApplyProjectImport('merge')}>Merge Into Current</Button><Button type="button" variant="outline" onClick={() => onApplyProjectImport('replace')}>Replace Workspace</Button><Button type="button" disabled={Boolean(pendingProjectImport?.preview.copyBlockReason)} onClick={() => onApplyProjectImport('copy')}>Open Independent Copy</Button></AlertDialogFooter>
+          <AlertDialogFooter className="flex-wrap"><AlertDialogCancel>Cancel</AlertDialogCancel><Button type="button" variant="outline" onClick={() => setImportConfirmation('merge')}>Merge Into Current</Button><Button type="button" variant="outline" onClick={() => setImportConfirmation('replace')}>Replace Workspace</Button></AlertDialogFooter>
+          </>}
         </AlertDialogContent>
       </AlertDialog>
     </>

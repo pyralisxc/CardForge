@@ -302,15 +302,17 @@ test('downloads one Set with remote artwork and frame bytes or fails without a d
 
   await page.locator('input[type="file"][accept*=".cardforge"]').first().setInputFiles(path);
   await expect(page.getByRole('alertdialog', { name: 'Import project file?' })).toBeVisible();
-  await page.getByRole('button', { name: 'Open Independent Copy', exact: true }).click();
-  await expect(page.getByText('Independent copy opened', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Replace Workspace', exact: true }).click();
+  await expect(page.getByRole('alertdialog', { name: 'Replace the entire workspace?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   const savedWorkspaces = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('cardforge-browser-storage', 1); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
     const records = await Promise.all(['guest', 'local'].map((scope) => new Promise<string>((resolve, reject) => { const request = db.transaction('key-value').objectStore('key-value').get(`project-workspace:${scope}:workspace`); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); })));
     db.close();
     return records.map((record) => JSON.parse(JSON.parse(record).value).state.cardSets as Array<{ id: string; name: string }>);
   });
-  const savedSets = savedWorkspaces.find((sets) => sets.length === 3);
+  const savedSets = savedWorkspaces.find((sets) => sets.length === 2);
   expect(savedSets).toBeDefined();
-  expect(savedSets!.filter((set) => set.name === '100 Card Scale Set')).toHaveLength(2);
+  expect(savedSets!.filter((set) => set.name === '100 Card Scale Set')).toHaveLength(1);
 });
