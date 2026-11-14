@@ -213,8 +213,9 @@ test.describe('Desk desktop spatial interaction', () => {
     await page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ }).dblclick();
     const board = page.locator('[data-desk-set-board]');
     await expect(board).toBeVisible();
-    await expect(page.getByPlaceholder('Search cards', { exact: true })).toHaveCount(1);
-    await expect(page.getByPlaceholder('Search cards in this Set')).toHaveCount(0);
+    await expect(page.getByRole('searchbox', { name: 'Search cards in this Set', exact: true })).toBeVisible();
+    await expect(page.getByRole('searchbox')).toHaveCount(1);
+    await expect(page.getByPlaceholder('Search cards', { exact: true })).toBeHidden();
     // The retired command palette must not interrupt focused Set work.
     await page.keyboard.press('Control+k');
     await expect(page.getByRole('dialog', { name: 'Actions for this context' })).toHaveCount(0);

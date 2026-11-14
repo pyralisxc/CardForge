@@ -190,6 +190,11 @@ test.describe('large Artifact browser evidence', () => {
       mode: node.getAttribute('data-camera-mode'),
     }));
     const selectedBefore = await stage.locator('[data-artifact-id][aria-pressed="true"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-artifact-id')));
+    const expectSetSelectionRestored = async () => {
+      for (const id of selectedBefore) await expect(stage.locator(`[data-artifact-id="${id}"]`)).toHaveAttribute('aria-pressed', 'true');
+      await expect(stage.locator('[data-artifact-id][aria-pressed="true"]')).toHaveCount(selectedBefore.length);
+      await expect.poll(() => page.evaluate(() => history.state?.cardforgeCreatorContext?.session?.selection)).toEqual(selectedBefore);
+    };
 
     await first.focus();
     await first.press('Enter');
@@ -251,14 +256,14 @@ test.describe('large Artifact browser evidence', () => {
       zoom: node.getAttribute('data-zoom'),
       mode: node.getAttribute('data-camera-mode'),
     }))).toEqual(before);
-    for (const id of selectedBefore) await expect(stage.locator(`[data-artifact-id="${id}"]`)).toHaveAttribute('aria-pressed', 'true');
-    await expect(stage.locator('[data-artifact-id][aria-pressed="true"]')).toHaveCount(selectedBefore.length);
+    await expectSetSelectionRestored();
 
     await page.locator(`[data-artifact-id="${firstId}"]`).focus();
     await page.keyboard.press('Enter');
     await expect(page.getByRole('button', { name: 'Back to Set' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
+    await expectSetSelectionRestored();
     await page.keyboard.press('Escape');
     await expect(page.locator('[data-desk="overview"]')).toBeVisible();
 
