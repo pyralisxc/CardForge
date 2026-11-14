@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
 import { Minus, Plus, Redo2, RefreshCcw, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
   DEFAULT_SET_GRID_SIZE_MM,
   getDirectionalArtifactNeighbor,
   getFocusedArtifactFrame,
+  getStackCaptionArtifactIds,
   moveFocusedArtifactSelectionResult,
   projectVisibleArtifacts,
   type ArtifactBrowseDirection,
@@ -57,6 +58,37 @@ interface FocusedSetArtifactSurfaceProps {
 }
 
 type ClientPoint = { clientX: number; clientY: number };
+
+const ArtifactTileVisual = memo(function ArtifactTileVisual({ card, face, setId, width, height, fullPreview, showImage, canExportClean, title, groupLabel, showGroupLabel, ordinal }: {
+  card: DisplayCard;
+  face: CardFace;
+  setId: string;
+  width: number;
+  height: number;
+  fullPreview: boolean;
+  showImage: boolean;
+  canExportClean: boolean;
+  title: string;
+  groupLabel: string;
+  showGroupLabel: boolean;
+  ordinal: number;
+}) {
+  const template = face === 'back' && card.backingTemplate ? card.backingTemplate : card.template;
+  return <>
+    {fullPreview ? <ArtifactSlot card={card} face={face} width={width} depth="board" setId={setId} watermark={!canExportClean} /> : (
+      <span className={styles.artifactLodPreview} data-artifact-thumbnail={card.uniqueId} aria-hidden="true">
+        <ArtifactThumbnail card={card} face={face} width={width} height={height} showImage={showImage} />
+        {!canExportClean && showImage ? <CardWatermarkOverlay testId={`artifact-thumbnail-watermark-${card.uniqueId}`} /> : null}
+        <span className={styles.artifactLodBorder} data-artifact-template-border style={{ borderColor: getTemplateAccent(template.id ?? template.name) }}>
+          <span className={styles.artifactLodOrdinal}>{ordinal}</span>
+        </span>
+      </span>
+    )}
+    <strong className={styles.artifactTileTitle} title={title}>{title}</strong>
+    <span className={styles.cardTemplateLabel} title={`Card from ${template.name}`}>Card · {template.name}</span>
+    {showGroupLabel ? <small className={styles.cardGroupLabel} title={groupLabel}>{groupLabel}</small> : null}
+  </>;
+});
 
 type DragState = {
   pointerId: number;
@@ -119,7 +151,6 @@ export function FocusedSetArtifactSurface({
   const suppressedClickRef = useRef<string | null>(null);
   const lastArtifactPointerTypeRef = useRef<string | null>(null);
   const touchTapRef = useRef<{ artifactId: string; x: number; y: number; at: number } | null>(null);
-  const mouseTapRef = useRef<{ artifactId: string; x: number; y: number; at: number } | null>(null);
   const navigatorReturnArtifactIdRef = useRef<string | null>(null);
   const pendingSpatialFocusIdRef = useRef<string | null>(null);
   const previousArtifactFocusIdRef = useRef<string | null>(session.focusPath.artifactId);
@@ -163,7 +194,8 @@ export function FocusedSetArtifactSurface({
     entries: layout.entries,
     viewportWidth: viewportSize.width,
     viewportHeight: viewportSize.height,
-  }), [layout, viewportSize.height, viewportSize.width]);
+    includeGroupLabels: organization.arrangement !== 'manual' && organization.groupBy !== 'none',
+  }), [layout, organization.arrangement, organization.groupBy, viewportSize.height, viewportSize.width]);
   const wholeFrame = useMemo(() => getFocusedArtifactFrame({
     layout,
     entries: [],
@@ -302,6 +334,13 @@ export function FocusedSetArtifactSurface({
   // choose a lighter preview tier, but it must never mount/unmount Artifacts or
   // replay their Set-to-Desk entrance as the camera pans.
   const projectedEntries = layout.entries;
+  const selectionAnchorId = selectionAnchorRef.current ?? session.selection[0];
+  const selectedArtifactIds = new Set(session.selection);
+  const stackCaptionIds = organization.arrangement === 'stack'
+    ? getStackCaptionArtifactIds(layout.entries, (id) => (
+      dragPreview[id] ? 3 : selectedArtifactIds.has(id) ? (id === selectionAnchorId ? 2 : 1) : 0
+    ))
+    : null;
   const useFullPreview = layout.entries.length <= 160;
   const orderedGroups = useMemo(() => {
     const entriesByGroup = new Map<string, FocusedArtifactLayoutEntry[]>();
@@ -374,7 +413,6 @@ export function FocusedSetArtifactSurface({
 
   const focusArtifact = (artifactId: string, source: 'spatial' | 'navigator' | 'browse' = 'spatial') => {
     touchTapRef.current = null;
-    mouseTapRef.current = null;
     const entry = entryById.get(artifactId);
     if (!entry) return;
     const selectedSession = session.selection.includes(artifactId)
@@ -579,7 +617,6 @@ export function FocusedSetArtifactSurface({
     dragRef.current = null;
     if (drag.moved) {
       touchTapRef.current = null;
-      mouseTapRef.current = null;
       suppressedClickRef.current = drag.artifactId;
       commitSpatialMove(drag.latestPositions, drag.latestAffectedIds);
     } else if (event.pointerType === 'touch') {
@@ -594,27 +631,6 @@ export function FocusedSetArtifactSurface({
         event.timeStamp,
       );
       suppressedClickRef.current = drag.artifactId;
-    } else {
-      // Detect desktop focus from the stable pointer transaction, not the
-      // browser's dblclick event. The first click may legitimately rerender
-      // selection, which can replace the DOM target before dblclick dispatch.
-      const previous = mouseTapRef.current;
-      const sameGesture = previous
-        && previous.artifactId === drag.artifactId
-        && event.timeStamp - previous.at <= 420
-        && Math.hypot(event.clientX - previous.x, event.clientY - previous.y) <= 28;
-      if (sameGesture) {
-        mouseTapRef.current = null;
-        suppressedClickRef.current = drag.artifactId;
-        focusArtifact(drag.artifactId);
-      } else {
-        mouseTapRef.current = {
-          artifactId: drag.artifactId,
-          x: event.clientX,
-          y: event.clientY,
-          at: event.timeStamp,
-        };
-      }
     }
     setDragPreview({});
   };
@@ -624,7 +640,6 @@ export function FocusedSetArtifactSurface({
     if (!drag || drag.pointerId !== event.pointerId) return;
     stopEdgePan();
     touchTapRef.current = null;
-    mouseTapRef.current = null;
     dragRef.current = null;
     camera.restore(drag.startCamera);
     setDragPreview({});
@@ -736,13 +751,13 @@ export function FocusedSetArtifactSurface({
           <div data-artifact-world className={styles.artifactWorld} style={{ left: 0, top: 0, width: 1, height: 1, transform: `translate(${camera.offsetX}px, ${camera.offsetY}px) scale(${camera.camera.zoom})` }}>
             {marquee ? <span className={styles.deskMarquee} style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }} aria-hidden="true" /> : null}
             {organization.arrangement !== 'manual' && organization.groupBy !== 'none' ? layout.groups.map((group) => (
-              <div key={group.label} className={styles.artifactGroupLabel} style={{ left: group.x, top: group.y, width: group.width }}><strong>{group.label}</strong><span>{group.count}</span></div>
+              <div key={group.label} data-artifact-group-label className={styles.artifactGroupLabel} style={{ left: group.x, top: group.y, width: group.width, height: group.height }}><strong title={group.label}>{group.label}</strong><span>{group.count}</span></div>
             )) : null}
             {projectedEntries.map((entry) => {
               const artifactId = entry.identity.artifactId;
               const card = cardById.get(artifactId);
               const position = dragPreview[artifactId] ?? entry.position;
-              const selected = session.selection.includes(artifactId);
+              const selected = selectedArtifactIds.has(artifactId);
               if (!card) return null;
               const face = faces[artifactId] ?? 'front';
               const visibleTemplate = face === 'back' && card.backingTemplate ? card.backingTemplate : card.template;
@@ -758,7 +773,8 @@ export function FocusedSetArtifactSurface({
                   style={{ left: position.x, top: position.y, width: entry.width, minHeight: entry.height }}
                   data-card-face={face}
                   data-selected={selected ? 'true' : 'false'}
-                  data-selection-anchor={selected && (selectionAnchorRef.current ?? session.selection[0]) === artifactId ? 'true' : 'false'}
+                  data-selection-anchor={selected && selectionAnchorId === artifactId ? 'true' : 'false'}
+                  data-caption-visible={!stackCaptionIds || stackCaptionIds.has(artifactId) ? 'true' : 'false'}
                   data-dragging={dragPreview[artifactId] ? 'true' : 'false'}
                 >
                 <button
@@ -786,24 +802,10 @@ export function FocusedSetArtifactSurface({
                     toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey || (touch && touchMultiSelect));
                   }}
                 >
-                  {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" setId={setId} watermark={!canExportClean} /> : (
-                    <span className={styles.artifactLodPreview} data-artifact-thumbnail={artifactId} aria-hidden="true">
-                      <ArtifactThumbnail
-                        card={card}
-                        face={face}
-                        width={previewWidth}
-                        height={previewHeight}
-                        showImage={showThumbnailImage}
-                      />
-                      {!canExportClean && showThumbnailImage ? <CardWatermarkOverlay testId={`artifact-thumbnail-watermark-${artifactId}`} /> : null}
-                      <span className={styles.artifactLodBorder} data-artifact-template-border style={{ borderColor: getTemplateAccent(visibleTemplate.id ?? visibleTemplate.name) }}>
-                        <span className={styles.artifactLodOrdinal}>{entry.index + 1}</span>
-                      </span>
-                    </span>
-                  )}
-                  <strong className={styles.artifactTileTitle} title={entry.title}>{entry.title}</strong>
-                  <span className={styles.cardTemplateLabel} title={`Card from ${visibleTemplate.name}`}>Card · {visibleTemplate.name}</span>
-                  {organization.groupBy !== 'none' ? <small className={styles.cardGroupLabel} title={entry.groupLabel}>{entry.groupLabel}</small> : null}
+                  <ArtifactTileVisual card={card} face={face} setId={setId} width={previewWidth} height={previewHeight}
+                    fullPreview={useFullPreview || artifactId === artifactFocusId} showImage={showThumbnailImage}
+                    canExportClean={canExportClean} title={entry.title} groupLabel={entry.groupLabel}
+                    showGroupLabel={organization.groupBy !== 'none'} ordinal={entry.index + 1} />
                 </button>
                 {hasCardBacking(card) ? <button
                   type="button"

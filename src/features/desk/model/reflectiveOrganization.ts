@@ -37,6 +37,36 @@ export const getSemanticOrganizationField = (
   semanticFieldNames[kind].includes(normalizeFieldIdentity(field.id) as never)
 )) ?? null;
 
+export const groupCardsByTemplate = (cards: readonly DisplayCard[]): Array<[string, DisplayCard[]]> => {
+  const groups = new Map<string, { label: string; cards: DisplayCard[] }>();
+  for (const card of cards) {
+    const id = card.template.id;
+    const key = id ? `template:${id}` : `unknown:${card.uniqueId}`;
+    const group = groups.get(key);
+    if (group) {
+      group.cards.push(card);
+      if (card.template.name < group.label) group.label = card.template.name;
+    }
+    else groups.set(key, { label: id ? card.template.name : `${card.template.name} (identity unavailable)`, cards: [card] });
+  }
+  const labelCounts = new Map<string, number>();
+  for (const { label } of groups.values()) labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
+  const used = new Set<string>();
+  const labels = new Map<string, string>();
+  const labelOrdinals = new Map<string, number>();
+  for (const [key, { label }] of [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    const ordinal = (labelOrdinals.get(label) ?? 0) + 1;
+    labelOrdinals.set(label, ordinal);
+    const base = labelCounts.get(label)! > 1 ? `${ordinal}. ${label}` : label;
+    let uniqueLabel = base;
+    let suffix = 2;
+    while (used.has(uniqueLabel)) uniqueLabel = `${base} (${suffix++})`;
+    used.add(uniqueLabel);
+    labels.set(key, uniqueLabel);
+  }
+  return [...groups.entries()].map(([key, { cards: members }]) => [labels.get(key)!, members]);
+};
+
 export const deriveReflectiveOrganization = (cards: readonly DisplayCard[]): ReflectiveOrganization => {
   const definitionByKey = new Map(cards.flatMap((card) => extractTemplateFieldDefinitions(card.template)).map((field) => [field.key, field]));
   const allKeys = Array.from(new Set(cards.flatMap((card) => Object.keys(card.data))));
@@ -65,7 +95,7 @@ export const deriveReflectiveOrganization = (cards: readonly DisplayCard[]): Ref
     }];
   }).toSorted((left, right) => left.label.localeCompare(right.label));
 
-  const templateCount = new Set(cards.map((card) => card.template.id ?? card.template.name)).size;
+  const templateCount = groupCardsByTemplate(cards).length;
   const hasTags = cards.some((card) => (card.tagIds?.length ?? 0) > 0);
   const contentType = getSemanticOrganizationField(fields, 'contentType');
   const batch = getSemanticOrganizationField(fields, 'batch');

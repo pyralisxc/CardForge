@@ -69,7 +69,7 @@ test.describe('hosted release smoke', () => {
     await dismissAnalyticsIfOffered(page);
     await page.getByRole('link', { name: 'Open your Desk', exact: true }).first().click();
     await expect(page).toHaveURL(/\/account(?:\?|$)/u);
-    const desk = page.getByRole('region', { name: 'Open Sets on Desk' });
+    const desk = page.getByRole('region', { name: 'Open work on Desk' });
     await expect(desk).toBeVisible();
     await expect(desk).toContainText('A Set keeps related cards together.');
     await expect(page.locator('[data-set-object]')).toHaveCount(0);
@@ -110,7 +110,7 @@ test.describe('hosted mobile release smoke', () => {
     const navigation = page.getByRole('navigation', { name: 'Mobile navigation' });
     await expect(navigation).toBeVisible();
     await navigation.getByRole('link', { name: /^Open (?:your )?Desk$/u }).tap();
-    const desk = page.getByRole('region', { name: 'Open Sets on Desk' });
+    const desk = page.getByRole('region', { name: 'Open work on Desk' });
     await expect(desk).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'CardForge zones' })).toBeVisible();
     await expect(desk.getByRole('button', { name: 'Open Library', exact: true })).toBeInViewport();

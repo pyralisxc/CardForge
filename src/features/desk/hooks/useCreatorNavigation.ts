@@ -50,6 +50,10 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
   }, []);
   const previousFocusedWorkIdRef = useRef(focusedWorkId);
   const initializedRef = useRef(false);
+  // The router can replace entry metadata during commit, before restoration effects run.
+  const [entrySnapshot] = useState(() => typeof window === 'undefined'
+    ? null
+    : readCreatorHistorySnapshot(window.history.state));
   const bypassDirtyCloseRef = useRef(false);
   const pendingPopSnapshotRef = useRef<CreatorHistorySnapshot | null>(null);
   const currentRef = useRef<CreatorHistorySnapshot>({
@@ -114,7 +118,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     if (initializedRef.current) return;
     initializedRef.current = true;
     const initial = currentRef.current;
-    const restored = readCreatorHistorySnapshot(window.history.state);
+    const restored = readCreatorHistorySnapshot(window.history.state) ?? entrySnapshot;
     const currentHref = `${window.location.pathname}${window.location.search}`;
     if (
       restored
@@ -145,12 +149,12 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     }
     replaceSnapshot(initial);
     setNavigationReady(true);
-  }, [applySnapshot, pushSnapshot, replaceSnapshot]);
+  }, [applySnapshot, entrySnapshot, pushSnapshot, replaceSnapshot]);
 
   useEffect(() => {
-    if (!initializedRef.current) return;
+    if (!navigationReady) return;
     replaceSnapshot(currentRef.current);
-  }, [focusedWorkId, inspectorWorkId, interactionSession, replaceSnapshot]);
+  }, [focusedWorkId, inspectorWorkId, interactionSession, navigationReady, replaceSnapshot]);
 
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {

@@ -6,6 +6,7 @@ import {
   getDirectionalArtifactNeighbor,
   getArtifactSelectionScope,
   getFocusedArtifactFrame,
+  getStackCaptionArtifactIds,
   getFocusedArtifactFitZoom,
   getFocusedArtifactPresentation,
   moveFocusedArtifactSelection,
@@ -33,6 +34,49 @@ const buildLayout = (count: number) => buildFocusedArtifactLayout({
 });
 
 describe('focused Artifact spatial layout', () => {
+  it.each([
+    { name: 'source order', priorities: new Map<string, number>(), expected: ['card-2', 'card-3'] },
+    { name: 'selection', priorities: new Map([['card-0', 1]]), expected: ['card-0', 'card-3'] },
+    { name: 'selection anchor', priorities: new Map([['card-0', 2], ['card-1', 1]]), expected: ['card-0', 'card-3'] },
+    { name: 'dragging', priorities: new Map([['card-0', 2], ['card-1', 1], ['card-2', 3]]), expected: ['card-2', 'card-3'] },
+  ])('shows only the frontmost caption per Stack row using $name', ({ priorities, expected }) => {
+    const seeds = artifacts(4);
+    const layout = buildFocusedArtifactLayout({ arrangement: 'stack', minimumWidth: 1_000, groups: [
+      { label: 'All Artifacts', artifacts: seeds.slice(0, 3) },
+      { label: 'Other', artifacts: seeds.slice(3).map((artifact) => ({ ...artifact, groupLabel: 'Other' })) },
+    ] });
+    const before = structuredClone(layout.entries);
+    expect([...getStackCaptionArtifactIds(layout.entries, (id) => priorities.get(id) ?? 0)]).toEqual(expected);
+    expect(layout.entries).toEqual(before);
+  });
+
+  it('keeps a caption on each Stack row, including its final partial row', () => {
+    const layout = buildFocusedArtifactLayout({ arrangement: 'stack', minimumWidth: 1_000,
+      groups: [{ label: 'All Artifacts', artifacts: artifacts(65) }] });
+    const captionIds = getStackCaptionArtifactIds(layout.entries);
+    expect(captionIds.size).toBe(new Set(layout.entries.map((entry) => entry.position.y)).size);
+    expect(captionIds.size).toBeGreaterThan(1);
+    expect(captionIds.has('card-64')).toBe(true);
+  });
+
+  it.each(['grid', 'stack'] as const)('includes group headers in %s Fit Work without changing Artifact positions', (arrangement) => {
+    const layout = buildFocusedArtifactLayout({
+      arrangement, minimumWidth: 1_000, groups: [{ label: 'All Artifacts', artifacts: artifacts(4) }],
+    });
+    const before = layout.entries.map((entry) => ({ ...entry.position }));
+    const viewportWidth = 1_000;
+    const viewportHeight = 900;
+    const frame = getFocusedArtifactFrame({
+      layout, entries: layout.entries, viewportWidth, viewportHeight, includeGroupLabels: true,
+    });
+    for (const group of layout.groups) {
+      const top = viewportHeight / 2 + (group.y - frame.y) * frame.zoom;
+      expect(top).toBeGreaterThanOrEqual(40 - 0.001);
+      expect(group.y + group.height).toBeLessThanOrEqual(Math.min(...layout.entries.map((entry) => entry.position.y)));
+    }
+    expect(layout.entries.map((entry) => entry.position)).toEqual(before);
+  });
+
   it.each([100, 500, 1_000])('retains all %i Artifacts while culling the mounted visual projection', (count) => {
     const layout = buildLayout(count);
     const firstViewport = projectVisibleArtifacts(layout, { x: 0, y: 0, width: 900, height: 520 });

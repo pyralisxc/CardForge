@@ -20,6 +20,10 @@ test.describe('Desk desktop spatial interaction', () => {
     const viewport = page.locator('[data-desk-viewport]');
 
     await expect(setButton).toBeVisible();
+    const workSurface = page.getByRole('region', { name: 'Open work on Desk' });
+    await expect(workSurface).toHaveCSS('display', 'flex');
+    await workSurface.evaluate((node) => node.setAttribute('aria-label', 'Renamed Desk work'));
+    await expect(page.getByRole('region', { name: 'Renamed Desk work' })).toHaveCSS('display', 'flex');
     await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
     // Featured work must keep the same physical proxy footprint. The retired
     // featured-card minimum must not override a positioned Set's visual size.
@@ -209,8 +213,9 @@ test.describe('Desk desktop spatial interaction', () => {
     await page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ }).dblclick();
     const board = page.locator('[data-desk-set-board]');
     await expect(board).toBeVisible();
-    await expect(page.getByPlaceholder('Search cards', { exact: true })).toHaveCount(1);
-    await expect(page.getByPlaceholder('Search cards in this Set')).toHaveCount(0);
+    await expect(page.getByRole('searchbox', { name: 'Search cards in this Set', exact: true })).toBeVisible();
+    await expect(page.getByRole('searchbox')).toHaveCount(1);
+    await expect(page.getByPlaceholder('Search cards', { exact: true })).toBeHidden();
     // The retired command palette must not interrupt focused Set work.
     await page.keyboard.press('Control+k');
     await expect(page.getByRole('dialog', { name: 'Actions for this context' })).toHaveCount(0);
@@ -226,11 +231,21 @@ test.describe('Desk desktop spatial interaction', () => {
     expect(boardBox!.width).toBeGreaterThan(mainBox!.width * 0.92);
 
     const artifact = page.locator('button[data-artifact-id="scale-card-1"]');
+    const stageBeforeSelection = await stage.boundingBox();
+    await artifact.click();
+    await expect(artifact).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => stage.boundingBox()).toEqual(stageBeforeSelection);
+    await page.getByRole('button', { name: 'Clear Artifact selection', exact: true }).click();
+    await expect(artifact).toHaveAttribute('aria-pressed', 'false');
     await artifact.dblclick();
     const focused = page.locator('[data-focused-artifact-workspace]');
     await expect(focused).toBeVisible();
     await expect(focused).toHaveAttribute('data-editing', 'false');
     await expect(page.locator('[data-artifact-edit-workspace]')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(focused).toHaveCount(0);
+    await artifact.dblclick();
+    await expect(focused).toBeVisible();
 
     // Editing remains an explicit second step after focus settles.
     await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();

@@ -566,7 +566,11 @@ export function Desk({
             <Link className="font-semibold text-[var(--cf-accent-strong)] underline-offset-4 hover:underline" href={createAuthRouteHref('/sign-up', '/account')} prefetch={false} onClick={markSignUpIntent}>Create account</Link>
           </span>
         )}
-        search={contextDepth === 'desk' ? <EnvironmentSearch label="Search Desk work" value={query} onChange={setQuery} inputRef={searchRef} /> : undefined}
+        search={contextDepth === 'desk'
+          ? <EnvironmentSearch label="Search Desk work" value={query} onChange={setQuery} inputRef={searchRef} />
+          : contextDepth === 'set' && focusedLocalSetId
+            ? <EnvironmentSearch label="Search cards in this Set" value={cardQuery} onChange={setCardQuery} inputRef={searchRef} />
+            : undefined}
         onCommand={() => searchRef.current?.focus()}
         onAction={runAction}
         onCloseDetail={() => setInspectorWorkId(null)}

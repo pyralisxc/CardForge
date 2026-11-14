@@ -968,7 +968,8 @@
 }
 
 .contentToolbar {
-  flex-wrap: wrap;
+  height: 3.5rem;
+  flex-wrap: nowrap;
   justify-content: space-between;
   gap: 0.55rem;
   margin-top: 0.15rem;
@@ -998,11 +999,8 @@
 }
 
 .selectionBar {
-  position: absolute;
+  position: relative;
   z-index: 10;
-  top: 3.2rem;
-  right: 0.5rem;
-  left: 0.5rem;
   flex: 1;
   flex-wrap: nowrap;
   justify-content: flex-start;
@@ -1141,14 +1139,28 @@
   position: absolute;
   z-index: 2;
   display: flex;
-  right: 1rem;
-  left: 1rem;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  overflow: hidden;
   border-bottom: 1px solid var(--cf-border-subtle);
   color: var(--cf-text-muted);
   font-size: 0.66rem;
+  line-height: 1.2;
+  white-space: nowrap;
   pointer-events: none;
+}
+
+.artifactGroupLabel strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: auto;
+}
+
+.artifactGroupLabel span {
+  flex-shrink: 0;
 }
 
 .cardButton {
@@ -1162,6 +1174,10 @@
   text-align: left;
   cursor: pointer;
   transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.artifactTile[data-caption-visible="false"] :is(.artifactTileTitle, .cardTemplateLabel, .cardGroupLabel) {
+  visibility: hidden;
 }
 
 .cardButton:hover,
@@ -2237,7 +2253,7 @@
     gap: 0.4rem;
   }
 
-  .focusWorkspace[data-has-selection="true"] > .contentToolbar {
+  .focusWorkspace[data-has-selection="true"] .contentToolbar > [data-set-organization-trigger] {
     display: none;
   }
   .contentToolbar > .searchField { flex: 1; width: auto; }

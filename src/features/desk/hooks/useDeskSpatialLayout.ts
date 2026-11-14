@@ -182,26 +182,33 @@ export function useDeskSpatialLayout({
       setSceneReady(true);
     }
   }, [focused, itemIds.length, positionsResolved]);
-  useLayoutEffect(() => {
+  const measureVisibleWork = useCallback(() => {
     const world = workWorldRef.current;
-    if (focused || !positionsResolved || !world) return;
+    if (!world) return;
+    const next = collectDeskWorldItems({
+      tiles: world.querySelectorAll<HTMLElement>('[data-desk-set-object-id]:not([aria-hidden="true"])'),
+      bounds: world.getBoundingClientRect(),
+      projection: { scale: cameraApiRef.current?.zoom ?? 1 },
+      positions,
+    });
+    setFramingItems((current) => {
+      const signature = (items: DeskWorldItemRect[]) => items.map((item) => `${item.id}:${item.x}:${item.y}:${item.width}:${item.height}`).join('|');
+      return signature(current) === signature(next) ? current : next;
+    });
+  }, [positions]);
+
+  // Camera measurements must not restart the scene's reveal deadline.
+  useLayoutEffect(() => {
+    if (focused || !positionsResolved) return;
+    const frame = requestAnimationFrame(measureVisibleWork);
+    return () => cancelAnimationFrame(frame);
+  }, [camera.zoom, focused, itemKey, measureVisibleWork, positionsResolved, visibleItemKey]);
+
+  useLayoutEffect(() => {
+    if (focused || !positionsResolved || !workWorldRef.current) return;
     let settleFrame: number | null = null;
     let settleTimeout: ReturnType<typeof setTimeout> | null = null;
-    const measureVisibleWork = () => {
-      const bounds = world.getBoundingClientRect();
-      const next = collectDeskWorldItems({
-        tiles: world.querySelectorAll<HTMLElement>('[data-desk-set-object-id]:not([aria-hidden="true"])'),
-        bounds,
-        projection: { scale: camera.zoom },
-        positions,
-      });
-      setFramingItems((current) => {
-        const signature = (items: DeskWorldItemRect[]) => items.map((item) => `${item.id}:${item.x}:${item.y}:${item.width}:${item.height}`).join('|');
-        return signature(current) === signature(next) ? current : next;
-      });
-    };
     const frame = requestAnimationFrame(() => {
-      measureVisibleWork();
       settleTimeout = setTimeout(() => {
         const revealWhenStable = () => {
           const movingStack = document.querySelector('[data-artifact-scene] [data-scene-depth="stack"][data-scene-moving="true"]');
@@ -225,7 +232,7 @@ export function useDeskSpatialLayout({
       if (settleFrame !== null) cancelAnimationFrame(settleFrame);
       if (settleTimeout !== null) clearTimeout(settleTimeout);
     };
-  }, [camera.zoom, focused, itemIds.length, itemKey, positions, positionsResolved, visibleItemKey]);
+  }, [focused, itemIds.length, itemKey, measureVisibleWork, positionKey, positionsResolved, visibleItemKey]);
 
   const collectWorldItems = useCallback((): DeskWorldItemRect[] => {
     const world = workWorldRef.current;

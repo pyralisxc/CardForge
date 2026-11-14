@@ -277,9 +277,8 @@ export const ArtifactScene = forwardRef<ArtifactSceneHandle, { children: ReactNo
     setProjections(next);
   }, []);
   const captureStackOrigins = useCallback((setId: string, openSet: () => void) => {
-    // This runs while the tile still has its Desk world transform. Transfer
-    // visual ownership to the retained scene synchronously, before focus can
-    // hide/reflow it; hold the scene at these coordinates until depth changes.
+    // Read origins before focus can hide/reflow the tile. Scene takeover and
+    // Set entry share React's event batch; no subsequent DOM read needs a flush.
     const captured = new Map<string, Projection>();
     for (const slot of slots.current.values()) {
       if (slot.depth !== 'stack' || slot.setId !== setId || !slot.node.isConnected) continue;
@@ -298,12 +297,10 @@ export const ArtifactScene = forwardRef<ArtifactSceneHandle, { children: ReactNo
     if (!captured.size) { openSet(); return; }
     departingSetRef.current = setId;
     departingDepthRef.current = 'stack';
-    flushSync(() => {
-      setDepartingDepth('stack');
-      setDepartingSetId(setId);
-      setProjections((current) => current.map((item) => captured.get(item.card.uniqueId) ?? item));
-      openSet();
-    });
+    setDepartingDepth('stack');
+    setDepartingSetId(setId);
+    setProjections((current) => current.map((item) => captured.get(item.card.uniqueId) ?? item));
+    openSet();
   }, []);
   const captureBoardReturn = useCallback((commit: () => void) => {
     const setId = activeSetRef.current;
