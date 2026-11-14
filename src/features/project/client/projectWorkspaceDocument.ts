@@ -343,9 +343,8 @@ const applyPreparedProjectDocument = async (
   }
 
   const afterSets = draft.getState();
-  // Agent revision adoption updates authored work/resources but does not replace
-  // the creator's workspace-level output preferences.
-  if (mode !== 'adopt') {
+  // A copy or agent revision must not replace workspace-level output preferences.
+  if (mode !== 'adopt' && mode !== 'copy') {
     if (patch.selectedPaperSize) afterSets.setSelectedPaperSize(patch.selectedPaperSize);
     afterSets.setPdfOptions({
       margin: patch.pdfMarginMm,

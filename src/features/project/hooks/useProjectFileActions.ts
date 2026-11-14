@@ -13,7 +13,8 @@ import { buildBrowserCardForgeProjectSnapshot, decodeBrowserProjectFile } from '
 import { saveCardForgeProjectPackageToDevice } from '../client/projectPackageDeviceSave';
 import { CARDFORGE_PROJECT_FILE_EXTENSION, normalizeProjectFileName } from '../model/projectPackage';
 import { applyProjectDocumentToState, type ProjectDocumentStatePatch, type ProjectDocumentV1 } from '../model/projectDocument';
-import { applyProjectDocumentToWorkspace, captureCurrentProjectDocument } from '../client/projectWorkspaceDocument';
+import { applyProjectDocumentToWorkspace, captureCardSetProjectDocument } from '../client/projectWorkspaceDocument';
+import { useProjectStore } from '../store/workspaceStore';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
@@ -146,7 +147,6 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
     canUseProjectFiles,
     fileInputRef,
     projectFileGateMessage,
-    storedCards,
     toast,
     userTemplates,
   } = input;
@@ -169,34 +169,44 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
     }
 
     try {
-      const document = await captureCurrentProjectDocument();
-      const activeSetName = document.cardSets.find((set) => set.id === document.activeCardSetId)?.name
-        ?? document.cardSets[0]?.name
-        ?? 'CardForge Project';
-      const projectName = normalizeProjectFileName(activeSetName);
+      const activeSetId = useProjectStore.getState().activeCardSet?.id;
+      if (!activeSetId) {
+        toast({ title: 'Set not downloaded', description: 'Choose a Set before downloading it. Your work is unchanged.' });
+        return;
+      }
+      const document = await captureCardSetProjectDocument(activeSetId);
+      const availableTemplateIds = new Set(document.userTemplates.map((template) => template.id));
+      const referencedTemplateIds = [
+        ...(document.cardSets[0].templateIds ?? []),
+        ...document.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
+      ];
+      if (referencedTemplateIds.some((id) => id && !availableTemplateIds.has(id))) {
+        throw new Error('A Template used or prepared by this Set is unavailable. Restore it before downloading; your work remains unchanged.');
+      }
+      const projectName = normalizeProjectFileName(document.cardSets[0].name);
       const snapshot = await buildBrowserCardForgeProjectSnapshot({ document, name: projectName });
-      trackExportStarted('project', storedCards.length);
+      trackExportStarted('project', document.storedCards.length);
       await saveCardForgeProjectPackageToDevice({
         fileName: `${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION}`,
         snapshot,
         // Download creates a portable copy, not a file-system write grant.
         pickerWindow: {},
       });
-      trackExportCompleted('project', storedCards.length);
+      trackExportCompleted('project', document.storedCards.length);
       toast({
-        title: 'Project exported',
-        description: `${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION} contains the project document and its embedded artwork as one portable CardForge package.`,
+        title: 'Set downloaded',
+        description: `${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION} contains the selected Set and its portable artwork.`,
       });
     } catch (error) {
       toast({
-        title: 'Project not exported',
+        title: 'Set not downloaded',
         description: error instanceof Error
-          ? `CardForge did not create an incomplete project file. ${error.message}`
-          : 'CardForge did not create an incomplete project file.',
+          ? `CardForge did not create an incomplete Set file. ${error.message}`
+          : 'CardForge did not create an incomplete Set file.',
         variant: 'destructive',
       });
     }
-  }, [canUseProjectFiles, showProjectFileGate, storedCards.length, toast]);
+  }, [canUseProjectFiles, showProjectFileGate, toast]);
 
   const handleChooseImportProject = useCallback(() => {
     if (!canUseProjectFiles) {

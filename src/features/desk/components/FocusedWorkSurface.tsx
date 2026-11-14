@@ -110,9 +110,17 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
     const artifactIds = props.focusedCards.filter((card) => (
       face === 'front' ? card.template.id === fromTemplateId : card.backingTemplate?.id === fromTemplateId
     )).map((card) => card.uniqueId);
-    const previousKeys = new Set(extractTemplateFieldDefinitions(previous).filter((field) => !field.isStaticBaseText).map((field) => field.key));
-    const nextKeys = new Set(extractTemplateFieldDefinitions(next).filter((field) => !field.isStaticBaseText).map((field) => field.key));
+    const previousKeys = new Set(extractTemplateFieldDefinitions(previous).map((field) => field.key));
+    const nextKeys = new Set(extractTemplateFieldDefinitions(next).map((field) => field.key));
     const removedFieldKeys = [...previousKeys].filter((key) => !nextKeys.has(key));
+    if (artifactIds.length && removedFieldKeys.length) {
+      toast({
+        title: 'Template update not applied',
+        description: `This revision changes fields used by ${artifactIds.length} Artifact${artifactIds.length === 1 ? '' : 's'} and cannot be applied safely yet. Your current Template and data are preserved.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     props.onCommitTemplateChange({
       template: next,
       source: next.templateSource,
