@@ -14,6 +14,14 @@ const document: ProjectDocumentV1 = {
 };
 
 describe('portable versus provider working document identity', () => {
+  it('keeps prepared designs attached to an independent copy without rewriting external references', () => {
+    const source = structuredClone(document);
+    source.cardSets[0]!.templateIds = ['portable-template', 'external-template'];
+    const copy = instantiateProjectDocumentCopy(source, (kind) => `${kind}-copied`);
+    expect(copy.cardSets[0]!.templateIds).toEqual([copy.userTemplates[0]!.id, 'external-template']);
+    expect(copy.userTemplates[0]!.id).not.toBe('portable-template');
+    expect(source.cardSets[0]!.templateIds).toEqual(['portable-template', 'external-template']);
+  });
   it('isolates files with the same portable IDs while preserving references and authored values', () => {
     const first: ProjectDocumentIdentityMap = {};
     const second: ProjectDocumentIdentityMap = {};
@@ -34,6 +42,22 @@ describe('portable versus provider working document identity', () => {
     const saved = mapProjectDocumentIdentity(local, identities, 'save');
     expect(saved.cardSets[0]!.id).toBe('portable-set');
     expect(mapProjectDocumentIdentity(saved, identities, 'open')).toEqual(local);
+  });
+
+  it('does not retarget a Library asset when an unrelated local asset has the same ID', () => {
+    const source = structuredClone(document);
+    source.customAssets['cardforge-maker-custom-images'] = [{ id: 'shared-id', name: 'Local artwork', url: 'data:image/png;base64,YQ==', kind: 'image', tileMode: 'contain', seamless: false, allowedTargets: [] }];
+    source.productionPlan = {
+      version: 1, decisionMode: 'confirmed', purpose: 'Make a Set', deliverable: 'Cards',
+      outputSize: { width: 63, height: 88, unit: 'mm' }, visualDirection: { summary: 'Illustrated', palette: [], typography: [] }, editableFieldKeys: [],
+      assets: [{ id: 'requirement', name: 'Library art', kind: 'image', role: 'art', source: 'cardforge-library', quantity: 1, status: 'selected', assetId: 'shared-id' }],
+    };
+    const identities: ProjectDocumentIdentityMap = {};
+    const opened = mapProjectDocumentIdentity(source, identities, 'open');
+    expect(opened.customAssets['cardforge-maker-custom-images'][0].id).not.toBe('shared-id');
+    expect(opened.productionPlan!.assets[0].assetId).toBe('shared-id');
+
+    expect(mapProjectDocumentIdentity(opened, identities, 'save')).toEqual(source);
   });
 });
 
