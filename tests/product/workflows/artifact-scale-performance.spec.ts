@@ -40,7 +40,7 @@ const elapsed = async (action: () => Promise<void>) => {
 test.describe('large Artifact browser evidence', () => {
   test.describe.configure({ timeout: READY_TIMEOUT });
 
-  test('keeps same-name Template group headers inside Fit Work and clear of Artifacts', async ({ page }) => {
+  test('keeps same-name Template headers framed and Stack captions readable', async ({ page }) => {
     const name = 'A long shared Template name that must not wrap into the Artifacts below it';
     await seedGuestScaleWorkspace(page, 100, { mixedTemplates: true, cardLimit: 4, templatePatch: { name } });
     await page.goto('/account', { waitUntil: 'domcontentloaded' });
@@ -78,6 +78,27 @@ test.describe('large Artifact browser evidence', () => {
       ));
     }).toBe(true);
     for (const header of await headers.all()) await expect(header).toHaveCSS('white-space', 'nowrap');
+    await page.getByRole('button', { name: /^Organize/ }).click();
+    await page.getByRole('combobox', { name: 'Arrange cards', exact: true }).click();
+    await page.getByRole('option', { name: 'Arrange as stacks', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
+    const captions = page.locator('[data-desk-artifact-stage] [data-artifact-id] > strong:visible');
+    await expect(captions).toHaveCount(2);
+    await expect(page.locator('[data-desk-artifact-stage] [data-artifact-id]')).toHaveCount(4);
+    await expect(headers.locator('span')).toHaveText(['3', '1']);
+    const first = page.locator('[data-desk-artifact-stage] [data-artifact-id]').first();
+    await first.focus();
+    await first.press('Space');
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await expect(first.locator(':scope > strong')).toBeVisible();
+    await expect(captions).toHaveCount(2);
+    await expect.poll(() => captions.evaluateAll((nodes) => {
+      const boxes = nodes.map((node) => node.getBoundingClientRect());
+      return boxes.every((box, index) => boxes.slice(index + 1).every((other) => (
+        box.right <= other.left || other.right <= box.left || box.bottom <= other.top || other.bottom <= box.top
+      )));
+    })).toBe(true);
   });
 
   for (const cardCount of [100, 500, 1000] as const) {

@@ -1178,6 +1178,10 @@
   transition: transform 160ms ease, background-color 160ms ease;
 }
 
+.artifactTile[data-caption-visible="false"] :is(.artifactTileTitle, .cardTemplateLabel, .cardGroupLabel) {
+  visibility: hidden;
+}
+
 .cardButton:hover,
 .cardButton[aria-pressed="true"] {
   border-color: var(--cf-border-strong);

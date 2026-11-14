@@ -366,6 +366,21 @@ export const buildFocusedArtifactLayout = ({
   };
 };
 
+export const getStackCaptionArtifactIds = (
+  entries: readonly FocusedArtifactLayoutEntry[],
+  getPaintPriority: (artifactId: string) => number = () => 0,
+): Set<string> => {
+  const rows = new Map<string, { artifactId: string; priority: number }>();
+  for (const entry of entries) {
+    const key = `${entry.groupLabel}:${entry.position.y}`;
+    const artifactId = entry.identity.artifactId;
+    const priority = getPaintPriority(artifactId);
+    const current = rows.get(key);
+    if (!current || priority >= current.priority) rows.set(key, { artifactId, priority });
+  }
+  return new Set([...rows.values()].map(({ artifactId }) => artifactId));
+};
+
 export const projectVisibleArtifacts = (
   layout: FocusedArtifactLayout,
   viewport: ArtifactViewport,

@@ -20,6 +20,7 @@ import {
   DEFAULT_SET_GRID_SIZE_MM,
   getDirectionalArtifactNeighbor,
   getFocusedArtifactFrame,
+  getStackCaptionArtifactIds,
   moveFocusedArtifactSelectionResult,
   projectVisibleArtifacts,
   type ArtifactBrowseDirection,
@@ -303,6 +304,13 @@ export function FocusedSetArtifactSurface({
   // choose a lighter preview tier, but it must never mount/unmount Artifacts or
   // replay their Set-to-Desk entrance as the camera pans.
   const projectedEntries = layout.entries;
+  const selectionAnchorId = selectionAnchorRef.current ?? session.selection[0];
+  const selectedArtifactIds = new Set(session.selection);
+  const stackCaptionIds = organization.arrangement === 'stack'
+    ? getStackCaptionArtifactIds(layout.entries, (id) => (
+      dragPreview[id] ? 3 : selectedArtifactIds.has(id) ? (id === selectionAnchorId ? 2 : 1) : 0
+    ))
+    : null;
   const useFullPreview = layout.entries.length <= 160;
   const orderedGroups = useMemo(() => {
     const entriesByGroup = new Map<string, FocusedArtifactLayoutEntry[]>();
@@ -743,7 +751,7 @@ export function FocusedSetArtifactSurface({
               const artifactId = entry.identity.artifactId;
               const card = cardById.get(artifactId);
               const position = dragPreview[artifactId] ?? entry.position;
-              const selected = session.selection.includes(artifactId);
+              const selected = selectedArtifactIds.has(artifactId);
               if (!card) return null;
               const face = faces[artifactId] ?? 'front';
               const visibleTemplate = face === 'back' && card.backingTemplate ? card.backingTemplate : card.template;
@@ -759,7 +767,8 @@ export function FocusedSetArtifactSurface({
                   style={{ left: position.x, top: position.y, width: entry.width, minHeight: entry.height }}
                   data-card-face={face}
                   data-selected={selected ? 'true' : 'false'}
-                  data-selection-anchor={selected && (selectionAnchorRef.current ?? session.selection[0]) === artifactId ? 'true' : 'false'}
+                  data-selection-anchor={selected && selectionAnchorId === artifactId ? 'true' : 'false'}
+                  data-caption-visible={!stackCaptionIds || stackCaptionIds.has(artifactId) ? 'true' : 'false'}
                   data-dragging={dragPreview[artifactId] ? 'true' : 'false'}
                 >
                 <button
