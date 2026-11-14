@@ -13,7 +13,8 @@ import { buildBrowserCardForgeProjectSnapshot, decodeBrowserProjectFile } from '
 import { saveCardForgeProjectPackageToDevice } from '../client/projectPackageDeviceSave';
 import { CARDFORGE_PROJECT_FILE_EXTENSION, normalizeProjectFileName } from '../model/projectPackage';
 import { applyProjectDocumentToState, type ProjectDocumentStatePatch, type ProjectDocumentV1 } from '../model/projectDocument';
-import { applyProjectDocumentToWorkspace, captureCurrentProjectDocument } from '../client/projectWorkspaceDocument';
+import { applyProjectDocumentToWorkspace, captureCardSetProjectDocument } from '../client/projectWorkspaceDocument';
+import { useProjectStore } from '../store/workspaceStore';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
@@ -45,7 +46,7 @@ interface UseProjectFileActionsInput {
   userTemplates: TCGCardTemplate[];
 }
 
-export type ProjectImportMode = 'replace' | 'merge';
+export type ProjectImportMode = 'replace' | 'merge' | 'copy';
 
 export interface ProjectImportPreview {
   fileName: string;
@@ -57,6 +58,7 @@ export interface ProjectImportPreview {
   exportSettingCount: number;
   templateIdConflicts: string[];
   templateNameConflicts: string[];
+  copyBlockReason?: string | null;
 }
 
 interface PendingProjectImport {
@@ -65,6 +67,21 @@ interface PendingProjectImport {
   patch: ProjectDocumentStatePatch;
   preview: ProjectImportPreview;
 }
+
+export const getProjectCopyBlockReason = (document: ProjectDocumentV1): string | null => {
+  if (Object.values(document.customAssets).some((assets) => assets.length) || document.appearanceStyles.length || document.productionPlan) {
+    return 'This file contains resources that cannot yet be copied independently without risking their references. Your current work remains unchanged.';
+  }
+  const templateIds = new Set(document.userTemplates.map((template) => template.id));
+  const referenced = [
+    ...document.cardSets.flatMap((set) => set.templateIds ?? []),
+    ...document.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
+  ];
+  if (referenced.some((id) => id && !templateIds.has(id))) {
+    return 'A Template required by this file is missing. Your current work remains unchanged.';
+  }
+  return null;
+};
 
 export const buildProjectImportSummary = ({
   importedTemplateCount,
@@ -146,7 +163,6 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
     canUseProjectFiles,
     fileInputRef,
     projectFileGateMessage,
-    storedCards,
     toast,
     userTemplates,
   } = input;
@@ -169,34 +185,44 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
     }
 
     try {
-      const document = await captureCurrentProjectDocument();
-      const activeSetName = document.cardSets.find((set) => set.id === document.activeCardSetId)?.name
-        ?? document.cardSets[0]?.name
-        ?? 'CardForge Project';
-      const projectName = normalizeProjectFileName(activeSetName);
+      const activeSetId = useProjectStore.getState().activeCardSet?.id;
+      if (!activeSetId) {
+        toast({ title: 'Set not downloaded', description: 'Choose a Set before downloading it. Your work is unchanged.' });
+        return;
+      }
+      const document = await captureCardSetProjectDocument(activeSetId);
+      const availableTemplateIds = new Set(document.userTemplates.map((template) => template.id));
+      const referencedTemplateIds = [
+        ...(document.cardSets[0].templateIds ?? []),
+        ...document.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
+      ];
+      if (referencedTemplateIds.some((id) => id && !availableTemplateIds.has(id))) {
+        throw new Error('A Template used or prepared by this Set is unavailable. Restore it before downloading; your work remains unchanged.');
+      }
+      const projectName = normalizeProjectFileName(document.cardSets[0].name);
       const snapshot = await buildBrowserCardForgeProjectSnapshot({ document, name: projectName });
-      trackExportStarted('project', storedCards.length);
+      trackExportStarted('project', document.storedCards.length);
       await saveCardForgeProjectPackageToDevice({
         fileName: `${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION}`,
         snapshot,
         // Download creates a portable copy, not a file-system write grant.
         pickerWindow: {},
       });
-      trackExportCompleted('project', storedCards.length);
+      trackExportCompleted('project', document.storedCards.length);
       toast({
-        title: 'Project exported',
-        description: `${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION} contains the project document and its embedded artwork as one portable CardForge package.`,
+        title: 'Set downloaded',
+        description: `${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION} contains the selected Set and its portable artwork.`,
       });
     } catch (error) {
       toast({
-        title: 'Project not exported',
+        title: 'Set not downloaded',
         description: error instanceof Error
-          ? `CardForge did not create an incomplete project file. ${error.message}`
-          : 'CardForge did not create an incomplete project file.',
+          ? `CardForge did not create an incomplete Set file. ${error.message}`
+          : 'CardForge did not create an incomplete Set file.',
         variant: 'destructive',
       });
     }
-  }, [canUseProjectFiles, showProjectFileGate, storedCards.length, toast]);
+  }, [canUseProjectFiles, showProjectFileGate, toast]);
 
   const handleChooseImportProject = useCallback(() => {
     if (!canUseProjectFiles) {
@@ -222,7 +248,10 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
           fileName: file.name,
           document: decoded.document,
           patch,
-          preview: buildProjectImportPreview({ fileName: file.name, patch, currentUserTemplates: userTemplates }),
+          preview: {
+            ...buildProjectImportPreview({ fileName: file.name, patch, currentUserTemplates: userTemplates }),
+            copyBlockReason: getProjectCopyBlockReason(decoded.document),
+          },
         });
       })
       .catch((error) => {
@@ -240,10 +269,14 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
   const applyPendingProjectImport = useCallback(async (mode: ProjectImportMode) => {
     if (!pendingProjectImport) return;
     try {
+      if (mode === 'copy') {
+        const reason = getProjectCopyBlockReason(pendingProjectImport.document);
+        if (reason) throw new Error(reason);
+      }
       const result = await applyProjectDocumentToWorkspace(pendingProjectImport.document, mode);
       setPendingProjectImport(null);
       toast({
-        title: mode === 'merge' ? 'Project merged' : 'Project imported',
+        title: mode === 'copy' ? 'Independent copy opened' : mode === 'merge' ? 'Project merged' : 'Project imported',
         description: buildProjectImportSummary(result),
         duration: 7000,
       });

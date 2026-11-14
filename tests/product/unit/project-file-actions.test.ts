@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildProjectImportPreview, buildProjectImportSummary } from '@/features/project/client/ui';
+import { getProjectCopyBlockReason } from '@/features/project/hooks/useProjectFileActions';
+import { createProjectScaleFixture } from '../../fixtures/projectScale';
 import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
 
 describe('project file actions', () => {
+  it('does not offer an independent copy when resource identity mapping is not yet safe', () => {
+    const project = createProjectScaleFixture(100);
+    expect(getProjectCopyBlockReason(project)).toBeNull();
+    project.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY] = [{ id: 'art', name: 'Art', url: 'data:image/png;base64,YQ==', kind: 'image', tileMode: 'contain', seamless: false, allowedTargets: [] }];
+    expect(getProjectCopyBlockReason(project)).toMatch(/artwork|resource/i);
+  });
   it('summarizes template-only imports without implying nothing happened', () => {
     expect(buildProjectImportSummary({
       importedTemplateCount: 1,
