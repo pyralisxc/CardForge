@@ -46,6 +46,12 @@ export const getRetainedGuestWorkSummary = async (): Promise<RetainedGuestWorkSu
 
 const buildDocument = (retained: RetainedGuestWorkspace) => {
   const state = retained.state;
+  // A V1 document has no way to express independent workspace plan groups.
+  // Never consume the guest bytes after silently omitting those associations.
+  if (state.documentPlanGroups !== undefined
+    && (!Array.isArray(state.documentPlanGroups) || state.documentPlanGroups.length > 0)) {
+    throw new Error('Signed-out work contains document plans that cannot yet be imported safely. The original work was left unchanged.');
+  }
   const activeCardSetId = state.activeCardSet && typeof state.activeCardSet === 'object' && 'id' in state.activeCardSet
     && typeof state.activeCardSet.id === 'string' ? state.activeCardSet.id : undefined;
   const candidate = {

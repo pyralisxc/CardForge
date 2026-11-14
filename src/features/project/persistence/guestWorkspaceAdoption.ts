@@ -101,7 +101,9 @@ export const readRetainedGuestWorkspaceForAccount = async (accountScope: string)
   const setCount = getArrayCount(state, 'cardSets');
   const cardCount = getArrayCount(state, 'storedCards');
   const templateCount = getArrayCount(state, 'userTemplates');
-  if (setCount === 0 && cardCount === 0 && templateCount === 0) return null;
+  const planGroups = state.documentPlanGroups;
+  const hasPlanData = planGroups !== undefined && (!Array.isArray(planGroups) || planGroups.length > 0);
+  if (setCount === 0 && cardCount === 0 && templateCount === 0 && !hasPlanData) return null;
   const guestAssets = createIndexedDbStorage(getNamespace('project-assets', GUEST_SCOPE));
   const catalogEntries = await Promise.all(PROJECT_ASSET_KEYS.map(async (key) => {
     const raw = await guestAssets.getItem(key);

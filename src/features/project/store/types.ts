@@ -1,3 +1,4 @@
+import type { ProjectProductionPlan } from '../model/projectProductionPlan';
 import type { CardFace, CardSet, CardSetMetadata, CardSetOrganization, StoredDisplayCard } from '@/domain/cards';
 import type { ExportMode, DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { AppearanceStylePreset, TCGCardTemplate, TemplateSource } from '@/domain/templates';
@@ -108,6 +109,7 @@ export interface OrganizationSlice {
 }
 
 export interface WorkspaceLifecycleSlice {
+  documentPlanGroups: { setIds: string[]; plan: ProjectProductionPlan }[];
   _rehydrateCallback: () => void;
 }
 

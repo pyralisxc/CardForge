@@ -10,6 +10,10 @@ export const mapProjectDocumentIdentity = (
   identities: ProjectDocumentIdentityMap,
   direction: 'open' | 'save',
 ): ProjectDocumentV1 => {
+  const ownedAssetIds = new Set(Object.values(document.customAssets).flatMap((assets) => assets.map((asset: { id: string }) => asset.id)));
+  if (document.productionPlan?.assets.some((asset) => asset.source !== 'cardforge-library' && asset.assetId && ownedAssetIds.has(asset.assetId))) {
+    throw new Error('An ambiguous production plan asset reference cannot be safely remapped. The source was left unchanged.');
+  }
   const reverse = new Map(Object.entries(identities).map(([kind, entries]) => [
     kind, new Map(Object.entries(entries).map(([source, runtime]) => [runtime, source])),
   ]));
@@ -69,7 +73,9 @@ export const mapProjectDocumentIdentity = (
     customAssets,
     ...(document.productionPlan ? { productionPlan: {
       ...document.productionPlan,
-      assets: document.productionPlan.assets.map((asset) => ({ ...asset, assetId: reference('asset', asset.assetId) ?? undefined })),
+      assets: document.productionPlan.assets.map((asset) => asset.source === 'cardforge-library'
+        ? asset
+        : { ...asset, assetId: reference('asset', asset.assetId) ?? undefined }),
     } } : {}),
   };
 };

@@ -66,3 +66,11 @@ describe('retained signed-out workspace handoff', () => {
     await expect(account.getItem('workspace')).resolves.toContain('Account Set');
   });
 });
+
+it('detects retained plan-only work even without Sets or cards', async () => {
+  const account = createIndexedDbStorage('project-workspace:account:plan-only');
+  const guest = createIndexedDbStorage('project-workspace:guest');
+  await account.setItem('workspace', workspace('Account'));
+  await guest.setItem('workspace', JSON.stringify({ state: { cardSets: [], storedCards: [], userTemplates: [], documentPlanGroups: [{ setIds: [], plan: { version: 999 } }] }, version: 4 }));
+  expect(await readRetainedGuestWorkspaceForAccount('account:plan-only')).not.toBeNull();
+});

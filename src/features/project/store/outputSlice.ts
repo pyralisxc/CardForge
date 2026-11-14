@@ -175,6 +175,10 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
     return changed ? withCardSetTemplateReferences(state, storedCards) : state;
   }),
   setStoredCardsFromFile: (loadedCards) => {
+    if (loadedCards.length === 0) {
+      set((state) => withCardSetTemplateReferences(state, []));
+      return { successCount: 0, skippedCount: 0 };
+    }
     const activeCardSet = ensureImportSet(get);
     const templates = selectAllTemplates(get());
     let successCount = 0;

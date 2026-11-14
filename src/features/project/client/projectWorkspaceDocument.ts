@@ -27,6 +27,8 @@ import { externalizeBrowserProjectAssetJson } from '../persistence/contentAddres
 import { selectAllTemplates } from '../store/selectors';
 import { createProjectWorkspaceDraft, useProjectStore, type ProjectState } from '../store/workspaceStore';
 
+import { createWorkspaceBackupDocument, parseWorkspaceBackupDocument, type ParsedWorkspaceBackupDocument } from '../model/workspaceBackupDocument';
+
 import { prepareCompletedDeletionCleanup, notifyCompletedDeletionCleanup } from './completedDeletionCleanup';
 
 export type ProjectWorkspaceApplyMode = 'replace' | 'merge' | 'copy' | 'adopt';
@@ -48,7 +50,8 @@ export const hasProjectDocumentStateChanged = (
   expected: ProjectState,
   current: ProjectState,
 ): boolean => (
-  expected.defaultTemplates !== current.defaultTemplates
+  expected.documentPlanGroups !== current.documentPlanGroups
+  || expected.defaultTemplates !== current.defaultTemplates
   || expected.userTemplates !== current.userTemplates
   || expected.cardSets !== current.cardSets
   || expected.activeCardSet !== current.activeCardSet
@@ -131,7 +134,7 @@ const restoreCopiedSetTemplateReferences = (
   };
 };
 
-export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1> => {
+const captureWorkspaceDocument = async (internal: boolean): Promise<ProjectDocumentV1> => {
   const scope = getProjectPersistenceScope();
   const state = useProjectStore.getState();
   const referencedTemplateIds = new Set([
@@ -141,6 +144,11 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
   const portableTemplates = selectAllTemplates(state).filter((template) => (
     template.templateSource === 'user' || Boolean(template.id && referencedTemplateIds.has(template.id))
   ));
+  const groups = state.documentPlanGroups;
+  if (!internal && (groups.length > 1 || (groups.length === 1 && (
+    groups[0].setIds.length !== state.cardSets.length
+    || groups[0].setIds.some((id) => !state.cardSets.some((set) => set.id === id))
+  )))) throw new Error('This workspace contains document plan groups that cannot be represented safely in one V1 document. The workspace was left unchanged.');
   const assetStorage = getProjectAssetStorage();
   const [customTextureAssets, customDividerAssets, customIconAssets, customImageAssets, customFonts] = await Promise.all([
     readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
@@ -154,6 +162,7 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
   }
 
   return createProjectDocumentFromState({
+    productionPlan: groups[0]?.plan,
     userTemplates: portableTemplates,
     cardSets: state.cardSets,
     activeCardSetId: state.activeCardSet?.id ?? null,
@@ -172,6 +181,29 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
     customImageAssets,
     customFonts,
   });
+};
+
+export const captureCurrentProjectDocument = () => captureWorkspaceDocument(false);
+
+export const captureCurrentWorkspaceBackup = async () => {
+  const scope = getProjectPersistenceScope();
+  const state = useProjectStore.getState();
+  const document = await captureWorkspaceDocument(true);
+  if (getProjectPersistenceScope() !== scope || hasProjectDocumentStateChanged(state, useProjectStore.getState())) {
+    throw new Error('The workspace or account changed while the editable snapshot was being prepared. Retry from the current workspace.');
+  }
+  const { productionPlan: _plan, ...project } = document;
+  return createWorkspaceBackupDocument(project, state.documentPlanGroups);
+};
+
+export const applyWorkspaceBackupToWorkspace = async (
+  backup: ParsedWorkspaceBackupDocument,
+  mode: 'replace',
+): Promise<ProjectWorkspaceApplySummary> => {
+  const parsed = parseWorkspaceBackupDocument({ version: 2, project: backup.document, documentPlanGroups: backup.documentPlanGroups });
+  const draft = createProjectWorkspaceDraft();
+  const cleanup = await prepareCompletedDeletionCleanup(parsed.document);
+  return applyPreparedProjectDocument(draft, cleanup, mode, { preservePlanGroups: parsed.documentPlanGroups });
 };
 
 const collectPortableStringReferences = (value: unknown, output = new Set<string>()): Set<string> => {
@@ -230,6 +262,7 @@ const keepReferencedPortableResources = (document: ProjectDocumentV1): ProjectDo
 
 export const captureCardSetProjectDocument = async (setId: string): Promise<ProjectDocumentV1> => {
   const document = await captureCurrentProjectDocument();
+  if (document.productionPlan && document.cardSets.length !== 1) throw new Error('A document plan cannot be safely exported with only part of its Sets.');
   const isolated = isolateProjectDocumentToSet(document, setId);
   const set = document.cardSets.find((candidate) => candidate.id === setId);
   const templateIds = new Set([
@@ -242,9 +275,11 @@ export const captureCardSetProjectDocument = async (setId: string): Promise<Proj
   });
 };
 
-export const captureCardProjectDocument = async (cardId: string): Promise<ProjectDocumentV1> => (
-  isolateProjectDocumentToCard(await captureCurrentProjectDocument(), cardId)
-);
+export const captureCardProjectDocument = async (cardId: string): Promise<ProjectDocumentV1> => {
+  const document = await captureCurrentProjectDocument();
+  if (document.productionPlan) throw new Error('A document plan cannot be safely exported with only one card.');
+  return isolateProjectDocumentToCard(document, cardId);
+};
 
 export const applyProjectDocumentToWorkspace = async (
   document: ProjectDocumentV1,
@@ -267,18 +302,26 @@ export const cleanCurrentWorkspaceCompletedDeletions = async (signal?: AbortSign
   // Snapshot CAS expectations before any asynchronous evidence lookup. Catalog
   // edits need not change Zustand and must not be overwritten by older content.
   const expectedCatalogValues = Object.fromEntries(await Promise.all(catalogKeys.map(async (key) => [key, await storage.getItem(key)] as const)));
-  const document = await captureCurrentProjectDocument();
+  const document = await captureWorkspaceDocument(true);
   const cleanup = await prepareCompletedDeletionCleanup(document, signal);
-  if (cleanup.changed) await applyPreparedProjectDocument(draft, cleanup, 'replace', { signal, expectedCatalogValues });
+  if (cleanup.changed) await applyPreparedProjectDocument(draft, cleanup, 'replace', { signal, expectedCatalogValues, preservePlanGroups: draft.getState().documentPlanGroups });
 };
 
 const applyPreparedProjectDocument = async (
   draft: ReturnType<typeof createProjectWorkspaceDraft>,
   cleanup: Awaited<ReturnType<typeof prepareCompletedDeletionCleanup>>,
   mode: ProjectWorkspaceApplyMode,
-  options: { replaceSetIds?: readonly string[]; signal?: AbortSignal; expectedCatalogValues?: Record<string, string | null> },
+  options: { replaceSetIds?: readonly string[]; signal?: AbortSignal; expectedCatalogValues?: Record<string, string | null>; preservePlanGroups?: ProjectState['documentPlanGroups'] },
 ): Promise<ProjectWorkspaceApplySummary> => {
   const document = cleanup.document;
+  const initial = draft.getState();
+  const adoptIntoEmptyWorkspace = mode === 'adopt' && document.productionPlan
+    && initial.documentPlanGroups.length === 0 && initial.cardSets.length === 0
+    && initial.storedCards.length === 0 && initial.userTemplates.length === 0
+    && initial.appearanceStyles.length === 0;
+  if (mode !== 'replace' && !adoptIntoEmptyWorkspace && (document.productionPlan || initial.documentPlanGroups.length)) {
+    throw new Error('Merging document plans is not supported safely; the workspace and source were left unchanged.');
+  }
   const independent = mode === 'copy'
     ? restoreCopiedSetTemplateReferences(
         document,
@@ -360,6 +403,11 @@ const applyPreparedProjectDocument = async (
   const cardResult = writeMode === 'merge'
     ? draft.getState().mergeStoredCardsFromFile(patch.storedCards)
     : draft.getState().setStoredCardsFromFile(patch.storedCards);
+  if (writeMode === 'replace' || adoptIntoEmptyWorkspace) {
+    draft.setState({ documentPlanGroups: options.preservePlanGroups ?? (sourceDocument.productionPlan
+      ? [{ setIds: draft.getState().cardSets.map((set) => set.id), plan: sourceDocument.productionPlan }]
+      : []) });
+  }
   const activeSet = draft.getState().activeCardSet;
   const activeTemplateId = patch.storedCards.find((card) => !activeSet || card.setId === activeSet.id)?.templateId
     ?? patch.cardSets.find((set) => set.id === activeSet?.id)?.templateIds?.[0]

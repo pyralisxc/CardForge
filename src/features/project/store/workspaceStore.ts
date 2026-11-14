@@ -47,6 +47,7 @@ export const persistProjectWorkspaceNow = async (): Promise<void> => {
 
 type WorkspacePersistedState = Pick<
   ProjectState,
+  | 'documentPlanGroups'
   | 'userTemplates'
   | 'appearanceStyles'
   | 'storedCards'
@@ -98,6 +99,7 @@ const getCompatibleGeneratorBackingId = (
 };
 
 const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycleSlice> = (set, get) => ({
+  documentPlanGroups: [],
   _rehydrateCallback: () => {
     const state = get();
     const cardSets = reconcileCardSets({
@@ -195,6 +197,7 @@ export const useProjectStore = create<ProjectState>()(
         name: 'workspace',
         storage: createWorkspaceJsonStorage(),
         partialize: (state): WorkspacePersistedState => ({
+          documentPlanGroups: state.documentPlanGroups,
           userTemplates: state.userTemplates,
           appearanceStyles: dedupeAppearanceStyles(state.appearanceStyles),
           storedCards: state.storedCards,

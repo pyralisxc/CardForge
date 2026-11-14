@@ -290,6 +290,9 @@ export const createProjectDocumentFromState = ({
   });
   const normalizedFonts = normalizeProjectFontAssets(customFonts);
   const normalizedProductionPlan = normalizeProjectProductionPlan(productionPlan);
+  if (productionPlan !== undefined && !planInputSurvives(productionPlan, normalizedProductionPlan)) {
+    throw new Error('The production plan contains unsupported or invalid data and cannot be captured safely.');
+  }
   return {
     version: PROJECT_DOCUMENT_VERSION,
     userTemplates,
@@ -337,6 +340,7 @@ export const isolateProjectDocumentToSet = (
   document: ProjectDocumentV1,
   setId: string,
 ): ProjectDocumentV1 => {
+  if (document.productionPlan && document.cardSets.length !== 1) throw new Error('A document plan cannot be safely exported with only part of its Sets.');
   const set = document.cardSets.find((candidate) => candidate.id === setId);
   if (!set) throw new Error('The selected Set is no longer available in this browser workspace.');
   const firstSetId = document.cardSets[0]?.id;
@@ -358,6 +362,7 @@ export const isolateProjectDocumentToSet = (
 
 /** A portable card keeps its front/back definitions without exporting sibling cards. */
 export const isolateProjectDocumentToCard = (document: ProjectDocumentV1, cardId: string): ProjectDocumentV1 => {
+  if (document.productionPlan) throw new Error('A document plan cannot be safely exported with only one card.');
   const card = document.storedCards.find((candidate) => candidate.uniqueId === cardId);
   if (!card) throw new Error('The selected card is no longer available in this browser workspace.');
   const setId = card.setId ?? document.cardSets[0]?.id;
@@ -478,8 +483,22 @@ export const instantiateProjectDocumentCopy = (
   };
 };
 
+// Normalization may add defaults, but must not silently remove or change any
+// authored plan data, including unknown fields nested inside an asset.
+const planInputSurvives = (input: unknown, normalized: unknown): boolean => {
+  if (input === undefined) return true;
+  if (Array.isArray(input)) return Array.isArray(normalized) && input.length === normalized.length
+    && input.every((entry, index) => planInputSurvives(entry, normalized[index]));
+  if (isRecord(input)) return isRecord(normalized) && Object.entries(input)
+    .every(([key, value]) => planInputSurvives(value, normalized[key]));
+  return Object.is(input, normalized);
+};
+
 export const parseProjectDocumentValue = (parsed: unknown): ParseProjectDocumentResult => {
   if (isRecord(parsed) && parsed.version === PROJECT_DOCUMENT_VERSION) {
+    if (parsed.productionPlan !== undefined && !planInputSurvives(parsed.productionPlan, normalizeProjectProductionPlan(parsed.productionPlan))) {
+      return { success: false, error: 'The production plan contains unsupported or invalid data and cannot be opened safely.' };
+    }
     const invalidTemplateReason = getInvalidTemplateReason(parsed.userTemplates);
     if (invalidTemplateReason) {
       return {

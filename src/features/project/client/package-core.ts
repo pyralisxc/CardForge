@@ -40,4 +40,5 @@ export {
 } from '../lib/projectPackageCodec';
 export { referenceCardForgeProjectSnapshotAssets } from '../lib/projectPackageAssetReferences';
 export type { DecodedProjectFile } from '../lib/projectPackageCodec';
+export { encodeWorkspaceBackupPackage, decodeWorkspaceBackupPackage } from '../lib/workspaceBackupPackageCodec';
 export { decodeBrowserProjectFile, materializeBrowserProjectSnapshot } from '../client/browserProjectPackage';
