@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, forwardRef, useImperativeHandle, memo, startTransition, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, forwardRef, useImperativeHandle, memo, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { AnimatePresence, motion, useAnimationControls, useIsPresent, usePresenceData, useReducedMotion } from 'motion/react';
 import { RefreshCcw } from 'lucide-react';
@@ -278,7 +278,7 @@ export const ArtifactScene = forwardRef<ArtifactSceneHandle, { children: ReactNo
   }, []);
   const captureStackOrigins = useCallback((setId: string, openSet: () => void) => {
     // Read origins before focus can hide/reflow the tile. Scene takeover and
-    // Set entry share one transition so large Sets can yield before committing.
+    // Set entry share React's event batch; no subsequent DOM read needs a flush.
     const captured = new Map<string, Projection>();
     for (const slot of slots.current.values()) {
       if (slot.depth !== 'stack' || slot.setId !== setId || !slot.node.isConnected) continue;
@@ -294,15 +294,13 @@ export const ArtifactScene = forwardRef<ArtifactSceneHandle, { children: ReactNo
       inlineOrigins.current.set(slot.card.uniqueId, origin);
       captured.set(slot.card.uniqueId, origin);
     }
-    if (!captured.size) { startTransition(openSet); return; }
+    if (!captured.size) { openSet(); return; }
     departingSetRef.current = setId;
     departingDepthRef.current = 'stack';
-    startTransition(() => {
-      setDepartingDepth('stack');
-      setDepartingSetId(setId);
-      setProjections((current) => current.map((item) => captured.get(item.card.uniqueId) ?? item));
-      openSet();
-    });
+    setDepartingDepth('stack');
+    setDepartingSetId(setId);
+    setProjections((current) => current.map((item) => captured.get(item.card.uniqueId) ?? item));
+    openSet();
   }, []);
   const captureBoardReturn = useCallback((commit: () => void) => {
     const setId = activeSetRef.current;
