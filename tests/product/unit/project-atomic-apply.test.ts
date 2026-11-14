@@ -120,11 +120,15 @@ describe('atomic project apply', () => {
   it('opens a backup as an independent editable copy without replacing existing Sets', async () => {
     await applyProjectDocumentToWorkspace(fixture(), 'replace');
     const original = useProjectStore.getState().cardSets[0]!.id;
-    const summary = await applyProjectDocumentToWorkspace(fixture(), 'copy');
+    useProjectStore.getState().setExportDpi(150);
+    const incoming = fixture();
+    incoming.exportSettings.exportDpi = 600;
+    const summary = await applyProjectDocumentToWorkspace(incoming, 'copy');
     expect(summary.activeSetId).not.toBe(original);
     expect(useProjectStore.getState().cardSets).toHaveLength(2);
     expect(useProjectStore.getState().storedCards).toHaveLength(200);
     expect(new Set(useProjectStore.getState().storedCards.map((card) => card.uniqueId)).size).toBe(200);
+    expect(useProjectStore.getState().exportDpi).toBe(150);
   });
 
   it('adopts an agent revision in place, removes deleted cards, and preserves output preferences', async () => {

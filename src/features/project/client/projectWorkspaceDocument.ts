@@ -110,26 +110,6 @@ export const rekeyConflictingTemplateSnapshots = (
   };
 };
 
-const restoreCopiedSetTemplateReferences = (
-  source: ProjectDocumentV1,
-  copied: ProjectDocumentV1,
-): ProjectDocumentV1 => {
-  const templateIds = new Map(source.userTemplates.flatMap((template, index) => {
-    const copiedId = copied.userTemplates[index]?.id;
-    return template.id && copiedId ? [[template.id, copiedId] as const] : [];
-  }));
-  return {
-    ...copied,
-    cardSets: copied.cardSets.map((set, index) => {
-      const sourceSet = source.cardSets[index];
-      if (!sourceSet?.templateIds?.length) return set;
-      return {
-        ...set,
-        templateIds: sourceSet.templateIds.map((id) => templateIds.get(id) ?? id),
-      };
-    }),
-  };
-};
 
 export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1> => {
   const scope = getProjectPersistenceScope();
@@ -280,10 +260,7 @@ const applyPreparedProjectDocument = async (
 ): Promise<ProjectWorkspaceApplySummary> => {
   const document = cleanup.document;
   const independent = mode === 'copy'
-    ? restoreCopiedSetTemplateReferences(
-        document,
-        instantiateProjectDocumentCopy(document, (kind) => `${kind}-${globalThis.crypto.randomUUID()}`),
-      )
+    ? instantiateProjectDocumentCopy(document, (kind) => `${kind}-${globalThis.crypto.randomUUID()}`)
     : document;
   const sourceDocument = mode === 'merge'
     ? rekeyConflictingTemplateSnapshots(independent, selectAllTemplates(draft.getState()))
@@ -343,9 +320,8 @@ const applyPreparedProjectDocument = async (
   }
 
   const afterSets = draft.getState();
-  // Agent revision adoption updates authored work/resources but does not replace
-  // the creator's workspace-level output preferences.
-  if (mode !== 'adopt') {
+  // A copy or agent revision must not replace workspace-level output preferences.
+  if (mode !== 'adopt' && mode !== 'copy') {
     if (patch.selectedPaperSize) afterSets.setSelectedPaperSize(patch.selectedPaperSize);
     afterSets.setPdfOptions({
       margin: patch.pdfMarginMm,

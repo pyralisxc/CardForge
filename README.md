@@ -1,10 +1,10 @@
 # CardForge
 
-CardForge is a live local-first creative environment for building reusable front/back layouts, generating and revising complete card Sets, arranging them on a spatial Desk, and exporting PNG, ZIP, PDF, or Tabletop Simulator output. The browser workspace is the normal working copy; durable user-owned copies can live in downloaded project files, authorized local folders, or connected Google Drive, while shared product state and reviewed Library content live in Supabase.
+CardForge is a local-first creative environment for building reusable front/back layouts, generating and revising card Sets, arranging them on a spatial Desk, and producing output. The browser workspace is the normal working copy; creator copies can live in downloaded project files, authorized local folders, or connected Google Drive, while shared product state and reviewed Library content use Supabase. These descriptions are repository context, not proof that a specific deployed environment or provider path is currently working; see the [revision guide](docs/revision-guide.md) for source, scope and verification limits.
 
 CardForge Studio is created and operated by Cameron Locke, an independent sole proprietor based in Oregon.
 
-## Live product
+## Product map for this revision
 
 - Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/contributors`, `/contact`, and legal pages.
 - Desk: `/account`; one persistent artifact layer carries the same rendered cards from three-to-five-card Set stacks into the expanded Set and focused editing. Desk, focused Set, and focused Artifact share the available center workspace while contextual tools preserve the underlying authored objects. Design promotes the focused object into the precision canvas inside the environment; Generate, Output, and Pipeline dock beside or below the visible scene. `/studio` is a compatibility translator into contextual Desk Design, including exact temporary Studio-document handoffs.
@@ -13,19 +13,22 @@ CardForge Studio is created and operated by Cameron Locke, an independent sole p
 - Owner operations compose inside Profile; `/owner` is protected compatibility ingress for older callbacks and deep links.
 - Agent/MCP entry: `/mcp` with OAuth discovery under `/.well-known/`.
 
-Production runs at [cardforges.com](https://cardforges.com).
+The production domain is [cardforges.com](https://cardforges.com); its current deployed revision and provider health require separate verification.
 
 ## Repository authority
 
-A fresh maintainer or agent should be able to work from the repository without prior chat history or Cameron's account-level skills. Treat `main` plus live provider state as authoritative. Start with:
+A fresh maintainer or agent should be able to understand this revision without prior chat history or Cameron's account-level skills. Read source and docs at the exact revision being examined; `main` is the production branch, while `vercel-preview` is the accumulating development branch. Live provider state and deployment behavior require separate evidence. Start with:
 
 1. `AGENTS.md` for working rules and repo-local workflow authority.
-2. `docs/agent-map.md` to identify the affected owner, tests, and exact documentation sections.
-3. Only the routed source and documentation needed for the objective.
+2. [Revision guide](docs/revision-guide.md) for journeys, surface navigation, evidence limits, and how documentation travels to Main.
+3. `docs/agent-map.md` to identify the affected owner, tests, and exact documentation sections.
+4. Only the routed source and documentation needed for the objective.
 
 For branch roles, CI cadence, accumulated Preview integration, exact-SHA production promotion, provider-migration boundaries, and the final human merge gate, read `ORCHESTRATION.md`.
 
-PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; Development Intelligence owns rebuildable repository topology/semantic analysis plus durable accepted semantic authority in its canonical persistence; CardForge does not store a parallel machine semantic checkpoint; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
+The [CardForge Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) owns greater cross-branch future direction and founder decisions; its [version roadmap](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/1966082) describes milestone goals and target months, not evidence that they are implemented or released. `docs/product-direction.md` retains the branch-local product and interaction context; `docs/architecture.md` describes this revision's implementation ownership and invariants, subject to source and execution verification. Where future direction differs from this branch, identify the difference rather than rewriting a planned capability as shipped. If the blueprint is unavailable, use this repository's self-contained context and explicitly flag that newer decisions were not checked.
+
+PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. Development Intelligence owns rebuildable repository topology/semantic analysis plus durable accepted semantic authority in its canonical persistence; CardForge does not store a parallel machine semantic checkpoint. The live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
 
 Cameron may use global Founder-to-Feature or Lean Repository Execution skills in ChatGPT/Codex, but CardForge does not depend on them. The repo-local copies specialize those methods for CardForge and win on CardForge-specific ownership, provider, verification, and documentation rules.
 
@@ -143,19 +146,24 @@ Extended contributor lanes and native Meta publishing remain separate release ga
 
 ## Documentation
 
+Follow one chain: **Confluence intent → this revision's product/source context → tests and exact-deployment/provider evidence**. Update the existing owner when its facts change; link across that chain rather than maintaining matching plans or status lists in each place. A milestone target, indexed wiki page, or branch name is not a release receipt.
+
 ### Canonical living truth
 
+- [Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) and [version roadmap](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/1966082): cross-branch product direction, founder decisions, unresolved questions, and milestone targets; not implementation or deployment status.
 - `docs/architecture.md`: current shipped ownership, invariants, and source-of-truth behavior.
 - **Development Intelligence (external):** rebuildable repository topology plus durable accepted semantic/review authority. Its graph evidence is derived from current source and remains distinct from CardForge product intent.
-- `docs/product-direction.md`: intended product meaning, boundaries, and delivery sequence.
+- `docs/product-direction.md`: branch-local product and interaction context and boundaries; not a second future roadmap.
 - `docs/integrations.md`: provider-native ownership and human journey traces.
 - `docs/operations.md`: current release, provider, roadmap, and recovery procedures.
 - `docs/risk-register.md`: unresolved or explicitly accepted risks only.
 
 ### Routing and supporting references
 
+- [Revision guide](docs/revision-guide.md): human journey/source entry points and explicit limits of the inspected evidence. Read it at the Git revision under review, not automatically on Main.
 - `docs/agent-map.md`: objective-to-owner/test/documentation router; it does not redefine behavior.
 - `docs/testing.md`: durable testing philosophy and verification-lane ownership.
 - `docs/google-drive-project-storage-setup.md`: environment-specific Google Drive/Picker setup runbook subordinate to `integrations.md`, `operations.md`, and current provider state.
+- **Generated CardForge wiki (DeepWiki):** optional derived navigation. Establish its indexed revision before using it for a current claim; when that revision is unknown or differs from Preview, verify against exact source. Index freshness is not deployment evidence.
 
 Keep these documents current and focused. Completed audits, rollout instructions, migration cutovers, and feature-specific reasoning belong in Git/provider history, not in live docs.

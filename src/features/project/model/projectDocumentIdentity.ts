@@ -69,7 +69,10 @@ export const mapProjectDocumentIdentity = (
     customAssets,
     ...(document.productionPlan ? { productionPlan: {
       ...document.productionPlan,
-      assets: document.productionPlan.assets.map((asset) => ({ ...asset, assetId: reference('asset', asset.assetId) ?? undefined })),
+      assets: document.productionPlan.assets.map((asset) => ({
+        ...asset,
+        assetId: asset.source === 'cardforge-library' ? asset.assetId : reference('asset', asset.assetId) ?? undefined,
+      })),
     } } : {}),
   };
 };

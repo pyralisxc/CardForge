@@ -2,7 +2,7 @@
 
 Last updated: October 10, 2026
 
-This is the current runbook for `https://cardforges.com`. It contains only procedures that remain operationally useful. Completed rollout/cutover instructions belong in Git/provider history.
+This is the repository runbook for `https://cardforges.com`. It records operational procedures and expected topology, not proof of current provider configuration or deployment. Before consequential actions, verify the exact environment, revision, permissions and provider state. Completed rollout/cutover instructions belong in Git/provider history.
 
 ## Production topology
 
@@ -33,6 +33,8 @@ Use `.env.example` as the complete catalog.
 
 GitHub is the source/CI workspace. Agents run focused/affected checks locally; the required GitHub `verify` job is authoritative for the full deterministic repository gate. Vercel Preview is hosted integration proof, not a compile loop. Batch related work into coherent commits and avoid no-op/test-only pushes merely to retrigger provider status.
 
+Repository documents travel with source in the normal Preview-to-Main merge; they are not automatically rewritten or re-verified when the branch changes. Before requesting approval of the exact Preview candidate, review the relevant journey and architecture claims, configuration-dependent wording, source links, known limitations and future-direction differences. If documentation or any other change alters the approved candidate, request approval of the new SHA. Verify the resulting Main revision separately if conflict resolution or merge changes alter the tree; a merge does not prove deployment or provider state. See the [revision guide](revision-guide.md#how-documentation-travels-to-main) for the full documentation handoff.
+
 ### Preview lane
 
 `main` is the only production branch. Ordinary work uses one feature/objective branch and a PR into the accumulated `vercel-preview` integration branch; ordinary feature branches do not deploy automatically. Integrate an exact-head, CI-verified feature PR into `vercel-preview` through GitHub, preserving merge history. An eligible Preview branch update triggers the native Vercel deployment and the staging Supabase migration integration. Do not reset `vercel-preview` as a disposable deployment pointer. The stable review hostname is registered in Vercel Project Settings → Domains with an explicit Preview binding to Git branch `vercel-preview`, no redirect, and no custom environment. Vercel owns automatic assignment of that domain to successful branch deployments:
@@ -51,7 +53,7 @@ Preview provider ownership:
 - Supabase project: `Card Forge Staging`, project ref `mjdugheniazuiqoefnnb`; the official GitHub integration applies migrations from `vercel-preview`.
 - Clerk: development instance; use the existing real owner/developer account for authenticated acceptance.
 - Stripe: sandbox account, Creator Price `price_1U7nTi9l4G37K6th7Amjpayw`, Designer Price `price_1U7oS19l4G37K6thK4ncrkkA`, and webhook `we_1U7nfP9l4G37K6thc6b6VJYR`.
-- Google Drive: `CardForge Connected Storage Preview` OAuth Web client, a branch-only token-encryption key, and the shared Picker key restricted to Google Picker API plus the stable Preview/production origins.
+- Google Drive: the recorded configuration uses `CardForge Connected Storage Preview` OAuth Web client and a branch-only token-encryption key. Picker-key topology is unresolved: this runbook previously described a shared key for Preview/production while [integrations](integrations.md#preview-environment-boundary) described separate keys. Verify actual key identity, API/origin restrictions and provider configuration before relying on either description or changing access.
 - GitHub: public `pyralisxc/CardForge`; the active `Updates` ruleset protects `main` with PRs, resolved threads, strict `verify`, deletion protection, and force-push protection.
 
 ### Staging SQL and infrastructure development
@@ -114,7 +116,7 @@ Accumulated Preview and release sequence:
 4. Verify any new staging migrations and affected provider behavior. For a meaningful hosted change, require Vercel Preview READY and the automated `preview-smoke` result for the integrated SHA; exercise only changed signed-in journeys automation cannot prove.
 5. Continue accumulating coherent feature PRs until the next product checkpoint is saturated. Do not merge individual feature PRs directly into production or declare a Preview build a production release.
 6. Freeze an exact Preview SHA and prepare one Preview-to-`main` release PR. Reconcile the complete delta, any current-`main` divergence, ordered production migrations, and required CI/provider gates against that exact candidate.
-7. Send Cameron the stable Preview link, candidate SHA, substantive review scope, and remaining risks. Wait for explicit approval of that candidate; approval is invalidated if Preview changes materially before the release.
+7. Send Cameron the stable Preview link, candidate SHA, substantive review scope, and remaining risks. Wait for explicit approval of that exact candidate; any change to the candidate SHA, including documentation-only changes, requires approval of the new SHA before release.
 8. Apply production migrations before the release merge only when the exact change is additive and current production runtime remains compatible; otherwise sequence the migration and code rollout separately under their owner/provider gate.
 9. Merge the approved release PR through GitHub without bypassing `main` safety. Require Vercel Production READY and immediate `production-smoke` for the resulting merge commit; the six-hour `Production health` schedule continues.
 10. Apply destructive schema contraction only after compatible production runtime is READY and provider postflight confirms retired records/objects are empty. Split runtime retirement from contraction if the order cannot be guaranteed.
@@ -192,6 +194,8 @@ Deleted provider identities are history, not active users. Retired aliases remai
 
 The live `/roadmap` and Supabase `cardforge_roadmap_items` / `cardforge_roadmap_votes` are authoritative.
 
+- The [Confluence version roadmap](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/1966082) owns the greater milestone direction and target months; live roadmap items communicate public status. Target months are plans, not evidence of implementation, a provider commitment, or a production release. Check the live item, exact revision and deployed behavior separately.
+- A version milestone describes a coherent group of work. Do not mark the entire version shipped merely because one feature PR merged; update its status when the milestone's actual release is verified. Patch releases may be planned alongside work on the next milestone, but the isolation and Preview review path for a patch while Preview is ahead still require verification; do not infer approval for a direct-to-Main shortcut.
 - Mark a legitimate official capability `shipped` as soon as production has the described behavior. Shipped items remain visible as completed history and keep their votes.
 - Use `in_progress` or `testing` only for active unfinished work.
 - Do not leave completed features in future months merely because their original target date was later.
@@ -268,6 +272,8 @@ Production cleanup is owned by Supabase Cron and the `purge-assistant-drafts` Ed
 
 Pipeline revision cleanup uses the separate `purge-pipeline-revisions` function and `pipeline_revision_retention_cron_secret`. Its migration deliberately creates the authorization secret but does not schedule the worker. Before enabling a schedule, deploy it to Staging, create one disposable never-published fixture with an isolated Storage path, let it become purge-eligible, invoke the function with the Vault secret, and prove that the object is removed before the row. Also prove a current registry pointer, a previously published revision, a retention-held revision, and a referenced revision cannot be claimed. Only after that controlled proof may Staging receive a schedule; repeat the exact-head migration and smoke evidence before separately scheduling Production.
 
+**Purge uncertainty is not retry permission.** The [revision purge processor](../supabase/functions/purge-pipeline-revisions/processor.ts) retains its committed claim after Storage errors, unconfirmed finalization or other failure: Storage may already have acted. Do not release/reissue the claim, treat lease expiry as revoking an old worker's authority, or report the revision purged without confirmed finalization. Inspect the exact claim and Storage/database outcomes for reconciliation; do not substitute an automatic retry/reset procedure. Device-copy removal, provider Trash/Restore, reversible revision recovery and whole-lineage Owner purge retain their separate native owners.
+
 For a development-beta release:
 
 1. Complete the normal exact-head Preview and migration sequence, including the private Studio artwork bucket.
@@ -331,4 +337,4 @@ The returned receipt contains revision, contract version, completeness and reaso
 codes, never another author's payload or identity. This source-owner repair does
 not certify Set packages or bypass catalog admission.
 
-Website version release: keep the Preview working batch (initially 0.0.1) explicitly unreleased while the accumulated release is reviewed. Freeze the exact version, notes and candidate SHA in the release packet. After explicit Main approval and verified deployment, the Owner reads the Production editor and saves that exact approved packet with its current record revision, then records the release against the current deployed SHA. Publication derives the real release timestamp and freezes factual fields; later notes corrections remain attributable without changing those facts. This data command does not promote code or authorize Main. Only after the exact Production release is available may the Preview Owner advance to the next working version (initially 0.0.2): the command verifies canonical Production readback and fails closed if Preview notes/candidate changed. Read/reconcile committed or uncertain attempts; never replay a committed write because refresh/activity readback warned. Website Edition rollback changes presentation and cannot erase release records.
+Website version release: keep the Preview working batch explicitly unreleased while the accumulated release is reviewed; read the actual working and next versions rather than reusing historical initial version numbers. Freeze the exact version, notes and candidate SHA in the release packet. After explicit Main approval and verified deployment, the Owner reads the Production editor and saves that exact approved packet with its current record revision, then records the release against the current deployed SHA. Publication derives the real release timestamp and freezes factual fields; later notes corrections remain attributable without changing those facts. This data command does not promote code or authorize Main. Only after the exact Production release is available may the Preview Owner advance to the next working version: the command verifies canonical Production readback and fails closed if Preview notes/candidate changed. Read/reconcile committed or uncertain attempts; never replay a committed write because refresh/activity readback warned. Website Edition rollback changes presentation and cannot erase release records.

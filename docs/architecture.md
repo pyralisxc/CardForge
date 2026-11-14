@@ -2,7 +2,7 @@
 
 Last updated: September 26, 2026
 
-CardForge is a live local-first card production studio at `https://cardforges.com`. This document describes current product ownership and runtime invariants only. Historical rollout steps belong in Git/provider history; provider-specific ownership details belong in `docs/integrations.md`.
+CardForge is a local-first card production studio whose production domain is `https://cardforges.com`. This document describes the implementation ownership and invariants documented for this repository revision; validate consequential claims against source and execution. It does not establish the production deployment or current provider state. Historical rollout steps belong in Git/provider history; provider-specific ownership details belong in `docs/integrations.md`. For journey navigation and explicit coverage limits see the [revision guide](revision-guide.md).
 
 ## Product truth
 
@@ -25,6 +25,8 @@ Library composes selected Pipeline governance through its existing action system
 Library Template previews resolve exact catalog IDs and use hydrated registry content only when the selected submission matches the explicit publication link and lineage. Historical/candidate revisions retain their own immutable source; names never substitute for Template identity, and missing sources are visibly unavailable. Personal copies keep their independent local preview. Displayed-revision contributor labels are separate from lineage participation; participation filters and exact eligible edit/retire targets retain their existing authority.
 
 CardForge has four deliberate storage lanes.
+
+**Scope and ownership caution:** a Set-oriented filename does not prove that every export path captures only one Set, and duplicated Sets in this revision retain reusable Template references. See the [duplicate/save/export journey](revision-guide.md#journey-duplicate-save-export-and-reopen-work) for the source paths and unverified round-trip boundaries; the blueprint's desired independently owned Set model is a separate future direction.
 
 ### Browser workspace
 
@@ -221,11 +223,15 @@ Published MCP tools pair concise model-visible results with strict output schema
 
 Private Studio documents remain the temporary revisioned collaboration surface for ChatGPT. Their owner-controlled inactivity windows default to 12 hours for Free, 24 for Creator, and 48 for Designer/owner/contributor accounts. Only a real document open or update refreshes activity; account listing does not. Expired and manually deleted drafts enter 24-hour recoverable trash before an idempotent Supabase retention worker removes their complete private Storage prefix and database row. Raster artwork is normalized to WebP and content-addressed in a private Studio-document bucket rather than repeated as base64 inside JSON; short-lived signed URLs rehydrate the normal browser Studio handoff. Revision updates never eagerly delete unreferenced objects because a stale revision must not race a newer upload; the short draft lifecycle owns whole-prefix cleanup instead. Storage observation counts both the compact JSON and the real private object bytes. Durable agent commits use provider-authorized project files with exact provider and CardForge revisions; temporary documents never become silent permanent backups.
 
+The [MCP usage observer](../src/features/mcp-usage/server/mcpUsageStore.ts) measures serialized request/response byte counts, duration, success and action units; it does not persist raw input payloads through that observer. [Workflow telemetry](../src/features/mcp-usage/server/mcpWorkflowTelemetry.ts) records bounded counters and a hashed document key. This describes those owners, not a blanket guarantee about every application/provider log.
+
 ## Roadmap and voting
 
 Supabase `cardforge_roadmap_items` and `cardforge_roadmap_votes` are the live roadmap source of truth. Official capabilities move through `planned`, `in_progress`, `testing`, and `shipped`; shipped records remain as completed history so votes/provenance are not lost. User suggestions may be archived for configured negative signal. Mistaken/duplicate rows may be deleted deliberately; completed legitimate work must not remain presented as future work.
 
 ## Owner operations
+
+Website Editions use the [edition store](../src/features/public-site/server/websiteEditionStore.ts) for immutable saved revisions and a separately guarded live activation. The [presentation resolver](../src/features/public-site/server/websitePresentationResolver.ts) authorizes private revision preview server-side on each request; crawler/public-only resolution ignores the Owner preview cookie. Its shared presentation readers use React request memoization, not a universal cross-request tag cache. Once a live revision is selected, an unreadable revision fails closed rather than silently falling back to mutable/default content; pre-activation legacy fallback is a different path. See the [site-editing journey](revision-guide.md#journey-boundaries-pipeline-review-and-site-operations) for staging versus direct-save controls.
 
 Full Site settings MCP edits read the existing configuration, merge only requested presentation changes, and call the browser's revision-guarded command. Identity, Founder and Experience publications share commands and committed receipts across HTTP and MCP. Identity compares its native identity version; Founder compares its profile timestamp, with insert-only first publication when missing; Experience compares the existing Owner settings-row timestamp shared with Site settings. Read failures do not become editable defaults. Combined UI readback can be unavailable after a successful publication without changing the committed result or making it retryable.
 
