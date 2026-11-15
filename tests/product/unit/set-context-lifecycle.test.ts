@@ -4,7 +4,7 @@ import type { SetPlan } from '@/domain/cards';
 import { normalizeProjectProductionPlan } from '@/domain/cards';
 import { applyCardSetPlan, applyProjectDocumentToWorkspace, captureCardSetProjectDocument, captureCurrentProjectDocument } from '@/features/project/client/projectWorkspaceDocument';
 import { buildCardForgeProjectSnapshot, encodeCardForgeProjectPackage, decodeCardForgeProjectPackage, hydrateCardForgeProjectSnapshot } from '@/features/project/lib/projectPackageCodec';
-import { createProjectDocumentFromState } from '@/features/project/model/projectDocument';
+import { createProjectDocumentFromState, type ProjectDocumentV1 } from '@/features/project/model/projectDocument';
 import { hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProjectStore } from '@/features/project/store/workspaceStore';
 import { createBrowserKeyValueStorage } from '@/features/project/persistence/indexedDbStorage';
 import { getBrowserProjectAssetIds } from '@/features/project/persistence/contentAddressedBrowserAssets';
@@ -119,6 +119,34 @@ describe('Set context native lifecycle', () => {
     const saved = mapProjectDocumentIdentity(captured, identities, 'save');
     expect(saved.customAssets[imageKey][0].id).toBe(asset.id);
     expect(saved.cardSets[0].plan).toEqual(document.cardSets[0].plan);
+  });
+
+  it('accepts unchanged context after a provider JSON round trip reorders nested object keys', async () => {
+    const plan = { ...original, brief, notes: { first: 1, second: { a: 'A', b: 'B' } } };
+    await apply(plan);
+    const document = JSON.parse(JSON.stringify(await captureCardSetProjectDocument('context-a')));
+    const reverseKeys = (value: unknown): unknown => Array.isArray(value) ? value.map(reverseKeys)
+      : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).reverse().map(([key, entry]) => [key, reverseKeys(entry)])) : value;
+    const incoming = reverseKeys(document) as ProjectDocumentV1;
+    incoming.cardSets[0].name = 'Agent revision';
+    await applyProjectDocumentToWorkspace(incoming, 'adopt');
+    expect(owner().name).toBe('Agent revision');
+    expect(owner().plan).toEqual(plan);
+  });
+
+  it('accepts a semantically identical expected plan with reordered keys during native context CAS', async () => {
+    const { context, version, ...rest } = original;
+    await applyCardSetPlan({ setId: 'context-a', expectedScope: scope, expectedPlan: { context, ...rest, version }, plan: { ...original, context: 'Creator changed notes' } });
+    expect(owner().plan?.context).toBe('Creator changed notes');
+  });
+
+  it.each([{ value: 2, sequence: ['a', 'b'] }, { sequence: ['a', 'b'] }, { value: 1, sequence: ['b', 'a'] }])('still refuses changed or missing opaque context metadata: %j', async (notes) => {
+    const plan = { ...original, notes: { value: 1, sequence: ['a', 'b'] } };
+    await apply(plan);
+    const incoming = await captureCardSetProjectDocument('context-a');
+    incoming.cardSets[0].plan = { ...plan, notes };
+    await expect(applyProjectDocumentToWorkspace(incoming, 'adopt')).rejects.toThrow(/different Set context/);
+    expect(owner().plan).toEqual(plan);
   });
 
   it.each(['context', 'metadata', 'external-brief'])('does not capture unrelated personal artwork from literal %s', async (kind) => {

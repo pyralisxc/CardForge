@@ -1,7 +1,7 @@
 "use client";
 
 import type { CardAssetOption, TCGCardTemplate } from '@/domain/templates';
-import { normalizeSetPlan, type SetPlan } from '@/domain/cards';
+import { authoredPlanValuesEqual, normalizeSetPlan, type SetPlan } from '@/domain/cards';
 
 import {
   CUSTOM_FONT_ASSETS_STORAGE_KEY,
@@ -243,10 +243,10 @@ export const applyProjectDocumentToWorkspace = async (
   const cardSets = mode === 'adopt' ? document.cardSets.map((set) => {
     const existingPlan = draft.getState().cardSets.find((current) => current.id === set.id)?.plan;
     if (!existingPlan) return set;
-    if (legacyOwner?.id === set.id && JSON.stringify(existingPlan.brief) !== JSON.stringify(document.productionPlan)) {
+    if (legacyOwner?.id === set.id && !authoredPlanValuesEqual(existingPlan.brief, document.productionPlan)) {
       throw new Error('This legacy draft has a different creation brief from the current Set context. Both were kept; open an independent copy or review the brief before updating this Set.');
     }
-    if (set.plan && JSON.stringify(set.plan) !== JSON.stringify(existingPlan)) {
+    if (set.plan && !authoredPlanValuesEqual(set.plan, existingPlan)) {
       throw new Error('This agent revision has different Set context. Both were kept; open an independent copy or review the context before updating this Set.');
     }
     return { ...set, plan: existingPlan };
@@ -272,7 +272,7 @@ export const applyCardSetPlan = async ({
   const owner = state.cardSets.find((set) => set.id === setId);
   if (!owner) throw new Error('This Set is no longer in the workspace. Your context draft was not applied.');
   if (owner.plan !== undefined) normalizeSetPlan(owner.plan);
-  if (JSON.stringify(owner.plan) !== JSON.stringify(expectedPlan)) throw new Error('The Set context changed while you were editing. Your draft was kept; review the current context before replacing it.');
+  if (!authoredPlanValuesEqual(owner.plan, expectedPlan)) throw new Error('The Set context changed while you were editing. Your draft was kept; review the current context before replacing it.');
   const nextPlan = normalizeSetPlan(plan);
   const draft = createProjectWorkspaceDraft(state);
   draft.setState({

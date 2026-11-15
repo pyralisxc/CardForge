@@ -20,6 +20,10 @@ export const authoredPlanInputSurvives = (input: unknown, output: unknown): bool
   return Object.is(input, output);
 };
 
+export const authoredPlanValuesEqual = (left: unknown, right: unknown): boolean => (
+  authoredPlanInputSurvives(left, right) && authoredPlanInputSurvives(right, left)
+);
+
 export const normalizeSetPlan = (value: unknown): SetPlan => {
   if (!isRecord(value) || value.version !== 1 || typeof value.context !== 'string') {
     throw new Error('This Set context has an unsupported version or invalid content. Its source was left unchanged.');
