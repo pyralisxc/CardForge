@@ -1,3 +1,5 @@
+import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '@/features/project/client/package-core';
+
 export const STUDIO_DOCUMENT_ASSET_BUCKET = 'cardforge-studio-document-assets';
 export const STUDIO_DOCUMENT_ASSET_REFERENCE_PREFIX = 'cardforge-studio-asset://';
 export const STUDIO_DOCUMENT_FONT_BUCKET = 'cardforge-studio-document-fonts';
@@ -51,19 +53,20 @@ const collectReferenceIds = (
   readId: (value: string) => string | null,
 ): string[] => {
   const ids = new Set<string>();
-  const visit = (entry: unknown) => {
+  const visit = (entry: unknown, scope: ProjectAssetScope) => {
+    if (scope === 'opaque') return;
     if (typeof entry === 'string') {
       const id = readId(entry);
       if (id) ids.add(id);
       return;
     }
     if (Array.isArray(entry)) {
-      entry.forEach(visit);
+      entry.forEach((item) => visit(item, projectAssetArrayScope(scope)));
       return;
     }
-    if (entry && typeof entry === 'object') Object.values(entry as Record<string, unknown>).forEach(visit);
+    if (entry && typeof entry === 'object') Object.entries(entry as Record<string, unknown>).forEach(([key, item]) => visit(item, projectAssetChildScope(scope, key)));
   };
-  visit(value);
+  visit(value, 'root');
   return [...ids];
 };
 
@@ -78,15 +81,17 @@ export const collectStudioDocumentFontIds = (value: unknown): string[] => (
 export const replaceStudioDocumentAssetReferences = (
   value: unknown,
   replacements: ReadonlyMap<string, string>,
+  scope: ProjectAssetScope = 'root',
 ): unknown => {
+  if (scope === 'opaque') return value;
   if (typeof value === 'string') {
     const id = getStudioDocumentAssetIdFromReference(value) ?? getStudioDocumentFontIdFromReference(value);
     return id ? replacements.get(id) ?? value : value;
   }
-  if (Array.isArray(value)) return value.map((entry) => replaceStudioDocumentAssetReferences(entry, replacements));
+  if (Array.isArray(value)) return value.map((entry) => replaceStudioDocumentAssetReferences(entry, replacements, projectAssetArrayScope(scope)));
   if (value && typeof value === 'object') {
     return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, entry]) => (
-      [key, replaceStudioDocumentAssetReferences(entry, replacements)]
+      [key, replaceStudioDocumentAssetReferences(entry, replacements, projectAssetChildScope(scope, key))]
     )));
   }
   return value;

@@ -3,6 +3,9 @@ import { createHash } from 'node:crypto';
 import {
   isProjectFontMimeType,
   MAX_PROJECT_FONT_BYTES,
+  projectAssetArrayScope,
+  projectAssetChildScope,
+  type ProjectAssetScope,
   type ProjectDocumentV1,
   type ProjectFontMimeType,
 } from '@/features/project/server';
@@ -120,7 +123,8 @@ export const externalizeStudioDocumentAssets = async ({
     return prepared;
   };
 
-  const visit = async (value: unknown): Promise<unknown> => {
+  const visit = async (value: unknown, scope: ProjectAssetScope = 'root'): Promise<unknown> => {
+    if (scope === 'opaque') return value;
     if (typeof value === 'string') {
       const preparedImage = await prepareImage(value);
       if (preparedImage) {
@@ -142,13 +146,13 @@ export const externalizeStudioDocumentAssets = async ({
     }
     if (Array.isArray(value)) {
       const entries: unknown[] = [];
-      for (const entry of value) entries.push(await visit(entry));
+      for (const entry of value) entries.push(await visit(entry, projectAssetArrayScope(scope)));
       return entries;
     }
     if (value && typeof value === 'object') {
       const entries: Array<readonly [string, unknown]> = [];
       for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-        entries.push([key, await visit(entry)] as const);
+        entries.push([key, await visit(entry, projectAssetChildScope(scope, key))] as const);
       }
       return Object.fromEntries(entries);
     }
@@ -271,9 +275,10 @@ export const cleanupUploadedStudioDocumentAssets = async ({
   });
 };
 
-const collectFontMimeTypes = (value: unknown, output = new Map<string, ProjectFontMimeType>()): Map<string, ProjectFontMimeType> => {
+const collectFontMimeTypes = (value: unknown, output = new Map<string, ProjectFontMimeType>(), scope: ProjectAssetScope = 'root'): Map<string, ProjectFontMimeType> => {
+  if (scope === 'opaque') return output;
   if (Array.isArray(value)) {
-    value.forEach((entry) => collectFontMimeTypes(entry, output));
+    value.forEach((entry) => collectFontMimeTypes(entry, output, projectAssetArrayScope(scope)));
     return output;
   }
   if (!value || typeof value !== 'object') return output;
@@ -283,7 +288,7 @@ const collectFontMimeTypes = (value: unknown, output = new Map<string, ProjectFo
     const mimeType = record.mimeType.toLowerCase();
     if (id && isProjectFontMimeType(mimeType)) output.set(id, mimeType);
   }
-  Object.values(record).forEach((entry) => collectFontMimeTypes(entry, output));
+  Object.entries(record).forEach(([key, entry]) => collectFontMimeTypes(entry, output, projectAssetChildScope(scope, key)));
   return output;
 };
 

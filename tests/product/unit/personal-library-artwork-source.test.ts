@@ -1,5 +1,5 @@
 import { writeFileSync } from 'node:fs';
-import { replaceStudioDocumentAssetReferences } from '@/features/studio-documents/assetReferences';
+import { collectStudioDocumentAssetIds, collectStudioDocumentFontIds, replaceStudioDocumentAssetReferences } from '@/features/studio-documents/assetReferences';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -132,6 +132,31 @@ beforeEach(async () => {
  });
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+it.each(['valid', 'invalid'])('keeps %s image-looking context and opaque metadata literal in private Studio storage', async (kind) => {
+ const literal = kind === 'valid' ? `data:image/png;base64,${png.toString('base64')}` : 'data:image/png;base64,bm90LWFuLWltYWdl';
+ const image = `cardforge-studio-asset://${'a'.repeat(64)}`, font = `cardforge-studio-font://${'b'.repeat(64)}`;
+ const plan = { version: 1 as const, context: literal, opaque: { image, font, dataUrl: 'data:font/woff2;base64,AAECAwQ=', mimeType: 'font/woff2' } };
+ const document: ProjectDocumentV1 = { ...current.document, version: 2, cardSets: [{ ...current.document.cardSets[0], plan }] };
+ const stored = await externalizeStudioDocumentAssets({ ownerUserId: 'oauth-user', documentId: current.id, document });
+ expect(stored.document.cardSets[0].plan).toEqual(plan);
+ expect(collectStudioDocumentAssetIds(stored.document)).toEqual([]);
+ expect(collectStudioDocumentFontIds(stored.document)).toEqual([]);
+ expect(replaceStudioDocumentAssetReferences(stored.document, new Map([['a'.repeat(64), 'https://example.invalid/image'], ['b'.repeat(64), 'https://example.invalid/font']]))).toEqual(stored.document);
+ expect(f.upload).not.toHaveBeenCalled();
+});
+it('externalizes and resolves actual typed Set brief artwork without rewriting its context', async () => {
+ const literal = `data:image/png;base64,${png.toString('base64')}`;
+ const document: ProjectDocumentV1 = { ...current.document, version: 2, productionPlan: undefined, cardSets: [{ ...current.document.cardSets[0], plan: { version: 1, context: literal, brief: { ...current.document.productionPlan!, assets: [{ ...current.document.productionPlan!.assets[0], assetUrl: literal }] } } }] };
+ const stored = await externalizeStudioDocumentAssets({ ownerUserId: 'oauth-user', documentId: current.id, document });
+ expect(stored.document.cardSets[0].plan?.context).toBe(literal);
+ const ids = collectStudioDocumentAssetIds(stored.document);
+ expect(ids).toHaveLength(1);
+ expect(stored.document.cardSets[0].plan?.brief?.assets[0].assetUrl).toBe(`cardforge-studio-asset://${ids[0]}`);
+ const replaced = replaceStudioDocumentAssetReferences(stored.document, new Map([[ids[0], 'https://example.invalid/image']])) as ProjectDocumentV1;
+ expect(replaced.cardSets[0].plan?.context).toBe(literal);
+ expect(replaced.cardSets[0].plan?.brief?.assets[0].assetUrl).toBe('https://example.invalid/image');
+ expect(f.upload).toHaveBeenCalledOnce();
+});
 it('uses observed Drive version, real normalization/private storage and exact authored targets; original and stored hashes differ', async () => {
  const result = await patchWorkingDocument({ access, input: input() });
  expect(result.committedRevision).toBe(61); expect(indexWrites).toBe(1); expect(metadataReads).toBe(2); expect(mediaReads).toBe(1); expect(f.update).toHaveBeenCalledOnce();
