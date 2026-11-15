@@ -116,5 +116,8 @@ describe('CardForge MCP contract', () => {
 
     expect(left).toBe(right);
     expect(secondCopy).not.toBe(left);
+    expect(createStableAgentCardId('set-1', {
+      data: { card_name: 'ROCK', rules_text: 'Changed authored content' },
+    }, 0)).not.toBe(left);
   });
 });

@@ -37,7 +37,6 @@ const productDomains = [
 // ordinary component/helper composition pins from quietly returning.
 const sourceReaderContracts = [
   ['tests/product/workflows/website-updates.spec.ts', 'canonical application CSS compiled for actual release notes and Owner editor browser behavior; no implementation source-text assertions'],
-  ['tests/product/unit/site-metadata.test.ts', 'bundled favicon PNG format/dimensions and decoded pixels against its canonical SVG asset; no implementation source-text assertions'],
   ['tests/product/workflows/managed-raster-authoring.spec.ts', 'canonical CSS and fonts for integrated Template editor/picker browser proof; no source-text assertions'],
   ['tests/product/workflows/library-context-review.spec.ts', 'canonical application CSS compiled by existing PostCSS/Tailwind for real component visual proof; no source-text assertions'],
   ['tests/product/workflows/saved-source-preview.spec.ts', 'canonical native source specimen and existing brand watermark browser pixels; no source-text assertions'],
@@ -47,7 +46,6 @@ const sourceReaderContracts = [
   ['tests/infrastructure/agent-efficiency.test.ts', 'repository command and routing contract'],
   ['tests/infrastructure/legacy-server-table-grants.test.ts', 'cross-migration least-privilege contract'],
   ['tests/infrastructure/pipeline-retention-batch-selection.test.ts', 'native SQL bounded-selection safety and liveness deployment contract; not database runtime proof'],
-  ['tests/infrastructure/migration-safety.test.ts', 'forward-only migration and Pipeline publication synchronization contract'],
   ['tests/infrastructure/repository-security.test.ts', 'repository security and secret-hygiene contract'],
   ['tests/product/unit/api-validation.test.ts', 'published asset-metadata artifacts'],
   ['tests/product/unit/cardforge-plugin.test.ts', 'published plugin and submission artifacts'],

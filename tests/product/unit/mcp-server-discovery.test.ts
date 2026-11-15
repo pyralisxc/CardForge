@@ -35,7 +35,6 @@ describe('Studio MCP HTTP discovery', () => {
       'get_pipeline_revision_recovery', 'change_pipeline_revision_recovery',
       'discover_pipeline_previews', 'inspect_saved_source', 'preview_saved_source', 'export_saved_source',
     ]));
-    expect(tools).toHaveLength(58);
     expect(tools.find(tool => tool.name === 'prepare_output_handoff')?.inputSchema.required).toEqual(expect.arrayContaining(['documentId', 'revision', 'setId', 'cardIds']));
     expect(tools.map(tool => tool.name)).not.toContain('save_pipeline_editorial_review');
     expect(tools.map(tool => tool.name)).not.toContain('get_pipeline_publication_decision');

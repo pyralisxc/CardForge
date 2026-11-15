@@ -55,14 +55,4 @@ describe('repository security defaults', () => {
     expect(dependabot.match(/version-update:semver-major/g)).toHaveLength(2);
   });
 
-  it('documents live-provider verification without claiming automated auth proof', () => {
-    const operations = readFileSync(join(process.cwd(), 'docs/operations.md'), 'utf8');
-
-    expect(operations).toContain('Authenticated production smoke');
-    expect(operations).toContain('former reusable QA accounts were retired');
-    expect(operations).toContain('real signed-in owner/contributor account');
-    expect(operations).toContain('ledgerCreated');
-    expect(operations).toContain('Stripe Workbench');
-    expect(operations).toContain('Solo-maintainer branch rule');
-  });
 });

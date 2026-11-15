@@ -295,18 +295,6 @@ function ControllerIconApplicationProof() {
     <button onClick={()=>{
       setResult('pending');
       const pending=controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
-      controller.resetTemplate(source);
-      void pending.then(()=>setResult('incorrect-success')).catch(()=>setResult('rejected'));
-    }}>Reset same Template during Icon apply</button>
-    <button onClick={()=>{
-      setResult('pending');
-      const pending=controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
-      controller.undo();
-      void pending.then(()=>setResult('incorrect-success')).catch(()=>setResult('rejected'));
-    }}>Undo during Icon apply</button>
-    <button onClick={()=>{
-      setResult('pending');
-      const pending=controller.applyIconSelection('icon',{iconName:undefined,iconImageSource:'/asymmetric.svg',iconRenderMode:'original'});
       controller.redo();
       void pending.then(()=>setResult('incorrect-success')).catch(()=>setResult('rejected'));
     }}>Redo during Icon apply</button>

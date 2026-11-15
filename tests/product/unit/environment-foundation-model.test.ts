@@ -1,35 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  ENVIRONMENT_ZONES,
   closeEnvironmentDetail,
   createSelectionSession,
   getApplicableActionSources,
-  getAvailableEnvironmentZones,
-  getVisibleEnvironmentZones,
+  isActionAvailable,
   isActionApplicable,
   openEnvironmentDetail,
   projectApiClientErrorBoundary,
   selectEnvironmentObject,
   type ActionDescriptor,
-  type EnvironmentBoundaryState,
 } from '@/features/app-shell/client/environment';
 import { ApiClientError } from '@/infrastructure/http/clientResponses';
 import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
 
 describe('Environment Foundation model', () => {
-  it('keeps zone availability separate from private-rail visibility', () => {
-    expect(ENVIRONMENT_ZONES.map((zone) => zone.id)).toEqual(['desk', 'library', 'profile']);
-
-    const signedOut = { signedIn: false, contributor: false, owner: false };
-    expect(getAvailableEnvironmentZones(signedOut).map((zone) => zone.id)).toEqual(['desk', 'library', 'profile']);
-    expect(getVisibleEnvironmentZones(signedOut).map((zone) => zone.id)).toEqual(['desk', 'library', 'profile']);
-    expect(getVisibleEnvironmentZones({ signedIn: true, contributor: false, owner: false }).map((zone) => zone.id)).toEqual(['desk', 'library', 'profile']);
-    expect(getVisibleEnvironmentZones({ signedIn: true, contributor: true, owner: false }).map((zone) => zone.id)).toEqual(['desk', 'library', 'profile']);
-    expect(getVisibleEnvironmentZones({ signedIn: true, contributor: false, owner: true }).map((zone) => zone.id)).toEqual(['desk', 'library', 'profile']);
-  });
-
-  it('makes disabled reasons and published MCP tools explicit and enforces object applicability', () => {
+  it('enforces action availability, permissions, object kinds and exact source/revision context', () => {
     const action: ActionDescriptor = {
       id: 'library.open-set',
       label: 'Open in Studio',
@@ -46,7 +32,9 @@ describe('Environment Foundation model', () => {
       result: 'navigation',
     };
 
-    expect(action.availability).toEqual({ kind: 'disabled', reason: 'Reconnect this location before opening its copy.' });
+    expect(isActionAvailable(action)).toBe(false);
+    expect(isActionAvailable({ ...action, availability: { kind: 'available' } })).toBe(true);
+    expect(isActionAvailable({ ...action, availability: { kind: 'hidden', reason: 'Owner only' } })).toBe(false);
     const creator = { signedIn: true, contributor: false, owner: false };
     const currentDrive = { id: 'drive-current', label: 'Google Drive', source: 'google-drive' as const, currentRevisionAvailable: true };
     const staleDrive = { ...currentDrive, id: 'drive-stale', currentRevisionAvailable: false };
@@ -56,17 +44,12 @@ describe('Environment Foundation model', () => {
     expect(isActionApplicable(action, { objectKind: 'set', sources: [currentDrive], viewer: { signedIn: false, contributor: false, owner: false } })).toBe(false);
     expect(isActionApplicable(action, { objectKind: 'set', sources: [staleDrive], viewer: creator })).toBe(false);
     expect(getApplicableActionSources(action, { objectKind: 'set', sources: [staleDrive, currentDrive, currentDevice], viewer: creator })).toEqual([currentDrive]);
+    const multiLocationAction: ActionDescriptor = { ...action, supportedSources: ['browser-local', 'google-drive'] };
+    expect(isActionApplicable(multiLocationAction, { objectKind: 'set', sources: [staleDrive, currentDevice], viewer: creator })).toBe(true);
+    expect(getApplicableActionSources(multiLocationAction, { objectKind: 'set', sources: [staleDrive, currentDevice], viewer: creator })).toEqual([currentDevice]);
   });
 
-  it('keeps content lifecycle separate from transport boundary failures', () => {
-    const contentStates: EnvironmentBoundaryState[] = [
-      { kind: 'ready' },
-      { kind: 'loading', label: 'Loading Library' },
-      { kind: 'empty', message: 'No work yet', nextAction: 'Create a Set' },
-      { kind: 'success', message: 'Saved' },
-    ];
-    expect(contentStates.map((state) => state.kind)).toEqual(['ready', 'loading', 'empty', 'success']);
-
+  it('projects transport failures without flattening their boundary meaning', () => {
     const failureKinds: BoundaryFailureKind[] = ['authentication', 'authorization', 'conflict', 'invalid', 'limit', 'not_found', 'unavailable'];
     for (const kind of failureKinds) {
       const error = new ApiClientError(

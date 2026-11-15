@@ -9,12 +9,9 @@ import {
   getGoogleDriveProjectThumbnail,
   getGoogleDriveProject,
   prepareGoogleDriveProjectUpload,
-  parseGoogleError,
   updateGoogleDriveProjectFromServer,
 } from '@/features/project/server/googleDriveProjectStore';
-import { getGoogleDrivePickerConfiguration } from '@/features/project/server/googleDriveFolderPickerStore';
-import { classifyGoogleProviderFailure, requestGoogleAccessToken } from '@/features/project/server/googleDriveBoundary';
-import { parsePersonalLibraryGoogleError } from '@/features/personal-library/server/personalLibraryStore';
+import { classifyGoogleProviderFailure, readGoogleProviderFailure, requestGoogleAccessToken } from '@/features/project/server/googleDriveBoundary';
 import { encryptProjectStorageToken } from '@/features/project/server/projectStorageTokenCrypto';
 import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
 import {
@@ -158,17 +155,16 @@ describe('Google Drive provider boundaries', () => {
     expect(JSON.parse(fetch.mock.calls[2]![1]!.body as string)).toMatchObject({ contentHints: { thumbnail: { image: thumbnail, mimeType: 'image/png' } } });
   });
 
-  it('keeps Google authentication and permission failures distinct', async () => {
-    const authentication = await parseGoogleError(new Response(JSON.stringify({
-      error: { message: 'Invalid credentials.' },
-    }), { status: 401 }), 'Drive request failed.');
-    const authorization = await parseGoogleError(new Response(JSON.stringify({
-      error: { message: 'Insufficient permissions.' },
-    }), { status: 403 }), 'Drive request failed.');
-
-    expect(authentication).toMatchObject({ status: 401, kind: 'authentication' });
-    expect(authorization).toMatchObject({ status: 403, kind: 'authorization' });
-    expect(authorization.nextAction).toContain('can access');
+  it('classifies provider failures once at the shared Google response boundary', async () => {
+    for (const [status, payload, context, expected] of [
+      [401, { error: { message: 'Invalid credentials.' } }, 'api', { status: 401, kind: 'authentication' }],
+      [403, { error: { message: 'Insufficient permissions.' } }, 'api', { status: 403, kind: 'authorization', nextAction: expect.stringContaining('can access') }],
+      [403, { error: { errors: [{ reason: 'userRateLimitExceeded' }] } }, 'api', { status: 429, kind: 'limit' }],
+      [403, { error: { errors: [{ reason: 'storageQuotaExceeded' }] } }, 'api', { status: 403, kind: 'limit', nextAction: expect.stringContaining('account storage') }],
+      [503, { error: 'temporarily_unavailable', error_description: 'Retry later.' }, 'token', { status: 503, kind: 'unavailable', reconnectRequired: false }],
+    ] as const) {
+      await expect(readGoogleProviderFailure(Response.json(payload, { status }), context)).resolves.toMatchObject(expected);
+    }
   });
 
   it.each(['lost response', 'invalid receipt', 'null receipt', 'missing head', 'provider 503'])('does not advise repeating an uncertain server commit: %s', async (failure) => {
@@ -189,72 +185,6 @@ describe('Google Drive provider boundaries', () => {
     expect(describeAgentBoundaryFailure(error)).toMatchObject({ status: 503, kind: 'unavailable', retryable: false, nextAction: expect.stringContaining('Do not repeat commit_project') });
     expect(fetch).toHaveBeenCalledTimes(5);
     expect(fetch.mock.calls[4]?.[1]).toMatchObject({ method: 'PUT', headers: expect.objectContaining({ 'Content-Range': 'bytes */3' }) });
-  });
-
-  it('recognizes Google 403 rate-limit reasons as a retryable limit boundary', async () => {
-    const error = await parseGoogleError(new Response(JSON.stringify({
-      error: { message: 'Rate limit exceeded.', errors: [{ reason: 'userRateLimitExceeded' }] },
-    }), { status: 403 }), 'Drive request failed.');
-
-    expect(error).toMatchObject({ status: 429, kind: 'limit' });
-  });
-
-  it('does not misreport a permanent Google storage quota as a transient rate limit', async () => {
-    const error = await parseGoogleError(new Response(JSON.stringify({
-      error: { message: 'Storage quota exceeded.', errors: [{ reason: 'storageQuotaExceeded' }] },
-    }), { status: 403 }), 'Drive request failed.');
-
-    expect(error).toMatchObject({ status: 403, kind: 'limit' });
-    expect(error.nextAction).toContain('account storage');
-  });
-
-  it('shares permission and transient token semantics with the Picker and personal Library', async () => {
-    const personalPermission = await parsePersonalLibraryGoogleError(new Response(JSON.stringify({
-      error: { message: 'The file is outside the granted scope.' },
-    }), { status: 403 }), 'Drive request failed.');
-    expect(personalPermission).toMatchObject({ status: 403, kind: 'authorization' });
-
-    expect(classifyGoogleProviderFailure(503, {
-      error: 'temporarily_unavailable',
-      error_description: 'Retry later.',
-    }, 'token')).toMatchObject({ status: 503, kind: 'unavailable', reconnectRequired: false });
-
-    const from = vi.fn().mockReturnValue(selectConnectionQuery());
-    mockedGetSupabaseServerClient.mockReturnValue({ from } as never);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      error: 'temporarily_unavailable',
-      error_description: 'Retry later.',
-    }), { status: 503 })));
-
-    await expect(getGoogleDrivePickerConfiguration('user-1')).rejects.toMatchObject({
-      status: 503,
-      kind: 'unavailable',
-    });
-    expect(from).toHaveBeenCalledTimes(1);
-  });
-
-  it('refuses Picker access when a saved connection contains broader Drive authority', async () => {
-    const query = selectConnectionQuery();
-    query.maybeSingle.mockResolvedValue({
-      data: {
-        ...connectionRow(),
-        granted_scopes: [
-          'https://www.googleapis.com/auth/drive.file',
-          'https://www.googleapis.com/auth/drive.readonly',
-        ],
-      },
-      error: null,
-    });
-    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) } as never);
-    const fetch = vi.fn();
-    vi.stubGlobal('fetch', fetch);
-
-    await expect(getGoogleDrivePickerConfiguration('user-1')).rejects.toMatchObject({
-      status: 409,
-      kind: 'conflict',
-      nextAction: 'CardForge owner must remove broad Drive scopes from the Google Auth Platform client before retrying.',
-    });
-    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('does not expose a machine-only Google token error as user-facing copy', () => {

@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   invalidateGoogleDriveAccessTokenCache,
   resolveGoogleDriveConnectionAccess,
-  validateGoogleDriveStoredScopes,
 } from '@/features/project/server/googleDriveConnectionAuthority';
 import { encryptProjectStorageToken } from '@/features/project/server/projectStorageTokenCrypto';
 
@@ -28,20 +27,24 @@ describe('Google Drive connection authority', () => {
     invalidateGoogleDriveAccessTokenCache('connection-authority-2');
   });
 
-  it('fails closed for broader or missing Drive authority', () => {
-    expect(validateGoogleDriveStoredScopes([
-      'https://www.googleapis.com/auth/drive.file',
-      'https://www.googleapis.com/auth/drive.readonly',
-    ])).toMatchObject({
-      status: 409,
-      kind: 'conflict',
-      reconnectRequired: false,
-    });
-    expect(validateGoogleDriveStoredScopes(['openid', 'email'])).toMatchObject({
-      status: 409,
-      kind: 'conflict',
-      reconnectRequired: true,
-    });
+  it('rejects broader or missing authority before reading credentials or refreshing tokens', async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    for (const [granted_scopes, reconnectRequired] of [
+      [['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'], false],
+      [['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive.readonly'], false],
+      [['openid', 'email'], true],
+    ] as const) {
+      await expect(resolveGoogleDriveConnectionAccess({
+        row: { ...connection(), refresh_token_ciphertext: 'must-not-be-decrypted', granted_scopes: [...granted_scopes] },
+        clientId: 'google-client',
+        clientSecret: 'google-secret',
+      })).resolves.toMatchObject({
+        ok: false,
+        failure: { status: 409, kind: 'conflict', reconnectRequired },
+      });
+    }
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('reuses one short-lived server access token across Drive surfaces', async () => {

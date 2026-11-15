@@ -426,9 +426,3 @@ it('preserves source-contained Studio border-none geometry without inventing art
   expect(result.document.storedCards).toEqual([]);
   expect(Object.values(result.document.customAssets).flat()).toEqual([]);
 });
-it('demonstrates why partial Studio Templates cannot establish a literal native negative scan', () => {
-  const result = parseProjectDocumentFile(JSON.stringify({ version: 1, userTemplates: [{ id: 'partial', name: 'Partial', aspectRatio: '63:88' }], storedCards: [] }));
-  expect(result.success).toBe(true);
-  if (!result.success) throw new Error(result.error);
-  expect(result.document.userTemplates[0].freeformCanvas?.elements.some(element => element.imageSource === 'artworkUrl')).toBe(true);
-});

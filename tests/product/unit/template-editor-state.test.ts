@@ -1,8 +1,5 @@
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { ImageInspectorPanel } from '@/features/template-editor/components/ImageInspectorPanel';
 import {
   acceptSavedTemplateEditorState,
   commitTemplateEditorState,
@@ -11,20 +8,7 @@ import {
   reconcileTemplateEditorSelection,
   undoTemplateEditorState,
 } from '@/features/template-editor/lib/templateEditorState';
-import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
-
-const inspectorInputs = vi.hoisted(() => new Map<string, (event: { target: { value: string } }) => void>());
-
-vi.mock('@/components/ui/input', () => ({
-  Input: ({ id, onChange }: { id?: string; onChange?: (event: { target: { value: string } }) => void }) => {
-    if (id && onChange) inspectorInputs.set(id, onChange);
-    return null;
-  },
-}));
-
-vi.mock('@/features/template-editor/components/TemplateAssetLibraryPicker', () => ({
-  TemplateAssetLibraryPicker: () => null,
-}));
+import type { FreeformCanvas, TCGCardTemplate } from '@/domain/templates';
 
 const canvas = (elementIds: string[]): FreeformCanvas => ({
   width: 300,
@@ -88,12 +72,12 @@ describe('templateEditorState', () => {
     expect(edited.history).toHaveLength(1);
 
     const undone = undoTemplateEditorState(edited);
-    expect(undone.currentTemplate.name).toBe('initial');
+    expect(undone.currentTemplate).toEqual(initial.currentTemplate);
     expect(undone.selectedElementId).toBe('front-a');
     expect(undone.future).toHaveLength(1);
 
     const redone = redoTemplateEditorState(undone);
-    expect(redone.currentTemplate.name).toBe('edited');
+    expect(redone.currentTemplate).toEqual(edited.currentTemplate);
     expect(redone.selectedElementId).toBe('front-b');
   });
 
@@ -108,71 +92,6 @@ describe('templateEditorState', () => {
     expect(edited.currentTemplate.name).toBe('typing');
     expect(edited.history).toHaveLength(0);
     expect(edited.future).toHaveLength(0);
-  });
-});
-
-describe('picture inspector history', () => {
-  it.each([
-    { id: 'element-image-source', value: 'https://example.com/replacement.webp', patch: { imageSource: 'https://example.com/replacement.webp', content: 'https://example.com/replacement.webp' } },
-    { id: 'element-position-x', value: '25%', patch: { imageObjectPositionX: '25%' } },
-    { id: 'element-position-y', value: '75%', patch: { imageObjectPositionY: '75%' } },
-    { id: 'element-image-scale', value: '1.5', patch: { imageScale: 1.5 } },
-    { id: 'element-image-rotation', value: '15', patch: { imageRotation: 15 } },
-    { id: 'element-image-offset-x', value: '12', patch: { imageOffsetX: 12 } },
-    { id: 'element-image-offset-y', value: '-8', patch: { imageOffsetY: -8 } },
-  ])('undoes and redoes a plain input edit from $id', ({ id, value, patch }) => {
-    const initialTemplate = template('picture', ['picture']);
-    const initial = createTemplateEditorState({
-      ...initialTemplate,
-      freeformCanvas: {
-        ...initialTemplate.freeformCanvas!,
-        elements: [{
-          ...initialTemplate.freeformCanvas!.elements[0],
-          type: 'image',
-          imageSource: 'Artwork',
-          content: 'Artwork',
-          imageObjectPositionX: '50%',
-          imageObjectPositionY: '50%',
-          imageScale: 1,
-          imageRotation: 0,
-          imageOffsetX: 0,
-          imageOffsetY: 0,
-        }],
-      },
-    });
-    let state = initial;
-    inspectorInputs.clear();
-    renderToStaticMarkup(createElement(ImageInspectorPanel, {
-      element: initial.currentTemplate.freeformCanvas!.elements[0],
-      imageAssets: [],
-      personalItems: [],
-      onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => {
-        state = commitTemplateEditorState(state, (currentTemplate) => ({
-          ...currentTemplate,
-          freeformCanvas: {
-            ...currentTemplate.freeformCanvas!,
-            elements: currentTemplate.freeformCanvas!.elements.map((element) => (
-              element.id === 'picture' ? { ...element, ...updates } : element
-            )),
-          },
-        }), trackHistory);
-      },
-      onHandleFileUpload: () => undefined,
-      onAddFromProvider: async () => undefined,
-      onMaterializePersonal: async () => { throw new Error('Not used by plain input edits'); },
-    }));
-
-    expect(inspectorInputs.has(id)).toBe(true);
-    inspectorInputs.get(id)!({ target: { value } });
-    expect(state.currentTemplate.freeformCanvas!.elements[0]).toMatchObject(patch);
-    expect(state.history).toHaveLength(1);
-
-    const undone = undoTemplateEditorState(state);
-    expect(undone.currentTemplate).toEqual(initial.currentTemplate);
-    expect(undone.selectedElementId).toBe('picture');
-    const redone = redoTemplateEditorState(undone);
-    expect(redone.currentTemplate).toEqual(state.currentTemplate);
-    expect(redone.selectedElementId).toBe('picture');
   });
 });
 

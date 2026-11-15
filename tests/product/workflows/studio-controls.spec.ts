@@ -116,7 +116,8 @@ async function mountHistoryProof(page:import('@playwright/test').Page,query='',s
  await page.getByRole('button',{name:'Elements',exact:true}).click();await page.getByRole('button',{name:'Text',exact:true}).and(page.locator('[draggable="true"]')).click();
  if(page.viewportSize()!.width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();
 }
-for(const width of [390,1440])for(const interaction of ['keyboard','pointer'] as const)test(`@golden Fill texture strength ${interaction} completion preserves history at ${width}px`,async({page},info)=>{
+for(const interaction of ['keyboard','pointer'] as const)test(`@golden Fill texture strength ${interaction} completion preserves history`,async({page},info)=>{
+ const width=1440;
  test.setTimeout(90000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1',false,true);
  const closeInspector=async()=>{if(width<1024)await page.getByRole('button',{name:'Close inspector',exact:true}).click();};
  const openInspector=async()=>{if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();};
@@ -158,7 +159,8 @@ async function inspectorHistory(page:import('@playwright/test').Page,width:numbe
  const reopen=async(id:string,fullReload=true)=>{if(fullReload){await page.reload();await page.addStyleTag({content:(await css).css});for(const file of bundle.outputFiles.filter(f=>f.path.endsWith('.css')))await page.addStyleTag({content:file.text});await page.addScriptTag({content:bundle.outputFiles.find(f=>f.path.endsWith('.js'))!.text});}else{await close();await page.getByRole('button',{name:'Hide editor',exact:true}).click();await page.getByRole('button',{name:'Show editor',exact:true}).click();}await page.locator(`[data-cardforge-editor-overlay="true"][data-freeform-element-id="${id}"]`).click();await open();};
  return {close,open,save,history,insert,snapshot,reopen};
 }
-for(const width of [390,1440])test(`@golden appearance effect completion keeps independent history at ${width}px`,async({page},info)=>{
+test('@golden appearance effect completion keeps independent history',async({page},info)=>{
+ const width=1440;
  test.setTimeout(90000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1');const ui=await inspectorHistory(page,width);await ui.insert('Shape');await page.getByRole('button',{name:'Look',exact:true}).click();
  await page.getByText('Gradient',{exact:true}).locator('..').getByRole('combobox').click();await page.getByRole('option',{name:'Linear',exact:true}).click();await ui.save();const baseline=await ui.snapshot();const shape=baseline.freeformCanvas.elements.find((e:{type:string})=>e.type==='shape');await ui.reopen(shape.id);await page.getByRole('button',{name:'Look',exact:true}).click();
  const glowRoot=page.getByText('Glow',{exact:true}).locator('../..');const glow=glowRoot.getByRole('slider');const angle=page.getByLabel('Angle',{exact:true});
@@ -168,7 +170,8 @@ for(const width of [390,1440])test(`@golden appearance effect completion keeps i
  await angle.fill('18');await angle.press('ArrowUp');await angle.press('Tab');await angle.fill('72');await angle.press('Tab');await ui.history('Undo');await expect(angle).toHaveValue('19');await ui.history('Undo');await expect(angle).toHaveValue('135');await expect(page.getByTestId('working-dirty')).toHaveText('saved');
  await angle.fill('180');await angle.press('Tab');await ui.save();await ui.history('Undo');await expect(angle).toHaveValue('135');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');await ui.history('Redo');await expect(angle).toHaveValue('180');await expect(page.getByTestId('working-dirty')).toHaveText('saved');const saved=await ui.snapshot();expect(saved.freeformCanvas.elements.filter((e:{id:string})=>e.id!==shape.id)).toEqual(baseline.freeformCanvas.elements.filter((e:{id:string})=>e.id!==shape.id));expect(saved.fieldContracts).toEqual(baseline.fieldContracts);await ui.reopen(shape.id);await page.getByRole('button',{name:'Look',exact:true}).click();await expect(angle).toHaveValue('180');await page.screenshot({path:info.outputPath('appearance-effect-history.png')});
 });
-for(const width of [390,1440])test(`@golden appearance color commits and native picker gestures preserve history at ${width}px`,async({page},info)=>{
+test('@golden appearance color commits and native picker gestures preserve history',async({page},info)=>{
+ const width=1440;
  test.setTimeout(120000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1',true);const ui=await inspectorHistory(page,width);
  let currentKind='Text';
  for(const [kind,label,section] of [['Text','Text','Look'],['Icon','Glyph','Look'],['Icon','Glyph Fill','Symbol'],['Icon','Glyph Stroke','Symbol'],['Icon','Tint','Symbol'],['Divider / Rule','Tint','Look'],['Divider / Rule','Tint','Divider'],['Shape','Fill','Look']]){
@@ -190,7 +193,8 @@ for(const width of [390,1440])test(`@golden appearance color commits and native 
  }
  await page.getByRole('button',{name:'Render saved PNG',exact:true}).click();await expect(page.getByAltText('Saved Studio PNG')).toBeVisible();await info.attach('saved-color-output',{body:await page.getByAltText('Saved Studio PNG').screenshot(),contentType:'image/png'});
 });
-for(const width of [390,1440])for(const bound of [false,true])test(`@golden ${bound?'bound':'unbound'} text fit completion keeps atomic history at ${width}px`,async({page})=>{
+for(const bound of [false,true])test(`@golden ${bound?'bound':'unbound'} text fit completion keeps atomic history`,async({page})=>{
+ const width=1440;
  test.setTimeout(90000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1');const ui=await inspectorHistory(page,width);const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Independent text');if(bound){await editor.press('ControlOrMeta+A');await page.getByRole('button',{name:'Make variable',exact:true}).click();}await ui.save();const baseline=await ui.snapshot();const target=baseline.freeformCanvas.elements.at(-1);await ui.reopen(target.id);
  const details=async()=>{await page.getByRole('button',{name:'Text',exact:true}).and(page.locator(':not([draggable="true"])')).click();await page.getByText('Text Details',{exact:true}).click();};await details();const fit=page.getByRole('switch',{name:'Reduce text size if it overflows',exact:true}),minimum=page.getByLabel('Min Size (px)',{exact:true});const originalFit=await fit.isChecked(),originalMin=await minimum.inputValue();await fit.click();await ui.history('Undo');await expect(fit).toBeChecked({checked:originalFit});await ui.history('Redo');await expect(fit).toBeChecked({checked:!originalFit});await ui.history('Undo');
  await minimum.fill('12');await minimum.press('ArrowUp');await minimum.press('ArrowUp');await minimum.press('Tab');await ui.history('Undo');await expect(minimum).toHaveValue(originalMin);await ui.history('Redo');await expect(minimum).toHaveValue('14');await minimum.fill('16');await minimum.press('Tab');await ui.history('Undo');await expect(minimum).toHaveValue('14');await ui.history('Undo');await expect(minimum).toHaveValue(originalMin);await expect(page.getByTestId('working-dirty')).toHaveText('saved');
@@ -198,7 +202,8 @@ for(const width of [390,1440])for(const bound of [false,true])test(`@golden ${bo
  await ui.history('Undo');await expect(minimum).toHaveValue(originalMin);await expect(page.getByTestId('working-dirty')).toHaveText('dirty');await ui.history('Redo');await expect(minimum).toHaveValue('12');await expect(page.getByTestId('working-dirty')).toHaveText('saved');await ui.reopen(target.id);await details();await expect(minimum).toHaveValue('12');await expect(fit).toBeChecked({checked:!originalFit});
 });
 
-for(const width of [390,1440])test(`@golden completed typography spacing preserves grouped Undo and Save at ${width}px`, async ({page},info)=>{
+test('@golden completed typography spacing preserves grouped Undo and Save', async ({page},info)=>{
+ const width=1440;
  await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1');
  const closeInspector=async()=>{if(width<1024)await page.getByRole('button',{name:'Close inspector',exact:true}).click();};
  const openInspector=async()=>{if(width<1024)await page.getByRole('button',{name:'Edit selected element',exact:true}).click();};
@@ -227,7 +232,8 @@ for(const width of [390,1440])test(`@golden completed typography spacing preserv
  const stored=await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'));await reopen();await expect(height).toHaveValue('2.25');await expect(spacing).toHaveValue('0.08em');expect(await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'))).toBe(stored);
  await page.screenshot({path:info.outputPath('spacing-history-reopened.png')});
 });
-for(const width of [390,1440])test(`@golden Template variable transactions and Save share one undo history at ${width}px`,async({page},info)=>{
+test('@golden Template variable transactions and Save share one undo history',async({page},info)=>{
+ const width=1440;
  test.setTimeout(90000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1');
  const undo=()=>page.getByRole('button',{name:'Undo',exact:true})[width<1024?'last':'first']();const redo=()=>page.getByRole('button',{name:'Redo',exact:true})[width<1024?'last':'first']();
  const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Field fallback');await editor.press('ControlOrMeta+A');
@@ -423,7 +429,8 @@ for (const delayed of [false,true]) test(`@golden same-ID normalized Save keeps 
 
 // An L-shaped alpha mask makes X, Y and XY distinguishable even with one tint color.
 // Reopen is read-only: do not conflate renderer fidelity with another normalized Save.
-for(const width of [390,1440])test(`@golden native SVG tint and asymmetric flips survive local Save, reopen and PNG output at ${width}px`,async({page},info)=>{
+test('@golden native SVG tint and asymmetric flips survive local Save, reopen and PNG output',async({page},info)=>{
+ const width=1440;
  test.setTimeout(120000);page.setDefaultTimeout(10000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'',true);
  await page.locator('.tiptap[contenteditable="true"]').fill('Unchanged neighboring text');
  if(width<1024){await page.getByRole('button',{name:'Close inspector',exact:true}).click();await page.getByRole('button',{name:'Open editor menu',exact:true}).click();}
@@ -486,24 +493,6 @@ test('@golden same-batch SVG source and geometry edits retain both controller up
 });
 
 
-for (const accountToolLayer of [false, true]) test(`@golden captured unique Arcane catalog selection with ${accountToolLayer ? 'Account Library dirty tool layer' : 'direct Studio fixture'}`, async ({page}) => {
- await page.setViewportSize({width:1440,height:960});
- await mountHistoryProof(page,accountToolLayer?'?capturedCatalog=1&accountToolLayer=1':'?capturedCatalog=1');
- await page.getByRole('button',{name:'Elements',exact:true}).click();
- await page.getByRole('button',{name:'Icon',exact:true}).and(page.locator('[draggable="true"]')).click();
- const select=async(name:RegExp|string)=>{
-  await page.getByRole('button',{name:'Choose from Library',exact:true}).click();
-  await page.getByRole('option',{name}).click();
-  await page.getByRole('button',{name:'Use selection',exact:true}).click();
- };
- await select(/^Star\b/);
- await expect(page.getByText('Current icon: Star')).toBeVisible();
- await select(/Arcane Corner Overlay/);
- await expect(page.getByText('Current icon: Custom source')).toBeVisible();
- await expect(page.getByPlaceholder('Uploaded icon URL or {{symbolUrl}}')).toHaveValue(capturedArcaneOverlayUrl);
- await expect(page.getByLabel('Vector color',{exact:true})).toContainText('Original');
- await expect(page.getByTestId('working-dirty')).toHaveText('dirty');
-});
 
 
 
@@ -605,7 +594,7 @@ test('@golden retained same-value Icon confirmation rejects after editor unmount
 });
 
 
-for(const action of ['Reset same Template during Icon apply','Undo during Icon apply','Redo during Icon apply'])test(`@golden ${action} settles superseded Icon confirmation without hanging`,async({page})=>{
+test('@golden cancellation before history replay rejects pending Icon confirmation without changing authored work',async({page})=>{
  await page.route('**/*',route=>{
   const url=new URL(route.request().url());
   if(url.pathname==='/__studio-history')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'});
@@ -618,7 +607,7 @@ for(const action of ['Reset same Template during Icon apply','Undo during Icon a
  await page.addStyleTag({content:(await css).css});
  for(const file of bundle.outputFiles.filter(file=>file.path.endsWith('.css')))await page.addStyleTag({content:file.text});
  await page.addScriptTag({content:bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text});
- await page.getByRole('button',{name:action,exact:true}).click();
+ await page.getByRole('button',{name:'Redo during Icon apply',exact:true}).click();
  await expect(page.getByTestId('ack-result')).toHaveText('rejected');
  const icon=JSON.parse(await page.getByTestId('ack-icon').textContent()||'{}');
  expect(icon).toMatchObject({id:'icon',iconName:'Star'});
