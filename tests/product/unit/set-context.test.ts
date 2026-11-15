@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeCardSet, normalizeProjectProductionPlan } from '@/domain/cards';
+import { authoredPlanInputSurvives, authoredPlanValuesEqual, normalizeCardSet, normalizeProjectProductionPlan } from '@/domain/cards';
 import { createProjectDocumentFromState, instantiateProjectDocumentCopy, isolateProjectDocumentToSet, parseProjectDocumentValue, CUSTOM_IMAGE_ASSETS_STORAGE_KEY } from '@/features/project/model/projectDocument';
 import { prepareTemplateDocumentSet } from '@/features/studio-documents/model';
 
@@ -10,6 +10,14 @@ const documentWithContext = () => createProjectDocumentFromState({
 });
 
 describe('Set-owned authoring context', () => {
+  it('does not count inherited properties as preserved JSON metadata', () => {
+    const metadata = JSON.parse('{"__proto__":{}}');
+    expect(authoredPlanInputSurvives(metadata, {})).toBe(false);
+    expect(authoredPlanValuesEqual(metadata, {})).toBe(false);
+    expect(authoredPlanValuesEqual({}, metadata)).toBe(false);
+    expect(authoredPlanInputSurvives({ optional: undefined }, {})).toBe(true);
+  });
+
   it.each(['custom-generated', 'user-provided', 'cardforge-library', 'cardforge-output', 'placeholder'] as const)('copies %s asset identities according to their source, not a bare ID collision', (sourceKind) => {
     const source = documentWithContext();
     const brief = normalizeProjectProductionPlan({ version: 1, decisionMode: 'confirmed', purpose: 'Readable cards', deliverable: 'Cards', outputSize: { width: 63, height: 88, unit: 'mm' }, visualDirection: { summary: 'Quiet', palette: [], typography: [] }, editableFieldKeys: [], assets: [{ id: 'art', name: 'Art', kind: 'image', role: 'Face', source: sourceKind, status: 'selected', quantity: 1, assetId: 'collision' }] })!;

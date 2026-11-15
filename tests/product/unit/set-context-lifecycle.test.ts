@@ -140,6 +140,16 @@ describe('Set context native lifecycle', () => {
     expect(owner().plan?.context).toBe('Creator changed notes');
   });
 
+  it('does not count inherited fields as unchanged authored metadata during native context CAS', async () => {
+    const plan = { ...original, metadata: JSON.parse('{"__proto__":{}}') };
+    await apply(plan);
+    const state = useProjectStore.getState();
+    const saved = await storage().getItem('workspace');
+    await expect(apply({ ...original, metadata: {}, context: 'Stale draft' }, { ...plan, metadata: {} })).rejects.toThrow(/changed while/i);
+    expect(useProjectStore.getState()).toBe(state);
+    expect(await storage().getItem('workspace')).toBe(saved);
+  });
+
   it.each([{ value: 2, sequence: ['a', 'b'] }, { sequence: ['a', 'b'] }, { value: 1, sequence: ['b', 'a'] }])('still refuses changed or missing opaque context metadata: %j', async (notes) => {
     const plan = { ...original, notes: { value: 1, sequence: ['a', 'b'] } };
     await apply(plan);

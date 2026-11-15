@@ -16,7 +16,8 @@ export const authoredPlanInputSurvives = (input: unknown, output: unknown): bool
   if (Array.isArray(input)) return Array.isArray(output) && input.length === output.length
     && input.every((value, index) => authoredPlanInputSurvives(value, output[index]));
   if (isRecord(input)) return isRecord(output) && Object.entries(input)
-    .every(([key, value]) => authoredPlanInputSurvives(value, output[key]));
+    .every(([key, value]) => (value === undefined || Object.hasOwn(output, key))
+      && authoredPlanInputSurvives(value, output[key]));
   return Object.is(input, output);
 };
 
