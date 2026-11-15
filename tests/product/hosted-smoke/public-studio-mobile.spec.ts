@@ -84,7 +84,8 @@ test.describe('hosted release smoke', () => {
 
     await desk.getByRole('button', { name: 'Create your first Set' }).click();
     const choices = page.getByRole('dialog', { name: 'Start a new Set' });
-    await expect(choices).toHaveAccessibleDescription(/published original stays unchanged/u);
+    await expect(choices).toHaveAccessibleDescription(/File and starter copies are independent; originals stay unchanged/u);
+    await expect(choices.getByRole('button', { name: 'Open a Set file', exact: true })).toHaveAccessibleDescription(/independent browser copy.*\.cardforge.*Existing Sets and saved files stay unchanged/u);
     await expect(choices.getByRole('button', { name: 'Fresh Set', exact: true })).toHaveAccessibleDescription(/Start with no cards/u);
     await expect(choices.getByRole('button', { name: 'Fresh Set + Design', exact: true })).toHaveAccessibleDescription(/card layout editor/u);
     await page.keyboard.press('Escape');
