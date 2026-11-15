@@ -94,6 +94,7 @@ export function useStudioDocumentHandoff({
     const initiatingState = useProjectStore.getState();
     void (async () => {
       let localAgentRevisionApplied = false;
+      let notifyInstalled: (() => void) | null = null;
       try {
         const params = new URLSearchParams();
         if (requestedRevision !== null) params.set('revision', String(requestedRevision));
@@ -215,7 +216,7 @@ export function useStudioDocumentHandoff({
 
           handledRevisionKeyRef.current = requestedKey;
           localAgentRevisionApplied = true;
-          onInstalled?.({ activeSetId: installSummary.activeSetId, destination: installSummary.destination });
+          notifyInstalled = () => onInstalled?.({ activeSetId: installSummary.activeSetId, destination: installSummary.destination });
           if (actualRevision) {
             await acknowledgeStudioDocumentInstallation({
               documentId,
@@ -292,6 +293,7 @@ export function useStudioDocumentHandoff({
         if (inFlightRevisionKeyRef.current === attempt) {
           inFlightRevisionKeyRef.current = null;
         }
+        if (!cancelled) notifyInstalled?.();
       }
     })();
 

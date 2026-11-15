@@ -26,7 +26,7 @@ proof.changeWorkspace = () => useProjectStore.setState(state => ({ storedCards: 
 
 function TrackedDesk({ params }: { params: URLSearchParams }) {
   useEffect(() => { proof.outputLifecycle.mounts++; return () => { proof.outputLifecycle.unmounts++; }; }, []);
-  return <Desk businessIdentity={{ brandName: 'Synthetic', copyrightHolder: 'Synthetic' }} persistenceScope="account:synthetic-output-proof" initialTool="output" initialFocusedWorkId={params.get('focus')} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={projectAccountExperience({ entitlement, contribution: { active: false, canSubmit: false, canReview: false, canPublish: false, canDraftCampaigns: false } })} />;
+  return <Desk businessIdentity={{ brandName: 'Synthetic', copyrightHolder: 'Synthetic' }} persistenceScope="account:synthetic-output-proof" initialTool={params.get('tool') === 'design' ? 'design' : 'output'} initialFocusedWorkId={params.get('focus')} initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE} experience={projectAccountExperience({ entitlement, contribution: { active: false, canSubmit: false, canReview: false, canPublish: false, canDraftCampaigns: false } })} />;
 }
 function App() {
   const [params, setParams] = useState(() => new URLSearchParams(location.search));

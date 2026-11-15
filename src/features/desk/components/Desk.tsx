@@ -194,6 +194,7 @@ export function Desk({
     createPublishedWorkingCopy,
     closeContextStudio,
     completeOutputHandoff,
+    completeStudioDocumentHandoff,
     closeGenerate,
     closePipelineSubmission,
     commitRename,
@@ -816,6 +817,7 @@ export function Desk({
             onDesignIntentConsumed={() => setDesignIntent(null)}
             onReturnToGenerator={closeActiveTool}
             onOutputPrepared={completeOutputHandoff}
+            onDocumentInstalled={completeStudioDocumentHandoff}
             contextSetId={studioTool.setId}
             contextTemplateId={studioTool.templateId}
           />

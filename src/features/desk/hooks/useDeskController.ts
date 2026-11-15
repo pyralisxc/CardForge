@@ -106,8 +106,14 @@ export function useDeskController({
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
   const searchParams = useSearchParams();
   const outputReference = searchParams.get('outputRef');
-  const [handledOutputReference, setHandledOutputReference] = useState<string | null>(null);
-  const outputHandoffPending = outputReference !== null && handledOutputReference !== outputReference;
+  const handoffReference = outputReference ?? (searchParams.has('document')
+    ? JSON.stringify([searchParams.get('document'), searchParams.get('revision')])
+    : null);
+  const [handledHandoffReference, setHandledHandoffReference] = useState<string | null>(null);
+  const handoffPending = handoffReference !== null && handledHandoffReference !== handoffReference;
+  const outputHandoffPending = outputReference !== null && handoffPending;
+  const studioDocumentHandoffPending = outputReference === null && handoffPending;
+  const studioDocumentTool: 'design' | 'output' = initialTool === 'output' ? 'output' : 'design';
   const originHref = normalizeStudioReturnTo(searchParams.get('returnTo'));
   const libraryOrigin = originHref && new URL(originHref, 'https://cardforge.local').searchParams.get('section') === 'library' ? originHref : null;
   const zones = getVisibleEnvironmentZones(viewer).map((zone) => zone.id === 'library' && libraryOrigin ? { ...zone, href: libraryOrigin } : zone);
@@ -272,8 +278,8 @@ export function useDeskController({
   const pipelineSubmitSetId = activeContextTool?.toolId === 'pipeline' ? activeContextSetId : null;
   // The existing Workbench must mount before the exact incoming Set exists locally.
   // Do not choose an unrelated active Set while that handoff is still unresolved.
-  const studioTool = outputHandoffPending
-    ? { setId: null, tool: 'output' as const, templateId: null }
+  const studioTool = outputHandoffPending || studioDocumentHandoffPending
+    ? { setId: null, tool: outputHandoffPending ? 'output' as const : studioDocumentTool, templateId: null }
     : activeContextTool && activeContextSetId && (activeContextTool.toolId === 'design' || activeContextTool.toolId === 'output')
     ? { setId: activeContextSetId, tool: activeContextTool.toolId, templateId: activeContextTool.targetIds[1] ?? null }
     : null;
@@ -428,7 +434,7 @@ export function useDeskController({
   }, [focusedItemId]);
 
   useEffect(() => {
-    if (!navigationReady || initialToolHandledRef.current || !initialTool || outputReference !== null) return;
+    if (!navigationReady || initialToolHandledRef.current || !initialTool || outputReference !== null || studioDocumentHandoffPending) return;
     if (initialReturnContextKey && !returnContextRestoredRef.current) return;
     const targetSetId = focusedWorkId ? focusedLocalSetId : activeCardSetId;
     if (!targetSetId) return;
@@ -440,7 +446,7 @@ export function useDeskController({
       && interactionSession.toolStack.at(-1)?.toolId === initialTool) return;
     setActiveCardSetId(targetSetId);
     openContextTool(targetSetId, initialTool);
-  }, [activeCardSetId, focusedLocalSetId, focusedWorkId, initialReturnContextKey, initialTool, outputReference, interactionSession.focusPath.setId, interactionSession.toolStack, navigationReady, openContextTool, setActiveCardSetId]);
+  }, [activeCardSetId, focusedLocalSetId, focusedWorkId, initialReturnContextKey, initialTool, outputReference, studioDocumentHandoffPending, interactionSession.focusPath.setId, interactionSession.toolStack, navigationReady, openContextTool, setActiveCardSetId]);
 
   useEffect(() => {
     if (!initialReturnContextKey || returnContextRestoredRef.current) return;
@@ -653,13 +659,20 @@ export function useDeskController({
   const completeOutputHandoff = useCallback((setId: string, reference: string) => {
     if (reference !== outputReference) return;
     initialToolHandledRef.current = true;
-    setHandledOutputReference(reference);
+    setHandledHandoffReference(reference);
     setActiveCardSetId(setId);
     navigateToTool(setId, 'output');
-  }, [navigateToTool, outputReference, setActiveCardSetId, setHandledOutputReference]);
+  }, [navigateToTool, outputReference, setActiveCardSetId, setHandledHandoffReference]);
+
+  const completeStudioDocumentHandoff = useCallback(({ activeSetId: setId }: { activeSetId: string | null }) => {
+    if (!setId || outputReference !== null) return;
+    initialToolHandledRef.current = true;
+    setHandledHandoffReference(handoffReference);
+    navigateToTool(setId, studioDocumentTool);
+  }, [handoffReference, navigateToTool, outputReference, setHandledHandoffReference, studioDocumentTool]);
 
   const closeContextStudio = () => {
-    setHandledOutputReference(outputReference);
+    setHandledHandoffReference(handoffReference);
     closeContextTool();
     requestAnimationFrame(() => cardStageRef.current?.focus());
   };
@@ -793,6 +806,7 @@ export function useDeskController({
     createPublishedWorkingCopy,
     closeContextStudio,
     completeOutputHandoff,
+    completeStudioDocumentHandoff,
     closeGenerate,
     closePipelineSubmission,
     confirmDirtyClose,
