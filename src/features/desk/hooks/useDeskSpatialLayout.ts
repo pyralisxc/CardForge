@@ -177,11 +177,11 @@ export function useDeskSpatialLayout({
   const itemKey = itemIds.join('\u0000');
   const visibleItemKey = visibleItemIds.join('\u0000');
   useEffect(() => {
-    if (!focused && positionsResolved && itemIds.length === 0) {
+    if (!focused && positionsResolved && visibleItemIds.length === 0) {
       scenePresentedRef.current = true;
       setSceneReady(true);
     }
-  }, [focused, itemIds.length, positionsResolved]);
+  }, [focused, positionsResolved, visibleItemIds.length]);
   const measureVisibleWork = useCallback(() => {
     const world = workWorldRef.current;
     if (!world) return;

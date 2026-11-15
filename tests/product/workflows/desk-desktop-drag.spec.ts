@@ -203,6 +203,8 @@ test.describe('Desk desktop spatial interaction', () => {
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
     await expect(page.locator('[data-desk-set-object-id="set:scale-set-100"]')).toHaveCount(0);
+    await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create your first Set', exact: true })).toBeVisible();
   });
 
   test('@golden focused Set fills narrow desktop viewport without document overflow', async ({ page }) => {
