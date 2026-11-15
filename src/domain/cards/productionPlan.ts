@@ -105,7 +105,7 @@ const isOneOf = <T extends readonly string[]>(values: T, value: unknown): value 
   typeof value === 'string' && values.includes(value as T[number])
 );
 
-const cleanString = (value: unknown, maxLength: number): string | undefined => {
+const cleanString = (value: unknown, maxLength = Infinity): string | undefined => {
   if (typeof value !== 'string') return undefined;
   const result = value.trim();
   return result.length > 0 && result.length <= maxLength ? result : undefined;
@@ -152,7 +152,7 @@ const normalizeAssetRequirement = (value: unknown): ProjectAssetRequirement | nu
     status: value.status,
     binding: isOneOf(PROJECT_ASSET_BINDINGS, value.binding) ? value.binding : undefined,
     assetId: cleanString(value.assetId, 255),
-    assetUrl: cleanString(value.assetUrl, 20_000),
+    assetUrl: cleanString(value.assetUrl),
     embeddedAssetId: cleanString(value.embeddedAssetId, 255),
     prompt: cleanString(value.prompt, 4_000),
     targetElementIds: cleanStringArray(value.targetElementIds, 100, 255),

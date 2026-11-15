@@ -71,6 +71,15 @@ const createProject = (): ProjectDocumentV1 => ({
 });
 
 describe('Set context package compatibility', () => {
+  it('reopens brief artwork larger than a URL text limit after server hydration', async () => {
+    const project = createProject();
+    const largePng = `data:image/png;base64,${Buffer.concat([Buffer.from(onePixelPng.split(',')[1], 'base64'), Buffer.alloc(16_000)]).toString('base64')}`;
+    project.version = 2;
+    project.cardSets[0].plan = { version: 1, context: 'Keep artwork', brief: { version: 1, decisionMode: 'confirmed', purpose: 'Cards', deliverable: 'Cards', outputSize: { width: 63, height: 88, unit: 'mm' }, visualDirection: { summary: 'Quiet', palette: [], typography: [] }, editableFieldKeys: [], assets: [{ id: 'art', name: 'Art', kind: 'image', role: 'Face', source: 'user-provided', status: 'selected', quantity: 1, assetUrl: largePng }] } };
+    const snapshot = await buildCardForgeProjectSnapshot({ document: project, name: 'Large brief art' });
+    const reopened = hydrateCardForgeProjectSnapshot(await decodeCardForgeProjectPackage(await encodeCardForgeProjectPackage(snapshot)));
+    expect(reopened.cardSets[0].plan?.brief?.assets[0].assetUrl).toBe(largePng);
+  });
   it('packages required brief artwork but never interprets literal context as artwork', async () => {
     const project = createProject();
     project.version = 2;
