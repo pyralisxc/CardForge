@@ -618,6 +618,11 @@ export function useDeskController({
     } else focusWorkContext(`set:${id}`, id);
   };
 
+  const focusOpenedSetFile = (id: string) => {
+    setRenaming(false);
+    focusWorkContext(`set:${id}`, id);
+  };
+
   const duplicateWork = (item: AccountLibraryItem) => {
     if (!item.references.localSetId) throw new Error('Choose a local Set to duplicate.');
     const duplicateId = duplicateCardSet(item.references.localSetId);
@@ -793,6 +798,7 @@ export function useDeskController({
     confirmDirtyClose,
     commitRename,
     createWork,
+    focusOpenedSetFile,
     deleteCardSet,
     deskArrival,
     deskPositions,

@@ -341,7 +341,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
       }} /></button> : null}</> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}>
         <FolderPlus aria-hidden="true" />
         <strong>Your desk is ready</strong>
-        <p className={styles.emptyCopy}>A Set keeps related cards together. Create one from scratch or a published starter, or open saved work from Library.</p>
+        <p className={styles.emptyCopy}>A Set keeps related cards together. Start a new Set to create one, open a .cardforge Set file, or customize a published starter. Library also holds saved work.</p>
         <div className="flex flex-wrap justify-center gap-2"><Button type="button" onClick={props.onCreate}>Create your first Set</Button><Button type="button" variant="outline" onClick={() => props.onNavigate('/account?section=library')}>Open Library</Button></div>
       </div></div>}
     </section>

@@ -201,6 +201,7 @@ export function Desk({
     createFromPublishedSet,
     createOpen,
     createWork,
+    focusOpenedSetFile,
     creatingPublishedSetId,
     deleteCardSet,
     deskArrival,
@@ -867,6 +868,7 @@ export function Desk({
         onConfirmDirtyClose={confirmDirtyClose}
         onCreateOpenChange={setCreateOpen}
         onCreateWork={createWork}
+        onSetFileOpened={focusOpenedSetFile}
         onCreatePublishedSet={(set) => { void createFromPublishedSet(set); }}
         onRetryPublishedSets={() => { setPublishedSets([]); setPublishedSetsFailure(null); setPublishedSetsLoading(false); openCreateMenu(); }}
         onDeleteWorkOpenChange={(open) => { if (!open && !deletingCopyRef.current) setPendingDeleteWork(null); }}
