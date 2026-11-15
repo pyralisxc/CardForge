@@ -59,23 +59,31 @@ describe('first-class local card sets', () => {
   });
 
   it('exports a self-contained set transfer and a one-card transfer', () => {
+    const backedCard = { ...card, backingTemplateId: 'official-template' };
+    const templates: TCGCardTemplate[] = [
+      template,
+      { ...template, id: 'official-template', templateSource: 'default', templateLibrarySource: 'pipeline' },
+      { ...template, id: 'unrelated-personal' },
+    ];
     const setTransfer = createCardSetTransfer({
       set,
-      storedCards: [card],
-      templates: [template],
+      storedCards: [backedCard],
+      templates,
     });
     expect(setTransfer).toMatchObject({
       cardforgeTransfer: 1,
       kind: 'set',
       sets: [set],
-      cards: [card],
+      cards: [backedCard],
     });
     expect(setTransfer.templates.map((candidate) => candidate.id)).toEqual(['template-front']);
     expect(parseCardForgeTransferValue(setTransfer)?.kind).toBe('set');
 
-    const cardTransfer = createCardTransfer({ card, set, templates: [template] });
+    const cardTransfer = createCardTransfer({ card: backedCard, set, templates });
     expect(cardTransfer.kind).toBe('card');
     expect(cardTransfer.cards).toHaveLength(1);
+    expect(cardTransfer.templates.map((candidate) => candidate.id)).toEqual(['template-front']);
+    expect(cardTransfer.cards[0]?.backingTemplateId).toBe('official-template');
     expect(parseCardForgeTransferValue(cardTransfer)?.cards[0]?.uniqueId).toBe('card-1');
   });
 });

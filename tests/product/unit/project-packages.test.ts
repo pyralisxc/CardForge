@@ -70,67 +70,46 @@ const createProject = (): ProjectDocumentV1 => ({
   },
 });
 
-describe('Set context package compatibility', () => {
-  it('reopens brief artwork larger than a URL text limit after server hydration', async () => {
+describe('portable CardForge project packages', () => {
+  it('deduplicates embedded artwork and round-trips one canonical .cardforge package', async () => {
     const project = createProject();
     const largePng = `data:image/png;base64,${Buffer.concat([Buffer.from(onePixelPng.split(',')[1], 'base64'), Buffer.alloc(16_000)]).toString('base64')}`;
     project.version = 2;
-    project.cardSets[0].plan = { version: 1, context: 'Keep artwork', brief: { version: 1, decisionMode: 'confirmed', purpose: 'Cards', deliverable: 'Cards', outputSize: { width: 63, height: 88, unit: 'mm' }, visualDirection: { summary: 'Quiet', palette: [], typography: [] }, editableFieldKeys: [], assets: [{ id: 'art', name: 'Art', kind: 'image', role: 'Face', source: 'user-provided', status: 'selected', quantity: 1, assetUrl: largePng }] } };
-    const snapshot = await buildCardForgeProjectSnapshot({ document: project, name: 'Large brief art' });
-    const reopened = hydrateCardForgeProjectSnapshot(await decodeCardForgeProjectPackage(await encodeCardForgeProjectPackage(snapshot)));
-    expect(reopened.cardSets[0].plan?.brief?.assets[0].assetUrl).toBe(largePng);
-  });
-  it('packages required brief artwork but never interprets literal context as artwork', async () => {
-    const project = createProject();
-    project.version = 2;
-    project.cardSets[0].plan = { version: 1, context: `Keep this example literal: ${onePixelPng}`, brief: normalizeProjectProductionPlan({ version: 1, decisionMode: 'confirmed', purpose: 'Cards', deliverable: 'Cards', outputSize: { width: 63, height: 88, unit: 'mm' }, visualDirection: { summary: 'Quiet', palette: [], typography: [] }, editableFieldKeys: [], assets: [{ id: 'art', name: 'Art', kind: 'image', role: 'Face', source: 'user-provided', status: 'selected', quantity: 1, assetUrl: onePixelPng }] }) };
-    const snapshot = await buildCardForgeProjectSnapshot({ document: project, name: 'Context and artwork' });
-    expect(snapshot.manifest.project.cardSets[0].plan?.brief?.assets[0].assetUrl).toMatch(/^cardforge-project-asset:\/\//);
-    expect(snapshot.manifest.project.cardSets[0].plan?.context).toBe(project.cardSets[0].plan.context);
-    const reopened = hydrateCardForgeProjectSnapshot(await decodeCardForgeProjectPackage(await encodeCardForgeProjectPackage(snapshot)));
-    expect(reopened.cardSets[0].plan).toEqual(project.cardSets[0].plan);
-  });
-  it('keeps context and opaque metadata literal even when text looks like artwork', async () => {
-    const project = createProject();
-    project.version = 2;
-    project.cardSets[0].plan = { version: 1, context: 'data:image/png;base64,not an image', custom: { example: `cardforge-project-asset://${'a'.repeat(64)}` } };
-    const snapshot = await buildCardForgeProjectSnapshot({ document: project, name: 'Literal context' });
-    expect(hydrateCardForgeProjectSnapshot(snapshot).cardSets[0].plan).toEqual(project.cardSets[0].plan);
-  });
-  it('round-trips complete Set context behind a package version old clients refuse', async () => {
-    const project = createProject();
-    project.version = 2;
-    project.cardSets[0].plan = { version: 1, context: 'Keep all wording intact.\nDo not reinterpret this as manufacturing configuration.' };
-    const snapshot = await buildCardForgeProjectSnapshot({ document: project, name: 'Context Set' });
-    expect(snapshot.manifest.cardforgeProject).toBe(3);
-    const bytes = await encodeCardForgeProjectPackage(snapshot);
-    const decoded = await decodeCardForgeProjectPackage(new Blob([new Uint8Array(bytes)]));
-    const reopened = await hydrateCardForgeProjectSnapshot(decoded);
-    expect(reopened.version).toBe(2);
-    expect(reopened.cardSets[0].plan).toEqual(project.cardSets[0].plan);
-  });
-});
-
-describe('portable CardForge project packages', () => {
-  it('deduplicates embedded artwork and round-trips one canonical .cardforge package', async () => {
+    project.cardSets[0].plan = {
+      version: 1,
+      context: `  data:image/png;base64,not an image\nKeep this literal: ${onePixelPng}\n\n`,
+      custom: { example: `cardforge-project-asset://${'a'.repeat(64)}` },
+      brief: normalizeProjectProductionPlan({
+        version: 1, decisionMode: 'confirmed', purpose: 'Cards', deliverable: 'Cards',
+        outputSize: { width: 63, height: 88, unit: 'mm' },
+        visualDirection: { summary: 'Quiet', palette: [], typography: [] },
+        editableFieldKeys: [],
+        assets: [{ id: 'art', name: 'Art', kind: 'image', role: 'Face', source: 'user-provided', status: 'selected', quantity: 1, assetUrl: largePng }],
+      }),
+    };
     const snapshot = await buildCardForgeProjectSnapshot({
-      document: createProject(),
+      document: project,
       name: 'Clash of Fists',
       savedAt: '2026-08-23T12:00:00.000Z',
     });
 
-    expect(snapshot.assets.size).toBe(1);
-    expect(snapshot.manifest.assets).toHaveLength(1);
+    expect(snapshot.assets.size).toBe(2);
+    expect(snapshot.manifest.assets).toHaveLength(2);
     expect(snapshot.manifest.projectRevision).toMatch(/^[a-f0-9]{64}$/u);
     expect(snapshot.manifest.cardforgeProject).toBe(CARDFORGE_PROJECT_PACKAGE_VERSION);
+    expect(snapshot.manifest.cardforgeProject).toBeGreaterThanOrEqual(3);
+    expect(snapshot.manifest.project.cardSets[0].plan?.brief?.assets[0].assetUrl).toMatch(/^cardforge-project-asset:\/\//);
+    expect(snapshot.manifest.project.cardSets[0].plan?.context).toBe(project.cardSets[0].plan.context);
     expect(snapshot.manifest.project.artifacts[0]!.card.data.artwork).toMatch(new RegExp(`^${CARDFORGE_PROJECT_ASSET_REFERENCE_PREFIX}`));
     expect(snapshot.manifest.project.userTemplates[0]!.freeformCanvas?.elements[0]?.imageSource).toMatch(new RegExp(`^${CARDFORGE_PROJECT_ASSET_REFERENCE_PREFIX}`));
 
     const bytes = await encodeCardForgeProjectPackage(snapshot);
-    const decoded = await decodeCardForgeProjectPackage(bytes);
+    const decoded = await decodeCardForgeProjectPackage(new Blob([new Uint8Array(bytes)]));
     const hydrated = hydrateCardForgeProjectSnapshot(decoded);
 
     expect(decoded.manifest.projectRevision).toBe(snapshot.manifest.projectRevision);
+    expect(hydrated.version).toBe(2);
+    expect(hydrated.cardSets[0].plan).toEqual(project.cardSets[0].plan);
     expect(hydrated.storedCards[0]!.data.artwork).toBe(onePixelPng);
     expect(hydrated.userTemplates[0]!.freeformCanvas?.elements[0]?.imageSource).toBe(onePixelPng);
     expect(hydrated.cardSets[0]!.metadata).toEqual({

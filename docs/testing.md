@@ -62,7 +62,9 @@ Do keep tests for:
 
 ## Regression-test lifecycle
 
-When fixing a bug, add the smallest regression test that reproduces the broken behavior at the strongest stable boundary available. If a later generic guard fully subsumes that regression, retire the narrower test instead of keeping both forever.
+Locate the canonical parent that owns the guarantee before adding or retaining a test. Exercise that owner at the strongest stable boundary, then verify through current source or revision-bound DI evidence that callers actually delegate to it. Do not repeat the parent's tests for every caller, component, selector, or incident, and do not replace them with assertions about import paths or function spellings. Keep a separate test only for an independent product, trust, concurrency, compatibility, or data-safety guarantee.
+
+A bug reproduction is temporary by default. Promote it only when it protects a durable guarantee not already covered at the parent boundary. If a generic guard subsumes an existing regression, retire the narrower test instead of keeping both forever.
 
 A PR-specific development probe is temporary by default. Before merge, either:
 
@@ -78,7 +80,7 @@ Tests that pin a component path, internal helper name, one-time migration shape,
 
 For the DI-owned whole-suite assessment, `npm run test:inventory -- --json --ref <exact-sha>` exports the immutable verification-source inputs: TS/TSX declaration files, native SQL, tracked fixtures/helpers (including original binaries), workflows, scripts and runner configuration. It records exact revision/tree, ordered paths, source hashes/line ranges and the collector digest. Repeating the same revision with the same collector produces the same inventory; uncommitted work is not attributed to that revision. This opt-in export does not modify the merge gate, extract semantic claims, prove execution or decide redundancy. DI owns assertion-level claims, evidence modality, normalized query/config provenance and replacement assessment; runtime/browser/native/provider receipts remain distinct. Existing source-reader rationales apply at file level and must not classify every assertion in a mixed file.
 
-Inventory membership is not runner enrollment. In particular, the current default Vitest unit include matches `.test.ts` only, while the inventory also includes `.test.tsx`; preserve that explicit coverage qualification until the test owner changes the runner contract. No removal or replacement eligibility follows from a file count or inventory digest.
+Inventory membership is not runner enrollment. Check the runner configuration and selected command: the default Vitest lane includes both `.test.ts` and `.test.tsx` under `tests/product/unit/`, while browser, infrastructure, and native SQL have separate execution owners. No removal or replacement eligibility follows from a file count or inventory digest.
 
 Test count is not a quality metric. CardForge should prefer fewer tests with broad, stable value over many tests that freeze implementation details.
 

@@ -56,7 +56,7 @@ describe('app store helpers', () => {
     })).toEqual([localTemplate]);
   });
 
-  it('reconstructs a template preserving freeform canvas elements', () => {
+  it('preserves authored canvas data while repairing missing element identities', () => {
     const template = reconstructMinimalTemplateObject({
       id: 'template-1',
       name: 'Template',
@@ -64,31 +64,18 @@ describe('app store helpers', () => {
       freeformCanvas: {
         width: 630,
         height: 880,
-        elements: [{ id: 'el-1', type: 'text', name: 'Title', x: 0, y: 0, width: 200, height: 50, zIndex: 1, content: 'Test' }],
-      },
-    });
-
-    expect(template.freeformCanvas?.elements).toHaveLength(1);
-    expect(template.freeformCanvas?.elements[0].id).toBe('el-1');
-  });
-
-  it('reconstructs a freeform template with a valid canvas', () => {
-    const freeformTemplate = reconstructMinimalTemplateObject({
-      id: 'freeform-template',
-      name: 'Freeform',
-      aspectRatio: '63:88',
-      freeformCanvas: {
-        width: 630,
-        height: 880,
         elements: [
+          { id: 'el-1', type: 'text', name: 'Title', x: 0, y: 0, width: 200, height: 50, zIndex: 1, content: 'Test' },
           { id: '', type: 'text', name: '', x: 10, y: 20, width: 200, height: 60, zIndex: 3, content: '{{title:"Name"}}' },
         ],
       },
     });
 
-    expect(freeformTemplate.freeformCanvas?.width).toBe(630);
-    expect(freeformTemplate.freeformCanvas?.elements[0].id).toBeTruthy();
-    expect(freeformTemplate.freeformCanvas?.elements[0].content).toBe('{{title:"Name"}}');
+    expect(template.freeformCanvas?.elements).toHaveLength(2);
+    expect(template.freeformCanvas?.elements[0].id).toBe('el-1');
+    expect(template.freeformCanvas?.width).toBe(630);
+    expect(template.freeformCanvas?.elements[1].id).toBeTruthy();
+    expect(template.freeformCanvas?.elements[1].content).toBe('{{title:"Name"}}');
   });
 
   it('drops legacy template-owned backing fields when reconstructing templates', () => {
@@ -707,7 +694,7 @@ describe('app store helpers', () => {
     expect(useProjectStore.getState().activeCardSet).toBeNull();
   });
 
-  it('persists the selected physical PDF front/back layout option', () => {
+  it('updates PDF options without resetting other authored output choices', () => {
     useProjectStore.getState().setPdfOptions({ duplexLayout: 'same-page' });
 
     expect(useProjectStore.getState().pdfDuplexLayout).toBe('same-page');

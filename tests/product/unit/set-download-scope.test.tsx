@@ -3,9 +3,9 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
-import { setProjectPersistenceScope } from '@/features/project/persistence/projectPersistenceScope';
+import { getProjectPersistenceScope, setProjectPersistenceScope } from '@/features/project/persistence/projectPersistenceScope';
 import { hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProjectStore } from '@/features/project/store/workspaceStore';
-import { applyProjectDocumentToWorkspace } from '@/features/project/client/projectWorkspaceDocument';
+import { applyCardSetPlan, applyProjectDocumentToWorkspace } from '@/features/project/client/projectWorkspaceDocument';
 import { decodeCardForgeProjectPackage, encodeCardForgeProjectPackage, hydrateCardForgeProjectSnapshot } from '@/features/project/lib/projectPackageCodec';
 import type { CardForgeProjectPackageSnapshot } from '@/features/project/model/projectPackage';
 
@@ -39,7 +39,8 @@ describe('Set download scope', () => {
   it('downloads only the selected Set and all its prepared, front and back designs', async () => {
     await hydrateProjectWorkspaceForScope('guest');
     const fixture = createProjectScaleFixture(100, { uniqueArtwork: true });
-    const selected = { ...fixture.cardSets[0], templateIds: ['scale-template', 'prepared', 'back'] };
+    const plan = { version: 1 as const, context: '  Literal data:image/png;base64,not an image\n\n', custom: { sample: `cardforge-project-asset://${'a'.repeat(64)}` } };
+    const selected = { ...fixture.cardSets[0], templateIds: ['scale-template', 'prepared', 'back'], plan };
     const other = { id: 'other-set', name: 'Private Other Set', templateIds: ['other-template'] };
     const base = fixture.userTemplates[0];
     const back = { ...base, id: 'back', name: 'Back', templateUsage: 'back-preset' as const };
@@ -57,6 +58,7 @@ describe('Set download scope', () => {
     const decoded = hydrateCardForgeProjectSnapshot(await decodeCardForgeProjectPackage(await encodeCardForgeProjectPackage(snapshot)));
     expect(fileName).toBe(`${selected.name}.cardforge`);
     expect(decoded.cardSets.map((set) => set.id)).toEqual([selected.id]);
+    expect(decoded.cardSets[0].plan).toEqual(plan);
     expect(decoded.storedCards.map((item) => item.uniqueId)).toEqual([card.uniqueId]);
     expect(decoded.storedCards[0].data).toEqual(card.data);
     expect(decoded.storedCards[0].backingData).toEqual(card.backingData);
@@ -72,6 +74,11 @@ describe('Set download scope', () => {
     expect(importedCard?.data).toEqual(card.data);
     expect(importedCard?.backingData).toEqual(card.backingData);
     expect(importedCard?.templateId).not.toBe(card.templateId);
+    const importedSet = reopened.cardSets.find((set) => set.id === imported.activeSetId)!;
+    expect(importedSet.plan).toEqual(plan);
+    await applyCardSetPlan({ setId: importedSet.id, expectedScope: getProjectPersistenceScope(), expectedPlan: importedSet.plan, plan: { ...plan, context: 'Only the copy changed' } });
+    expect(useProjectStore.getState().cardSets.find((set) => set.id === selected.id)?.plan).toEqual(plan);
+    expect(useProjectStore.getState().cardSets.find((set) => set.id === other.id)).toEqual(other);
   });
 
   it('does not download a different Set when no Set is selected', async () => {

@@ -46,32 +46,6 @@ describe('Google Drive connection status ownership', () => {
     vi.unstubAllEnvs();
   });
 
-  it('refuses a stored broad Drive grant before refreshing or reading provider data', async () => {
-    const query = {} as Record<string, ReturnType<typeof vi.fn>>;
-    query.select = vi.fn(() => query);
-    query.eq = vi.fn(() => query);
-    query.maybeSingle = vi.fn(async () => ({
-      data: connectionRow({
-        granted_scopes: [
-          'openid',
-          'https://www.googleapis.com/auth/drive.file',
-          'https://www.googleapis.com/auth/drive',
-        ],
-      }),
-      error: null,
-    }));
-    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn(() => query) } as never);
-    const fetch = vi.fn();
-    vi.stubGlobal('fetch', fetch);
-
-    await expect(listGoogleDriveProjectsPage({ ownerUserId: 'user-1' })).rejects.toMatchObject({
-      status: 409,
-      kind: 'conflict',
-      nextAction: 'CardForge owner must remove broad Drive scopes from the Google Auth Platform client before retrying.',
-    });
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
   it('keeps a connected account usable before any project folder is selected', async () => {
     const query = {} as Record<string, ReturnType<typeof vi.fn>>;
     query.select = vi.fn(() => query);

@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 import {
   findRetiredPostCutoverReferences,
@@ -36,24 +34,12 @@ describe('migration safety guard', () => {
 
   it('accepts only the hash-locked fresh-project bootstrap repairs', () => {
     const approved = parseMigrationChanges('M\tsupabase/migrations/202607140001_harden_privileged_functions.sql')[0]!;
+    const fontCorrection = parseMigrationChanges('M\tsupabase/migrations/20261010030000_first_party_font_registry_source.sql')[0]!;
     const unrelated = parseMigrationChanges('M\tsupabase/migrations/202607140004_billing_event_ledger.sql')[0]!;
 
     expect(isApprovedBootstrapRepair(process.cwd(), approved)).toBe(true);
+    expect(isApprovedBootstrapRepair(process.cwd(), fontCorrection)).toBe(true);
     expect(isApprovedBootstrapRepair(process.cwd(), unrelated)).toBe(false);
-  });
-
-  it('allows only the exact never-applied Staging font GRANT correction', () => {
-    const correction = parseMigrationChanges(
-      'M\tsupabase/migrations/20261010030000_first_party_font_registry_source.sql',
-    )[0]!;
-    expect(isApprovedBootstrapRepair(process.cwd(), correction)).toBe(true);
-    const sql = readFileSync(resolve(process.cwd(),
-      'supabase/migrations/20261010030000_first_party_font_registry_source.sql'), 'utf8');
-    const signature = '  text, text, text, text, text, text, text, text, text, bigint, text, text, text, jsonb';
-    expect(sql.split(signature)).toHaveLength(4);
-    expect(sql).not.toContain('text, text, text, text, text, text, text, text, text, text, bigint');
-    expect(sql).toContain("and p_metadata ->> 'reviewedBatchDigest' ~ '^[a-f0-9]{64}$'");
-    expect(sql).toContain("case when reviewed_first_party_font then 'official' else 'contributor' end");
   });
 
   it('rejects retired Developer tables in post-cutover migrations', () => {
@@ -105,65 +91,4 @@ describe('migration safety guard', () => {
     )).toEqual([]);
   });
 
-  it('syncs an owner-decided revision after rebalance can move it into retention trash', () => {
-    const migration = readFileSync(
-      resolve(process.cwd(), 'supabase/migrations/20260923194000_sync_archived_pipeline_registry.sql'),
-      'utf8',
-    );
-    const rebalance = migration.indexOf('changed_count := public.cardforge_rebalance_contributor_asset_pipeline');
-    const sync = migration.indexOf('perform public.cardforge_sync_contributor_asset_registry(p_submission_id)');
-
-    expect(rebalance).toBeGreaterThan(-1);
-    expect(sync).toBeGreaterThan(rebalance);
-    expect(migration).toContain('where id = p_submission_id\n    and purge_state is null;');
-    expect(migration).toContain("where submission.status in ('archived', 'rejected')");
-    expect(migration).toContain("and registry.status = 'published'");
-  });
-  it('keeps official source for verified first-party fonts in the native Pipeline function', () => {
-    const sql = readFileSync(resolve(process.cwd(), 'supabase/migrations/20261010030000_first_party_font_registry_source.sql'), 'utf8');
-    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.cardforge_upsert_pipeline_registry_asset');
-    expect(sql).toContain("p_registry_asset_type = 'font'");
-    expect(sql).toContain("p_metadata ->> 'sourceKind' = 'reviewed-first-party-original'");
-    expect(sql).toContain("p_storage_bucket = 'cardforge-contributor-assets'");
-    expect(sql).toContain("case when reviewed_first_party_font then 'official' else 'contributor' end");
-    expect(sql).toContain("and p_metadata ->> 'reviewedBatchDigest' ~ '^[a-f0-9]{64}$';");
-    expect(sql).toContain("and p_metadata ->> 'sourceGitBlobSha' ~ '^[a-f0-9]{40}$'");
-    expect(sql).toContain('on conflict (asset_id) do update');
-    expect(sql).not.toContain('library_source = excluded.library_source');
-    expect(sql).toContain('to service_role;');
-    expect(sql).not.toMatch(/update public\\.cardforge_asset_registry\\s+set/iu);
-  });
-
-
-  it('adds JPEG to the social media bucket without weakening visibility, size, or WebP invariants', () => {
-    const migration = readFileSync(
-      resolve(process.cwd(), 'supabase/migrations/20261022052800_allow_jpeg_social_media_derivatives.sql'),
-      'utf8',
-    );
-    expect(migration.trimStart().startsWith('begin;')).toBe(true);
-    expect(migration.trimEnd().endsWith('commit;')).toBe(true);
-    expect(migration).toMatch(/where id = 'cardforge-social-media'\s+for update/iu);
-    expect(migration).toContain('social_bucket.public is distinct from true');
-    expect(migration).toContain('social_bucket.file_size_limit is distinct from 12582912');
-    expect(migration).toContain("'image/webp' = any(social_bucket.allowed_mime_types)");
-    expect(migration).toContain("array['image/jpeg']::text[]");
-    expect(migration).toContain('array_agg(distinct mime_type order by mime_type)');
-    expect(migration).toContain("and public is true");
-    expect(migration).toContain('and file_size_limit = 12582912');
-    expect(migration).toContain("'image/webp' = any(allowed_mime_types)");
-    expect(migration).toContain("'image/jpeg' = any(allowed_mime_types)");
-    expect(migration).not.toContain('cardforge-social-sources');
-    expect(migration).toContain('cardforge_social_media_bucket_missing');
-    expect(migration).toContain('cardforge_social_media_bucket_visibility_mismatch');
-    expect(migration).toContain('cardforge_social_media_bucket_size_limit_mismatch');
-    expect(migration).toContain('cardforge_social_media_bucket_webp_contract_mismatch');
-    expect(migration).toContain('cardforge_social_media_bucket_jpeg_contract_failed');
-
-    const update = migration.match(
-      /update storage\.buckets([\s\S]*?)where id = 'cardforge-social-media';/iu,
-    )?.[1];
-    expect(update).toBeDefined();
-    expect(update).toMatch(/set allowed_mime_types\s*=/iu);
-    expect(update).not.toMatch(/\b(public|file_size_limit|name)\s*=/iu);
-  });
 });

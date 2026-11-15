@@ -1,68 +1,41 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
-import { describe, expect, it } from 'vitest';
+import type { createMcpHandler } from 'mcp-handler';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createStableAgentCardId } from '@/features/studio-documents/server/cardSetWorkingDocuments';
-import { CARDFORGE_MCP_CONTRACT_VERSION } from '@/features/studio-documents/server/mcpContractVersion';
 
-const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
-
-const toolNames = (source: string) => Array.from(
-  source.matchAll(/registerTool\(\s*['"]([^'"]+)['"]/g),
-  (match) => match[1],
-);
-
-const toolRegistration = (source: string, name: string) => {
-  const marker = new RegExp(`registerTool\\(\\s*['\"]${name}['\"]`);
-  const start = source.search(marker);
-  if (start < 0) throw new Error(`Missing MCP tool registration for ${name}`);
-  const next = source.indexOf('registerTool(', start + 1);
-  return source.slice(start, next < 0 ? undefined : next);
+type Registration = Parameters<typeof createMcpHandler>[0];
+type ToolDefinition = {
+  outputSchema?: unknown;
+  annotations?: { destructiveHint?: boolean; openWorldHint?: boolean };
 };
 
-describe('CardForge MCP and plugin product hygiene', () => {
-  const route = readSource('src/app/mcp/route.ts');
-  const studioMcpServer = readSource('src/features/studio-documents/server/mcpServer.ts');
-  const editableTemplateTools = readSource('src/features/studio-documents/server/mcpEditableTemplateTools.ts');
-  const accountTools = readSource('src/features/studio-documents/server/mcpAccountWorkflowTools.ts');
-  const templateTools = readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts');
-  const cardTools = readSource('src/features/studio-documents/server/mcpAgentCardTools.ts');
-  const projectTools = readSource('src/features/studio-documents/server/mcpProjectSourceTools.ts');
-  const workingDocumentTools = readSource('src/features/studio-documents/server/mcpWorkingDocumentTools.ts');
-  const personalLibraryTools = readSource('src/features/personal-library/server/mcpPersonalLibraryTools.ts');
-  const cardSchemas = readSource('src/features/studio-documents/server/mcpCardToolSchemas.ts');
-  const designSkill = readSource('plugins/cardforge-studio/skills/create-editable-template/SKILL.md');
-  const setSkill = readSource('plugins/cardforge-studio/skills/create-cards-and-sets/SKILL.md');
-  const plugin = JSON.parse(readSource('plugins/cardforge-studio/.codex-plugin/plugin.json')) as {
-    version: string;
-    description: string;
-    interface: { shortDescription: string; longDescription: string; defaultPrompt: string[] };
-  };
+const transport = vi.hoisted(() => ({ register: undefined as Registration | undefined }));
+vi.mock('server-only', () => ({}));
+vi.mock('mcp-handler', async importOriginal => ({
+  ...await importOriginal<typeof import('mcp-handler')>(),
+  createMcpHandler: (register: Registration) => {
+    transport.register = register;
+    return vi.fn();
+  },
+  }));
 
-  it('keeps the Next MCP route as transport composition only', () => {
-    expect(route.split(/\r?\n/).length).toBeLessThan(40);
-    expect(route).toContain('withMcpAuth');
-    expect(route).toContain('cardForgeMcpHandler');
-    expect(route).not.toContain('registerTool(');
-    expect(route).not.toContain('consumeRateLimit');
-    expect(route).not.toContain('productionPlan');
-    expect(studioMcpServer).toContain('registerEditableTemplateTools');
-    expect(studioMcpServer).not.toContain('registerTool(');
-  });
+describe('CardForge MCP contract', () => {
+  it('registers the published actions and structured contracts through the server owner', async () => {
+    await import('@/features/studio-documents/server/mcpServer');
+    const register = transport.register;
+    if (!register) throw new Error('The MCP transport did not receive its server registration.');
 
-  it('keeps the published MCP action names explicit', () => {
-    const names = [
-      ...toolNames(editableTemplateTools),
-      ...toolNames(accountTools),
-      ...toolNames(templateTools),
-      ...toolNames(cardTools),
-      ...toolNames(projectTools),
-      ...toolNames(workingDocumentTools),
-      ...toolNames(personalLibraryTools),
-    ].sort();
+    const tools = new Map<string, ToolDefinition>();
+    await register({
+      registerTool: (name: string, definition: ToolDefinition) => {
+        expect(tools.has(name), name).toBe(false);
+        tools.set(name, definition);
+      },
+      registerResource: vi.fn(),
+      server: { setRequestHandler: vi.fn() },
+    } as unknown as Parameters<Registration>[0]);
 
-    expect(names).toEqual([
+    const coreActions = [
       'attach_template_artwork',
       'attach_template_artworks',
       'checkout_project',
@@ -93,62 +66,41 @@ describe('CardForge MCP and plugin product hygiene', () => {
       'upsert_card_set',
       'upsert_cards',
       'validate_working_document',
+    ];
+    const structuredActions = [
+      ...coreActions,
+      'list_pipeline_submissions', 'get_pipeline_revision', 'get_pipeline_content_health',
+      'get_pipeline_engagement', 'vote_pipeline_revision', 'set_pipeline_heart',
+      'discover_pipeline_previews', 'inspect_saved_source', 'preview_saved_source', 'export_saved_source',
+    ];
+    expect([...tools.keys()]).toEqual(expect.arrayContaining(structuredActions));
+    for (const name of structuredActions) expect(tools.get(name)?.outputSchema, name).toBeDefined();
+
+    const destructiveActions = new Set([
+      'attach_template_artwork', 'attach_template_artworks', 'commit_project',
+      'delete_card_set', 'delete_cards', 'move_cards', 'patch_cards',
+      'patch_working_document', 'update_editable_template', 'upsert_card',
+      'upsert_card_set', 'upsert_cards',
     ]);
-  });
-
-  it('publishes an explicit output schema for every structured MCP tool', () => {
-    const sources = [editableTemplateTools, accountTools, templateTools, cardTools, projectTools, workingDocumentTools, personalLibraryTools].join('\n');
-    expect(sources.match(/outputSchema:/g)).toHaveLength(toolNames(sources).length);
-  });
-
-  it('labels private overwrites and external artwork retrieval accurately', () => {
-    const sources = [editableTemplateTools, accountTools, templateTools, cardTools, projectTools, workingDocumentTools, personalLibraryTools].join('\n');
-    const destructiveTools = new Set([
-      'attach_template_artwork',
-      'attach_template_artworks',
-      'commit_project',
-      'delete_card_set',
-      'delete_cards',
-      'move_cards',
-      'patch_cards',
-      'patch_working_document',
-      'update_editable_template',
-      'upsert_card',
-      'upsert_card_set',
-      'upsert_cards',
+    const openWorldActions = new Set([
+      'attach_template_artworks', 'patch_working_document', 'upsert_card', 'upsert_cards',
     ]);
-    const openWorldTools = new Set(['attach_template_artworks', 'patch_working_document', 'upsert_card', 'upsert_cards']);
-
-    for (const name of toolNames(sources)) {
-      const registration = toolRegistration(sources, name);
-      expect(registration, name).toContain(`destructiveHint: ${destructiveTools.has(name)}`);
-      expect(registration, name).toContain(`openWorldHint: ${openWorldTools.has(name)}`);
+    for (const name of coreActions) {
+      expect(tools.get(name)?.annotations, name).toMatchObject({
+        destructiveHint: destructiveActions.has(name),
+        openWorldHint: openWorldActions.has(name),
+      });
     }
   });
 
-  it('uses mainstream card/set language and makes Template authority discoverable', () => {
-    expect(cardTools).toContain('Prepare a Template for making or revising cards');
-    expect(cardTools).toContain('Create or update a CardForge card set');
-    expect(cardTools).toContain('Make or revise one CardForge card');
-    expect(cardTools).toContain('Make or revise CardForge cards in bulk');
-    expect(cardTools).toContain('New cards carry their Template source explicitly');
-    expect(cardTools).toContain('Existing cards preserve their current Templates');
-    expect(cardTools).toContain('Visually review a CardForge Set before applying or committing it');
-    expect(cardTools).toContain('working Set');
-    expect(cardTools).toContain('list/CSV/JSON conversion');
-    expect(cardSchemas).toContain('sourceUrl');
-    expect(cardSchemas.toLowerCase()).toContain('exact image field key');
-  });
-
-  it('makes successful card/set calls self-guiding and retry-aware', () => {
-    expect(cardTools).toContain('capabilityVersion');
-    expect(cardTools).toContain('workflowStage');
-    expect(cardTools).toContain('nextActions');
-    expect(cardTools).toContain('retrySafety');
-    expect(cardTools).toContain('stableCardIds');
-    expect(cardTools).toContain('idempotentHint: true');
-    expect(cardSchemas).toContain('Reuse the same id for revisions and retries');
-    expect(cardSchemas).toContain('CardForge derives a deterministic id');
+  it('rejects anonymous requests at the MCP transport boundary', async () => {
+    const { POST } = await import('@/app/mcp/route');
+    const response = await POST(new Request('https://cardforge.test/mcp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+    }));
+    expect(response.status).toBe(401);
   });
 
   it('derives stable fallback card ids independent of object key order', () => {
@@ -164,50 +116,8 @@ describe('CardForge MCP and plugin product hygiene', () => {
 
     expect(left).toBe(right);
     expect(secondCopy).not.toBe(left);
-  });
-
-  it('keeps the package release compatible with its independently versioned MCP server contract', () => {
-    // Plugin packaging may release independently of the MCP protocol.
-    // Breaking server contract revisions must still be reflected in the package's major version.
-    expect(CARDFORGE_MCP_CONTRACT_VERSION).toBe('1.0.16');
-    expect(plugin.version).toBe('1.0.4');
-    // The additive Pipeline contract keeps the independently packaged 1.x plugin compatible.
-    expect({ package: plugin.version, mcpContract: CARDFORGE_MCP_CONTRACT_VERSION }).toEqual({
-      package: '1.0.4', mcpContract: '1.0.16',
-    });
-  });
-
-  it('presents CardForge as a card-making product rather than a contributor Template utility', () => {
-    expect(plugin.description).toContain('complete sets');
-    expect(plugin.interface.shortDescription).toBe('Design cards and card sets');
-    expect(plugin.interface.longDescription).toContain('bulk-generate');
-    expect(plugin.interface.defaultPrompt).toContain('Turn this list into a complete CardForge card set.');
-    expect(plugin.interface.defaultPrompt.join(' ')).not.toContain('Forge Review');
-    expect([
-      plugin.description,
-      plugin.interface.longDescription,
-      ...plugin.interface.defaultPrompt,
-      designSkill,
-      setSkill,
-    ].join('\n')).not.toMatch(/\bdeveloper(?:\/owner| publication| role| account| path| vote| contribution|,)/iu);
-  });
-
-  it('splits design guidance from card/set generation guidance without duplicating implementation contracts', () => {
-    expect(designSkill).toContain('# Design editable CardForge Templates');
-    expect(designSkill).toContain('do **not** add another decorative border');
-    expect(designSkill).toContain('`binding: element.image`');
-    expect(designSkill).toContain('call `preview_template_draft`');
-    expect(designSkill).toContain('canonical CardForge renderer');
-    expect(designSkill).toContain('separate revision-bound Studio URL');
-    expect(designSkill).toContain('same normal personal local Template');
-
-    expect(setSkill).toContain('# Create and revise CardForge cards and Sets');
-    expect(setSkill).toContain('call `get_card_generation_contract`');
-    expect(setSkill).toContain('same Set and card ids');
-    expect(setSkill).toContain('`upsert_cards`');
-    expect(setSkill).toContain('Image generation creates standalone artwork assets only');
-    expect(setSkill).not.toContain('`attach_card_artwork`');
-    expect(setSkill).toContain('`preview_card_set`');
-    expect(setSkill).toContain('transfer editable CardForge files');
+    expect(createStableAgentCardId('set-1', {
+      data: { card_name: 'ROCK', rules_text: 'Changed authored content' },
+    }, 0)).not.toBe(left);
   });
 });

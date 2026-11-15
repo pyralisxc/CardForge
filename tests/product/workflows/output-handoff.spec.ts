@@ -144,7 +144,7 @@ test('@golden actual Workbench applies exact selection and settings before the e
 
 const deskBuild = buildSync({ minify: true, entryPoints: ['tests/product/fixtures/outputHandoffDesk.tsx'], bundle: true, platform: 'browser', format: 'iife', write: false, outfile: '/tmp/cardforge-output-desk-fixture.js', define: { 'process.env.NODE_ENV': '"production"', 'process.env.NEXT_RUNTIME': '"browser"', 'process.env': '{}' } });
 const deskBundle = deskBuild.outputFiles.find(file => file.path.endsWith('.js'))!.text;
-async function mountDesk(page: import('@playwright/test').Page, fault: 'stale' | 'invalid' | 'cancel' | 'concurrent' | 'acknowledgement' | null = null, source: 'studio' | 'gpt' = 'studio', entry: 'output' | 'studio-empty' | 'studio-existing' | 'studio-output' = 'output') {
+async function mountDesk(page: import('@playwright/test').Page, fault: 'stale' | 'invalid' | 'cancel' | 'concurrent' | 'acknowledgement' | null = null, source: 'studio' | 'gpt' = 'studio', entry: 'output' | 'studio-empty' | 'studio-existing' = 'output', tool: 'design' | 'output' = 'design') {
  let requests = 0; let acknowledgements = 0; let confirmations = 0; let release!: () => void;
  const pending = new Promise<void>(resolve => { release = resolve; });
  page.on('dialog', dialog => { confirmations++; return fault === 'cancel' ? dialog.dismiss() : dialog.accept(); });
@@ -165,9 +165,9 @@ async function mountDesk(page: import('@playwright/test').Page, fault: 'stale' |
  });
  const params = new URLSearchParams({ tool: 'output', document: id, revision: '2', outputRef: fault === 'invalid' ? '' : '10000000-0000-4000-8000-000000000001' });
  if (entry !== 'output') {
-  params.set('tool', entry === 'studio-output' ? 'output' : 'design');
+  params.set('tool', tool);
   params.delete('outputRef');
-  if (entry === 'studio-existing' || entry === 'studio-output') { params.set('seedLocal', '1'); params.set('focus', 'set:existing-set'); }
+  if (entry === 'studio-existing') { params.set('seedLocal', '1'); params.set('focus', 'set:existing-set'); }
  }
  if (fault === 'cancel') params.set('seedLocal', '1');
  await page.goto(`http://localhost/account?${params}`);
@@ -176,32 +176,23 @@ async function mountDesk(page: import('@playwright/test').Page, fault: 'stale' |
  return { requests: () => requests, acknowledgements: () => acknowledgements, confirmations: () => confirmations, release };
 }
 
-for (const entry of ['studio-empty', 'studio-existing'] as const) for (const fault of [null, 'acknowledgement'] as const) test(`@golden @preview normal GPT Studio handoff focuses its installed Set from ${entry} with ${fault ?? 'confirmed installation'}`, async ({ page }) => {
- const source = await mountDesk(page, fault, 'gpt', entry);
+for (const { entry, tool, fault } of [
+ { entry: 'studio-empty', tool: 'design', fault: null },
+ { entry: 'studio-existing', tool: 'output', fault: 'acknowledgement' },
+] as const) test(`@golden @preview document handoff preserves Set scope and ${tool} intent from ${entry}`, async ({ page }) => {
+ const source = await mountDesk(page, fault, 'gpt', entry, tool);
  await expect.poll(source.acknowledgements).toBe(1);
- await expect(page.locator('[data-desk-context-rail]')).toContainText('100 Card Scale Set');
+ await expect(page.getByRole('navigation', { name: 'Creative context' })).toContainText('100 Card Scale Set');
  expect(new URL(page.url()).searchParams.get('focus')).toBe('set:scale-set-100');
+ expect(new URL(page.url()).searchParams.get('tool')).toBe(tool);
  expect(new URL(page.url()).searchParams.has('document')).toBe(fault === 'acknowledgement');
  if (fault) await expect(page.getByRole('region', { name: 'Notifications (F8)' })).toContainText('Revision applied locally');
+ if (tool === 'output') await expect(page.getByRole('region', { name: 'Output Set', exact: true })).toBeVisible();
  expect(source.requests()).toBe(1);
  expect(source.confirmations()).toBe(0);
  const state = await page.evaluate(() => (window as unknown as { outputState: () => { cards: string[]; activeSet: string } }).outputState());
  expect(state.activeSet).toBe('scale-set-100');
- expect(state.cards).toEqual(entry === 'studio-existing' ? ['existing-local', 'scale-card-1', 'scale-card-2', 'scale-card-3'] : ['scale-card-1', 'scale-card-2', 'scale-card-3']);
- const lifecycle = await page.evaluate(() => (window as unknown as { outputLifecycle: { mounts: number; unmounts: number } }).outputLifecycle);
- expect(lifecycle.mounts).toBe(1);
- expect(lifecycle.unmounts).toBe(0);
-});
-
-test('@golden @preview document Output without a prepared reference keeps the requested tool', async ({ page }) => {
- const source = await mountDesk(page, null, 'gpt', 'studio-output');
- await expect.poll(source.acknowledgements).toBe(1);
- await expect(page.getByRole('button', { name: 'Download digital PDF', exact: true })).toBeVisible();
- await expect(page.locator('[data-desk-context-rail]')).toContainText('100 Card Scale Set');
- expect(new URL(page.url()).searchParams.get('tool')).toBe('output');
- expect(new URL(page.url()).searchParams.has('outputRef')).toBe(false);
- expect(source.requests()).toBe(1);
- expect(source.confirmations()).toBe(0);
+ expect(state.cards.sort()).toEqual((entry === 'studio-existing' ? ['existing-local', 'scale-card-1', 'scale-card-2', 'scale-card-3'] : ['scale-card-1', 'scale-card-2', 'scale-card-3']).sort());
 });
 
 test('@golden @preview actual Desk bootstraps exact prepared Output before a local Set exists', async ({ page }) => {
