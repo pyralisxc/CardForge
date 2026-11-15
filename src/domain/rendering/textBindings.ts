@@ -49,6 +49,7 @@ const STATIC_IMAGE_SOURCE_PREFIXES = [
   'https://',
   'data:',
   'blob:',
+  'cardforge-browser-asset://',
   'cardforge-studio-asset://',
   'embedded://',
   'css:',
@@ -56,7 +57,7 @@ const STATIC_IMAGE_SOURCE_PREFIXES = [
   'radial-gradient',
   '/',
 ];
-const PERSISTED_IMAGE_SOURCE_PREFIXES = ['data:', 'cardforge-studio-asset://', 'embedded://'];
+const PERSISTED_IMAGE_SOURCE_PREFIXES = ['data:', 'cardforge-browser-asset://', 'cardforge-studio-asset://', 'embedded://'];
 
 const isStaticImageSource = (value: string): boolean => {
   const lower = value.toLowerCase();
