@@ -132,6 +132,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
   catalogToolTemplates?: boolean;
   templateContent?: boolean;
   cardLimit?: number;
+  titleField?: string;
   exportSample?: boolean;
   lowResolutionArtwork?: boolean;
   mixedTemplates?: boolean;
@@ -154,6 +155,13 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     options.needsWorkFixture,
   );
   if (options.cardLimit !== undefined) state.storedCards = state.storedCards.slice(0, options.cardLimit);
+  if (options.titleField) {
+    for (const card of state.storedCards) {
+      const title = card.data.cardName!;
+      delete card.data.cardName;
+      card.data[options.titleField] = title;
+    }
+  }
   if (options.emptyDesk) {
     state.storedCards = [];
     state.cardSets = [];
