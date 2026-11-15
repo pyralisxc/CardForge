@@ -1,4 +1,6 @@
 import {
+  authoredPlanInputSurvives,
+  normalizeSetPlan,
   reconcileCardSets,
   resolveActiveCardSet,
   type CardSet,
@@ -55,8 +57,8 @@ export interface ProjectDocumentMcpOperationReceipt {
   canonicalRenderingRecommended: boolean;
 }
 
-export interface ProjectDocumentV1 {
-  version: 1;
+export interface ProjectDocument {
+  version: 1 | 2;
   userTemplates: TCGCardTemplate[];
   cardSets: CardSet[];
   activeCardSetId?: string;
@@ -68,6 +70,9 @@ export interface ProjectDocumentV1 {
   productionPlan?: ProjectProductionPlan;
   mcpOperationReceipts?: ProjectDocumentMcpOperationReceipt[];
 }
+
+/** Compatibility type name; normalized documents may carry v2 Set context. */
+export type ProjectDocumentV1 = ProjectDocument;
 
 export interface CreateProjectDocumentInput extends ProjectDocumentExportSettings {
   userTemplates: TCGCardTemplate[];
@@ -232,7 +237,7 @@ const normalizeMcpOperationReceipts = (value: unknown): ProjectDocumentMcpOperat
 };
 
 const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
-  if (!isRecord(value) || value.version !== PROJECT_DOCUMENT_VERSION) return null;
+  if (!isRecord(value) || (value.version !== 1 && value.version !== 2)) return null;
   if (!Array.isArray(value.userTemplates) && !Array.isArray(value.storedCards) && !Array.isArray(value.appearanceStyles)) return null;
 
   const storedCards = asArray<StoredDisplayCard>(value.storedCards);
@@ -246,10 +251,13 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
   });
   const customFonts = normalizeProjectFontAssets(value.customFonts);
   const productionPlan = normalizeProjectProductionPlan(value.productionPlan);
+  if (value.productionPlan !== undefined && (!productionPlan || !authoredPlanInputSurvives(value.productionPlan, productionPlan))) {
+    throw new Error('The document contains an unsupported creation brief. Its source was left unchanged.');
+  }
   const mcpOperationReceipts = normalizeMcpOperationReceipts(value.mcpOperationReceipts);
 
   return {
-    version: PROJECT_DOCUMENT_VERSION,
+    version: value.version,
     userTemplates: normalizeTemplates(value.userTemplates),
     cardSets,
     ...(activeCardSet ? { activeCardSetId: activeCardSet.id } : {}),
@@ -291,7 +299,7 @@ export const createProjectDocumentFromState = ({
   const normalizedFonts = normalizeProjectFontAssets(customFonts);
   const normalizedProductionPlan = normalizeProjectProductionPlan(productionPlan);
   return {
-    version: PROJECT_DOCUMENT_VERSION,
+    version: normalizedSets.some((set) => set.plan !== undefined) ? 2 : PROJECT_DOCUMENT_VERSION,
     userTemplates,
     cardSets: normalizedSets,
     ...(activeCardSet ? { activeCardSetId: activeCardSet.id } : {}),
@@ -328,6 +336,23 @@ export const applyProjectDocumentToState = (document: ProjectDocumentV1): Projec
   customFonts: normalizeProjectFontAssets(document.customFonts),
 });
 
+export const materializeSetPlanOwnership = (document: ProjectDocumentV1): ProjectDocumentV1 => {
+  if (!document.productionPlan) return document;
+  if (document.cardSets.length !== 1) {
+    throw new Error('This legacy document-wide brief has no unambiguous Set owner. Keep the source for recovery; the workspace was left unchanged.');
+  }
+  const owner = document.cardSets[0];
+  if (owner.plan?.brief && JSON.stringify(owner.plan.brief) !== JSON.stringify(document.productionPlan)) {
+    throw new Error('The Set context and legacy document contain different creation briefs. Neither version was overwritten.');
+  }
+  const { productionPlan, ...project } = document;
+  return {
+    ...project,
+    version: 2,
+    cardSets: [{ ...owner, plan: normalizeSetPlan({ ...owner.plan, version: 1, context: owner.plan?.context ?? '', brief: productionPlan }) }],
+  };
+};
+
 /**
  * Produces the durable package for one authored Set without changing the
  * workspace. Older multi-Set packages remain readable, but every new
@@ -344,6 +369,7 @@ export const isolateProjectDocumentToSet = (
     card.setId === setId || (!card.setId && firstSetId === setId)
   )).map((card) => ({ ...card, setId, setName: set.name }));
   const templateIds = new Set<string>([
+    ...(set.templateIds ?? []),
     ...storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
   ].filter((value): value is string => Boolean(value)));
 
@@ -405,22 +431,38 @@ export const instantiateProjectDocumentCopy = (
   const remapTemplateId = (id: string | null | undefined): string | null => (
     id ? templateIds.get(id) ?? id : null
   );
-  const copyAssets = (assets: CardAssetOption[]) => assets.map((asset) => ({
+  const assetIds = new Map<string, string | null>();
+  const copyAssets = (assets: CardAssetOption[]) => assets.map((asset) => {
+    const id = createId('asset');
+    assetIds.set(asset.id, assetIds.has(asset.id) ? null : id);
+    return {
       ...asset,
-      id: createId('asset'),
+      id,
       librarySource: 'local' as const,
       registryStatus: 'localOnly' as const,
       accessTier: undefined,
-    }));
+    };
+  });
   const customAssets: ProjectDocumentCustomAssets = {
     [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: copyAssets(document.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
     [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: copyAssets(document.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
     [CUSTOM_ICON_ASSETS_STORAGE_KEY]: copyAssets(document.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
     [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: copyAssets(document.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
   };
+  const copyBrief = (brief: ProjectProductionPlan): ProjectProductionPlan => ({
+    ...structuredClone(brief),
+    assets: brief.assets.map((asset) => {
+      const copied = structuredClone(asset);
+      if (!asset.assetId || !['custom-generated', 'user-provided'].includes(asset.source) || !assetIds.has(asset.assetId)) return copied;
+      const id = assetIds.get(asset.assetId);
+      if (!id) throw new Error('A creation-brief asset has ambiguous local identity. The source was left unchanged.');
+      return { ...copied, assetId: id };
+    }),
+  });
 
   return {
     ...document,
+    ...(document.productionPlan ? { productionPlan: copyBrief(document.productionPlan) } : {}),
     ...(customFonts ? { customFonts } : {}),
     userTemplates: document.userTemplates.map((template) => ({
       ...remapProjectTemplateFonts(template, fontValues),
@@ -435,6 +477,7 @@ export const instantiateProjectDocumentCopy = (
     })),
     cardSets: document.cardSets.map((set) => ({
       ...set,
+      ...(set.plan ? { plan: { ...structuredClone(set.plan), ...(set.plan.brief ? { brief: copyBrief(set.plan.brief) } : {}) } } : {}),
       id: setIds.get(set.id)!,
       ...(set.templateIds ? { templateIds: set.templateIds.map((id) => remapTemplateId(id) ?? id) } : {}),
       ...(set.organization ? { organization: {
@@ -480,7 +523,11 @@ export const instantiateProjectDocumentCopy = (
 };
 
 export const parseProjectDocumentValue = (parsed: unknown): ParseProjectDocumentResult => {
-  if (isRecord(parsed) && parsed.version === PROJECT_DOCUMENT_VERSION) {
+  if (isRecord(parsed) && parsed.version === 1 && Array.isArray(parsed.cardSets)
+    && parsed.cardSets.some((set) => isRecord(set) && set.plan !== undefined)) {
+    return { success: false, error: 'Set context requires a newer project document version. The source was left unchanged.' };
+  }
+  if (isRecord(parsed) && (parsed.version === 1 || parsed.version === 2)) {
     const invalidTemplateReason = getInvalidTemplateReason(parsed.userTemplates);
     if (invalidTemplateReason) {
       return {
@@ -490,7 +537,9 @@ export const parseProjectDocumentValue = (parsed: unknown): ParseProjectDocument
     }
   }
 
-  const document = normalizeProjectDocument(parsed);
+  let document: ProjectDocumentV1 | null;
+  try { document = normalizeProjectDocument(parsed); }
+  catch (error) { return { success: false, error: error instanceof Error ? error.message : 'The Set context cannot be opened safely.' }; }
   if (document) {
     return {
       success: true,

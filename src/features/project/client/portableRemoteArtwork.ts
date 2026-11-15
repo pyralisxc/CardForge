@@ -199,5 +199,9 @@ export async function capturePortableRemoteArtwork(source: ProjectDocumentV1) {
     if (value.style) await style(value.style);
   }
   for (const value of document.appearanceStyles) await style(value);
+  const briefs = [document.productionPlan, ...document.cardSets.map((set) => set.plan?.brief)];
+  for (const brief of briefs) for (const asset of brief?.assets ?? []) {
+    asset.assetUrl = await media(asset.assetUrl);
+  }
   return { document, assets };
 }

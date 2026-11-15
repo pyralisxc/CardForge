@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProjectDocumentV1 } from '@/features/project/client/package-document';
+import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope, type ProjectDocumentV1 } from '@/features/project/client/package-document';
 import { isProjectFontMimeType, MAX_PROJECT_FONT_BYTES } from '@/features/project/client/assets';
 import {
   replaceStudioDocumentAssetReferences,
@@ -28,13 +28,14 @@ export const hydrateStudioDocumentAssetValue = async <Value>(
 ): Promise<Value> => {
   signal?.throwIfAborted();
   if (verifyIntegrity) {
-    const validateReferences = (entry: unknown): void => {
+    const validateReferences = (entry: unknown, scope: ProjectAssetScope): void => {
+      if (scope === 'opaque') return;
       if (typeof entry === 'string') {
         if ((entry.startsWith(STUDIO_DOCUMENT_ASSET_REFERENCE_PREFIX) && !getStudioDocumentAssetIdFromReference(entry)) || (entry.startsWith(STUDIO_DOCUMENT_FONT_REFERENCE_PREFIX) && !getStudioDocumentFontIdFromReference(entry))) throw new Error('A private asset reference is invalid.');
-      } else if (Array.isArray(entry)) entry.forEach(validateReferences);
-      else if (entry && typeof entry === 'object') Object.values(entry).forEach(validateReferences);
+      } else if (Array.isArray(entry)) entry.forEach((item) => validateReferences(item, projectAssetArrayScope(scope)));
+      else if (entry && typeof entry === 'object') Object.entries(entry).forEach(([key, item]) => validateReferences(item, projectAssetChildScope(scope, key)));
     };
-    validateReferences(value);
+    validateReferences(value, 'root');
     const images = new Set(collectStudioDocumentAssetIds(value));
     const fonts = new Set(collectStudioDocumentFontIds(value));
     const expected = new Set([...images, ...fonts]);

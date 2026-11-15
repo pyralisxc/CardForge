@@ -113,7 +113,7 @@ test('@golden @preview untouched tabs do not write catalog no-ops and dismissed 
   await a.evaluate(()=> (window as typeof window & {workspaceProof:Proof}).workspaceProof.setup());
   const b=await boot();
   const read=()=>a.evaluate(async()=>{
-    const db=await new Promise<IDBDatabase>((resolve,reject)=>{const q=indexedDB.open('cardforge-browser-storage',1);q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error);});
+    const db=await new Promise<IDBDatabase>((resolve,reject)=>{const q=indexedDB.open('cardforge-browser-storage');q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error);});
     const value=await new Promise<string>((resolve,reject)=>{const q=db.transaction('key-value').objectStore('key-value').get('project-workspace:account:disposable-conflict:workspace');q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error);});db.close();return JSON.parse(value) as {revision:number;value:string};
   });
   const baseline=await read();

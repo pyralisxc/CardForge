@@ -125,6 +125,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       } : undefined;
       const duplicate: CardSet = {
         ...source,
+        ...(source.plan ? { plan: structuredClone(source.plan) } : {}),
         id: duplicateId,
         name: duplicateName,
         templateIds: [...templateIds].map((templateId) => copiedTemplateIds.get(templateId)!),

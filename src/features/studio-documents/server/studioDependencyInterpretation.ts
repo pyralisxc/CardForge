@@ -4,6 +4,7 @@ import { normalizeStudioDocumentPayload } from '../model';
 import { projectProductionPlanSchema, templateDraftSchema, templateDraftAppearanceSchema } from '../templateDraftSchema';
 import { getStudioDocumentAssetIdFromReference, getStudioDocumentFontIdFromReference } from '../assetReferences';
 import { isSourceContainedCssImage } from '@/domain/templates/sourceContainedCss';
+import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '@/features/project/server';
 
 export const STUDIO_DEPENDENCY_CONTRACT_VERSION = 1;
 const scalarData = z.record(z.string(), z.union([z.string(), z.number().finite()]));
@@ -40,6 +41,7 @@ const operationReceipt = z.object({
 const storedCard = z.object({ templateId: z.string(), backingTemplateId: z.string().nullable().optional(), data: scalarData, backingData: scalarData.optional(),
   uniqueId: z.string(), setId: z.string().optional(), setName: z.string().optional(), tagIds: z.array(z.string()).optional(), updatedAt: z.string().optional() }).strict();
 const set = z.object({ id: z.string(), name: z.string(), templateIds: z.array(z.string()).optional(),
+  plan: z.object({ version: z.literal(1), context: z.string(), brief: projectProductionPlanSchema.optional() }).passthrough().optional(),
   organization: z.object({ spatialVersion: z.literal(2).optional(), gridSizeMm: z.number().optional(), arrangement: z.string(), groupBy: z.string(),
     groupField: z.string().optional(), groupTagId: z.string().optional(), sort: z.string(), sortField: z.string().optional(),
     tags: z.array(z.object({id:z.string(),label:z.string()}).strict()), positions: z.record(z.string(),z.object({x:z.number(),y:z.number()}).strict()) }).strict().optional(),
@@ -56,7 +58,8 @@ export function interpretStudioDependencies(payload: unknown) {
   const normalized = normalizeStudioDocumentPayload(payload);
   if (!raw || !normalized) opaque.add('invalid_project_document');
   if (raw && Object.keys(raw).some(key => !roots.has(key))) opaque.add('unsupported_project_field');
-  const visit = (value: unknown, key = '', parentType = '', container = '') => {
+  const visit = (value: unknown, key = '', parentType = '', container = '', scope: ProjectAssetScope = 'root') => {
+    if (scope === 'opaque') return;
     if (typeof value === 'string') {
       if (identityFields.has(key) || (key === 'id' && ['userTemplates','appearanceStyles'].includes(container))) identities.add(value);
       if (sourceFields.has(key) || key === 'backgroundImage' || key === 'borderImageSource'
@@ -75,8 +78,8 @@ export function interpretStudioDependencies(payload: unknown) {
         if (getStudioDocumentAssetIdFromReference(value) || getStudioDocumentFontIdFromReference(value)) return;
         opaque.add('external_or_unbound_source');
       } else if (/url\s*\(|(?:https?:|data:|blob:|cardforge-pipeline-asset:)/i.test(value)) opaque.add('external_or_unbound_source');
-    } else if (Array.isArray(value)) value.forEach(entry => visit(entry,key,parentType,container));
-    else if (value && typeof value === 'object') for (const [child,entry] of Object.entries(value)) visit(entry,child,String((value as Record<string, unknown>).type ?? ''),key);
+    } else if (Array.isArray(value)) value.forEach(entry => visit(entry,key,parentType,container,projectAssetArrayScope(scope)));
+    else if (value && typeof value === 'object') for (const [child,entry] of Object.entries(value)) visit(entry,child,String((value as Record<string, unknown>).type ?? ''),key,scope === 'requirement' && child === 'assetId' ? 'other' : projectAssetChildScope(scope,child));
   };
   visit(payload); visit(normalized); // Normalization may introduce defaults: they are part of the dependency surface.
   // Validate the persisted shapes before normalization can discard unknown fields.

@@ -19,3 +19,5 @@ export type {
   StoredDisplayCard,
 } from './types';
 export { CARD_SET_BUILT_IN_TYPES } from './types';
+export * from './productionPlan';
+export { authoredPlanInputSurvives, authoredPlanValuesEqual, normalizeSetPlan, type SetPlan } from './setPlan';

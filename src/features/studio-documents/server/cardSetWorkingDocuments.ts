@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
-import { ensureCardSetTemplateReferences, type CardData, type CardSet, type StoredDisplayCard } from '@/domain/cards';
+import { ensureCardSetTemplateReferences, normalizeSetPlan, type CardData, type CardSet, type StoredDisplayCard } from '@/domain/cards';
 import {
   extractTemplateFieldDefinitions,
   materializeTemplateFieldBindings,
@@ -286,12 +286,14 @@ export const upsertWorkingCardSet = async ({
   expectedRevision,
   setId,
   name,
+  context,
 }: {
   access: AccountToolAccess;
   documentId: string;
   expectedRevision: number;
   setId?: string;
   name: string;
+  context?: string;
 }) => {
   requireAccountToolCapability(access, 'studio.ai.create');
   const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
@@ -303,6 +305,7 @@ export const upsertWorkingCardSet = async ({
     ...(existing ?? {}),
     id: existing?.id ?? setId?.trim() ?? `set-${randomUUID()}`,
     name: normalizeSetName(name),
+    ...(context !== undefined ? { plan: normalizeSetPlan({ ...existing?.plan, version: 1, context }) } : {}),
   };
   const sets = [...current.document.cardSets];
   const index = sets.findIndex((candidate) => candidate.id === nextSet.id);
@@ -318,6 +321,7 @@ export const upsertWorkingCardSet = async ({
     title: current.title,
     document: {
       ...current.document,
+      version: sets.some((set) => set.plan !== undefined) ? 2 : current.document.version,
       cardSets: sets,
       activeCardSetId: nextSet.id,
       storedCards,

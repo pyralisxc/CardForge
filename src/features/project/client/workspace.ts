@@ -1,5 +1,6 @@
 export {
   applyProjectDocumentToWorkspace,
+  applyCardSetPlan,
   hasProjectDocumentStateChanged,
   captureCurrentProjectDocument,
   captureCardSetProjectDocument,

@@ -10,6 +10,7 @@ import {
   getBrowserStoragePersistenceState,
   requestBrowserStoragePersistence,
 } from '@/features/project/persistence/browserStoragePersistence';
+import { openBrowserStorageDatabase } from '@/features/project/persistence/indexedDbStorage';
 
 const deleteDatabase = () => new Promise<void>((resolve, reject) => {
   const request = indexedDB.deleteDatabase(BROWSER_STORAGE_DATABASE);
@@ -32,6 +33,30 @@ describe('browser IndexedDB storage', () => {
     expect(await storage.getItem('workspace')).toBeNull();
   });
 
+  it('upgrades the native database without changing work and fences pre-context clients', async () => {
+    const legacy = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(BROWSER_STORAGE_DATABASE, 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('key-value');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const transaction = legacy.transaction('key-value', 'readwrite');
+      transaction.objectStore('key-value').put('original authored work', 'upgrade-test:work');
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    legacy.close();
+    expect(await createBrowserKeyValueStorage('upgrade-test').getItem('work')).toBe('original authored work');
+    const legacyOutcome = await new Promise<string>((resolve) => {
+      const request = indexedDB.open(BROWSER_STORAGE_DATABASE, 1);
+      request.onsuccess = () => { request.result.close(); resolve('opened'); };
+      request.onerror = () => resolve(request.error?.name ?? 'unknown');
+    });
+    expect(legacyOutcome).toBe('VersionError');
+    expect(await createBrowserKeyValueStorage('upgrade-test').getItem('work')).toBe('original authored work');
+  });
+
   it('keeps independent project namespaces isolated', async () => {
     const workspace = createIndexedDbStorage('workspace');
     const assets = createIndexedDbStorage('assets');
@@ -40,6 +65,31 @@ describe('browser IndexedDB storage', () => {
 
     expect(await workspace.getItem('state')).toBe('{"kind":"workspace"}');
     expect(await assets.getItem('state')).toBe('{"kind":"assets"}');
+  });
+
+  it('refuses a blocked old-tab upgrade and preserves work when the tab is closed', async () => {
+    const legacy = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(BROWSER_STORAGE_DATABASE, 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('key-value');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const bytes = '{"authored":"do not replace with empty work"}';
+    await new Promise<void>((resolve, reject) => {
+      const transaction = legacy.transaction('key-value', 'readwrite');
+      transaction.objectStore('key-value').put(bytes, 'blocked-upgrade:work');
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    try { await expect(openBrowserStorageDatabase()).rejects.toThrow(/older.*tab|older.*CardForge|another CardForge tab/i); }
+    finally { legacy.close(); }
+    const oldClientCanStillOpen = await new Promise<boolean>((resolve) => {
+      const request = indexedDB.open(BROWSER_STORAGE_DATABASE, 1);
+      request.onsuccess = () => { request.result.close(); resolve(true); };
+      request.onerror = () => resolve(false);
+    });
+    expect(oldClientCanStillOpen).toBe(true);
+    expect(await createBrowserKeyValueStorage('blocked-upgrade').getItem('work')).toBe(bytes);
   });
 
   it('reports the real IndexedDB workspace write lifecycle', async () => {

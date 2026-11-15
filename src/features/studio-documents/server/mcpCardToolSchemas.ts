@@ -20,6 +20,7 @@ export interface UpsertCardSetInput {
   expectedRevision: number;
   setId?: string;
   name: string;
+  context?: string;
 }
 
 export interface McpCardInput {
@@ -204,6 +205,7 @@ export const upsertCardSetInputSchema = fromJsonSchema<UpsertCardSetInput>({
     documentId,
     expectedRevision,
     setId,
+    context: { type: 'string', description: 'Optional Set-owned authoring context. Omit to preserve it; an empty string intentionally clears the text. This does not replace the original locked Template creation brief or save a browser/folder/Drive copy.' },
     name: {
       type: 'string',
       minLength: 1,

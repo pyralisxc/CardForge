@@ -13,6 +13,7 @@ import { getAuthoredTemplatePayload } from '@/domain/templates';
 import {
   CARDFORGE_PROJECT_MANIFEST_FILE,
   CARDFORGE_PROJECT_PACKAGE_VERSION,
+  ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION,
   LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION,
   MAX_PROJECT_PACKAGE_ASSET_BYTES,
   MAX_PROJECT_PACKAGE_ASSETS,
@@ -25,9 +26,9 @@ import {
   isProjectPackageAssetMimeType,
   normalizeProjectFileName,
   type CardForgeProjectManifest,
-  type CardForgeProjectManifestV2,
+  type CardForgeProjectManifestV3,
   type CardForgeProjectPackageSnapshot,
-  type CardForgeProjectPackageSnapshotV2,
+  type CardForgeProjectPackageSnapshotV3,
   type PortableProjectDocumentV2,
   type ProjectPackageAssetDescriptor,
   type ProjectPackageAssetSource,
@@ -41,6 +42,7 @@ import {
 } from '../model/projectDocument';
 import { assertProjectPackageBounds } from './projectPackageBounds';
 import { ProjectPackageError } from './projectPackageError';
+import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '../model/projectAssetTraversal';
 
 export { ProjectPackageError } from './projectPackageError';
 export {
@@ -107,8 +109,10 @@ const externalizeProjectAssets = async (
   resolveAssetReference?: (reference: string) => Promise<ResolvedProjectPackageAssetReference | null>,
   referenceResults = new Map<string, Promise<string>>(),
   depth = 0,
+  scope: ProjectAssetScope = 'root',
 ): Promise<unknown> => {
   if (depth > 80) throw new ProjectPackageError('This project is nested too deeply to package safely.');
+  if (scope === 'opaque') return value;
   if (typeof value === 'string') {
     const prepare = async () => {
       const embedded = decodeEmbeddedDataUri(value);
@@ -160,14 +164,14 @@ const externalizeProjectAssets = async (
   if (Array.isArray(value)) {
     const entries: unknown[] = [];
     for (const entry of value) {
-      entries.push(await externalizeProjectAssets(entry, assets, resolveAssetReference, referenceResults, depth + 1));
+      entries.push(await externalizeProjectAssets(entry, assets, resolveAssetReference, referenceResults, depth + 1, projectAssetArrayScope(scope)));
     }
     return entries;
   }
   if (isRecord(value)) {
     const entries: Array<[string, unknown]> = [];
     for (const [key, entry] of Object.entries(value)) {
-      entries.push([key, await externalizeProjectAssets(entry, assets, resolveAssetReference, referenceResults, depth + 1)]);
+      entries.push([key, await externalizeProjectAssets(entry, assets, resolveAssetReference, referenceResults, depth + 1, projectAssetChildScope(scope, key))]);
     }
     return Object.fromEntries(entries);
   }
@@ -179,8 +183,10 @@ const hydrateProjectAssets = (
   descriptors: ReadonlyMap<string, ProjectPackageAssetDescriptor>,
   assets: CardForgeProjectPackageSnapshot['assets'],
   depth = 0,
+  scope: ProjectAssetScope = 'root',
 ): unknown => {
   if (depth > 80) throw new ProjectPackageError('This project is nested too deeply to open safely.');
+  if (scope === 'opaque') return value;
   if (typeof value === 'string') {
     const id = getProjectPackageAssetIdFromReference(value);
     if (!id) return value;
@@ -192,10 +198,10 @@ const hydrateProjectAssets = (
     const bytes = source;
     return `data:${descriptor.mimeType};base64,${encodeBase64(bytes)}`;
   }
-  if (Array.isArray(value)) return value.map((entry) => hydrateProjectAssets(entry, descriptors, assets, depth + 1));
+  if (Array.isArray(value)) return value.map((entry) => hydrateProjectAssets(entry, descriptors, assets, depth + 1, projectAssetArrayScope(scope)));
   if (isRecord(value)) {
     return Object.fromEntries(Object.entries(value).map(([key, entry]) => (
-      [key, hydrateProjectAssets(entry, descriptors, assets, depth + 1)]
+      [key, hydrateProjectAssets(entry, descriptors, assets, depth + 1, projectAssetChildScope(scope, key))]
     )));
   }
   return value;
@@ -235,7 +241,7 @@ const toRuntimeProjectDocument = (document: PortableProjectDocumentV2): ProjectD
   const { artifacts, ...project } = document;
   return {
     ...project,
-    version: 1,
+    version: project.cardSets.some((set) => set.plan !== undefined) ? 2 : 1,
     storedCards: artifacts.map(getCardFromArtifact),
   };
 };
@@ -253,7 +259,7 @@ const parsePortableProjectDocument = (value: unknown): PortableProjectDocumentV2
   if (artifacts.length !== value.artifacts.length) return null;
   const runtime = parseProjectDocumentValue({
     ...value,
-    version: 1,
+    version: Array.isArray(value.cardSets) && value.cardSets.some((set) => isRecord(set) && set.plan !== undefined) ? 2 : 1,
     storedCards: artifacts.map((artifact) => artifact.card),
   });
   if (!runtime.success) return null;
@@ -263,6 +269,7 @@ const parsePortableProjectDocument = (value: unknown): PortableProjectDocumentV2
 const parseManifest = async (value: unknown): Promise<CardForgeProjectManifest> => {
   if (!isRecord(value)
     || (value.cardforgeProject !== CARDFORGE_PROJECT_PACKAGE_VERSION
+      && value.cardforgeProject !== ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION
       && value.cardforgeProject !== LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION)) {
     throw new ProjectPackageError('Unsupported CardForge project package version.');
   }
@@ -287,6 +294,10 @@ const parseManifest = async (value: unknown): Promise<CardForgeProjectManifest> 
   const isLegacy = value.cardforgeProject === LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION;
   const parsedProject = isLegacy ? parseProjectDocumentValue(value.project) : null;
   const portableProject = isLegacy ? null : parsePortableProjectDocument(value.project);
+  if (value.cardforgeProject === ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION
+    && portableProject?.cardSets.some((set) => set.plan !== undefined)) {
+    throw new ProjectPackageError('Set context requires a newer CardForge package version. The source was left unchanged.');
+  }
   if (isLegacy && !parsedProject?.success) {
     throw new ProjectPackageError(parsedProject?.error ?? 'The CardForge project document is invalid.');
   }
@@ -311,7 +322,7 @@ const parseManifest = async (value: unknown): Promise<CardForgeProjectManifest> 
   } else {
     if (!portableProject) throw new ProjectPackageError('The CardForge project artifact document is invalid.');
     manifest = {
-      cardforgeProject: CARDFORGE_PROJECT_PACKAGE_VERSION,
+      cardforgeProject: value.cardforgeProject as 2 | 3,
       name,
       projectRevision,
       savedAt,
@@ -333,12 +344,12 @@ export const buildCardForgeProjectSnapshot = async ({
   name: string;
   resolveAssetReference?: (reference: string) => Promise<ResolvedProjectPackageAssetReference | null>;
   savedAt?: string;
-}): Promise<CardForgeProjectPackageSnapshotV2> => {
+}): Promise<CardForgeProjectPackageSnapshotV3> => {
   const assets = new Map<string, { descriptor: ProjectPackageAssetDescriptor; source: ProjectPackageAssetSource }>();
   const externalized = await externalizeProjectAssets(toPortableProjectDocument(document), assets, resolveAssetReference) as PortableProjectDocumentV2;
   const descriptors = [...assets.values()].map(({ descriptor }) => descriptor).sort((left, right) => left.id.localeCompare(right.id));
   const projectRevision = await calculateProjectRevision(externalized, descriptors);
-  const manifest: CardForgeProjectManifestV2 = {
+  const manifest: CardForgeProjectManifestV3 = {
     cardforgeProject: CARDFORGE_PROJECT_PACKAGE_VERSION,
     name: normalizeProjectFileName(name),
     projectRevision,

@@ -1,3 +1,5 @@
+import type { SetPlan } from './setPlan';
+
 export type CardFace = 'front' | 'back';
 
 export interface CardData {
@@ -70,6 +72,7 @@ export const CARD_SET_BUILT_IN_TYPES = [
 export interface CardSet {
   id: string;
   name: string;
+  plan?: SetPlan;
   /**
    * Reusable Templates intentionally participating in this Set. The Set
    * references these identities but does not own or clone them. This lets a

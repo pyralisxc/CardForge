@@ -1,4 +1,5 @@
 import type { CardSet, CardSetMetadata, CardSetOrganization, StoredDisplayCard } from './types';
+import { normalizeSetPlan } from './setPlan';
 
 const cleanId = (value: unknown): string | null => (
   typeof value === 'string' && value.trim() ? value.trim() : null
@@ -85,6 +86,7 @@ export const normalizeCardSet = (value: unknown): CardSet | null => {
   return {
     id,
     name: cleanName(record.name),
+    ...(record.plan !== undefined ? { plan: normalizeSetPlan(record.plan) } : {}),
     ...(templateIds.length ? { templateIds } : {}),
     ...(organization ? { organization } : {}),
     ...(metadata ? { metadata } : {}),

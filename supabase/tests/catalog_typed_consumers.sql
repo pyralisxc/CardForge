@@ -208,7 +208,7 @@ begin
  end loop;
  delete from public.cardforge_studio_documents where id=document_id;
  insert into public.cardforge_studio_documents(id,owner_user_id,title,document_payload)
-   values(document_id,'typed-proof','Independent',jsonb_build_object('assetId',asset));
+   values(document_id,'typed-proof','Independent',jsonb_build_object('version',1,'assetId',asset));
  if not (public.cardforge_read_catalog_trash(target)->'entryReasons' ? 'studio_identity_consumer_requires_resolution') then raise exception 'independent_studio_reference_missed'; end if;
  delete from public.cardforge_studio_documents where id=document_id;
  -- Positive admission still does not authorize expiry or skip exact-state CAS.

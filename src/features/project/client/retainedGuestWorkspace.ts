@@ -45,11 +45,15 @@ export const getRetainedGuestWorkSummary = async (): Promise<RetainedGuestWorkSu
 };
 
 const buildDocument = (retained: RetainedGuestWorkspace) => {
+  const { version } = JSON.parse(retained.workspaceValue) as { version?: number };
+  if (typeof version === 'number' && version > (useProjectStore.persist.getOptions().version ?? 0)) {
+    throw new Error('Signed-out work requires a newer CardForge version. The source and account work were left unchanged.');
+  }
   const state = retained.state;
   const activeCardSetId = state.activeCardSet && typeof state.activeCardSet === 'object' && 'id' in state.activeCardSet
     && typeof state.activeCardSet.id === 'string' ? state.activeCardSet.id : undefined;
   const candidate = {
-    version: 1,
+    version: 2,
     userTemplates: Array.isArray(state.userTemplates) ? state.userTemplates : [],
     cardSets: Array.isArray(state.cardSets) ? state.cardSets : [],
     ...(activeCardSetId ? { activeCardSetId } : {}),

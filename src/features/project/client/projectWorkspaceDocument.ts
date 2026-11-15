@@ -1,6 +1,7 @@
 "use client";
 
 import type { CardAssetOption, TCGCardTemplate } from '@/domain/templates';
+import { authoredPlanValuesEqual, normalizeSetPlan, type SetPlan } from '@/domain/cards';
 
 import {
   CUSTOM_FONT_ASSETS_STORAGE_KEY,
@@ -13,6 +14,7 @@ import {
   isolateProjectDocumentToSet,
   isolateProjectDocumentToCard,
   instantiateProjectDocumentCopy,
+  materializeSetPlanOwnership,
   type ProjectDocumentV1,
 } from '../model/projectDocument';
 import {
@@ -26,6 +28,7 @@ import { getProjectPersistenceScope, getScopedProjectStorageNamespace } from '..
 import { externalizeBrowserProjectAssetJson } from '../persistence/contentAddressedBrowserAssets';
 import { selectAllTemplates } from '../store/selectors';
 import { createProjectWorkspaceDraft, useProjectStore, type ProjectState } from '../store/workspaceStore';
+import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '../model/projectAssetTraversal';
 
 import { prepareCompletedDeletionCleanup, notifyCompletedDeletionCleanup } from './completedDeletionCleanup';
 
@@ -154,17 +157,20 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
   });
 };
 
-const collectPortableStringReferences = (value: unknown, output = new Set<string>()): Set<string> => {
+const collectPortableStringReferences = (value: unknown, output = new Set<string>(), scope: ProjectAssetScope = 'root'): Set<string> => {
+  if (scope === 'opaque') return output;
   if (typeof value === 'string') {
     output.add(value);
     return output;
   }
   if (Array.isArray(value)) {
-    value.forEach((entry) => collectPortableStringReferences(entry, output));
+    value.forEach((entry) => collectPortableStringReferences(entry, output, projectAssetArrayScope(scope)));
     return output;
   }
   if (!value || typeof value !== 'object') return output;
-  Object.values(value as Record<string, unknown>).forEach((entry) => collectPortableStringReferences(entry, output));
+  const record = value as Record<string, unknown>;
+  if (scope === 'requirement' && ['custom-generated', 'user-provided'].includes(String(record.source)) && typeof record.assetId === 'string') output.add(record.assetId);
+  Object.entries(record).forEach(([key, entry]) => collectPortableStringReferences(entry, output, projectAssetChildScope(scope, key)));
   return output;
 };
 
@@ -233,9 +239,47 @@ export const applyProjectDocumentToWorkspace = async (
 ): Promise<ProjectWorkspaceApplySummary> => {
   options.signal?.throwIfAborted();
   const draft = createProjectWorkspaceDraft(options.expectedState);
-  const cleanup = await prepareCompletedDeletionCleanup(document, options.signal);
+  const legacyOwner = document.productionPlan && document.cardSets.length === 1 ? document.cardSets[0] : undefined;
+  const cardSets = mode === 'adopt' ? document.cardSets.map((set) => {
+    const existingPlan = draft.getState().cardSets.find((current) => current.id === set.id)?.plan;
+    if (!existingPlan) return set;
+    if (legacyOwner?.id === set.id && !authoredPlanValuesEqual(existingPlan.brief, document.productionPlan)) {
+      throw new Error('This legacy draft has a different creation brief from the current Set context. Both were kept; open an independent copy or review the brief before updating this Set.');
+    }
+    if (set.plan && !authoredPlanValuesEqual(set.plan, existingPlan)) {
+      throw new Error('This agent revision has different Set context. Both were kept; open an independent copy or review the context before updating this Set.');
+    }
+    return { ...set, plan: existingPlan };
+  }) : document.cardSets;
+  const compatibleDocument: ProjectDocumentV1 = { ...document, version: cardSets.some((set) => set.plan) ? 2 : document.version, cardSets };
+  const cleanup = await prepareCompletedDeletionCleanup(materializeSetPlanOwnership(compatibleDocument), options.signal);
   options.validatePreparedDocument?.(cleanup.document);
   return applyPreparedProjectDocument(draft, cleanup, mode, options);
+};
+
+export const applyCardSetPlan = async ({
+  setId, expectedScope, expectedPlan, plan, signal,
+}: {
+  setId: string;
+  expectedScope: ReturnType<typeof getProjectPersistenceScope>;
+  expectedPlan: SetPlan | undefined;
+  plan: SetPlan;
+  signal?: AbortSignal;
+}): Promise<void> => {
+  signal?.throwIfAborted();
+  if (getProjectPersistenceScope() !== expectedScope) throw new Error('The workspace account changed. Your context was not applied; keep this draft and reopen the intended Set.');
+  const state = useProjectStore.getState();
+  const owner = state.cardSets.find((set) => set.id === setId);
+  if (!owner) throw new Error('This Set is no longer in the workspace. Your context draft was not applied.');
+  if (owner.plan !== undefined) normalizeSetPlan(owner.plan);
+  if (!authoredPlanValuesEqual(owner.plan, expectedPlan)) throw new Error('The Set context changed while you were editing. Your draft was kept; review the current context before replacing it.');
+  const nextPlan = normalizeSetPlan(plan);
+  const draft = createProjectWorkspaceDraft(state);
+  draft.setState({
+    cardSets: state.cardSets.map((set) => set.id === setId ? { ...set, plan: nextPlan } : set),
+    activeCardSet: state.activeCardSet?.id === setId ? { ...state.activeCardSet, plan: nextPlan } : state.activeCardSet,
+  });
+  await draft.commit([], signal);
 };
 
 /** Once per opening of a saved local workspace; concurrent edits cancel the commit. */

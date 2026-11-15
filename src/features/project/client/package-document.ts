@@ -18,4 +18,6 @@ export type {
   ProjectDocumentExportSettings,
   ProjectDocumentStatePatch,
   ProjectDocumentV1,
+  ProjectDocument,
 } from '../model/projectDocument';
+export { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '../model/projectAssetTraversal';
