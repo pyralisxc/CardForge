@@ -1,4 +1,4 @@
-import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '@/features/project/client/package-core';
+import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '@/features/project/client/package-document';
 
 export const STUDIO_DOCUMENT_ASSET_BUCKET = 'cardforge-studio-document-assets';
 export const STUDIO_DOCUMENT_ASSET_REFERENCE_PREFIX = 'cardforge-studio-asset://';

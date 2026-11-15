@@ -15,6 +15,7 @@ vi.mock('@/features/project/server/googleDriveConnectionAuthority', () => ({ res
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ from: f.from, storage: { from: () => ({ list: async () => ({ data: [], error: null }), upload: f.upload, remove: f.remove }) } }) }));
 import { patchWorkingDocument, getWorkingDocumentOperationStatus } from '@/features/studio-documents/server/workingDocumentPatches';
 import { externalizeStudioDocumentAssets } from '@/features/studio-documents/server/studioDocumentAssetStore';
+import { hydrateStudioDocumentAssets } from '@/features/studio-documents/client/studioDocumentAssetHydration';
 import { StudioDocumentStoreError } from '@/features/studio-documents/server/StudioDocumentStoreError';
 import { cardForgeMcpHandler } from '@/features/studio-documents/server/mcpServer';
 import { PERSONAL_LIBRARY_ARTWORK_AUTHORIZATION } from '@/features/personal-library/model';
@@ -156,6 +157,16 @@ it('externalizes and resolves actual typed Set brief artwork without rewriting i
  expect(replaced.cardSets[0].plan?.context).toBe(literal);
  expect(replaced.cardSets[0].plan?.brief?.assets[0].assetUrl).toBe('https://example.invalid/image');
  expect(f.upload).toHaveBeenCalledOnce();
+});
+it('strict browser hydration ignores malformed private-reference examples in context and opaque metadata', async () => {
+ const document: ProjectDocumentV1 = { ...current.document, version: 2, cardSets: [{ ...current.document.cardSets[0], plan: { version: 1, context: 'cardforge-studio-asset://an example', example: { font: 'cardforge-studio-font://another example' } } }] };
+ await expect(hydrateStudioDocumentAssets(document, [], undefined, true)).resolves.toEqual(document);
+ expect(f.provider).not.toHaveBeenCalled();
+});
+it('strict browser hydration still refuses malformed actual brief artwork references', async () => {
+ const document: ProjectDocumentV1 = { ...current.document, version: 2, productionPlan: undefined, cardSets: [{ ...current.document.cardSets[0], plan: { version: 1, context: 'Keep literal notes', brief: { ...current.document.productionPlan!, assets: [{ ...current.document.productionPlan!.assets[0], assetUrl: 'cardforge-studio-asset://invalid' }] } } }] };
+ await expect(hydrateStudioDocumentAssets(document, [], undefined, true)).rejects.toThrow(/reference is invalid/i);
+ expect(f.provider).not.toHaveBeenCalled();
 });
 it('uses observed Drive version, real normalization/private storage and exact authored targets; original and stored hashes differ', async () => {
  const result = await patchWorkingDocument({ access, input: input() });

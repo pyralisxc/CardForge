@@ -43,5 +43,4 @@ export {
 } from '../lib/projectPackageCodec';
 export { referenceCardForgeProjectSnapshotAssets } from '../lib/projectPackageAssetReferences';
 export type { DecodedProjectFile } from '../lib/projectPackageCodec';
-export { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '../model/projectAssetTraversal';
 export { decodeBrowserProjectFile, materializeBrowserProjectSnapshot } from '../client/browserProjectPackage';
