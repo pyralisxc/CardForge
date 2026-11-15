@@ -217,11 +217,11 @@ export const registerAgentCardTools = ({
       outputSchema: cardSetWriteOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
-    async ({ documentId, expectedRevision, setId, name }) => runObserved({
+    async ({ documentId, expectedRevision, setId, name, context }) => runObserved({
       toolName: 'upsert_card_set',
-      input: { documentId, expectedRevision, setId, name },
+      input: { documentId, expectedRevision, setId, name, contextSupplied: context !== undefined },
       execute: async (access) => {
-        const document = await upsertWorkingCardSet({ access, documentId, expectedRevision, setId, name });
+        const document = await upsertWorkingCardSet({ access, documentId, expectedRevision, setId, name, context });
         const set = document.document.cardSets.find((candidate) => candidate.id === document.document.activeCardSetId);
         return {
           content: [{ type: 'text', text: `"${set?.name ?? name}" is the working CardForge Set at revision ${document.revision}. Load the exact Template contract before making new cards.` }],

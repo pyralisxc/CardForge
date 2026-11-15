@@ -8,6 +8,7 @@ import {
   parseProjectDocumentValue,
   type ProjectDocumentV1,
 } from '@/features/project/client/model';
+import type { CardSet } from '@/domain/cards';
 import {
   gptTemplateDraftInputSchema,
   projectProductionPlanSchema,
@@ -85,6 +86,24 @@ export const normalizeStudioDocumentTitle = (value: unknown): string | null => {
 export const normalizeStudioDocumentPayload = (value: unknown): ProjectDocumentV1 | null => {
   const parsed = parseProjectDocumentValue(value);
   return parsed.success ? parsed.document : null;
+};
+
+export const prepareTemplateDocumentSet = (
+  document: ProjectDocumentV1,
+  sourceId: string,
+  title: string,
+  existingSets: CardSet[],
+): { document: ProjectDocumentV1; contextKept: boolean } => {
+  if (!document.productionPlan || document.cardSets.length !== 0 || document.userTemplates.length !== 1) return { document, contextKept: false };
+  const id = `studio-document-${sourceId}`;
+  const existing = existingSets.find((set) => set.id === id);
+  const set: CardSet = {
+    ...existing,
+    id,
+    name: existing?.name ?? title,
+    templateIds: [...new Set([...(existing?.templateIds ?? []), ...document.userTemplates.flatMap((template) => template.id ? [template.id] : [])])],
+  };
+  return { document: { ...document, version: existing?.plan ? 2 : document.version, cardSets: [set], activeCardSetId: id }, contextKept: Boolean(existing?.plan) };
 };
 
 export const createTemplateFromTemplateDraft = (

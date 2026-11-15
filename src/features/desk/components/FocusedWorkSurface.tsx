@@ -16,6 +16,7 @@ import { extractTemplateFieldDefinitions, type TCGCardTemplate } from '@/domain/
 import { setCreatorLens, type CreatorInteractionSession } from '@/features/app-shell/client/environment';
 import { getArtifactWorkState } from '@/features/card-generator/client';
 import type { TemplateCommitChangeInput } from '@/features/project/client/workspace';
+import { SetContextEditor } from './SetContextEditor';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
 import type { ArtifactSelectionScope } from '../model/focusedArtifactLayout';
@@ -145,6 +146,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
             <label className={styles.searchField}><span className="sr-only">Search cards in this work</span><Search aria-hidden="true" /><Input value={props.cardQuery} onChange={(event) => props.onCardQueryChange(event.target.value)} placeholder="Search cards" /></label>
             {!props.selectedCards.length ? <>
             {currentSet ? <SetTemplates set={currentSet} cards={props.focusedCards} templates={templates} onDesign={props.onDesignTemplate} onAdoptRevision={adoptTemplateRevision} /> : null}
+            {currentSet ? <SetContextEditor key={currentSet.id} set={currentSet} /> : null}
             {needsWorkCards.length ? <Button type="button" size="sm" variant="ghost" className="gap-1.5" onClick={() => props.onSelectionChange(needsWorkCards.map((card) => card.uniqueId))} title="Select Artifacts missing required Template values"><TriangleAlert className="h-4 w-4" />Needs work · {needsWorkCards.length}</Button> : null}
             </> : null}
           {props.selectedCards.length ? <div

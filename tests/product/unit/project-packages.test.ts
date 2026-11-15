@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { normalizeProjectProductionPlan } from '@/domain/cards';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -69,6 +70,38 @@ const createProject = (): ProjectDocumentV1 => ({
   },
 });
 
+describe('Set context package compatibility', () => {
+  it('packages required brief artwork but never interprets literal context as artwork', async () => {
+    const project = createProject();
+    project.version = 2;
+    project.cardSets[0].plan = { version: 1, context: `Keep this example literal: ${onePixelPng}`, brief: normalizeProjectProductionPlan({ version: 1, decisionMode: 'confirmed', purpose: 'Cards', deliverable: 'Cards', outputSize: { width: 63, height: 88, unit: 'mm' }, visualDirection: { summary: 'Quiet', palette: [], typography: [] }, editableFieldKeys: [], assets: [{ id: 'art', name: 'Art', kind: 'image', role: 'Face', source: 'user-provided', status: 'selected', quantity: 1, assetUrl: onePixelPng }] }) };
+    const snapshot = await buildCardForgeProjectSnapshot({ document: project, name: 'Context and artwork' });
+    expect(snapshot.manifest.project.cardSets[0].plan?.brief?.assets[0].assetUrl).toMatch(/^cardforge-project-asset:\/\//);
+    expect(snapshot.manifest.project.cardSets[0].plan?.context).toBe(project.cardSets[0].plan.context);
+    const reopened = hydrateCardForgeProjectSnapshot(await decodeCardForgeProjectPackage(await encodeCardForgeProjectPackage(snapshot)));
+    expect(reopened.cardSets[0].plan).toEqual(project.cardSets[0].plan);
+  });
+  it('keeps context and opaque metadata literal even when text looks like artwork', async () => {
+    const project = createProject();
+    project.version = 2;
+    project.cardSets[0].plan = { version: 1, context: 'data:image/png;base64,not an image', custom: { example: `cardforge-project-asset://${'a'.repeat(64)}` } };
+    const snapshot = await buildCardForgeProjectSnapshot({ document: project, name: 'Literal context' });
+    expect(hydrateCardForgeProjectSnapshot(snapshot).cardSets[0].plan).toEqual(project.cardSets[0].plan);
+  });
+  it('round-trips complete Set context behind a package version old clients refuse', async () => {
+    const project = createProject();
+    project.version = 2;
+    project.cardSets[0].plan = { version: 1, context: 'Keep all wording intact.\nDo not reinterpret this as manufacturing configuration.' };
+    const snapshot = await buildCardForgeProjectSnapshot({ document: project, name: 'Context Set' });
+    expect(snapshot.manifest.cardforgeProject).toBe(3);
+    const bytes = await encodeCardForgeProjectPackage(snapshot);
+    const decoded = await decodeCardForgeProjectPackage(new Blob([new Uint8Array(bytes)]));
+    const reopened = await hydrateCardForgeProjectSnapshot(decoded);
+    expect(reopened.version).toBe(2);
+    expect(reopened.cardSets[0].plan).toEqual(project.cardSets[0].plan);
+  });
+});
+
 describe('portable CardForge project packages', () => {
   it('deduplicates embedded artwork and round-trips one canonical .cardforge package', async () => {
     const snapshot = await buildCardForgeProjectSnapshot({
@@ -119,7 +152,7 @@ describe('portable CardForge project packages', () => {
     expect(hydrateCardForgeProjectSnapshot(decoded).storedCards[0]?.uniqueId).toBe('card-1');
   });
 
-  it('writes the canonical v2 archive to a bounded destination stream', async () => {
+  it('writes the canonical v3 archive to a bounded destination stream', async () => {
     const snapshot = await buildCardForgeProjectSnapshot({ document: createProject(), name: 'Streamed Project' });
     const chunks: Uint8Array[] = [];
     await writeCardForgeProjectPackage(snapshot, new WritableStream<Uint8Array>({
@@ -136,7 +169,7 @@ describe('portable CardForge project packages', () => {
     }
 
     const decoded = await decodeCardForgeProjectPackage(bytes);
-    expect(decoded.manifest.cardforgeProject).toBe(2);
+    expect(decoded.manifest.cardforgeProject).toBe(CARDFORGE_PROJECT_PACKAGE_VERSION);
     expect(hydrateCardForgeProjectSnapshot(decoded).storedCards[0]?.uniqueId).toBe('card-1');
   });
 

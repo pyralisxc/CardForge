@@ -4,6 +4,17 @@ import { isSourceContainedCssImage } from '@/domain/templates/sourceContainedCss
 const template = { id:'local',name:'Literal',aspectRatio:'2:3',freeformCanvas:{width:200,height:300,elements:[]} };
 const document = { version:1,userTemplates:[template],storedCards:[],cardSets:[],appearanceStyles:[],customAssets:{},exportSettings:{} };
 describe('source-owned Studio dependency interpretation', () => {
+ it('keeps Set context opaque text while still inspecting typed brief asset locators', () => {
+  const plan={version:1,context:'https://example.com is a note. {{Not a render binding}}',custom:{assetUrl:'https://example.com/not-an-asset'}};
+  const project={...document,version:2,cardSets:[{id:'set',name:'Set',plan}]};
+  expect(interpretStudioDependencies(project).complete).toBe(true);
+  expect(interpretStudioDependencies(project).references.sources).toEqual([]);
+  const brief={version:1,decisionMode:'confirmed',purpose:'Deck',deliverable:'Cards',outputSize:{width:63,height:88,unit:'mm'},visualDirection:{summary:'Minimal',palette:[],typography:[]},editableFieldKeys:[],assets:[{id:'art',name:'Art',kind:'image',role:'Face',source:'user-provided',quantity:1,status:'selected',assetId:'managed-art',assetUrl:'https://example.invalid/image.png'}]};
+  const proof=interpretStudioDependencies({...project,cardSets:[{id:'set',name:'Set',plan:{...plan,brief}}]});
+  expect(proof.references.identities).toContain('managed-art');
+  expect(proof.references.sources).toContain('https://example.invalid/image.png');
+  expect(proof.complete).toBe(false);
+ });
  it('interprets a complete literal document without resolving catalog discovery', () => {
   const proof=interpretStudioDependencies(document);
   expect(proof.opaqueReasons).toEqual([]); expect(proof.complete).toBe(true); expect(proof.references.identities).toContain('local');

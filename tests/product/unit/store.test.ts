@@ -832,7 +832,7 @@ describe('persisted Generator selection migration', () => {
     expect(serialized).not.toHaveProperty('singleCardGeneratorSelectedTemplateId');
     expect(serialized).not.toHaveProperty('singleCardGeneratorSelectedBackingTemplateId');
     expect(serialized).not.toHaveProperty('richTextHighlightColor');
-    expect(options.version).toBe(5);
+    expect(options.version).toBe(6);
   });
 
   it('keeps editor preferences isolated by persistence scope', async () => {

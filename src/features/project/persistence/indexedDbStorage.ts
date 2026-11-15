@@ -10,8 +10,8 @@ export const BROWSER_STORAGE_DATABASE = 'cardforge-browser-storage';
 export const BROWSER_STORAGE_FAILURE_EVENT = 'cardforge:browser-storage-failure';
 export const BROWSER_STORAGE_SAVE_STATUS_EVENT = 'cardforge:workspace-save-status';
 export const BROWSER_WORKSPACE_CONFLICT_EVENT = 'cardforge:workspace-conflict';
-const BROWSER_STORAGE_OBJECT_STORE = 'key-value';
-const BROWSER_STORAGE_VERSION = 1;
+export const BROWSER_STORAGE_OBJECT_STORE = 'key-value';
+const BROWSER_STORAGE_VERSION = 2;
 export const MAX_LOCAL_ASSET_DIMENSION = 8192;
 const OPTIMIZED_LOCAL_ASSET_DIMENSION = 2400;
 const OPTIMIZE_LOCAL_ASSET_THRESHOLD_BYTES = 2 * 1024 * 1024;
@@ -65,19 +65,29 @@ const finishWorkspaceWrite = (didFail: boolean) => {
   }
 };
 
-const openDatabase = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
+export const openBrowserStorageDatabase = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
   if (typeof indexedDB === 'undefined') {
     reject(new Error('IndexedDB is unavailable in this browser.'));
     return;
   }
 
   const request = indexedDB.open(BROWSER_STORAGE_DATABASE, BROWSER_STORAGE_VERSION);
+  let blocked = false;
   request.onupgradeneeded = () => {
+    if (blocked) { request.transaction?.abort(); return; }
     if (!request.result.objectStoreNames.contains(BROWSER_STORAGE_OBJECT_STORE)) {
       request.result.createObjectStore(BROWSER_STORAGE_OBJECT_STORE);
     }
   };
-  request.onsuccess = () => resolve(request.result);
+  request.onblocked = () => {
+    blocked = true;
+    reject(new Error('Another CardForge tab is using older browser storage. Preserve any unsaved work there, then close or reload that tab and retry. Your stored work was left unchanged.'));
+  };
+  request.onsuccess = () => {
+    if (blocked) { request.result.close(); return; }
+    request.result.onversionchange = () => request.result.close();
+    resolve(request.result);
+  };
   request.onerror = () => reject(request.error ?? new Error('Unable to open browser storage.'));
 });
 
@@ -85,7 +95,7 @@ const runRequest = async <T>(
   mode: IDBTransactionMode,
   action: (store: IDBObjectStore) => IDBRequest<T>,
 ): Promise<T> => {
-  const database = await openDatabase();
+  const database = await openBrowserStorageDatabase();
   return new Promise<T>((resolve, reject) => {
     const transaction = database.transaction(BROWSER_STORAGE_OBJECT_STORE, mode);
     const request = action(transaction.objectStore(BROWSER_STORAGE_OBJECT_STORE));
@@ -115,7 +125,7 @@ const setBrowserValue = async ({
     return;
   }
 
-  const database = await openDatabase();
+  const database = await openBrowserStorageDatabase();
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(BROWSER_STORAGE_OBJECT_STORE, 'readwrite');
     const store = transaction.objectStore(BROWSER_STORAGE_OBJECT_STORE);
@@ -172,7 +182,7 @@ export const createBrowserKeyValueStorage = (
 /** Deletes related browser keys in one IndexedDB transaction. */
 export const removeBrowserStorageValues = async (keys: readonly string[]): Promise<void> => {
   if (keys.length === 0) return;
-  const database = await openDatabase();
+  const database = await openBrowserStorageDatabase();
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(BROWSER_STORAGE_OBJECT_STORE, 'readwrite');
     const store = transaction.objectStore(BROWSER_STORAGE_OBJECT_STORE);
@@ -199,7 +209,7 @@ export const updateBrowserKeyValue = async (
   key: string,
   update: (current: string | null) => string,
 ): Promise<string> => {
-  const database = await openDatabase();
+  const database = await openBrowserStorageDatabase();
   try {
     return await new Promise<string>((resolve, reject) => {
       const transaction = database.transaction(BROWSER_STORAGE_OBJECT_STORE, 'readwrite');
@@ -256,7 +266,7 @@ export const compareAndSetBrowserWorkspaceValue = async ({
   beginWorkspaceWrite();
   let database: IDBDatabase | undefined;
   try {
-    database = await openDatabase();
+    database = await openBrowserStorageDatabase();
     const openedDatabase = database;
     const revision = await new Promise<number>((resolve, reject) => {
       const transaction = openedDatabase.transaction(BROWSER_STORAGE_OBJECT_STORE, 'readwrite');

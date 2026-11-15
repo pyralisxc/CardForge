@@ -164,6 +164,8 @@ Release policy uses [ORCHESTRATION.md](../ORCHESTRATION.md)'s two lanes: accumul
 
 **Framework/browser own:** Zustand state/persist middleware and the browser IndexedDB/quota APIs.
 
+Set context uses the existing native owners, not another persistence mechanism. Context-bearing runtime documents use version 2, workspace persistence uses version 6, and the shared browser database uses schema 2; structured File System Access storage opens through that same database owner. Version-change events close current connections; a blocked upgrade reports failure and aborts any later upgrade attempt instead of silently advancing the database after rejection. Preserve unsaved work in older tabs before closing/reloading them. Older schema-1 clients are fenced from writing schema 2, future workspace versions refuse hydration without replacing their bytes, and package version 3 makes older package readers refuse context they cannot retain. Rollback must retain these compatible readers/schema owners; do not downgrade the database or strip context to make an older writer succeed.
+
 **Start here:**
 
 1. `src/features/project/store/workspaceStore.ts` — Zustand slices and the persisted workspace contract.

@@ -7,6 +7,7 @@ import { applyProjectDocumentToState } from '@/features/project/client/package-d
 import { applyProjectDocumentToWorkspace, hasProjectDocumentStateChanged, normalizeStudioView, type StudioView, useProjectStore } from '@/features/project/client/workspace';
 import {
   normalizeStudioDocumentPayload,
+  prepareTemplateDocumentSet,
   type StudioDocumentAssetDownload,
   type StudioDocumentInstallSummary,
   type StudioDocumentSource,
@@ -138,7 +139,8 @@ export function useStudioDocumentHandoff({
         }
         const storedDocument = normalizeStudioDocumentPayload(payload.document?.document);
         if (!storedDocument) throw new Error('The account document is not a valid CardForge project.');
-        const document = await hydrateStudioDocumentAssets(storedDocument, payload.assets ?? [], controller.signal, Boolean(outputIntent));
+        const hydratedDocument = await hydrateStudioDocumentAssets(storedDocument, payload.assets ?? [], controller.signal, Boolean(outputIntent));
+        const { document, contextKept } = prepareTemplateDocumentSet(hydratedDocument, documentId, typeof payload.document?.title === 'string' ? payload.document.title : hydratedDocument.userTemplates[0]?.name ?? 'Set', initiatingState.cardSets);
         controller.signal.throwIfAborted();
         const patch = applyProjectDocumentToState(document);
         // Desk camera/selection updates may replace the Zustand object while
@@ -238,7 +240,7 @@ export function useStudioDocumentHandoff({
           } else if (personalTemplates.length > 0) {
             toast({
               title: templateUpdatedCount > 0 ? 'Agent Template updated' : 'Agent Template installed',
-              description: `CardForge applied${revisionLabel}: ${templateAddedCount} Template${templateAddedCount === 1 ? '' : 's'} added and ${templateUpdatedCount} updated in your personal library on this device.`,
+              description: `CardForge applied${revisionLabel}: ${templateAddedCount} Template${templateAddedCount === 1 ? '' : 's'} added and ${templateUpdatedCount} updated in your personal library on this device.${contextKept ? ' Your existing Set context was kept.' : ''}`,
             });
           } else {
             toast({

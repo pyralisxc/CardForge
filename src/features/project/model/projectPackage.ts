@@ -3,7 +3,8 @@ import type { AuthoredArtifact } from '@/domain/artifacts';
 import type { ProjectDocumentV1 } from './projectDocument';
 export type { ProjectDocumentV1 } from './projectDocument';
 
-export const CARDFORGE_PROJECT_PACKAGE_VERSION = 2 as const;
+export const CARDFORGE_PROJECT_PACKAGE_VERSION = 3 as const;
+export const ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION = 2 as const;
 export const LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION = 1 as const;
 export const CARDFORGE_PROJECT_FILE_EXTENSION = '.cardforge';
 export const CARDFORGE_PROJECT_MANIFEST_FILE = 'cardforge-project.json';
@@ -81,7 +82,7 @@ export interface PortableProjectDocumentV2 extends Omit<ProjectDocumentV1, 'vers
 }
 
 export interface CardForgeProjectManifestV2 {
-  cardforgeProject: typeof CARDFORGE_PROJECT_PACKAGE_VERSION;
+  cardforgeProject: typeof ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION;
   name: string;
   projectRevision: string;
   savedAt: string;
@@ -89,7 +90,11 @@ export interface CardForgeProjectManifestV2 {
   assets: ProjectPackageAssetDescriptor[];
 }
 
-export type CardForgeProjectManifest = CardForgeProjectManifestV1 | CardForgeProjectManifestV2;
+export interface CardForgeProjectManifestV3 extends Omit<CardForgeProjectManifestV2, 'cardforgeProject'> {
+  cardforgeProject: typeof CARDFORGE_PROJECT_PACKAGE_VERSION;
+}
+
+export type CardForgeProjectManifest = CardForgeProjectManifestV1 | CardForgeProjectManifestV2 | CardForgeProjectManifestV3;
 
 export interface CardForgeProjectPackageSnapshot {
   manifest: CardForgeProjectManifest;
@@ -98,6 +103,10 @@ export interface CardForgeProjectPackageSnapshot {
 
 export interface CardForgeProjectPackageSnapshotV2 extends CardForgeProjectPackageSnapshot {
   manifest: CardForgeProjectManifestV2;
+}
+
+export interface CardForgeProjectPackageSnapshotV3 extends CardForgeProjectPackageSnapshot {
+  manifest: CardForgeProjectManifestV3;
 }
 
 export type ProjectSourceProvider = 'browser' | 'local-folder' | 'google-drive';

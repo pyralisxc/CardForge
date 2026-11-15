@@ -33,7 +33,7 @@ vi.mock('@/features/studio-documents/server/mcpArtworkSources', async original =
   normalizeMcpArtworkSource: artworkMocks.normalizeMcpArtworkSource,
 }));
 
-import { upsertWorkingCards } from '@/features/studio-documents/server/cardSetWorkingDocuments';
+import { upsertWorkingCards, upsertWorkingCardSet } from '@/features/studio-documents/server/cardSetWorkingDocuments';
 import {
   getWorkingDocumentOperationStatus,
   patchWorkingDocument,
@@ -141,6 +141,25 @@ beforeEach(() => {
 });
 
 describe('atomic MCP working-document workflow', () => {
+  it('edits Set-owned context without editing the locked original creation brief', async () => {
+    const current = makeCurrent();
+    const result = await upsertWorkingCardSet({ access, documentId: current.id, expectedRevision: current.revision, setId: 'set-1', name: 'Set One', context: 'Keep the creator’s exact words.\nhttps://example.com is a note, not an image.' });
+    expect(result.document.version).toBe(2);
+    expect(result.document.cardSets[0].plan?.context).toContain('creator’s exact words.\n');
+    expect(result.document.productionPlan).toEqual(current.document.productionPlan);
+    expect(storeMocks.updateStudioDocument).toHaveBeenCalledTimes(1);
+    expect(storeMocks.updateStudioDocument.mock.calls[0][0].expectedRevision).toBe(current.revision);
+  });
+  it('preserves Set plan metadata and brief when context is omitted or intentionally cleared', async () => {
+    const current = makeCurrent();
+    const plan = { version: 1 as const, context: 'Keep this', brief: current.document.productionPlan, custom: { original: ['Keep me too'] } };
+    storeMocks.getStudioDocument.mockResolvedValue({ ...current, document: { ...current.document, version: 2, cardSets: [{ ...current.document.cardSets[0], plan }] } });
+    const renamed = await upsertWorkingCardSet({ access, documentId: current.id, expectedRevision: current.revision, setId: 'set-1', name: 'Renamed' });
+    expect(renamed.document.cardSets[0].plan).toEqual(plan);
+    const cleared = await upsertWorkingCardSet({ access, documentId: current.id, expectedRevision: current.revision, setId: 'set-1', name: 'Set One', context: '' });
+    expect(cleared.document.cardSets[0].plan).toEqual({ ...plan, context: '' });
+    expect(plan.context).toBe('Keep this');
+  });
   it('commits a compound sparse Template/card patch as exactly one revision', async () => {
     const result = await patchWorkingDocument({
       access,

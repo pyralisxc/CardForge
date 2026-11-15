@@ -4,6 +4,8 @@ import {
   writeStructuredBrowserValues,
 } from './structuredBrowserStorage';
 import type { ResolvedProjectPackageAssetReference } from '../model/projectPackage';
+import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '../model/projectAssetTraversal';
+import { parseBrowserWorkspaceRecord } from './workspaceRevision';
 
 export const BROWSER_PROJECT_ASSET_REFERENCE_PREFIX = 'cardforge-browser-asset://';
 
@@ -140,7 +142,21 @@ const getStorageKey = (scope: string, assetId: string): string => (
 
 export const getBrowserProjectAssetIds = (value: string): string[] => {
   const pattern = /cardforge-browser-asset:\/\/([a-f0-9]{64})/gu;
-  return [...new Set(Array.from(value.matchAll(pattern), (match) => match[1]).filter((id): id is string => Boolean(id)))];
+  const ids = new Set<string>();
+  const collect = (entry: unknown, scope: ProjectAssetScope = 'root') => {
+    if (scope === 'opaque') return;
+    if (typeof entry === 'string') {
+      for (const match of entry.matchAll(pattern)) if (match[1]) ids.add(match[1]);
+    } else if (Array.isArray(entry)) entry.forEach((child) => collect(child, projectAssetArrayScope(scope)));
+    else if (entry && typeof entry === 'object') {
+      Object.entries(entry).forEach(([key, child]) => collect(child, projectAssetChildScope(scope, key)));
+    }
+  };
+  let parsed: unknown;
+  try { parsed = JSON.parse(parseBrowserWorkspaceRecord(value).value); }
+  catch { parsed = value; }
+  collect(parsed);
+  return [...ids];
 };
 
 export const copyBrowserProjectAssets = async ({
@@ -167,13 +183,15 @@ const visitValue = async (
   value: unknown,
   transformString: (value: string) => Promise<string>,
   depth = 0,
+  scope: ProjectAssetScope = 'root',
 ): Promise<unknown> => {
   if (depth > MAX_TRAVERSAL_DEPTH) throw new Error('Project artwork is nested too deeply to persist safely.');
+  if (scope === 'opaque') return value;
   if (typeof value === 'string') return transformString(value);
-  if (Array.isArray(value)) return Promise.all(value.map((entry) => visitValue(entry, transformString, depth + 1)));
+  if (Array.isArray(value)) return Promise.all(value.map((entry) => visitValue(entry, transformString, depth + 1, projectAssetArrayScope(scope))));
   if (value && typeof value === 'object') {
     const entries = await Promise.all(Object.entries(value as Record<string, unknown>).map(async ([key, entry]) => (
-      [key, await visitValue(entry, transformString, depth + 1)] as const
+      [key, await visitValue(entry, transformString, depth + 1, projectAssetChildScope(scope, key))] as const
     )));
     return Object.fromEntries(entries);
   }

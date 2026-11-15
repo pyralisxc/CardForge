@@ -95,3 +95,4 @@ export type {
 export type { EnvironmentCollectionRecord, EnvironmentDetailRecord, EnvironmentSettingRecord, EnvironmentStatusTone } from '../environment/presentation';
 
 export { EnvironmentSearch } from '../environment/components/EnvironmentSearch';
+export { useEnvironmentToolLifecycle } from '../environment/components/useEnvironmentToolLifecycle';

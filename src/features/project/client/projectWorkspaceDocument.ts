@@ -1,6 +1,7 @@
 "use client";
 
 import type { CardAssetOption, TCGCardTemplate } from '@/domain/templates';
+import { normalizeSetPlan, type SetPlan } from '@/domain/cards';
 
 import {
   CUSTOM_FONT_ASSETS_STORAGE_KEY,
@@ -13,6 +14,7 @@ import {
   isolateProjectDocumentToSet,
   isolateProjectDocumentToCard,
   instantiateProjectDocumentCopy,
+  materializeSetPlanOwnership,
   type ProjectDocumentV1,
 } from '../model/projectDocument';
 import {
@@ -233,9 +235,42 @@ export const applyProjectDocumentToWorkspace = async (
 ): Promise<ProjectWorkspaceApplySummary> => {
   options.signal?.throwIfAborted();
   const draft = createProjectWorkspaceDraft(options.expectedState);
-  const cleanup = await prepareCompletedDeletionCleanup(document, options.signal);
+  const legacyOwner = document.productionPlan && document.cardSets.length === 1 ? document.cardSets[0] : undefined;
+  const existingPlan = mode === 'adopt' && legacyOwner ? draft.getState().cardSets.find((set) => set.id === legacyOwner.id)?.plan : undefined;
+  if (existingPlan && JSON.stringify(existingPlan.brief) !== JSON.stringify(document.productionPlan)) {
+    throw new Error('This legacy draft has a different creation brief from the current Set context. Both were kept; open an independent copy or review the brief before updating this Set.');
+  }
+  const compatibleDocument = legacyOwner && existingPlan && !legacyOwner.plan
+    ? { ...document, cardSets: [{ ...legacyOwner, plan: existingPlan }] }
+    : document;
+  const cleanup = await prepareCompletedDeletionCleanup(materializeSetPlanOwnership(compatibleDocument), options.signal);
   options.validatePreparedDocument?.(cleanup.document);
   return applyPreparedProjectDocument(draft, cleanup, mode, options);
+};
+
+export const applyCardSetPlan = async ({
+  setId, expectedScope, expectedPlan, plan, signal,
+}: {
+  setId: string;
+  expectedScope: ReturnType<typeof getProjectPersistenceScope>;
+  expectedPlan: SetPlan | undefined;
+  plan: SetPlan;
+  signal?: AbortSignal;
+}): Promise<void> => {
+  signal?.throwIfAborted();
+  if (getProjectPersistenceScope() !== expectedScope) throw new Error('The workspace account changed. Your context was not applied; keep this draft and reopen the intended Set.');
+  const state = useProjectStore.getState();
+  const owner = state.cardSets.find((set) => set.id === setId);
+  if (!owner) throw new Error('This Set is no longer in the workspace. Your context draft was not applied.');
+  if (owner.plan !== undefined) normalizeSetPlan(owner.plan);
+  if (JSON.stringify(owner.plan) !== JSON.stringify(expectedPlan)) throw new Error('The Set context changed while you were editing. Your draft was kept; review the current context before replacing it.');
+  const nextPlan = normalizeSetPlan(plan);
+  const draft = createProjectWorkspaceDraft(state);
+  draft.setState({
+    cardSets: state.cardSets.map((set) => set.id === setId ? { ...set, plan: nextPlan } : set),
+    activeCardSet: state.activeCardSet?.id === setId ? { ...state.activeCardSet, plan: nextPlan } : state.activeCardSet,
+  });
+  await draft.commit([], signal);
 };
 
 /** Once per opening of a saved local workspace; concurrent edits cancel the commit. */

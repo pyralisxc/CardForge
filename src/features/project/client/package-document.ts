@@ -18,4 +18,5 @@ export type {
   ProjectDocumentExportSettings,
   ProjectDocumentStatePatch,
   ProjectDocumentV1,
+  ProjectDocument,
 } from '../model/projectDocument';

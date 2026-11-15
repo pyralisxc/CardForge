@@ -9,6 +9,7 @@ import {
 } from '../model/projectPackage';
 import { parseProjectDocumentValue, type ProjectDocumentV1 } from '../model/projectDocument';
 import { ProjectPackageError } from './projectPackageCodec';
+import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '../model/projectAssetTraversal';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -20,8 +21,10 @@ const referenceProjectAssets = (
   assets: CardForgeProjectPackageSnapshot['assets'],
   getRuntimeReference: (descriptor: ProjectPackageAssetDescriptor) => string,
   depth = 0,
+  scope: ProjectAssetScope = 'root',
 ): unknown => {
   if (depth > 80) throw new ProjectPackageError('This project is nested too deeply to open safely.');
+  if (scope === 'opaque') return value;
   if (typeof value === 'string') {
     const id = getProjectPackageAssetIdFromReference(value);
     if (!id) return value;
@@ -32,11 +35,11 @@ const referenceProjectAssets = (
     return getRuntimeReference(descriptor);
   }
   if (Array.isArray(value)) {
-    return value.map((entry) => referenceProjectAssets(entry, descriptors, assets, getRuntimeReference, depth + 1));
+    return value.map((entry) => referenceProjectAssets(entry, descriptors, assets, getRuntimeReference, depth + 1, projectAssetArrayScope(scope)));
   }
   if (isRecord(value)) {
     return Object.fromEntries(Object.entries(value).map(([key, entry]) => (
-      [key, referenceProjectAssets(entry, descriptors, assets, getRuntimeReference, depth + 1)]
+      [key, referenceProjectAssets(entry, descriptors, assets, getRuntimeReference, depth + 1, projectAssetChildScope(scope, key))]
     )));
   }
   return value;
@@ -52,7 +55,7 @@ export const referenceCardForgeProjectSnapshotAssets = (
     ? referenced
     : {
         ...(referenced as PortableProjectDocumentV2),
-        version: 1,
+        version: (referenced as PortableProjectDocumentV2).cardSets.some((set) => set.plan !== undefined) ? 2 : 1,
         storedCards: (referenced as PortableProjectDocumentV2).artifacts.map(getCardFromArtifact),
       };
   const parsed = parseProjectDocumentValue(runtime);

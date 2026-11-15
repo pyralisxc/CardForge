@@ -10,7 +10,8 @@ export {
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
 } from './model/projectDocument';
-export type { ProjectDocumentMcpOperationReceipt, ProjectDocumentV1 } from './model/projectDocument';
+export type { ProjectDocumentMcpOperationReceipt, ProjectDocumentV1, ProjectDocument } from './model/projectDocument';
+export { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from './model/projectAssetTraversal';
 export {
   getProjectFontValue,
   isProjectFontAssetId,
@@ -27,6 +28,7 @@ export {
   CARDFORGE_PROJECT_FILE_EXTENSION,
   CARDFORGE_PROJECT_MANIFEST_FILE,
   CARDFORGE_PROJECT_PACKAGE_VERSION,
+  ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION,
   LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION,
   getProjectPackageAssetExtension,
   getProjectPackageAssetIdFromReference,
@@ -44,8 +46,10 @@ export type {
   CardForgeProjectManifest,
   CardForgeProjectManifestV1,
   CardForgeProjectManifestV2,
+  CardForgeProjectManifestV3,
   CardForgeProjectPackageSnapshot,
   CardForgeProjectPackageSnapshotV2,
+  CardForgeProjectPackageSnapshotV3,
   PortableProjectDocumentV2,
   ProjectPackageAssetDescriptor,
   ProjectPackageAssetMimeType,
