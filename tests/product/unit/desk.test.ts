@@ -8,6 +8,8 @@ describe('Desk authored card titles', () => {
 
   it('preserves the existing canonical title precedence', () => {
     expect(getCardTitle({ data: { cardName: 'Canonical', name: 'Name', title: 'Title', 'Card Title': 'CSV title' } }, 0)).toBe('Canonical');
+    expect(getCardTitle({ data: { 'Card Title': 'CSV title', cardName: ' ', name: 'Name', title: 'Title' } }, 0)).toBe('Name');
+    expect(getCardTitle({ data: { 'Card Title': 'CSV title', name: '', title: 'Title' } }, 0)).toBe('Title');
   });
 
   it.each([0, 42])('preserves the authored scalar title %s', (value) => {
