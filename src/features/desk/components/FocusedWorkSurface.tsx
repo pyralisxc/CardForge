@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch, MutableRefObject, ReactNode, SetStateAction } from 'react';
+import { useRef, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from 'react';
 import { ArrowDown, ArrowUp, Boxes, Copy, Layers3, LayoutGrid, MoreHorizontal, Pencil, Search, Sparkles, Tag, Trash2, TriangleAlert, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { setCreatorLens, type CreatorInteractionSession } from '@/features/app-s
 import { getArtifactWorkState } from '@/features/card-generator/client';
 import type { TemplateCommitChangeInput } from '@/features/project/client/workspace';
 import { SetContextEditor } from './SetContextEditor';
+import { CardRemovalUndo } from './CardRemovalUndo';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
 import type { ArtifactSelectionScope } from '../model/focusedArtifactLayout';
@@ -94,6 +95,7 @@ export interface FocusedWorkSurfaceProps {
 
 export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
   const { toast } = useToast();
+  const recoveryFocusRef = useRef<HTMLElement>(null);
   const currentSet = props.currentSet;
   const templates = props.templates;
   const artifactFocused = Boolean(props.session.focusPath.artifactId);
@@ -139,8 +141,9 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
   };
 
   return <div className={styles.focusSurface} data-desk="focused" data-focus-transition="set-to-artifacts" data-artifact-focused={artifactFocused}>
-    <section className={styles.focusWorkspace} data-desk-set-board data-artifact-focused={artifactFocused} data-has-selection={props.selectedCards.length > 0} aria-label={props.item.name}>
+    <section ref={recoveryFocusRef} tabIndex={-1} className={styles.focusWorkspace} data-desk-set-board data-artifact-focused={artifactFocused} data-has-selection={props.selectedCards.length > 0} aria-label={props.item.name}>
       {props.localSetId ? <>
+        {!artifactFocused ? <CardRemovalUndo key={props.localSetId} setId={props.localSetId} setName={props.item.name} returnFocusRef={recoveryFocusRef} /> : null}
         {!artifactFocused ? <>
           <div className={styles.contentToolbar}>
             <label className={styles.searchField}><span className="sr-only">Search cards in this work</span><Search aria-hidden="true" /><Input value={props.cardQuery} onChange={(event) => props.onCardQueryChange(event.target.value)} placeholder="Search cards" /></label>

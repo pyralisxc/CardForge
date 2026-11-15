@@ -221,6 +221,11 @@ export const useProjectStore = create<ProjectState>()(
           }, 0);
         },
         skipHydration: true,
+        merge: (persisted, current) => ({
+          ...current,
+          ...(persisted as Partial<ProjectState>),
+          cardRemovalRecoveries: [],
+        }),
         version: 6,
         migrate: (persistedState, version) => {
           if (version > 6) throw new Error('This workspace requires a newer CardForge version. Reload before editing; your saved work was left unchanged.');

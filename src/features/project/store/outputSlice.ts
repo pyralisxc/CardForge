@@ -38,6 +38,7 @@ const withCardSetTemplateReferences = (state: ProjectState, storedCards: StoredD
 
 export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> = (set, get) => ({
   storedCards: [],
+  cardRemovalRecoveries: [],
   bulkRevisionUndo: null,
   editingCardUniqueId: null,
   isEditDialogOpen: false,
@@ -58,28 +59,88 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
     }));
     set((state) => withCardSetTemplateReferences(state, [...state.storedCards, ...storedCards]));
   },
-  clearGeneratedCards: () => set((state) => withCardSetTemplateReferences(state,
-    state.activeCardSet
-      ? state.storedCards.filter((card) => card.setId && card.setId !== state.activeCardSet?.id)
-      : state.storedCards,
-  )),
+  clearGeneratedCards: () => set((state) => ({
+    ...withCardSetTemplateReferences(state, state.activeCardSet
+      ? state.storedCards.filter((card) => (card.setId || state.cardSets[0]?.id) !== state.activeCardSet?.id)
+      : state.storedCards),
+    cardRemovalRecoveries: state.cardRemovalRecoveries.filter((entry) => entry.setId !== state.activeCardSet?.id),
+  })),
   removeGeneratedCard: (cardUniqueId) => {
     get().removeGeneratedCards([cardUniqueId]);
   },
   removeGeneratedCards: (cardUniqueIds) => {
     const removals = new Set(cardUniqueIds);
     if (!removals.size) return 0;
-    const removedCount = get().storedCards.filter((card) => removals.has(card.uniqueId)).length;
-    if (!removedCount) return 0;
+    const state = get();
+    const removed = state.storedCards.filter((card) => removals.has(card.uniqueId));
+    if (!removed.length) return 0;
+    const templates = new Set(selectAllTemplates(state).map((template) => template.id));
+    const order = state.storedCards.map((card) => card.uniqueId);
+    const recoveries = state.cardSets.flatMap((owner) => {
+      const cards = removed.filter((card) => (card.setId || state.cardSets[0]?.id) === owner.id);
+      if (!cards.length) return [];
+      return [{
+        id: nanoid(), setId: owner.id, cards: structuredClone(cards), order,
+        requiredTemplateIds: [...new Set(cards.flatMap((card) => [card.templateId, card.backingTemplateId])
+          .filter((id): id is string => Boolean(id && templates.has(id))))],
+      }];
+    });
     set((state) => {
       const removedActiveEdit = state.editingCardUniqueId !== null && removals.has(state.editingCardUniqueId);
       return {
         ...withCardSetTemplateReferences(state, state.storedCards.filter((card) => !removals.has(card.uniqueId))),
+        cardRemovalRecoveries: [...state.cardRemovalRecoveries, ...recoveries],
         editingCardUniqueId: removedActiveEdit ? null : state.editingCardUniqueId,
         isEditDialogOpen: removedActiveEdit ? false : state.isEditDialogOpen,
       };
     });
-    return removedCount;
+    return removed.length;
+  },
+  undoCardRemoval: (recoveryId) => {
+    const state = get();
+    const recovery = state.cardRemovalRecoveries.find((entry) => entry.id === recoveryId);
+    if (!recovery) return { ok: false, reason: 'not-found' };
+    if (state.cardRemovalRecoveries.findLast((entry) => entry.setId === recovery.setId) !== recovery) return { ok: false, reason: 'newer-removal' };
+    const owner = state.cardSets.find((candidate) => candidate.id === recovery.setId);
+    const templateIds = new Set(selectAllTemplates(state).map((template) => template.id));
+    const currentIds = new Set(state.storedCards.map((card) => card.uniqueId));
+    if (!owner) return { ok: false, reason: 'not-found' };
+    if (recovery.requiredTemplateIds.some((id) => !templateIds.has(id))) return { ok: false, reason: 'template-unavailable' };
+    if (recovery.cards.some((card) => currentIds.has(card.uniqueId))) return { ok: false, reason: 'conflict' };
+    const snapshots = new Map(recovery.cards.map((card) => [card.uniqueId, { ...structuredClone(card), setId: owner.id, setName: owner.name }]));
+    const successors = new Map<string, string>();
+    let next: string | undefined;
+    for (let index = recovery.order.length - 1; index >= 0; index -= 1) {
+      const id = recovery.order[index]!;
+      if (currentIds.has(id)) next = id;
+      else if (next && snapshots.has(id)) successors.set(id, next);
+    }
+    const before = new Map<string, StoredDisplayCard[]>();
+    const after = new Map<string, StoredDisplayCard[]>();
+    const trailing: StoredDisplayCard[] = [];
+    let previous: string | undefined;
+    for (const id of recovery.order) {
+      if (currentIds.has(id)) previous = id;
+      const card = snapshots.get(id);
+      if (!card) continue;
+      const successor = successors.get(id);
+      const anchor = successor ?? previous;
+      if (!anchor) trailing.push(card);
+      else {
+        const groups = successor ? before : after;
+        const group = groups.get(anchor) ?? [];
+        group.push(card);
+        groups.set(anchor, group);
+      }
+    }
+    const restored = state.storedCards.flatMap((card) => [...(before.get(card.uniqueId) ?? []), card, ...(after.get(card.uniqueId) ?? [])]).concat(trailing);
+    set({ ...withCardSetTemplateReferences(state, restored), cardRemovalRecoveries: state.cardRemovalRecoveries.filter((entry) => entry.id !== recoveryId) });
+    return { ok: true, count: recovery.cards.length };
+  },
+  dismissCardRemoval: (recoveryId) => {
+    if (get().cardRemovalRecoveries.some((entry) => entry.id === recoveryId)) {
+      set((state) => ({ cardRemovalRecoveries: state.cardRemovalRecoveries.filter((entry) => entry.id !== recoveryId) }));
+    }
   },
   moveGeneratedCardToSet: (cardUniqueId, setId) => (
     get().moveGeneratedCardsToSet([cardUniqueId], setId) === 1
@@ -203,7 +264,7 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
       });
       successCount += 1;
     });
-    set((state) => withCardSetTemplateReferences(state, storedCards));
+    set((state) => ({ ...withCardSetTemplateReferences(state, storedCards), cardRemovalRecoveries: [] }));
     return { successCount, skippedCount };
   },
   mergeStoredCardsFromFile: (loadedCards) => {
@@ -213,6 +274,8 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
     get().storedCards.forEach((card) => merged.set(card.uniqueId || nanoid(), card));
     let successCount = 0;
     let skippedCount = 0;
+
+    const importedSetIds = new Set<string>();
 
     loadedCards.forEach((card) => {
       const template = templates.find((candidate) => candidate.id === card.templateId);
@@ -224,6 +287,7 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
         ? get().cardSets.find((candidate) => candidate.id === card.setId)
         : activeCardSet;
       const uniqueId = card.uniqueId || nanoid();
+      importedSetIds.add(targetSet?.id ?? activeCardSet.id);
       merged.set(uniqueId, {
         uniqueId,
         templateId: template.id!,
@@ -237,7 +301,10 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
       });
       successCount += 1;
     });
-    set((state) => withCardSetTemplateReferences(state, Array.from(merged.values())));
+    set((state) => ({
+      ...withCardSetTemplateReferences(state, Array.from(merged.values())),
+      cardRemovalRecoveries: state.cardRemovalRecoveries.filter((entry) => !importedSetIds.has(entry.setId)),
+    }));
     return { successCount, skippedCount };
   },
   openEditDialog: (cardUniqueId) => set({ editingCardUniqueId: cardUniqueId, isEditDialogOpen: true }),
