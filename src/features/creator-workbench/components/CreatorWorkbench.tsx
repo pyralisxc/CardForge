@@ -41,6 +41,7 @@ export interface CreatorWorkbenchProps {
   tool?: 'design' | 'output';
   onCloseTool?: () => void;
   onOutputPrepared?: (setId: string, reference: string) => void;
+  onDocumentInstalled?: (result: { activeSetId: string | null }) => void;
   designIntent?: DesignToolIntent | null;
   onDesignIntentConsumed?: () => void;
   onReturnToGenerator?: () => void;
@@ -58,6 +59,7 @@ export function CreatorWorkbench({
   tool,
   onCloseTool,
   onOutputPrepared,
+  onDocumentInstalled,
   designIntent,
   onDesignIntentConsumed,
   onReturnToGenerator,
@@ -388,6 +390,7 @@ export function CreatorWorkbench({
   const isStudioReady = !isLoadingTemplates;
   const cancelOutputHandoff = useStudioDocumentHandoff({
     onOutputPrepared: handleOutputPrepared,
+    onInstalled: onDocumentInstalled,
     navigationKey: searchParams.toString(),
     isAccountLoading: accountEntitlement.isLoadingEntitlement,
     isSignedIn: accountEntitlement.isSignedIn,
