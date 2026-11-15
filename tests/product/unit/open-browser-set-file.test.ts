@@ -1,16 +1,20 @@
 import 'fake-indexeddb/auto';
+import { createHash } from 'node:crypto';
+import JSZip from 'jszip';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as codec from '@/features/project/lib/projectPackageCodec';
 import { openBrowserSetFile } from '@/features/project/client/openBrowserSetFile';
 import { setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProjectStore } from '@/features/project/store/workspaceStore';
 import { readStructuredBrowserValue } from '@/features/project/persistence/structuredBrowserStorage';
+import { CARDFORGE_PROJECT_MANIFEST_FILE } from '@/features/project/model/projectPackage';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
 
 const project = () => {
   const document = createProjectScaleFixture(100, { uniqueArtwork: true });
   document.version = 2;
   document.storedCards = document.storedCards.slice(0, 2);
+  document.cardSets[0]!.templateIds = [document.userTemplates[0]!.id!];
   document.cardSets[0]!.plan = { version: 1, context: '  Authored context\nhttps://example.test/keep-literally  ' };
   return document;
 };
@@ -76,11 +80,28 @@ describe('native single-Set file opening', () => {
   it.each([0, 2])('refuses a %i-Set workspace package before materializing artwork', async (count) => {
     const document = project();
     document.cardSets = count ? [...document.cardSets, { id: 'other-set', name: 'Other' }] : [];
+    if (!count) {
+      document.userTemplates[0]!.cardBackgroundImageUrl = String(document.storedCards[0]!.data.artwork);
+      document.storedCards = [];
+      document.activeCardSetId = undefined;
+    }
     const { file, snapshot } = await packageFor(document);
     await expect(openBrowserSetFile(file, new AbortController().signal)).rejects.toThrow('exactly one Set');
     expect(useProjectStore.getState().cardSets).toEqual([]);
     const key = `project-content-asset:${encodeURIComponent(scope)}:${snapshot.manifest.assets[0]!.id}`;
     expect(await readStructuredBrowserValue(key)).not.toBeInstanceOf(Blob);
+  });
+
+  it('does not infer a Set owner from cards when the source registry is empty', async () => {
+    const { file } = await packageFor();
+    const zip = await JSZip.loadAsync(await file.arrayBuffer());
+    const manifest = JSON.parse(await zip.file(CARDFORGE_PROJECT_MANIFEST_FILE)!.async('string'));
+    manifest.project.cardSets = [];
+    manifest.projectRevision = createHash('sha256').update(JSON.stringify({ project: manifest.project, assets: manifest.assets })).digest('hex');
+    zip.file(CARDFORGE_PROJECT_MANIFEST_FILE, JSON.stringify(manifest));
+    const source = new File([await zip.generateAsync({ type: 'arraybuffer' })], 'legacy-registry.cardforge');
+    await expect(openBrowserSetFile(source, new AbortController().signal)).rejects.toThrow('exactly one Set');
+    expect(useProjectStore.getState().cardSets).toEqual([]);
   });
 
   it.each(['front', 'back', 'prepared'])('refuses a missing required %s Template without changing work', async (kind) => {

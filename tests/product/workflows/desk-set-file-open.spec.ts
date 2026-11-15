@@ -21,7 +21,7 @@ const upload = async (document = project()) => ({
 });
 const readWorkspace = (page: Page) => page.evaluate(async () => {
   const database = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open('cardforge-browser-storage', 1);
+    const request = indexedDB.open('cardforge-browser-storage');
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -64,7 +64,7 @@ for (const mobile of [false, true]) {
       await expect(page.getByRole('searchbox', { name: 'Search cards in this Set', exact: true })).toBeVisible();
       expect((await readWorkspace(page)).cardSets[0]!.plan?.context).toBe(context);
       await closeScaleSet(page);
-      await expect(page.getByRole('button', { name: /100 Card Scale Set/ })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ })).toBeVisible();
     });
 
     test('@golden refuses invalid and multi-Set input, supports cancellation/retry, and preserves colliding work', async ({ page }) => {
@@ -90,7 +90,7 @@ for (const mobile of [false, true]) {
       await expect(page.getByRole('searchbox', { name: 'Search cards in this Set', exact: true })).toBeVisible();
       await expect.poll(async () => (await readWorkspace(page)).cardSets.length).toBe(2);
       const after = await readWorkspace(page);
-      expect(after.cardSets.find((set) => set.id === 'scale-set-100')).toEqual(before.cardSets[0]);
+      expect(after.cardSets.find((set) => set.id === 'scale-set-100')).toEqual({ ...before.cardSets[0], templateIds: ['scale-template'] });
       expect(after.storedCards.filter((card) => card.setId === 'scale-set-100')).toEqual(before.storedCards);
       expect(after.userTemplates.find((template) => template.id === 'scale-template')).toEqual(before.userTemplates[0]);
       expect(after.cardSets.find((set) => set.id !== 'scale-set-100')!.plan?.context).toBe(context);
