@@ -92,15 +92,15 @@ describe('native single-Set file opening', () => {
     expect(await readStructuredBrowserValue(key)).not.toBeInstanceOf(Blob);
   });
 
-  it('does not infer a Set owner from cards when the source registry is empty', async () => {
+  it.each([{ registry: [] }, { registry: [{}] }, { registry: [{ id: ' ', name: 'Invalid identity' }] }])('does not infer a Set owner from cards for source registry %j', async ({ registry }) => {
     const { file } = await packageFor();
     const zip = await JSZip.loadAsync(await file.arrayBuffer());
     const manifest = JSON.parse(await zip.file(CARDFORGE_PROJECT_MANIFEST_FILE)!.async('string'));
-    manifest.project.cardSets = [];
+    manifest.project.cardSets = registry;
     manifest.projectRevision = createHash('sha256').update(JSON.stringify({ project: manifest.project, assets: manifest.assets })).digest('hex');
     zip.file(CARDFORGE_PROJECT_MANIFEST_FILE, JSON.stringify(manifest));
     const source = new File([await zip.generateAsync({ type: 'arraybuffer' })], 'legacy-registry.cardforge');
-    await expect(openBrowserSetFile(source, new AbortController().signal)).rejects.toThrow('exactly one Set');
+    await expect(openBrowserSetFile(source, new AbortController().signal)).rejects.toThrow(/exactly one Set|valid Set identity/);
     expect(useProjectStore.getState().cardSets).toEqual([]);
   });
 

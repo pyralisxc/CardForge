@@ -1,5 +1,6 @@
 "use client";
 
+import { normalizeCardSet } from '@/domain/cards';
 import { decodeCardForgeProjectPackage, ProjectPackageError } from '../lib/projectPackageCodec';
 import type { ProjectDocumentV1 } from '../model/projectDocument';
 import { CARDFORGE_PROJECT_FILE_EXTENSION } from '../model/projectPackage';
@@ -12,6 +13,7 @@ const requireSingleSetRegistry = (cardSets: unknown) => {
   if (!Array.isArray(cardSets) || cardSets.length !== 1) {
     throw new ProjectPackageError('Choose a file containing exactly one Set. Whole-workspace backups belong in browser recovery.');
   }
+  if (!normalizeCardSet(cardSets[0])) throw new ProjectPackageError('This file has no valid Set identity. Open legacy material through workspace recovery instead.');
 };
 
 const requireCompleteSingleSet = (document: ProjectDocumentV1) => {
