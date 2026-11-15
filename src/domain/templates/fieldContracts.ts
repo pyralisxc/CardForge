@@ -118,6 +118,7 @@ const isLikelyImageSource = (value: string): boolean => (
   || value.startsWith('https://')
   || value.startsWith('data:')
   || value.startsWith('blob:')
+  || value.startsWith('cardforge-browser-asset://')
 );
 
 const getDetectedFormatting = (value: string): TemplateFieldAllowedFormatting[] => {
@@ -194,7 +195,7 @@ const REQUIRED_NORMALIZATION_OVERRIDES: Record<string, boolean> = {
   subtitle: false,
 };
 const LEGACY_SYNTHESIZED_IMAGE_KEYS = new Set(['artworkurl', 'imageurl']);
-const PERSISTED_NATIVE_IMAGE_PREFIXES = ['data:', 'cardforge-studio-asset://', 'embedded://'];
+const PERSISTED_NATIVE_IMAGE_PREFIXES = ['data:', 'cardforge-browser-asset://', 'cardforge-studio-asset://', 'embedded://'];
 
 const isPersistedNativeImageSource = (value: string): boolean => {
   const lower = value.toLowerCase();

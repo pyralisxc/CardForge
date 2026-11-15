@@ -19,11 +19,17 @@ import { capturePortableRemoteArtwork } from './portableRemoteArtwork';
 
 export const materializeBrowserProjectSnapshot = async (
   snapshot: Awaited<ReturnType<typeof decodeCardForgeProjectPackage>>,
+  validateDocument?: (document: DecodedProjectFile['document']) => void,
 ): Promise<DecodedProjectFile['document']> => {
   const scope = getProjectPersistenceScope();
   if (scope === 'unscoped-disabled') {
     throw new Error('CardForge cannot import project artwork before the browser workspace owner is known.');
   }
+  const document = referenceCardForgeProjectSnapshotAssets(
+    snapshot,
+    (descriptor) => getBrowserProjectAssetReference(descriptor.id),
+  );
+  validateDocument?.(document);
   for (const descriptor of snapshot.manifest.assets) {
     const source = snapshot.assets.get(descriptor.id);
     if (!source) throw new Error(`This project is missing required asset ${descriptor.id.slice(0, 12)}….`);
@@ -36,10 +42,7 @@ export const materializeBrowserProjectSnapshot = async (
     });
   }
   if (getProjectPersistenceScope() !== scope) throw new Error('The workspace account changed while project artwork was being opened.');
-  return referenceCardForgeProjectSnapshotAssets(
-    snapshot,
-    (descriptor) => getBrowserProjectAssetReference(descriptor.id),
-  );
+  return document;
 };
 
 export const decodeBrowserProjectFile = async (file: File): Promise<DecodedProjectFile> => {

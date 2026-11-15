@@ -9,6 +9,25 @@ import { extractTemplateFieldDefinitions } from '@/domain/templates';
 import type { TCGCardTemplate } from '@/domain/templates';
 
 describe('field contract v1 helpers', () => {
+  it('keeps persisted browser artwork structural and removes only its stale synthesized contract', () => {
+    const source = `cardforge-browser-asset://${'a'.repeat(64)}`;
+    const template: TCGCardTemplate = {
+      id: 'browser-art', name: 'Browser art', aspectRatio: '63:88',
+      freeformCanvas: { width: 630, height: 880, elements: [
+        { id: 'art', type: 'image', name: 'Image Layer', x: 0, y: 0, width: 220, height: 160, zIndex: 1, imageSource: source, content: 'artworkUrl' },
+      ] },
+      fieldContracts: [{ key: 'image_image_layer_art', type: 'image', defaultValue: source }],
+    };
+    const normalized = normalizeTemplateFieldContracts(template);
+    expect(normalized.fieldContracts).toEqual([]);
+    expect(extractTemplateFieldDefinitions(normalized)).toEqual([]);
+    expect(normalized.freeformCanvas?.elements[0]?.imageSource).toBe(source);
+    const explicit = normalizeTemplateFieldContracts({ ...template, fieldContracts: [{ key: 'hero', type: 'image', elementId: 'art' }] });
+    const fields = extractTemplateFieldDefinitions(explicit);
+    expect(fields.map((field) => field.key)).toEqual(['hero']);
+    expect(validateCardDataAgainstFieldContracts(fields, { hero: source })).toEqual({ issues: [], warnings: [] });
+  });
+
   it('exposes the current contract version as a stable schema marker', () => {
     expect(FIELD_CONTRACT_VERSION).toBe(1);
   });

@@ -27,6 +27,7 @@ interface DeskDialogsProps {
   onConfirmDirtyClose: () => void;
   onCreateOpenChange: (open: boolean) => void;
   onCreateWork: (openDesign: boolean) => void;
+  onSetFileOpened: (setId: string) => void;
   onCreatePublishedSet: (set: CardForgeCatalogManifest['sets']['items'][number]) => void;
   onRetryPublishedSets: () => void;
   onDeleteWorkOpenChange: (open: boolean) => void;
