@@ -173,8 +173,9 @@ export const getDeskWorkPresentationMeta = (item: AccountLibraryItem): DeskWorkP
 };
 
 export const getCardTitle = (card: Pick<DisplayCard, 'data'>, index: number): string => {
-  const canonical = card.data.cardName ?? card.data.name ?? card.data.title;
-  if (canonical != null && String(canonical).trim()) return String(canonical);
+  const canonical = [card.data.cardName, card.data.name, card.data.title]
+    .find((value) => value != null && String(value).trim());
+  if (canonical !== undefined) return String(canonical);
   const authored = Object.entries(card.data).find(([key, value]) => (
     /^(?:card[\s_-]*)?(?:name|title)$/i.test(key.trim())
       && value != null && String(value).trim()
