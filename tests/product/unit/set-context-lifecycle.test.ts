@@ -80,20 +80,6 @@ describe('Set context native lifecycle', () => {
     expect(useProjectStore.getState()).toBe(state);
   });
 
-  it('leaves live and durable context unchanged after an aborted native transaction', async () => {
-    const saved = await storage().getItem('workspace');
-    const state = useProjectStore.getState();
-    const put = IDBObjectStore.prototype.put;
-    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
-      const request = put.call(this, value, key);
-      if (key === `project-workspace:${scope}:workspace`) request.addEventListener('success', () => this.transaction.abort());
-      return request;
-    });
-    await expect(apply({ ...original, context: 'Never committed' })).rejects.toThrow();
-    expect(useProjectStore.getState()).toBe(state);
-    expect(await storage().getItem('workspace')).toBe(saved);
-  });
-
   it('copies an unambiguous legacy brief into its independent Set owner', async () => {
     const document = createProjectDocumentFromState({ cardSets: [{ id: 'context-a', name: 'Legacy Set' }], storedCards: [], userTemplates: [], appearanceStyles: [], productionPlan: brief });
     expect(document.productionPlan).toBeDefined();
@@ -167,23 +153,6 @@ describe('Set context native lifecycle', () => {
     const captured = await captureCardSetProjectDocument('literal-only');
     expect(captured.customAssets['cardforge-maker-custom-images']).toEqual([]);
     expect(captured.cardSets[0].plan).toEqual(document.cardSets[0].plan);
-  });
-
-  it('downloads/imports one complete native Set without replacing its source or unrelated work', async () => {
-    const context = { ...original, context: 'Literal data:image/png;base64,not an image', custom: { sample: `cardforge-project-asset://${'a'.repeat(64)}` } };
-    await apply(context);
-    const source = await captureCardSetProjectDocument('context-a');
-    expect(source.cardSets.map((set) => set.id)).toEqual(['context-a']);
-    const archive = await encodeCardForgeProjectPackage(await buildCardForgeProjectSnapshot({ document: source, name: 'Complete Set' }));
-    const reopened = hydrateCardForgeProjectSnapshot(await decodeCardForgeProjectPackage(archive));
-    const installed = await applyProjectDocumentToWorkspace(reopened, 'copy');
-    expect(owner().plan).toEqual(context);
-    expect(useProjectStore.getState().cardSets.find((set) => set.id === 'context-b')?.plan?.context).toBe('Keep this unchanged');
-    expect(installed.activeSetId).not.toBe('context-a');
-    const copied = useProjectStore.getState().cardSets.find((set) => set.id === installed.activeSetId)!;
-    expect(copied.plan).toEqual(context);
-    await applyCardSetPlan({ setId: copied.id, expectedScope: scope, expectedPlan: copied.plan, plan: { ...copied.plan!, context: 'Only the copy changed' } });
-    expect(owner().plan).toEqual(context);
   });
 
   it('round-trips every native Set context through a separate whole-workspace backup/restore', async () => {

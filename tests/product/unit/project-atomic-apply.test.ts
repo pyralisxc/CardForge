@@ -1,9 +1,10 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CardAssetOption } from '@/domain/templates';
 import { applyProjectDocumentToWorkspace, cleanCurrentWorkspaceCompletedDeletions } from '@/features/project/client/projectWorkspaceDocument';
-import { hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProjectStore } from '@/features/project/store/workspaceStore';
+import { createProjectWorkspaceDraft, hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProjectStore } from '@/features/project/store/workspaceStore';
 import { createBrowserKeyValueStorage } from '@/features/project/persistence/indexedDbStorage';
-import { restoreBrowserWorkspaceRecovery } from '@/features/project/persistence/projectPersistenceScope';
+import { getScopedProjectStorageNamespace, restoreBrowserWorkspaceRecovery } from '@/features/project/persistence/projectPersistenceScope';
 import { parseBrowserWorkspaceRecord } from '@/features/project/persistence/workspaceRevision';
 import { CUSTOM_IMAGE_ASSETS_STORAGE_KEY } from '@/features/project/model/projectDocument';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
@@ -11,10 +12,24 @@ import { removeDeviceWorkAfterVerifiedCopy } from '@/features/project/client/wor
 
 let counter = 0;
 let scope: `account:${string}`;
+const imageCatalog = (): CardAssetOption[] => [{ id: 'fixture-image', name: 'Fixture', kind: 'image', url: 'https://example.com/fixture.png', tileMode: 'contain', seamless: false, allowedTargets: [] }];
 const fixture = () => {
   const project = createProjectScaleFixture(100);
-  project.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY] = [{ id: 'fixture-image', name: 'Fixture', kind: 'image', url: 'https://example.com/fixture.png', tileMode: 'contain', seamless: false, allowedTargets: [] }];
+  project.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY] = imageCatalog();
   return project;
+};
+const prepareDraft = () => {
+  const draft = createProjectWorkspaceDraft();
+  const set = { id: 'prepared-set', name: 'Prepared Set' };
+  draft.setState({ cardSets: [set], activeCardSet: set });
+  return {
+    draft,
+    relatedWrites: [{
+      key: `${getScopedProjectStorageNamespace('project-assets', scope)}:${CUSTOM_IMAGE_ASSETS_STORAGE_KEY}`,
+      value: JSON.stringify(imageCatalog()),
+      expectedValue: null,
+    }],
+  };
 };
 describe('atomic project apply', () => {
   beforeEach(async () => {
@@ -25,27 +40,29 @@ describe('atomic project apply', () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it('leaves live and durable work unchanged when installation was cancelled', async () => {
+  it('rejects a cancelled shared workspace draft before changing live or durable work', async () => {
     const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
     const before = await raw.getItem('workspace');
     const state = useProjectStore.getState();
+    const { draft, relatedWrites } = prepareDraft();
     const controller = new AbortController(); controller.abort();
-    await expect(applyProjectDocumentToWorkspace(fixture(), 'adopt', { signal: controller.signal })).rejects.toBeDefined();
+    await expect(draft.commit(relatedWrites, controller.signal)).rejects.toBeDefined();
     expect(useProjectStore.getState()).toBe(state);
     expect(await raw.getItem('workspace')).toBe(before);
   });
-  it('rolls back a cancellation during the native import transaction', async () => {
+  it('rolls back workspace and related writes when the shared draft is cancelled during commit', async () => {
     const controller = new AbortController();
     const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
     const before = await raw.getItem('workspace');
     const state = useProjectStore.getState();
+    const { draft, relatedWrites } = prepareDraft();
     const put = IDBObjectStore.prototype.put;
     vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
       const request = put.call(this, value, key);
       if (key === `project-workspace:${scope}:workspace`) controller.abort();
       return request;
     });
-    await expect(applyProjectDocumentToWorkspace(fixture(), 'adopt', { signal: controller.signal })).rejects.toBeDefined();
+    await expect(draft.commit(relatedWrites, controller.signal)).rejects.toBeDefined();
     expect(useProjectStore.getState()).toBe(state);
     expect(await raw.getItem('workspace')).toBe(before);
     expect(await createBrowserKeyValueStorage(`project-assets:${scope}`).getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).toBeNull();
@@ -64,17 +81,18 @@ describe('atomic project apply', () => {
     expect(await assets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).toBeNull();
   });
 
-  it('rolls back catalogs and leaves live state unchanged on a failed workspace commit', async () => {
+  it('rolls back workspace and related writes when the shared draft commit fails', async () => {
     const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
     const assets = createBrowserKeyValueStorage(`project-assets:${scope}`);
     const before = await raw.getItem('workspace');
     const beforeState = useProjectStore.getState();
+    const { draft, relatedWrites } = prepareDraft();
     const put = IDBObjectStore.prototype.put;
     vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
       if (key === `project-workspace:${scope}:workspace`) throw new DOMException('Disk full', 'QuotaExceededError');
       return put.call(this, value, key);
     });
-    await expect(applyProjectDocumentToWorkspace(fixture(), 'replace')).rejects.toThrow('Disk full');
+    await expect(draft.commit(relatedWrites)).rejects.toThrow('Disk full');
     expect(useProjectStore.getState()).toBe(beforeState);
     expect(await raw.getItem('workspace')).toBe(before);
     expect(await assets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).toBeNull();

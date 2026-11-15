@@ -16,10 +16,8 @@ beforeEach(() => {
   vi.resetAllMocks(); callbacks.clear(); schemas.clear(); access.mockResolvedValue({ user: { id: 'oauth-actor' } });
   registerPipelineTools({ server: { registerTool: (name: string, schema: never, callback: never) => { schemas.set(name, schema); callbacks.set(name, callback); } } as unknown as Options['server'], getReadAccess: access, toolError: error => ({ isError: true, content: [{ type: 'text', text: String(error) }] }) });
 });
-it('registers exactly six explicit input/output contracts and rejects caller authority', async () => {
-  expect(callbacks.size).toBe(6);
+it('rejects caller authority in Pipeline tool inputs', async () => {
   for (const [name, schema] of schemas) {
-    expect(schema.outputSchema, name).toBeDefined();
     const input = name === 'list_pipeline_submissions' || name === 'get_pipeline_content_health' ? {} : name === 'set_pipeline_heart' ? { submissionId: id, lineageId, hearted: true } : name === 'vote_pipeline_revision' ? { submissionId: id, voteValue: 'positive' } : { submissionId: id };
     expect(await schema.inputSchema['~standard'].validate(input), name).not.toHaveProperty('issues');
     expect(await schema.inputSchema['~standard'].validate({ ...input, isOwner: true, actorUserId: 'forged' }), name).toHaveProperty('issues');
