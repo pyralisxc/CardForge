@@ -28,6 +28,7 @@ import { getProjectPersistenceScope, getScopedProjectStorageNamespace } from '..
 import { externalizeBrowserProjectAssetJson } from '../persistence/contentAddressedBrowserAssets';
 import { selectAllTemplates } from '../store/selectors';
 import { createProjectWorkspaceDraft, useProjectStore, type ProjectState } from '../store/workspaceStore';
+import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '../model/projectAssetTraversal';
 
 import { prepareCompletedDeletionCleanup, notifyCompletedDeletionCleanup } from './completedDeletionCleanup';
 
@@ -156,17 +157,20 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
   });
 };
 
-const collectPortableStringReferences = (value: unknown, output = new Set<string>()): Set<string> => {
+const collectPortableStringReferences = (value: unknown, output = new Set<string>(), scope: ProjectAssetScope = 'root'): Set<string> => {
+  if (scope === 'opaque') return output;
   if (typeof value === 'string') {
     output.add(value);
     return output;
   }
   if (Array.isArray(value)) {
-    value.forEach((entry) => collectPortableStringReferences(entry, output));
+    value.forEach((entry) => collectPortableStringReferences(entry, output, projectAssetArrayScope(scope)));
     return output;
   }
   if (!value || typeof value !== 'object') return output;
-  Object.values(value as Record<string, unknown>).forEach((entry) => collectPortableStringReferences(entry, output));
+  const record = value as Record<string, unknown>;
+  if (scope === 'requirement' && ['custom-generated', 'user-provided'].includes(String(record.source)) && typeof record.assetId === 'string') output.add(record.assetId);
+  Object.entries(record).forEach(([key, entry]) => collectPortableStringReferences(entry, output, projectAssetChildScope(scope, key)));
   return output;
 };
 

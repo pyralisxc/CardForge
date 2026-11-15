@@ -121,6 +121,16 @@ describe('Set context native lifecycle', () => {
     expect(saved.cardSets[0].plan).toEqual(document.cardSets[0].plan);
   });
 
+  it.each(['context', 'metadata', 'external-brief'])('does not capture unrelated personal artwork from literal %s', async (kind) => {
+    const asset = { id: 'private-art', name: 'Unrelated private artwork', kind: 'image' as const, tileMode: 'contain' as const, seamless: false, allowedTargets: [], url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZxQAAAAASUVORK5CYII=' };
+    const plan: SetPlan = { version: 1, context: kind === 'context' ? asset.url : '', ...(kind === 'metadata' ? { example: asset.id } : {}), ...(kind === 'external-brief' ? { brief: { ...brief, assets: [{ id: 'external', name: 'Library artwork', kind: 'image' as const, role: 'Face', source: 'cardforge-library' as const, status: 'selected' as const, quantity: 1, assetId: asset.id }] } } : {}) };
+    const document = createProjectDocumentFromState({ cardSets: [{ id: 'literal-only', name: 'Literal context', plan }], storedCards: [], userTemplates: [], appearanceStyles: [], customImageAssets: [asset] });
+    await applyProjectDocumentToWorkspace(document, 'adopt');
+    const captured = await captureCardSetProjectDocument('literal-only');
+    expect(captured.customAssets['cardforge-maker-custom-images']).toEqual([]);
+    expect(captured.cardSets[0].plan).toEqual(document.cardSets[0].plan);
+  });
+
   it('downloads/imports one complete native Set without replacing its source or unrelated work', async () => {
     const context = { ...original, context: 'Literal data:image/png;base64,not an image', custom: { sample: `cardforge-project-asset://${'a'.repeat(64)}` } };
     await apply(context);
