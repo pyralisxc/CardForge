@@ -113,6 +113,7 @@ export function useDeskController({
   const handoffPending = handoffReference !== null && handledHandoffReference !== handoffReference;
   const outputHandoffPending = outputReference !== null && handoffPending;
   const studioDocumentHandoffPending = outputReference === null && handoffPending;
+  const studioDocumentTool: 'design' | 'output' = initialTool === 'output' ? 'output' : 'design';
   const originHref = normalizeStudioReturnTo(searchParams.get('returnTo'));
   const libraryOrigin = originHref && new URL(originHref, 'https://cardforge.local').searchParams.get('section') === 'library' ? originHref : null;
   const zones = getVisibleEnvironmentZones(viewer).map((zone) => zone.id === 'library' && libraryOrigin ? { ...zone, href: libraryOrigin } : zone);
@@ -278,7 +279,7 @@ export function useDeskController({
   // The existing Workbench must mount before the exact incoming Set exists locally.
   // Do not choose an unrelated active Set while that handoff is still unresolved.
   const studioTool = outputHandoffPending || studioDocumentHandoffPending
-    ? { setId: null, tool: outputHandoffPending ? 'output' as const : 'design' as const, templateId: null }
+    ? { setId: null, tool: outputHandoffPending ? 'output' as const : studioDocumentTool, templateId: null }
     : activeContextTool && activeContextSetId && (activeContextTool.toolId === 'design' || activeContextTool.toolId === 'output')
     ? { setId: activeContextSetId, tool: activeContextTool.toolId, templateId: activeContextTool.targetIds[1] ?? null }
     : null;
@@ -667,8 +668,8 @@ export function useDeskController({
     if (!setId || outputReference !== null) return;
     initialToolHandledRef.current = true;
     setHandledHandoffReference(handoffReference);
-    navigateToTool(setId, 'design');
-  }, [handoffReference, navigateToTool, outputReference, setHandledHandoffReference]);
+    navigateToTool(setId, studioDocumentTool);
+  }, [handoffReference, navigateToTool, outputReference, setHandledHandoffReference, studioDocumentTool]);
 
   const closeContextStudio = () => {
     setHandledHandoffReference(handoffReference);
