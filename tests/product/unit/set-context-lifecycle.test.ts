@@ -9,6 +9,7 @@ import { hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProject
 import { createBrowserKeyValueStorage } from '@/features/project/persistence/indexedDbStorage';
 import { getBrowserProjectAssetIds } from '@/features/project/persistence/contentAddressedBrowserAssets';
 import { mapProjectDocumentIdentity, type ProjectDocumentIdentityMap } from '@/features/project/model/projectDocumentIdentity';
+import { importRetainedGuestWorkspaceAsCopy } from '@/features/project/client/retainedGuestWorkspace';
 
 let ordinal = 0;
 let scope: `account:${string}`;
@@ -143,6 +144,32 @@ describe('Set context native lifecycle', () => {
     await hydrateProjectWorkspaceForScope(`account:restore-${ordinal}`);
     await applyProjectDocumentToWorkspace(hydrateCardForgeProjectSnapshot(await decodeCardForgeProjectPackage(archive)), 'replace');
     expect(useProjectStore.getState().cardSets.map((set) => ({ id: set.id, plan: set.plan }))).toEqual(captured.cardSets.map((set) => ({ id: set.id, plan: set.plan })));
+  });
+
+  it('imports retained signed-out context as an independent account copy before consuming it', async () => {
+    const guest = createBrowserKeyValueStorage('project-workspace:guest');
+    await guest.setItem('workspace', JSON.stringify({ version: 6, state: { cardSets: [{ id: 'guest-context', name: 'Signed-out work', plan: original }], storedCards: [], userTemplates: [], appearanceStyles: [] } }));
+    const imported = await importRetainedGuestWorkspaceAsCopy();
+    expect(imported.consumed).toBe(true);
+    expect(imported.importedSetId).not.toBe('guest-context');
+    expect(useProjectStore.getState().cardSets.find((set) => set.id === imported.importedSetId)?.plan).toEqual(original);
+    expect(owner().plan).toEqual(original);
+    expect(await guest.getItem('workspace')).toBeNull();
+  });
+
+  it.each([
+    { version: 7, plan: original },
+    { version: 6, plan: { version: 99, context: 'Future context' } },
+  ])('leaves unsupported retained signed-out work and account bytes unchanged (%j)', async ({ version, plan }) => {
+    const guest = createBrowserKeyValueStorage('project-workspace:guest');
+    await guest.setItem('workspace', JSON.stringify({ version, state: { cardSets: [{ id: 'guest-context', name: 'Signed-out work', plan }], storedCards: [], userTemplates: [] } }));
+    const source = await guest.getItem('workspace');
+    const account = await storage().getItem('workspace');
+    const state = useProjectStore.getState();
+    await expect(importRetainedGuestWorkspaceAsCopy()).rejects.toThrow(/newer|unsupported/i);
+    expect(useProjectStore.getState()).toBe(state);
+    expect(await storage().getItem('workspace')).toBe(account);
+    expect(await guest.getItem('workspace')).toBe(source);
   });
 
   it('does not clear creator context when an older agent draft updates a matching Set', async () => {
