@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { getDeskSelectionLabel } from '@/features/desk/model/desk';
+import { getCardTitle, getDeskSelectionLabel } from '@/features/desk/model/desk';
+
+describe('Desk authored card titles', () => {
+  it.each(['Card Title', 'cardTitle', 'CARD_TITLE', 'Card-Name', 'card name', ' NAME ', 'Title'])('reads the authored %s header from stored card data', (key) => {
+    expect(getCardTitle({ data: { [key]: 'Alpha Ember' } }, 3)).toBe('Alpha Ember');
+  });
+
+  it('preserves the existing canonical title precedence', () => {
+    expect(getCardTitle({ data: { cardName: 'Canonical', name: 'Name', title: 'Title', 'Card Title': 'CSV title' } }, 0)).toBe('Canonical');
+  });
+
+  it.each([0, 42])('preserves the authored scalar title %s', (value) => {
+    expect(getCardTitle({ data: { 'Card Title': value } }, 0)).toBe(String(value));
+  });
+
+  it('skips blank titles and does not treat unrelated fields as names', () => {
+    expect(getCardTitle({ data: { cardName: ' ', 'Card Title': 'Beta Tide' } }, 3)).toBe('Beta Tide');
+    expect(getCardTitle({ data: { cardName: '', 'Card Title': ' ', artist: 'Not the card title' } }, 3)).toBe('Card 4');
+  });
+});
 
 describe('Desk selection labels', () => {
   it('describes Sets, non-Sets, and mixed selections without merging them', () => {

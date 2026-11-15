@@ -29,9 +29,10 @@ for (const mobile of [false, true]) {
 
     test('@golden recovers consecutive removals by name with stable keyboard focus', async ({ page }) => {
       test.setTimeout(120_000);
-      await seedGuestScaleWorkspace(page, 100, { cardLimit: 3 });
+      await seedGuestScaleWorkspace(page, 100, { cardLimit: 3, titleField: 'Card Title' });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
+      await expect(card(page, 1)).toHaveAccessibleName(/Scale Card 0001/);
       await removeShown(page, 1, mobile);
       await expect(recovery(page)).toContainText('Scale Card 0001');
       const firstId = await recovery(page).getAttribute('data-card-removal-recovery');
