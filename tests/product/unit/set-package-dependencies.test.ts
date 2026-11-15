@@ -13,6 +13,20 @@ describe('canonical Set package dependency interpretation', () => {
     expect(proof.complete).toBe(true); expect(proof.packageSha256).toBe(createHash('sha256').update(bytes).digest('hex'));
     expect(proof.fileSizeBytes).toBe(bytes.length); expect(proof.sourceManifest.project).toEqual(expect.objectContaining({version:2}));
   });
+  it('interprets the current v3 artifact envelope without resolving literal Set context', async () => {
+    const context = { version: 1, context: 'data:image/png;base64,not artwork', future: { sample: 'cardforge-project-asset://literal' } };
+    const proof = await interpretPipelineSetPackage(await make({ cardSets: [{ id: 'local', name: 'Native Set', plan: context }] }, { cardforgeProject: 3 }));
+    expect(proof.complete).toBe(true);
+    expect(proof.opaqueReasons).toEqual([]);
+    expect(proof.references.sources).toEqual([]);
+    expect(proof.sourceManifest.project).toEqual(expect.objectContaining({ cardSets: [expect.objectContaining({ plan: context })] }));
+  });
+  it('still refuses uninspected fields in a v3 artifact envelope', async () => {
+    const proof = await interpretPipelineSetPackage(await make({ storedCards: [], artifacts: [{ artifactId: 'a', artifactType: 'card', setId: 'local', card: { uniqueId: 'a', templateId: 'external', data: {} }, future: 'unknown' }] }, { cardforgeProject: 3 }));
+    expect(proof.complete).toBe(false);
+    expect(proof.opaqueReasons).toContain('unsupported_package_project_field');
+    expect(proof.opaqueReasons).toContain('unsupported_package_artifact');
+  });
   it('does not erase unknown raw fields when the runtime parser normalizes', async () => {
     const proof=await interpretPipelineSetPackage(await make({futureDependency:'unknown'}));
     expect(proof.complete).toBe(false); expect(proof.opaqueReasons).toContain('unsupported_project_field');
