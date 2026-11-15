@@ -7,7 +7,7 @@ test('@golden @preview cleans confirmed deleted card artwork, saves recovery, an
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, exportSample: true });
   await page.evaluate(async (url) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('cardforge-browser-storage', 1);
+      const request = indexedDB.open('cardforge-browser-storage');
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -31,7 +31,7 @@ test('@golden @preview cleans confirmed deleted card artwork, saves recovery, an
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await expect(page.getByText('Deleted artwork cleared', { exact: true })).toBeVisible();
   const recovered = await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((resolve) => { const request = indexedDB.open('cardforge-browser-storage', 1); request.onsuccess = () => resolve(request.result); });
+    const db = await new Promise<IDBDatabase>((resolve) => { const request = indexedDB.open('cardforge-browser-storage'); request.onsuccess = () => resolve(request.result); });
     const value = await new Promise<string>((resolve) => { const request = db.transaction('key-value').objectStore('key-value').get('project-workspace:local:__recovery__:workspace'); request.onsuccess = () => resolve(request.result); });
     db.close(); return value;
   });
@@ -56,7 +56,7 @@ test('@golden @preview repair save failure gates the editor and retry commits wi
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, exportSample: true });
   const original = await page.evaluate(async (url) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('cardforge-browser-storage', 1);
+      const request = indexedDB.open('cardforge-browser-storage');
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -95,7 +95,7 @@ test('@golden @preview repair save failure gates the editor and retry commits wi
   await expect(page.getByText('CardForge could not finish preparing this account workspace. Try again before editing.')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Select 100 Card Scale Set/ })).toHaveCount(0);
   const saved = await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>(resolve => { const req = indexedDB.open('cardforge-browser-storage', 1); req.onsuccess = () => resolve(req.result); });
+    const db = await new Promise<IDBDatabase>(resolve => { const req = indexedDB.open('cardforge-browser-storage'); req.onsuccess = () => resolve(req.result); });
     const result = await new Promise<string>(resolve => {
       const req = db.transaction('key-value', 'readonly').objectStore('key-value').get('project-workspace:local:workspace');
       req.onsuccess = () => resolve(req.result);
