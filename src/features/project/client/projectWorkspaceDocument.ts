@@ -344,7 +344,11 @@ const applyPreparedProjectDocument = async (
     const replacing = new Set(replaceSetIds);
     draft.setState((current) => ({
       cardSets: current.cardSets.filter((set) => !replacing.has(set.id)),
-      storedCards: current.storedCards.filter((card) => !card.setId || !replacing.has(card.setId)),
+      cardRemovalRecoveries: current.cardRemovalRecoveries.filter((entry) => !replacing.has(entry.setId)),
+      storedCards: current.storedCards.filter((card) => {
+        const setId = card.setId || current.cardSets[0]?.id;
+        return !setId || !replacing.has(setId);
+      }),
       activeCardSet: current.activeCardSet && replacing.has(current.activeCardSet.id) ? null : current.activeCardSet,
     }));
   }

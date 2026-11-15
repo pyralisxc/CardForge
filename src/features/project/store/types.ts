@@ -36,8 +36,21 @@ export interface AppearanceSlice {
   deleteAppearanceStyle: (styleId: string) => void;
 }
 
+export interface CardRemovalRecovery {
+  id: string;
+  setId: string;
+  cards: StoredDisplayCard[];
+  order: string[];
+  requiredTemplateIds: string[];
+}
+
+export type CardRemovalUndoResult =
+  | { ok: true; count: number }
+  | { ok: false; reason: 'not-found' | 'newer-removal' | 'template-unavailable' | 'conflict' };
+
 export interface OutputSlice {
   storedCards: StoredDisplayCard[];
+  cardRemovalRecoveries: CardRemovalRecovery[];
   bulkRevisionUndo: StoredDisplayCard[] | null;
   editingCardUniqueId: string | null;
   isEditDialogOpen: boolean;
@@ -45,6 +58,8 @@ export interface OutputSlice {
   clearGeneratedCards: () => void;
   removeGeneratedCard: (cardUniqueId: string) => void;
   removeGeneratedCards: (cardUniqueIds: string[]) => number;
+  undoCardRemoval: (recoveryId: string) => CardRemovalUndoResult;
+  dismissCardRemoval: (recoveryId: string) => void;
   moveGeneratedCardToSet: (cardUniqueId: string, setId: string) => boolean;
   moveGeneratedCardsToSet: (cardUniqueIds: string[], setId: string) => number;
   reorderGeneratedCard: (cardUniqueId: string, direction: 'earlier' | 'later') => boolean;

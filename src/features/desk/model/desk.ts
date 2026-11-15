@@ -172,7 +172,7 @@ export const getDeskWorkPresentationMeta = (item: AccountLibraryItem): DeskWorkP
   };
 };
 
-export const getCardTitle = (card: DisplayCard, index: number): string => String(
+export const getCardTitle = (card: Pick<DisplayCard, 'data'>, index: number): string => String(
   card.data.cardName
     ?? card.data.name
     ?? card.data.title

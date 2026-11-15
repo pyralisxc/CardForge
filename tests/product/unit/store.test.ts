@@ -12,6 +12,7 @@ describe('app store helpers', () => {
       defaultTemplates: [],
       userTemplates: [],
       storedCards: [],
+      cardRemovalRecoveries: [],
       activeCardSet: {
         id: 'active-card-set',
         name: 'Untitled Set',

@@ -155,11 +155,13 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     if (!current.cardSets.some((candidate) => candidate.id === id)) return false;
     set((state) => {
       const cardSets = state.cardSets.filter((candidate) => candidate.id !== id);
+      const cardRemovalRecoveries = state.cardRemovalRecoveries.filter((entry) => entry.setId !== id);
       if (cardSets.length === 0) {
         return {
           cardSets: [],
+          cardRemovalRecoveries,
           activeCardSet: null,
-          storedCards: state.storedCards.filter((card) => card.setId !== id),
+          storedCards: state.storedCards.filter((card) => (card.setId || state.cardSets[0]?.id) !== id),
         };
       }
       const requested = state.activeCardSet?.id === id
@@ -168,8 +170,9 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       if (!requested) return state;
       return {
         cardSets,
+        cardRemovalRecoveries,
         activeCardSet: requested,
-        storedCards: state.storedCards.filter((card) => card.setId !== id),
+        storedCards: state.storedCards.filter((card) => (card.setId || state.cardSets[0]?.id) !== id),
       };
     });
     return true;
@@ -178,7 +181,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     const state = get();
     const cardSets = reconcileCardSets({ cardSets: sets, storedCards: state.storedCards });
     const activeCardSet = resolveActiveCardSet({ cardSets, preferredId: activeSetId });
-    set({ cardSets, activeCardSet });
+    set({ cardSets, activeCardSet, cardRemovalRecoveries: [] });
     return cardSets.length;
   },
   mergeCardSetsFromFiles: (sets, activeSetId) => {
@@ -196,7 +199,8 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       cardSets,
       preferredId: activeSetId ?? state.activeCardSet?.id,
     });
-    set({ cardSets, activeCardSet: requested });
+    const importedSetIds = new Set(imported.map((owner) => owner.id));
+    set({ cardSets, activeCardSet: requested, cardRemovalRecoveries: state.cardRemovalRecoveries.filter((entry) => !importedSetIds.has(entry.setId)) });
     return imported.length;
   },
   setActiveCardSetName: (name) => set((state) => {
