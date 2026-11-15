@@ -1,5 +1,6 @@
 import { getProjectFontValue, remapProjectTemplateFonts } from './projectFont';
 import type { ProjectDocumentV1 } from './projectDocument';
+import type { ProjectProductionPlan } from '@/domain/cards';
 
 export type ProjectEntityKind = 'set' | 'card' | 'template' | 'style' | 'asset' | 'font';
 /** Portable identity -> browser identity, owned by one exact provider document. */
@@ -42,19 +43,27 @@ export const mapProjectDocumentIdentity = (
   });
   const userTemplates = document.userTemplates.map((template) => ({ ...remapProjectTemplateFonts(template, fontValues), id: template.id ? map('template', template.id) : template.id }));
   const cardIds = new Map(document.storedCards.map((card) => [card.uniqueId, map('card', card.uniqueId)]));
+  const customAssets = { ...document.customAssets };
+  for (const key of Object.keys(customAssets) as Array<keyof typeof customAssets>) {
+    customAssets[key] = customAssets[key].map((asset) => ({ ...asset, id: map('asset', asset.id) }));
+  }
+  const mapBrief = (brief: ProjectProductionPlan): ProjectProductionPlan => ({
+    ...structuredClone(brief),
+    assets: brief.assets.map((asset) => ({
+      ...structuredClone(asset),
+      assetId: ['custom-generated', 'user-provided'].includes(asset.source) ? reference('asset', asset.assetId) ?? undefined : asset.assetId,
+    })),
+  });
   const cardSets = document.cardSets.map((set) => ({
     ...set,
     id: map('set', set.id),
+    ...(set.plan ? { plan: { ...structuredClone(set.plan), ...(set.plan.brief ? { brief: mapBrief(set.plan.brief) } : {}) } } : {}),
     ...(set.templateIds ? { templateIds: set.templateIds.map((id) => reference('template', id) ?? id) } : {}),
     ...(set.organization ? { organization: {
       ...set.organization,
       positions: Object.fromEntries(Object.entries(set.organization.positions).map(([id, position]) => [cardIds.get(id) ?? id, position])),
     } } : {}),
   }));
-  const customAssets = { ...document.customAssets };
-  for (const key of Object.keys(customAssets) as Array<keyof typeof customAssets>) {
-    customAssets[key] = customAssets[key].map((asset) => ({ ...asset, id: map('asset', asset.id) }));
-  }
   return {
     ...document, userTemplates, cardSets,
     ...(customFonts ? { customFonts } : {}),
@@ -67,12 +76,6 @@ export const mapProjectDocumentIdentity = (
     })),
     appearanceStyles: document.appearanceStyles.map((style) => ({ ...style, id: map('style', style.id) })),
     customAssets,
-    ...(document.productionPlan ? { productionPlan: {
-      ...document.productionPlan,
-      assets: document.productionPlan.assets.map((asset) => ({
-        ...asset,
-        assetId: asset.source === 'cardforge-library' ? asset.assetId : reference('asset', asset.assetId) ?? undefined,
-      })),
-    } } : {}),
+    ...(document.productionPlan ? { productionPlan: mapBrief(document.productionPlan) } : {}),
   };
 };

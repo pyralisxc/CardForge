@@ -3,6 +3,7 @@ import { getProjectFontValue } from '@/features/project/model/projectFont';
 import { describe, expect, it } from 'vitest';
 import { mapProjectDocumentIdentity, type ProjectDocumentIdentityMap } from '@/features/project/model/projectDocumentIdentity';
 import type { ProjectDocumentV1 } from '@/features/project/model/projectDocument';
+import { normalizeProjectProductionPlan } from '@/domain/cards';
 
 const document: ProjectDocumentV1 = {
   version: 1, cardSets: [{ id: 'portable-set', name: 'Same document' }], activeCardSetId: 'portable-set',
@@ -14,6 +15,20 @@ const document: ProjectDocumentV1 = {
 };
 
 describe('portable versus provider working document identity', () => {
+  it.each(['custom-generated', 'user-provided', 'cardforge-library', 'cardforge-output', 'placeholder'] as const)('round-trips Set brief %s artwork through exact provider identity mapping', (sourceKind) => {
+    const source = structuredClone(document);
+    source.version = 2;
+    source.customAssets['cardforge-maker-custom-images'] = [{ id: 'shared-id', name: 'Local artwork', url: 'data:image/png;base64,YQ==', kind: 'image', tileMode: 'contain', seamless: false, allowedTargets: [] }];
+    source.cardSets[0].plan = { version: 1, context: 'shared-id', custom: { literalAssetId: 'shared-id' }, brief: normalizeProjectProductionPlan({ version: 1, decisionMode: 'confirmed', purpose: 'Cards', deliverable: 'Cards', outputSize: { width: 63, height: 88, unit: 'mm' }, visualDirection: { summary: 'Quiet', palette: [], typography: [] }, editableFieldKeys: [], assets: [{ id: 'art', name: 'Art', kind: 'image', role: 'Face', source: sourceKind, status: 'selected', quantity: 1, assetId: 'shared-id' }] }) };
+    const identities: ProjectDocumentIdentityMap = {};
+    const opened = mapProjectDocumentIdentity(source, identities, 'open');
+    const expected = ['custom-generated', 'user-provided'].includes(sourceKind) ? opened.customAssets['cardforge-maker-custom-images'][0].id : 'shared-id';
+    expect(opened.cardSets[0].plan?.brief?.assets[0].assetId).toBe(expected);
+    expect(opened.cardSets[0].plan?.context).toBe('shared-id');
+    expect(opened.cardSets[0].plan?.custom).toEqual({ literalAssetId: 'shared-id' });
+    expect(mapProjectDocumentIdentity(opened, identities, 'save')).toEqual(source);
+    expect(source.cardSets[0].plan?.brief?.assets[0].assetId).toBe('shared-id');
+  });
   it('keeps prepared designs attached to an independent copy without rewriting external references', () => {
     const source = structuredClone(document);
     source.cardSets[0]!.templateIds = ['portable-template', 'external-template'];

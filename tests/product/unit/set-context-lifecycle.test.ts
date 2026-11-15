@@ -8,6 +8,7 @@ import { createProjectDocumentFromState } from '@/features/project/model/project
 import { hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProjectStore } from '@/features/project/store/workspaceStore';
 import { createBrowserKeyValueStorage } from '@/features/project/persistence/indexedDbStorage';
 import { getBrowserProjectAssetIds } from '@/features/project/persistence/contentAddressedBrowserAssets';
+import { mapProjectDocumentIdentity, type ProjectDocumentIdentityMap } from '@/features/project/model/projectDocumentIdentity';
 
 let ordinal = 0;
 let scope: `account:${string}`;
@@ -101,6 +102,22 @@ describe('Set context native lifecycle', () => {
     expect(owner().plan).toEqual(original);
     expect(document.cardSets[0].plan).toBeUndefined();
     expect((await captureCurrentProjectDocument()).productionPlan).toBeUndefined();
+  });
+
+  it('keeps brief-only artwork through provider Open, native recapture and portable Save identity', async () => {
+    const imageKey = 'cardforge-maker-custom-images';
+    const asset = { id: 'portable-art', name: 'Only brief art', kind: 'image' as const, tileMode: 'contain' as const, seamless: false, allowedTargets: [], url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZxQAAAAASUVORK5CYII=' };
+    const plan: SetPlan = { version: 1, context: 'Keep', brief: { ...brief, assets: [{ id: 'art', name: 'Art', kind: 'image', role: 'Face', source: 'user-provided', status: 'selected', quantity: 1, assetId: asset.id }] } };
+    const document = createProjectDocumentFromState({ cardSets: [{ id: 'portable-set', name: 'Provider Set', plan }], storedCards: [], userTemplates: [], appearanceStyles: [], customImageAssets: [asset] });
+    const identities: ProjectDocumentIdentityMap = {};
+    const opened = mapProjectDocumentIdentity(document, identities, 'open');
+    await applyProjectDocumentToWorkspace(opened, 'adopt');
+    const captured = await captureCardSetProjectDocument(opened.cardSets[0].id);
+    expect(captured.customAssets[imageKey]).toHaveLength(1);
+    expect(captured.cardSets[0].plan?.brief?.assets[0].assetId).toBe(captured.customAssets[imageKey][0].id);
+    const saved = mapProjectDocumentIdentity(captured, identities, 'save');
+    expect(saved.customAssets[imageKey][0].id).toBe(asset.id);
+    expect(saved.cardSets[0].plan).toEqual(document.cardSets[0].plan);
   });
 
   it('downloads/imports one complete native Set without replacing its source or unrelated work', async () => {
