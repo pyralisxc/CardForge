@@ -135,6 +135,26 @@ describe('Set context native lifecycle', () => {
     expect(owner().plan).toEqual({ ...original, brief });
   });
 
+  it('keeps native context when an agent revision has neither plan nor legacy brief', async () => {
+    const document = createProjectDocumentFromState({ cardSets: [{ id: 'context-a', name: 'Agent revision' }], storedCards: [], userTemplates: [], appearanceStyles: [] });
+    await applyProjectDocumentToWorkspace(document, 'adopt');
+    expect(owner().plan).toEqual(original);
+    expect((await captureCurrentProjectDocument()).cardSets.find((set) => set.id === 'context-a')?.plan).toEqual(original);
+  });
+
+  it('defers an agent plan that differs from creator context instead of treating newer cards as plan consent', async () => {
+    await apply({ ...original, context: 'Creator edited notes', brief });
+    const document = createProjectDocumentFromState({ cardSets: [{ id: 'context-a', name: 'Agent revision', plan: { ...original, context: 'Old agent notes', brief } }], storedCards: [], userTemplates: [], appearanceStyles: [] });
+    const state = useProjectStore.getState();
+    const saved = await storage().getItem('workspace');
+    await expect(applyProjectDocumentToWorkspace(document, 'adopt')).rejects.toThrow(/context.*different|different.*context/i);
+    expect(useProjectStore.getState()).toBe(state);
+    expect(await storage().getItem('workspace')).toBe(saved);
+    expect(document.cardSets[0].plan?.context).toBe('Old agent notes');
+    await expect(applyProjectDocumentToWorkspace(document, 'copy')).resolves.toBeDefined();
+    expect(owner().plan?.context).toBe('Creator edited notes');
+  });
+
   it('defers a conflicting legacy brief instead of overwriting a creator’s edited plan', async () => {
     await apply({ ...original, brief: { ...brief, purpose: 'Creator’s revised purpose' } });
     const document = createProjectDocumentFromState({ cardSets: [{ id: 'context-a', name: 'First Set' }], storedCards: [], userTemplates: [], appearanceStyles: [], productionPlan: brief });

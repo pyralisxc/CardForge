@@ -236,13 +236,18 @@ export const applyProjectDocumentToWorkspace = async (
   options.signal?.throwIfAborted();
   const draft = createProjectWorkspaceDraft(options.expectedState);
   const legacyOwner = document.productionPlan && document.cardSets.length === 1 ? document.cardSets[0] : undefined;
-  const existingPlan = mode === 'adopt' && legacyOwner ? draft.getState().cardSets.find((set) => set.id === legacyOwner.id)?.plan : undefined;
-  if (existingPlan && JSON.stringify(existingPlan.brief) !== JSON.stringify(document.productionPlan)) {
-    throw new Error('This legacy draft has a different creation brief from the current Set context. Both were kept; open an independent copy or review the brief before updating this Set.');
-  }
-  const compatibleDocument = legacyOwner && existingPlan && !legacyOwner.plan
-    ? { ...document, cardSets: [{ ...legacyOwner, plan: existingPlan }] }
-    : document;
+  const cardSets = mode === 'adopt' ? document.cardSets.map((set) => {
+    const existingPlan = draft.getState().cardSets.find((current) => current.id === set.id)?.plan;
+    if (!existingPlan) return set;
+    if (legacyOwner?.id === set.id && JSON.stringify(existingPlan.brief) !== JSON.stringify(document.productionPlan)) {
+      throw new Error('This legacy draft has a different creation brief from the current Set context. Both were kept; open an independent copy or review the brief before updating this Set.');
+    }
+    if (set.plan && JSON.stringify(set.plan) !== JSON.stringify(existingPlan)) {
+      throw new Error('This agent revision has different Set context. Both were kept; open an independent copy or review the context before updating this Set.');
+    }
+    return { ...set, plan: existingPlan };
+  }) : document.cardSets;
+  const compatibleDocument: ProjectDocumentV1 = { ...document, version: cardSets.some((set) => set.plan) ? 2 : document.version, cardSets };
   const cleanup = await prepareCompletedDeletionCleanup(materializeSetPlanOwnership(compatibleDocument), options.signal);
   options.validatePreparedDocument?.(cleanup.document);
   return applyPreparedProjectDocument(draft, cleanup, mode, options);
