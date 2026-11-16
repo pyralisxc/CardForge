@@ -38,6 +38,7 @@ import { primeProjectBinaryAssetUrls } from './useProjectBinaryAssetUrl';
 
 const GOOGLE_DRIVE_BINDING_KEY = 'google-drive-project-binding';
 const GOOGLE_DRIVE_WORK_BINDING_KEY = 'google-drive-work-binding';
+export const GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT = 'cardforge:google-drive-working-copy-refreshed';
 
 const assertBindingScope = (namespace: string) => {
   if (getScopedProjectStorageNamespace('project-assets') !== namespace) {
@@ -755,7 +756,7 @@ export const refreshGoogleDriveProject = async (binding: GoogleDriveProjectBindi
     throw new ProjectPackageError('This source cannot be safely refreshed in place. Preserve the browser work and open an independent copy to compare.');
   }
   const { workId, identities: sourceIdentities } = binding;
-  return serializeGoogleDriveWorkCommitment(namespace, workId, async () => {
+  const refreshed = await serializeGoogleDriveWorkCommitment(namespace, workId, async () => {
     const active = await getGoogleDriveWorkBinding(workId);
     assertBindingScope(namespace);
     if (active && (!isSameGoogleDriveTarget(active, binding)
@@ -792,6 +793,10 @@ export const refreshGoogleDriveProject = async (binding: GoogleDriveProjectBindi
     await persistGoogleDriveProjectAttachment(next, namespace);
     return next;
   });
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT, { detail: { workId, namespace } }));
+  }
+  return refreshed;
 };
 
 export const copyGoogleDriveProjectToBrowser = async (

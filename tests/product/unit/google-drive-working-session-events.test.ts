@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const harness = vi.hoisted(() => ({
   states: [] as Array<{ phase: string; receipt: unknown; message: string }>,
   cleanups: [] as Array<(() => void) | undefined>,
-  listeners: new Map<string, () => void>(),
+  listeners: new Map<string, EventListener>(),
   poll: null as null | (() => void),
   current: {
     fileId: 'drive-file-F', accountId: 'account-a', name: 'F', workId: 'set-c',
@@ -39,11 +39,15 @@ vi.mock('react', async (importOriginal) => {
 vi.mock('@/features/project/store/workspaceStore', () => ({
   useProjectStore: { subscribe: (callback: () => void) => { harness.subscription = callback; return () => { harness.subscription = null; }; } },
 }));
-vi.mock('@/features/project/persistence/projectPersistenceScope', () => ({ getProjectPersistenceScope: () => harness.scope }));
+vi.mock('@/features/project/persistence/projectPersistenceScope', () => ({
+  getProjectPersistenceScope: () => harness.scope,
+  getScopedProjectStorageNamespace: (namespace: string) => `${harness.scope}:${namespace}`,
+}));
 vi.mock('@/features/project/client/projectWorkspaceDocument', () => ({
   hasProjectDocumentStateChanged: () => true,
 }));
 vi.mock('@/features/project/client/googleDriveProjectTransfer', () => ({
+  GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT: 'drive-refreshed',
   getGoogleDriveWorkBinding: harness.lookup,
   probeGoogleDriveProject: harness.probe,
   hasGoogleDriveWorkingChanges: harness.dirty,
@@ -68,7 +72,7 @@ vi.mock('@/features/project/client/googleDriveLinkRepair', () => ({
 }));
 
 import { useGoogleDriveWorkingSession } from '@/features/project/client/googleDriveWorkingSession';
-import { GoogleDriveUnknownCommitError, GoogleDriveSaveLinkageError } from '@/features/project/client/googleDriveProjectTransfer';
+import { GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT, GoogleDriveUnknownCommitError, GoogleDriveSaveLinkageError } from '@/features/project/client/googleDriveProjectTransfer';
 
 const flush = async () => { for (let i = 0; i < 50; i++) await Promise.resolve(); };
 const latest = () => harness.states.at(-1);
@@ -78,8 +82,8 @@ const autosaveSettings = (): NonNullable<Parameters<typeof useGoogleDriveWorking
   isEnabled: () => harness.preferences.googleDriveAutosaveEnabled,
 });
 const dispatchRefresh = async () => {
-  harness.listeners.get('focus')?.();
-  harness.listeners.get('online')?.();
+  harness.listeners.get('focus')?.(new Event('focus'));
+  harness.listeners.get('online')?.(new Event('online'));
   harness.poll?.();
   await flush();
 };
@@ -110,7 +114,7 @@ describe('Drive hook recovery barriers and independent copies', () => {
     vi.stubGlobal('window', {
       setInterval: (callback: () => void) => { harness.poll = callback; return 1; },
       clearInterval: () => undefined,
-      addEventListener: (name: string, cb: () => void) => { harness.listeners.set(name, cb); },
+      addEventListener: (name: string, cb: EventListener) => { harness.listeners.set(name, cb); },
       removeEventListener: (name: string) => { harness.listeners.delete(name); },
     });
   });
@@ -130,11 +134,51 @@ describe('Drive hook recovery barriers and independent copies', () => {
       ...harness.current, fileId: 'drive-file-F2', name: 'F2',
       providerRevision: 'head:' + 'c'.repeat(64), projectRevision: 'c'.repeat(64),
     };
-    harness.listeners.get('focus')?.();
+    harness.listeners.get('focus')?.(new Event('focus'));
     await flush();
     expect(latest()).toMatchObject({ phase: 'clean', receipt: { fileId: 'drive-file-F2' } });
     expect(harness.holds.get('drive-file-F')).toBe(unknown);
     expect(harness.save).not.toHaveBeenCalled();
+  });
+
+  it('reconciles confirmed source refreshes without losing newer edits or scheduling a redundant save', async () => {
+    vi.useFakeTimers();
+    try {
+      harness.preferences.googleDriveAutosaveEnabled = true;
+      useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+      await flush();
+      harness.subscription?.();
+      expect(latest()?.phase).toBe('dirty');
+      const notify = (detail = { workId: 'set-c', namespace: 'account:a:project-assets' }) => {
+        harness.listeners.get(GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT)?.(
+          new CustomEvent(GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT, { detail }),
+        );
+      };
+      const initialReads = harness.dirty.mock.calls.length;
+      notify({ workId: 'set-other', namespace: 'account:a:project-assets' });
+      notify({ workId: 'set-c', namespace: 'account:b:project-assets' });
+      await flush();
+      expect(harness.dirty).toHaveBeenCalledTimes(initialReads);
+      expect(latest()?.phase).toBe('dirty');
+
+      notify();
+      await flush();
+      expect(latest()?.phase).toBe('clean');
+      const refreshedReads = harness.dirty.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(harness.save).not.toHaveBeenCalled();
+      expect(harness.dirty).toHaveBeenCalledTimes(refreshedReads);
+
+      harness.subscription?.();
+      let release!: (dirty: boolean) => void;
+      harness.dirty.mockImplementationOnce(() => new Promise<boolean>(resolve => { release = resolve; }));
+      notify();
+      await flush();
+      harness.subscription?.();
+      release(false);
+      await flush();
+      expect(latest()?.phase).toBe('dirty');
+    } finally { vi.useRealTimers(); }
   });
 
   it('does not publish stale clean/dirty when a manual unknown-commit hold arrives during a dirty check', async () => {

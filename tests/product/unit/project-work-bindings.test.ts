@@ -48,7 +48,7 @@ vi.mock('@/features/project/store/workspaceStore', () => {
   return { useProjectStore: { getState: () => state } };
 });
 
-import { resetGoogleDriveTargetSaveStateForTests, serializeGoogleDriveTargetSave, getGoogleDriveSaveBarrier, getGoogleDriveWorkBinding, GoogleDriveUnknownCommitError, GoogleDriveSaveLinkageError, disconnectGoogleDriveStorage, copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
+import { GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT, resetGoogleDriveTargetSaveStateForTests, serializeGoogleDriveTargetSave, getGoogleDriveSaveBarrier, getGoogleDriveWorkBinding, GoogleDriveUnknownCommitError, GoogleDriveSaveLinkageError, disconnectGoogleDriveStorage, copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
 import { repairConfirmedGoogleDriveLink } from '@/features/project/client/googleDriveLinkRepair';
 import * as localFolder from '@/features/project/client/localProjectFolder';
 import { disconnectLocalProjectFolder, getLocalProjectFolderStatus, saveCardSetToAttachedFolder, saveProjectToAttachedFolder } from '@/features/project/client/localProjectFolder';
@@ -80,7 +80,7 @@ beforeEach(() => {
   mock.localSets = [];
   mock.read.mockImplementation(async (key: string) => mock.values.get(key) ?? null);
   mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64) });
-  vi.stubGlobal('window', { showDirectoryPicker: vi.fn() });
+  vi.stubGlobal('window', { showDirectoryPicker: vi.fn(), dispatchEvent: vi.fn() });
 });
 
 describe('one authoritative Set location across save entry points', () => {
@@ -407,12 +407,19 @@ it.each([false, true])('initializes a newly saved Set for safe refresh (locally 
     expect(fetch).not.toHaveBeenCalled();
     expect(mock.apply).not.toHaveBeenCalled();
     expect(mock.values.get('test:google-drive-work-binding:set-c')).toEqual(saved);
+    expect(window.dispatchEvent).not.toHaveBeenCalled();
   } else {
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document });
     fetch.mockResolvedValueOnce(new Response('package', { headers: { 'X-CardForge-Provider-Revision': headToken('2'),
       'X-CardForge-Project-Revision': 'b'.repeat(64), 'X-CardForge-Provider-Account': 'account-a' } }));
+    vi.mocked(window.dispatchEvent).mockImplementation(event => {
+      expect(mock.values.get('test:google-drive-work-binding:set-c')).toMatchObject({ providerRevision: headToken('2') });
+      expect(event).toMatchObject({ type: GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT, detail: { workId: 'set-c', namespace: 'test' } });
+      return true;
+    });
     const refreshed = await refreshGoogleDriveProject(saved);
     expect(refreshed).toMatchObject({ workId: 'set-c', providerRevision: headToken('2'), identities: saved.identities });
+    expect(window.dispatchEvent).toHaveBeenCalledOnce();
     expect(mock.apply).toHaveBeenCalledWith(expect.objectContaining({ cardSets: document.cardSets }), 'merge',
       { expectedState: expect.any(Object), replaceSetIds: ['set-c'] });
   }
