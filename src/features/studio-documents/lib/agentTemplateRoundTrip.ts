@@ -71,6 +71,7 @@ const discoverAgentTemplateLink = async (templateId: string): Promise<AgentTempl
 };
 
 export const syncAgentTemplateSave = async (template: TCGCardTemplate): Promise<AgentTemplateSyncResult> => {
+  if (!getProjectPersistenceScope().startsWith('account:')) return { status: 'unlinked' };
   const templateId = template.id?.trim();
   if (!templateId) return { status: 'unlinked' };
   const link = await getAgentTemplateLink(templateId) ?? await discoverAgentTemplateLink(templateId);
