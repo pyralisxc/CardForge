@@ -284,11 +284,12 @@ export const compareAndSetBrowserWorkspaceValue = async ({
           return;
         }
         const previousRaw = typeof request.result === 'string' ? request.result : null;
-        const previous = previousRaw === null
-          ? { revision: 0 }
-          : parseBrowserWorkspaceRecord(previousRaw);
-        if (previous.revision !== expectedRevision) {
-          conflict = new BrowserWorkspaceConflictError(expectedRevision, previous.revision);
+        let previousRevision = 0;
+        try {
+          if (previousRaw !== null) previousRevision = parseBrowserWorkspaceRecord(previousRaw).revision;
+        } catch (error) { transaction.abort(); reject(error); return; }
+        if (previousRevision !== expectedRevision) {
+          conflict = new BrowserWorkspaceConflictError(expectedRevision, previousRevision);
           return;
         }
         const relatedKeys = [...new Set([...recoveryKeys, ...relatedWrites.map((entry) => entry.key)])];
@@ -299,7 +300,7 @@ export const compareAndSetBrowserWorkspaceValue = async ({
             if (relatedWrites.some((entry) => priorValues[entry.key] !== entry.expectedValue)) {
               throw new Error('The local artwork library changed while this project was opening. Your workspace was left unchanged; retry.');
             }
-            nextRevision = previous.revision + 1;
+            nextRevision = previousRevision + 1;
             if (keepRecoverySnapshot && previousRaw !== null) {
               store.put(previousRaw, `${namespace}:__recovery__:${key}`);
               store.put(JSON.stringify(Object.fromEntries(recoveryKeys.map((entry) => [entry, priorValues[entry]]))), `${namespace}:__recovery_assets__:${key}`);

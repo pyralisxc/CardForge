@@ -31,25 +31,31 @@ const isRecord = (value: unknown): value is Record<string, unknown> => (
 );
 
 export const parseBrowserWorkspaceRecord = (raw: string): ParsedBrowserWorkspaceRecord => {
+  const legacy = { revision: 0, writerId: null, value: raw, legacy: true };
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (isRecord(parsed)
-      && parsed.cardforgeWorkspaceRecord === BROWSER_WORKSPACE_RECORD_VERSION
-      && Number.isSafeInteger(parsed.revision)
-      && Number(parsed.revision) >= 1
-      && typeof parsed.writerId === 'string'
-      && typeof parsed.value === 'string') {
-      return {
-        revision: Number(parsed.revision),
-        writerId: parsed.writerId,
-        value: parsed.value,
-        legacy: false,
-      };
-    }
+    parsed = JSON.parse(raw) as unknown;
   } catch {
-    // A legacy Zustand payload is itself JSON; it remains the revision-zero value.
+    return legacy;
   }
-  return { revision: 0, writerId: null, value: raw, legacy: true };
+  if (isRecord(parsed) && Object.hasOwn(parsed, 'cardforgeWorkspaceRecord')
+    && parsed.cardforgeWorkspaceRecord !== BROWSER_WORKSPACE_RECORD_VERSION) {
+    throw new Error('This browser workspace uses an unsupported record format. Open it with a compatible CardForge version; your saved work was left unchanged.');
+  }
+  if (isRecord(parsed)
+    && parsed.cardforgeWorkspaceRecord === BROWSER_WORKSPACE_RECORD_VERSION
+    && Number.isSafeInteger(parsed.revision)
+    && Number(parsed.revision) >= 1
+    && typeof parsed.writerId === 'string'
+    && typeof parsed.value === 'string') {
+    return {
+      revision: Number(parsed.revision),
+      writerId: parsed.writerId,
+      value: parsed.value,
+      legacy: false,
+    };
+  }
+  return legacy;
 };
 
 export const serializeBrowserWorkspaceRecord = ({
