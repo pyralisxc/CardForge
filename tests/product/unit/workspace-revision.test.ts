@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBrowserWorkspaceSaveStatus } from '@/features/project/persistence/indexedDbStorage';
 
 import { BROWSER_STORAGE_DATABASE, compareAndSetBrowserWorkspaceValue, createIndexedDbStorage } from '@/features/project/client/persistence-storage';
-import { BrowserWorkspaceConflictError, parseBrowserWorkspaceRecord } from '@/features/project/client/persistence-workspace';
+import { BrowserWorkspaceConflictError, createScopedProjectStorage, parseBrowserWorkspaceRecord, setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 
 const deleteDatabase = () => new Promise<void>((resolve, reject) => {
   const request = indexedDB.deleteDatabase(BROWSER_STORAGE_DATABASE);
@@ -26,13 +26,51 @@ describe('browser workspace revisions', () => {
     } finally { open.mockRestore(); }
   });
 
-  it('treats existing Zustand JSON as a revision-zero legacy record', () => {
-    expect(parseBrowserWorkspaceRecord('{"state":{"name":"legacy"}}')).toEqual({
+  it('upgrades existing Zustand JSON from revision zero while retaining its recovery copy', async () => {
+    const original = '{"state":{"name":"legacy"}}';
+    expect(parseBrowserWorkspaceRecord(original)).toEqual({
       revision: 0,
       writerId: null,
-      value: '{"state":{"name":"legacy"}}',
+      value: original,
       legacy: true,
     });
+    const namespace = 'project-workspace:account:legacy-upgrade';
+    const storage = createIndexedDbStorage(namespace);
+    await storage.setItem('workspace', original);
+    await expect(compareAndSetBrowserWorkspaceValue({
+      namespace, key: 'workspace', value: original, expectedRevision: 0,
+      writerId: 'current-client', keepRecoverySnapshot: true,
+    })).resolves.toBe(1);
+    expect(parseBrowserWorkspaceRecord((await storage.getItem('workspace'))!)).toMatchObject({ revision: 1, value: original, legacy: false });
+    await expect(storage.getItem('__recovery__:workspace')).resolves.toBe(original);
+  });
+
+  it('refuses unsupported workspace framing before reading or committing over saved work and recovery assets', async () => {
+    setProjectPersistenceScope('account:unsupported-record');
+    const namespace = 'project-workspace:account:unsupported-record';
+    const storage = createIndexedDbStorage(namespace);
+    const original = JSON.stringify({ cardforgeWorkspaceRecord: 2, revision: 41, writerId: 'newer-client', value: '{"state":{"name":"newer work"},"version":7}' });
+    const previous = '{"state":{"name":"previous work"},"version":4}';
+    await storage.setItem('workspace', original);
+    await storage.setItem('__recovery__:workspace', previous);
+    await storage.setItem('artwork', 'original artwork');
+    await storage.setItem('__recovery_assets__:workspace', 'previous artwork');
+    const beforeCommit = vi.fn();
+
+    await expect(compareAndSetBrowserWorkspaceValue({
+      namespace, key: 'workspace', value: '{"state":{"name":"older client"},"version":6}',
+      expectedRevision: 0, writerId: 'older-client', keepRecoverySnapshot: true,
+      relatedWrites: [{ key: `${namespace}:artwork`, value: 'replacement artwork', expectedValue: 'original artwork' }],
+      recoveryKeys: [`${namespace}:artwork`], beforeCommit,
+    })).rejects.toThrow(/unsupported.*format/i);
+    expect(beforeCommit).not.toHaveBeenCalled();
+    expect(getBrowserWorkspaceSaveStatus()).toBe('failed');
+    await expect(createScopedProjectStorage('project-workspace').getItem('workspace')).rejects.toThrow(/unsupported.*format/i);
+    await expect(storage.getItem('workspace')).resolves.toBe(original);
+    await expect(storage.getItem('__recovery__:workspace')).resolves.toBe(previous);
+    await expect(storage.getItem('artwork')).resolves.toBe('original artwork');
+    await expect(storage.getItem('__recovery_assets__:workspace')).resolves.toBe('previous artwork');
+    await expect(storage.getItem('__quarantine__:workspace')).resolves.toBeNull();
   });
 
   it('atomically refuses a stale writer instead of overwriting another tab', async () => {
