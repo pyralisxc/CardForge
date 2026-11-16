@@ -335,26 +335,13 @@ export function useGoogleDriveWorkingSession({
   }, [clearTimer, enabled, setId]);
   scheduleSaveRef.current = scheduleSave;
 
-  const checkLocalChanges = useCallback(async () => {
-    if (!enabled || !setId || inFlightRef.current || writableRef.current === false) return;
-    const generation = generationRef.current;
-    const check = ++localCheckRef.current;
-    try {
-      const current = await readCurrentBinding(generation);
-      if (!current.valid || !current.binding) return;
-      const dirty = await hasGoogleDriveWorkingChanges(current.binding);
-      if (!await canPublishForBinding(current.binding, generation) || check !== localCheckRef.current) return;
-      setState(dirty
-        ? { phase: 'dirty', message: 'Unsaved changes · Save to Drive', receipt: current.binding }
-        : { phase: 'clean', message: 'Saved to Drive', receipt: current.binding });
-      if (dirty) scheduleSave();
-      else clearTimer();
-    } catch (error) {
-      if (generation !== generationRef.current || check !== localCheckRef.current) return;
-      clearTimer();
-      if (!holdUnresolvedDriveSave(bindingRef.current)) setState(stateForError(error));
-    }
-  }, [canPublishForBinding, clearTimer, enabled, holdUnresolvedDriveSave, readCurrentBinding, scheduleSave, setId]);
+  const checkLocalChanges = useCallback(() => {
+    const binding = bindingRef.current;
+    if (!enabled || !setId || !binding || inFlightRef.current || writableRef.current === false || scope !== getProjectPersistenceScope()) return;
+    if (holdUnresolvedDriveSave(binding)) return;
+    setState({ phase: 'dirty', message: 'Local changes · Save to check Drive', receipt: binding });
+    scheduleSave();
+  }, [enabled, holdUnresolvedDriveSave, scheduleSave, scope, setId]);
 
   const reconcile = useCallback(async (knownCheck?: GoogleDriveBindingCheck) => {
     if (!enabled || !setId) return;

@@ -221,6 +221,12 @@ describe('Drive hook recovery barriers and independent copies', () => {
       expect(harness.save).not.toHaveBeenCalled();
       await session.saveNow();
       expect(harness.save).toHaveBeenCalledExactlyOnceWith({ setId: 'set-c', name: 'F' });
+      const confirmedReads = harness.dirty.mock.calls.length;
+      for (let edit = 0; edit < 25; edit++) harness.subscription?.();
+      await flush();
+      expect(harness.dirty).toHaveBeenCalledTimes(confirmedReads);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(harness.save).toHaveBeenCalledTimes(1);
 
       harness.preferences = { googleDriveAutosaveEnabled: true, googleDriveAutosaveDelaySeconds: 5 };
       await session.reconcile();
