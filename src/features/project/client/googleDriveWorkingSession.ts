@@ -7,10 +7,11 @@ import type { StudioAutosaveDelaySeconds } from '@/features/experience-settings/
 
 import type { GoogleDriveProjectSummary } from '../model/googleDriveProject';
 import { useProjectStore } from '../store/workspaceStore';
-import { getProjectPersistenceScope } from '../persistence/projectPersistenceScope';
+import { getProjectPersistenceScope, getScopedProjectStorageNamespace } from '../persistence/projectPersistenceScope';
 import { repairConfirmedGoogleDriveLink } from './googleDriveLinkRepair';
 import { hasProjectDocumentStateChanged } from './projectWorkspaceDocument';
 import {
+  GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT,
   GoogleDriveSaveLinkageError,
   GoogleDriveUnknownCommitError,
   getGoogleDriveSaveBarrier,
@@ -426,12 +427,14 @@ export function useGoogleDriveWorkingSession({
         return;
       }
       if (check.binding) {
+        const checkedEdit = localCheckRef.current;
         const dirty = await hasGoogleDriveWorkingChanges(check.binding);
-        if (!await canPublishForBinding(check.binding, generation)) return;
+        if (!await canPublishForBinding(check.binding, generation) || checkedEdit !== localCheckRef.current) return;
         setState(dirty
           ? { phase: 'dirty', message: 'Unsaved changes · Save to Drive', receipt: check.binding }
           : { phase: 'clean', message: 'Saved to Drive', receipt: check.binding });
         if (dirty) scheduleSave();
+        else clearTimer();
       }
     } catch (error) {
       if (shouldPauseGoogleDriveAutosaveForError(error)) {
@@ -528,6 +531,10 @@ export function useGoogleDriveWorkingSession({
     const unsubscribe = useProjectStore.subscribe((current, previous) => {
       if (hasProjectDocumentStateChanged(previous, current)) void checkLocalChanges();
     });
+    const onWorkingCopyRefreshed = (event: Event) => {
+      const detail = (event as CustomEvent<{ workId: string; namespace: string }>).detail;
+      if (detail?.workId === setId && detail.namespace === getScopedProjectStorageNamespace('project-assets')) void reconcile();
+    };
     const onFocus = () => { void reconcile(); };
     const onOnline = () => {
       queuedRef.current = false;
@@ -541,6 +548,7 @@ export function useGoogleDriveWorkingSession({
     }, GOOGLE_DRIVE_SHARED_FILE_REFRESH_INTERVAL_MS);
     window.addEventListener('focus', onFocus);
     window.addEventListener('online', onOnline);
+    window.addEventListener(GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT, onWorkingCopyRefreshed);
     return () => {
       generationRef.current += 1;
       automaticSaveRef.current?.abort();
@@ -549,6 +557,7 @@ export function useGoogleDriveWorkingSession({
       window.clearInterval(refreshInterval);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('online', onOnline);
+      window.removeEventListener(GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT, onWorkingCopyRefreshed);
     };
   }, [checkLocalChanges, clearTimer, enabled, pollRemote, reconcile, setId]);
 
