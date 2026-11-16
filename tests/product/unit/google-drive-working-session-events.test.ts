@@ -264,6 +264,31 @@ describe('Drive hook recovery barriers and independent copies', () => {
     } finally { vi.useRealTimers(); }
   });
 
+  it('coalesces edits during interrupted preparation into one later opt-in checkpoint', async () => {
+    vi.useFakeTimers();
+    try {
+      harness.preferences.googleDriveAutosaveEnabled = true;
+      harness.dirty.mockResolvedValue(true);
+      let rejectPreparation!: (error: Error) => void;
+      harness.save.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectPreparation = reject; }));
+      useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+      await flush();
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(harness.save).toHaveBeenCalledTimes(1);
+      harness.subscription?.();
+      harness.subscription?.();
+      rejectPreparation(new Error('The Set changed while preparing its Drive save.'));
+      await flush();
+      await vi.advanceTimersByTimeAsync(14_999);
+      expect(harness.save).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(harness.save).toHaveBeenCalledTimes(2);
+      harness.preferences.googleDriveAutosaveEnabled = false;
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(harness.save).toHaveBeenCalledTimes(2);
+    } finally { vi.useRealTimers(); }
+  });
+
   it.each(['save', 'repair'] as const)('keeps a confirmed recovery receipt if %s cannot read browser linkage', async (entry) => {
     const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F' });
     await flush();

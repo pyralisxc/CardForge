@@ -166,7 +166,7 @@ export function useGoogleDriveWorkingSession({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef<Promise<void> | null>(null);
   const automaticSaveRef = useRef<AbortController | null>(null);
-  const queuedRef = useRef(false);
+  const queuedRef = useRef<false | 'manual' | 'automatic'>(false);
   const generationRef = useRef(0);
   const saveNowRef = useRef<(options?: { automatic?: boolean }) => Promise<void>>(async () => undefined);
   const scheduleSaveRef = useRef<() => void>(() => undefined);
@@ -177,6 +177,16 @@ export function useGoogleDriveWorkingSession({
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
   }, []);
+
+  const drainSaveQueue = useCallback((generation: number) => {
+    if (generation !== generationRef.current || inFlightRef.current) return;
+    const queued = queuedRef.current;
+    queuedRef.current = false;
+    if (queued === 'manual') {
+      clearTimer();
+      void saveNowRef.current();
+    } else if (queued === 'automatic') scheduleSaveRef.current();
+  }, [clearTimer]);
 
   /** Persisted per-Set location wins over a cached hook binding. */
   const readCurrentBinding = useCallback(async (generation: number) => {
@@ -227,8 +237,10 @@ export function useGoogleDriveWorkingSession({
       }
       if (writableRef.current === false) return;
       if (inFlightRef.current) {
-        if (!automatic) queuedRef.current = true;
+        if (!automatic) queuedRef.current = 'manual';
+        else if (!queuedRef.current) queuedRef.current = 'automatic';
         await inFlightRef.current;
+        drainSaveQueue(generation);
         return;
       }
       const run = (async () => {
@@ -243,6 +255,7 @@ export function useGoogleDriveWorkingSession({
           return;
         }
         let dirty: boolean;
+        const checkedEdit = localCheckRef.current;
         try {
           dirty = await hasGoogleDriveWorkingChanges(binding);
         } catch (error) {
@@ -251,7 +264,7 @@ export function useGoogleDriveWorkingSession({
         }
         if (!await canPublishForBinding(binding, generation)) return;
         if (!dirty) {
-          if (generation === generationRef.current) setState({ phase: 'clean', message: 'Saved to Drive', receipt: binding });
+          if (generation === generationRef.current && checkedEdit === localCheckRef.current) setState({ phase: 'clean', message: 'Saved to Drive', receipt: binding });
           return;
         }
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -270,8 +283,10 @@ export function useGoogleDriveWorkingSession({
           const saved = await saveCardSetToGoogleDrive({ setId, name, ...(controller ? { signal: controller.signal } : {}) });
           if (await canPublishForBinding(saved, generation)) {
             bindingRef.current = saved;
-            const stillDirty = await hasGoogleDriveWorkingChanges(saved);
+            const checkedSavedEdit = localCheckRef.current;
+            const changedSinceSave = await hasGoogleDriveWorkingChanges(saved);
             if (!await canPublishForBinding(saved, generation)) return;
+            const stillDirty = changedSinceSave || checkedSavedEdit !== localCheckRef.current;
             setState(stillDirty
               ? { phase: 'dirty', message: 'Unsaved changes · Save to Drive', receipt: saved }
               : { phase: 'clean', message: 'Saved to Drive', receipt: saved });
@@ -301,11 +316,7 @@ export function useGoogleDriveWorkingSession({
         await run;
       } finally {
         if (inFlightRef.current === run) inFlightRef.current = null;
-        if (queuedRef.current && generation === generationRef.current) {
-          queuedRef.current = false;
-          clearTimer();
-          void saveNowRef.current();
-        }
+        drainSaveQueue(generation);
       }
     } catch (error) {
       // Includes scoped reads before the in-flight promise and reads in nested
@@ -317,7 +328,7 @@ export function useGoogleDriveWorkingSession({
         setState(current => current.phase === 'recovery-required' ? current : stateForError(error));
       }
     }
-  }, [canPublishForBinding, clearTimer, enabled, holdUnresolvedDriveSave, name, readCurrentBinding, scope, setId]);
+  }, [canPublishForBinding, clearTimer, drainSaveQueue, enabled, holdUnresolvedDriveSave, name, readCurrentBinding, scope, setId]);
   saveNowRef.current = saveNow;
 
   const scheduleSave = useCallback(() => {
@@ -337,9 +348,16 @@ export function useGoogleDriveWorkingSession({
 
   const checkLocalChanges = useCallback(() => {
     const binding = bindingRef.current;
-    if (!enabled || !setId || !binding || inFlightRef.current || writableRef.current === false || scope !== getProjectPersistenceScope()) return;
+    if (!enabled || !setId || !binding || writableRef.current === false || scope !== getProjectPersistenceScope()) return;
+    localCheckRef.current += 1;
     if (holdUnresolvedDriveSave(binding)) return;
-    setState({ phase: 'dirty', message: 'Local changes · Save to check Drive', receipt: binding });
+    setState(current => current.phase === 'saving'
+      ? { ...current, message: 'Saving earlier edits · newer changes pending' }
+      : { phase: 'dirty', message: 'Local changes · Save to check Drive', receipt: binding });
+    if (inFlightRef.current) {
+      if (!queuedRef.current && autosaveRef.current?.isEnabled()) queuedRef.current = 'automatic';
+      return;
+    }
     scheduleSave();
   }, [enabled, holdUnresolvedDriveSave, scheduleSave, scope, setId]);
 
