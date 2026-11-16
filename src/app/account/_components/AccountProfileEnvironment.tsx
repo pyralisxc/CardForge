@@ -91,7 +91,18 @@ const toRecord = (item: AccountProfileUtility): EnvironmentSettingRecord => ({
   meta: item.meta,
 });
 
-export function AccountProfileEnvironment({
+export function AccountProfileEnvironment(props: AccountProfileEnvironmentProps) {
+  return props.initialAuthConfigured
+    ? <ClerkAccountProfileEnvironment {...props} />
+    : <AccountProfileContent {...props} />;
+}
+
+function ClerkAccountProfileEnvironment(props: AccountProfileEnvironmentProps) {
+  const { user } = useUser();
+  return <AccountProfileContent {...props} displayName={user?.fullName ?? user?.username} />;
+}
+
+function AccountProfileContent({
   persistenceScope,
   defaultAutosaveDelaySeconds,
   checkoutStatus = null,
@@ -101,11 +112,11 @@ export function AccountProfileEnvironment({
   initialOwnerWorkspace = 'overview',
   initialContributorAccess,
   plans = [],
-}: AccountProfileEnvironmentProps) {
+  displayName,
+}: AccountProfileEnvironmentProps & { displayName?: string | null }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
-  const { user: clerkUser } = useUser();
   const surfaceRef = useRef<HTMLElement | null>(null);
   const [activeUtility, setActiveUtility] = useState<'billing' | 'identity' | 'contributor' | 'owner' | null>(() => (
     initialUtility === 'billing' || checkoutStatus !== null || initialPlanIntent !== null
@@ -130,8 +141,7 @@ export function AccountProfileEnvironment({
     },
   });
   const accountEmail = entitlement.accountEmail ?? 'No signed-in account';
-  const accountName = clerkUser?.fullName
-    ?? clerkUser?.username
+  const accountName = displayName
     ?? getAccountDisplayName({ email: entitlement.accountEmail })
     ?? 'Creator';
   const isSignedIn = experience.signedIn;
