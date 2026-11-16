@@ -15,6 +15,7 @@ describe('experience settings', () => {
       presentationCorners: 'subtle',
       presentationContrast: 'standard',
       studioDefaultTemplateId: null,
+      studioAutosaveDelaySeconds: 15,
     });
   });
 
@@ -32,6 +33,7 @@ describe('experience settings', () => {
       presentationCorners: 'soft',
       presentationContrast: 'high',
       studioDefaultTemplateId: null,
+      studioAutosaveDelaySeconds: 15,
     });
     expect(hydrateExperienceSettings({
       analytics_consent_presentation: null,
@@ -43,6 +45,9 @@ describe('experience settings', () => {
   });
 
   it('rejects unsupported owner writes instead of coercing them', () => {
+    expect(hydrateExperienceSettings({ studio_autosave_delay_seconds: 30 }).studioAutosaveDelaySeconds).toBe(30);
+    expect(hydrateExperienceSettings({ studio_autosave_delay_seconds: 1 }).studioAutosaveDelaySeconds).toBe(15);
+    expect(() => normalizeExperienceSettingsInput({ ...DEFAULT_EXPERIENCE_SETTINGS, studioAutosaveDelaySeconds: 1 })).toThrow('Choose 5, 15, 30, or 60 seconds');
     expect(() => normalizeExperienceSettingsInput({
       analyticsConsentPresentation: 'hidden',
       presentationPalette: 'forge',

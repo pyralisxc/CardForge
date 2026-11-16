@@ -19,6 +19,7 @@ import {
   hasContributionScope,
 } from '@/features/contributor-access/server';
 import { Desk } from '@/features/desk/client';
+import { getCachedExperienceSettings } from '@/features/experience-settings/server';
 import {
   applyProductAccessPricePresentation,
   getMcpAllowances,
@@ -84,7 +85,7 @@ export default async function AccountPage({
   const needsPlans = activeSection === 'profile';
   const needsAccountContent = activeSection === 'library';
   const needsBusinessIdentity = activeSection === 'desk' || activeSection === 'library';
-  const [entitlementResult, basePlans, productAccessPrices, accountContentBlocks, businessIdentity] = await Promise.all([
+  const [entitlementResult, basePlans, productAccessPrices, accountContentBlocks, businessIdentity, experienceSettings] = await Promise.all([
     getCurrentCardforgeEntitlement().then((entitlement) => ({ entitlement, unavailable: false })).catch((error) => {
       console.error('Unable to verify account access during page render:', error);
       return {
@@ -96,6 +97,7 @@ export default async function AccountPage({
     needsPlans ? getCurrentProductAccessPricePresentation() : Promise.resolve(null),
     needsAccountContent ? getCachedSiteContentBlocks('account') : Promise.resolve([]),
     needsBusinessIdentity ? getCachedBusinessIdentity() : Promise.resolve(DEFAULT_BUSINESS_IDENTITY),
+    getCachedExperienceSettings(),
   ]);
   const plans = productAccessPrices
     ? applyProductAccessPricePresentation(basePlans, productAccessPrices)
@@ -211,6 +213,8 @@ export default async function AccountPage({
     <CardForgeAppProviders scope="shell">
       {activeSection === 'profile' ? (
         <AccountProfileEnvironment
+          persistenceScope={persistenceScope}
+          defaultAutosaveDelaySeconds={experienceSettings.studioAutosaveDelaySeconds}
           checkoutStatus={checkoutStatus}
           initialAuthConfigured={authConfigured}
           initialContributorAccess={contributorAccess}
@@ -223,6 +227,7 @@ export default async function AccountPage({
           <GoogleDrivePreviewWarmupBoundary enabled={entitlement.isSignedIn}>
             <AccountDeskBoundary initialAuthConfigured={authConfigured}>
               <Desk
+                defaultAutosaveDelaySeconds={experienceSettings.studioAutosaveDelaySeconds}
                 key={getAccountDeskKey({ focusedWorkId: initialFocusedWorkId, focusedArtifactId: initialFocusedArtifactId, returnContextKey: initialReturnContextKey, documentId: params.document, revision: params.revision, outputRef: params.outputRef })}
                 persistenceScope={persistenceScope}
                 experience={experience}

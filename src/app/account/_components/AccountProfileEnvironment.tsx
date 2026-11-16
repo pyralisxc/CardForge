@@ -42,6 +42,9 @@ import {
 import { hasContributionScope, useContributorAccess, type ContributorAccessSessionState } from '@/features/contributor-access/client';
 import { AccountMcpUsageSection } from '@/features/mcp-usage/client/account';
 import type { McpAllowance } from '@/features/mcp-usage/client/plans';
+import type { StudioAutosaveDelaySeconds } from '@/features/experience-settings/client';
+import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { SavingPreferencesPanel } from '@/features/editor-preferences/client';
 
 import { ContributorProfilePanel } from './ContributorProfilePanel';
 
@@ -50,6 +53,8 @@ const OwnerProfileOperations = dynamic(() => import('@/features/owner/client').t
 });
 
 interface AccountProfileEnvironmentProps {
+  persistenceScope: ProjectPersistenceScope;
+  defaultAutosaveDelaySeconds: StudioAutosaveDelaySeconds;
   checkoutStatus?: 'cancelled' | 'success' | null;
   initialAuthConfigured: boolean;
   initialPlanIntent?: 'creator' | 'designer' | null;
@@ -86,7 +91,20 @@ const toRecord = (item: AccountProfileUtility): EnvironmentSettingRecord => ({
   meta: item.meta,
 });
 
-export function AccountProfileEnvironment({
+export function AccountProfileEnvironment(props: AccountProfileEnvironmentProps) {
+  return props.initialAuthConfigured
+    ? <ClerkAccountProfileEnvironment {...props} />
+    : <AccountProfileContent {...props} />;
+}
+
+function ClerkAccountProfileEnvironment(props: AccountProfileEnvironmentProps) {
+  const { user } = useUser();
+  return <AccountProfileContent {...props} displayName={user?.fullName ?? user?.username} />;
+}
+
+function AccountProfileContent({
+  persistenceScope,
+  defaultAutosaveDelaySeconds,
   checkoutStatus = null,
   initialAuthConfigured,
   initialPlanIntent = null,
@@ -94,11 +112,11 @@ export function AccountProfileEnvironment({
   initialOwnerWorkspace = 'overview',
   initialContributorAccess,
   plans = [],
-}: AccountProfileEnvironmentProps) {
+  displayName,
+}: AccountProfileEnvironmentProps & { displayName?: string | null }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
-  const { user: clerkUser } = useUser();
   const surfaceRef = useRef<HTMLElement | null>(null);
   const [activeUtility, setActiveUtility] = useState<'billing' | 'identity' | 'contributor' | 'owner' | null>(() => (
     initialUtility === 'billing' || checkoutStatus !== null || initialPlanIntent !== null
@@ -123,8 +141,7 @@ export function AccountProfileEnvironment({
     },
   });
   const accountEmail = entitlement.accountEmail ?? 'No signed-in account';
-  const accountName = clerkUser?.fullName
-    ?? clerkUser?.username
+  const accountName = displayName
     ?? getAccountDisplayName({ email: entitlement.accountEmail })
     ?? 'Creator';
   const isSignedIn = experience.signedIn;
@@ -279,6 +296,7 @@ export function AccountProfileEnvironment({
           <EnvironmentBoundaryNotice title="Contributor access is unavailable"
             message={contributorAccess.error} actionLabel="Retry" onAction={contributorAccess.retry} />
         ) : null}
+        {!activeUtility ? <SavingPreferencesPanel persistenceScope={persistenceScope} defaultAutosaveDelaySeconds={defaultAutosaveDelaySeconds} /> : null}
         {!activeUtility && isSignedIn ? (
           <div className="mt-4">
             <AccountMcpUsageSection presentation="summary" onOpenDetails={openBilling} />

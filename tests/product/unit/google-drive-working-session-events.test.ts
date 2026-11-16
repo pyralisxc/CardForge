@@ -12,6 +12,9 @@ const harness = vi.hoisted(() => ({
     lastSavedAt: '2026-10-26T00:00:00Z', webViewLink: null,
   },
   holds: new Map<string, Error>(),
+  preferences: { googleDriveAutosaveEnabled: false, googleDriveAutosaveDelaySeconds: null as number | null },
+  subscription: null as null | (() => void),
+  scope: 'account:a',
   lookup: vi.fn(), probe: vi.fn(), dirty: vi.fn(), save: vi.fn(), repair: vi.fn(),
 }));
 
@@ -34,10 +37,11 @@ vi.mock('react', async (importOriginal) => {
   };
 });
 vi.mock('@/features/project/store/workspaceStore', () => ({
-  useProjectStore: { subscribe: () => () => undefined },
+  useProjectStore: { subscribe: (callback: () => void) => { harness.subscription = callback; return () => { harness.subscription = null; }; } },
 }));
+vi.mock('@/features/project/persistence/projectPersistenceScope', () => ({ getProjectPersistenceScope: () => harness.scope }));
 vi.mock('@/features/project/client/projectWorkspaceDocument', () => ({
-  hasProjectDocumentStateChanged: () => false,
+  hasProjectDocumentStateChanged: () => true,
 }));
 vi.mock('@/features/project/client/googleDriveProjectTransfer', () => ({
   getGoogleDriveWorkBinding: harness.lookup,
@@ -68,6 +72,11 @@ import { GoogleDriveUnknownCommitError, GoogleDriveSaveLinkageError } from '@/fe
 
 const flush = async () => { for (let i = 0; i < 50; i++) await Promise.resolve(); };
 const latest = () => harness.states.at(-1);
+const autosaveSettings = (): NonNullable<Parameters<typeof useGoogleDriveWorkingSession>[0]['autosave']> => ({
+  get enabled() { return harness.preferences.googleDriveAutosaveEnabled; },
+  get delaySeconds() { return (harness.preferences.googleDriveAutosaveDelaySeconds ?? 15) as 5 | 15 | 30 | 60; },
+  isEnabled: () => harness.preferences.googleDriveAutosaveEnabled,
+});
 const dispatchRefresh = async () => {
   harness.listeners.get('focus')?.();
   harness.listeners.get('online')?.();
@@ -80,6 +89,8 @@ describe('Drive hook recovery barriers and independent copies', () => {
     vi.clearAllMocks();
     harness.states = []; harness.cleanups = [];
     harness.listeners.clear(); harness.poll = null; harness.holds.clear();
+    harness.preferences = { googleDriveAutosaveEnabled: false, googleDriveAutosaveDelaySeconds: null };
+    harness.scope = 'account:a'; harness.subscription = null;
     harness.current = {
       fileId: 'drive-file-F', accountId: 'account-a', name: 'F', workId: 'set-c',
       providerRevision: 'head:' + 'a'.repeat(64), projectRevision: 'a'.repeat(64),
@@ -183,16 +194,98 @@ describe('Drive hook recovery barriers and independent copies', () => {
     vi.useFakeTimers();
     try {
       harness.dirty.mockResolvedValue(true);
-      const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F' });
+      if (entry === 'idle') harness.preferences.googleDriveAutosaveEnabled = true;
+      const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
       await flush();
       expect(latest()?.phase).toBe('dirty');
       harness.lookup.mockRejectedValue(new Error('IndexedDB save read unavailable'));
       if (entry === 'direct') await expect(session.saveNow()).resolves.toBeUndefined();
-      else await vi.advanceTimersByTimeAsync(4_000);
+      else await vi.advanceTimersByTimeAsync(15_000);
       await flush();
       expect(latest()?.phase).toBe('error');
       expect(latest()?.message).toContain('IndexedDB save read unavailable');
       expect(harness.save).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('keeps dirty work manual across refreshes, then uses the chosen idle delay and the same save owner after opt-in', async () => {
+    vi.useFakeTimers();
+    try {
+      harness.dirty.mockResolvedValue(true);
+      const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+      await flush();
+      expect(latest()).toMatchObject({ phase: 'dirty', message: expect.stringContaining('Unsaved') });
+      harness.subscription?.();
+      await dispatchRefresh();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(harness.save).not.toHaveBeenCalled();
+      await session.saveNow();
+      expect(harness.save).toHaveBeenCalledExactlyOnceWith({ setId: 'set-c', name: 'F' });
+      const confirmedReads = harness.dirty.mock.calls.length;
+      for (let edit = 0; edit < 25; edit++) harness.subscription?.();
+      await flush();
+      expect(harness.dirty).toHaveBeenCalledTimes(confirmedReads);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(harness.save).toHaveBeenCalledTimes(1);
+
+      harness.preferences = { googleDriveAutosaveEnabled: true, googleDriveAutosaveDelaySeconds: 5 };
+      await session.reconcile();
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(harness.save).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(harness.save).toHaveBeenCalledTimes(2);
+      expect(latest()?.phase).toBe('dirty');
+      harness.preferences.googleDriveAutosaveEnabled = false;
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(harness.save).toHaveBeenCalledTimes(2);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('rechecks opt-in and account scope after asynchronous dirty reads before issuing an automatic write', async () => {
+    vi.useFakeTimers();
+    try {
+      harness.preferences.googleDriveAutosaveEnabled = true;
+      harness.dirty.mockResolvedValue(true);
+      const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+      await flush();
+      let release!: (dirty: boolean) => void;
+      harness.dirty.mockImplementationOnce(() => new Promise<boolean>((resolve) => { release = resolve; }));
+      await vi.advanceTimersByTimeAsync(15_000);
+      harness.preferences.googleDriveAutosaveEnabled = false;
+      release(true);
+      await flush();
+      expect(harness.save).not.toHaveBeenCalled();
+
+      harness.preferences.googleDriveAutosaveEnabled = true;
+      await session.reconcile();
+      harness.scope = 'account:b';
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(harness.save).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('coalesces edits during interrupted preparation into one later opt-in checkpoint', async () => {
+    vi.useFakeTimers();
+    try {
+      harness.preferences.googleDriveAutosaveEnabled = true;
+      harness.dirty.mockResolvedValue(true);
+      let rejectPreparation!: (error: Error) => void;
+      harness.save.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectPreparation = reject; }));
+      useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+      await flush();
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(harness.save).toHaveBeenCalledTimes(1);
+      harness.subscription?.();
+      harness.subscription?.();
+      rejectPreparation(new Error('The Set changed while preparing its Drive save.'));
+      await flush();
+      await vi.advanceTimersByTimeAsync(14_999);
+      expect(harness.save).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(harness.save).toHaveBeenCalledTimes(2);
+      harness.preferences.googleDriveAutosaveEnabled = false;
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(harness.save).toHaveBeenCalledTimes(2);
     } finally { vi.useRealTimers(); }
   });
 

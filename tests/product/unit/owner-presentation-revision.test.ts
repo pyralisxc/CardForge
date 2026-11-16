@@ -68,8 +68,9 @@ describe('Owner presentation concurrency', () => {
     await expect(getExperienceSettings()).rejects.toMatchObject({ status: 503 });
   });
   it('returns the committed experience values and shared-row revision', async () => {
-    state.result.data = [{ updated_at: '2026-10-14T00:00:02Z', presentation_contrast: 'high' }];
-    expect(await updateExperienceSettings({ ...DEFAULT_EXPERIENCE_SETTINGS, updatedAt: revision, presentationContrast: 'high' }))
-      .toMatchObject({ presentationContrast: 'high', updatedAt: '2026-10-14T00:00:02Z' });
+    state.result.data = [{ updated_at: '2026-10-14T00:00:02Z', presentation_contrast: 'high', studio_autosave_delay_seconds: 30 }];
+    expect(await updateExperienceSettings({ ...DEFAULT_EXPERIENCE_SETTINGS, updatedAt: revision, presentationContrast: 'high', studioAutosaveDelaySeconds: 30 }))
+      .toMatchObject({ presentationContrast: 'high', studioAutosaveDelaySeconds: 30, updatedAt: '2026-10-14T00:00:02Z' });
+    expect(state.update).toHaveBeenCalledWith(expect.objectContaining({ studio_autosave_delay_seconds: 30 }));
   });
 });

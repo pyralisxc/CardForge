@@ -574,18 +574,22 @@ export const saveCardSetToGoogleDrive = async ({
   name,
   asNew = false,
   renderThumbnail,
+  signal,
 }: {
   setId: string;
   name: string;
   asNew?: boolean;
   renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
+  signal?: AbortSignal;
 }): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const initial = asNew ? null : await getGoogleDriveWorkBinding(setId);
   assertBindingScope(namespace);
   return serializeGoogleDriveWorkCommitment(namespace, setId, async () => {
+    signal?.throwIfAborted();
     const resolved = asNew ? null : await getGoogleDriveWorkBinding(setId);
     return serializeGoogleDriveTargetSave(namespace, resolved, async () => {
+      signal?.throwIfAborted();
       const existing = asNew ? null : await getGoogleDriveWorkBinding(setId);
       assertBindingScope(namespace);
       if (initial && existing?.fileId !== initial.fileId) {
@@ -600,6 +604,7 @@ export const saveCardSetToGoogleDrive = async ({
       const { document, snapshot, blob, localProjectRevision } = await createProjectPackage(name, setId, identities);
       const thumbnail = await renderThumbnail?.(document) ?? null;
       assertBindingScope(namespace);
+      signal?.throwIfAborted();
       const plan = await prepareUpload({
         name: snapshot.manifest.name,
         size: blob.size,
@@ -609,6 +614,7 @@ export const saveCardSetToGoogleDrive = async ({
         thumbnail,
       });
       assertBindingScope(namespace);
+      signal?.throwIfAborted();
       const completed = await uploadPackage(plan, blob);
       const binding = await toBinding({
         completed,

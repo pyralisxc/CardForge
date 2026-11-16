@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-import type { ExperienceSettings } from '../model/experienceSettings';
+import { STUDIO_AUTOSAVE_DELAYS_SECONDS, type ExperienceSettings } from '../model/experienceSettings';
 
 type OwnerExperienceControlsPanelProps = {
   settings: ExperienceSettings;
@@ -111,6 +111,13 @@ export function OwnerExperienceControlsPanel({
       </div>
 
       <fieldset disabled={isSaving} className="grid gap-4 lg:grid-cols-2">
+        <label className={fieldClassName}>
+          <span className="font-medium text-[var(--cf-accent-text)]">Studio autosave timing default</span>
+          <select className={selectClassName} value={draft.studioAutosaveDelaySeconds} onChange={(event) => setDraft((current) => ({ ...current, studioAutosaveDelaySeconds: Number(event.target.value) as ExperienceSettings['studioAutosaveDelaySeconds'] }))}>
+            {STUDIO_AUTOSAVE_DELAYS_SECONDS.map((delay) => <option key={delay} value={delay}>{delay} seconds after edits stop</option>)}
+          </select>
+          <span className="leading-6 text-[var(--cf-text-subtle)]">A timing default, not permission to write. Creators must enable Drive autosave themselves in Profile. Explicit personal timing choices are preserved.</span>
+        </label>
         <label className={fieldClassName}>
           <span className="font-medium text-[var(--cf-accent-text)]">Fresh Studio starting Template</span>
           <select

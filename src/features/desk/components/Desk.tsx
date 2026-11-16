@@ -28,6 +28,7 @@ import type { DesignToolIntent, WorkbenchBusinessIdentity } from '@/features/cre
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
+import { DEFAULT_EXPERIENCE_SETTINGS, type StudioAutosaveDelaySeconds } from '@/features/experience-settings/client';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
@@ -87,6 +88,7 @@ const DeskPublishedWorkspace = dynamic(() => import(
 export type { DeskAccountStatus } from '../model/desk';
 
 export interface DeskProps {
+  defaultAutosaveDelaySeconds?: StudioAutosaveDelaySeconds;
   businessIdentity: WorkbenchBusinessIdentity;
   persistenceScope: ProjectPersistenceScope;
   experience: AccountExperienceProjection;
@@ -145,6 +147,7 @@ const deskStorageStatusLabel = (sourceStatuses: readonly { phase: string }[]): s
 };
 
 export function Desk({
+  defaultAutosaveDelaySeconds = DEFAULT_EXPERIENCE_SETTINGS.studioAutosaveDelaySeconds,
   businessIdentity,
   persistenceScope,
   experience,
@@ -227,6 +230,7 @@ export function Desk({
     focusedLocalSetId,
     focusedSet,
     workingLocationStatus,
+    onWorkLocationChanged,
     generationCards,
     generationSet,
     generatorSelectedBackingTemplateId,
@@ -338,6 +342,7 @@ export function Desk({
     workTemplate,
     zones,
   } = useDeskController({
+    defaultAutosaveDelaySeconds,
     transitionToDesk,
     persistenceScope,
     experience,
@@ -834,7 +839,7 @@ export function Desk({
         canUseProjectFiles={experience.capabilities.canUseProjectFiles}
         driveConnected={Boolean(projection.driveConnection?.connected && projection.driveConnection.rootFolderId)}
         localFolderSupported={projection.localFolderSupported}
-        onChanged={projection.refresh}
+        onChanged={onWorkLocationChanged}
       />
 
       <AlertDialog open={artifactDiscardOpen} onOpenChange={(open) => {

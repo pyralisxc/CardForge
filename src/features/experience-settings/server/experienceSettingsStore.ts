@@ -22,6 +22,7 @@ const EXPERIENCE_SETTINGS_COLUMNS = [
   'presentation_corners',
   'presentation_contrast',
   'studio_default_template_id',
+  'studio_autosave_delay_seconds',
   'updated_at',
 ].join(',');
 
@@ -65,6 +66,7 @@ export const updateExperienceSettings = async (
     presentation_corners: normalized.presentationCorners,
     presentation_contrast: normalized.presentationContrast,
     studio_default_template_id: normalized.studioDefaultTemplateId,
+    studio_autosave_delay_seconds: normalized.studioAutosaveDelaySeconds,
   }).eq('id', 'cardforge').eq('updated_at', input.updatedAt).select(EXPERIENCE_SETTINGS_COLUMNS).limit(1);
   if (error) {
     console.error('Failed to update experience settings:', error);

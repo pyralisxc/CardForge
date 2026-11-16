@@ -3,6 +3,11 @@ export const PRESENTATION_PALETTES = ['forge', 'obsidian', 'slate'] as const;
 export const PRESENTATION_ACCENTS = ['brass', 'ember', 'arcane'] as const;
 export const PRESENTATION_CORNERS = ['square', 'subtle', 'soft'] as const;
 export const PRESENTATION_CONTRASTS = ['standard', 'high'] as const;
+export const STUDIO_AUTOSAVE_DELAYS_SECONDS = [5, 15, 30, 60] as const;
+export type StudioAutosaveDelaySeconds = typeof STUDIO_AUTOSAVE_DELAYS_SECONDS[number];
+export const isStudioAutosaveDelaySeconds = (value: unknown): value is StudioAutosaveDelaySeconds => (
+  typeof value === 'number' && STUDIO_AUTOSAVE_DELAYS_SECONDS.includes(value as StudioAutosaveDelaySeconds)
+);
 
 export type AnalyticsConsentPresentation = typeof ANALYTICS_CONSENT_PRESENTATIONS[number];
 export type PresentationPalette = typeof PRESENTATION_PALETTES[number];
@@ -18,6 +23,7 @@ export interface ExperienceSettings {
   presentationCorners: PresentationCorners;
   presentationContrast: PresentationContrast;
   studioDefaultTemplateId: string | null;
+  studioAutosaveDelaySeconds: StudioAutosaveDelaySeconds;
 }
 
 export const DEFAULT_EXPERIENCE_SETTINGS: ExperienceSettings = {
@@ -27,6 +33,7 @@ export const DEFAULT_EXPERIENCE_SETTINGS: ExperienceSettings = {
   presentationCorners: 'subtle',
   presentationContrast: 'standard',
   studioDefaultTemplateId: null,
+  studioAutosaveDelaySeconds: 15,
 };
 
 const isAnalyticsConsentPresentation = (value: unknown): value is AnalyticsConsentPresentation =>
@@ -75,6 +82,9 @@ export const hydrateExperienceSettings = (
   studioDefaultTemplateId: typeof row?.studio_default_template_id === 'string' && row.studio_default_template_id.trim()
     ? row.studio_default_template_id.trim()
     : null,
+  studioAutosaveDelaySeconds: isStudioAutosaveDelaySeconds(row?.studio_autosave_delay_seconds)
+    ? row.studio_autosave_delay_seconds
+    : DEFAULT_EXPERIENCE_SETTINGS.studioAutosaveDelaySeconds,
 });
 
 export const normalizeExperienceSettingsInput = (
@@ -95,6 +105,9 @@ export const normalizeExperienceSettingsInput = (
   if (!isPresentationContrast(input.presentationContrast)) {
     throw new Error('Choose standard or high contrast.');
   }
+  if (!isStudioAutosaveDelaySeconds(input.studioAutosaveDelaySeconds)) {
+    throw new Error('Choose 5, 15, 30, or 60 seconds for the Studio autosave delay.');
+  }
   return {
     analyticsConsentPresentation: input.analyticsConsentPresentation,
     presentationPalette: input.presentationPalette,
@@ -102,5 +115,6 @@ export const normalizeExperienceSettingsInput = (
     presentationCorners: input.presentationCorners,
     presentationContrast: input.presentationContrast,
     studioDefaultTemplateId: normalizeOptionalTemplateId(input.studioDefaultTemplateId),
+    studioAutosaveDelaySeconds: input.studioAutosaveDelaySeconds,
   };
 };

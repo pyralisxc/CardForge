@@ -40,9 +40,12 @@ export function ProfileSetupFallback() {
 }
 
 export function ProfileManagementPage({ authConfigured = true }: { authConfigured?: boolean }) {
-  const { isLoaded, isSignedIn, user } = useUser();
-
   if (!authConfigured) return <ProfileSetupFallback />;
+  return <ClerkProfileManagementPage />;
+}
+
+function ClerkProfileManagementPage() {
+  const { isLoaded, isSignedIn, user } = useUser();
 
   if (!isLoaded) {
     return (
