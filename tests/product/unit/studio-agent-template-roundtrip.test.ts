@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TCGCardTemplate } from '@/domain/templates';
 import { BROWSER_STORAGE_DATABASE } from '@/features/project/client/persistence-storage';
+import { setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import {
   getAgentTemplateLink,
   rememberAgentTemplateLink,
@@ -55,6 +56,7 @@ const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringif
 
 beforeEach(async () => {
   await deleteDatabase();
+  setProjectPersistenceScope('account:template-roundtrip');
 });
 
 afterEach(() => {
@@ -62,7 +64,7 @@ afterEach(() => {
 });
 
 describe('agent Template Studio round trip', () => {
-  it('discovers an existing agent document and syncs an explicit Studio save back to it without conflating document and Template revisions', async () => {
+  it('only discovers and syncs an agent document in an account workspace without conflating document and Template revisions', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({
         documents: [{
@@ -94,6 +96,13 @@ describe('agent Template Studio round trip', () => {
         document: { revision: 3 },
       }));
     vi.stubGlobal('fetch', fetchMock);
+
+    for (const scope of ['guest', 'local'] as const) {
+      setProjectPersistenceScope(scope);
+      await expect(syncAgentTemplateSave(template)).resolves.toEqual({ status: 'unlinked' });
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+    setProjectPersistenceScope('account:template-roundtrip');
 
     const result = await syncAgentTemplateSave({
       ...template,
