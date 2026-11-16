@@ -29,13 +29,31 @@ describe('portable versus provider working document identity', () => {
     expect(mapProjectDocumentIdentity(opened, identities, 'save')).toEqual(source);
     expect(source.cardSets[0].plan?.brief?.assets[0].assetId).toBe('shared-id');
   });
-  it('keeps prepared designs attached to an independent copy without rewriting external references', () => {
+  it('copies prepared designs with independent identity and exact source provenance without rewriting external references', () => {
     const source = structuredClone(document);
     source.cardSets[0]!.templateIds = ['portable-template', 'external-template'];
+    Object.assign(source.userTemplates[0]!, {
+      templateLineageId: 'source-lineage', templateRevision: 3, templateRevisionId: 'source-revision-3',
+      templateParentRevisionId: 'source-revision-2', templateContributorName: 'Original creator',
+      templateOriginLineageId: 'earlier-source', templateOriginRevisionId: 'earlier-revision',
+      templatePipelineContext: { schemaVersion: 1, expectedBase: {
+        assetId: 'pipeline-asset', parentSubmissionId: 'source-submission', lineageId: 'source-lineage',
+        baseRevisionNumber: 3, revisionHighWater: 3, parentContentVersion: 'source-content', registryContentVersion: 'source-content',
+      } },
+    });
+    const original = structuredClone(source);
     const copy = instantiateProjectDocumentCopy(source, (kind) => `${kind}-copied`);
     expect(copy.cardSets[0]!.templateIds).toEqual([copy.userTemplates[0]!.id, 'external-template']);
     expect(copy.userTemplates[0]!.id).not.toBe('portable-template');
-    expect(source.cardSets[0]!.templateIds).toEqual(['portable-template', 'external-template']);
+    expect(copy.userTemplates[0]).toMatchObject({
+      templateLineageId: copy.userTemplates[0]!.id, templateRevision: 1,
+      templateContributorName: 'Original creator', templateOriginLineageId: 'source-lineage', templateOriginRevisionId: 'source-revision-3',
+    });
+    expect(copy.userTemplates[0]!.templateRevisionId).toBeTruthy();
+    expect(copy.userTemplates[0]!.templateRevisionId).not.toBe('source-revision-3');
+    expect(copy.userTemplates[0]!.templateParentRevisionId).toBeUndefined();
+    expect(copy.userTemplates[0]!.templatePipelineContext).toBeUndefined();
+    expect(source).toEqual(original);
   });
   it('isolates files with the same portable IDs while preserving references and authored values', () => {
     const first: ProjectDocumentIdentityMap = {};

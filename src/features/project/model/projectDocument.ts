@@ -9,6 +9,7 @@ import {
 import {
   reconstructMinimalTemplateObject,
   validateNativeTemplateStructure,
+  withIndependentTemplateIdentity,
   type AppearanceStylePreset,
   type CardAssetOption,
   type TCGCardTemplate,
@@ -464,17 +465,14 @@ export const instantiateProjectDocumentCopy = (
     ...document,
     ...(document.productionPlan ? { productionPlan: copyBrief(document.productionPlan) } : {}),
     ...(customFonts ? { customFonts } : {}),
-    userTemplates: document.userTemplates.map((template) => ({
-      ...remapProjectTemplateFonts(template, fontValues),
+    userTemplates: document.userTemplates.map((template) => withIndependentTemplateIdentity({
+      ...remapProjectTemplateFonts(structuredClone(template), fontValues),
       id: template.id ? templateIds.get(template.id)! : createId('template'),
       templateSource: 'user',
       templateLibrarySource: 'personal',
       templateAccessTier: undefined,
       templateRegistryStatus: 'localOnly',
-      templateContributorName: undefined,
-      templateRevision: undefined,
-      templateRevisionId: undefined,
-    })),
+    }, template, () => createId('template'))),
     cardSets: document.cardSets.map((set) => ({
       ...set,
       ...(set.plan ? { plan: { ...structuredClone(set.plan), ...(set.plan.brief ? { brief: copyBrief(set.plan.brief) } : {}) } } : {}),
