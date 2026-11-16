@@ -236,7 +236,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
 
   return <>
     <BrowserStoragePersistencePrompt />
-    {showAttentionStatus && pathname !== '/account' ? <button
+    {showAttentionStatus && (!workspaceReady || pathname !== '/account') ? <button
       type="button"
       onClick={openRecovery}
       className={`fixed bottom-4 right-4 z-40 border px-3 py-2 text-xs shadow-lg ${saveStatus === 'failed' || !workspaceReady ? 'border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] text-[var(--cf-danger)]' : 'border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] text-[var(--cf-warning)]'}`}
