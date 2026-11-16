@@ -20,6 +20,8 @@ import {
 } from '@/features/app-shell/client/environment';
 import { createDeskReturnHref, normalizeStudioReturnTo, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
+import { DEFAULT_EXPERIENCE_SETTINGS, type StudioAutosaveDelaySeconds } from '@/features/experience-settings/client';
+import { getEditorPreferences, useEditorPreferences } from '@/features/editor-preferences/client';
 import {
   openGoogleDriveProject,
   shouldOfferGoogleDriveReconciliation,
@@ -59,6 +61,7 @@ const driveWorkingNeedsAttention = (phase: GoogleDriveWorkingSessionPhase) => (
 );
 
 interface DeskControllerOptions {
+  defaultAutosaveDelaySeconds?: StudioAutosaveDelaySeconds;
   transitionToDesk?: (commit: () => void) => void;
   persistenceScope: ProjectPersistenceScope;
   experience: AccountExperienceProjection;
@@ -71,6 +74,7 @@ interface DeskControllerOptions {
 }
 
 export function useDeskController({
+  defaultAutosaveDelaySeconds = DEFAULT_EXPERIENCE_SETTINGS.studioAutosaveDelaySeconds,
   transitionToDesk,
   persistenceScope,
   experience,
@@ -246,7 +250,13 @@ export function useDeskController({
   });
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
+  const savingPreferences = useEditorPreferences();
   const driveWorkingSession = useGoogleDriveWorkingSession({
+    autosave: {
+      enabled: savingPreferences.googleDriveAutosaveEnabled,
+      delaySeconds: savingPreferences.googleDriveAutosaveDelaySeconds ?? defaultAutosaveDelaySeconds,
+      isEnabled: () => getEditorPreferences(persistenceScope).googleDriveAutosaveEnabled,
+    },
     setId: focusedLocalSetId,
     name: focusedItem?.name ?? 'CardForge Set',
     enabled: Boolean(focusedLocalSetId),
@@ -834,6 +844,10 @@ export function useDeskController({
     focusedLocalSetId,
     focusedSet,
     workingLocationStatus,
+    onWorkLocationChanged: () => {
+      refreshDeskSources();
+      void driveWorkingSession.reconcile();
+    },
     generationCards,
     generationSet,
     generatorSelectedBackingTemplateId,

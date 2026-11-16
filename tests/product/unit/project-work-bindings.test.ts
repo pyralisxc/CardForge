@@ -585,6 +585,22 @@ describe('same-target real transfer ordering and recovery', () => {
 
 describe('first-save and destination commitment ordering', () => {
   const settleTurn = async () => { for (let n = 0; n < 20; n++) await new Promise<void>(resolve => setImmediate(resolve)); };
+  it('cancels an automatic save during preparation without sending bytes or blocking a later manual save', async () => {
+    const controller = new AbortController();
+    const fetch = vi.fn(async (_url: string, options: RequestInit) => {
+      if (options.method === 'POST') {
+        controller.abort();
+        return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' });
+      }
+      return Response.json({ id: driveBinding.fileId, headRevisionId: 'native-2', name: 'C' });
+    });
+    vi.stubGlobal('fetch', fetch);
+    await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(await getGoogleDriveWorkBinding('set-c')).toBeNull();
+    await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' })).resolves.toMatchObject({ fileId: driveBinding.fileId });
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
   it('queues concurrent first saves for the same Set', async () => {
     let release!: (response: Response) => void;
     const held = new Promise<Response>(resolve => { release = resolve; });

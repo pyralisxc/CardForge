@@ -2,9 +2,9 @@ import { createIndexedDbStorage } from './indexedDbStorage';
 
 const PREFERENCE_NAMESPACE = 'project-preferences';
 
-const getPreferenceStorage = () => createIndexedDbStorage(
+const getPreferenceStorage = (suppressWriteErrors = true) => createIndexedDbStorage(
   PREFERENCE_NAMESPACE,
-  { suppressWriteErrors: true },
+  { suppressWriteErrors },
 );
 
 export type ProjectPreferenceReadResult<T> =
@@ -31,8 +31,8 @@ export const readProjectPreference = async <T>(key: string): Promise<T | null> =
   return result.kind === 'available' ? result.value : null;
 };
 
-export const writeProjectPreference = async <T>(key: string, value: T): Promise<void> => {
-  await getPreferenceStorage().setItem(key, JSON.stringify(value));
+export const writeProjectPreference = async <T>(key: string, value: T, options: { suppressWriteErrors?: boolean } = {}): Promise<void> => {
+  await getPreferenceStorage(options.suppressWriteErrors ?? true).setItem(key, JSON.stringify(value));
 };
 
 export const removeProjectPreference = async (key: string): Promise<void> => {

@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createDefaultFreeformCanvas, reconstructMinimalTemplateObject } from '@/domain/templates';
 import { clearEditorPreferenceStorage, readEditorPreferenceStorage, writeEditorPreferenceStorage } from '@/features/project/client/editorPreferenceStorage';
 import { setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { writeProjectPreference } from '@/features/project/client/persistence-preferences';
+import { createBrowserKeyValueStorage } from '@/features/project/persistence/indexedDbStorage';
 import { selectAllTemplates, selectGeneratedDisplayCards, useProjectStore } from '@/features/project/client/workspace';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
@@ -826,14 +828,24 @@ describe('persisted Generator selection migration', () => {
   it('keeps editor preferences isolated by persistence scope', async () => {
     setProjectPersistenceScope('account:editor-a');
     await clearEditorPreferenceStorage();
-    await writeEditorPreferenceStorage({ richTextHighlightColor: '#123456' });
+    const raw = createBrowserKeyValueStorage('project-preferences');
+    await raw.setItem('editor-preferences:v1:account:editor-a', '{unreadable');
+    await expect(readEditorPreferenceStorage()).rejects.toThrow('could not be read');
+    await expect(raw.getItem('editor-preferences:v1:account:editor-a')).resolves.toBe('{unreadable');
+    await writeProjectPreference('editor-preferences:v1:account:editor-a', { richTextHighlightColor: '#123456' });
+    await expect(readEditorPreferenceStorage()).resolves.toEqual({
+      richTextHighlightColor: '#123456', googleDriveAutosaveEnabled: false, googleDriveAutosaveDelaySeconds: null,
+    });
+    await writeEditorPreferenceStorage({ richTextHighlightColor: '#123456', googleDriveAutosaveEnabled: true, googleDriveAutosaveDelaySeconds: 30 });
 
     setProjectPersistenceScope('account:editor-b');
     await clearEditorPreferenceStorage();
     await expect(readEditorPreferenceStorage()).resolves.toBeNull();
 
     setProjectPersistenceScope('account:editor-a');
-    await expect(readEditorPreferenceStorage()).resolves.toEqual({ richTextHighlightColor: '#123456' });
+    await expect(readEditorPreferenceStorage()).resolves.toEqual({
+      richTextHighlightColor: '#123456', googleDriveAutosaveEnabled: true, googleDriveAutosaveDelaySeconds: 30,
+    });
   });
 
   it('retains older Studio-tab migration and explicit cleared current selections', async () => {

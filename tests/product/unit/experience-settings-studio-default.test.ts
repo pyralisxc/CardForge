@@ -11,6 +11,7 @@ const validInput = {
   presentationAccent: 'brass',
   presentationCorners: 'subtle',
   presentationContrast: 'standard',
+  studioAutosaveDelaySeconds: 15,
 } as const;
 
 describe('owner Studio default Template setting', () => {

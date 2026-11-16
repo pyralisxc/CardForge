@@ -5,6 +5,8 @@ export {
   PRESENTATION_CONTRASTS,
   PRESENTATION_CORNERS,
   PRESENTATION_PALETTES,
+  STUDIO_AUTOSAVE_DELAYS_SECONDS,
+  isStudioAutosaveDelaySeconds,
   hydrateExperienceSettings,
   normalizeExperienceSettingsInput,
   type AnalyticsConsentPresentation,
@@ -13,4 +15,5 @@ export {
   type PresentationContrast,
   type PresentationCorners,
   type PresentationPalette,
+  type StudioAutosaveDelaySeconds,
 } from './model/experienceSettings';
