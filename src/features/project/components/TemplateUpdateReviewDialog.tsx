@@ -137,7 +137,7 @@ export function TemplateUpdateReviewDialog({ review, cards = [], renderPreview, 
           <details className="text-xs text-muted-foreground">
             <summary className="cursor-pointer">About this comparison</summary>
             <p className="mt-2">Comparing with “{review.incoming.name}”. This related revision may be earlier or parallel work, not necessarily a newer release. Only available snapshots are shown. Keep mine completes a decision; Defer leaves it for later.</p>
-            {review.expectedReview ? <p className="mt-2">Matching Keep mine choices have been restored. Previously applied changes stay recorded; later local edits need a new choice.</p> : null}
+            {review.expectedReview ? <p className="mt-2">Recorded Keep mine choices are reused only for matching source content. Previously applied changes stay recorded; later local edits need a new choice.</p> : null}
           </details>
         </section>
         <section className="min-w-0 space-y-3 border-t p-4 sm:p-5 lg:border-l lg:border-t-0" aria-label="Choose changes">
