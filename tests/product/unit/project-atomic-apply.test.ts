@@ -1,11 +1,12 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CardAssetOption } from '@/domain/templates';
-import { applyProjectDocumentToWorkspace, cleanCurrentWorkspaceCompletedDeletions, rekeyConflictingTemplateSnapshots } from '@/features/project/client/projectWorkspaceDocument';
+import { applyProjectDocumentToWorkspace, captureCurrentProjectDocument, cleanCurrentWorkspaceCompletedDeletions, rekeyConflictingTemplateSnapshots } from '@/features/project/client/projectWorkspaceDocument';
 import { createProjectWorkspaceDraft, hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProjectStore } from '@/features/project/store/workspaceStore';
 import { createBrowserKeyValueStorage } from '@/features/project/persistence/indexedDbStorage';
 import { getScopedProjectStorageNamespace, restoreBrowserWorkspaceRecovery } from '@/features/project/persistence/projectPersistenceScope';
 import { parseBrowserWorkspaceRecord } from '@/features/project/persistence/workspaceRevision';
+import { buildCardForgeProjectSnapshot } from '@/features/project/lib/projectPackageCodec';
 import { CUSTOM_IMAGE_ASSETS_STORAGE_KEY } from '@/features/project/model/projectDocument';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
 import { removeDeviceWorkAfterVerifiedCopy } from '@/features/project/client/workLocationTransfer';
@@ -151,22 +152,87 @@ describe('atomic project apply', () => {
 
   it('forks identical colliding Template ids during merge and remaps both card faces and prepared references', () => {
     const incoming = fixture();
-    const sourceTemplate = incoming.userTemplates[0]!;
+    const sourceTemplate = {
+      ...incoming.userTemplates[0]!,
+      templateLineageId: 'incoming-lineage',
+      templateRevisionId: 'incoming-r4',
+      templateOriginLineageId: 'incoming-origin',
+      templateOriginRevisionId: 'incoming-origin-r2',
+      templateOriginAncestors: [{ lineageId: 'earlier-origin', revisionId: 'earlier-r1' }],
+    };
+    incoming.userTemplates[0] = sourceTemplate;
     const sourceId = sourceTemplate.id!;
     const setId = incoming.cardSets[0]!.id;
     incoming.cardSets[0]!.templateIds = [sourceId];
     incoming.storedCards = [{ ...incoming.storedCards[0]!, uniqueId: 'merge-card', setId, templateId: sourceId, backingTemplateId: sourceId }];
-    const result = rekeyConflictingTemplateSnapshots(incoming, [structuredClone(sourceTemplate)], () => 'merge-fork');
+    const localCollision = {
+      ...structuredClone(sourceTemplate),
+      templateLineageId: 'local-lineage',
+      templateRevisionId: 'local-r9',
+      templateOriginLineageId: 'local-origin',
+      templateOriginRevisionId: 'local-origin-r8',
+      templateOriginAncestors: [{ lineageId: 'local-earlier', revisionId: 'local-r7' }],
+    };
+    const result = rekeyConflictingTemplateSnapshots(incoming, [localCollision], () => 'merge-fork');
     const nextId = result.userTemplates[0]!.id!;
 
     expect(nextId).toBe('merge-fork');
     expect(nextId).not.toBe(sourceId);
     expect(result.userTemplates[0]).toMatchObject({
-      templateOriginLineageId: sourceTemplate.templateLineageId ?? sourceId,
+      templateLineageId: nextId,
+      templateOriginLineageId: 'incoming-lineage',
+      templateOriginRevisionId: 'incoming-r4',
+      templateOriginAncestors: [
+        { lineageId: 'incoming-origin', revisionId: 'incoming-origin-r2' },
+        { lineageId: 'earlier-origin', revisionId: 'earlier-r1' },
+      ],
     });
     expect(result.cardSets[0]!.templateIds).toEqual([nextId]);
     expect(result.storedCards[0]).toMatchObject({ uniqueId: 'merge-card', templateId: nextId, backingTemplateId: nextId });
     expect(incoming.userTemplates[0]!.id).toBe(sourceId);
+  });
+
+  it('does not report a pre-existing Template or Set as the active context of a standalone import', async () => {
+    const existing = fixture();
+    existing.cardSets = [];
+    existing.storedCards = [];
+    existing.activeCardSetId = undefined;
+    existing.userTemplates = [{ ...existing.userTemplates[0]!, id: 'template-a', name: 'Existing A' }];
+    await applyProjectDocumentToWorkspace(existing, 'replace');
+    expect(useProjectStore.getState().generatorSelectedTemplateId).toBe('template-a');
+
+    const incoming = {
+      ...existing,
+      userTemplates: [{ ...existing.userTemplates[0]!, id: 'template-b', name: 'Incoming B' }],
+    };
+    const summary = await applyProjectDocumentToWorkspace(incoming, 'merge');
+    expect(summary.activeSetId).toBeNull();
+    expect(summary.activeTemplateId).toBeNull();
+    expect(summary.installedTemplateIds).toEqual(['template-b']);
+    const selectedByHandoff = summary.activeTemplateId
+      ?? summary.installedTemplateIds.find((id) => useProjectStore.getState().userTemplates.some((template) => template.id === id));
+    expect(selectedByHandoff).toBe('template-b');
+    expect(useProjectStore.getState().generatorSelectedTemplateId).toBe('template-a');
+  });
+
+  it('preserves default Template roles during document installation and refuses complete saves', async () => {
+    const incoming = fixture();
+    incoming.version = 3;
+    const source = { ...incoming.userTemplates[0]!, id: 'default-source', templateSource: 'default' as const };
+    incoming.userTemplates = [source];
+    incoming.cardSets = [{ id: 'deferred-set', name: 'Deferred', templateIds: [source.id!, 'missing-template'] }];
+    incoming.activeCardSetId = 'deferred-set';
+    incoming.storedCards = [];
+
+    const summary = await applyProjectDocumentToWorkspace(incoming, 'replace');
+    const state = useProjectStore.getState();
+    expect(summary.importedTemplateCount).toBe(1);
+    expect(summary.installedTemplateIds).toEqual(['default-source']);
+    expect(state.userTemplates.find((template) => template.id === 'default-source')?.templateSource).toBe('default');
+    expect(state.userTemplates.some((template) => template.id === 'missing-template')).toBe(false);
+    expect(state.cardSets[0]?.templateIds).toEqual(['default-source', 'missing-template']);
+    await expect(buildCardForgeProjectSnapshot({ document: await captureCurrentProjectDocument(), name: 'Incomplete' }))
+      .rejects.toThrow(/working snapshot|Template/i);
   });
 
   it('refuses a card id imported into a different Set without changing live work', async () => {

@@ -304,6 +304,19 @@ describe('portable CardForge project packages', () => {
     await expect(decodeCardForgeProjectPackage(tampered)).rejects.toThrow(/revision/iu);
   });
 
+  it('rejects unknown fields in a new v4 manifest without changing older readers', async () => {
+    const snapshot = await buildCardForgeProjectSnapshot({ document: createProject(), name: 'Unknown Manifest Field' });
+    const zip = await JSZip.loadAsync(await encodeCardForgeProjectPackage(snapshot));
+    const rawManifest = await zip.file(CARDFORGE_PROJECT_MANIFEST_FILE)!.async('string');
+    const manifest = JSON.parse(rawManifest) as Record<string, unknown>;
+    manifest.futureRequiredEnvelopeField = { keep: true };
+    zip.file(CARDFORGE_PROJECT_MANIFEST_FILE, JSON.stringify(manifest), { compression: 'STORE' });
+
+    await expect(decodeCardForgeProjectPackage(
+      await zip.generateAsync({ type: 'uint8array', compression: 'STORE' }),
+    )).rejects.toThrow(/v4 project manifest contains unsupported fields/iu);
+  });
+
   it('rejects archive entries outside the exact manifest instead of accepting hidden payloads', async () => {
     const snapshot = await buildCardForgeProjectSnapshot({ document: createProject(), name: 'Unexpected Entry' });
     const zip = await JSZip.loadAsync(await encodeCardForgeProjectPackage(snapshot));

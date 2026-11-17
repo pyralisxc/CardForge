@@ -1,10 +1,10 @@
 import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
-import { authoredPlanValuesEqual, ensureCardSetTemplateReferences } from '@/domain/cards';
+import { ensureCardSetTemplateReferences } from '@/domain/cards';
 import { createPersonalTemplateFork, createPersonalTemplateRevision, reconstructMinimalTemplateObject, withIndependentTemplateIdentity, type TCGCardTemplate } from '@/domain/templates';
 
-import { getCardSetTemplateIds, getTemplateOwnerSetId, getTemplateReferenceSetIds, prepareSetTemplateAcquisition, SetTemplateOwnershipError } from '../model/setTemplateOwnership';
+import { getCardSetTemplateIds, getTemplateOwnerSetId, getTemplateReferenceSetIds, prepareSetTemplateAcquisition, preserveReferencedTemplateIdentities, SetTemplateOwnershipError } from '../model/setTemplateOwnership';
 import { selectAllTemplates } from './selectors';
 import type { ProjectState, TemplateSlice } from './types';
 import { isDraftTemplateSelection } from './workspaceDefaults';
@@ -28,41 +28,6 @@ const removeKeys = (data: Record<string, string | number | undefined> | undefine
   const next = { ...data };
   keys.forEach((key) => { delete next[key]; });
   return next;
-};
-
-const preserveReferencedTemplateIdentities = (
-  state: ProjectState,
-  incoming: TCGCardTemplate[],
-): TCGCardTemplate[] => {
-  const incomingById = new Map<string, TCGCardTemplate>();
-  for (const template of incoming) {
-    if (!template.id) continue;
-    const duplicate = incomingById.get(template.id);
-    if (duplicate && !authoredPlanValuesEqual(duplicate, template)) {
-      throw new SetTemplateOwnershipError('conflict', `Template ${template.id} has conflicting imported definitions. Resolve the source mapping before changing this workspace; existing work was kept.`);
-    }
-    incomingById.set(template.id, template);
-  }
-  const referencedIds = new Set([
-    ...state.cardSets.flatMap((set) => set.templateIds ?? []),
-    ...state.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
-  ].filter((id): id is string => Boolean(id)));
-  const currentById = new Map(state.userTemplates.flatMap((template) => template.id ? [[template.id, template] as const] : []));
-  for (const id of referencedIds) {
-    const current = currentById.get(id);
-    const replacement = incomingById.get(id);
-    if (!current) {
-      if (replacement) {
-        throw new SetTemplateOwnershipError('conflict', `Template ${id} is an unresolved historical reference. Reload or explicitly convert the source before adding a definition with that identity; existing work was kept.`);
-      }
-      continue;
-    }
-    if (replacement && !authoredPlanValuesEqual(current, replacement)) {
-      throw new SetTemplateOwnershipError('conflict', `Template ${id} is referenced by Set work. Save through that Set or install an independent copy; existing work was kept.`);
-    }
-    if (!replacement) incomingById.set(id, current);
-  }
-  return [...incomingById.values()];
 };
 
 export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSlice> = (set, get) => ({
@@ -246,6 +211,28 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       return { userTemplates, generatorSelectedTemplateId: selectedId, templateEditorSelectedTemplateId: selectFallbackEditorTemplateId(allTemplates, state.templateEditorSelectedTemplateId, selectedId) };
     });
     return reconstructed.length;
+  },
+
+  installProjectDocumentTemplates: (templates, mode) => {
+    let importedCount = 0;
+    set((state) => {
+      const incoming = templates.map((template) => reconstructMinimalTemplateObject(template))
+        .filter((template) => Boolean(template.id?.trim()));
+      importedCount = incoming.length;
+      const reconstructed = preserveReferencedTemplateIdentities(state, incoming);
+      const byId = new Map<string, TCGCardTemplate>();
+      if (mode === 'merge') state.userTemplates.forEach((template) => { if (template.id) byId.set(template.id, template); });
+      reconstructed.forEach((template) => { if (template.id) byId.set(template.id, template); });
+      const userTemplates = Array.from(byId.values());
+      const allTemplates = selectAllTemplates({ defaultTemplates: state.defaultTemplates, userTemplates });
+      const selectedId = selectFallbackTemplateId(allTemplates, state.generatorSelectedTemplateId);
+      return {
+        userTemplates,
+        generatorSelectedTemplateId: selectedId,
+        templateEditorSelectedTemplateId: selectFallbackEditorTemplateId(allTemplates, state.templateEditorSelectedTemplateId, selectedId),
+      };
+    });
+    return importedCount;
   },
 
   cloneTemplate: (templateId) => {

@@ -95,7 +95,7 @@ export const rekeyConflictingTemplateSnapshots = (
     while (!nextId || usedIds.has(nextId)) nextId = createId();
     usedIds.add(nextId);
     remap.set(id, nextId);
-    return { ...withIndependentTemplateIdentity(template, existing, createId), id: nextId };
+    return withIndependentTemplateIdentity({ ...template, id: nextId }, template, createId);
   });
   if (!remap.size) return document;
   const mapTemplateId = (id: string | null | undefined) => id ? remap.get(id) ?? id : id;
@@ -408,9 +408,7 @@ const applyPreparedProjectDocument = async (
   }
 
   const state = draft.getState();
-  const importedTemplateCount = writeMode === 'merge'
-    ? state.mergeUserTemplatesFromFiles(importedTemplates)
-    : state.setUserTemplatesFromFiles(importedTemplates);
+  const importedTemplateCount = state.installProjectDocumentTemplates(importedTemplates, writeMode);
 
   const afterTemplates = draft.getState();
   if (writeMode === 'merge') {
@@ -454,10 +452,12 @@ const applyPreparedProjectDocument = async (
   } else {
     draft.setState({ storedCards: patch.storedCards, cardRemovalRecoveries: [] });
   }
-  const activeSet = draft.getState().activeCardSet;
-  const activeTemplateId = patch.storedCards.find((card) => !activeSet || card.setId === activeSet.id)?.templateId
-    ?? patch.cardSets.find((set) => set.id === activeSet?.id)?.templateIds?.[0]
-    ?? null;
+  const activeSetId = patch.activeCardSetId;
+  const activeTemplateId = activeSetId
+    ? patch.storedCards.find((card) => (card.setId ?? patch.cardSets[0]?.id) === activeSetId)?.templateId
+      ?? patch.cardSets.find((set) => set.id === activeSetId)?.templateIds?.[0]
+      ?? null
+    : null;
   if (activeTemplateId) {
     draft.getState().setGeneratorSelectedTemplateId(activeTemplateId);
     draft.getState().setTemplateEditorSelectedTemplateId(activeTemplateId);
@@ -470,8 +470,8 @@ const applyPreparedProjectDocument = async (
   if (cleanup.changed) notifyCompletedDeletionCleanup();
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(PROJECT_FONT_LIBRARY_CHANGE_EVENT));
   return {
-    activeSetId: activeSet?.id ?? null,
-    activeTemplateId: draft.getState().generatorSelectedTemplateId,
+    activeSetId,
+    activeTemplateId,
     installedTemplateIds: importedTemplates.flatMap((template) => template.id ? [template.id] : []),
     installedCardIds: patch.storedCards.map((card) => card.uniqueId),
     importedTemplateCount,

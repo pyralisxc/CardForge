@@ -7,6 +7,7 @@ import { buildCardForgeProjectSnapshot, encodeCardForgeProjectPackage, decodeCar
 import { createProjectDocumentFromState, type ProjectDocumentV1 } from '@/features/project/model/projectDocument';
 import { hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProjectStore } from '@/features/project/store/workspaceStore';
 import { createBrowserKeyValueStorage } from '@/features/project/persistence/indexedDbStorage';
+import { parseBrowserWorkspaceRecord } from '@/features/project/persistence/workspaceRevision';
 import { getBrowserProjectAssetIds } from '@/features/project/persistence/contentAddressedBrowserAssets';
 import { mapProjectDocumentIdentity, type ProjectDocumentIdentityMap } from '@/features/project/model/projectDocumentIdentity';
 import { importRetainedGuestWorkspaceAsCopy } from '@/features/project/client/retainedGuestWorkspace';
@@ -67,6 +68,52 @@ describe('Set context native lifecycle', () => {
     await expect(hydrateProjectWorkspaceForScope(futureScope)).rejects.toThrow(/newer CardForge version/i);
     expect(await futureStorage.getItem('workspace')).toBe(saved);
     expect(useProjectStore.persist.hasHydrated()).toBe(false);
+  });
+
+  it('persists version-6 shared-template migration and keeps remapped identities stable after rehydration', async () => {
+    const migrationScope = `account:template-migration-${ordinal}` as const;
+    const savedStorage = createBrowserKeyValueStorage(`project-workspace:${migrationScope}`);
+    const original = {
+      id: 'shared-legacy-template',
+      name: 'Shared source',
+      aspectRatio: '63:88',
+      templateSource: 'default',
+      freeformCanvas: { width: 630, height: 880, elements: [] },
+    };
+    await savedStorage.setItem('workspace', JSON.stringify({
+      version: 6,
+      state: {
+        userTemplates: [original],
+        cardSets: [
+          { id: 'legacy-a', name: 'Legacy A', templateIds: [original.id] },
+          { id: 'legacy-b', name: 'Legacy B', templateIds: [original.id] },
+        ],
+        activeCardSet: { id: 'legacy-a', name: 'Legacy A' },
+        storedCards: [
+          { uniqueId: 'legacy-card-a', setId: 'legacy-a', templateId: original.id, data: { title: 'A' } },
+          { uniqueId: 'legacy-card-b', setId: 'legacy-b', templateId: original.id, data: { title: 'B' } },
+        ],
+        appearanceStyles: [],
+      },
+    }));
+
+    await hydrateProjectWorkspaceForScope(migrationScope);
+    const persisted = JSON.parse(parseBrowserWorkspaceRecord((await savedStorage.getItem('workspace'))!).value) as {
+      version: number;
+      state: { userTemplates: Array<{ id: string; templateSource: string }>; storedCards: Array<{ uniqueId: string; templateId: string }> };
+    };
+    expect(persisted.version).toBe(7);
+    expect(persisted.state.userTemplates.find((template) => template.id === original.id)).toMatchObject(original);
+    const mappedIds = persisted.state.storedCards.map((card) => card.templateId);
+    expect(mappedIds[0]).not.toBe(original.id);
+    expect(mappedIds[1]).not.toBe(original.id);
+    expect(mappedIds[0]).not.toBe(mappedIds[1]);
+
+    await hydrateProjectWorkspaceForScope(`account:template-migration-away-${ordinal}`);
+    await hydrateProjectWorkspaceForScope(migrationScope);
+    expect(useProjectStore.getState().storedCards.filter((card) => card.uniqueId.startsWith('legacy-card-')).map((card) => card.templateId))
+      .toEqual(mappedIds);
+    expect(useProjectStore.getState().userTemplates.find((template) => template.id === original.id)?.templateSource).toBe('default');
   });
 
   it('does not apply the old account draft to a same-ID Set after switching accounts', async () => {

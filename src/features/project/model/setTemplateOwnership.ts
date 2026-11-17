@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid';
 
-import { authoredPlanValuesEqual, ensureCardSetTemplateReferences, type CardSet, type StoredDisplayCard } from '@/domain/cards';
+import { authoredPlanInputSurvives, authoredPlanValuesEqual, ensureCardSetTemplateReferences, type CardSet, type StoredDisplayCard } from '@/domain/cards';
 import { createPersonalTemplateFork, getAuthoredTemplatePayload, reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain/templates';
 
 export interface SetTemplateState {
@@ -66,10 +66,51 @@ const resolveOwner = (state: SetTemplateState, templateId: string, owners: Map<s
 /** References confer working ownership only after the versioned legacy conversion. */
 export const getTemplateOwnerSetId = (state: SetTemplateState, templateId: string): string | null => resolveOwner(state, templateId, indexOwners(state));
 
-const copyWorkingTemplate = (source: TCGCardTemplate, createId: () => string) => reconstructMinimalTemplateObject({
-  ...createPersonalTemplateFork(structuredClone(source), {}, createId),
+export const preserveReferencedTemplateIdentities = (
+  state: SetTemplateState,
+  incoming: TCGCardTemplate[],
+): TCGCardTemplate[] => {
+  const incomingById = new Map<string, TCGCardTemplate>();
+  for (const template of incoming) {
+    if (!template.id) continue;
+    const duplicate = incomingById.get(template.id);
+    if (duplicate && !authoredPlanValuesEqual(duplicate, template)) {
+      throw new SetTemplateOwnershipError('conflict', `Template ${template.id} has conflicting imported definitions. Resolve the source mapping before changing this workspace; existing work was kept.`);
+    }
+    incomingById.set(template.id, template);
+  }
+  const referencedIds = new Set([
+    ...state.cardSets.flatMap((set) => set.templateIds ?? []),
+    ...state.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
+  ].filter((id): id is string => Boolean(id)));
+  const currentById = new Map(state.userTemplates.flatMap((template) => template.id ? [[template.id, template] as const] : []));
+  for (const id of referencedIds) {
+    const current = currentById.get(id);
+    const replacement = incomingById.get(id);
+    if (!current) {
+      if (replacement) {
+        throw new SetTemplateOwnershipError('conflict', `Template ${id} is an unresolved historical reference. Reload or explicitly convert the source before adding a definition with that identity; existing work was kept.`);
+      }
+      continue;
+    }
+    if (replacement && !authoredPlanValuesEqual(current, replacement)) {
+      throw new SetTemplateOwnershipError('conflict', `Template ${id} is referenced by Set work. Save through that Set or install an independent copy; existing work was kept.`);
+    }
+    if (!replacement) incomingById.set(id, current);
+  }
+  return [...incomingById.values()];
+};
+
+const copyWorkingTemplate = (source: TCGCardTemplate, createId: () => string) => {
+  const canonicalSource = reconstructMinimalTemplateObject(structuredClone(source));
+  if (!authoredPlanInputSurvives(getAuthoredTemplatePayload(source), getAuthoredTemplatePayload(canonicalSource))) {
+    throw new SetTemplateOwnershipError('unavailable', `Template ${source.id ?? '(unknown)'} contains authored fields this CardForge version cannot preserve during Set acquisition. Export or revise it with a compatible version; its original work was kept.`);
+  }
+  return reconstructMinimalTemplateObject({
+  ...createPersonalTemplateFork(canonicalSource, {}, createId),
   templateContributorName: source.templateContributorName,
-});
+  });
+};
 
 export const prepareSetTemplateAcquisition = (
   state: SetTemplateState,

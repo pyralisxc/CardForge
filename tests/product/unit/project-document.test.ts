@@ -5,7 +5,7 @@ import type { PaperSize } from '@/domain/rendering';
 import type { CardAssetOption } from '@/features/pipeline/lib/cardAssets';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { createProjectDocumentFromState, applyProjectDocumentToState, instantiateProjectDocumentCopy, isolateProjectDocumentToSet, parseProjectDocumentFile, type ProjectDocumentV1 } from '@/features/project/client/package-document';
-import { materializeProjectTemplateOwnership } from '@/features/project/model/projectDocument';
+import { materializeProjectTemplateOwnership, parseProjectDocumentValue } from '@/features/project/model/projectDocument';
 
 const template: TCGCardTemplate = {
   id: 'user-template-1',
@@ -193,6 +193,31 @@ describe('project document serialization', () => {
       templateOriginRevisionId: 'front-r1',
       templateContributorName: 'Creator',
     });
+    expect(source).toEqual(original);
+  });
+
+  it('preserves opaque legacy Template fields until acquisition can refuse lossy conversion', () => {
+    const source = {
+      version: 2 as const,
+      userTemplates: [{ ...template, futureAuthoredData: { decision: 'keep', nested: ['authored'] } }],
+      cardSets: [{ id: 'opaque-set', name: 'Opaque', templateIds: [template.id!] }],
+      activeCardSetId: 'opaque-set',
+      storedCards: [],
+      appearanceStyles: [],
+      exportSettings: {},
+      customAssets: {
+        'cardforge-maker-custom-textures': [], 'cardforge-maker-custom-dividers': [],
+        'cardforge-maker-custom-icons': [], 'cardforge-maker-custom-images': [],
+      },
+    };
+    const original = structuredClone(source);
+    const parsed = parseProjectDocumentValue(source);
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect((parsed.document.userTemplates[0] as TCGCardTemplate & { futureAuthoredData?: unknown }).futureAuthoredData)
+      .toEqual({ decision: 'keep', nested: ['authored'] });
+    expect(() => materializeProjectTemplateOwnership(parsed.document)).toThrow(/cannot preserve during Set acquisition/i);
     expect(source).toEqual(original);
   });
 

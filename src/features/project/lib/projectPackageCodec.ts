@@ -284,6 +284,10 @@ const parseManifest = async (value: unknown): Promise<CardForgeProjectManifest> 
       && value.cardforgeProject !== LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION)) {
     throw new ProjectPackageError('Unsupported CardForge project package version.');
   }
+  if (value.cardforgeProject === CARDFORGE_PROJECT_PACKAGE_VERSION
+    && Object.keys(value).some((key) => !['cardforgeProject', 'name', 'projectRevision', 'savedAt', 'project', 'assets'].includes(key))) {
+    throw new ProjectPackageError('This v4 project manifest contains unsupported fields. The source was left unchanged.');
+  }
   const name = typeof value.name === 'string' ? normalizeProjectFileName(value.name) : '';
   const projectRevision = typeof value.projectRevision === 'string' ? value.projectRevision : '';
   const savedAt = typeof value.savedAt === 'string' ? value.savedAt : '';

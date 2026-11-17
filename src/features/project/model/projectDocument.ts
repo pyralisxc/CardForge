@@ -20,7 +20,7 @@ import {
   type ProjectProductionPlan,
 } from './projectProductionPlan';
 import { getProjectFontValue, remapProjectTemplateFonts, normalizeProjectFontAssets, type ProjectFontAsset } from './projectFont';
-import { assertSetTemplateOwnership, materializeLegacySetTemplates, prepareCardSetTemplateBindings } from './setTemplateOwnership';
+import { assertSetTemplateOwnership, materializeLegacySetTemplates, prepareCardSetTemplateBindings, SetTemplateOwnershipError } from './setTemplateOwnership';
 
 const PROJECT_DOCUMENT_VERSION = 3;
 
@@ -188,10 +188,30 @@ const getUnsupportedProjectDocumentReason = (value: unknown): string => {
   return 'Unsupported project document format. Import a CardForge project export.';
 };
 
-const normalizeTemplates = (value: unknown, preserveSource = false): TCGCardTemplate[] => (
+const retainRawAuthoredFields = (raw: unknown, normalized: unknown): unknown => {
+  if (Array.isArray(raw) && Array.isArray(normalized)) {
+    return [
+      ...normalized.map((entry, index) => retainRawAuthoredFields(raw[index], entry)),
+      ...raw.slice(normalized.length),
+    ];
+  }
+  if (isRecord(raw) && isRecord(normalized)) {
+    const result: Record<string, unknown> = { ...raw, ...normalized };
+    Object.keys(raw).forEach((key) => {
+      if (Object.hasOwn(normalized, key)) result[key] = retainRawAuthoredFields(raw[key], normalized[key]);
+    });
+    return result;
+  }
+  return normalized === undefined ? raw : normalized;
+};
+
+const normalizeTemplates = (value: unknown): TCGCardTemplate[] => (
   asArray<Partial<TCGCardTemplate>>(value)
     .filter(isLikelyTemplate)
-    .map((template) => reconstructMinimalTemplateObject({ ...template, templateSource: preserveSource ? template.templateSource : 'user' }))
+    .map((template) => retainRawAuthoredFields(
+      template,
+      reconstructMinimalTemplateObject({ ...template, templateSource: template.templateSource }),
+    ) as TCGCardTemplate)
 );
 
 const normalizeCustomAssets = (value: unknown): ProjectDocumentCustomAssets => {
@@ -272,7 +292,7 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     preferredId: typeof value.activeCardSetId === 'string' ? value.activeCardSetId : storedCards[0]?.setId,
   });
   const customFonts = normalizeProjectFontAssets(value.customFonts);
-  const userTemplates = normalizeTemplates(value.userTemplates, value.version === 3);
+  const userTemplates = normalizeTemplates(value.userTemplates);
   const appearanceStyles = asArray<AppearanceStylePreset>(value.appearanceStyles);
   const customAssets = normalizeCustomAssets(value.customAssets);
   const rawCustomAssets = isRecord(value.customAssets) ? value.customAssets : {};
@@ -340,7 +360,20 @@ export const materializeProjectTemplateOwnership = (document: ProjectDocument, c
     return { document, templateIdsBySet: new Map<string, Map<string, string>>() };
   }
   const converted = materializeLegacySetTemplates(document, createId);
-  return { document: { ...converted.state, version: PROJECT_DOCUMENT_VERSION } as ProjectDocument, templateIdsBySet: converted.templateIdsBySet };
+  const result = { ...converted.state, version: PROJECT_DOCUMENT_VERSION } as ProjectDocument;
+  const parsed = parseProjectDocumentValue(result);
+  if (!parsed.success) {
+    throw new SetTemplateOwnershipError('unavailable', `${parsed.error} The original document was left unchanged.`);
+  }
+  const validatedDocument = {
+    ...parsed.document,
+    userTemplates: [
+      ...document.userTemplates,
+      ...parsed.document.userTemplates.slice(document.userTemplates.length),
+    ],
+  };
+  assertSetTemplateOwnership(validatedDocument);
+  return { document: validatedDocument, templateIdsBySet: converted.templateIdsBySet };
 };
 
 export const prepareProjectDocumentCardBindings = (document: ProjectDocument, incoming: StoredDisplayCard[]): ProjectDocument => {
