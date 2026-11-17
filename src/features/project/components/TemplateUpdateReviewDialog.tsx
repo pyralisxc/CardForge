@@ -141,7 +141,7 @@ export function TemplateUpdateReviewDialog({ review, cards = [], renderPreview, 
           </details>
         </section>
         <section className="min-w-0 space-y-3 border-t p-4 sm:p-5 lg:border-l lg:border-t-0" aria-label="Choose changes">
-          <div className="flex items-center justify-between gap-3"><h3 className="font-medium">Choose what to bring in</h3><span className="text-xs text-muted-foreground">{review.changes.length} changes</span></div>
+          <div className="flex items-center justify-between gap-3"><h3 className="font-medium">Choose what to bring in</h3><span className="text-xs text-muted-foreground">{review.changes.length} {review.changes.length === 1 ? 'change' : 'changes'}</span></div>
           {groups.map(([group, changes], index) => {
             const active = activeGroup === group;
             const choiceSet = new Set(changes.map((change) => choices[change.key] ?? 'defer'));
