@@ -56,7 +56,7 @@ describe('Set-owned authoring context', () => {
       templateOriginRevisionId: source.userTemplates[0]!.templateRevisionId,
       templatePipelineContext: undefined,
     });
-    expect(prepared.document.version).toBe(3);
+    expect(prepared.document.version).toBe(4);
     expect(prepared.document.productionPlan).toEqual(source.productionPlan);
     expect(source.cardSets).toEqual([]);
   });
@@ -80,7 +80,7 @@ describe('Set-owned authoring context', () => {
 
   it('uses a forward-incompatible runtime boundary for context-bearing documents', () => {
     const document = documentWithContext();
-    expect(document.version).toBe(3);
+    expect(document.version).toBe(4);
     const parsed = parseProjectDocumentValue(JSON.parse(JSON.stringify(document)));
     expect(parsed.success).toBe(true);
     if (parsed.success) expect(parsed.document.cardSets[0].plan).toEqual(plan);

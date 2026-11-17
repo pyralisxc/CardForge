@@ -17,8 +17,8 @@ begin
     raise exception 'Native Set context was not preserved.';
   end if;
   begin
-    update public.cardforge_studio_documents set document_version = 4,
-      document_payload = '{"version":4}'::jsonb where id = doc;
+    update public.cardforge_studio_documents set document_version = 5,
+      document_payload = '{"version":5}'::jsonb where id = doc;
     raise exception 'Unsupported document version was accepted.';
   exception when check_violation then null;
   end;

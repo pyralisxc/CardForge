@@ -63,7 +63,7 @@ describe('Set context native lifecycle', () => {
   it('leaves future-version browser work byte-for-byte unchanged and refuses hydration', async () => {
     const futureScope = `account:future-${ordinal}` as const;
     const futureStorage = createBrowserKeyValueStorage(`project-workspace:${futureScope}`);
-    const saved = JSON.stringify({ version: 8, state: { cardSets: [{ id: 'future', name: 'Future Set', plan: original }], futureAuthoredData: { keep: ['all bytes'] } } });
+    const saved = JSON.stringify({ version: 9, state: { cardSets: [{ id: 'future', name: 'Future Set', plan: original }], futureAuthoredData: { keep: ['all bytes'] } } });
     await futureStorage.setItem('workspace', saved);
     await expect(hydrateProjectWorkspaceForScope(futureScope)).rejects.toThrow(/newer CardForge version/i);
     expect(await futureStorage.getItem('workspace')).toBe(saved);
@@ -102,7 +102,7 @@ describe('Set context native lifecycle', () => {
       version: number;
       state: { userTemplates: Array<{ id: string; templateSource: string }>; storedCards: Array<{ uniqueId: string; templateId: string }> };
     };
-    expect(persisted.version).toBe(7);
+    expect(persisted.version).toBe(8);
     expect(persisted.state.userTemplates.find((template) => template.id === original.id)).toMatchObject(original);
     const mappedIds = persisted.state.storedCards.map((card) => card.templateId);
     expect(mappedIds[0]).not.toBe(original.id);
@@ -270,7 +270,7 @@ describe('Set context native lifecycle', () => {
   });
 
   it.each([
-    { version: 8, plan: original },
+    { version: 9, plan: original },
     { version: 6, plan: { version: 99, context: 'Future context' } },
   ])('leaves unsupported retained signed-out work and account bytes unchanged (%j)', async ({ version, plan }) => {
     const guest = createBrowserKeyValueStorage('project-workspace:guest');
