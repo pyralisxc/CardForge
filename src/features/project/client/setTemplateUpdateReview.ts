@@ -36,7 +36,7 @@ export const commitSetTemplateUpdateReview = async (
   if (comparison.persistenceScope !== getProjectPersistenceScope()) throw new Error('The active account changed. Reopen the review; nothing was applied.');
   const source = selectAllTemplates(initialState).find((template) => template.id === comparison.incoming.id);
   if (!source) throw new Error('The source snapshot is unavailable. Nothing was changed.');
-  const bytes = new TextEncoder().encode(templateUpdateContentText(source));
+  const bytes = new TextEncoder().encode(templateUpdateContentText(comparison.incoming));
   const sourceFingerprint = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (byte) => byte.toString(16).padStart(2, '0')).join('');
   signal?.throwIfAborted();
   if (comparison.persistenceScope !== getProjectPersistenceScope()) throw new Error('The active account changed. Reopen the review; nothing was applied.');
