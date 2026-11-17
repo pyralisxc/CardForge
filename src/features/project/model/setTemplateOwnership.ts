@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid';
 
-import { authoredPlanInputSurvives, authoredPlanValuesEqual, ensureCardSetTemplateReferences, type CardSet, type StoredDisplayCard } from '@/domain/cards';
+import { authoredPlanInputSurvives, authoredPlanValuesEqual, ensureCardSetTemplateReferences, type CardSet, type SetUpdateReview, type StoredDisplayCard } from '@/domain/cards';
 import { createPersonalTemplateFork, getAuthoredTemplatePayload, reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain/templates';
 
 export interface SetTemplateState {
@@ -65,6 +65,30 @@ const resolveOwner = (state: SetTemplateState, templateId: string, owners: Map<s
 
 /** References confer working ownership only after the versioned legacy conversion. */
 export const getTemplateOwnerSetId = (state: SetTemplateState, templateId: string): string | null => resolveOwner(state, templateId, indexOwners(state));
+
+export const inheritCompletedSetUpdateReviews = (
+  cardSets: CardSet[],
+  sourceSetId: string | null,
+  sourceTemplateId: string,
+  destinationSetId: string,
+  destinationTemplateId: string,
+): CardSet[] => {
+  if (sourceTemplateId === destinationTemplateId) return cardSets;
+  const inherited = cardSets.find((set) => set.id === sourceSetId)?.updateReviews
+    ?.filter((review) => review.templateId === sourceTemplateId && review.outcome === 'reviewed') ?? [];
+  if (!inherited.length) return cardSets;
+  return cardSets.map((set) => {
+    if (set.id !== destinationSetId) return set;
+    const bySource = new Map((set.updateReviews ?? []).map((review) => [
+      JSON.stringify([review.templateId, review.sourceLineageId, review.sourceRevisionId]), review,
+    ]));
+    inherited.forEach((review) => {
+      const copied: SetUpdateReview = { ...structuredClone(review), templateId: destinationTemplateId };
+      bySource.set(JSON.stringify([copied.templateId, copied.sourceLineageId, copied.sourceRevisionId]), copied);
+    });
+    return { ...set, updateReviews: [...bySource.values()] };
+  });
+};
 
 export const preserveReferencedTemplateIdentities = (
   state: SetTemplateState,
@@ -161,11 +185,17 @@ export const prepareCardSetTemplateBindings = (
     requested.set(setId, ids);
   }
   let userTemplates = state.userTemplates;
+  let cardSets = state.cardSets;
   const templateIdsBySet = new Map<string, Map<string, string>>();
   for (const [setId, ids] of requested) {
     const acquired = prepareSetTemplateAcquisition({ ...state, userTemplates }, setId, [...ids], availableTemplates);
     userTemplates = acquired.userTemplates;
     templateIdsBySet.set(setId, acquired.templateIds);
+    acquired.templateIds.forEach((destinationTemplateId, sourceTemplateId) => {
+      cardSets = inheritCompletedSetUpdateReviews(
+        cardSets, getTemplateOwnerSetId(state, sourceTemplateId), sourceTemplateId, setId, destinationTemplateId,
+      );
+    });
   }
   const cards = storedCards.map((card) => {
     if (!changedBindings.has(card.uniqueId)) return card;
@@ -176,9 +206,9 @@ export const prepareCardSetTemplateBindings = (
       backingTemplateId: card.backingTemplateId ? mapping?.get(card.backingTemplateId) ?? card.backingTemplateId : card.backingTemplateId,
     };
   });
-  const preparedSets = ensureCardSetTemplateReferences({ cardSets: state.cardSets, storedCards: state.storedCards });
-  const cardSets = ensureCardSetTemplateReferences({ cardSets: preparedSets, storedCards: cards });
-  return { userTemplates, storedCards: cards, cardSets, templateIdsBySet };
+  const preparedSets = ensureCardSetTemplateReferences({ cardSets, storedCards: state.storedCards });
+  const completedSets = ensureCardSetTemplateReferences({ cardSets: preparedSets, storedCards: cards });
+  return { userTemplates, storedCards: cards, cardSets: completedSets, templateIdsBySet };
 };
 
 /** Only persisted definitions establish a legacy snapshot; current catalog content is not historical evidence. */

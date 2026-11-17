@@ -114,7 +114,7 @@ export const prepareTemplateDocumentSet = (
     templateIds: working.id ? [working.id] : [],
   };
   return {
-    document: { ...document, version: 3, userTemplates: [...document.userTemplates, working], cardSets: [set], activeCardSetId: id },
+    document: { ...document, version: 4, userTemplates: [...document.userTemplates, working], cardSets: [set], activeCardSetId: id },
     contextKept: Boolean(existing?.plan),
   };
 };

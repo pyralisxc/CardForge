@@ -1,4 +1,5 @@
 import type { SetPlan } from './setPlan';
+import type { SetUpdateReview } from './setUpdateReview';
 
 export type CardFace = 'front' | 'back';
 
@@ -73,11 +74,10 @@ export interface CardSet {
   id: string;
   name: string;
   plan?: SetPlan;
+  updateReviews?: SetUpdateReview[];
   /**
-   * Reusable Templates intentionally participating in this Set. The Set
-   * references these identities but does not own or clone them. This lets a
-   * creator prepare designs before generating the first Artifact and lets a
-   * portable Set snapshot include those exact design dependencies.
+   * Set-owned working Templates prepared for or used by this Set's Artifacts.
+   * Reusable source definitions remain separate from these working identities.
    */
   templateIds?: string[];
   organization?: CardSetOrganization;

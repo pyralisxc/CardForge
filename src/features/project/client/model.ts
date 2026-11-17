@@ -2,7 +2,7 @@ export {
   createProjectDocumentFromState,
   parseProjectDocumentValue,
 } from '../model/projectDocument';
-export type { ProjectDocumentV1 } from '../model/projectDocument';
+export type { ProjectDocumentV1, ProjectDocumentV4 } from '../model/projectDocument';
 export {
   PROJECT_ASSET_BINDINGS,
   PROJECT_ASSET_REQUIREMENT_KINDS,

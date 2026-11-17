@@ -22,7 +22,7 @@ import {
 import { getProjectFontValue, remapProjectTemplateFonts, normalizeProjectFontAssets, type ProjectFontAsset } from './projectFont';
 import { assertSetTemplateOwnership, materializeLegacySetTemplates, prepareCardSetTemplateBindings, SetTemplateOwnershipError } from './setTemplateOwnership';
 
-const PROJECT_DOCUMENT_VERSION = 3;
+const PROJECT_DOCUMENT_VERSION = 4;
 const PROJECT_DOCUMENT_ROOT_FIELDS = [
   'version', 'userTemplates', 'cardSets', 'activeCardSetId', 'storedCards', 'appearanceStyles',
   'exportSettings', 'customAssets', 'customFonts', 'productionPlan', 'mcpOperationReceipts',
@@ -65,7 +65,7 @@ export interface ProjectDocumentMcpOperationReceipt {
 }
 
 export interface ProjectDocument {
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   userTemplates: TCGCardTemplate[];
   cardSets: CardSet[];
   activeCardSetId?: string;
@@ -78,8 +78,9 @@ export interface ProjectDocument {
   mcpOperationReceipts?: ProjectDocumentMcpOperationReceipt[];
 }
 
-/** Compatibility type name; current documents carry v3 Set ownership. */
+/** Compatibility type name for runtime project documents across supported versions. */
 export type ProjectDocumentV1 = ProjectDocument;
+export type ProjectDocumentV4 = Omit<ProjectDocument, 'version'> & { version: 4 };
 
 export interface CreateProjectDocumentInput extends ProjectDocumentExportSettings {
   userTemplates: TCGCardTemplate[];
@@ -284,8 +285,8 @@ const normalizeMcpOperationReceipts = (value: unknown): ProjectDocumentMcpOperat
 };
 
 const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
-  if (!isRecord(value) || (value.version !== 1 && value.version !== 2 && value.version !== 3)) return null;
-  if (value.version === 3 && (!Array.isArray(value.userTemplates)
+  if (!isRecord(value) || (value.version !== 1 && value.version !== 2 && value.version !== 3 && value.version !== 4)) return null;
+  if (value.version >= 3 && (!Array.isArray(value.userTemplates)
     || !Array.isArray(value.cardSets)
     || !Array.isArray(value.storedCards)
     || !Array.isArray(value.appearanceStyles)
@@ -293,16 +294,20 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     || !isRecord(value.customAssets))) {
     throw new Error('The Set-owned document is incomplete. Its source was left unchanged.');
   }
-  if (value.version === 3 && Object.keys(value).some((key) => !isProjectDocumentRootField(key))) {
+  if (value.version >= 3 && Object.keys(value).some((key) => !isProjectDocumentRootField(key))) {
     throw new Error('The Set-owned document contains unsupported creative fields. Its source was left unchanged.');
   }
-  if (value.version === 3 && Object.keys(value.exportSettings as Record<string, unknown>).some((key) => ![
+  if (value.version >= 3 && Object.keys(value.exportSettings as Record<string, unknown>).some((key) => ![
     'selectedPaperSize', 'pdfMarginMm', 'pdfCardSpacingMm', 'pdfIncludeCutLines',
     'pdfDuplexLayout', 'exportMode', 'exportDpi',
   ].includes(key))) {
     throw new Error('The Set-owned document contains unsupported export settings. Its source was left unchanged.');
   }
   if (!Array.isArray(value.userTemplates) && !Array.isArray(value.storedCards) && !Array.isArray(value.appearanceStyles)) return null;
+  if (value.version < 4 && Array.isArray(value.cardSets)
+    && value.cardSets.some((set) => isRecord(set) && Object.hasOwn(set, 'updateReviews'))) {
+    throw new Error('Set Update Reviews require a v4 document. Its source was left unchanged.');
+  }
 
   const storedCards = asArray<StoredDisplayCard>(value.storedCards);
   const cardSets = reconcileCardSets({
@@ -314,7 +319,7 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     preferredId: typeof value.activeCardSetId === 'string' ? value.activeCardSetId : storedCards[0]?.setId,
   });
   const customFonts = normalizeProjectFontAssets(value.customFonts);
-  const userTemplates = normalizeTemplates(value.userTemplates, value.version !== 3);
+  const userTemplates = normalizeTemplates(value.userTemplates, value.version < 3);
   const appearanceStyles = asArray<AppearanceStylePreset>(value.appearanceStyles);
   const customAssets = normalizeCustomAssets(value.customAssets);
   const rawCustomAssets = isRecord(value.customAssets) ? value.customAssets : {};
@@ -323,7 +328,7 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     throw new Error('The document contains an unsupported creation brief. Its source was left unchanged.');
   }
   const mcpOperationReceipts = normalizeMcpOperationReceipts(value.mcpOperationReceipts);
-  if (value.version === 3) {
+  if (value.version >= 3) {
     if (value.activeCardSetId !== undefined && value.activeCardSetId !== null
       && (typeof value.activeCardSetId !== 'string' || activeCardSet?.id !== value.activeCardSetId)) {
       throw new Error('The Set-owned document names an unavailable active Set. Its source was left unchanged.');
@@ -359,7 +364,7 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     }
   }
 
-  const legacyOpaqueRootFields = value.version === 3
+  const legacyOpaqueRootFields = value.version >= 3
     ? {}
     : Object.fromEntries(Object.entries(value).filter(([key]) => !isProjectDocumentRootField(key)));
   const document: ProjectDocument = {
@@ -376,12 +381,12 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     ...(productionPlan ? { productionPlan } : {}),
     ...(mcpOperationReceipts ? { mcpOperationReceipts } : {}),
   };
-  if (document.version === 3) assertSetTemplateOwnership(document);
+  if (document.version >= 3) assertSetTemplateOwnership(document);
   return document;
 };
 
 export const materializeProjectTemplateOwnership = (document: ProjectDocument, createId?: () => string) => {
-  if (document.version === 3) {
+  if (document.version >= 3) {
     assertSetTemplateOwnership(document);
     return { document, templateIdsBySet: new Map<string, Map<string, string>>() };
   }
@@ -493,7 +498,7 @@ export const materializeSetPlanOwnership = (document: ProjectDocumentV1): Projec
   const { productionPlan, ...project } = document;
   return {
     ...project,
-    version: project.version === 3 ? 3 : 2,
+    version: project.version >= 3 ? project.version : 2,
     cardSets: [{ ...owner, plan: normalizeSetPlan({ ...owner.plan, version: 1, context: owner.plan?.context ?? '', brief: productionPlan }) }],
   };
 };
@@ -624,6 +629,10 @@ export const instantiateProjectDocumentCopy = (
       ...(set.plan ? { plan: { ...structuredClone(set.plan), ...(set.plan.brief ? { brief: copyBrief(set.plan.brief) } : {}) } } : {}),
       id: setIds.get(set.id)!,
       ...(set.templateIds ? { templateIds: set.templateIds.map((id) => remapTemplateId(id) ?? id) } : {}),
+      ...(set.updateReviews ? { updateReviews: set.updateReviews.map((review) => ({
+        ...structuredClone(review),
+        templateId: remapTemplateId(review.templateId) ?? review.templateId,
+      })) } : {}),
       ...(set.organization ? { organization: {
         ...set.organization,
         tags: set.organization.tags.map((tag) => ({ ...tag, id: tagIds.get(`${set.id}:${tag.id}`)! })),
@@ -667,7 +676,8 @@ export const instantiateProjectDocumentCopy = (
 };
 
 export const parseProjectDocumentValue = (parsed: unknown): ParseProjectDocumentResult => {
-  if (isRecord(parsed) && Object.hasOwn(parsed, 'version') && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3) {
+  if (isRecord(parsed) && Object.hasOwn(parsed, 'version')
+    && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3 && parsed.version !== 4) {
     const reason = getUnsupportedProjectDocumentReason(parsed);
     const error = reason.startsWith('Unsupported project document format')
       ? 'Unsupported project document version. The source was left unchanged.'
@@ -678,7 +688,7 @@ export const parseProjectDocumentValue = (parsed: unknown): ParseProjectDocument
     && parsed.cardSets.some((set) => isRecord(set) && set.plan !== undefined)) {
     return { success: false, error: 'Set context requires a newer project document version. The source was left unchanged.' };
   }
-  if (isRecord(parsed) && (parsed.version === 1 || parsed.version === 2 || parsed.version === 3)) {
+  if (isRecord(parsed) && (parsed.version === 1 || parsed.version === 2 || parsed.version === 3 || parsed.version === 4)) {
     const invalidTemplateReason = getInvalidTemplateReason(parsed.userTemplates);
     if (invalidTemplateReason) {
       return {

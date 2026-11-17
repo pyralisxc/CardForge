@@ -12,7 +12,7 @@ export {
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
 } from './model/projectDocument';
-export type { ProjectDocumentMcpOperationReceipt, ProjectDocumentV1, ProjectDocument } from './model/projectDocument';
+export type { ProjectDocumentMcpOperationReceipt, ProjectDocumentV1, ProjectDocumentV4, ProjectDocument } from './model/projectDocument';
 export { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from './model/projectAssetTraversal';
 export { assertSetTemplateOwnership, assertSetTemplateOwnershipTransition, getTemplateOwnerSetId, SetTemplateOwnershipError } from './model/setTemplateOwnership';
 export {
@@ -31,6 +31,7 @@ export {
   CARDFORGE_PROJECT_FILE_EXTENSION,
   CARDFORGE_PROJECT_MANIFEST_FILE,
   CARDFORGE_PROJECT_PACKAGE_VERSION,
+  SET_OWNERSHIP_CARDFORGE_PROJECT_PACKAGE_VERSION,
   CONTEXT_CARDFORGE_PROJECT_PACKAGE_VERSION,
   ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION,
   LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION,
@@ -52,12 +53,15 @@ export type {
   CardForgeProjectManifestV2,
   CardForgeProjectManifestV3,
   CardForgeProjectManifestV4,
+  CardForgeProjectManifestV5,
   CardForgeProjectPackageSnapshot,
   CardForgeProjectPackageSnapshotV2,
   CardForgeProjectPackageSnapshotV3,
   CardForgeProjectPackageSnapshotV4,
+  CardForgeProjectPackageSnapshotV5,
   PortableProjectDocumentV2,
   PortableProjectDocumentV3,
+  PortableProjectDocumentV4,
   ProjectPackageAssetDescriptor,
   ProjectPackageAssetMimeType,
   ProjectSourceDescriptor,

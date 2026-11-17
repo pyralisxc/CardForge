@@ -1,9 +1,11 @@
 import type { AuthoredArtifact } from '@/domain/artifacts';
+import type { CardSet } from '@/domain/cards';
 
 import type { ProjectDocumentV1 } from './projectDocument';
 export type { ProjectDocumentV1 } from './projectDocument';
 
-export const CARDFORGE_PROJECT_PACKAGE_VERSION = 4 as const;
+export const CARDFORGE_PROJECT_PACKAGE_VERSION = 5 as const;
+export const SET_OWNERSHIP_CARDFORGE_PROJECT_PACKAGE_VERSION = 4 as const;
 export const CONTEXT_CARDFORGE_PROJECT_PACKAGE_VERSION = 3 as const;
 export const ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION = 2 as const;
 export const LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION = 1 as const;
@@ -68,7 +70,10 @@ export interface CardForgeProjectManifestV1 {
   name: string;
   projectRevision: string;
   savedAt: string;
-  project: ProjectDocumentV1;
+  project: Omit<ProjectDocumentV1, 'version' | 'cardSets'> & {
+    version: 1 | 2;
+    cardSets: Array<Omit<CardSet, 'updateReviews'>>;
+  };
   assets: ProjectPackageAssetDescriptor[];
 }
 
@@ -77,8 +82,9 @@ export interface CardForgeProjectManifestV1 {
  * remains the runtime compatibility boundary while Cards are the only shipped
  * Artifact type.
  */
-export interface PortableProjectDocumentV2 extends Omit<ProjectDocumentV1, 'version' | 'storedCards'> {
+export interface PortableProjectDocumentV2 extends Omit<ProjectDocumentV1, 'version' | 'storedCards' | 'cardSets'> {
   version: 2;
+  cardSets: Array<Omit<CardSet, 'updateReviews'>>;
   artifacts: AuthoredArtifact[];
 }
 
@@ -100,11 +106,26 @@ export interface PortableProjectDocumentV3 extends Omit<PortableProjectDocumentV
 }
 
 export interface CardForgeProjectManifestV4 extends Omit<CardForgeProjectManifestV3, 'cardforgeProject' | 'project'> {
-  cardforgeProject: typeof CARDFORGE_PROJECT_PACKAGE_VERSION;
+  cardforgeProject: typeof SET_OWNERSHIP_CARDFORGE_PROJECT_PACKAGE_VERSION;
   project: PortableProjectDocumentV3;
 }
 
-export type CardForgeProjectManifest = CardForgeProjectManifestV1 | CardForgeProjectManifestV2 | CardForgeProjectManifestV3 | CardForgeProjectManifestV4;
+export interface PortableProjectDocumentV4 extends Omit<PortableProjectDocumentV3, 'version' | 'cardSets'> {
+  version: 4;
+  cardSets: CardSet[];
+}
+
+export interface CardForgeProjectManifestV5 extends Omit<CardForgeProjectManifestV4, 'cardforgeProject' | 'project'> {
+  cardforgeProject: typeof CARDFORGE_PROJECT_PACKAGE_VERSION;
+  project: PortableProjectDocumentV4;
+}
+
+export type CardForgeProjectManifest =
+  | CardForgeProjectManifestV1
+  | CardForgeProjectManifestV2
+  | CardForgeProjectManifestV3
+  | CardForgeProjectManifestV4
+  | CardForgeProjectManifestV5;
 
 export interface CardForgeProjectPackageSnapshot {
   manifest: CardForgeProjectManifest;
@@ -121,6 +142,10 @@ export interface CardForgeProjectPackageSnapshotV3 extends CardForgeProjectPacka
 
 export interface CardForgeProjectPackageSnapshotV4 extends CardForgeProjectPackageSnapshot {
   manifest: CardForgeProjectManifestV4;
+}
+
+export interface CardForgeProjectPackageSnapshotV5 extends CardForgeProjectPackageSnapshot {
+  manifest: CardForgeProjectManifestV5;
 }
 
 export type ProjectSourceProvider = 'browser' | 'local-folder' | 'google-drive';

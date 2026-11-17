@@ -59,6 +59,10 @@ export const mapProjectDocumentIdentity = (
     id: map('set', set.id),
     ...(set.plan ? { plan: { ...structuredClone(set.plan), ...(set.plan.brief ? { brief: mapBrief(set.plan.brief) } : {}) } } : {}),
     ...(set.templateIds ? { templateIds: set.templateIds.map((id) => reference('template', id) ?? id) } : {}),
+    ...(set.updateReviews ? { updateReviews: set.updateReviews.map((review) => ({
+      ...structuredClone(review),
+      templateId: reference('template', review.templateId) ?? review.templateId,
+    })) } : {}),
     ...(set.organization ? { organization: {
       ...set.organization,
       positions: Object.fromEntries(Object.entries(set.organization.positions).map(([id, position]) => [cardIds.get(id) ?? id, position])),

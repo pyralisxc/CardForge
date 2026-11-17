@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CardAssetOption } from '@/domain/templates';
+import { reconstructMinimalTemplateObject, type CardAssetOption } from '@/domain/templates';
 import { applyProjectDocumentToWorkspace, captureCurrentProjectDocument, cleanCurrentWorkspaceCompletedDeletions, rekeyConflictingTemplateSnapshots } from '@/features/project/client/projectWorkspaceDocument';
+import { commitSetTemplateUpdateReview, openSetTemplateUpdateReview } from '@/features/project/client/setTemplateUpdateReview';
 import { createProjectWorkspaceDraft, hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProjectStore } from '@/features/project/store/workspaceStore';
 import { createBrowserKeyValueStorage } from '@/features/project/persistence/indexedDbStorage';
 import { getScopedProjectStorageNamespace, restoreBrowserWorkspaceRecovery } from '@/features/project/persistence/projectPersistenceScope';
@@ -31,6 +32,31 @@ const prepareDraft = () => {
       expectedValue: null,
     }],
   };
+};
+const prepareTemplateUpdateReview = () => {
+  const current = reconstructMinimalTemplateObject({
+    id: 'working-template', name: 'Current design', aspectRatio: '63:88', templateSource: 'user',
+    templateLibrarySource: 'personal', templateLineageId: 'working-lineage', templateRevision: 1,
+    templateRevisionId: 'working-revision-1', freeformCanvas: { width: 630, height: 880, elements: [] },
+  });
+  const source = reconstructMinimalTemplateObject({
+    id: 'source-template', name: 'Updated design', aspectRatio: '63:88', templateSource: 'user',
+    templateLibrarySource: 'personal', templateLineageId: 'working-lineage', templateRevision: 2,
+    templateRevisionId: 'source-revision-2', templateParentRevisionId: 'working-revision-1',
+    freeformCanvas: { width: 630, height: 880, elements: [] },
+  });
+  const other = reconstructMinimalTemplateObject({
+    id: 'other-template', name: 'Other Set design', aspectRatio: '63:88', templateSource: 'user',
+    templateLibrarySource: 'personal', templateLineageId: 'other-lineage', templateRevision: 1,
+    templateRevisionId: 'other-revision-1', freeformCanvas: { width: 630, height: 880, elements: [] },
+  });
+  const set = { id: 'review-set', name: 'Review Set', templateIds: [current.id!] };
+  const otherSet = { id: 'other-set', name: 'Other Set', templateIds: [other.id!] };
+  useProjectStore.setState({
+    cardSets: [set, otherSet], activeCardSet: set, storedCards: [],
+    userTemplates: [current, source, other], defaultTemplates: [],
+  });
+  return { set, current, source, other, otherSet };
 };
 describe('atomic project apply', () => {
   beforeEach(async () => {
@@ -74,7 +100,9 @@ describe('atomic project apply', () => {
     const assets = createBrowserKeyValueStorage(`project-assets:${scope}`);
     const before = (await raw.getItem('workspace'))!;
     await applyProjectDocumentToWorkspace(fixture(), 'replace');
-    expect(parseBrowserWorkspaceRecord((await raw.getItem('workspace'))!).revision).toBe(parseBrowserWorkspaceRecord(before).revision + 1);
+    const savedWorkspace = (await raw.getItem('workspace'))!;
+    expect(parseBrowserWorkspaceRecord(savedWorkspace).revision).toBe(parseBrowserWorkspaceRecord(before).revision + 1);
+    expect(JSON.parse(parseBrowserWorkspaceRecord(savedWorkspace).value).version).toBe(8);
     expect(await raw.getItem('__recovery__:workspace')).toBe(before);
     expect(await assets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).toContain('fixture-image');
     await restoreBrowserWorkspaceRecovery('previous');
@@ -164,6 +192,12 @@ describe('atomic project apply', () => {
     const sourceId = sourceTemplate.id!;
     const setId = incoming.cardSets[0]!.id;
     incoming.cardSets[0]!.templateIds = [sourceId];
+    const review = {
+      version: 1 as const, templateId: sourceId, sourceLineageId: 'incoming-lineage',
+      sourceRevisionId: 'incoming-r4', sourceFingerprint: 'a'.repeat(64),
+      outcome: 'reviewed' as const, decisions: [{ key: 'name', decision: 'keep' as const }],
+    };
+    incoming.cardSets[0]!.updateReviews = [review];
     incoming.storedCards = [{ ...incoming.storedCards[0]!, uniqueId: 'merge-card', setId, templateId: sourceId, backingTemplateId: sourceId }];
     const localCollision = {
       ...structuredClone(sourceTemplate),
@@ -188,6 +222,7 @@ describe('atomic project apply', () => {
       ],
     });
     expect(result.cardSets[0]!.templateIds).toEqual([nextId]);
+    expect(result.cardSets[0]!.updateReviews).toEqual([{ ...review, templateId: nextId }]);
     expect(result.storedCards[0]).toMatchObject({ uniqueId: 'merge-card', templateId: nextId, backingTemplateId: nextId });
     expect(incoming.userTemplates[0]!.id).toBe(sourceId);
   });
@@ -231,6 +266,21 @@ describe('atomic project apply', () => {
     expect(useProjectStore.getState()).toBe(beforeState);
     expect(await storage.getItem('workspace')).toBe(beforeBytes);
     expect(incoming).toEqual(originalInput);
+
+    const reviewOnlyReference = structuredClone(incoming);
+    reviewOnlyReference.cardSets[0]!.templateIds = [];
+    reviewOnlyReference.cardSets[0]!.updateReviews = [{
+      version: 1, templateId: 'front-local', sourceLineageId: 'source-lineage',
+      sourceRevisionId: 'source-revision', sourceFingerprint: 'b'.repeat(64),
+      outcome: 'reviewed', decisions: [{ key: 'name', decision: 'keep' }],
+    }];
+    reviewOnlyReference.storedCards = [];
+    await expect(applyProjectDocumentToWorkspace(reviewOnlyReference, 'merge')).rejects.toMatchObject({
+      name: 'SetTemplateOwnershipError',
+      kind: 'conflict',
+    });
+    expect(useProjectStore.getState()).toBe(beforeState);
+    expect(await storage.getItem('workspace')).toBe(beforeBytes);
 
     const deferred = structuredClone(incoming);
     deferred.cardSets[0]!.templateIds = ['unresolved-historical-template'];
@@ -319,6 +369,13 @@ describe('atomic project apply', () => {
 
   it('adopts an agent revision in place, removes deleted cards, and preserves output preferences', async () => {
     const initial = fixture();
+    initial.version = 4;
+    const review = {
+      version: 1 as const, templateId: initial.userTemplates[0]!.id!, sourceLineageId: 'source-lineage',
+      sourceRevisionId: 'source-revision', sourceFingerprint: 'e'.repeat(64), outcome: 'reviewed' as const,
+      decisions: [{ key: 'name', decision: 'keep' as const }],
+    };
+    initial.cardSets[0] = { ...initial.cardSets[0]!, updateReviews: [review] };
     await applyProjectDocumentToWorkspace(initial, 'replace');
     const setId = useProjectStore.getState().cardSets[0]!.id;
     const templateId = useProjectStore.getState().userTemplates[0]!.id!;
@@ -343,6 +400,108 @@ describe('atomic project apply', () => {
     expect(current.userTemplates.find((template) => template.id === templateId)?.name).toBe('Updated Template');
     expect(current.storedCards.filter((card) => card.setId === setId).map((card) => card.uniqueId)).toEqual([firstCardId]);
     expect(current.exportDpi).toBe(150);
+    expect(current.cardSets.find((set) => set.id === setId)?.updateReviews).toEqual([review]);
+  });
+
+  it('refuses an agent revision with a different Set Update Review ledger atomically', async () => {
+    const initial = fixture();
+    initial.version = 4;
+    const review = {
+      version: 1 as const, templateId: initial.userTemplates[0]!.id!, sourceLineageId: 'source-lineage',
+      sourceRevisionId: 'source-revision', sourceFingerprint: 'f'.repeat(64), outcome: 'reviewed' as const,
+      decisions: [{ key: 'name', decision: 'keep' as const }],
+    };
+    initial.cardSets[0] = { ...initial.cardSets[0]!, updateReviews: [review] };
+    await applyProjectDocumentToWorkspace(initial, 'replace');
+    const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
+    const beforeBytes = await raw.getItem('workspace');
+    const beforeState = useProjectStore.getState();
+    const revision = structuredClone(initial);
+    revision.cardSets[0]!.updateReviews = [{ ...review, sourceFingerprint: 'a'.repeat(64) }];
+
+    await expect(applyProjectDocumentToWorkspace(revision, 'adopt', { expectedState: beforeState }))
+      .rejects.toThrow(/different Set Update Review records/);
+    expect(useProjectStore.getState()).toBe(beforeState);
+    expect(await raw.getItem('workspace')).toBe(beforeBytes);
+  });
+
+  it('preserves the existing review ledger when merging an older Set snapshot without one', async () => {
+    const initial = fixture();
+    initial.version = 4;
+    const review = {
+      version: 1 as const, templateId: initial.userTemplates[0]!.id!, sourceLineageId: 'source-lineage',
+      sourceRevisionId: 'source-revision', sourceFingerprint: '9'.repeat(64), outcome: 'reviewed' as const,
+      decisions: [{ key: 'name', decision: 'keep' as const }],
+    };
+    initial.cardSets[0] = { ...initial.cardSets[0]!, updateReviews: [review] };
+    await applyProjectDocumentToWorkspace(initial, 'replace');
+    const setId = useProjectStore.getState().cardSets[0]!.id;
+    const older = fixture();
+    older.version = 3;
+    older.cardSets = [{ id: setId, name: 'Older import' }];
+    older.userTemplates = [];
+    older.storedCards = [];
+
+    await applyProjectDocumentToWorkspace(older, 'merge');
+
+    expect(useProjectStore.getState().cardSets.find((set) => set.id === setId)?.updateReviews).toEqual([review]);
+    const preserved = useProjectStore.getState();
+    expect(() => preserved.mergeCardSetsFromFiles([{
+      id: setId, name: 'Conflicting import', updateReviews: [{ ...review, sourceFingerprint: '0'.repeat(64) }],
+    }])).toThrow(/conflicting Update Review record/i);
+    expect(useProjectStore.getState()).toBe(preserved);
+  });
+
+  it('commits accepted Template content and its review ledger under one native revision parent', async () => {
+    const { set, current, source, other, otherSet } = prepareTemplateUpdateReview();
+    await persistProjectWorkspaceNow();
+    const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
+    const beforeBytes = (await raw.getItem('workspace'))!;
+    const beforeRevision = parseBrowserWorkspaceRecord(beforeBytes).revision;
+    const comparison = openSetTemplateUpdateReview(set.id, current.id!, source.id!);
+    const choices = Object.fromEntries(comparison.changes.map((change) => [change.key, 'use' as const]));
+
+    await commitSetTemplateUpdateReview(comparison, choices);
+
+    const after = useProjectStore.getState();
+    const updated = after.userTemplates.find((template) => template.id === current.id)!;
+    expect(updated).toMatchObject({
+      name: source.name, templateLineageId: current.templateLineageId,
+      templateParentRevisionId: current.templateRevisionId, templateRevision: 2,
+    });
+    expect(updated.templateRevisionId).not.toBe(current.templateRevisionId);
+    expect(after.userTemplates.find((template) => template.id === source.id)).toEqual(source);
+    expect(after.userTemplates.find((template) => template.id === other.id)).toEqual(other);
+    expect(after.cardSets.find((candidate) => candidate.id === otherSet.id)).toEqual(otherSet);
+    expect(after.cardSets.find((candidate) => candidate.id === set.id)?.updateReviews).toMatchObject([{
+      templateId: current.id, sourceLineageId: source.templateLineageId,
+      sourceRevisionId: source.templateRevisionId, outcome: 'reviewed',
+    }]);
+    expect(parseBrowserWorkspaceRecord((await raw.getItem('workspace'))!).revision).toBe(beforeRevision + 1);
+  });
+
+  it('keeps review content and ledger unchanged when the atomic browser commit is cancelled or fails', async () => {
+    const { set, current, source } = prepareTemplateUpdateReview();
+    await persistProjectWorkspaceNow();
+    const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
+    const beforeBytes = await raw.getItem('workspace');
+    const beforeState = useProjectStore.getState();
+    const comparison = openSetTemplateUpdateReview(set.id, current.id!, source.id!);
+    const choices = Object.fromEntries(comparison.changes.map((change) => [change.key, 'use' as const]));
+    const controller = new AbortController();
+    controller.abort();
+    await expect(commitSetTemplateUpdateReview(comparison, choices, controller.signal)).rejects.toBeDefined();
+    expect(useProjectStore.getState()).toBe(beforeState);
+    expect(await raw.getItem('workspace')).toBe(beforeBytes);
+
+    const put = IDBObjectStore.prototype.put;
+    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
+      if (key === `project-workspace:${scope}:workspace`) throw new DOMException('Disk full', 'QuotaExceededError');
+      return put.call(this, value, key);
+    });
+    await expect(commitSetTemplateUpdateReview(comparison, choices)).rejects.toThrow('Disk full');
+    expect(useProjectStore.getState()).toBe(beforeState);
+    expect(await raw.getItem('workspace')).toBe(beforeBytes);
   });
 
   it('keeps device edits made while a destination copy was being uploaded', async () => {

@@ -6,6 +6,7 @@ import {
   type CardForgeProjectPackageSnapshot,
   type PortableProjectDocumentV2,
   type PortableProjectDocumentV3,
+  type PortableProjectDocumentV4,
   type ProjectPackageAssetDescriptor,
 } from '../model/projectPackage';
 import { parseProjectDocumentValue, type ProjectDocumentV1 } from '../model/projectDocument';
@@ -54,11 +55,11 @@ export const referenceCardForgeProjectSnapshotAssets = (
   const referenced = referenceProjectAssets(snapshot.manifest.project, descriptors, snapshot.assets, getRuntimeReference);
   let runtime = referenced;
   if (snapshot.manifest.cardforgeProject !== LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION) {
-    const portable = referenced as PortableProjectDocumentV2 | PortableProjectDocumentV3;
+    const portable = referenced as PortableProjectDocumentV2 | PortableProjectDocumentV3 | PortableProjectDocumentV4;
     const { artifacts, ...project } = portable;
     runtime = {
       ...project,
-      version: portable.version === 3 ? 3 : portable.cardSets.some((set) => set.plan !== undefined) ? 2 : 1,
+      version: portable.version >= 3 ? portable.version : portable.cardSets.some((set) => set.plan !== undefined) ? 2 : 1,
       storedCards: artifacts.map(getCardFromArtifact),
     };
   }

@@ -1,4 +1,4 @@
-import { instantiateProjectDocumentCopy } from '@/features/project/model/projectDocument';
+import { instantiateProjectDocumentCopy, parseProjectDocumentValue } from '@/features/project/model/projectDocument';
 import { getProjectFontValue } from '@/features/project/model/projectFont';
 import { describe, expect, it } from 'vitest';
 import { mapProjectDocumentIdentity, type ProjectDocumentIdentityMap } from '@/features/project/model/projectDocumentIdentity';
@@ -46,16 +46,47 @@ describe('portable versus provider working document identity', () => {
     expect(source).toEqual(original);
   });
   it('isolates files with the same portable IDs while preserving references and authored values', () => {
+    const source = structuredClone(document);
+    source.version = 4;
+    Object.assign(source.userTemplates[0]!, {
+      templateLineageId: 'portable-lineage', templateRevision: 1, templateRevisionId: 'portable-revision',
+      templateOriginLineageId: 'source-lineage', templateOriginRevisionId: 'source-revision',
+    });
+    source.cardSets[0]!.templateIds = ['portable-template'];
+    const review = {
+      version: 1 as const, templateId: 'portable-template', sourceLineageId: 'source-lineage',
+      sourceRevisionId: 'source-revision', sourceFingerprint: 'b'.repeat(64),
+      outcome: 'reviewed' as const, decisions: [{ key: 'title', decision: 'keep' as const }],
+    };
+    source.cardSets[0]!.updateReviews = [review];
     const first: ProjectDocumentIdentityMap = {};
     const second: ProjectDocumentIdentityMap = {};
-    const a = mapProjectDocumentIdentity(document, first, 'open');
-    const b = mapProjectDocumentIdentity(document, second, 'open');
+    const a = mapProjectDocumentIdentity(source, first, 'open');
+    const b = mapProjectDocumentIdentity(source, second, 'open');
     expect(a.cardSets[0]!.id).not.toBe(b.cardSets[0]!.id);
     expect(a.storedCards[0]!.templateId).toBe(a.userTemplates[0]!.id);
     expect(a.storedCards[0]!.setId).toBe(a.cardSets[0]!.id);
+    expect(a.cardSets[0]!.updateReviews).toEqual([{ ...review, templateId: a.userTemplates[0]!.id }]);
     expect(a.storedCards[0]!.data.title).toBe('portable-card');
-    expect(mapProjectDocumentIdentity(document, first, 'open')).toEqual(a);
-    expect(mapProjectDocumentIdentity(a, first, 'save')).toMatchObject(document);
+    expect(mapProjectDocumentIdentity(source, first, 'open')).toEqual(a);
+    expect(mapProjectDocumentIdentity(a, first, 'save')).toEqual(source);
+    const independent = instantiateProjectDocumentCopy(a, (kind) => `${kind}-copy`);
+    expect(independent.cardSets[0]!.updateReviews).toEqual([{ ...review, templateId: independent.userTemplates[0]!.id }]);
+    expect(independent.cardSets[0]!.updateReviews?.[0]?.sourceLineageId).toBe(review.sourceLineageId);
+    expect(independent.cardSets[0]!.updateReviews?.[0]?.sourceRevisionId).toBe(review.sourceRevisionId);
+    expect(independent.cardSets[0]!.updateReviews?.[0]?.templateId).not.toBe(a.cardSets[0]!.updateReviews?.[0]?.templateId);
+  });
+
+  it('refuses Update Review metadata in a pre-v4 portable document', () => {
+    const legacy = structuredClone(document);
+    legacy.version = 3;
+    legacy.cardSets[0]!.updateReviews = [{
+      version: 1, templateId: 'portable-template', sourceLineageId: 'source-lineage',
+      sourceRevisionId: 'source-revision', sourceFingerprint: 'c'.repeat(64),
+      outcome: 'reviewed', decisions: [{ key: 'title', decision: 'keep' }],
+    }];
+
+    expect(parseProjectDocumentValue(legacy)).toMatchObject({ success: false });
   });
 
   it('keeps new authored runtime entities stable after save and refresh', () => {

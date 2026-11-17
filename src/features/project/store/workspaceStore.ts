@@ -244,9 +244,9 @@ export const useProjectStore = create<ProjectState>()(
           assertSetTemplateOwnership(merged);
           return merged;
         },
-        version: 7,
+        version: 8,
         migrate: (persistedState, version) => {
-          if (version > 7) throw new Error('This workspace requires a newer CardForge version. Reload before editing; your saved work was left unchanged.');
+          if (version > 8) throw new Error('This workspace requires a newer CardForge version. Reload before editing; your saved work was left unchanged.');
           const {
             activeTab,
             singleCardGeneratorSelectedTemplateId,
@@ -276,13 +276,15 @@ export const useProjectStore = create<ProjectState>()(
             studioView: normalizeStudioView(version < 2 ? activeTab : current.studioView),
           } as WorkspacePersistedState;
           const cardSets = reconcileCardSets({ cardSets: legacy.cardSets ?? [], activeCardSet: legacy.activeCardSet, storedCards: legacy.storedCards ?? [] });
-          const { state: owned, templateIdsBySet } = materializeLegacySetTemplates({
-            ...legacy, cardSets, storedCards: legacy.storedCards ?? [], userTemplates: legacy.userTemplates ?? [],
-          });
+          const { state: owned, templateIdsBySet } = version >= 7
+            ? { state: { ...legacy, cardSets }, templateIdsBySet: new Map<string, Map<string, string>>() }
+            : materializeLegacySetTemplates({
+              ...legacy, cardSets, storedCards: legacy.storedCards ?? [], userTemplates: legacy.userTemplates ?? [],
+            });
           const activeCardSet = resolveActiveCardSet({ cardSets: owned.cardSets, preferredId: legacy.activeCardSet?.id });
           const mapping = activeCardSet ? templateIdsBySet.get(activeCardSet.id) : undefined;
           const remap = (id: string | null) => id ? mapping?.get(id) ?? id : id;
-          if (scope !== 'unscoped-disabled') pendingSetOwnershipMigrations.add(scope);
+          if (version < 7 && scope !== 'unscoped-disabled') pendingSetOwnershipMigrations.add(scope);
           return {
             ...owned, activeCardSet,
             generatorSelectedTemplateId: remap(legacy.generatorSelectedTemplateId),

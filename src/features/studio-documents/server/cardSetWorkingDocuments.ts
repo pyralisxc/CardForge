@@ -354,7 +354,7 @@ export const upsertWorkingCardSet = async ({
     title: current.title,
     document: {
       ...baseline,
-      version: 3,
+      version: 4,
       cardSets: sets,
       activeCardSetId: nextSet.id,
       storedCards,

@@ -8,6 +8,7 @@ export const projectAssetChildScope = (scope: ProjectAssetScope, key: string): P
     if (key === 'productionPlan') return 'brief';
   }
   if (scope === 'set' && key === 'plan') return 'plan';
+  if (scope === 'set' && key === 'updateReviews') return 'opaque';
   if (scope === 'plan') return key === 'brief' ? 'brief' : 'opaque';
   if (scope === 'brief') return key === 'assets' ? 'requirements' : 'opaque';
   if (scope === 'requirement') return key === 'assetUrl' ? 'other' : 'opaque';
