@@ -19,6 +19,13 @@ export const outputIntentSchema = z.object({
 
 export type OutputIntent = z.infer<typeof outputIntentSchema>;
 
+const orderedValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(orderedValue);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value).sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, nested]) => [key, orderedValue(nested)]));
+};
+
 /** Validate the authored objects before any display selector can drop missing references. */
 export function validateOutputIntentDocument(intent: OutputIntent, value: unknown): void {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('The source document is invalid.');
@@ -79,7 +86,7 @@ export function assertOutputContentUnchanged(intent: OutputIntent, before: unkno
     const templateContent = (template: Record<string, unknown> | undefined) => template
       ? Object.fromEntries(Object.entries(template).filter(([key]) => !templateIdentityFields.has(key)))
       : null;
-    return JSON.stringify({
+    return JSON.stringify(orderedValue({
       cards: intent.cardIds.map((id) => {
         const card = cardsById.get(id)!;
         const { templateId, backingTemplateId, ...cardContent } = card;
@@ -89,7 +96,7 @@ export function assertOutputContentUnchanged(intent: OutputIntent, before: unkno
           back: templateContent(typeof backingTemplateId === 'string' ? templatesById.get(backingTemplateId) : undefined),
         };
       }),
-    });
+    }));
   };
   if (content(before) !== content(after)) throw new Error('The selected source needs repair and cannot be opened as exact Output.');
 }

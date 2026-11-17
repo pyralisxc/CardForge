@@ -7,6 +7,7 @@ import { Desk } from '@/features/desk/components/Desk';
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
 import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import { projectAccountExperience } from '@/features/account/lib/accountExperience';
+import { materializeProjectTemplateOwnership } from '@/features/project/model/projectDocument';
 import { hydrateProjectWorkspaceForScope, useProjectStore } from '@/features/project/client/workspace';
 import { normalizeStudioDocumentPayload } from '@/features/studio-documents/model';
 import { Toaster } from '@/components/ui/toaster';
@@ -43,8 +44,15 @@ function App() {
 }
 void hydrateProjectWorkspaceForScope('account:synthetic-output-proof').then(() => {
   if (new URLSearchParams(location.search).has('seedLocal')) {
-    const set = { id: 'existing-set', name: 'Existing Set' };
-    useProjectStore.setState({ userTemplates: normalizedDocument.userTemplates, storedCards: [{ uniqueId: 'existing-local', templateId: normalizedDocument.userTemplates[0].id!, setId: set.id, data: {} }], cardSets: [set], activeCardSet: set });
+    const localDocument = materializeProjectTemplateOwnership(normalizedDocument).document;
+    const templateId = localDocument.storedCards[0]!.templateId;
+    const set = { id: 'existing-set', name: 'Existing Set', templateIds: [templateId] };
+    useProjectStore.setState({
+      userTemplates: localDocument.userTemplates,
+      storedCards: [{ uniqueId: 'existing-local', templateId, setId: set.id, data: {} }],
+      cardSets: [set],
+      activeCardSet: set,
+    });
   }
   createRoot(window.document.body.appendChild(window.document.createElement('div'))).render(<App />);
 });
