@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { SearchParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
 import { getAccountDeskKey } from '@/features/account/lib/accountSections';
+import { WorkspaceUpdatesBoundary } from '@/features/creator-workbench/client';
 import { Desk } from '@/features/desk/components/Desk';
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
 import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
@@ -38,7 +39,9 @@ function App() {
   const navigate = (href: string) => { proof.outputLifecycle.routes.push(href); history.replaceState({}, '', href); setParams(new URLSearchParams(location.search)); };
   const router = { bfcacheId: 'desk-output-proof', back: () => history.back(), forward: () => history.forward(), refresh: () => {}, push: navigate, replace: navigate, prefetch: async () => {} };
   return <AppRouterContext.Provider value={router as never}><SearchParamsContext.Provider value={params}>
-    <TrackedDesk key={getAccountDeskKey({ focusedWorkId: params.get('focus'), focusedArtifactId: params.get('artifact'), returnContextKey: params.get('returnContext'), documentId: params.get('document'), revision: params.get('revision'), outputRef: params.get('outputRef') })} params={params} />
+    <WorkspaceUpdatesBoundary scope="account:synthetic-output-proof">
+      <TrackedDesk key={getAccountDeskKey({ focusedWorkId: params.get('focus'), focusedArtifactId: params.get('artifact'), returnContextKey: params.get('returnContext'), documentId: params.get('document'), revision: params.get('revision'), outputRef: params.get('outputRef') })} params={params} />
+    </WorkspaceUpdatesBoundary>
     <Toaster />
   </SearchParamsContext.Provider></AppRouterContext.Provider>;
 }

@@ -21,7 +21,7 @@ export function EnvironmentCommandBand({ zone, brand, primaryAction, primaryDisa
     ? primaryAction.availability.reason
     : primaryDisabledReason;
   return (
-    <header className={styles.commandBand} data-context={Boolean(context)} data-has-search={Boolean(search)}>
+    <header className={styles.commandBand} data-context={Boolean(context)} data-has-search={Boolean(search)} data-has-account-control={Boolean(accountControl)}>
       {context ? <div className={styles.contextBand}>{context}</div> : <div className={styles.commandIdentity}>
         {brand ? <Link href="/" prefetch={false} className={styles.mobileBrand} aria-label="Open the CardForge public site" title="CardForge public site"><Image src={brand.src} alt="" width={26} height={26} priority /></Link> : null}
         <strong>{zone.label}</strong>
