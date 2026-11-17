@@ -498,6 +498,7 @@ export function useDeskController({
       types: context.deskTypes ?? current.types,
       tags: context.deskTags ?? current.tags,
       tagMatch: context.deskTagMatch ?? current.tagMatch,
+      updatesOnly: context.updatesOnly ?? current.updatesOnly,
     }));
     const restoredSetId = context.focusedWorkId?.startsWith('set:') ? context.focusedWorkId.slice(4) : null;
     restoreFocusedContext({
@@ -563,6 +564,7 @@ export function useDeskController({
       deskTypes: deskViewPreferences.preferences.types,
       deskTags: deskViewPreferences.preferences.tags,
       deskTagMatch: deskViewPreferences.preferences.tagMatch,
+      updatesOnly: Boolean(deskViewPreferences.preferences.updatesOnly),
       sort: 'desk',
       selectedCardIds: nextSelectedCardIds,
       cardQuery,

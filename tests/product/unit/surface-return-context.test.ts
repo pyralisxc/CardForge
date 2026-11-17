@@ -62,18 +62,22 @@ describe('surface return context', () => {
 
     expect(readSurfaceReturnContext(key, storage, 2_001)).toEqual(context);
 
-    const updatesKey = storeSurfaceReturnContext({
-      ...context,
-      scope: 'personal',
-      objectId: 'set:local-set',
-      sort: 'updates',
-    }, storage, 'library-updates-key', 2_002);
-    expect(readSurfaceReturnContext(updatesKey, storage, 2_003)).toEqual({
-      ...context,
-      scope: 'personal',
-      objectId: 'set:local-set',
-      sort: 'updates',
-    });
+    for (const updatesOnly of [false, true]) {
+      const updatesKey = storeSurfaceReturnContext({
+        ...context,
+        scope: 'personal',
+        objectId: 'set:local-set',
+        sort: 'updates',
+        updatesOnly,
+      }, storage, 'library-updates-key', 2_002);
+      expect(readSurfaceReturnContext(updatesKey, storage, 2_003)).toEqual({
+        ...context,
+        scope: 'personal',
+        objectId: 'set:local-set',
+        sort: 'updates',
+        updatesOnly,
+      });
+    }
   });
 
   it('rejects malformed and expired return state', () => {
