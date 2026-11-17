@@ -181,7 +181,9 @@ export function WorkspaceUpdatesProvider({ scope, loadSources, preferences, rend
 
   const openSet = useCallback((setId: string, focus?: HTMLElement | null) => {
     if (!isCurrent() || !useProjectStore.getState().cardSets.some((set) => set.id === setId)) return;
-    returnFocus.current = focus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const menuTriggerId = active?.closest('[role="menu"]')?.getAttribute('aria-labelledby');
+    returnFocus.current = focus ?? (menuTriggerId ? document.getElementById(menuTriggerId) : null) ?? active;
     setSelectedSetId(setId);
     void acknowledge(pendingKeys(sets.find((set) => set.set.id === setId)), 'read');
   }, [acknowledge, isCurrent, sets]);

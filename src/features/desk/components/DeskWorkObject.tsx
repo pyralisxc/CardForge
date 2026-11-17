@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Copy, Info, MoreHorizontal, Pencil, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -49,6 +49,7 @@ const menuItemClassName = 'min-h-11 md:min-h-9';
 const tileActionClassName = 'min-h-11 min-w-11 md:min-h-9 md:min-w-9';
 
 export function DeskWorkObject(props: DeskWorkObjectProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const [faces, setFace] = useArtifactFaces();
   const captureStackOrigins = useCaptureArtifactStackOrigins();
   const face = faces[props.artifactIds[0]] ?? 'front';
@@ -91,6 +92,12 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     data-active={props.active}
     data-selected={props.selected}
     aria-hidden={props.obscured || undefined}
+    onContextMenu={(event) => {
+      if (props.focused) return;
+      event.preventDefault();
+      if (lastPointerTypeRef.current === 'touch' || props.shouldSuppressActivation(props.item.id)) return;
+      setMenuOpen(true);
+    }}
   >
     <button
       id={`set-${props.item.id}`}
@@ -141,7 +148,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     {props.focused ? props.focusedSurface : <>
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => props.artifactIds.forEach((id) => setFace(id, face === 'front' ? 'back' : 'front'))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}
       <div className={styles.tileActions}>
-        <DropdownMenu>
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={`${styles.iconButton} ${tileActionClassName}`} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {props.item.references.localSetId
@@ -153,7 +160,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
             {props.item.references.localSetId ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onDuplicate(props.item))}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
             {props.item.references.localSetId ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'export'))}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
             <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onInspect(props.item))}><Info aria-hidden="true" />Details</DropdownMenuItem>
-            {props.onRunWorkAction ? getWorkActions(props.item, true, props.canSubmit, props.canUseProjectFiles, props.isOwner).filter(action=>['library.view-source','library.manage-location','library.delete-copy','desk.review-manage'].includes(action.id)).map(action=><DropdownMenuItem key={action.id} className={menuItemClassName} disabled={action.availability.kind !== 'available'} title={action.availability.kind === 'disabled' ? action.availability.reason : undefined} onSelect={selectMenuAction(()=>{ document.getElementById(`set-info-${props.item.id}`)?.focus({preventScroll:true}); props.onRunWorkAction?.(props.item,action); })}>{action.label}</DropdownMenuItem>) : null}
+            {props.onRunWorkAction ? getWorkActions(props.item, true, props.canSubmit, props.canUseProjectFiles, props.isOwner).filter(action=>['library.view-source','library.manage-location','library.delete-copy','desk.review-manage','desk.review-updates'].includes(action.id)).map(action=><DropdownMenuItem key={action.id} className={menuItemClassName} disabled={action.availability.kind !== 'available'} title={action.availability.kind === 'disabled' ? action.availability.reason : undefined} onSelect={selectMenuAction(()=>{ document.getElementById(`set-info-${props.item.id}`)?.focus({preventScroll:true}); props.onRunWorkAction?.(props.item,action); })}>{action.label}</DropdownMenuItem>) : null}
             {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className={`${menuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(() => props.onDelete(props.item))}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
           </DropdownMenuContent>
         </DropdownMenu>

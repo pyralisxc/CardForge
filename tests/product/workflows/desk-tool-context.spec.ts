@@ -17,6 +17,39 @@ for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
     test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });
 
+    test('@golden @preview returns Updates focus to the originating Desk and Library controls', async ({ page }) => {
+      test.setTimeout(120_000);
+      await seedGuestScaleWorkspace(page, 100, { cardLimit: 1 });
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+      const actions = page.getByRole('button', { name: 'Actions for 100 Card Scale Set', exact: true });
+      const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+      if (mobile) await actions.click();
+      else await set.click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Review updates', exact: true }).click();
+      const updates = page.getByRole('dialog', { name: 'Updates · 100 Card Scale Set', exact: true });
+      await expect(updates).toBeVisible();
+      await updates.getByRole('button', { name: 'Review decisions', exact: true }).click();
+      await page.keyboard.press('Escape');
+      await expect(actions).toBeFocused();
+
+      await set.click();
+      await set.press('Enter');
+      const railUpdates = page.getByRole('button', { name: 'Updates for 100 Card Scale Set', exact: true });
+      await railUpdates.click();
+      await expect(updates).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(railUpdates).toBeFocused();
+
+      await page.goto('/account?section=library', { waitUntil: 'domcontentloaded' });
+      await actions.click();
+      await page.getByRole('menuitem', { name: 'Review updates', exact: true }).click();
+      await expect(updates).toBeVisible();
+      await updates.getByRole('button', { name: 'Review decisions', exact: true }).click();
+      await page.keyboard.press('Escape');
+      await expect(actions).toBeFocused();
+    });
+
     test('@golden @preview creates, designs, generates, edits and reopens a fresh Set without seeded cards', async ({ page }, testInfo) => {
       test.setTimeout(180_000);
       page.setDefaultTimeout(15_000);
@@ -380,7 +413,7 @@ for (const mobile of [false, true]) {
 
       await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
       if (mobile) {
-        await expect(page.getByRole('button', { name: /^Templates ·/ })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: /^Templates ·/ })).toBeVisible();
         await page.getByRole('button', { name: 'Clear Artifact selection', exact: true }).click();
       }
       await page.getByRole('button', { name: /^Templates ·/ }).click();
