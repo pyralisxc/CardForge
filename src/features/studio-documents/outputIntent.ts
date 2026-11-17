@@ -54,12 +54,42 @@ export function validateOutputIntentDocument(intent: OutputIntent, value: unknow
 export function assertOutputContentUnchanged(intent: OutputIntent, before: unknown, after: unknown): void {
   validateOutputIntentDocument(intent, before);
   validateOutputIntentDocument(intent, after);
+  const templateIdentityFields = new Set([
+    'id',
+    'templateSource',
+    'templateLibrarySource',
+    'templateAccessTier',
+    'templateRegistryStatus',
+    'templateContributorName',
+    'templateLineageId',
+    'templateRevision',
+    'templateRevisionId',
+    'templateParentRevisionId',
+    'templateOriginLineageId',
+    'templateOriginRevisionId',
+    'templateOriginAncestors',
+    'templatePipelineContext',
+  ]);
   const content = (value: unknown) => {
     const doc = value as { storedCards: Array<Record<string, unknown>>; userTemplates: Array<Record<string, unknown>> };
-    const byId = new Map(doc.storedCards.map((card) => [card.uniqueId, card]));
-    const cards = intent.cardIds.map((id) => byId.get(id));
-    const ids = new Set(cards.flatMap((card) => card ? [card.templateId, card.backingTemplateId].filter((id): id is string => typeof id === 'string') : []));
-    return JSON.stringify({ cards, templates: doc.userTemplates.filter((template) => typeof template.id === 'string' && ids.has(template.id)).sort((a, b) => String(a.id).localeCompare(String(b.id))) });
+    const cardsById = new Map(doc.storedCards.map((card) => [card.uniqueId, card]));
+    const templatesById = new Map(doc.userTemplates.flatMap((template) => (
+      typeof template.id === 'string' ? [[template.id, template] as const] : []
+    )));
+    const templateContent = (template: Record<string, unknown> | undefined) => template
+      ? Object.fromEntries(Object.entries(template).filter(([key]) => !templateIdentityFields.has(key)))
+      : null;
+    return JSON.stringify({
+      cards: intent.cardIds.map((id) => {
+        const card = cardsById.get(id)!;
+        const { templateId, backingTemplateId, ...cardContent } = card;
+        return {
+          card: cardContent,
+          front: templateContent(typeof templateId === 'string' ? templatesById.get(templateId) : undefined),
+          back: templateContent(typeof backingTemplateId === 'string' ? templatesById.get(backingTemplateId) : undefined),
+        };
+      }),
+    });
   };
   if (content(before) !== content(after)) throw new Error('The selected source needs repair and cannot be opened as exact Output.');
 }

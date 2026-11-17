@@ -17,6 +17,27 @@ describe('exact output intent', () => {
     const changed = { ...document, storedCards: document.storedCards.map((card) => card.uniqueId === 'b' ? { ...card, backingData: { art: 'changed' } } : card) };
     expect(() => assertOutputContentUnchanged(intent, document, changed)).toThrow('needs repair');
   });
+  it('allows owned Template identity remapping without allowing authored content changes', () => {
+    const intent = outputIntentSchema.parse(raw);
+    const remapped = {
+      ...document,
+      storedCards: document.storedCards.map((card) => ({
+        ...card,
+        templateId: 'owned-front',
+        ...(card.backingTemplateId ? { backingTemplateId: 'owned-back' } : {}),
+      })),
+      userTemplates: [
+        { id: 'owned-front', templateSource: 'user', templateLibrarySource: 'personal', templateLineageId: 'owned-front', templateRevision: 1, templateOriginLineageId: 'front' },
+        { id: 'owned-back', templateUsage: 'back-preset', templateSource: 'user', templateLibrarySource: 'personal', templateLineageId: 'owned-back', templateRevision: 1, templateOriginLineageId: 'back' },
+      ],
+    };
+    expect(() => assertOutputContentUnchanged(intent, document, remapped)).not.toThrow();
+    const changed = {
+      ...remapped,
+      userTemplates: remapped.userTemplates.map((template) => template.id === 'owned-front' ? { ...template, name: 'Changed' } : template),
+    };
+    expect(() => assertOutputContentUnchanged(intent, document, changed)).toThrow('needs repair');
+  });
   it('exposes a JSON schema for the protocol', () => {
     expect(z.toJSONSchema(outputIntentSchema, { io: 'input' })).toMatchObject({ type: 'object' });
   });
