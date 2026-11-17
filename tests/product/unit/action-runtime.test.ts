@@ -108,10 +108,11 @@ describe('action runtime', () => {
 
   it('binds Library metadata to feature-owned operations without surface dispatch', async () => {
     const open = vi.fn(() => ({ kind: 'navigation' as const, href: '/account?focus=set%3Aset-1' }));
+    const reviewUpdates = vi.fn(() => ({ kind: 'tool-opened' as const, toolId: 'set-updates' }));
     const unavailable = vi.fn(() => ({ kind: 'cancelled' as const }));
     const commands: AccountLibraryActionCommands = {
       closeLocations: unavailable, closeTool: unavailable, continuePersonal: unavailable,
-      openPersonal: open, sendPipeline: unavailable, saveMove: unavailable, duplicate: unavailable,
+      openPersonal: open, reviewUpdates, sendPipeline: unavailable, saveMove: unavailable, duplicate: unavailable,
       deleteCopy: unavailable, viewSource: unavailable, manageLocation: unavailable,
       usePublished: unavailable, copyPublishedTemplate: unavailable, editPipeline: unavailable,
       testPipeline: unavailable, withdrawPipeline: unavailable, retirePipeline: unavailable, refresh: unavailable,
@@ -122,6 +123,10 @@ describe('action runtime', () => {
       kind: 'navigation', href: '/account?focus=set%3Aset-1',
     });
     expect(open).toHaveBeenCalledOnce();
+    const reviewDescriptor = { ...descriptor, id: 'library.review-updates' as const, result: 'tool-opened' as const };
+    await expect(createActionRuntime(createAccountLibraryActionDefinitions([reviewDescriptor], commands)).execute('library.review-updates', { targetIds: ['set-1'] }))
+      .resolves.toEqual({ kind: 'tool-opened', toolId: 'set-updates' });
+    expect(reviewUpdates).toHaveBeenCalledOnce();
     expect(unavailable).not.toHaveBeenCalled();
   });
 });

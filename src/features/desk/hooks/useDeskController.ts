@@ -32,6 +32,7 @@ import { openRememberedLocalProject } from '@/features/project/client/provider-l
 import { useSpatialWorkspacePreferences } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { createPublishedSetCopy } from '@/features/project/client/published-sets';
+import { useWorkspaceUpdates } from '@/features/project/client/ui';
 import { applyAccountLibraryOrganizationOperation, applyAccountLibraryPrivateOrganization, useAccountLibraryProjection, type AccountLibraryItem, type AccountLibraryOrganizationOperation, type AccountLibrarySource } from '@/features/storage-management/client';
 
 import {
@@ -86,6 +87,7 @@ export function useDeskController({
   securityStatus,
 }: DeskControllerOptions) {
   const { toast } = useToast();
+  const workspaceUpdates = useWorkspaceUpdates();
   const isSignedIn = experience.signedIn;
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
   const discoveredWork = useDeskWorkDiscovery({ persistenceScope, experience });
@@ -726,6 +728,7 @@ export function useDeskController({
     inspectorItem,
     commands: {
       createWork: openCreateMenu,
+      reviewUpdates: workspaceUpdates.openSet,
       reviewWork: item => { reviewReturnRef.current = {focus:document.activeElement instanceof HTMLElement ? document.activeElement : null,itemId:item.id}; setReviewWork(item); },
       focusWork,
       openRemoteWork,

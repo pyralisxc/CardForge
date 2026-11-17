@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { reconstructMinimalTemplateObject, type CardAssetOption } from '@/domain/templates';
 import { applyProjectDocumentToWorkspace, captureCurrentProjectDocument, cleanCurrentWorkspaceCompletedDeletions, rekeyConflictingTemplateSnapshots } from '@/features/project/client/projectWorkspaceDocument';
 import { commitSetTemplateUpdateReview, openSetTemplateUpdateReview } from '@/features/project/client/setTemplateUpdateReview';
+import { inspectWorkspaceUpdates } from '@/features/project/client/workspaceUpdates';
 import { createProjectWorkspaceDraft, hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProjectStore } from '@/features/project/store/workspaceStore';
 import { createBrowserKeyValueStorage } from '@/features/project/persistence/indexedDbStorage';
 import { getScopedProjectStorageNamespace, restoreBrowserWorkspaceRecovery } from '@/features/project/persistence/projectPersistenceScope';
@@ -495,6 +496,62 @@ describe('atomic project apply', () => {
     expect(reopened.changes).toEqual([]);
     await commitSetTemplateUpdateReview(reopened, reopened.initialChoices);
     expect(useProjectStore.getState().cardSets.find((candidate) => candidate.id === set.id)?.updateReviews).toEqual(recorded);
+  });
+
+  it('rechecks a published source before applying without installing a second source snapshot', async () => {
+    const { set, current, source, other } = prepareTemplateUpdateReview();
+    useProjectStore.setState({ userTemplates: [current, other] });
+    await persistProjectWorkspaceNow();
+    const readSource = vi.fn(async () => source);
+    const before = await captureCurrentProjectDocument();
+    const available = await inspectWorkspaceUpdates(useProjectStore.getState(), [source]);
+    expect(available.find((item) => item.set.id === set.id)).toMatchObject({ pending: 1, items: [{ origin: 'published', reviewed: false }] });
+    const comparison = await openSetTemplateUpdateReview(set.id, current.id!, source.id!, undefined, readSource);
+    const choices = Object.fromEntries(comparison.changes.map((change) => [change.key, 'keep' as const]));
+    readSource.mockRejectedValueOnce(new Error('Source access not permitted'));
+    await expect(commitSetTemplateUpdateReview(comparison, choices)).rejects.toThrow('Source access not permitted');
+    expect(await captureCurrentProjectDocument()).toEqual(before);
+    readSource.mockResolvedValueOnce({ ...source, name: 'Changed after opening' });
+    await expect(commitSetTemplateUpdateReview(comparison, choices)).rejects.toThrow(/changed|stale/i);
+    expect(await captureCurrentProjectDocument()).toEqual(before);
+    await commitSetTemplateUpdateReview(comparison, choices);
+    expect(readSource).toHaveBeenCalledTimes(4);
+    expect(useProjectStore.getState().userTemplates).toEqual([current, other]);
+    const completed = await inspectWorkspaceUpdates(useProjectStore.getState(), [source]);
+    expect(completed.find((item) => item.set.id === set.id)?.pending).toBe(0);
+    const changed = await inspectWorkspaceUpdates(useProjectStore.getState(), [{ ...source, name: 'Another source change' }]);
+    expect(changed.find((item) => item.set.id === set.id)?.pending).toBe(1);
+    expect(changed.find((item) => item.set.id === set.id)?.items[0].key).not.toBe(available.find((item) => item.set.id === set.id)?.items[0].key);
+  });
+
+  it('restores deferred source-unavailable work without inventing a source snapshot', async () => {
+    const { set, current, source, other } = prepareTemplateUpdateReview();
+    await persistProjectWorkspaceNow();
+    const comparison = await openSetTemplateUpdateReview(set.id, current.id!, source.id!);
+    await commitSetTemplateUpdateReview(comparison, {});
+    const available = await inspectWorkspaceUpdates(useProjectStore.getState(), []);
+    useProjectStore.setState({ userTemplates: [current, other] });
+    const unavailable = await inspectWorkspaceUpdates(useProjectStore.getState(), []);
+    const first = available.find((item) => item.set.id === set.id)!;
+    const deferred = unavailable.find((item) => item.set.id === set.id)!;
+    expect(deferred.pending).toBe(1);
+    expect(deferred.items).toEqual([]);
+    expect(deferred.unavailable[0].key).toBe(first.items[0].key);
+    const controller = new AbortController();
+    controller.abort();
+    await expect(inspectWorkspaceUpdates(useProjectStore.getState(), [source], controller.signal)).rejects.toBeDefined();
+  });
+
+  it('discards a published source read that finishes after an account switch', async () => {
+    const { set, current, source } = prepareTemplateUpdateReview();
+    let release!: (value: typeof source) => void;
+    const reading = new Promise<typeof source>((resolve) => { release = resolve; });
+    const opening = openSetTemplateUpdateReview(set.id, current.id!, source.id!, undefined, () => reading);
+    await hydrateProjectWorkspaceForScope('account:source-check-other-account');
+    const otherAccount = await captureCurrentProjectDocument();
+    release(source);
+    await expect(opening).rejects.toThrow(/active account changed/i);
+    expect(await captureCurrentProjectDocument()).toEqual(otherAccount);
   });
 
   it('refuses a stale all-keep review after ledger-only work, then permits a reopened review', async () => {

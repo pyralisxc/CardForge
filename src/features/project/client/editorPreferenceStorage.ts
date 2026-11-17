@@ -11,11 +11,17 @@ type EditorPreferenceScope = ReturnType<typeof getProjectPersistenceScope>;
 const editorPreferenceKey = (scope: EditorPreferenceScope = getProjectPersistenceScope()) =>
   `${EDITOR_PREFERENCES_STORAGE_KEY}:${scope}`;
 export const EDITOR_PREFERENCES_CHANGED_EVENT = 'cardforge:editor-preferences-change';
+export const UPDATE_CHECK_INTERVALS = [300, 900, 3600] as const;
+export type UpdateCheckIntervalSeconds = typeof UPDATE_CHECK_INTERVALS[number];
+export const isUpdateCheckInterval = (value: unknown): value is UpdateCheckIntervalSeconds => UPDATE_CHECK_INTERVALS.some((interval) => interval === value);
 
 export interface StoredEditorPreferences {
   richTextHighlightColor: string;
   googleDriveAutosaveEnabled: boolean;
   googleDriveAutosaveDelaySeconds: StudioAutosaveDelaySeconds | null;
+  updateNotificationsEnabled?: boolean;
+  automaticUpdateChecks?: boolean;
+  updateCheckIntervalSeconds?: UpdateCheckIntervalSeconds;
 }
 
 export const DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR = '#ffd700';
@@ -43,6 +49,9 @@ export const readEditorPreferenceStorage = async (
     googleDriveAutosaveEnabled: stored.value?.googleDriveAutosaveEnabled === true,
     googleDriveAutosaveDelaySeconds: isStudioAutosaveDelaySeconds(stored.value?.googleDriveAutosaveDelaySeconds)
       ? stored.value.googleDriveAutosaveDelaySeconds : null,
+    updateNotificationsEnabled: stored.value?.updateNotificationsEnabled !== false,
+    automaticUpdateChecks: stored.value?.automaticUpdateChecks !== false,
+    updateCheckIntervalSeconds: isUpdateCheckInterval(stored.value?.updateCheckIntervalSeconds) ? stored.value.updateCheckIntervalSeconds : 900,
   };
 };
 
@@ -55,6 +64,9 @@ export const writeEditorPreferenceStorage = async (
     googleDriveAutosaveEnabled: preferences.googleDriveAutosaveEnabled === true,
     googleDriveAutosaveDelaySeconds: isStudioAutosaveDelaySeconds(preferences.googleDriveAutosaveDelaySeconds)
       ? preferences.googleDriveAutosaveDelaySeconds : null,
+    updateNotificationsEnabled: preferences.updateNotificationsEnabled !== false,
+    automaticUpdateChecks: preferences.automaticUpdateChecks !== false,
+    updateCheckIntervalSeconds: isUpdateCheckInterval(preferences.updateCheckIntervalSeconds) ? preferences.updateCheckIntervalSeconds : 900,
   }, { suppressWriteErrors: false });
   publishChange(scope);
 };

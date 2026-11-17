@@ -1,5 +1,7 @@
 "use client";
 
+import { requireOkResponse } from '@/infrastructure/http/clientResponses';
+
 import type {
   CardForgeCatalogManifest,
   CardForgeStudioAssetManifest,
@@ -9,11 +11,12 @@ import type {
 let catalogPromise: Promise<CardForgeCatalogManifest> | null = null;
 let studioBootstrapPromise: Promise<CardForgeStudioBootstrapManifest> | null = null;
 let studioAssetPromise: Promise<CardForgeStudioAssetManifest> | null = null;
+export const PUBLISHED_FONTS_OBSERVED_EVENT = 'cardforge:published-fonts-observed';
 
-const loadJson = <T>(url: string, label: string): Promise<T> => (
-  fetch(url, { cache: 'no-store' })
-    .then((response) => {
-      if (!response.ok) throw new Error(`Failed to load ${label}: ${response.status}`);
+const loadJson = <T>(url: string, label: string, signal?: AbortSignal): Promise<T> => (
+  fetch(url, { cache: 'no-store', signal })
+    .then(async (response) => {
+      await requireOkResponse(response, `Unable to load ${label}.`);
       return response.json() as Promise<T>;
     })
 );
@@ -27,7 +30,8 @@ export const loadCardForgeCatalog = (): Promise<CardForgeCatalogManifest> => {
   return catalogPromise;
 };
 
-export const loadCardForgeStudioBootstrap = (): Promise<CardForgeStudioBootstrapManifest> => {
+export const loadCardForgeStudioBootstrap = (options: { fresh?: boolean; signal?: AbortSignal } = {}): Promise<CardForgeStudioBootstrapManifest> => {
+  if (options.fresh || options.signal) return loadJson<CardForgeStudioBootstrapManifest>('/api/catalog/studio-bootstrap', 'CardForge Studio bootstrap', options.signal);
   studioBootstrapPromise ??= loadJson<CardForgeStudioBootstrapManifest>(
     '/api/catalog/studio-bootstrap',
     'CardForge Studio bootstrap',

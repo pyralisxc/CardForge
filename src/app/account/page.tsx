@@ -19,6 +19,7 @@ import {
   hasContributionScope,
 } from '@/features/contributor-access/server';
 import { Desk } from '@/features/desk/client';
+import { WorkspaceUpdatesBoundary } from '@/features/creator-workbench/client';
 import { getCachedExperienceSettings } from '@/features/experience-settings/server';
 import {
   applyProductAccessPricePresentation,
@@ -186,6 +187,7 @@ export default async function AccountPage({
     return (
       <CardForgeAppProviders scope="shell">
         <AccountProjectWorkspaceBoundary persistenceScope={persistenceScope} canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}>
+          <WorkspaceUpdatesBoundary scope={persistenceScope}>
           <GoogleDrivePreviewWarmupBoundary enabled={entitlement.isSignedIn}>
             <UnifiedAccountLibrary
               persistenceScope={persistenceScope}
@@ -204,6 +206,7 @@ export default async function AccountPage({
               storageConnections={storageConnections}
             />
           </GoogleDrivePreviewWarmupBoundary>
+          </WorkspaceUpdatesBoundary>
         </AccountProjectWorkspaceBoundary>
       </CardForgeAppProviders>
     );
@@ -224,6 +227,7 @@ export default async function AccountPage({
           plans={plans}
         />
       ) : <AccountProjectWorkspaceBoundary persistenceScope={persistenceScope} canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}>
+          <WorkspaceUpdatesBoundary scope={persistenceScope}>
           <GoogleDrivePreviewWarmupBoundary enabled={entitlement.isSignedIn}>
             <AccountDeskBoundary initialAuthConfigured={authConfigured}>
               <Desk
@@ -246,6 +250,7 @@ export default async function AccountPage({
               />
             </AccountDeskBoundary>
           </GoogleDrivePreviewWarmupBoundary>
+          </WorkspaceUpdatesBoundary>
       </AccountProjectWorkspaceBoundary>}
     </CardForgeAppProviders>
   );

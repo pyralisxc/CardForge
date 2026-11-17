@@ -6,3 +6,4 @@ export {
 export type { DesignToolIntent } from './model/designToolIntent';
 
 export { ExactCandidateReview } from './components/ExactCandidateReview';
+export { WorkspaceUpdatesBoundary } from './components/WorkspaceUpdatesBoundary';

@@ -16,6 +16,7 @@ import { getWorkActions, workDetailRecord, zoneAction } from '../model/desk';
 interface DeskActionCommands {
   createWork: () => void;
   reviewWork: (item: AccountLibraryItem) => void;
+  reviewUpdates: (setId: string) => void;
   focusWork: (item: AccountLibraryItem) => ActionOperationResult;
   openRemoteWork: (item: AccountLibraryItem) => Promise<ActionOperationResult>;
   openGenerate: (setId: string) => void;
@@ -44,6 +45,7 @@ export function createDeskActionDefinitions({ experience, commands, item: action
   const operations: Record<string, () => ActionOperationResult | Promise<ActionOperationResult>> = {
     'desk.review-manage': () => { const item = requireItem(); if (!experience.owner || !experience.signedIn || !item.references.pipelineReviewTarget) throw new Error('Exact Owner review is unavailable. Refresh Desk.'); commands.reviewWork(item); return {kind:'tool-opened',toolId:'review-manage'}; },
     'desk.create-set': () => { commands.createWork(); return { kind: 'tool-opened', toolId: 'create-set' }; },
+    'desk.review-updates': () => { commands.reviewUpdates(requireSet()); return { kind: 'tool-opened', toolId: 'set-updates' }; },
     'desk.open-set': () => { const item = requireItem(); return item.references.localSetId ? commands.focusWork(item) : commands.openRemoteWork(item); },
     'desk.generate-set': () => { commands.openGenerate(requireSet()); return { kind: 'tool-opened', toolId: 'generate' }; },
     'desk.export-set': () => { commands.openOutput(requireSet()); return { kind: 'tool-opened', toolId: 'output' }; },

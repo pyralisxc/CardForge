@@ -20,6 +20,7 @@ export interface AccountLibraryActionCommands {
   closeTool: LibraryCommand;
   continuePersonal: LibraryCommand;
   openPersonal: LibraryCommand;
+  reviewUpdates: LibraryCommand;
   sendPipeline: LibraryCommand;
   saveMove: LibraryCommand;
   duplicate: LibraryCommand;
@@ -42,6 +43,7 @@ const commandFor = (id: ActionDescriptor['id'], commands: AccountLibraryActionCo
     'library.close-tool': commands.closeTool,
     'library.continue': commands.continuePersonal,
     'library.open': commands.openPersonal,
+    'library.review-updates': commands.reviewUpdates,
     'library.send-pipeline': commands.sendPipeline,
     'library.save-move': commands.saveMove,
     'library.duplicate': commands.duplicate,

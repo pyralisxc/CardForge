@@ -1,5 +1,6 @@
 import { authoredPlanValuesEqual } from '@/domain/cards';
 import type { SetUpdateDecision, SetUpdateReview } from '@/domain/cards/setUpdateReview';
+import type { TCGCardTemplate } from '@/domain/templates';
 import { createTemplateUpdateComparison, getTemplateUpdateReviewChoices, resolveTemplateUpdateReview, retainSetUpdateReview, templateUpdateContentText, type TemplateUpdateComparison } from '../model/templateUpdateReview';
 import { getProjectPersistenceScope } from '../persistence/projectPersistenceScope';
 import { selectAllTemplates } from '../store/selectors';
@@ -10,25 +11,30 @@ export interface OpenTemplateUpdateReview extends TemplateUpdateComparison {
   initialChoices: Record<string, SetUpdateDecision>;
   sourceFingerprint: string;
   persistenceScope: ReturnType<typeof getProjectPersistenceScope>;
+  readSource?: TemplateUpdateSourceReader;
 }
 
-const fingerprintSource = async (comparison: TemplateUpdateComparison): Promise<string> => {
-  const bytes = new TextEncoder().encode(templateUpdateContentText(comparison.incoming));
+export type TemplateUpdateSourceReader = (signal?: AbortSignal) => Promise<TCGCardTemplate>;
+
+export const fingerprintTemplateUpdateSource = async (source: TCGCardTemplate): Promise<string> => {
+  const bytes = new TextEncoder().encode(templateUpdateContentText(source));
   return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (byte) => byte.toString(16).padStart(2, '0')).join('');
 };
 
-export const openSetTemplateUpdateReview = async (setId: string, templateId: string, sourceTemplateId: string, signal?: AbortSignal): Promise<OpenTemplateUpdateReview> => {
+export const openSetTemplateUpdateReview = async (setId: string, templateId: string, sourceTemplateId: string, signal?: AbortSignal, readSource?: TemplateUpdateSourceReader): Promise<OpenTemplateUpdateReview> => {
   signal?.throwIfAborted();
   const persistenceScope = getProjectPersistenceScope();
+  const source = readSource ? await readSource(signal) : selectAllTemplates(useProjectStore.getState()).find((template) => template.id === sourceTemplateId);
+  signal?.throwIfAborted();
+  if (persistenceScope !== getProjectPersistenceScope()) throw new Error('The active account changed. Reopen the review; nothing was applied.');
   const state = useProjectStore.getState();
-  const source = selectAllTemplates(state).find((template) => template.id === sourceTemplateId);
-  if (!source) throw new Error('The source snapshot is unavailable. Nothing was changed.');
+  if (!source || source.id !== sourceTemplateId) throw new Error('The source snapshot is unavailable. Nothing was changed.');
   const comparison = createTemplateUpdateComparison(state, setId, templateId, source);
   const expectedReview = state.cardSets.find((set) => set.id === setId)?.updateReviews?.find((review) => (
     review.templateId === templateId && review.sourceLineageId === source.templateLineageId
     && review.sourceRevisionId === source.templateRevisionId
   ));
-  const sourceFingerprint = await fingerprintSource(comparison);
+  const sourceFingerprint = await fingerprintTemplateUpdateSource(comparison.incoming);
   signal?.throwIfAborted();
   if (persistenceScope !== getProjectPersistenceScope()) throw new Error('The active account changed. Reopen the review; nothing was applied.');
   return {
@@ -37,6 +43,7 @@ export const openSetTemplateUpdateReview = async (setId: string, templateId: str
     initialChoices: getTemplateUpdateReviewChoices(comparison, expectedReview, sourceFingerprint),
     sourceFingerprint,
     persistenceScope,
+    readSource,
   };
 };
 
@@ -48,13 +55,13 @@ export const commitSetTemplateUpdateReview = async (
   signal?.throwIfAborted();
   const initialState = useProjectStore.getState();
   if (comparison.persistenceScope !== getProjectPersistenceScope()) throw new Error('The active account changed. Reopen the review; nothing was applied.');
-  const source = selectAllTemplates(initialState).find((template) => template.id === comparison.incoming.id);
+  const source = comparison.readSource ? await comparison.readSource(signal) : selectAllTemplates(initialState).find((template) => template.id === comparison.incoming.id);
   if (!source) throw new Error('The source snapshot is unavailable. Nothing was changed.');
-  const sourceFingerprint = await fingerprintSource(comparison);
+  const sourceFingerprint = await fingerprintTemplateUpdateSource(comparison.incoming);
   signal?.throwIfAborted();
   if (comparison.persistenceScope !== getProjectPersistenceScope()) throw new Error('The active account changed. Reopen the review; nothing was applied.');
   const state = useProjectStore.getState();
-  const currentSource = selectAllTemplates(state).find((template) => template.id === comparison.incoming.id);
+  const currentSource = comparison.readSource ? source : selectAllTemplates(state).find((template) => template.id === comparison.incoming.id);
   if (!currentSource) throw new Error('The source snapshot is unavailable. Nothing was changed.');
   const currentReview = state.cardSets.find((set) => set.id === comparison.setId)?.updateReviews?.find((review) => (
     review.templateId === comparison.current.id && review.sourceLineageId === comparison.incoming.templateLineageId

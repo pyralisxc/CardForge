@@ -38,6 +38,7 @@ import type { ContributorAccessSessionState } from '@/features/contributor-acces
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import {
   requestBrowserWorkspaceRecovery,
+  WorkspaceUpdateNotices,
   useBrowserStoragePersistence,
   useBrowserWorkspaceSaveStatus,
 } from '@/features/project/client/ui';
@@ -492,7 +493,7 @@ export function Desk({
         detail={detail}
         actionContext={focusedItem ? workDetailRecord(focusedItem) : null}
         actions={actions}
-        accountControl={<PublicAuthControls />}
+        accountControl={<><WorkspaceUpdateNotices /><PublicAuthControls /></>}
         showPrimaryAction={!focusedItem}
         primaryAction={zoneAction('desk.create-set', 'New Set', 'tool-opened')}
         contextBand={contextDepth === 'desk' && (!focusedItem || focusedLocalSetId) ? undefined : <DeskContextRail

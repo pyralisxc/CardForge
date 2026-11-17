@@ -31,7 +31,7 @@ import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import { NewSetDialog, usePublishedSetStarters } from '@/features/project/client/new-set';
 import { useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
-import { SetDirection, SetTemplates, SetUpdates } from '@/features/project/client/ui';
+import { SetDirection, SetTemplates, SetUpdates, WorkspaceUpdateNotices, useWorkspaceUpdates } from '@/features/project/client/ui';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import { CardPreview, getTemplateAccent } from '@/features/card-rendering/client';
 
@@ -128,6 +128,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const pipelineAccess = experience.contributor.canSubmit || experience.contributor.canReview || experience.contributor.canPublish;
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
   const { toast } = useToast();
+  const workspaceUpdates = useWorkspaceUpdates();
   const [campaignDirty, setCampaignDirty] = useState(false);
   const [campaignCloseBlocked, setCampaignCloseBlocked] = useState<string | null>(null);
   const campaignExitReason = campaignCloseBlocked ?? (campaignDirty ? 'Save or cancel campaign edits before starting a Set.' : undefined);
@@ -471,6 +472,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     runPersonalAction,
     runPublishedRowAction,
   } = useAccountLibraryActions({
+    reviewUpdates: workspaceUpdates.openSet,
     activeLoading,
     activeScope,
     activeTool,
@@ -554,7 +556,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     detailContent={selectedLocalSet ? <div className="flex flex-wrap gap-1 border-b pb-3" aria-label="Set tools">
       <SetTemplates key={`templates-${selectedLocalSet.id}`} set={selectedLocalSet} cards={displayCards.filter((card) => (card.setId ?? cardSets[0]?.id) === selectedLocalSet.id)} templates={templates} onDesign={(id) => { openTemplateDesign(id); setDesignReturnFocusId(selection.focusReturnId ?? null); openTool('design', [id]); }} renderPreview={renderTemplatePreview} getTemplateAccent={getTemplateAccent} />
       <SetDirection key={`direction-${selectedLocalSet.id}`} set={selectedLocalSet} useLifecycle={useEnvironmentToolLifecycle} />
-      <SetUpdates key={`updates-${selectedLocalSet.id}`} setId={selectedLocalSet.id} renderPreview={renderTemplatePreview} />
+      <SetUpdates key={`updates-${selectedLocalSet.id}`} setId={selectedLocalSet.id} />
     </div> : currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
       isOwner={experience.owner}
@@ -589,7 +591,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     primaryAction={createLibraryZoneAction('library.create-set', 'New Set')}
     showPrimaryAction={!activeTool}
     actions={actions}
-    accountControl={<PublicAuthControls />}
+    accountControl={<><WorkspaceUpdateNotices /><PublicAuthControls /></>}
     search={<EnvironmentSearch id="library-global-search" label={`Search ${activeScope}`} value={projection.query} onChange={projection.setQuery} inputRef={searchRef} disabled={Boolean(activeTool)} />}
     focusReturnId={selection.focusReturnId ?? undefined}
     surfaceRef={surfaceRef}
