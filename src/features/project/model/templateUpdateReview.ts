@@ -22,6 +22,19 @@ export interface TemplateUpdateComparison {
   changes: TemplateUpdateChange[];
 }
 
+const matchesReview = (comparison: TemplateUpdateComparison, review: SetUpdateReview, fingerprint: string): boolean => (
+  review.templateId === comparison.current.id && review.sourceLineageId === comparison.incoming.templateLineageId
+  && review.sourceRevisionId === comparison.incoming.templateRevisionId && review.sourceFingerprint === fingerprint
+);
+
+export const getTemplateUpdateReviewChoices = (
+  comparison: TemplateUpdateComparison, review: SetUpdateReview | undefined, fingerprint: string,
+): Record<string, SetUpdateDecision> => {
+  const decisions = new Map(review && matchesReview(comparison, review, fingerprint)
+    ? review.decisions.map(({ key, decision }) => [key, decision]) : []);
+  return Object.fromEntries(comparison.changes.map(({ key }) => [key, decisions.get(key) === 'keep' ? 'keep' : 'defer']));
+};
+
 const identityFields = new Set([
   'id', 'templateSource', 'templateLibrarySource', 'templateAccessTier', 'templateRegistryStatus',
   'templateLineageId', 'templateRevision', 'templateRevisionId', 'templateParentRevisionId',
@@ -133,7 +146,12 @@ export const resolveTemplateUpdateReview = (
     || fresh.bindings !== comparison.bindings) fail('The design, source revision or affected Artifacts changed while review was open. Reopen the review.');
   const allowed = new Set(fresh.changes.map((change) => change.key));
   if (Object.keys(choices).some((key) => !allowed.has(key)) || Object.values(choices).some((choice) => !['keep', 'use', 'defer'].includes(choice))) fail('The review contains an unknown decision.');
-  const decisions = fresh.changes.map((change) => ({ key: change.key, decision: choices[change.key] ?? 'defer' as SetUpdateDecision }));
+  const previous = state.cardSets.find((set) => set.id === comparison.setId)?.updateReviews
+    ?.find((review) => matchesReview(fresh, review, sourceFingerprint));
+  const decisions = [
+    ...(previous?.decisions.filter(({ key, decision }) => !allowed.has(key) && decision !== 'defer') ?? []),
+    ...fresh.changes.map((change) => ({ key: change.key, decision: choices[change.key] ?? 'defer' as SetUpdateDecision })),
+  ];
   const proposed = structuredClone(fresh.current);
   for (const change of fresh.changes) if (choices[change.key] === 'use') apply(proposed, change.path, change.after);
   const template = canonical(proposed);

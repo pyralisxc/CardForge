@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, LayoutTemplate, TriangleAlert } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,9 @@ interface SetTemplatesProps {
 export function SetTemplates({ set, cards, templates: allTemplates, onDesign }: SetTemplatesProps) {
   const [open, setOpen] = useState(false);
   const [review, setReview] = useState<OpenTemplateUpdateReview | null>(null);
+  const [opening, setOpening] = useState(false);
+  const openingRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => { openingRequest.current?.abort(); }, [set.id]);
   const [selectedSources, setSelectedSources] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const entries = useMemo(() => {
@@ -45,13 +48,24 @@ export function SetTemplates({ set, cards, templates: allTemplates, onDesign }: 
   }, [allTemplates, cards, set.templateIds]);
 
   if (!entries.length) return null;
-  const beginReview = (templateId: string, sourceId: string) => {
+  const beginReview = async (templateId: string, sourceId: string) => {
+    if (openingRequest.current) return;
+    const controller = new AbortController();
+    openingRequest.current = controller;
+    setOpening(true);
     try {
-      const next = openSetTemplateUpdateReview(set.id, templateId, sourceId);
+      const next = await openSetTemplateUpdateReview(set.id, templateId, sourceId, controller.signal);
       setOpen(false); setReview(next);
-    } catch (cause) { toast({ title: 'Review unavailable', description: cause instanceof Error ? cause.message : 'The source snapshot could not be read. Nothing was changed.', variant: 'destructive' }); }
+    } catch (cause) {
+      if (!controller.signal.aborted) toast({ title: 'Review unavailable', description: cause instanceof Error ? cause.message : 'The source snapshot could not be read. Nothing was changed.', variant: 'destructive' });
+    } finally {
+      if (openingRequest.current === controller) { openingRequest.current = null; setOpening(false); }
+    }
   };
-  return <><Popover open={open} onOpenChange={setOpen}>
+  return <><Popover open={open} onOpenChange={(next) => {
+    if (!next) { openingRequest.current?.abort(); openingRequest.current = null; setOpening(false); }
+    setOpen(next);
+  }}>
     <PopoverTrigger asChild><Button type="button" size="sm" variant="ghost">Templates · {entries.length}</Button></PopoverTrigger>
     <PopoverContent align="start" className={`${styles.templates} w-[min(32rem,calc(100vw-2rem))]`} aria-label="Templates in this Set">
       <div className={styles.heading}><strong>Designs in this Set</strong><span>This Set owns its working designs. Related revisions are reviewed explicitly.</span></div>
@@ -71,6 +85,7 @@ export function SetTemplates({ set, cards, templates: allTemplates, onDesign }: 
           return <div key={template.id} className="space-y-2 rounded-md border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-2">
             <button
               type="button"
+              disabled={opening}
               className={`${styles.template} w-full`}
               style={{ borderColor: getTemplateAccent(template.id!) }}
               data-set-template={template.id}
@@ -97,7 +112,7 @@ export function SetTemplates({ set, cards, templates: allTemplates, onDesign }: 
                 <ArrowRight className="h-4 w-4 shrink-0 text-[var(--cf-text-muted)]" aria-hidden="true" />
                 <div className="space-y-1"><small className="text-[10px] text-[var(--cf-text-muted)]">Available</small><CardPreview card={updatePreview} face="front" targetWidthPx={72} /></div>
               </div> : null}
-              <div className="mt-2 flex justify-end"><Button type="button" size="sm" onClick={() => beginReview(template.id!, update.id!)}>Review Update</Button></div>
+              <div className="mt-2 flex justify-end"><Button type="button" size="sm" disabled={opening} onClick={() => void beginReview(template.id!, update.id!)}>{opening ? 'Opening review…' : 'Review Update'}</Button></div>
             </div> : <p className="text-xs text-muted-foreground">No other exact related snapshot is available here. Missing history cannot be compared.</p>}
             {reviews.length ? <details className="text-xs text-muted-foreground">
               <summary className="cursor-pointer">Recorded reviews · {reviews.length}</summary>

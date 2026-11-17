@@ -470,7 +470,7 @@ describe('atomic project apply', () => {
     const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
     const beforeBytes = (await raw.getItem('workspace'))!;
     const beforeRevision = parseBrowserWorkspaceRecord(beforeBytes).revision;
-    const comparison = openSetTemplateUpdateReview(set.id, current.id!, source.id!);
+    const comparison = await openSetTemplateUpdateReview(set.id, current.id!, source.id!);
     const choices = Object.fromEntries(comparison.changes.map((change) => [change.key, 'use' as const]));
 
     await commitSetTemplateUpdateReview(comparison, choices);
@@ -490,6 +490,11 @@ describe('atomic project apply', () => {
       sourceRevisionId: source.templateRevisionId, outcome: 'reviewed',
     }]);
     expect(parseBrowserWorkspaceRecord((await raw.getItem('workspace'))!).revision).toBe(beforeRevision + 1);
+    const recorded = after.cardSets.find((candidate) => candidate.id === set.id)?.updateReviews;
+    const reopened = await openSetTemplateUpdateReview(set.id, current.id!, source.id!);
+    expect(reopened.changes).toEqual([]);
+    await commitSetTemplateUpdateReview(reopened, reopened.initialChoices);
+    expect(useProjectStore.getState().cardSets.find((candidate) => candidate.id === set.id)?.updateReviews).toEqual(recorded);
   });
 
   it('refuses a stale all-keep review after ledger-only work, then permits a reopened review', async () => {
@@ -497,7 +502,7 @@ describe('atomic project apply', () => {
     await persistProjectWorkspaceNow();
     const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
     const originalRevision = current.templateRevisionId;
-    const comparison = openSetTemplateUpdateReview(set.id, current.id!, source.id!);
+    const comparison = await openSetTemplateUpdateReview(set.id, current.id!, source.id!);
     const keepChoices = Object.fromEntries(comparison.changes.map((change) => [change.key, 'keep' as const]));
     const deferChoices = Object.fromEntries(comparison.changes.map((change) => [change.key, 'defer' as const]));
 
@@ -516,8 +521,9 @@ describe('atomic project apply', () => {
     expect(useProjectStore.getState()).toBe(reviewedState);
     expect(await raw.getItem('workspace')).toBe(reviewedBytes);
 
-    const reopened = openSetTemplateUpdateReview(set.id, current.id!, source.id!);
+    const reopened = await openSetTemplateUpdateReview(set.id, current.id!, source.id!);
     expect(reopened.expectedReview).toMatchObject({ outcome: 'reviewed' });
+    expect(reopened.initialChoices).toEqual(keepChoices);
     await expect(commitSetTemplateUpdateReview(reopened, deferChoices)).resolves.toMatchObject({
       outcome: 'deferred', changesTemplate: false,
     });
@@ -534,7 +540,7 @@ describe('atomic project apply', () => {
     const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
     const beforeBytes = await raw.getItem('workspace');
     const beforeState = useProjectStore.getState();
-    const comparison = openSetTemplateUpdateReview(set.id, current.id!, source.id!);
+    const comparison = await openSetTemplateUpdateReview(set.id, current.id!, source.id!);
     const choices = Object.fromEntries(comparison.changes.map((change) => [change.key, 'use' as const]));
     const controller = new AbortController();
     controller.abort();

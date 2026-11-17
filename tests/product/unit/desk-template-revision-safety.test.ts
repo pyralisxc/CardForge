@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { reconstructMinimalTemplateObject, validateNativeTemplateStructure, type TCGCardTemplate } from '@/domain/templates';
 import { normalizeSetUpdateReviews } from '@/domain/cards/setUpdateReview';
-import { createTemplateUpdateComparison, resolveTemplateUpdateReview } from '@/features/project/model/templateUpdateReview';
+import { createTemplateUpdateComparison, getTemplateUpdateReviewChoices, resolveTemplateUpdateReview } from '@/features/project/model/templateUpdateReview';
 import type { SetTemplateState } from '@/features/project/model/setTemplateOwnership';
 
 const template = (id: string, keys: string[]) => reconstructMinimalTemplateObject({ id, name: 'Design', aspectRatio: '63:88', templateSource: 'user', templateLineageId: 'source', templateRevisionId: id,
@@ -40,6 +40,38 @@ describe('Set-owned selective Template Update review', () => {
     expect(() => normalizeSetUpdateReviews([{ ...partial.review, outcome: 'reviewed' }])).toThrow(/deferred/i);
     expect(() => normalizeSetUpdateReviews([{ ...kept.review, oldSnapshot: current }])).toThrow(/unsupported/i);
     expect(state).toEqual(before);
+  });
+
+  it('resumes matching choices and retains applied decisions without reaccepting later edits', () => {
+    const current = template('current', ['name']);
+    const source = template('incoming', ['name']);
+    source.name = 'Incoming title';
+    source.freeformCanvas!.elements[0].x = 20;
+    source.freeformCanvas!.elements[0].width = 150;
+    const state = workspace(current, source);
+    const comparison = createTemplateUpdateComparison(state, 'set', 'current', source);
+    const key = (property: string) => comparison.changes.find((change) => change.path.at(-1) === property)!.key;
+    const first = resolveTemplateUpdateReview(state, comparison, source, { [key('name')]: 'keep', [key('x')]: 'use' }, fingerprint);
+    state.userTemplates[0] = first.template;
+    state.cardSets[0].updateReviews = [first.review];
+    const resumed = createTemplateUpdateComparison(state, 'set', 'current', source);
+    const choices = getTemplateUpdateReviewChoices(resumed, first.review, fingerprint);
+    expect(choices).toEqual({ [key('name')]: 'keep', [key('width')]: 'defer' });
+    const completed = resolveTemplateUpdateReview(state, resumed, source, { ...choices, [key('width')]: 'use' }, fingerprint);
+    expect(completed.review.outcome).toBe('reviewed');
+    expect(completed.review.decisions).toEqual(expect.arrayContaining([
+      { key: key('x'), decision: 'use' }, { key: key('name'), decision: 'keep' }, { key: key('width'), decision: 'use' },
+    ]));
+    state.userTemplates[0] = completed.template;
+    state.cardSets[0].updateReviews = [completed.review];
+    state.userTemplates[0].freeformCanvas!.elements[0].x = 55;
+    const edited = createTemplateUpdateComparison(state, 'set', 'current', source);
+    expect(getTemplateUpdateReviewChoices(edited, completed.review, fingerprint)).toEqual({ [key('name')]: 'keep', [key('x')]: 'defer' });
+    expect(Object.values(getTemplateUpdateReviewChoices(edited, completed.review, 'b'.repeat(64)))).toEqual(['defer', 'defer']);
+    expect(Object.values(getTemplateUpdateReviewChoices(edited, { ...completed.review, sourceRevisionId: 'different' }, fingerprint))).toEqual(['defer', 'defer']);
+    const replaced = resolveTemplateUpdateReview(state, edited, source, {}, 'b'.repeat(64));
+    expect(replaced.review.decisions).not.toContainEqual({ key: key('width'), decision: 'use' });
+    expect(replaced.review.outcome).toBe('deferred');
   });
 
   it('rejects mixed parent choices that form a cycle while accepting a valid reparenting', () => {
