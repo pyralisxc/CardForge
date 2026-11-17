@@ -361,7 +361,7 @@ export const registerAgentCardTools = ({
     'move_cards',
     {
       title: 'Move cards between agent working Sets',
-      description: 'Move existing stable card ids from one Set to another in the same private working document. Moving keeps each card’s Template identity and makes those Templates available to the destination Set.',
+      description: 'Move existing stable card ids from one Set to another in the same private working document. Moving preserves authored front/back card data and acquires independent destination-owned Template copies; use the returned bindings for subsequent edits.',
       inputSchema: moveCardsInputSchema,
       outputSchema: cardMoveOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
