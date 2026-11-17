@@ -212,11 +212,59 @@ describe('Set context native lifecycle', () => {
 
   it('imports retained signed-out context as an independent account copy before consuming it', async () => {
     const guest = createBrowserKeyValueStorage('project-workspace:guest');
-    await guest.setItem('workspace', JSON.stringify({ version: 6, state: { cardSets: [{ id: 'guest-context', name: 'Signed-out work', plan: original }], storedCards: [], userTemplates: [], appearanceStyles: [] } }));
+    const guestTemplate = {
+      id: 'guest-template',
+      name: 'Guest authored design',
+      aspectRatio: '63:88',
+      templateSource: 'user',
+      templateLibrarySource: 'personal',
+      templateLineageId: 'guest-template-lineage',
+      templateRevision: 4,
+      templateRevisionId: 'guest-template-r4',
+      templateOriginLineageId: 'starter-lineage',
+      templateOriginRevisionId: 'starter-r2',
+      freeformCanvas: { width: 630, height: 880, elements: [] },
+    };
+    await guest.setItem('workspace', JSON.stringify({
+      version: 7,
+      state: {
+        cardSets: [{ id: 'guest-context', name: 'Signed-out work', plan: original, templateIds: [guestTemplate.id] }],
+        activeCardSet: { id: 'guest-context', name: 'Signed-out work' },
+        storedCards: [{
+          uniqueId: 'guest-card',
+          templateId: guestTemplate.id,
+          backingTemplateId: null,
+          setId: 'guest-context',
+          setName: 'Signed-out work',
+          data: { name: 'Guest card' },
+        }],
+        userTemplates: [guestTemplate],
+        appearanceStyles: [],
+      },
+    }));
     const imported = await importRetainedGuestWorkspaceAsCopy();
     expect(imported.consumed).toBe(true);
     expect(imported.importedSetId).not.toBe('guest-context');
     expect(useProjectStore.getState().cardSets.find((set) => set.id === imported.importedSetId)?.plan).toEqual(original);
+    expect(imported.summary.templateCount).toBe(1);
+    expect(useProjectStore.getState().userTemplates).toHaveLength(1);
+    const importedTemplate = useProjectStore.getState().userTemplates[0]!;
+    expect(importedTemplate.id).not.toBe(guestTemplate.id);
+    expect(importedTemplate).toMatchObject({
+      templateSource: 'user',
+      templateLibrarySource: 'personal',
+      templateLineageId: importedTemplate.id,
+      templateOriginLineageId: 'guest-template-lineage',
+      templateOriginRevisionId: 'guest-template-r4',
+    });
+    expect(useProjectStore.getState().cardSets.find((set) => set.id === imported.importedSetId)?.templateIds)
+      .toEqual([importedTemplate.id]);
+    expect(useProjectStore.getState().storedCards).toHaveLength(1);
+    expect(useProjectStore.getState().storedCards[0]).toMatchObject({
+      uniqueId: expect.not.stringMatching(/^guest-card$/),
+      templateId: importedTemplate.id,
+      setId: imported.importedSetId,
+    });
     expect(owner().plan).toEqual(original);
     expect(await guest.getItem('workspace')).toBeNull();
   });

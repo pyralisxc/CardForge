@@ -53,7 +53,7 @@ const buildDocument = (retained: RetainedGuestWorkspace) => {
   const activeCardSetId = state.activeCardSet && typeof state.activeCardSet === 'object' && 'id' in state.activeCardSet
     && typeof state.activeCardSet.id === 'string' ? state.activeCardSet.id : undefined;
   const candidate = {
-    version: 2,
+    version: typeof version === 'number' && version >= 7 ? 3 : 2,
     userTemplates: Array.isArray(state.userTemplates) ? state.userTemplates : [],
     cardSets: Array.isArray(state.cardSets) ? state.cardSets : [],
     ...(activeCardSetId ? { activeCardSetId } : {}),
