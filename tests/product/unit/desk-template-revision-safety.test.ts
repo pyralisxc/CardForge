@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain/templates';
+import { reconstructMinimalTemplateObject, validateNativeTemplateStructure, type TCGCardTemplate } from '@/domain/templates';
 import { normalizeSetUpdateReviews } from '@/domain/cards/setUpdateReview';
 import { createTemplateUpdateComparison, resolveTemplateUpdateReview } from '@/features/project/model/templateUpdateReview';
 import type { SetTemplateState } from '@/features/project/model/setTemplateOwnership';
@@ -39,6 +39,40 @@ describe('Set-owned selective Template Update review', () => {
     expect(normalizeSetUpdateReviews([kept.review])).toEqual([kept.review]);
     expect(() => normalizeSetUpdateReviews([{ ...partial.review, outcome: 'reviewed' }])).toThrow(/deferred/i);
     expect(() => normalizeSetUpdateReviews([{ ...kept.review, oldSnapshot: current }])).toThrow(/unsupported/i);
+    expect(state).toEqual(before);
+  });
+
+  it('rejects mixed parent choices that form a cycle while accepting a valid reparenting', () => {
+    const current = template('current', ['name']);
+    const source = template('incoming', ['name']);
+    const elementA = { id: 'group-a', name: 'Group A', type: 'text' as const, content: 'Group A', x: 0, y: 0, width: 100, height: 100, zIndex: 1 };
+    const elementB = { id: 'group-b', name: 'Group B', type: 'text' as const, content: 'Group B', x: 0, y: 0, width: 100, height: 100, zIndex: 2 };
+    current.freeformCanvas!.hierarchyVersion = 2;
+    source.freeformCanvas!.hierarchyVersion = 2;
+    current.freeformCanvas!.elements.push({ ...elementA, parentId: 'group-b' }, elementB);
+    source.freeformCanvas!.elements.push(elementA, { ...elementB, parentId: 'group-a' });
+    expect(validateNativeTemplateStructure(current)).toBeNull();
+    expect(validateNativeTemplateStructure(source)).toBeNull();
+
+    const state = workspace(current, source);
+    const before = structuredClone(state);
+    const comparison = createTemplateUpdateComparison(state, 'set', 'current', source);
+    const parentChange = (id: string) => comparison.changes.find((change) => (
+      change.path.at(-1) === 'parentId'
+      && change.path.some((segment) => typeof segment === 'object' && 'by' in segment && segment.by === 'id' && segment.value === id)
+    ))!;
+    const keepAUseB = {
+      [parentChange('group-a').key]: 'keep' as const,
+      [parentChange('group-b').key]: 'use' as const,
+    };
+    expect(() => resolveTemplateUpdateReview(state, comparison, source, keepAUseB, fingerprint)).toThrow(/valid design/i);
+    expect(state).toEqual(before);
+
+    const useAll = Object.fromEntries(comparison.changes.map((change) => [change.key, 'use' as const]));
+    const accepted = resolveTemplateUpdateReview(state, comparison, source, useAll, fingerprint);
+    expect(accepted.template.freeformCanvas!.elements.find((element) => element.id === 'group-a')?.parentId).toBeUndefined();
+    expect(accepted.template.freeformCanvas!.elements.find((element) => element.id === 'group-b')?.parentId).toBe('group-a');
+    expect(validateNativeTemplateStructure(accepted.template)).toBeNull();
     expect(state).toEqual(before);
   });
 
