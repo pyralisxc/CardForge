@@ -14,7 +14,7 @@ const displayValue = (value: unknown): string => {
 };
 
 export function TemplateUpdateReviewDialog({ review, onClose }: { review: OpenTemplateUpdateReview; onClose: () => void }) {
-  const [choices, setChoices] = useState<Record<string, SetUpdateDecision>>({});
+  const [choices, setChoices] = useState<Record<string, SetUpdateDecision>>(() => ({ ...review.initialChoices }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const request = useRef<AbortController | null>(null);
@@ -46,6 +46,7 @@ export function TemplateUpdateReviewDialog({ review, onClose }: { review: OpenTe
         <DialogDescription>Compare your design with “{review.incoming.name}”. Choose each change; nothing is accepted automatically.</DialogDescription>
       </DialogHeader>
       <p className="text-sm text-muted-foreground">These are two available snapshots, not a reconstruction of missing history. A related revision may contain earlier or parallel work. Keep mine completes a decision; Defer leaves it unresolved.</p>
+      {review.expectedReview ? <p className="text-sm text-muted-foreground">Recorded Keep mine choices resume only for matching source content. Previously applied choices stay recorded; if they differ again, review them anew. Nothing is applied until you confirm.</p> : null}
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
         {groups.size ? [...groups].map(([group, changes]) => <details key={group} open className="rounded-md border p-3">
           <summary className="cursor-pointer font-medium">{group} · {changes.length} {changes.length === 1 ? 'change' : 'changes'}</summary>
