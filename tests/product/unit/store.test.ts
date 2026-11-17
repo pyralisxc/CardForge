@@ -4,6 +4,8 @@ import { clearEditorPreferenceStorage, readEditorPreferenceStorage, writeEditorP
 import { setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import { createBrowserKeyValueStorage } from '@/features/project/persistence/indexedDbStorage';
+import { readUpdateNoticeReceipts, writeUpdateNoticeAcknowledgement } from '@/features/project/client/updateNoticeStorage';
+import { updateNoticeKey } from '@/features/project/model/updateNotices';
 import { selectAllTemplates, selectGeneratedDisplayCards, useProjectStore } from '@/features/project/client/workspace';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
@@ -857,8 +859,10 @@ describe('persisted Generator selection migration', () => {
     await writeProjectPreference('editor-preferences:v1:account:editor-a', { richTextHighlightColor: '#123456' });
     await expect(readEditorPreferenceStorage()).resolves.toEqual({
       richTextHighlightColor: '#123456', googleDriveAutosaveEnabled: false, googleDriveAutosaveDelaySeconds: null,
+      updateNotificationsEnabled: true, automaticUpdateChecks: true, updateCheckIntervalSeconds: 900,
     });
-    await writeEditorPreferenceStorage({ richTextHighlightColor: '#123456', googleDriveAutosaveEnabled: true, googleDriveAutosaveDelaySeconds: 30 });
+    await writeEditorPreferenceStorage({ richTextHighlightColor: '#123456', googleDriveAutosaveEnabled: true, googleDriveAutosaveDelaySeconds: 30,
+      updateNotificationsEnabled: false, automaticUpdateChecks: false, updateCheckIntervalSeconds: 300 });
 
     setProjectPersistenceScope('account:editor-b');
     await clearEditorPreferenceStorage();
@@ -867,7 +871,30 @@ describe('persisted Generator selection migration', () => {
     setProjectPersistenceScope('account:editor-a');
     await expect(readEditorPreferenceStorage()).resolves.toEqual({
       richTextHighlightColor: '#123456', googleDriveAutosaveEnabled: true, googleDriveAutosaveDelaySeconds: 30,
+      updateNotificationsEnabled: false, automaticUpdateChecks: false, updateCheckIntervalSeconds: 300,
     });
+  });
+
+  it('keeps personal notification acknowledgements scoped and separate from authored work', async () => {
+    const raw = createBrowserKeyValueStorage('project-preferences');
+    const scope = 'account:notice-receipts' as const;
+    const key = 'update-notice-receipts:v1:account:notice-receipts';
+    await raw.removeItem(key);
+    const first = updateNoticeKey('set-a', 'template-a', 'source', 'revision-a', 'a'.repeat(64));
+    const second = updateNoticeKey('set-a', 'template-a', 'source', 'revision-b', 'b'.repeat(64));
+    const before = structuredClone(useProjectStore.getState().cardSets);
+    await Promise.all([
+      writeUpdateNoticeAcknowledgement(scope, [first], 'dismissed'),
+      writeUpdateNoticeAcknowledgement(scope, [second], 'read'),
+    ]);
+    await writeUpdateNoticeAcknowledgement(scope, [first], 'read');
+    await expect(readUpdateNoticeReceipts(scope)).resolves.toEqual({ [first]: 'dismissed', [second]: 'read' });
+    await expect(readUpdateNoticeReceipts('account:unrelated-notice-scope')).resolves.toEqual({});
+    expect(useProjectStore.getState().cardSets).toEqual(before);
+    await raw.setItem(key, '{unreadable');
+    await expect(readUpdateNoticeReceipts(scope)).rejects.toThrow('could not be read');
+    await expect(writeUpdateNoticeAcknowledgement(scope, [first], 'read')).rejects.toThrow();
+    await expect(raw.getItem(key)).resolves.toBe('{unreadable');
   });
 
   it('retains older Studio-tab migration and explicit cleared current selections', async () => {

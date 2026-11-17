@@ -39,6 +39,7 @@ type CommandTarget = LibraryViewItem | { scope: 'personal'; id: string; personal
 interface UseAccountLibraryActionsOptions {
   activeLoading: boolean;
   openCreateSet: () => void;
+  reviewUpdates: (setId: string) => void;
   activeScope: LibraryScope;
   activeTool: LibraryTool;
   closeDetail: () => void;
@@ -63,6 +64,7 @@ interface UseAccountLibraryActionsOptions {
 
 export function useAccountLibraryActions({
   openCreateSet,
+  reviewUpdates,
   activeScope,
   activeTool,
   closeDetail,
@@ -235,6 +237,12 @@ export function useAccountLibraryActions({
       closeTool: () => ({ kind: 'navigation', href: closeLibraryTool(false) }),
       continuePersonal: () => openPersonalItem(requirePersonal()),
       openPersonal: () => openPersonalItem(requirePersonal()),
+      reviewUpdates: () => {
+        const setId = requirePersonal().references.localSetId;
+        if (!setId) throw new Error('Open this Set on the device before reviewing updates.');
+        reviewUpdates(setId);
+        return { kind: 'tool-opened', toolId: 'set-updates' };
+      },
       sendPipeline: () => {
         const item = requirePersonal();
         if (!item.references.localSetId) throw new Error('Choose a local Set before sending work to Pipeline.');

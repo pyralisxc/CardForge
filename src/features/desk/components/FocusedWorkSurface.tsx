@@ -112,7 +112,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
             <label className={styles.searchField}><span className="sr-only">Search cards in this work</span><Search aria-hidden="true" /><Input value={props.cardQuery} onChange={(event) => props.onCardQueryChange(event.target.value)} placeholder="Search cards" /></label>
             {currentSet ? <SetTemplates set={currentSet} cards={props.focusedCards} templates={templates} onDesign={props.onDesignTemplate} renderPreview={renderTemplatePreview} getTemplateAccent={getTemplateAccent} /> : null}
             {currentSet ? <SetDirection key={currentSet.id} set={currentSet} useLifecycle={useEnvironmentToolLifecycle} /> : null}
-            {currentSet ? <SetUpdates key={`updates-${currentSet.id}`} setId={currentSet.id} renderPreview={renderTemplatePreview} /> : null}
+            {currentSet ? <SetUpdates key={`updates-${currentSet.id}`} setId={currentSet.id} /> : null}
             {!props.selectedCards.length ? <>
             {needsWorkCards.length ? <Button type="button" size="sm" variant="ghost" className="gap-1.5" onClick={() => props.onSelectionChange(needsWorkCards.map((card) => card.uniqueId))} title="Select Artifacts missing required Template values"><TriangleAlert className="h-4 w-4" />Needs work · {needsWorkCards.length}</Button> : null}
             </> : null}

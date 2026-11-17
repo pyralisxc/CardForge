@@ -8,6 +8,8 @@ import {
   readEditorPreferenceStorage,
   writeEditorPreferenceStorage,
   type StoredEditorPreferences,
+  isUpdateCheckInterval,
+  type UpdateCheckIntervalSeconds,
 } from '@/features/project/client/editorPreferenceStorage';
 import { isStudioAutosaveDelaySeconds, type StudioAutosaveDelaySeconds } from '@/features/experience-settings/client';
 import {
@@ -23,6 +25,9 @@ const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   richTextHighlightColor: DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
   googleDriveAutosaveEnabled: false,
   googleDriveAutosaveDelaySeconds: null,
+  updateNotificationsEnabled: true,
+  automaticUpdateChecks: true,
+  updateCheckIntervalSeconds: 900,
 };
 
 const snapshots = new Map<EditorPreferenceScope, EditorPreferences>();
@@ -70,7 +75,7 @@ const hydrate = async (scope: EditorPreferenceScope, force = false) => {
       if ((localRevisions.get(scope) ?? 0) !== startedAtRevision) return;
       snapshots.set(scope, DEFAULT_EDITOR_PREFERENCES);
       hydratedScopes.delete(scope);
-      readErrors.set(scope, 'Saving preferences could not be read. Autosave stays off; existing preferences were not replaced.');
+      readErrors.set(scope, 'Workspace preferences could not be read. Automatic actions stay off; existing preferences were not replaced.');
     })
     .finally(() => {
       if (hydrationTasks.get(scope) === task) hydrationTasks.delete(scope);
@@ -147,6 +152,12 @@ export function useEditorPreferences(scope?: EditorPreferenceScope) {
     updatePreferences({ googleDriveAutosaveDelaySeconds: delay });
   }, [updatePreferences]);
 
+  const setUpdateNotificationsEnabled = useCallback((enabled: boolean) => updatePreferences({ updateNotificationsEnabled: enabled }), [updatePreferences]);
+  const setAutomaticUpdateChecks = useCallback((enabled: boolean) => updatePreferences({ automaticUpdateChecks: enabled }), [updatePreferences]);
+  const setUpdateCheckIntervalSeconds = useCallback((value: UpdateCheckIntervalSeconds) => {
+    if (isUpdateCheckInterval(value)) updatePreferences({ updateCheckIntervalSeconds: value });
+  }, [updatePreferences]);
+
   return {
     ...preferences,
     preferencesReady,
@@ -156,5 +167,8 @@ export function useEditorPreferences(scope?: EditorPreferenceScope) {
     setRichTextHighlightColor,
     setGoogleDriveAutosaveEnabled,
     setGoogleDriveAutosaveDelaySeconds,
+    setUpdateNotificationsEnabled,
+    setAutomaticUpdateChecks,
+    setUpdateCheckIntervalSeconds,
   };
 }

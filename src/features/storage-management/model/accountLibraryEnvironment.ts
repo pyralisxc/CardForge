@@ -114,6 +114,14 @@ export const getAccountLibraryEnvironmentActions = (
     });
   }
 
+  if (item.references.localSetId) {
+    actions.push({
+      id: 'library.review-updates', label: 'Review updates', ownerFeature: 'project',
+      supportedObjectKinds: [item.kind], supportedSources: sources, revisionPolicy: 'none', requiredPermission: 'guest',
+      scope: 'object', hierarchy: 'overflow', availability, commitment: 'none', automation: human(), result: 'tool-opened',
+    });
+  }
+
   if (availableActions.includes('save-move')) {
     actions.push({
       id: 'library.save-move',

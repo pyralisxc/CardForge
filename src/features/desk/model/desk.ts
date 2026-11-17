@@ -270,6 +270,11 @@ export const getWorkActions = (
       id: 'desk.send-pipeline', objectKind: 'set', sources,
     })] : []),
     ...(localSet ? [{
+      id: 'desk.review-updates' as const, label: 'Review updates', ownerFeature: 'project' as const,
+      supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,
+      scope: 'object' as const, hierarchy: 'overflow' as const, availability: { kind: 'available' as const }, commitment: 'none' as const,
+      automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'tool-opened' as const,
+    }, {
       id: 'desk.rename-set' as const, label: 'Rename', ownerFeature: 'project' as const,
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,
       scope: 'object' as const, hierarchy: 'overflow' as const, availability: { kind: 'available' as const }, commitment: 'none' as const,
