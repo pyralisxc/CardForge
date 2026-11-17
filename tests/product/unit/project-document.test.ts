@@ -207,7 +207,7 @@ describe('project document serialization', () => {
         width: 30,
         height: 40,
         zIndex: 20,
-        futureElementData: { owner: 'late' },
+        futureElementData: { owner: 'late', lateOnly: true },
       },
       {
         id: 'opaque-early',
@@ -218,7 +218,7 @@ describe('project document serialization', () => {
         width: 70,
         height: 80,
         zIndex: 5,
-        futureElementData: { owner: 'early' },
+        futureElementData: { owner: 'early', earlyOnly: true },
       },
     ];
     const source = {
@@ -249,8 +249,8 @@ describe('project document serialization', () => {
       element.id,
       (element as typeof element & { futureElementData?: unknown }).futureElementData,
     ])).toEqual([
-      ['opaque-early', { owner: 'early' }],
-      ['opaque-late', { owner: 'late' }],
+      ['opaque-early', { owner: 'early', earlyOnly: true }],
+      ['opaque-late', { owner: 'late', lateOnly: true }],
     ]);
     expect(() => materializeProjectTemplateOwnership(parsed.document)).toThrow(/cannot preserve during Set acquisition/i);
     expect(parseProjectDocumentValue({ ...source, version: 3 })).toMatchObject({ success: false });
