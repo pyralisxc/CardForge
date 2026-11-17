@@ -21,14 +21,20 @@ describe('session-only Set removal recovery', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     const owner = { id: 'set-a', name: 'Alpha' };
     useProjectStore.setState({
-      cardSets: [owner, { id: 'set-b', name: 'Beta' }], activeCardSet: owner,
+      cardSets: [ { ...owner, templateIds: ['front', 'back'] }, { id: 'set-b', name: 'Beta', templateIds: ['front-b', 'back-b'] } ], activeCardSet: owner,
       userTemplates: [
         reconstructMinimalTemplateObject({ id: 'front', name: 'Front', templateSource: 'user' }),
         reconstructMinimalTemplateObject({ id: 'back', name: 'Back', templateSource: 'user', templateUsage: 'back-preset' }),
+        reconstructMinimalTemplateObject({ id: 'front-b', name: 'Front B', templateSource: 'user' }),
+        reconstructMinimalTemplateObject({ id: 'back-b', name: 'Back B', templateSource: 'user', templateUsage: 'back-preset' }),
       ],
       storedCards: ['a', 'b', 'c', 'other'].map((uniqueId) => ({
-        uniqueId, templateId: 'front', setId: uniqueId === 'other' ? 'set-b' : owner.id,
-        data: { title: uniqueId, detail: 'Original' }, backingTemplateId: 'back', backingData: { title: `Back ${uniqueId}` },
+        uniqueId,
+        templateId: uniqueId === 'other' ? 'front-b' : 'front',
+        setId: uniqueId === 'other' ? 'set-b' : owner.id,
+        data: { title: uniqueId, detail: 'Original' },
+        backingTemplateId: uniqueId === 'other' ? 'back-b' : 'back',
+        backingData: { title: `Back ${uniqueId}` },
       })),
     });
     await persistProjectWorkspaceNow();
@@ -110,11 +116,11 @@ describe('session-only Set removal recovery', () => {
     current().removeGeneratedCards(['a']);
     const entry = latest();
     const templates = current().userTemplates;
-    current().setUserTemplatesFromFiles(templates.filter((template) => template.id !== 'back'));
+    useProjectStore.setState({ userTemplates: templates.filter((template) => template.id !== 'back') });
     const before = current();
     expect(current().undoCardRemoval(entry.id)).toEqual({ ok: false, reason: 'template-unavailable' });
     expect(current()).toBe(before);
-    current().setUserTemplatesFromFiles(templates);
+    useProjectStore.setState({ userTemplates: templates });
     expect(current().undoCardRemoval(entry.id)).toMatchObject({ ok: true, count: 1 });
   });
 

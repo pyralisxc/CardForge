@@ -14,6 +14,7 @@ const persistedTemplate = templateDraftSchema.extend({
   templateRegistryStatus: z.string().optional(), templateContributorName: z.string().optional(), templateOrder: z.number().optional(),
   templateLineageId: z.string().optional(), templateRevisionId: z.string().optional(), templateParentRevisionId: z.string().optional(),
   templateOriginLineageId: z.string().optional(), templateOriginRevisionId: z.string().optional(), templateRevision: z.number().optional(),
+  templateOriginAncestors: z.array(z.object({ lineageId: z.string(), revisionId: z.string().optional() }).strict()).optional(),
   templatePreviewData: scalarData.optional(),
   templatePipelineContext: z.object({
     schemaVersion: z.literal(1),
@@ -61,7 +62,8 @@ export function interpretStudioDependencies(payload: unknown) {
   const visit = (value: unknown, key = '', parentType = '', container = '', scope: ProjectAssetScope = 'root') => {
     if (scope === 'opaque') return;
     if (typeof value === 'string') {
-      if (identityFields.has(key) || (key === 'id' && ['userTemplates','appearanceStyles'].includes(container))) identities.add(value);
+      if (identityFields.has(key) || (key === 'revisionId' && container === 'templateOriginAncestors')
+        || (key === 'id' && ['userTemplates','appearanceStyles'].includes(container))) identities.add(value);
       if (sourceFields.has(key) || key === 'backgroundImage' || key === 'borderImageSource'
         || (['content','defaultValue','example'].includes(key) && parentType === 'image')) {
         sources.add(value);

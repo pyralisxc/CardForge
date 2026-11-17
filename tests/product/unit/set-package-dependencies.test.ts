@@ -22,10 +22,8 @@ describe('canonical Set package dependency interpretation', () => {
     expect(proof.sourceManifest.project).toEqual(expect.objectContaining({ cardSets: [expect.objectContaining({ plan: context })] }));
   });
   it('still refuses uninspected fields in a v3 artifact envelope', async () => {
-    const proof = await interpretPipelineSetPackage(await make({ storedCards: [], artifacts: [{ artifactId: 'a', artifactType: 'card', setId: 'local', card: { uniqueId: 'a', templateId: 'external', data: {} }, future: 'unknown' }] }, { cardforgeProject: 3 }));
-    expect(proof.complete).toBe(false);
-    expect(proof.opaqueReasons).toContain('unsupported_package_project_field');
-    expect(proof.opaqueReasons).toContain('unsupported_package_artifact');
+    await expect(interpretPipelineSetPackage(await make({ storedCards: [], artifacts: [{ artifactId: 'a', artifactType: 'card', setId: 'local', card: { uniqueId: 'a', templateId: 'external', data: {} }, future: 'unknown' }] }, { cardforgeProject: 3 })))
+      .rejects.toThrow(/artifact document|unsupported creative fields/i);
   });
   it('does not erase unknown raw fields when the runtime parser normalizes', async () => {
     const proof=await interpretPipelineSetPackage(await make({futureDependency:'unknown'}));

@@ -20,8 +20,14 @@ import {
   type ProjectProductionPlan,
 } from './projectProductionPlan';
 import { getProjectFontValue, remapProjectTemplateFonts, normalizeProjectFontAssets, type ProjectFontAsset } from './projectFont';
+import { assertSetTemplateOwnership, materializeLegacySetTemplates, prepareCardSetTemplateBindings, SetTemplateOwnershipError } from './setTemplateOwnership';
 
-const PROJECT_DOCUMENT_VERSION = 1;
+const PROJECT_DOCUMENT_VERSION = 3;
+const PROJECT_DOCUMENT_ROOT_FIELDS = [
+  'version', 'userTemplates', 'cardSets', 'activeCardSetId', 'storedCards', 'appearanceStyles',
+  'exportSettings', 'customAssets', 'customFonts', 'productionPlan', 'mcpOperationReceipts',
+] as const;
+const isProjectDocumentRootField = (key: string) => PROJECT_DOCUMENT_ROOT_FIELDS.some((field) => field === key);
 
 export const CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-textures';
 export const CUSTOM_DIVIDER_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-dividers';
@@ -59,7 +65,7 @@ export interface ProjectDocumentMcpOperationReceipt {
 }
 
 export interface ProjectDocument {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   userTemplates: TCGCardTemplate[];
   cardSets: CardSet[];
   activeCardSetId?: string;
@@ -72,7 +78,7 @@ export interface ProjectDocument {
   mcpOperationReceipts?: ProjectDocumentMcpOperationReceipt[];
 }
 
-/** Compatibility type name; normalized documents may carry v2 Set context. */
+/** Compatibility type name; current documents carry v3 Set ownership. */
 export type ProjectDocumentV1 = ProjectDocument;
 
 export interface CreateProjectDocumentInput extends ProjectDocumentExportSettings {
@@ -178,7 +184,7 @@ const getUnsupportedProjectDocumentReason = (value: unknown): string => {
   if (isRecord(value)) {
     const state = isRecord(value.state) ? value.state : value;
     const storedCards = asArray<StoredDisplayCard>(state.storedCards);
-    const userTemplates = normalizeTemplates(state.userTemplates);
+    const userTemplates = normalizeTemplates(state.userTemplates, true);
     if (storedCards.length > 0 && userTemplates.length === 0) {
       return storedCardOnlyMessage;
     }
@@ -187,10 +193,50 @@ const getUnsupportedProjectDocumentReason = (value: unknown): string => {
   return 'Unsupported project document format. Import a CardForge project export.';
 };
 
-const normalizeTemplates = (value: unknown): TCGCardTemplate[] => (
+const getStableArrayIdentities = (values: unknown[], identityKey: string): string[] | null => {
+  const identities = values.map((value) => (
+    isRecord(value) && typeof value[identityKey] === 'string' && value[identityKey].length > 0
+      ? value[identityKey] as string
+      : null
+  ));
+  if (identities.some((identity) => identity === null) || new Set(identities).size !== identities.length) return null;
+  return identities as string[];
+};
+
+const retainRawAuthoredFields = (raw: unknown, normalized: unknown, fieldName?: string): unknown => {
+  if (Array.isArray(raw) && Array.isArray(normalized)) {
+    if (authoredPlanInputSurvives(raw, normalized)) return normalized;
+    const identityKey = fieldName === 'fieldContracts' ? 'key' : 'id';
+    const rawIdentities = getStableArrayIdentities(raw, identityKey);
+    const normalizedIdentities = getStableArrayIdentities(normalized, identityKey);
+    if (!rawIdentities || !normalizedIdentities) return raw;
+    const rawById = new Map(raw.map((entry, index) => [rawIdentities[index]!, entry]));
+    const normalizedIds = new Set(normalizedIdentities);
+    return [
+      ...normalized.map((entry, index) => {
+        const rawEntry = rawById.get(normalizedIdentities[index]!);
+        return rawEntry === undefined ? entry : retainRawAuthoredFields(rawEntry, entry);
+      }),
+      ...raw.filter((_, index) => !normalizedIds.has(rawIdentities[index]!)),
+    ];
+  }
+  if (isRecord(raw) && isRecord(normalized)) {
+    const result: Record<string, unknown> = { ...raw, ...normalized };
+    Object.keys(raw).forEach((key) => {
+      if (Object.hasOwn(normalized, key)) result[key] = retainRawAuthoredFields(raw[key], normalized[key], key);
+    });
+    return result;
+  }
+  return normalized === undefined ? raw : normalized;
+};
+
+const normalizeTemplates = (value: unknown, preserveLegacyFields: boolean): TCGCardTemplate[] => (
   asArray<Partial<TCGCardTemplate>>(value)
     .filter(isLikelyTemplate)
-    .map((template) => reconstructMinimalTemplateObject({ ...template, templateSource: 'user' }))
+    .map((template) => {
+      const normalized = reconstructMinimalTemplateObject(template);
+      return preserveLegacyFields ? retainRawAuthoredFields(template, normalized) as TCGCardTemplate : normalized;
+    })
 );
 
 const normalizeCustomAssets = (value: unknown): ProjectDocumentCustomAssets => {
@@ -238,7 +284,24 @@ const normalizeMcpOperationReceipts = (value: unknown): ProjectDocumentMcpOperat
 };
 
 const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
-  if (!isRecord(value) || (value.version !== 1 && value.version !== 2)) return null;
+  if (!isRecord(value) || (value.version !== 1 && value.version !== 2 && value.version !== 3)) return null;
+  if (value.version === 3 && (!Array.isArray(value.userTemplates)
+    || !Array.isArray(value.cardSets)
+    || !Array.isArray(value.storedCards)
+    || !Array.isArray(value.appearanceStyles)
+    || !isRecord(value.exportSettings)
+    || !isRecord(value.customAssets))) {
+    throw new Error('The Set-owned document is incomplete. Its source was left unchanged.');
+  }
+  if (value.version === 3 && Object.keys(value).some((key) => !isProjectDocumentRootField(key))) {
+    throw new Error('The Set-owned document contains unsupported creative fields. Its source was left unchanged.');
+  }
+  if (value.version === 3 && Object.keys(value.exportSettings as Record<string, unknown>).some((key) => ![
+    'selectedPaperSize', 'pdfMarginMm', 'pdfCardSpacingMm', 'pdfIncludeCutLines',
+    'pdfDuplexLayout', 'exportMode', 'exportDpi',
+  ].includes(key))) {
+    throw new Error('The Set-owned document contains unsupported export settings. Its source was left unchanged.');
+  }
   if (!Array.isArray(value.userTemplates) && !Array.isArray(value.storedCards) && !Array.isArray(value.appearanceStyles)) return null;
 
   const storedCards = asArray<StoredDisplayCard>(value.storedCards);
@@ -251,25 +314,106 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     preferredId: typeof value.activeCardSetId === 'string' ? value.activeCardSetId : storedCards[0]?.setId,
   });
   const customFonts = normalizeProjectFontAssets(value.customFonts);
+  const userTemplates = normalizeTemplates(value.userTemplates, value.version !== 3);
+  const appearanceStyles = asArray<AppearanceStylePreset>(value.appearanceStyles);
+  const customAssets = normalizeCustomAssets(value.customAssets);
+  const rawCustomAssets = isRecord(value.customAssets) ? value.customAssets : {};
   const productionPlan = normalizeProjectProductionPlan(value.productionPlan);
   if (value.productionPlan !== undefined && (!productionPlan || !authoredPlanInputSurvives(value.productionPlan, productionPlan))) {
     throw new Error('The document contains an unsupported creation brief. Its source was left unchanged.');
   }
   const mcpOperationReceipts = normalizeMcpOperationReceipts(value.mcpOperationReceipts);
+  if (value.version === 3) {
+    if (value.activeCardSetId !== undefined && value.activeCardSetId !== null
+      && (typeof value.activeCardSetId !== 'string' || activeCardSet?.id !== value.activeCardSetId)) {
+      throw new Error('The Set-owned document names an unavailable active Set. Its source was left unchanged.');
+    }
+    const customAssetCollections = [
+      CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
+      CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
+      CUSTOM_ICON_ASSETS_STORAGE_KEY,
+      CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
+    ];
+    if (!isRecord(value.customAssets) || customAssetCollections.some((key) => !Array.isArray(rawCustomAssets[key]))) {
+      throw new Error('The Set-owned document contains an incomplete artwork catalog. Its source was left unchanged.');
+    }
+    const preservedCollections = {
+      userTemplates: authoredPlanInputSurvives(value.userTemplates, userTemplates),
+      cardSets: authoredPlanInputSurvives(value.cardSets, cardSets),
+      storedCards: authoredPlanInputSurvives(value.storedCards, storedCards),
+      appearanceStyles: authoredPlanInputSurvives(value.appearanceStyles, appearanceStyles),
+      customAssets: authoredPlanInputSurvives(value.customAssets, customAssets),
+      customFonts: value.customFonts === undefined || authoredPlanInputSurvives(value.customFonts, customFonts),
+      mcpOperationReceipts: value.mcpOperationReceipts === undefined
+        || authoredPlanInputSurvives(value.mcpOperationReceipts, mcpOperationReceipts ?? []),
+    };
+    const lossyCollections = Object.entries(preservedCollections).filter(([, preserved]) => !preserved).map(([key]) => key);
+    if (lossyCollections.length) {
+      const lossyTemplateFields = Array.isArray(value.userTemplates) ? value.userTemplates.flatMap((template, index) => (
+        isRecord(template) ? Object.entries(template)
+          .filter(([key, entry]) => entry !== undefined
+            && !authoredPlanInputSurvives(entry, userTemplates[index]?.[key as keyof TCGCardTemplate]))
+          .map(([key]) => key) : []
+      )) : [];
+      throw new Error(`The Set-owned document contains unsupported or lossy authored content (${lossyCollections.join(', ')}${lossyTemplateFields.length ? `: ${[...new Set(lossyTemplateFields)].join(', ')}` : ''}). Its source was left unchanged.`);
+    }
+  }
 
-  return {
+  const legacyOpaqueRootFields = value.version === 3
+    ? {}
+    : Object.fromEntries(Object.entries(value).filter(([key]) => !isProjectDocumentRootField(key)));
+  const document: ProjectDocument = {
+    ...legacyOpaqueRootFields,
     version: value.version,
-    userTemplates: normalizeTemplates(value.userTemplates),
+    userTemplates,
     cardSets,
     ...(activeCardSet ? { activeCardSetId: activeCardSet.id } : {}),
     storedCards,
-    appearanceStyles: asArray<AppearanceStylePreset>(value.appearanceStyles),
+    appearanceStyles,
     exportSettings: isRecord(value.exportSettings) ? value.exportSettings : {},
-    customAssets: normalizeCustomAssets(value.customAssets),
+    customAssets,
     ...(customFonts.length > 0 ? { customFonts } : {}),
     ...(productionPlan ? { productionPlan } : {}),
     ...(mcpOperationReceipts ? { mcpOperationReceipts } : {}),
   };
+  if (document.version === 3) assertSetTemplateOwnership(document);
+  return document;
+};
+
+export const materializeProjectTemplateOwnership = (document: ProjectDocument, createId?: () => string) => {
+  if (document.version === 3) {
+    assertSetTemplateOwnership(document);
+    return { document, templateIdsBySet: new Map<string, Map<string, string>>() };
+  }
+  const converted = materializeLegacySetTemplates(document, createId);
+  const result = { ...converted.state, version: PROJECT_DOCUMENT_VERSION } as ProjectDocument;
+  const parsed = parseProjectDocumentValue(result);
+  if (!parsed.success) {
+    throw new SetTemplateOwnershipError('unavailable', `${parsed.error} The original document was left unchanged.`);
+  }
+  const validatedDocument = {
+    ...parsed.document,
+    userTemplates: [
+      ...document.userTemplates,
+      ...parsed.document.userTemplates.slice(document.userTemplates.length),
+    ],
+  };
+  assertSetTemplateOwnership(validatedDocument);
+  return { document: validatedDocument, templateIdsBySet: converted.templateIdsBySet };
+};
+
+export const prepareProjectDocumentCardBindings = (document: ProjectDocument, incoming: StoredDisplayCard[]): ProjectDocument => {
+  const converted = materializeProjectTemplateOwnership(document);
+  const mapped = incoming.map((card) => {
+    const mapping = converted.templateIdsBySet.get(card.setId ?? document.cardSets[0]?.id ?? '');
+    return {
+      ...card,
+      templateId: mapping?.get(card.templateId) ?? card.templateId,
+      backingTemplateId: card.backingTemplateId ? mapping?.get(card.backingTemplateId) ?? card.backingTemplateId : card.backingTemplateId,
+    };
+  });
+  const { cardSets, storedCards, userTemplates } = prepareCardSetTemplateBindings(converted.document, mapped);
+  return { ...converted.document, cardSets, storedCards, userTemplates };
 };
 
 export const createProjectDocumentFromState = ({
@@ -300,7 +444,7 @@ export const createProjectDocumentFromState = ({
   const normalizedFonts = normalizeProjectFontAssets(customFonts);
   const normalizedProductionPlan = normalizeProjectProductionPlan(productionPlan);
   return {
-    version: normalizedSets.some((set) => set.plan !== undefined) ? 2 : PROJECT_DOCUMENT_VERSION,
+    version: PROJECT_DOCUMENT_VERSION,
     userTemplates,
     cardSets: normalizedSets,
     ...(activeCardSet ? { activeCardSetId: activeCardSet.id } : {}),
@@ -349,7 +493,7 @@ export const materializeSetPlanOwnership = (document: ProjectDocumentV1): Projec
   const { productionPlan, ...project } = document;
   return {
     ...project,
-    version: 2,
+    version: project.version === 3 ? 3 : 2,
     cardSets: [{ ...owner, plan: normalizeSetPlan({ ...owner.plan, version: 1, context: owner.plan?.context ?? '', brief: productionPlan }) }],
   };
 };
@@ -412,6 +556,8 @@ export const instantiateProjectDocumentCopy = (
   document: ProjectDocumentV1,
   createId: (kind: 'set' | 'card' | 'template' | 'style' | 'asset') => string,
 ): ProjectDocumentV1 => {
+  document = materializeProjectTemplateOwnership(document, () => createId('template')).document;
+  assertSetTemplateOwnership(document, true);
   const fontValues = new Map<string, string>();
   const customFonts = document.customFonts?.map((font) => {
     const id = createId('asset');
@@ -521,11 +667,18 @@ export const instantiateProjectDocumentCopy = (
 };
 
 export const parseProjectDocumentValue = (parsed: unknown): ParseProjectDocumentResult => {
+  if (isRecord(parsed) && Object.hasOwn(parsed, 'version') && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3) {
+    const reason = getUnsupportedProjectDocumentReason(parsed);
+    const error = reason.startsWith('Unsupported project document format')
+      ? 'Unsupported project document version. The source was left unchanged.'
+      : `${reason} The source was left unchanged.`;
+    return { success: false, error };
+  }
   if (isRecord(parsed) && parsed.version === 1 && Array.isArray(parsed.cardSets)
     && parsed.cardSets.some((set) => isRecord(set) && set.plan !== undefined)) {
     return { success: false, error: 'Set context requires a newer project document version. The source was left unchanged.' };
   }
-  if (isRecord(parsed) && (parsed.version === 1 || parsed.version === 2)) {
+  if (isRecord(parsed) && (parsed.version === 1 || parsed.version === 2 || parsed.version === 3)) {
     const invalidTemplateReason = getInvalidTemplateReason(parsed.userTemplates);
     if (invalidTemplateReason) {
       return {

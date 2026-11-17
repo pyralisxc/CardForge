@@ -205,7 +205,7 @@ describe('remote artwork in portable browser packages', () => {
     expect([...reopened.assets.values()].map((bytes) => new TextDecoder().decode(bytes as Uint8Array)).sort()).toEqual(['card-bytes', 'frame-bytes']);
     const restored = await materializeBrowserProjectSnapshot(reopened);
     expect(restored.cardSets.map((set) => set.id)).toEqual(source.cardSets.map((set) => set.id));
-    expect(restored.storedCards[0]).toMatchObject({ uniqueId: source.storedCards[0].uniqueId, templateId: source.storedCards[0].templateId, data: { rank: 'K', title: 'QA REV R2 SAVED 20261021', notes: remoteArt } });
+    expect(restored.storedCards[0]).toMatchObject({ uniqueId: source.storedCards[0].uniqueId, templateId: restored.cardSets[0]!.templateIds?.[0], data: { rank: 'K', title: 'QA REV R2 SAVED 20261021', notes: remoteArt } });
     expect(restored.storedCards[0].data.artwork).toMatch(/^cardforge-browser-asset:\/\//u);
     expect(restored.userTemplates[0].cardBorderImageSource).toMatch(/^cardforge-browser-asset:\/\//u);
     expect(restored.storedCards[1].data.artwork).toBe(restored.storedCards[0].data.artwork);

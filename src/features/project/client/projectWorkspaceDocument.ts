@@ -1,6 +1,6 @@
 "use client";
 
-import type { CardAssetOption, TCGCardTemplate } from '@/domain/templates';
+import { withIndependentTemplateIdentity, type CardAssetOption, type TCGCardTemplate } from '@/domain/templates';
 import { authoredPlanValuesEqual, normalizeSetPlan, type SetPlan } from '@/domain/cards';
 
 import {
@@ -14,9 +14,11 @@ import {
   isolateProjectDocumentToSet,
   isolateProjectDocumentToCard,
   instantiateProjectDocumentCopy,
+  materializeProjectTemplateOwnership,
   materializeSetPlanOwnership,
   type ProjectDocumentV1,
 } from '../model/projectDocument';
+import { getTemplateOwnerSetId, SetTemplateOwnershipError } from '../model/setTemplateOwnership';
 import {
   getProjectAssetStorage,
   readTypedProjectAssetListFromStorage,
@@ -36,6 +38,9 @@ export type ProjectWorkspaceApplyMode = 'replace' | 'merge' | 'copy' | 'adopt';
 
 export interface ProjectWorkspaceApplySummary {
   activeSetId: string | null;
+  activeTemplateId: string | null;
+  installedTemplateIds: string[];
+  installedCardIds: string[];
   importedTemplateCount: number;
   successCount: number;
   skippedCount: number;
@@ -66,13 +71,9 @@ export const hasProjectDocumentStateChanged = (
   || expected.exportDpi !== current.exportDpi
 );
 
-const templateSnapshotFingerprint = (template: TCGCardTemplate): string => JSON.stringify(template);
-
 /**
- * A portable Set may contain an older snapshot with the same historical
- * runtime Template id as current browser work. Merge must never overwrite a
- * different live design merely because those ids collide. Keep exact matches
- * shared; re-key different snapshots while retaining their lineage metadata.
+ * Merging always forks colliding identities, even when their snapshots match.
+ * Only same-destination adoption may retain an exact owned identity.
  */
 export const rekeyConflictingTemplateSnapshots = (
   document: ProjectDocumentV1,
@@ -80,6 +81,19 @@ export const rekeyConflictingTemplateSnapshots = (
   createId: () => string = () => `template-${globalThis.crypto.randomUUID()}`,
 ): ProjectDocumentV1 => {
   const currentById = new Map(currentTemplates.flatMap((template) => template.id ? [[template.id, template] as const] : []));
+  const incomingSnapshotIds = new Set(document.userTemplates.flatMap((template) => template.id ? [template.id] : []));
+  const incomingReferenceIds = new Set([
+    ...document.cardSets.flatMap((set) => set.templateIds ?? []),
+    ...document.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
+  ].filter((id): id is string => Boolean(id)));
+  for (const id of incomingReferenceIds) {
+    if (!incomingSnapshotIds.has(id) && currentById.has(id)) {
+      throw new SetTemplateOwnershipError(
+        'conflict',
+        `Incoming Set work references Template ${id} without its snapshot, but that identity already exists in this workspace. Reload a complete snapshot or import an independent copy; existing work was left unchanged.`,
+      );
+    }
+  }
   const usedIds = new Set([
     ...currentById.keys(),
     ...document.userTemplates.flatMap((template) => template.id ? [template.id] : []),
@@ -89,12 +103,12 @@ export const rekeyConflictingTemplateSnapshots = (
     const id = template.id;
     if (!id) return template;
     const existing = currentById.get(id);
-    if (!existing || templateSnapshotFingerprint(existing) === templateSnapshotFingerprint(template)) return template;
+    if (!existing) return template;
     let nextId = createId();
     while (!nextId || usedIds.has(nextId)) nextId = createId();
     usedIds.add(nextId);
     remap.set(id, nextId);
-    return { ...template, id: nextId };
+    return withIndependentTemplateIdentity({ ...template, id: nextId }, template, createId);
   });
   if (!remap.size) return document;
   const mapTemplateId = (id: string | null | undefined) => id ? remap.get(id) ?? id : id;
@@ -121,7 +135,7 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
     ...state.cardSets.flatMap((set) => set.templateIds ?? []),
     ...state.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
   ].filter((value): value is string => Boolean(value)));
-  const portableTemplates = selectAllTemplates(state).filter((template) => (
+  const portableTemplates = state.userTemplates.filter((template) => (
     template.templateSource === 'user' || Boolean(template.id && referencedTemplateIds.has(template.id))
   ));
   const assetStorage = getProjectAssetStorage();
@@ -251,8 +265,13 @@ export const applyProjectDocumentToWorkspace = async (
     }
     return { ...set, plan: existingPlan };
   }) : document.cardSets;
-  const compatibleDocument: ProjectDocumentV1 = { ...document, version: cardSets.some((set) => set.plan) ? 2 : document.version, cardSets };
-  const cleanup = await prepareCompletedDeletionCleanup(materializeSetPlanOwnership(compatibleDocument), options.signal);
+  const compatibleDocument: ProjectDocumentV1 = {
+    ...document,
+    version: document.version === 3 ? 3 : cardSets.some((set) => set.plan) ? 2 : document.version,
+    cardSets,
+  };
+  const ownedDocument = materializeProjectTemplateOwnership(materializeSetPlanOwnership(compatibleDocument)).document;
+  const cleanup = await prepareCompletedDeletionCleanup(ownedDocument, options.signal);
   options.validatePreparedDocument?.(cleanup.document);
   return applyPreparedProjectDocument(draft, cleanup, mode, options);
 };
@@ -324,12 +343,32 @@ const applyPreparedProjectDocument = async (
     // native transaction preserves its exact original bytes in the recovery map.
     const current: unknown = writeMode === 'replace' || expectedValue === null ? [] : JSON.parse(expectedValue);
     if (!Array.isArray(current)) throw new Error('The local artwork catalog is unreadable. It was left unchanged.');
-    const entries = writeMode === 'merge' ? [...current, ...incoming] : incoming;
+    const [normalizedCurrent, normalizedIncoming] = await Promise.all([
+      externalizeBrowserProjectAssetJson(JSON.stringify(current), scope),
+      externalizeBrowserProjectAssetJson(JSON.stringify(incoming), scope),
+    ]);
+    const currentRows = JSON.parse(normalizedCurrent.storedValue) as unknown[];
+    const incomingRows = JSON.parse(normalizedIncoming.storedValue) as unknown[];
     const byId = new Map<string, unknown>();
-    entries.forEach((entry, index) => {
-      const id = entry && typeof entry === 'object' && 'id' in entry && typeof entry.id === 'string' ? entry.id : `__asset_${index}`;
+    currentRows.forEach((entry, index) => {
+      const id = entry && typeof entry === 'object' && 'id' in entry && typeof entry.id === 'string' ? entry.id : `__current_asset_${index}`;
       byId.set(id, entry);
     });
+    if (writeMode === 'merge') {
+      incomingRows.forEach((entry, index) => {
+        const id = entry && typeof entry === 'object' && 'id' in entry && typeof entry.id === 'string' ? entry.id : `__incoming_asset_${index}`;
+        const existing = byId.get(id);
+        if (existing !== undefined && !authoredPlanValuesEqual(existing, entry)) {
+          throw new Error(`Artwork resource ${id} already exists with different content or metadata. Import it as an independent copy; the current catalog was left unchanged.`);
+        }
+        if (existing === undefined) byId.set(id, entry);
+      });
+    } else {
+      incomingRows.forEach((entry, index) => {
+        const id = entry && typeof entry === 'object' && 'id' in entry && typeof entry.id === 'string' ? entry.id : `__incoming_asset_${index}`;
+        byId.set(id, entry);
+      });
+    }
     let values = [...byId.values()];
     if (key === CUSTOM_FONT_ASSETS_STORAGE_KEY) {
       values = normalizeProjectFontAssets(values);
@@ -340,23 +379,49 @@ const applyPreparedProjectDocument = async (
   }));
   const replaceSetIds = options.replaceSetIds
     ?? (mode === 'adopt' ? sourceDocument.cardSets.map((set) => set.id) : []);
+  const replacing = new Set(replaceSetIds);
+  const incomingTemplateReferences = new Set([
+    ...patch.cardSets.flatMap((set) => set.templateIds ?? []),
+    ...patch.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
+  ]);
+  const retiredTemplateIds = new Set(draft.getState().userTemplates.flatMap((template) => (
+    template.id
+    && replacing.has(getTemplateOwnerSetId(draft.getState(), template.id) ?? '')
+    && !incomingTemplateReferences.has(template.id)
+      ? [template.id]
+      : []
+  )));
+  const importedTemplates = patch.userTemplates.filter((template) => !template.id || !retiredTemplateIds.has(template.id));
   if (replaceSetIds.length) {
-    const replacing = new Set(replaceSetIds);
-    draft.setState((current) => ({
-      cardSets: current.cardSets.filter((set) => !replacing.has(set.id)),
-      cardRemovalRecoveries: current.cardRemovalRecoveries.filter((entry) => !replacing.has(entry.setId)),
-      storedCards: current.storedCards.filter((card) => {
-        const setId = card.setId || current.cardSets[0]?.id;
-        return !setId || !replacing.has(setId);
-      }),
-      activeCardSet: current.activeCardSet && replacing.has(current.activeCardSet.id) ? null : current.activeCardSet,
-    }));
+    draft.setState((current) => {
+      const removedTemplateIds = new Set(current.userTemplates.flatMap((template) => (
+        template.id && replacing.has(getTemplateOwnerSetId(current, template.id) ?? '')
+          ? [template.id]
+          : []
+      )));
+      return {
+        cardSets: current.cardSets.filter((set) => !replacing.has(set.id)),
+        cardRemovalRecoveries: current.cardRemovalRecoveries.filter((entry) => !replacing.has(entry.setId)),
+        storedCards: current.storedCards.filter((card) => {
+          const setId = card.setId || current.cardSets[0]?.id;
+          return !setId || !replacing.has(setId);
+        }),
+        userTemplates: current.userTemplates.filter((template) => !template.id || !removedTemplateIds.has(template.id)),
+        activeCardSet: current.activeCardSet && replacing.has(current.activeCardSet.id) ? null : current.activeCardSet,
+      };
+    });
+  }
+  if (writeMode === 'replace') {
+    draft.setState({
+      cardSets: [],
+      storedCards: [],
+      cardRemovalRecoveries: [],
+      activeCardSet: null,
+    });
   }
 
   const state = draft.getState();
-  const importedTemplateCount = writeMode === 'merge'
-    ? state.mergeUserTemplatesFromFiles(patch.userTemplates)
-    : state.setUserTemplatesFromFiles(patch.userTemplates);
+  const importedTemplateCount = state.installProjectDocumentTemplates(importedTemplates, writeMode);
 
   const afterTemplates = draft.getState();
   if (writeMode === 'merge') {
@@ -381,26 +446,49 @@ const applyPreparedProjectDocument = async (
     if (patch.exportDpi) afterSets.setExportDpi(patch.exportDpi);
   }
 
-  const cardResult = writeMode === 'merge'
-    ? draft.getState().mergeStoredCardsFromFile(patch.storedCards)
-    : draft.getState().setStoredCardsFromFile(patch.storedCards);
-  const activeSet = draft.getState().activeCardSet;
-  const activeTemplateId = patch.storedCards.find((card) => !activeSet || card.setId === activeSet.id)?.templateId
-    ?? patch.cardSets.find((set) => set.id === activeSet?.id)?.templateIds?.[0]
-    ?? null;
+  if (writeMode === 'merge') {
+    const existingById = new Map(draft.getState().storedCards.map((card) => [card.uniqueId, card]));
+    for (const card of patch.storedCards) {
+      const existing = existingById.get(card.uniqueId);
+      const existingSetId = existing?.setId ?? draft.getState().cardSets[0]?.id;
+      const incomingSetId = card.setId ?? patch.cardSets[0]?.id;
+      if (existing && existingSetId !== incomingSetId) {
+        throw new Error(`Card ${card.uniqueId} already belongs to a different Set. Import it as an independent copy; the current workspace was left unchanged.`);
+      }
+      existingById.set(card.uniqueId, card);
+    }
+    const importedSetIds = new Set(patch.storedCards.map((card) => card.setId ?? patch.cardSets[0]?.id).filter((id): id is string => Boolean(id)));
+    draft.setState({
+      storedCards: [...existingById.values()],
+      cardRemovalRecoveries: draft.getState().cardRemovalRecoveries.filter((entry) => !importedSetIds.has(entry.setId)),
+    });
+  } else {
+    draft.setState({ storedCards: patch.storedCards, cardRemovalRecoveries: [] });
+  }
+  const activeSetId = patch.activeCardSetId;
+  const activeTemplateId = activeSetId
+    ? patch.storedCards.find((card) => (card.setId ?? patch.cardSets[0]?.id) === activeSetId)?.templateId
+      ?? patch.cardSets.find((set) => set.id === activeSetId)?.templateIds?.[0]
+      ?? null
+    : null;
   if (activeTemplateId) {
     draft.getState().setGeneratorSelectedTemplateId(activeTemplateId);
     draft.getState().setTemplateEditorSelectedTemplateId(activeTemplateId);
   }
 
   options.signal?.throwIfAborted();
-  await draft.commit(relatedWrites, options.signal);
+  await draft.commit(relatedWrites, options.signal, {
+    replaceWholeWorkspace: writeMode === 'replace',
+  });
   if (cleanup.changed) notifyCompletedDeletionCleanup();
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(PROJECT_FONT_LIBRARY_CHANGE_EVENT));
   return {
-    activeSetId: activeSet?.id ?? null,
+    activeSetId,
+    activeTemplateId,
+    installedTemplateIds: importedTemplates.flatMap((template) => template.id ? [template.id] : []),
+    installedCardIds: patch.storedCards.map((card) => card.uniqueId),
     importedTemplateCount,
-    successCount: cardResult.successCount,
-    skippedCount: cardResult.skippedCount,
+    successCount: patch.storedCards.length,
+    skippedCount: 0,
   };
 };

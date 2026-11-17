@@ -98,7 +98,7 @@ describe('Template review working-copy context', () => {
     expect(createPersonalTemplateFork(next).templatePipelineContext).toBeUndefined();
   });
   it('keeps retries out of the authored fingerprint and portable package without discarding browser recovery', async () => {
-    const template = { ...sharedTemplate, templatePipelineContext: context };
+    const template = { ...reconstructMinimalTemplate(sharedTemplate), templatePipelineContext: context };
     expect(templateReviewRequestText(template)).toBe(templateReviewRequestText({ ...template,
       templatePipelineContext: { ...context, attempt: undefined } }));
     const snapshot = await buildCardForgeProjectSnapshot({ name: 'Review draft', document: createProjectDocumentFromState({

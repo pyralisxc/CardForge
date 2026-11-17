@@ -5,6 +5,7 @@ import type { PaperSize } from '@/domain/rendering';
 import type { CardAssetOption } from '@/features/pipeline/lib/cardAssets';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { createProjectDocumentFromState, applyProjectDocumentToState, instantiateProjectDocumentCopy, isolateProjectDocumentToSet, parseProjectDocumentFile, type ProjectDocumentV1 } from '@/features/project/client/package-document';
+import { materializeProjectTemplateOwnership, parseProjectDocumentValue } from '@/features/project/model/projectDocument';
 
 const template: TCGCardTemplate = {
   id: 'user-template-1',
@@ -119,7 +120,7 @@ describe('project document serialization', () => {
     });
 
     expect(document).toEqual<ProjectDocumentV1>({
-      version: 1,
+      version: 3,
       userTemplates: [template],
       cardSets: [cardSet],
       activeCardSetId: cardSet.id,
@@ -141,6 +142,145 @@ describe('project document serialization', () => {
         'cardforge-maker-custom-images': [imageAsset],
       },
     });
+  });
+
+  it('materializes legacy prepared and both-face snapshots per Set while retaining sources and deferred references', () => {
+    const source = {
+      version: 2 as const,
+      userTemplates: [
+        { ...template, id: 'shared-front', templateLineageId: 'front-lineage', templateRevisionId: 'front-r1', templateContributorName: 'Creator' },
+        { ...template, id: 'shared-back', templateUsage: 'back-preset' as const, templateLineageId: 'back-lineage', templateRevisionId: 'back-r1' },
+        { ...template, id: 'prepared', name: 'Prepared', templateLineageId: 'prepared-lineage', templateRevisionId: 'prepared-r1' },
+      ],
+      cardSets: [
+        { id: 'set-a', name: 'A', templateIds: ['shared-front', 'shared-back', 'prepared', 'missing'] },
+        { id: 'set-b', name: 'B', templateIds: ['shared-front', 'shared-back', 'prepared', 'missing'] },
+      ],
+      activeCardSetId: 'set-a',
+      storedCards: [
+        { uniqueId: 'card-a', setId: 'set-a', templateId: 'shared-front', backingTemplateId: 'shared-back', data: { title: 'A' }, backingData: { mark: 'back A' } },
+        { uniqueId: 'card-b', setId: 'set-b', templateId: 'shared-front', backingTemplateId: 'shared-back', data: { title: 'B' }, backingData: { mark: 'back B' } },
+      ],
+      appearanceStyles: [],
+      exportSettings: {},
+      customAssets: {
+        'cardforge-maker-custom-textures': [], 'cardforge-maker-custom-dividers': [],
+        'cardforge-maker-custom-icons': [], 'cardforge-maker-custom-images': [],
+      },
+    };
+    const original = structuredClone(source);
+    let ordinal = 0;
+    const { document, templateIdsBySet } = materializeProjectTemplateOwnership(source, () => `copy-${++ordinal}`);
+
+    expect(document.version).toBe(3);
+    expect(document.userTemplates.slice(0, 3)).toEqual(original.userTemplates);
+    for (const setId of ['set-a', 'set-b']) {
+      const mapping = templateIdsBySet.get(setId)!;
+      expect(mapping.get('shared-front')).not.toBe('shared-front');
+      expect(mapping.get('shared-back')).not.toBe('shared-back');
+      expect(mapping.get('prepared')).not.toBe('prepared');
+      expect(mapping.has('missing')).toBe(false);
+      expect(document.cardSets.find((set) => set.id === setId)?.templateIds).toContain('missing');
+    }
+    expect(templateIdsBySet.get('set-a')!.get('shared-front')).not.toBe(templateIdsBySet.get('set-b')!.get('shared-front'));
+    expect(document.storedCards).toMatchObject([
+      { uniqueId: 'card-a', templateId: templateIdsBySet.get('set-a')!.get('shared-front'), backingTemplateId: templateIdsBySet.get('set-a')!.get('shared-back'), data: { title: 'A' }, backingData: { mark: 'back A' } },
+      { uniqueId: 'card-b', templateId: templateIdsBySet.get('set-b')!.get('shared-front'), backingTemplateId: templateIdsBySet.get('set-b')!.get('shared-back'), data: { title: 'B' }, backingData: { mark: 'back B' } },
+    ]);
+    expect(document.userTemplates.find((item) => item.id === templateIdsBySet.get('set-a')!.get('shared-front'))).toMatchObject({
+      templateLineageId: templateIdsBySet.get('set-a')!.get('shared-front'),
+      templateOriginLineageId: 'front-lineage',
+      templateOriginRevisionId: 'front-r1',
+      templateContributorName: 'Creator',
+    });
+    expect(source).toEqual(original);
+  });
+
+  it('preserves opaque legacy Template fields until acquisition can refuse lossy conversion', () => {
+    const elements = [
+      {
+        id: 'opaque-late',
+        name: 'Late element',
+        type: 'shape',
+        x: 10,
+        y: 20,
+        width: 30,
+        height: 40,
+        zIndex: 20,
+        futureElementData: { owner: 'late', lateOnly: true },
+      },
+      {
+        id: 'opaque-early',
+        name: 'Early element',
+        type: 'shape',
+        x: 50,
+        y: 60,
+        width: 70,
+        height: 80,
+        zIndex: 5,
+        futureElementData: { owner: 'early', earlyOnly: true },
+      },
+    ];
+    const source = {
+      version: 2 as const,
+      userTemplates: [{
+        ...template,
+        futureAuthoredData: { decision: 'keep', nested: ['authored'] },
+        freeformCanvas: { width: 630, height: 880, elements },
+      }],
+      cardSets: [{ id: 'opaque-set', name: 'Opaque', templateIds: [template.id!] }],
+      activeCardSetId: 'opaque-set',
+      storedCards: [],
+      appearanceStyles: [],
+      exportSettings: {},
+      customAssets: {
+        'cardforge-maker-custom-textures': [], 'cardforge-maker-custom-dividers': [],
+        'cardforge-maker-custom-icons': [], 'cardforge-maker-custom-images': [],
+      },
+    };
+    const original = structuredClone(source);
+    const parsed = parseProjectDocumentValue(source);
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect((parsed.document.userTemplates[0] as TCGCardTemplate & { futureAuthoredData?: unknown }).futureAuthoredData)
+      .toEqual({ decision: 'keep', nested: ['authored'] });
+    expect(parsed.document.userTemplates[0]!.freeformCanvas?.elements.map((element) => [
+      element.id,
+      (element as typeof element & { futureElementData?: unknown }).futureElementData,
+    ])).toEqual([
+      ['opaque-early', { owner: 'early', earlyOnly: true }],
+      ['opaque-late', { owner: 'late', lateOnly: true }],
+    ]);
+    expect(() => materializeProjectTemplateOwnership(parsed.document)).toThrow(/cannot preserve during Set acquisition/i);
+    expect(parseProjectDocumentValue({ ...source, version: 3 })).toMatchObject({ success: false });
+    expect(source).toEqual(original);
+  });
+
+  it('retains unknown legacy document-root fields so ownership conversion can refuse them', () => {
+    const source = {
+      version: 2 as const,
+      userTemplates: [template],
+      cardSets: [{ id: 'opaque-root-set', name: 'Opaque root', templateIds: [template.id!] }],
+      activeCardSetId: 'opaque-root-set',
+      storedCards: [],
+      appearanceStyles: [],
+      exportSettings: {},
+      customAssets: {
+        'cardforge-maker-custom-textures': [], 'cardforge-maker-custom-dividers': [],
+        'cardforge-maker-custom-icons': [], 'cardforge-maker-custom-images': [],
+      },
+      futureDependency: { keep: ['unrecognized root content'] },
+    };
+    const original = structuredClone(source);
+    const parsed = parseProjectDocumentValue(source);
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect((parsed.document as ProjectDocumentV1 & { futureDependency?: unknown }).futureDependency)
+      .toEqual(source.futureDependency);
+    expect(() => materializeProjectTemplateOwnership(parsed.document)).toThrow(/unsupported creative fields/i);
+    expect(source).toEqual(original);
   });
 
   it('applies a project document as a partial state while preserving set and card template references', () => {
@@ -213,7 +353,8 @@ describe('project document serialization', () => {
     expect(copied.cardSets[0]?.id).not.toBe(cardSet.id);
     expect(copied.storedCards[0]?.uniqueId).not.toBe(storedCard.uniqueId);
     expect(copied.storedCards[0]?.setId).toBe(copied.cardSets[0]?.id);
-    expect(copied.storedCards[0]?.templateId).toBe(copied.userTemplates[0]?.id);
+    expect(copied.cardSets[0]?.templateIds).toContain(copied.storedCards[0]?.templateId);
+    expect(copied.userTemplates.some((item) => item.id === copied.storedCards[0]?.templateId)).toBe(true);
     expect(copied.cardSets[0]?.organization?.tags[0]?.id).not.toBe('tag-heroes');
     expect(copied.storedCards[0]?.tagIds).toEqual([copied.cardSets[0]?.organization?.tags[0]?.id]);
     expect(copied.cardSets[0]?.organization?.positions).toEqual({

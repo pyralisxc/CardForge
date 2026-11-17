@@ -1,9 +1,10 @@
 import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
-import { ensureCardSetTemplateReferences } from '@/domain/cards';
-import { createPersonalTemplateFork, reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain/templates';
+import { authoredPlanInputSurvives, ensureCardSetTemplateReferences } from '@/domain/cards';
+import { createPersonalTemplateFork, createPersonalTemplateRevision, getAuthoredTemplatePayload, reconstructMinimalTemplateObject, withIndependentTemplateIdentity, type TCGCardTemplate } from '@/domain/templates';
 
+import { getCardSetTemplateIds, getTemplateOwnerSetId, getTemplateReferenceSetIds, prepareSetTemplateAcquisition, preserveReferencedTemplateIdentities, SetTemplateOwnershipError } from '../model/setTemplateOwnership';
 import { selectAllTemplates } from './selectors';
 import type { ProjectState, TemplateSlice } from './types';
 import { isDraftTemplateSelection } from './workspaceDefaults';
@@ -35,6 +36,9 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
 
   addOrUpdateTemplate: (template, source) => {
     const templateToSave = { ...template, id: template.id?.trim() ? template.id : nanoid(), templateSource: source || template.templateSource || 'user' };
+    if (templateToSave.templateSource !== 'default' && getTemplateReferenceSetIds(get(), templateToSave.id).length) {
+      throw new SetTemplateOwnershipError('conflict', 'This identity is referenced by a Set. Save through that Set, or install an independent Library copy; existing work was kept.');
+    }
     const reconstructed = reconstructMinimalTemplateObject(templateToSave);
     const finalId = reconstructed.id!;
     set((state) => {
@@ -50,25 +54,96 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
     return finalId;
   },
 
-  commitTemplateChange: ({ template, source, sourceTemplateId, artifactIds, face, removedFieldKeys = [], setId, deferEditorSelectionUntilReceipt = false }) => {
-    const reconstructed = reconstructMinimalTemplateObject({ ...template, id: template.id?.trim() ? template.id : nanoid(), templateSource: source || template.templateSource || 'user' });
-    const finalId = reconstructed.id!;
+  commitTemplateChange: ({ template, source, sourceTemplateId, expectedSourceRevisionId, artifactIds, face, removedFieldKeys = [], setId, deferEditorSelectionUntilReceipt = false }) => {
+    const proposed = reconstructMinimalTemplateObject({ ...template, id: template.id?.trim() ? template.id : nanoid(), templateSource: source || template.templateSource || 'user' });
+    let finalId = proposed.id!;
     const fromId = sourceTemplateId?.trim() || finalId;
     const scope = artifactIds ? new Set(artifactIds) : null;
-    const targetFace = face ?? (reconstructed.templateUsage === 'back-preset' ? 'back' : 'front');
+    const targetFace = face ?? (proposed.templateUsage === 'back-preset' ? 'back' : 'front');
     set((state) => {
-      const targetCollection = reconstructed.templateSource === 'default' ? state.defaultTemplates : state.userTemplates;
+      const templates = selectAllTemplates(state);
+      const previousSource = templates.find((candidate) => candidate.id === fromId);
+      if (expectedSourceRevisionId !== undefined && (previousSource?.templateRevisionId ?? null) !== expectedSourceRevisionId) {
+        throw new SetTemplateOwnershipError('conflict', 'This design changed while the Save decision was open. Your draft was kept; review the current design before saving again.');
+      }
+      const previous = templates.find((candidate) => candidate.id === proposed.id);
+      const ownerId = getTemplateOwnerSetId(state, proposed.id!);
+      const destinationId = setId ?? ownerId;
+      if (!destinationId && proposed.templateSource !== 'default' && getTemplateReferenceSetIds(state, proposed.id!).length) {
+        throw new SetTemplateOwnershipError('conflict', 'Older Sets still reference this Library identity. Review and map their working designs before replacing the source; your draft was kept.');
+      }
+      let reconstructed = proposed;
+      let userTemplates = state.userTemplates;
+      let workingCards = state.storedCards;
+      let workingSets = state.cardSets;
+      let workingFromId = fromId;
+      if (destinationId) {
+        if (!state.cardSets.some((candidate) => candidate.id === destinationId)) {
+          throw new SetTemplateOwnershipError('not_found', 'The destination Set is no longer available. Your Template draft was kept.');
+        }
+        if (!previous && getTemplateReferenceSetIds(state, proposed.id!).length) {
+          throw new SetTemplateOwnershipError('unavailable', 'The original design snapshot is unavailable. Keep this draft as an independent design and review its card mapping before replacing the older reference.');
+        }
+        if (previousSource && getCardSetTemplateIds(state, destinationId).includes(fromId)
+          && getTemplateOwnerSetId(state, fromId) !== destinationId) {
+          const acquired = prepareSetTemplateAcquisition(state, destinationId, [fromId], templates);
+          userTemplates = acquired.userTemplates;
+          workingFromId = acquired.templateIds.get(fromId)!;
+          workingCards = state.storedCards.map((card) => (card.setId ?? state.cardSets[0]?.id) === destinationId ? {
+            ...card,
+            templateId: card.templateId === fromId ? workingFromId : card.templateId,
+            backingTemplateId: card.backingTemplateId === fromId ? workingFromId : card.backingTemplateId,
+          } : card);
+          workingSets = state.cardSets.map((cardSet) => cardSet.id === destinationId ? {
+            ...cardSet, templateIds: cardSet.templateIds?.map((id) => id === fromId ? workingFromId : id),
+          } : cardSet);
+        }
+        const forksSubset = scope && previous && ownerId === destinationId && state.storedCards.some((card) => (
+          (card.setId ?? state.cardSets[0]?.id) === destinationId && !scope.has(card.uniqueId)
+          && (card.templateId === proposed.id || card.backingTemplateId === proposed.id)
+        ));
+        if (forksSubset) {
+          reconstructed = reconstructMinimalTemplateObject({
+            ...createPersonalTemplateFork(previous, { ...proposed, id: null }),
+            templateContributorName: previous.templateContributorName,
+          });
+        } else if (previous && ownerId !== destinationId) {
+          const acquired = workingFromId !== fromId && proposed.id === fromId
+            ? { userTemplates, templateIds: new Map([[fromId, workingFromId]]) }
+            : prepareSetTemplateAcquisition({ ...state, cardSets: workingSets, storedCards: workingCards, userTemplates }, destinationId, [proposed.id!], templates);
+          userTemplates = acquired.userTemplates;
+          reconstructed = reconstructMinimalTemplateObject(withIndependentTemplateIdentity({
+            ...proposed,
+            id: acquired.templateIds.get(proposed.id!)!,
+            templateSource: 'user', templateLibrarySource: 'personal',
+            templateRegistryStatus: 'localOnly', templateAccessTier: undefined,
+            templateContributorName: previous.templateContributorName,
+          }, previous));
+        } else {
+          reconstructed = reconstructMinimalTemplateObject({
+            ...(previous && proposed.templateRevisionId === previous.templateRevisionId
+              ? createPersonalTemplateRevision(proposed, previous) : proposed),
+            templateSource: 'user', templateLibrarySource: 'personal',
+            templateRegistryStatus: 'localOnly', templateAccessTier: undefined,
+            templatePipelineContext: undefined,
+            templateContributorName: previousSource?.templateContributorName ?? proposed.templateContributorName,
+          });
+        }
+      }
+      finalId = reconstructed.id!;
+      const targetCollection = reconstructed.templateSource === 'default' ? state.defaultTemplates : userTemplates;
       const nextCollection = [...targetCollection];
       const existingIndex = nextCollection.findIndex((candidate) => candidate.id === finalId);
       if (existingIndex >= 0) nextCollection[existingIndex] = reconstructed;
       else nextCollection.push(reconstructed);
-      const storedCards = state.storedCards.map((card) => {
-        const inScope = !scope || scope.has(card.uniqueId);
+      const storedCards = workingCards.map((card) => {
+        const inScope = (!destinationId || (card.setId ?? state.cardSets[0]?.id) === destinationId)
+          && (!scope || scope.has(card.uniqueId));
         if (!inScope) return card;
         let next = card;
-        if (finalId !== fromId) {
-          if (targetFace === 'front' && card.templateId === fromId) next = { ...next, templateId: finalId };
-          if (targetFace === 'back' && card.backingTemplateId === fromId) next = { ...next, backingTemplateId: finalId };
+        if (finalId !== workingFromId) {
+          if (targetFace === 'front' && card.templateId === workingFromId) next = { ...next, templateId: finalId };
+          if (targetFace === 'back' && card.backingTemplateId === workingFromId) next = { ...next, backingTemplateId: finalId };
         }
         const usesTarget = targetFace === 'front' ? next.templateId === finalId : next.backingTemplateId === finalId;
         if (!usesTarget || !removedFieldKeys.length) return next;
@@ -76,8 +151,12 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
           ? { ...next, data: removeKeys(next.data, removedFieldKeys) ?? {}, updatedAt: new Date().toISOString() }
           : { ...next, backingData: removeKeys(next.backingData, removedFieldKeys), updatedAt: new Date().toISOString() };
       });
-      let cardSets = ensureCardSetTemplateReferences({ cardSets: state.cardSets, storedCards });
-      if (setId) cardSets = cardSets.map((cardSet) => cardSet.id === setId && !cardSet.templateIds?.includes(finalId)
+      const preparedSets = destinationId && !scope && fromId === proposed.id && finalId !== fromId
+        ? workingSets.map((cardSet) => cardSet.id === destinationId
+          ? { ...cardSet, templateIds: cardSet.templateIds?.map((id) => id === workingFromId ? finalId : id) } : cardSet)
+        : workingSets;
+      let cardSets = ensureCardSetTemplateReferences({ cardSets: preparedSets, storedCards });
+      if (destinationId) cardSets = cardSets.map((cardSet) => cardSet.id === destinationId && !cardSet.templateIds?.includes(finalId)
         ? { ...cardSet, templateIds: [...(cardSet.templateIds ?? []), finalId] }
         : cardSet);
       const activeCardSet = state.activeCardSet ? cardSets.find((cardSet) => cardSet.id === state.activeCardSet?.id) ?? state.activeCardSet : null;
@@ -95,7 +174,7 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
     return finalId;
   },
 
-  clearPersonalTemplateOverride: (templateId) => set((state) => ({
+  clearPersonalTemplateOverride: (templateId) => set((state) => getTemplateReferenceSetIds(state, templateId).length ? state : ({
     userTemplates: state.userTemplates.filter((template) => template.id !== templateId),
   })),
 
@@ -111,7 +190,7 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
   },
 
   setUserTemplatesFromFiles: (templates) => {
-    const reconstructed = templates.map((template) => reconstructMinimalTemplateObject({ ...template, templateSource: 'user' })).filter((template) => Boolean(template.id?.trim()));
+    const reconstructed = preserveReferencedTemplateIdentities(get(), templates.map((template) => reconstructMinimalTemplateObject({ ...template, templateSource: 'user' })).filter((template) => Boolean(template.id?.trim())));
     set((state) => {
       const allTemplates = selectAllTemplates({ defaultTemplates: state.defaultTemplates, userTemplates: reconstructed });
       const selectedId = selectFallbackTemplateId(allTemplates, state.generatorSelectedTemplateId);
@@ -121,7 +200,7 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
   },
 
   mergeUserTemplatesFromFiles: (templates) => {
-    const reconstructed = templates.map((template) => reconstructMinimalTemplateObject({ ...template, templateSource: 'user' })).filter((template) => Boolean(template.id?.trim()));
+    const reconstructed = preserveReferencedTemplateIdentities(get(), templates.map((template) => reconstructMinimalTemplateObject({ ...template, templateSource: 'user' })).filter((template) => Boolean(template.id?.trim())));
     if (reconstructed.length === 0) return 0;
     set((state) => {
       const byId = new Map<string, TCGCardTemplate>();
@@ -132,6 +211,34 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       return { userTemplates, generatorSelectedTemplateId: selectedId, templateEditorSelectedTemplateId: selectFallbackEditorTemplateId(allTemplates, state.templateEditorSelectedTemplateId, selectedId) };
     });
     return reconstructed.length;
+  },
+
+  installProjectDocumentTemplates: (templates, mode) => {
+    let importedCount = 0;
+    set((state) => {
+      const incoming = templates.map((template) => {
+        const normalized = reconstructMinimalTemplateObject(template);
+        if (!authoredPlanInputSurvives(getAuthoredTemplatePayload(template), getAuthoredTemplatePayload(normalized))) {
+          throw new SetTemplateOwnershipError('unavailable', 'This document contains Template fields this CardForge version cannot preserve. Its source and the current workspace were left unchanged.');
+        }
+        return normalized;
+      })
+        .filter((template) => Boolean(template.id?.trim()));
+      importedCount = incoming.length;
+      const reconstructed = preserveReferencedTemplateIdentities(state, incoming);
+      const byId = new Map<string, TCGCardTemplate>();
+      if (mode === 'merge') state.userTemplates.forEach((template) => { if (template.id) byId.set(template.id, template); });
+      reconstructed.forEach((template) => { if (template.id) byId.set(template.id, template); });
+      const userTemplates = Array.from(byId.values());
+      const allTemplates = selectAllTemplates({ defaultTemplates: state.defaultTemplates, userTemplates });
+      const selectedId = selectFallbackTemplateId(allTemplates, state.generatorSelectedTemplateId);
+      return {
+        userTemplates,
+        generatorSelectedTemplateId: selectedId,
+        templateEditorSelectedTemplateId: selectFallbackEditorTemplateId(allTemplates, state.templateEditorSelectedTemplateId, selectedId),
+      };
+    });
+    return importedCount;
   },
 
   cloneTemplate: (templateId) => {

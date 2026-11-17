@@ -17,8 +17,8 @@ begin
     raise exception 'Native Set context was not preserved.';
   end if;
   begin
-    update public.cardforge_studio_documents set document_version = 3,
-      document_payload = '{"version":3}'::jsonb where id = doc;
+    update public.cardforge_studio_documents set document_version = 4,
+      document_payload = '{"version":4}'::jsonb where id = doc;
     raise exception 'Unsupported document version was accepted.';
   exception when check_violation then null;
   end;
@@ -38,6 +38,21 @@ begin
   if not exists (select 1 from public.cardforge_studio_documents
       where id = doc and document_payload #>> '{cardSets,0,plan,context}' = 'Creator notes') then
     raise exception 'Rejected writes changed the saved context.';
+  end if;
+  update public.cardforge_studio_documents
+    set document_version = 3, document_payload = jsonb_set(document_payload, '{version}', '3'::jsonb)
+    where id = doc;
+  select document_payload into candidate from public.cardforge_studio_documents where id = doc;
+  begin
+    update public.cardforge_studio_documents
+      set document_version = 2, document_payload = '{"version":2}'::jsonb, revision = revision + 1
+      where id = doc;
+    raise exception 'An older writer discarded Set ownership.';
+  exception when check_violation then null;
+  end;
+  if not exists (select 1 from public.cardforge_studio_documents
+      where id = doc and document_version = 3 and document_payload = candidate and revision = 1) then
+    raise exception 'An older write changed the saved document or revision.';
   end if;
 end $$;
 rollback;

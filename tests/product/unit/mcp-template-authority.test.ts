@@ -123,8 +123,9 @@ describe('MCP Template generation authority', () => {
       cards: [{ cardId: 'card-b', templateId: 'template-b', backingTemplateId: null, data: { title: 'New' } }],
     });
     const created = result.document.document.storedCards.find((card) => card.uniqueId === 'card-b');
-    expect(created?.templateId).toBe('template-b');
-    expect(result.set.templateIds).toEqual(expect.arrayContaining(['template-a', 'template-b']));
+    expect(created?.templateId).not.toBe('template-b');
+    expect(result.set.templateIds).toContain(created?.templateId);
+    expect(result.document.document.userTemplates.find((template) => template.id === 'template-b')).toBeDefined();
   });
 
   it('preserves an existing Artifact Template and rejects implicit retargeting through data edit', async () => {

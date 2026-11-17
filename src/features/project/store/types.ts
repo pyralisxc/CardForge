@@ -7,6 +7,7 @@ export interface TemplateCommitChangeInput {
   template: TCGCardTemplate;
   source?: TemplateSource;
   sourceTemplateId?: string | null;
+  expectedSourceRevisionId?: string | null;
   artifactIds?: readonly string[];
   face?: CardFace;
   removedFieldKeys?: readonly string[];
@@ -24,6 +25,7 @@ export interface TemplateSlice {
   setDefaultTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[], preferredTemplateId?: string | null) => number;
   setUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
   mergeUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
+  installProjectDocumentTemplates: (templates: TCGCardTemplate[], mode: 'merge' | 'replace') => number;
   deleteTemplate: (templateId: string, source?: TemplateSource) => void;
   cloneTemplate: (templateId: string) => string | null;
 }

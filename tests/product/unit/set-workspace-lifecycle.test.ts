@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { reconstructMinimalTemplateObject } from '@/domain/templates';
 import { useProjectStore } from '@/features/project/client/workspace';
-import { selectAllGeneratedDisplayCards } from '@/features/project/store/selectors';
-import { createProjectScaleFixture } from '../../fixtures/projectScale';
 
 describe('neutral Set workspace lifecycle', () => {
   beforeEach(() => {
@@ -40,24 +39,28 @@ describe('neutral Set workspace lifecycle', () => {
     expect(useProjectStore.getState().activeCardSet).toBeNull();
   });
 
-  it('shares Template changes across Sets until a card explicitly uses a copy', () => {
-    const fixture = createProjectScaleFixture(100);
-    const template = fixture.userTemplates[0]!;
-    const cards = fixture.storedCards.slice(0, 2).map((card, index) => ({ ...card, setId: `set-${index}` }));
-    useProjectStore.setState({ userTemplates: [template], storedCards: cards });
-    useProjectStore.getState().addOrUpdateTemplate({ ...template, name: 'Shared redesign' });
-    let displayed = selectAllGeneratedDisplayCards(useProjectStore.getState());
-    expect(displayed.map((card) => card.template.name)).toEqual(['Shared redesign', 'Shared redesign']);
-    expect(displayed.map((card) => card.data)).toEqual(cards.map((card) => card.data));
+  it('acquires a distinct working Template per Set and keeps the unowned source unchanged', () => {
+    const template = reconstructMinimalTemplateObject({ id: 'library-design', name: 'Library design', templateSource: 'user' });
+    const sets = [{ id: 'set-0', name: 'First' }, { id: 'set-1', name: 'Second' }];
+    useProjectStore.setState({ cardSets: sets, activeCardSet: sets[0]!, userTemplates: [template] });
+    useProjectStore.getState().referenceTemplateInCardSet('set-0', template.id!);
+    const firstId = useProjectStore.getState().cardSets.find((set) => set.id === 'set-0')?.templateIds?.[0];
+    useProjectStore.getState().referenceTemplateInCardSet('set-1', template.id!);
+    const secondId = useProjectStore.getState().cardSets.find((set) => set.id === 'set-1')?.templateIds?.[0];
+    expect(firstId).not.toBe(template.id);
+    expect(secondId).not.toBe(template.id);
+    expect(secondId).not.toBe(firstId);
 
-    const copyId = useProjectStore.getState().cloneTemplate(template.id!);
-    const copy = useProjectStore.getState().userTemplates.find((candidate) => candidate.id === copyId)!;
-    useProjectStore.getState().updateGeneratedCard({ ...displayed[0]!, template: copy });
-    useProjectStore.getState().addOrUpdateTemplate({ ...template, name: 'Next shared redesign' });
-    displayed = selectAllGeneratedDisplayCards(useProjectStore.getState());
-    expect(displayed[0]!.template.name).toBe('Copy of Shared redesign');
-    expect(displayed[1]!.template.name).toBe('Next shared redesign');
-    expect(displayed.map((card) => card.data)).toEqual(cards.map((card) => card.data));
-    expect(displayed.map((card) => card.setId)).toEqual(['set-0', 'set-1']);
+    const first = useProjectStore.getState().userTemplates.find((candidate) => candidate.id === firstId)!;
+    useProjectStore.getState().commitTemplateChange({
+      template: { ...first, name: 'First Set redesign' },
+      sourceTemplateId: first.id,
+      setId: 'set-0',
+    });
+
+    expect(useProjectStore.getState().userTemplates.find((candidate) => candidate.id === template.id)?.name).toBe('Library design');
+    expect(useProjectStore.getState().userTemplates.find((candidate) => candidate.id === firstId)?.name).toBe('First Set redesign');
+    expect(useProjectStore.getState().userTemplates.find((candidate) => candidate.id === secondId)?.name).toBe('Library design');
+    expect(useProjectStore.getState().cardSets.map((set) => set.templateIds?.[0])).toEqual([firstId, secondId]);
   });
 });

@@ -6,6 +6,11 @@ import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand
 import { reconcileCardSets, resolveActiveCardSet } from '@/domain/cards';
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { migrateLegacyEditorPreferences } from '../client/editorPreferenceStorage';
+import {
+  assertSetTemplateOwnership,
+  assertSetTemplateOwnershipTransition,
+  materializeLegacySetTemplates,
+} from '../model/setTemplateOwnership';
 
 import {
   createScopedProjectStorage,
@@ -86,6 +91,7 @@ let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
 let hydrationTask: { scope: ProjectPersistenceScope; promise: Promise<void>; signal?: AbortSignal } | null = null;
 let workspaceHydrationError: unknown = null;
 const pendingLegacyEditorPreferenceMigrations = new Map<ProjectPersistenceScope, unknown>();
+const pendingSetOwnershipMigrations = new Set<ProjectPersistenceScope>();
 
 const getCompatibleGeneratorBackingId = (
   templates: ReturnType<typeof selectAllTemplates>,
@@ -163,10 +169,16 @@ export const createProjectWorkspaceDraft = (expectedState: ProjectState = usePro
   return {
     getState: draft.getState,
     setState: draft.setState,
-    commit: async (relatedWrites: readonly { key: string; value: string; expectedValue: string | null }[], signal?: AbortSignal) => {
+    commit: async (
+      relatedWrites: readonly { key: string; value: string; expectedValue: string | null }[],
+      signal?: AbortSignal,
+      commitOptions: { replaceWholeWorkspace?: boolean } = {},
+    ) => {
       signal?.throwIfAborted();
       const options = useProjectStore.persist.getOptions();
       const nextState = draft.getState();
+      assertSetTemplateOwnership(nextState);
+      if (!commitOptions.replaceWholeWorkspace) assertSetTemplateOwnershipTransition(expectedState, nextState);
       const controller = new AbortController();
       const abort = () => controller.abort(signal?.reason);
       signal?.addEventListener('abort', abort, { once: true });
@@ -221,14 +233,20 @@ export const useProjectStore = create<ProjectState>()(
           }, 0);
         },
         skipHydration: true,
-        merge: (persisted, current) => ({
-          ...current,
-          ...(persisted as Partial<ProjectState>),
-          cardRemovalRecoveries: [],
-        }),
-        version: 6,
+        merge: (persisted, current) => {
+          if (persisted !== undefined && (!persisted || typeof persisted !== 'object' || Array.isArray(persisted)
+            || !Array.isArray((persisted as Partial<ProjectState>).userTemplates)
+            || !Array.isArray((persisted as Partial<ProjectState>).cardSets)
+            || !Array.isArray((persisted as Partial<ProjectState>).storedCards))) {
+            throw new Error('The saved workspace is not readable. Its saved and recovery data were left unchanged.');
+          }
+          const merged = { ...current, ...(persisted as Partial<ProjectState>), cardRemovalRecoveries: [] };
+          assertSetTemplateOwnership(merged);
+          return merged;
+        },
+        version: 7,
         migrate: (persistedState, version) => {
-          if (version > 6) throw new Error('This workspace requires a newer CardForge version. Reload before editing; your saved work was left unchanged.');
+          if (version > 7) throw new Error('This workspace requires a newer CardForge version. Reload before editing; your saved work was left unchanged.');
           const {
             activeTab,
             singleCardGeneratorSelectedTemplateId,
@@ -249,7 +267,7 @@ export const useProjectStore = create<ProjectState>()(
               pendingLegacyEditorPreferenceMigrations.delete(scope);
             }
           }
-          return {
+          const legacy = {
             ...current,
             generatorSelectedTemplateId: current.generatorSelectedTemplateId !== undefined
               ? current.generatorSelectedTemplateId : singleCardGeneratorSelectedTemplateId ?? null,
@@ -257,6 +275,20 @@ export const useProjectStore = create<ProjectState>()(
               ? current.generatorSelectedBackingTemplateId : singleCardGeneratorSelectedBackingTemplateId ?? null,
             studioView: normalizeStudioView(version < 2 ? activeTab : current.studioView),
           } as WorkspacePersistedState;
+          const cardSets = reconcileCardSets({ cardSets: legacy.cardSets ?? [], activeCardSet: legacy.activeCardSet, storedCards: legacy.storedCards ?? [] });
+          const { state: owned, templateIdsBySet } = materializeLegacySetTemplates({
+            ...legacy, cardSets, storedCards: legacy.storedCards ?? [], userTemplates: legacy.userTemplates ?? [],
+          });
+          const activeCardSet = resolveActiveCardSet({ cardSets: owned.cardSets, preferredId: legacy.activeCardSet?.id });
+          const mapping = activeCardSet ? templateIdsBySet.get(activeCardSet.id) : undefined;
+          const remap = (id: string | null) => id ? mapping?.get(id) ?? id : id;
+          if (scope !== 'unscoped-disabled') pendingSetOwnershipMigrations.add(scope);
+          return {
+            ...owned, activeCardSet,
+            generatorSelectedTemplateId: remap(legacy.generatorSelectedTemplateId),
+            generatorSelectedBackingTemplateId: remap(legacy.generatorSelectedBackingTemplateId),
+            templateEditorSelectedTemplateId: remap(legacy.templateEditorSelectedTemplateId),
+          };
         },
       },
     ),
@@ -288,14 +320,26 @@ export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceS
     // cannot autosave initial state over a workspace still being restored.
     useProjectStore.persist.setOptions({ storage: createHydratingWorkspaceJsonStorage() });
     workspaceHydrationError = null;
+    pendingSetOwnershipMigrations.delete(scope);
     await useProjectStore.persist.rehydrate();
     if (signal?.aborted || workspaceHydrationError || !useProjectStore.persist.hasHydrated()) {
       // Zustand reports hydration errors through its callback, not rehydrate's promise.
       // Disable autosave until retry succeeds so initial state cannot replace unreadable work.
       useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
       pendingLegacyEditorPreferenceMigrations.delete(scope);
+      pendingSetOwnershipMigrations.delete(scope);
       signal?.throwIfAborted();
       throw workspaceHydrationError ?? new Error('The browser workspace could not be restored.');
+    }
+    if (pendingSetOwnershipMigrations.delete(scope)) {
+      try {
+        await persistProjectWorkspaceNow();
+        signal?.throwIfAborted();
+      } catch (error) {
+        useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
+        pendingLegacyEditorPreferenceMigrations.delete(scope);
+        throw error;
+      }
     }
     const legacyEditorPreference = pendingLegacyEditorPreferenceMigrations.get(scope);
     pendingLegacyEditorPreferenceMigrations.delete(scope);

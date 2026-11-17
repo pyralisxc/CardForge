@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
-import { ensureCardSetTemplateReferences, normalizeSetPlan, type CardData, type CardSet, type StoredDisplayCard } from '@/domain/cards';
+import { normalizeSetPlan, type CardData, type CardSet, type StoredDisplayCard } from '@/domain/cards';
 import {
   extractTemplateFieldDefinitions,
   materializeTemplateFieldBindings,
@@ -17,6 +17,13 @@ import {
   createMcpArtworkOperationBudget,
   normalizeMcpArtworkSource,
 } from './mcpArtworkSources';
+import {
+  getTemplateOwnerSetId,
+  materializeProjectTemplateOwnership,
+  prepareProjectDocumentCardBindings,
+  SetTemplateOwnershipError,
+  type ProjectDocumentV1,
+} from '@/features/project/server';
 import type {
   McpCardArtworkInput,
   McpCardWriteMode,
@@ -37,6 +44,31 @@ export interface AgentCardInput {
 const materializeGenerationTemplates = (templates: TCGCardTemplate[]): TCGCardTemplate[] => (
   templates.map(materializeTemplateFieldBindings)
 );
+
+const materializeWorkingDocument = (document: ProjectDocumentV1): ProjectDocumentV1 => {
+  try {
+    return materializeProjectTemplateOwnership(document).document;
+  } catch (error) {
+    if (error instanceof SetTemplateOwnershipError) {
+      throw new StudioDocumentStoreError(error.message, error.kind === 'not_found' ? 404 : 409);
+    }
+    throw error;
+  }
+};
+
+const prepareWorkingCardBindings = (
+  document: ProjectDocumentV1,
+  cards: StoredDisplayCard[],
+): ProjectDocumentV1 => {
+  try {
+    return prepareProjectDocumentCardBindings(document, cards);
+  } catch (error) {
+    if (error instanceof SetTemplateOwnershipError) {
+      throw new StudioDocumentStoreError(error.message, error.kind === 'not_found' ? 404 : 409);
+    }
+    throw error;
+  }
+};
 
 const selectFrontTemplate = (templates: TCGCardTemplate[], templateId: string): TCGCardTemplate => {
   const template = templates.find((candidate) => candidate.id === templateId && candidate.templateUsage !== 'back-preset');
@@ -298,8 +330,9 @@ export const upsertWorkingCardSet = async ({
   requireAccountToolCapability(access, 'studio.ai.create');
   const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
   const current = await getStudioDocument(access.user.id, documentId, retentionHours);
-  const explicitExisting = setId ? current.document.cardSets.find((candidate) => candidate.id === setId) : null;
-  const sameNameExisting = !setId ? findSameNameSet(current.document.cardSets, name) : null;
+  const baseline = materializeWorkingDocument(current.document);
+  const explicitExisting = setId ? baseline.cardSets.find((candidate) => candidate.id === setId) : null;
+  const sameNameExisting = !setId ? findSameNameSet(baseline.cardSets, name) : null;
   const existing = explicitExisting ?? sameNameExisting;
   const nextSet: CardSet = {
     ...(existing ?? {}),
@@ -307,11 +340,11 @@ export const upsertWorkingCardSet = async ({
     name: normalizeSetName(name),
     ...(context !== undefined ? { plan: normalizeSetPlan({ ...existing?.plan, version: 1, context }) } : {}),
   };
-  const sets = [...current.document.cardSets];
+  const sets = [...baseline.cardSets];
   const index = sets.findIndex((candidate) => candidate.id === nextSet.id);
   if (index >= 0) sets[index] = nextSet;
   else sets.push(nextSet);
-  const storedCards = current.document.storedCards.map((card) => (
+  const storedCards = baseline.storedCards.map((card) => (
     card.setId === nextSet.id ? { ...card, setId: nextSet.id, setName: nextSet.name } : card
   ));
   return updateStudioDocument({
@@ -320,8 +353,8 @@ export const upsertWorkingCardSet = async ({
     expectedRevision,
     title: current.title,
     document: {
-      ...current.document,
-      version: sets.some((set) => set.plan !== undefined) ? 2 : current.document.version,
+      ...baseline,
+      version: 3,
       cardSets: sets,
       activeCardSetId: nextSet.id,
       storedCards,
@@ -349,9 +382,10 @@ export const upsertWorkingCards = async ({
   const artworkBudget = createMcpArtworkOperationBudget(cards.flatMap((card) => card.artwork ?? []));
   const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
   const current = await getStudioDocument(access.user.id, documentId, retentionHours);
-  const templates = materializeGenerationTemplates(current.document.userTemplates);
-  const set = requireSet(current.document.cardSets, setId);
-  const byId = new Map(current.document.storedCards.map((card) => [card.uniqueId, card]));
+  const baseline = materializeWorkingDocument(current.document);
+  const templates = materializeGenerationTemplates(baseline.userTemplates);
+  const set = requireSet(baseline.cardSets, setId);
+  const byId = new Map(baseline.storedCards.map((card) => [card.uniqueId, card]));
   const updatedIds: string[] = [];
   const addedIds: string[] = [];
   const revisedIds: string[] = [];
@@ -450,6 +484,7 @@ export const upsertWorkingCards = async ({
     validateRequiredCardData(front, nextData, 'Front');
     if (back) validateRequiredCardData(back, nextBackingData ?? {}, 'Back');
     const card: StoredDisplayCard = {
+      ...existing,
       uniqueId,
       templateId: front.id!,
       backingTemplateId: back?.id ?? null,
@@ -465,19 +500,24 @@ export const upsertWorkingCards = async ({
   }
 
   const storedCards = Array.from(byId.values());
-  const cardSets = ensureCardSetTemplateReferences({ cardSets: current.document.cardSets, storedCards });
-  const updatedSet = cardSets.find((candidate) => candidate.id === set.id) ?? set;
+  const prepared = prepareWorkingCardBindings(baseline, storedCards);
+  const writtenTemplateIds = new Set(prepared.storedCards
+    .filter((card) => updatedIds.includes(card.uniqueId))
+    .flatMap((card) => [card.templateId, card.backingTemplateId])
+    .filter((id): id is string => Boolean(id)));
+  const userTemplates = prepared.userTemplates.map((template) => (
+    template.id && writtenTemplateIds.has(template.id) ? materializeTemplateFieldBindings(template) : template
+  ));
+  const updatedSet = prepared.cardSets.find((candidate) => candidate.id === set.id) ?? set;
   const document = await updateStudioDocument({
     ownerUserId: access.user.id,
     documentId,
     expectedRevision,
     title: current.title,
     document: {
-      ...current.document,
-      userTemplates: templates,
-      cardSets,
+      ...prepared,
+      userTemplates,
       activeCardSetId: set.id,
-      storedCards,
     },
     retentionHours,
   });
@@ -500,28 +540,32 @@ export const deleteWorkingCards = async ({
   requireAccountToolCapability(access, 'studio.ai.create');
   const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
   const current = await getStudioDocument(access.user.id, documentId, retentionHours);
-  const set = requireSet(current.document.cardSets, setId);
+  const baseline = materializeWorkingDocument(current.document);
+  const set = requireSet(baseline.cardSets, setId);
   const requested = new Set(cardIds);
-  const cardsById = new Map(current.document.storedCards.map((card) => [card.uniqueId, card]));
+  const cardsById = new Map(baseline.storedCards.map((card) => [card.uniqueId, card]));
   for (const id of requested) {
     const card = cardsById.get(id);
     if (!card || card.setId !== set.id) {
       throw new StudioDocumentStoreError(`Card ${id} is not in "${set.name}". Reload preview_card_set before deleting cards.`, 404);
     }
   }
+  const prepared = prepareWorkingCardBindings(
+    baseline,
+    baseline.storedCards.filter((card) => !requested.has(card.uniqueId)),
+  );
   const document = await updateStudioDocument({
     ownerUserId: access.user.id,
     documentId,
     expectedRevision,
     title: current.title,
     document: {
-      ...current.document,
+      ...prepared,
       activeCardSetId: set.id,
-      storedCards: current.document.storedCards.filter((card) => !requested.has(card.uniqueId)),
     },
     retentionHours,
   });
-  return { document, set, deletedIds: [...requested] };
+  return { document, set: document.document.cardSets.find((candidate) => candidate.id === set.id) ?? set, deletedIds: [...requested] };
 };
 
 export const moveWorkingCards = async ({
@@ -543,32 +587,31 @@ export const moveWorkingCards = async ({
   if (sourceSetId === targetSetId) throw new StudioDocumentStoreError('Source and target Set must be different.', 400);
   const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
   const current = await getStudioDocument(access.user.id, documentId, retentionHours);
-  const source = requireSet(current.document.cardSets, sourceSetId);
-  const target = requireSet(current.document.cardSets, targetSetId);
+  const baseline = materializeWorkingDocument(current.document);
+  const source = requireSet(baseline.cardSets, sourceSetId);
+  const target = requireSet(baseline.cardSets, targetSetId);
   const requested = new Set(cardIds);
-  const cardsById = new Map(current.document.storedCards.map((card) => [card.uniqueId, card]));
+  const cardsById = new Map(baseline.storedCards.map((card) => [card.uniqueId, card]));
   for (const id of requested) {
     const card = cardsById.get(id);
     if (!card || card.setId !== source.id) {
       throw new StudioDocumentStoreError(`Card ${id} is not in "${source.name}". Reload both Sets before moving cards.`, 404);
     }
   }
-  const storedCards = current.document.storedCards.map((card) => (
+  const storedCards = baseline.storedCards.map((card) => (
     requested.has(card.uniqueId) ? { ...card, setId: target.id, setName: target.name } : card
   ));
-  const cardSets = ensureCardSetTemplateReferences({ cardSets: current.document.cardSets, storedCards });
-  const updatedSource = cardSets.find((candidate) => candidate.id === source.id) ?? source;
-  const updatedTarget = cardSets.find((candidate) => candidate.id === target.id) ?? target;
+  const prepared = prepareWorkingCardBindings(baseline, storedCards);
+  const updatedSource = prepared.cardSets.find((candidate) => candidate.id === source.id) ?? source;
+  const updatedTarget = prepared.cardSets.find((candidate) => candidate.id === target.id) ?? target;
   const document = await updateStudioDocument({
     ownerUserId: access.user.id,
     documentId,
     expectedRevision,
     title: current.title,
     document: {
-      ...current.document,
-      cardSets,
+      ...prepared,
       activeCardSetId: target.id,
-      storedCards,
     },
     retentionHours,
   });
@@ -591,27 +634,40 @@ export const deleteWorkingCardSet = async ({
   requireAccountToolCapability(access, 'studio.ai.create');
   const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
   const current = await getStudioDocument(access.user.id, documentId, retentionHours);
-  const set = requireSet(current.document.cardSets, setId);
-  const setCards = current.document.storedCards.filter((card) => card.setId === set.id);
+  const baseline = materializeWorkingDocument(current.document);
+  const set = requireSet(baseline.cardSets, setId);
+  const setCards = baseline.storedCards.filter((card) => card.setId === set.id);
   if (setCards.length > 0 && !deleteCards) {
     throw new StudioDocumentStoreError(
       `"${set.name}" still contains ${setCards.length} card${setCards.length === 1 ? '' : 's'}. Delete or move those cards first, or retry with deleteCards true only when the user explicitly wants the Set and its cards removed.`,
       409,
     );
   }
-  const cardSets = current.document.cardSets.filter((candidate) => candidate.id !== set.id);
+  const cardSets = baseline.cardSets.filter((candidate) => candidate.id !== set.id);
   const storedCards = deleteCards
-    ? current.document.storedCards.filter((card) => card.setId !== set.id)
-    : current.document.storedCards;
+    ? baseline.storedCards.filter((card) => card.setId !== set.id)
+    : baseline.storedCards;
   const activeSet = cardSets[0] ?? null;
+  const ownedTemplateIds = new Set(baseline.userTemplates.flatMap((template) => {
+    if (!template.id) return [];
+    try {
+      return getTemplateOwnerSetId(baseline, template.id) === set.id ? [template.id] : [];
+    } catch (error) {
+      if (error instanceof SetTemplateOwnershipError) {
+        throw new StudioDocumentStoreError(error.message, error.kind === 'not_found' ? 404 : 409);
+      }
+      throw error;
+    }
+  }));
   const document = await updateStudioDocument({
     ownerUserId: access.user.id,
     documentId,
     expectedRevision,
     title: current.title,
     document: {
-      ...current.document,
+      ...baseline,
       cardSets,
+      userTemplates: baseline.userTemplates.filter((template) => !template.id || !ownedTemplateIds.has(template.id)),
       activeCardSetId: activeSet?.id ?? null,
       storedCards,
     },

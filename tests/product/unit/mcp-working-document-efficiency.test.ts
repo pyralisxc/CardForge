@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resolveTemplateCardFormat } from '@/domain/card-formats';
 import { normalizeTemplateFieldContracts } from '@/domain/templates/fieldContracts';
-import type { TCGCardTemplate } from '@/domain/templates';
+import { reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain/templates';
 import { normalizeEmbeddedTemplateAsset } from '@/features/studio-documents/server/embeddedTemplateAssets';
 
 const storeMocks = vi.hoisted(() => ({
@@ -39,7 +39,7 @@ import {
   patchWorkingDocument,
 } from '@/features/studio-documents/server/workingDocumentPatches';
 
-const makeTemplate = (): TCGCardTemplate => ({
+const makeTemplate = (): TCGCardTemplate => reconstructMinimalTemplateObject({
   id: 'template-1',
   name: 'Template One',
   aspectRatio: '63:88',
@@ -144,7 +144,7 @@ describe('atomic MCP working-document workflow', () => {
   it('edits Set-owned context without editing the locked original creation brief', async () => {
     const current = makeCurrent();
     const result = await upsertWorkingCardSet({ access, documentId: current.id, expectedRevision: current.revision, setId: 'set-1', name: 'Set One', context: 'Keep the creator’s exact words.\nhttps://example.com is a note, not an image.' });
-    expect(result.document.version).toBe(2);
+    expect(result.document.version).toBe(3);
     expect(result.document.cardSets[0].plan?.context).toContain('creator’s exact words.\n');
     expect(result.document.productionPlan).toEqual(current.document.productionPlan);
     expect(storeMocks.updateStudioDocument).toHaveBeenCalledTimes(1);

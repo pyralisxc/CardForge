@@ -1,8 +1,9 @@
 import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
-import { ensureCardSetTemplateReferences, normalizeCardTagIds, type StoredDisplayCard } from '@/domain/cards';
+import { normalizeCardTagIds, type StoredDisplayCard } from '@/domain/cards';
 
+import { prepareCardSetTemplateBindings } from '../model/setTemplateOwnership';
 import { selectAllTemplates } from './selectors';
 import type { OutputSlice, ProjectState } from './types';
 
@@ -10,7 +11,9 @@ const toStoredCard = (updatedCard: import('@/domain/rendering').DisplayCard, pre
   uniqueId: updatedCard.uniqueId,
   templateId: updatedCard.template.id!,
   backingTemplateId: updatedCard.backingTemplateId ?? updatedCard.backingTemplate?.id ?? previous?.backingTemplateId ?? null,
-  backingData: updatedCard.backingData,
+  ...(updatedCard.backingData !== undefined
+    ? { backingData: updatedCard.backingData }
+    : previous?.backingData !== undefined ? { backingData: previous.backingData } : {}),
   setId: updatedCard.setId ?? previous?.setId,
   setName: updatedCard.setName ?? previous?.setName,
   data: updatedCard.data,
@@ -29,11 +32,18 @@ const ensureImportSet = (getState: () => ProjectState): NonNullable<ProjectState
 };
 
 const withCardSetTemplateReferences = (state: ProjectState, storedCards: StoredDisplayCard[]) => {
-  const cardSets = ensureCardSetTemplateReferences({ cardSets: state.cardSets, storedCards });
+  const { userTemplates, storedCards: cards, cardSets, templateIdsBySet } = prepareCardSetTemplateBindings(state, storedCards, selectAllTemplates(state));
   const activeCardSet = state.activeCardSet
     ? cardSets.find((set) => set.id === state.activeCardSet?.id) ?? state.activeCardSet
     : null;
-  return { storedCards, cardSets, activeCardSet };
+  const selected = state.activeCardSet ? templateIdsBySet.get(state.activeCardSet.id) : undefined;
+  return {
+    storedCards: cards, cardSets, activeCardSet, userTemplates,
+    ...(state.generatorSelectedTemplateId && selected?.has(state.generatorSelectedTemplateId)
+      ? { generatorSelectedTemplateId: selected.get(state.generatorSelectedTemplateId)! } : {}),
+    ...(state.generatorSelectedBackingTemplateId && selected?.has(state.generatorSelectedBackingTemplateId)
+      ? { generatorSelectedBackingTemplateId: selected.get(state.generatorSelectedBackingTemplateId)! } : {}),
+  };
 };
 
 export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> = (set, get) => ({
@@ -292,7 +302,7 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
         uniqueId,
         templateId: template.id!,
         backingTemplateId: card.backingTemplateId ?? null,
-        backingData: card.backingData,
+        ...(card.backingData !== undefined ? { backingData: card.backingData } : {}),
         setId: targetSet?.id ?? activeCardSet.id,
         setName: targetSet?.name ?? card.setName ?? activeCardSet.name,
         data: card.data || {},

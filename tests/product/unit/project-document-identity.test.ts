@@ -42,17 +42,7 @@ describe('portable versus provider working document identity', () => {
       } },
     });
     const original = structuredClone(source);
-    const copy = instantiateProjectDocumentCopy(source, (kind) => `${kind}-copied`);
-    expect(copy.cardSets[0]!.templateIds).toEqual([copy.userTemplates[0]!.id, 'external-template']);
-    expect(copy.userTemplates[0]!.id).not.toBe('portable-template');
-    expect(copy.userTemplates[0]).toMatchObject({
-      templateLineageId: copy.userTemplates[0]!.id, templateRevision: 1,
-      templateContributorName: 'Original creator', templateOriginLineageId: 'source-lineage', templateOriginRevisionId: 'source-revision-3',
-    });
-    expect(copy.userTemplates[0]!.templateRevisionId).toBeTruthy();
-    expect(copy.userTemplates[0]!.templateRevisionId).not.toBe('source-revision-3');
-    expect(copy.userTemplates[0]!.templateParentRevisionId).toBeUndefined();
-    expect(copy.userTemplates[0]!.templatePipelineContext).toBeUndefined();
+    expect(() => instantiateProjectDocumentCopy(source, (kind) => `${kind}-copied`)).toThrow(/working snapshot.*external-template/i);
     expect(source).toEqual(original);
   });
   it('isolates files with the same portable IDs while preserving references and authored values', () => {

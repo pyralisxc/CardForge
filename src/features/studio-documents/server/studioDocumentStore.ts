@@ -2,7 +2,13 @@ import { sanitizeStudioDependencyReasons } from '../ownerStudioDependencyContrac
 import { STUDIO_DEPENDENCY_CONTRACT_VERSION, interpretStudioDependencies } from './studioDependencyInterpretation';
 import { randomUUID } from 'node:crypto';
 
-import type { ProjectDocumentV1 } from '@/features/project/server';
+import {
+  assertSetTemplateOwnership,
+  assertSetTemplateOwnershipTransition,
+  materializeProjectTemplateOwnership,
+  SetTemplateOwnershipError,
+  type ProjectDocumentV1,
+} from '@/features/project/server';
 import {
   normalizeStudioDocumentPayload,
   type StudioDocument,
@@ -45,6 +51,34 @@ interface StudioDocumentRow {
 const SUMMARY_COLUMNS = 'id,title,creation_source,revision,created_at,updated_at,last_activity_at,expires_at,retention_hours,deleted_at,purge_after,last_installed_revision,last_installed_at,last_install_summary,source_project_provider,source_project_external_id,source_provider_revision,source_project_revision,source_project_name';
 const DOCUMENT_COLUMNS = `${SUMMARY_COLUMNS},document_payload`;
 const STUDIO_DOCUMENT_LIST_LIMIT = 100;
+
+const prepareOwnedStudioDocument = (document: ProjectDocumentV1): ProjectDocumentV1 => {
+  try {
+    const prepared = materializeProjectTemplateOwnership(document).document;
+    assertSetTemplateOwnership(prepared);
+    return prepared;
+  } catch (error) {
+    if (error instanceof SetTemplateOwnershipError) {
+      throw new StudioDocumentStoreError(error.message, error.kind === 'not_found' ? 404 : 409);
+    }
+    throw error;
+  }
+};
+
+const assertStudioDocumentOwnershipTransition = (
+  previous: ProjectDocumentV1,
+  next: ProjectDocumentV1,
+  legacyPrevious: boolean,
+): void => {
+  try {
+    assertSetTemplateOwnershipTransition(previous, next, legacyPrevious);
+  } catch (error) {
+    if (error instanceof SetTemplateOwnershipError) {
+      throw new StudioDocumentStoreError(error.message, error.kind === 'not_found' ? 404 : 409);
+    }
+    throw error;
+  }
+};
 
 export interface StudioDocumentListPage {
   documents: StudioDocumentSummary[];
@@ -261,7 +295,8 @@ export const createStudioDocument = async ({
 }): Promise<StudioDocument> => {
   validateProjectSourceLineage(sourceProject);
   const documentId = randomUUID();
-  const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
+  const preparedDocument = prepareOwnedStudioDocument(document);
+  const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document: preparedDocument });
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .insert({
@@ -311,11 +346,26 @@ export const updateStudioDocument = async ({
   expectedRevision: number;
   retentionHours: number;
 }): Promise<StudioDocument> => {
+  const current = await getStudioDocument(ownerUserId, documentId);
+  if (current.revision !== expectedRevision) {
+    throw new StudioDocumentStoreError(
+      `The CardForge working document changed after revision ${expectedRevision}. Reload the current design or card-generation contract, then retry with the new expectedRevision while reusing the same stable set and card ids.`,
+      409,
+    );
+  }
+  if (current.document.version === 3 && document.version !== 3) {
+    throw new StudioDocumentStoreError(
+      'This Set-owned document cannot be downgraded. Reload the current document and retry with its current Set and Template ids.',
+      409,
+    );
+  }
+  const preparedDocument = prepareOwnedStudioDocument(document);
+  assertStudioDocumentOwnershipTransition(current.document, preparedDocument, current.document.version < 3);
   await applyRetentionPolicy(ownerUserId, retentionHours);
   const externalized = await externalizeStudioDocumentAssets({
     ownerUserId,
     documentId,
-    document,
+    document: preparedDocument,
     cleanupOnFailure: false,
   });
   const { data, error } = await requireStore()

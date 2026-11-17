@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => {
     update: vi.fn(),
     eq: vi.fn(),
     is: vi.fn(),
+    gt: vi.fn(),
     select: vi.fn(),
     maybeSingle: vi.fn(),
   };
@@ -41,10 +42,12 @@ import { updateStudioDocument, reconcileStudioDocumentDependencies, reconcileOwn
 describe('Studio document revision asset retention', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.chain.maybeSingle.mockReset();
     mocks.store.rpc.mockResolvedValue({ data: true, error: null });
     mocks.chain.update.mockReturnValue(mocks.chain);
     mocks.chain.eq.mockReturnValue(mocks.chain);
     mocks.chain.is.mockReturnValue(mocks.chain);
+    mocks.chain.gt.mockReturnValue(mocks.chain);
     mocks.chain.select.mockReturnValue(mocks.chain);
     mocks.chain.maybeSingle.mockResolvedValue({ data: null, error: null });
     mocks.store.from.mockReturnValue(mocks.chain);
@@ -52,11 +55,26 @@ describe('Studio document revision asset retention', () => {
 
   it('keeps new content-addressed uploads when a revision loses its compare-and-swap', async () => {
     const document = createProjectScaleFixture(100);
-    mocks.externalizeStudioDocumentAssets.mockResolvedValue({
-      document,
+    document.cardSets = [];
+    document.storedCards = [];
+    document.userTemplates = [];
+    delete document.activeCardSetId;
+    mocks.chain.maybeSingle
+      .mockResolvedValueOnce({ data: {
+        id: 'document-1', title: 'Existing', creation_source: 'gpt', document_payload: document, revision: 7,
+        created_at: '2026-10-01T00:00:00.000Z', updated_at: '2026-10-01T00:00:00.000Z',
+        last_activity_at: '2026-10-01T00:00:00.000Z', expires_at: '2027-10-01T00:00:00.000Z',
+        retention_hours: 12, deleted_at: null, purge_after: null, last_installed_revision: null,
+        last_installed_at: null, last_install_summary: null, source_project_provider: null,
+        source_project_external_id: null, source_provider_revision: null, source_project_revision: null,
+        source_project_name: null,
+      }, error: null })
+      .mockResolvedValueOnce({ data: null, error: null });
+    mocks.externalizeStudioDocumentAssets.mockImplementation(async ({ document: prepared }: { document: typeof document }) => ({
+      document: prepared,
       uploadedAssetIds: ['shared-artwork'],
       uploadedFontIds: ['shared-font'],
-    });
+    }));
 
     await expect(updateStudioDocument({
       ownerUserId: 'account-1',
@@ -73,8 +91,8 @@ describe('Studio document revision asset retention', () => {
       cleanupOnFailure: false,
     }));
     expect(mocks.chain.update).toHaveBeenCalledWith(expect.objectContaining({
-      document_payload: document, revision: 8,
-      catalog_dependencies: expect.objectContaining({ contractVersion: 1, sourcePayload: document }),
+      document_payload: expect.objectContaining({ version: 3 }), revision: 8,
+      catalog_dependencies: expect.objectContaining({ contractVersion: 1, sourcePayload: expect.objectContaining({ version: 3 }) }),
     }));
     expect(mocks.cleanupUploadedStudioDocumentAssets).not.toHaveBeenCalled();
     expect(mocks.removeStudioDocumentAssets).not.toHaveBeenCalled();

@@ -18,13 +18,14 @@ export async function interpretPipelineSetPackage(bytes: Uint8Array) {
   // Portable artifact envelopes are not present in the v1 runtime document.
   // Inspect them before projecting the canonical card payloads for the existing interpreter.
   let rawRuntime: unknown = project;
-  if (source.cardforgeProject === 2 || source.cardforgeProject === 3) {
-    // v2 owns artifacts, not v1 storedCards. The codec currently drops this
-    // extra raw field; do not certify an uninspected future source shape.
+  if (source.cardforgeProject === 2 || source.cardforgeProject === 3 || source.cardforgeProject === 4) {
+    // Portable packages own artifacts, not runtime storedCards.
     if (Object.prototype.hasOwnProperty.call(project, 'storedCards')) reasons.add('unsupported_package_project_field');
     if (!Array.isArray(project.artifacts) || project.artifacts.some(artifact => !record(artifact)
       || Object.keys(artifact).some(key => !['artifactId','artifactType','setId','card'].includes(key))
-      || artifact.artifactType !== 'card' || !record(artifact.card))) reasons.add('unsupported_package_artifact');
+      || artifact.artifactType !== 'card' || !record(artifact.card)
+      || artifact.artifactId !== artifact.card.uniqueId
+      || artifact.setId !== (typeof artifact.card.setId === 'string' ? artifact.card.setId : ''))) reasons.add('unsupported_package_artifact');
     const { artifacts, ...fields } = project;
     rawRuntime = { ...fields, version: document.version, storedCards: Array.isArray(artifacts) ? artifacts.map(artifact => record(artifact) ? artifact.card : null) : null };
   }

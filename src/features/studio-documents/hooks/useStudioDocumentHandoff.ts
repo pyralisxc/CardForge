@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { assertOutputContentUnchanged, outputIntentSchema, validateOutputIntentDocument, type OutputIntent } from '../outputIntent';
 
-import { applyProjectDocumentToState } from '@/features/project/client/package-document';
 import { applyProjectDocumentToWorkspace, hasProjectDocumentStateChanged, normalizeStudioView, type StudioView, useProjectStore } from '@/features/project/client/workspace';
 import {
   normalizeStudioDocumentPayload,
@@ -141,9 +140,16 @@ export function useStudioDocumentHandoff({
         const storedDocument = normalizeStudioDocumentPayload(payload.document?.document);
         if (!storedDocument) throw new Error('The account document is not a valid CardForge project.');
         const hydratedDocument = await hydrateStudioDocumentAssets(storedDocument, payload.assets ?? [], controller.signal, Boolean(outputIntent));
-        const { document, contextKept } = prepareTemplateDocumentSet(hydratedDocument, documentId, typeof payload.document?.title === 'string' ? payload.document.title : hydratedDocument.userTemplates[0]?.name ?? 'Set', initiatingState.cardSets);
+        const { document, contextKept } = outputIntent
+          ? { document: hydratedDocument, contextKept: false }
+          : prepareTemplateDocumentSet(
+              hydratedDocument,
+              documentId,
+              typeof payload.document?.title === 'string' ? payload.document.title : hydratedDocument.userTemplates[0]?.name ?? 'Set',
+              initiatingState.cardSets,
+              initiatingState.storedCards,
+            );
         controller.signal.throwIfAborted();
-        const patch = applyProjectDocumentToState(document);
         // Desk camera/selection updates may replace the Zustand object while
         // the exact source is loading. Reuse the canonical authored-document
         // comparison, then retain the native transaction's final strict CAS.
@@ -160,11 +166,6 @@ export function useStudioDocumentHandoff({
           const beforeState = expectedState;
           const existingTemplateIds = new Set(beforeState.userTemplates.map((template) => template.id).filter(Boolean));
           const existingCardIds = new Set(beforeState.storedCards.map((card) => card.uniqueId));
-          const personalTemplates = patch.userTemplates.filter((template) => (
-            template.templateSource !== 'default'
-            && template.templateLibrarySource !== 'pipeline'
-          ));
-
           const adoptionDocument = {
             ...document,
             userTemplates: document.userTemplates.map((template) => (
@@ -181,21 +182,29 @@ export function useStudioDocumentHandoff({
           const adopted = await applyProjectDocumentToWorkspace(adoptionDocument, 'adopt', { expectedState: beforeState, signal: controller.signal, ...(outputIntent ? { validatePreparedDocument: (prepared) => assertOutputContentUnchanged(outputIntent!, adoptionDocument, prepared) } : {}) });
           if (cancelled) return;
 
+          const installedState = useProjectStore.getState();
+          const personalTemplates = adopted.installedTemplateIds.flatMap((id) => {
+            const template = installedState.userTemplates.find((candidate) => candidate.id === id);
+            return template && template.templateSource !== 'default' && template.templateLibrarySource !== 'pipeline' ? [template] : [];
+          });
           const cardResult = {
             successCount: adopted.successCount,
             skippedCount: adopted.skippedCount,
           };
 
-          const installedCards = patch.storedCards.slice(0, cardResult.successCount);
+          const installedCards = adopted.installedCardIds.flatMap((id) => {
+            const card = installedState.storedCards.find((candidate) => candidate.uniqueId === id);
+            return card ? [card] : [];
+          });
           const cardAddedCount = installedCards.filter((card) => !existingCardIds.has(card.uniqueId)).length;
           const cardUpdatedCount = Math.max(0, cardResult.successCount - cardAddedCount);
           const templateAddedCount = personalTemplates.filter((template) => template.id && !existingTemplateIds.has(template.id)).length;
           const templateUpdatedCount = Math.max(0, personalTemplates.length - templateAddedCount);
           const destination: StudioDocumentInstallSummary['destination'] = cardResult.successCount > 0 ? 'sets' : 'template-maker';
-          const activeFrontTemplateId = patch.storedCards.find((card) => card.setId === patch.activeCardSetId)?.templateId ?? null;
+          const activeFrontTemplateId = adopted.activeTemplateId;
           const installedTemplateId = activeFrontTemplateId
             ?? personalTemplates.find((template) => template.id)?.id
-            ?? patch.userTemplates.find((template) => template.id)?.id
+            ?? adopted.installedTemplateIds.find((id) => personalTemplates.some((template) => template.id === id))
             ?? null;
           setSelectedTemplateId(installedTemplateId);
           setTemplateEditorSelectedTemplateId(installedTemplateId);
@@ -205,12 +214,12 @@ export function useStudioDocumentHandoff({
             templateCount: personalTemplates.length,
             templateAddedCount,
             templateUpdatedCount,
-            setCount: patch.cardSets.length,
+            setCount: adoptionDocument.cardSets.length,
             cardCount: cardResult.successCount,
             cardAddedCount,
             cardUpdatedCount,
             cardSkippedCount: cardResult.skippedCount,
-            activeSetId: patch.activeCardSetId ?? null,
+            activeSetId: adopted.activeSetId,
             destination,
           };
 

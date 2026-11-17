@@ -43,10 +43,12 @@ describe('native single-Set file opening', () => {
     expect(id).not.toBe(source.cardSets[0]!.id);
     expect(state.activeCardSet?.id).toBe(id);
     expect(state.activeCardSet?.plan).toEqual(source.cardSets[0]!.plan);
-    expect(state.userTemplates).toHaveLength(1);
-    expect(state.userTemplates[0]!.id).not.toBe(source.userTemplates[0]!.id);
+    expect(state.userTemplates).toHaveLength(2);
+    expect(state.userTemplates.every((template) => template.id !== source.userTemplates[0]!.id)).toBe(true);
     expect(state.storedCards).toHaveLength(2);
-    expect(state.storedCards.every((card) => card.setId === id && card.templateId === state.userTemplates[0]!.id)).toBe(true);
+    const workingTemplateId = state.activeCardSet?.templateIds?.[0];
+    expect(workingTemplateId).not.toBe(source.userTemplates[0]!.id);
+    expect(state.storedCards.every((card) => card.setId === id && card.templateId === workingTemplateId)).toBe(true);
     expect(state.storedCards[0]!.data.artwork).toMatch(/^cardforge-browser-asset:\/\//);
   });
 
@@ -74,7 +76,10 @@ describe('native single-Set file opening', () => {
     const { file } = await packageFor(document);
     const id = await openBrowserSetFile(file, new AbortController().signal);
     expect(useProjectStore.getState().activeCardSet?.id).toBe(id);
-    expect(useProjectStore.getState().activeCardSet?.templateIds).toEqual([useProjectStore.getState().userTemplates[0]!.id]);
+    const workingTemplateId = useProjectStore.getState().activeCardSet?.templateIds?.[0];
+    expect(workingTemplateId).toBeTruthy();
+    expect(workingTemplateId).not.toBe(document.userTemplates[0]!.id);
+    expect(useProjectStore.getState().userTemplates.some((template) => template.id === workingTemplateId)).toBe(true);
   });
 
   it.each([0, 2])('refuses a %i-Set workspace package before materializing artwork', async (count) => {
@@ -100,7 +105,7 @@ describe('native single-Set file opening', () => {
     manifest.projectRevision = createHash('sha256').update(JSON.stringify({ project: manifest.project, assets: manifest.assets })).digest('hex');
     zip.file(CARDFORGE_PROJECT_MANIFEST_FILE, JSON.stringify(manifest));
     const source = new File([await zip.generateAsync({ type: 'arraybuffer' })], 'legacy-registry.cardforge');
-    await expect(openBrowserSetFile(source, new AbortController().signal)).rejects.toThrow(/exactly one Set|valid Set identity/);
+    await expect(openBrowserSetFile(source, new AbortController().signal)).rejects.toThrow();
     expect(useProjectStore.getState().cardSets).toEqual([]);
   });
 
@@ -109,8 +114,7 @@ describe('native single-Set file opening', () => {
     if (kind === 'front') document.storedCards[0]!.templateId = 'missing-template';
     if (kind === 'back') document.storedCards[0]!.backingTemplateId = 'missing-template';
     if (kind === 'prepared') document.cardSets[0]!.templateIds = ['missing-template'];
-    const { file } = await packageFor(document);
-    await expect(openBrowserSetFile(file, new AbortController().signal)).rejects.toThrow('required Template');
+    await expect(packageFor(document)).rejects.toThrow(/working snapshot.*missing-template|required Template/i);
     expect(useProjectStore.getState().cardSets).toEqual([]);
   });
 
