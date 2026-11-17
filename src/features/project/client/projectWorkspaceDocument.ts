@@ -18,7 +18,7 @@ import {
   materializeSetPlanOwnership,
   type ProjectDocumentV1,
 } from '../model/projectDocument';
-import { getTemplateOwnerSetId } from '../model/setTemplateOwnership';
+import { getTemplateOwnerSetId, SetTemplateOwnershipError } from '../model/setTemplateOwnership';
 import {
   getProjectAssetStorage,
   readTypedProjectAssetListFromStorage,
@@ -81,6 +81,19 @@ export const rekeyConflictingTemplateSnapshots = (
   createId: () => string = () => `template-${globalThis.crypto.randomUUID()}`,
 ): ProjectDocumentV1 => {
   const currentById = new Map(currentTemplates.flatMap((template) => template.id ? [[template.id, template] as const] : []));
+  const incomingSnapshotIds = new Set(document.userTemplates.flatMap((template) => template.id ? [template.id] : []));
+  const incomingReferenceIds = new Set([
+    ...document.cardSets.flatMap((set) => set.templateIds ?? []),
+    ...document.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
+  ].filter((id): id is string => Boolean(id)));
+  for (const id of incomingReferenceIds) {
+    if (!incomingSnapshotIds.has(id) && currentById.has(id)) {
+      throw new SetTemplateOwnershipError(
+        'conflict',
+        `Incoming Set work references Template ${id} without its snapshot, but that identity already exists in this workspace. Reload a complete snapshot or import an independent copy; existing work was left unchanged.`,
+      );
+    }
+  }
   const usedIds = new Set([
     ...currentById.keys(),
     ...document.userTemplates.flatMap((template) => template.id ? [template.id] : []),

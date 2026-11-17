@@ -192,6 +192,61 @@ describe('atomic project apply', () => {
     expect(incoming.userTemplates[0]!.id).toBe(sourceId);
   });
 
+  it('refuses a missing incoming Template snapshot that aliases same-Set work without changing either copy', async () => {
+    const current = fixture();
+    current.version = 3;
+    const setId = current.cardSets[0]!.id;
+    const originalTemplate = current.userTemplates[0]!;
+    const front = { ...structuredClone(originalTemplate), id: 'front-local', name: 'Front' };
+    const back = { ...structuredClone(originalTemplate), id: 'back-local', name: 'Back' };
+    const prepared = { ...structuredClone(originalTemplate), id: 'prepared-local', name: 'Prepared' };
+    current.userTemplates = [front, back, prepared];
+    current.cardSets = [{ ...current.cardSets[0]!, templateIds: [prepared.id!] }];
+    current.storedCards = [{
+      ...current.storedCards[0]!,
+      uniqueId: 'existing-card',
+      templateId: front.id!,
+      backingTemplateId: back.id!,
+      setId,
+    }];
+    current.activeCardSetId = setId;
+    await applyProjectDocumentToWorkspace(current, 'replace');
+
+    const storage = createBrowserKeyValueStorage(`project-workspace:${scope}`);
+    const beforeBytes = await storage.getItem('workspace');
+    const beforeState = useProjectStore.getState();
+    const incoming = structuredClone(current);
+    incoming.userTemplates = [];
+    incoming.storedCards = [{
+      ...incoming.storedCards[0]!,
+      uniqueId: 'historical-card',
+      data: { cardName: 'Imported historical card' },
+    }];
+    const originalInput = structuredClone(incoming);
+
+    await expect(applyProjectDocumentToWorkspace(incoming, 'merge')).rejects.toMatchObject({
+      name: 'SetTemplateOwnershipError',
+      kind: 'conflict',
+    });
+    expect(useProjectStore.getState()).toBe(beforeState);
+    expect(await storage.getItem('workspace')).toBe(beforeBytes);
+    expect(incoming).toEqual(originalInput);
+
+    const deferred = structuredClone(incoming);
+    deferred.cardSets[0]!.templateIds = ['unresolved-historical-template'];
+    deferred.storedCards[0] = {
+      ...deferred.storedCards[0]!,
+      templateId: 'unresolved-historical-template',
+      backingTemplateId: null,
+    };
+    await applyProjectDocumentToWorkspace(deferred, 'merge');
+    expect(useProjectStore.getState().userTemplates.some((template) => template.id === 'unresolved-historical-template')).toBe(false);
+    expect(useProjectStore.getState().cardSets.find((set) => set.id === setId)?.templateIds)
+      .toContain('unresolved-historical-template');
+    expect(useProjectStore.getState().storedCards.find((card) => card.uniqueId === 'historical-card')?.templateId)
+      .toBe('unresolved-historical-template');
+  });
+
   it('does not report a pre-existing Template or Set as the active context of a standalone import', async () => {
     const existing = fixture();
     existing.cardSets = [];
