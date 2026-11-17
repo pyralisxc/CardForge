@@ -3,8 +3,9 @@
 import { useCallback } from 'react';
 
 import type { CardSetMetadata } from '@/domain/cards';
-import type { TCGCardTemplate, TemplateSource } from '@/domain/templates';
+import { createPersonalTemplateFork, type TCGCardTemplate, type TemplateSource } from '@/domain/templates';
 
+import { getTemplateOwnerSetId } from '../model/setTemplateOwnership';
 import { hydrateProjectWorkspaceForScope } from '../store/workspaceStore';
 import { selectAllGeneratedDisplayCards, selectAllTemplates } from '../store/selectors';
 import { useProjectStore } from '../store/workspaceStore';
@@ -43,17 +44,22 @@ export function useProjectLibraryWorkspace() {
   const addOrUpdateTemplate = useProjectStore((state) => state.addOrUpdateTemplate);
 
   const openTemplateDesign = useCallback((templateId: string) => {
+    const ownerId = getTemplateOwnerSetId(useProjectStore.getState(), templateId);
+    if (ownerId) setActiveCardSetId(ownerId);
     setTemplateEditorSelectedTemplateId(templateId);
     setStudioView('template');
-  }, [setStudioView, setTemplateEditorSelectedTemplateId]);
+  }, [setActiveCardSetId, setStudioView, setTemplateEditorSelectedTemplateId]);
 
   const prepareTemplateForDesign = useCallback((template: TCGCardTemplate, options?: {
     source?: TemplateSource;
     copy?: boolean;
   }) => {
-    const installedId = addOrUpdateTemplate(template, options?.source ?? 'default');
-    return options?.copy ? cloneTemplate(installedId) : installedId;
-  }, [addOrUpdateTemplate, cloneTemplate]);
+    if (options?.copy) return addOrUpdateTemplate({
+      ...createPersonalTemplateFork(structuredClone(template)),
+      templateContributorName: template.templateContributorName,
+    }, 'user');
+    return addOrUpdateTemplate(template, options?.source ?? 'default');
+  }, [addOrUpdateTemplate]);
 
   return {
     cardSets,

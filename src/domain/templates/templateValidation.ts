@@ -20,6 +20,11 @@ const isOneOf = <T extends readonly string[]>(values: T, value: unknown): value 
 
 export const validateNativeTemplateStructure = (value: unknown): string | null => {
   if (!isRecord(value)) return null;
+  if (value.templateOriginAncestors !== undefined && (!Array.isArray(value.templateOriginAncestors)
+    || value.templateOriginAncestors.some((pin) => !isRecord(pin) || typeof pin.lineageId !== 'string' || !pin.lineageId.trim()
+      || (pin.revisionId !== undefined && (typeof pin.revisionId !== 'string' || !pin.revisionId.trim()))))) {
+    return 'The design contains unsupported source ancestry. Its original source must be kept rather than discarded.';
+  }
   const canvas = value.freeformCanvas;
   if (!isRecord(canvas) || !Array.isArray(canvas.elements)) return null;
 

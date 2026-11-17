@@ -280,6 +280,8 @@ export interface TCGCardTemplate {
   /** Provenance for an independent personal fork/copy; never implies ownership. */
   templateOriginLineageId?: string;
   templateOriginRevisionId?: string;
+  /** Earlier available source pins; not a complete history or an accepted Update. */
+  templateOriginAncestors?: Array<{ lineageId: string; revisionId?: string }>;
   templatePipelineContext?: TemplatePipelineContext;
   templateUsage?: TemplateUsage;
   templateCategory?: string;

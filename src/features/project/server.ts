@@ -3,6 +3,8 @@ export type { ProjectPersistenceScope } from './lib/projectPersistenceIdentity';
 export {
   createProjectDocumentFromState,
   instantiateProjectDocumentCopy,
+  materializeProjectTemplateOwnership,
+  prepareProjectDocumentCardBindings,
   parseProjectDocumentValue,
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_FONT_ASSETS_STORAGE_KEY,
@@ -12,6 +14,7 @@ export {
 } from './model/projectDocument';
 export type { ProjectDocumentMcpOperationReceipt, ProjectDocumentV1, ProjectDocument } from './model/projectDocument';
 export { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from './model/projectAssetTraversal';
+export { assertSetTemplateOwnership, assertSetTemplateOwnershipTransition, getTemplateOwnerSetId, SetTemplateOwnershipError } from './model/setTemplateOwnership';
 export {
   getProjectFontValue,
   isProjectFontAssetId,
@@ -28,6 +31,7 @@ export {
   CARDFORGE_PROJECT_FILE_EXTENSION,
   CARDFORGE_PROJECT_MANIFEST_FILE,
   CARDFORGE_PROJECT_PACKAGE_VERSION,
+  CONTEXT_CARDFORGE_PROJECT_PACKAGE_VERSION,
   ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION,
   LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION,
   getProjectPackageAssetExtension,
@@ -47,10 +51,13 @@ export type {
   CardForgeProjectManifestV1,
   CardForgeProjectManifestV2,
   CardForgeProjectManifestV3,
+  CardForgeProjectManifestV4,
   CardForgeProjectPackageSnapshot,
   CardForgeProjectPackageSnapshotV2,
   CardForgeProjectPackageSnapshotV3,
+  CardForgeProjectPackageSnapshotV4,
   PortableProjectDocumentV2,
+  PortableProjectDocumentV3,
   ProjectPackageAssetDescriptor,
   ProjectPackageAssetMimeType,
   ProjectSourceDescriptor,

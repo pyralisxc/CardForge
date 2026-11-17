@@ -271,7 +271,14 @@ describe('app store helpers', () => {
   });
 
   it('retargets existing card backs without changing their front designs', () => {
+    const newBack = reconstructMinimalTemplateObject({ id: 'back-new', name: 'New Back', templateSource: 'user', templateUsage: 'back-preset' });
+    const frontOne = reconstructMinimalTemplateObject({ id: 'front-1', name: 'Front One', templateSource: 'user' });
+    const frontTwo = reconstructMinimalTemplateObject({ id: 'front-2', name: 'Front Two', templateSource: 'user' });
+    const oldBack = reconstructMinimalTemplateObject({ id: 'back-old', name: 'Old Back', templateSource: 'user', templateUsage: 'back-preset' });
     useProjectStore.setState({
+      userTemplates: [newBack, frontOne, frontTwo, oldBack],
+      cardSets: [{ id: 'active-card-set', name: 'Untitled Set', templateIds: ['front-1', 'front-2', 'back-old'] }],
+      activeCardSet: { id: 'active-card-set', name: 'Untitled Set', templateIds: ['front-1', 'front-2', 'back-old'] },
       storedCards: [
         { uniqueId: 'card-1', templateId: 'front-1', backingTemplateId: 'back-old', data: {} },
         { uniqueId: 'card-2', templateId: 'front-2', backingTemplateId: null, data: {} },
@@ -280,8 +287,10 @@ describe('app store helpers', () => {
 
     useProjectStore.getState().retargetGeneratedCardsBackingTemplate('back-old', 'back-new');
 
+    const workingBackId = useProjectStore.getState().storedCards[0]?.backingTemplateId;
+    expect(workingBackId).not.toBe('back-new');
     expect(useProjectStore.getState().storedCards).toEqual([
-      { uniqueId: 'card-1', templateId: 'front-1', backingTemplateId: 'back-new', data: {} },
+      { uniqueId: 'card-1', templateId: 'front-1', backingTemplateId: workingBackId, data: {} },
       { uniqueId: 'card-2', templateId: 'front-2', backingTemplateId: null, data: {} },
     ]);
   });
@@ -353,9 +362,12 @@ describe('app store helpers', () => {
       },
     }]);
 
+    const workingTemplateId = useProjectStore.getState().storedCards[0]?.templateId;
+    expect(workingTemplateId).not.toBe('styled-template');
+    expect(useProjectStore.getState().cardSets[0]?.templateIds).toContain(workingTemplateId);
     expect(useProjectStore.getState().storedCards).toEqual([{
       uniqueId: 'styled-card',
-      templateId: 'styled-template',
+      templateId: workingTemplateId,
       backingTemplateId: null,
       setId: 'active-card-set',
       setName: 'Untitled Set',
@@ -376,11 +388,15 @@ describe('app store helpers', () => {
         { id: 'set-b', name: 'Set B' },
       ],
       activeCardSet: { id: 'set-a', name: 'Set A' },
+      userTemplates: [
+        reconstructMinimalTemplateObject({ id: 'template', name: 'Template', templateSource: 'user' }),
+        reconstructMinimalTemplateObject({ id: 'template-b', name: 'Template B', templateSource: 'user' }),
+      ],
       storedCards: [
         { uniqueId: 'a-1', templateId: 'template', setId: 'set-a', setName: 'Set A', data: {} },
         { uniqueId: 'a-2', templateId: 'template', setId: 'set-a', setName: 'Set A', data: {} },
         { uniqueId: 'a-3', templateId: 'template', setId: 'set-a', setName: 'Set A', data: {} },
-        { uniqueId: 'b-1', templateId: 'template', setId: 'set-b', setName: 'Set B', data: {} },
+        { uniqueId: 'b-1', templateId: 'template-b', setId: 'set-b', setName: 'Set B', data: {} },
       ],
     });
 
@@ -453,11 +469,13 @@ describe('app store helpers', () => {
     ]);
 
     expect(result).toEqual({ successCount: 2, skippedCount: 1 });
+    const importedTemplateId = useProjectStore.getState().storedCards.find((card) => card.uniqueId === 'new-card')?.templateId;
+    expect(importedTemplateId).not.toBe('import-template');
     expect(useProjectStore.getState().storedCards).toEqual([
       { uniqueId: 'existing-card', templateId: 'existing-template', data: { cardName: 'Kept' } },
       {
         uniqueId: 'updated-card',
-        templateId: 'import-template',
+        templateId: importedTemplateId,
         backingTemplateId: null,
         setId: 'active-card-set',
         setName: 'Untitled Set',
@@ -465,7 +483,7 @@ describe('app store helpers', () => {
       },
       {
         uniqueId: 'new-card',
-        templateId: 'import-template',
+        templateId: importedTemplateId,
         backingTemplateId: null,
         setId: 'active-card-set',
         setName: 'Untitled Set',
@@ -572,7 +590,9 @@ describe('app store helpers', () => {
   });
 
   it('retargets only cards that used the protected source design', () => {
+    const personalCopy = reconstructMinimalTemplateObject({ id: 'personal-copy', name: 'Personal copy', templateSource: 'user' });
     useProjectStore.setState({
+      userTemplates: [personalCopy],
       storedCards: [
         { uniqueId: 'source-1', templateId: 'protected-source', data: { cardName: 'One' } },
         { uniqueId: 'source-2', templateId: 'protected-source', data: { cardName: 'Two' } },
@@ -582,9 +602,11 @@ describe('app store helpers', () => {
 
     useProjectStore.getState().retargetGeneratedCardsTemplate('protected-source', 'personal-copy');
 
+    const workingId = useProjectStore.getState().storedCards[0]?.templateId;
+    expect(workingId).not.toBe('personal-copy');
     expect(useProjectStore.getState().storedCards.map((card) => card.templateId)).toEqual([
-      'personal-copy',
-      'personal-copy',
+      workingId,
+      workingId,
       'other-template',
     ]);
   });
@@ -822,7 +844,7 @@ describe('persisted Generator selection migration', () => {
     expect(serialized).not.toHaveProperty('singleCardGeneratorSelectedTemplateId');
     expect(serialized).not.toHaveProperty('singleCardGeneratorSelectedBackingTemplateId');
     expect(serialized).not.toHaveProperty('richTextHighlightColor');
-    expect(options.version).toBe(6);
+    expect(options.version).toBe(7);
   });
 
   it('keeps editor preferences isolated by persistence scope', async () => {

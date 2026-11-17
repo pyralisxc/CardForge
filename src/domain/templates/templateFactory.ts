@@ -264,6 +264,7 @@ export const reconstructMinimalTemplateObject = (partial: Partial<TCGCardTemplat
     templateParentRevisionId: optionalIdentityText(loaded.templateParentRevisionId),
     templateOriginLineageId: optionalIdentityText(loaded.templateOriginLineageId),
     templateOriginRevisionId: optionalIdentityText(loaded.templateOriginRevisionId),
+    templateOriginAncestors: loaded.templateOriginAncestors?.map((pin) => ({ ...pin })),
     templatePipelineContext: normalizeTemplatePipelineContext(loaded.templatePipelineContext),
     templateUsage: loaded.templateUsage === 'back-preset' ? 'back-preset' : 'standard',
     templateCategory: loaded.templateCategory,

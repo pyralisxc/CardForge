@@ -3,7 +3,8 @@ import type { AuthoredArtifact } from '@/domain/artifacts';
 import type { ProjectDocumentV1 } from './projectDocument';
 export type { ProjectDocumentV1 } from './projectDocument';
 
-export const CARDFORGE_PROJECT_PACKAGE_VERSION = 3 as const;
+export const CARDFORGE_PROJECT_PACKAGE_VERSION = 4 as const;
+export const CONTEXT_CARDFORGE_PROJECT_PACKAGE_VERSION = 3 as const;
 export const ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION = 2 as const;
 export const LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION = 1 as const;
 export const CARDFORGE_PROJECT_FILE_EXTENSION = '.cardforge';
@@ -91,10 +92,19 @@ export interface CardForgeProjectManifestV2 {
 }
 
 export interface CardForgeProjectManifestV3 extends Omit<CardForgeProjectManifestV2, 'cardforgeProject'> {
-  cardforgeProject: typeof CARDFORGE_PROJECT_PACKAGE_VERSION;
+  cardforgeProject: typeof CONTEXT_CARDFORGE_PROJECT_PACKAGE_VERSION;
 }
 
-export type CardForgeProjectManifest = CardForgeProjectManifestV1 | CardForgeProjectManifestV2 | CardForgeProjectManifestV3;
+export interface PortableProjectDocumentV3 extends Omit<PortableProjectDocumentV2, 'version'> {
+  version: 3;
+}
+
+export interface CardForgeProjectManifestV4 extends Omit<CardForgeProjectManifestV3, 'cardforgeProject' | 'project'> {
+  cardforgeProject: typeof CARDFORGE_PROJECT_PACKAGE_VERSION;
+  project: PortableProjectDocumentV3;
+}
+
+export type CardForgeProjectManifest = CardForgeProjectManifestV1 | CardForgeProjectManifestV2 | CardForgeProjectManifestV3 | CardForgeProjectManifestV4;
 
 export interface CardForgeProjectPackageSnapshot {
   manifest: CardForgeProjectManifest;
@@ -107,6 +117,10 @@ export interface CardForgeProjectPackageSnapshotV2 extends CardForgeProjectPacka
 
 export interface CardForgeProjectPackageSnapshotV3 extends CardForgeProjectPackageSnapshot {
   manifest: CardForgeProjectManifestV3;
+}
+
+export interface CardForgeProjectPackageSnapshotV4 extends CardForgeProjectPackageSnapshot {
+  manifest: CardForgeProjectManifestV4;
 }
 
 export type ProjectSourceProvider = 'browser' | 'local-folder' | 'google-drive';

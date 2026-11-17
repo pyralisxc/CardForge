@@ -7,6 +7,7 @@ export interface TemplateCommitChangeInput {
   template: TCGCardTemplate;
   source?: TemplateSource;
   sourceTemplateId?: string | null;
+  expectedSourceRevisionId?: string | null;
   artifactIds?: readonly string[];
   face?: CardFace;
   removedFieldKeys?: readonly string[];

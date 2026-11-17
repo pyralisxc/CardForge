@@ -29,6 +29,15 @@ export const getTemplateRevisionId = (template: Pick<TCGCardTemplate, 'id' | 'te
   template.templateRevisionId?.trim() || null
 );
 
+const getEarlierOriginPins = (source: TCGCardTemplate): TCGCardTemplate['templateOriginAncestors'] => {
+  const pins = [
+    ...(source.templateOriginLineageId ? [{ lineageId: source.templateOriginLineageId, revisionId: source.templateOriginRevisionId }] : []),
+    ...(source.templateOriginAncestors ?? []),
+  ];
+  const unique = new Map(pins.map((pin) => [JSON.stringify([pin.lineageId, pin.revisionId]), { ...pin }]));
+  return unique.size ? [...unique.values()] : undefined;
+};
+
 export const createPersonalTemplateRevision = (
   template: TCGCardTemplate,
   previous?: TCGCardTemplate | null,
@@ -49,6 +58,11 @@ export const createPersonalTemplateRevision = (
     templateRevision: revision,
     templateParentRevisionId: previous?.templateRevisionId ?? template.templateParentRevisionId,
     templateRevisionId: `template-revision-${createId()}`,
+    ...(previous?.templateOriginLineageId ? {
+      templateOriginLineageId: previous.templateOriginLineageId,
+      templateOriginRevisionId: previous.templateOriginRevisionId,
+      templateOriginAncestors: previous.templateOriginAncestors?.map((pin) => ({ ...pin })),
+    } : {}),
   };
 };
 
@@ -58,9 +72,7 @@ export const createPersonalTemplateFork = (
   createId: () => string = nanoid,
 ): TCGCardTemplate => {
   const id = overrides.id?.trim() || `template-${createId()}`;
-  const originLineageId = getTemplateLineageId(source) ?? undefined;
-  const originRevisionId = getTemplateRevisionId(source) ?? undefined;
-  return {
+  return withIndependentTemplateIdentity({
     ...source,
     ...overrides,
     id,
@@ -69,14 +81,7 @@ export const createPersonalTemplateFork = (
     templateAccessTier: undefined,
     templateRegistryStatus: 'localOnly',
     templateContributorName: undefined,
-    templateLineageId: id,
-    templateRevision: 1,
-    templateRevisionId: `template-revision-${createId()}`,
-    templateParentRevisionId: undefined,
-    templatePipelineContext: undefined,
-    templateOriginLineageId: originLineageId,
-    templateOriginRevisionId: originRevisionId,
-  };
+  }, source, createId);
 };
 
 export const withIndependentTemplateIdentity = (
@@ -92,6 +97,7 @@ export const withIndependentTemplateIdentity = (
   templatePipelineContext: undefined,
   templateOriginLineageId: getTemplateLineageId(source) ?? undefined,
   templateOriginRevisionId: getTemplateRevisionId(source) ?? undefined,
+  templateOriginAncestors: getEarlierOriginPins(source),
 });
 
 /** Exclude working-copy leases and retry bookkeeping from authored content. */

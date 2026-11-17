@@ -16,7 +16,7 @@ import {
   type AppearanceStylePreset,
   type TCGCardTemplate,
 } from '@/domain/templates';
-import { useProjectStore, selectAllTemplates, type TemplateCommitChangeInput } from '@/features/project/client/workspace';
+import { useProjectStore, selectAllTemplates, getTemplateOwnerSetId, type TemplateCommitChangeInput } from '@/features/project/client/workspace';
 import { forgetAgentTemplateLink, syncAgentTemplateSave } from '@/features/studio-documents/client';
 import { ApiClientError, requireOkResponse } from '@/infrastructure/http/clientResponses';
 import { buildTemplateSaveImpact, type TemplateSaveImpact } from '../lib/templateSaveImpact';
@@ -195,6 +195,7 @@ export function useTemplateLibraryActions({
       template: templateToSave,
       source: templateToSave.templateSource,
       sourceTemplateId: source?.id ?? template.id,
+      expectedSourceRevisionId: source?.templateRevisionId ?? null,
       artifactIds,
       face,
       removedFieldKeys: impact.removedFieldKeys,
@@ -212,7 +213,9 @@ export function useTemplateLibraryActions({
         const syncResult = await syncAgentTemplateSave(templateForFile);
         if (syncResult.status === 'synced') toast({ title: decision === 'fork' ? 'Template variant saved' : 'Template saved', description: `"${templateForFile.name}" is saved in this browser. Its linked ChatGPT working draft is now document revision ${syncResult.revision}.` });
         else if (syncResult.status === 'conflict') toast({ title: 'Template saved locally; ChatGPT draft is newer', description: `Your browser copy is safe. The linked ChatGPT working draft is already document revision ${syncResult.revision}; reopen the latest CardForge preview before syncing.`, variant: 'destructive' });
-        else toast({ title: decision === 'fork' ? 'Template variant saved' : 'Template saved', description: `"${templateForFile.name}" is available in your personal browser library.` });
+        else toast({ title: decision === 'fork' ? 'Template variant saved' : 'Template saved', description: setId
+          ? `"${templateForFile.name}" is saved in this Set in your browser. Library sources and other Sets are unchanged.`
+          : `"${templateForFile.name}" is available in your personal browser library.` });
       } catch (error) {
         toast({ title: 'Template saved locally; ChatGPT sync failed', description: error instanceof Error ? `${error.message} Your browser copy is safe.` : 'Your browser copy is safe, but CardForge could not update its linked ChatGPT working draft.', variant: 'destructive' });
       }
@@ -222,19 +225,21 @@ export function useTemplateLibraryActions({
 
   const handleSaveTemplate = useCallback(async (template: TCGCardTemplate): Promise<TemplateSaveReceipt> => {
     const source = templates.find((candidate) => candidate.id === template.id) ?? null;
-    const impact = buildTemplateSaveImpact({ previous: source, next: template, cards: storedCards });
+    const targetSetId = contextSetId ?? (source?.id ? getTemplateOwnerSetId(useProjectStore.getState(), source.id) : null);
+    const scopedCards = targetSetId ? storedCards.filter((card) => card.setId === targetSetId) : storedCards;
+    const impact = buildTemplateSaveImpact({ previous: source, next: template, cards: scopedCards });
     const face: CardFace = designScope?.face ?? (template.templateUsage === 'back-preset' ? 'back' : 'front');
     const depends = (card: StoredDisplayCard) => face === 'front' ? card.templateId === source?.id : card.backingTemplateId === source?.id;
     const contextualScope = designScope?.artifactIds.length
       ? designScope.artifactIds.filter((id) => storedCards.some((card) => card.uniqueId === id && depends(card)))
-      : contextSetId && source?.id
-        ? storedCards.filter((card) => card.setId === contextSetId && depends(card)).map((card) => card.uniqueId)
+      : targetSetId && source?.id
+        ? scopedCards.filter(depends).map((card) => card.uniqueId)
         : [];
     const affectedArtifactCount = face === 'front' ? impact.frontArtifactIds.length : impact.backArtifactIds.length;
     const canSaveShared = source?.templateSource !== 'default' || projectCapabilities.canSubmitTemplateRevisions;
-    const canFork = Boolean(source && (designScope?.artifactIds.length || (!canSaveShared && (contextSetId || source.templateSource === 'default'))));
+    const canFork = Boolean(source && (designScope?.artifactIds.length || (!canSaveShared && (targetSetId || source.templateSource === 'default'))));
     const needsDecision = impact.requiresReview || Boolean(designScope?.artifactIds.length) || (!canSaveShared && contextualScope.length > 0);
-    const pending = { template, source, impact, scopeIds: contextualScope, face, setId: contextSetId };
+    const pending = { template, source, impact, scopeIds: contextualScope, face, setId: targetSetId };
     if (!needsDecision) {
       const decision = canSaveShared ? 'shared' : 'fork';
       return await commitSave(pending, decision);

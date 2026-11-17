@@ -1,4 +1,5 @@
 import {
+  createPersonalTemplateFork,
   materializeTemplateFieldBindings,
   reconstructMinimalTemplateObject,
   type TCGCardTemplate,
@@ -8,7 +9,7 @@ import {
   parseProjectDocumentValue,
   type ProjectDocumentV1,
 } from '@/features/project/client/model';
-import type { CardSet } from '@/domain/cards';
+import type { CardSet, StoredDisplayCard } from '@/domain/cards';
 import {
   gptTemplateDraftInputSchema,
   projectProductionPlanSchema,
@@ -93,17 +94,29 @@ export const prepareTemplateDocumentSet = (
   sourceId: string,
   title: string,
   existingSets: CardSet[],
+  existingCards: readonly StoredDisplayCard[] = [],
 ): { document: ProjectDocumentV1; contextKept: boolean } => {
   if (!document.productionPlan || document.cardSets.length !== 0 || document.userTemplates.length !== 1) return { document, contextKept: false };
   const id = `studio-document-${sourceId}`;
   const existing = existingSets.find((set) => set.id === id);
+  if (existing && existingCards.some((card) => card.setId === id || (!card.setId && existingSets[0]?.id === id))) {
+    throw new Error('This Studio revision cannot be mapped safely onto the existing generated Set. Keep its cards and open the Template as an independent copy instead.');
+  }
+  const source = document.userTemplates[0]!;
+  const working = {
+    ...createPersonalTemplateFork(source),
+    templateContributorName: source.templateContributorName,
+  };
   const set: CardSet = {
     ...existing,
     id,
     name: existing?.name ?? title,
-    templateIds: [...new Set([...(existing?.templateIds ?? []), ...document.userTemplates.flatMap((template) => template.id ? [template.id] : [])])],
+    templateIds: working.id ? [working.id] : [],
   };
-  return { document: { ...document, version: existing?.plan ? 2 : document.version, cardSets: [set], activeCardSetId: id }, contextKept: Boolean(existing?.plan) };
+  return {
+    document: { ...document, version: 3, userTemplates: [...document.userTemplates, working], cardSets: [set], activeCardSetId: id },
+    contextKept: Boolean(existing?.plan),
+  };
 };
 
 export const createTemplateFromTemplateDraft = (

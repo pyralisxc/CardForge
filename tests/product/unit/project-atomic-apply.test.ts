@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CardAssetOption } from '@/domain/templates';
-import { applyProjectDocumentToWorkspace, cleanCurrentWorkspaceCompletedDeletions } from '@/features/project/client/projectWorkspaceDocument';
+import { applyProjectDocumentToWorkspace, cleanCurrentWorkspaceCompletedDeletions, rekeyConflictingTemplateSnapshots } from '@/features/project/client/projectWorkspaceDocument';
 import { createProjectWorkspaceDraft, hydrateProjectWorkspaceForScope, persistProjectWorkspaceNow, useProjectStore } from '@/features/project/store/workspaceStore';
 import { createBrowserKeyValueStorage } from '@/features/project/persistence/indexedDbStorage';
 import { getScopedProjectStorageNamespace, restoreBrowserWorkspaceRecovery } from '@/features/project/persistence/projectPersistenceScope';
@@ -147,6 +147,53 @@ describe('atomic project apply', () => {
     expect(useProjectStore.getState().storedCards).toHaveLength(200);
     expect(new Set(useProjectStore.getState().storedCards.map((card) => card.uniqueId)).size).toBe(200);
     expect(useProjectStore.getState().exportDpi).toBe(150);
+  });
+
+  it('forks identical colliding Template ids during merge and remaps both card faces and prepared references', () => {
+    const incoming = fixture();
+    const sourceTemplate = incoming.userTemplates[0]!;
+    const sourceId = sourceTemplate.id!;
+    const setId = incoming.cardSets[0]!.id;
+    incoming.cardSets[0]!.templateIds = [sourceId];
+    incoming.storedCards = [{ ...incoming.storedCards[0]!, uniqueId: 'merge-card', setId, templateId: sourceId, backingTemplateId: sourceId }];
+    const result = rekeyConflictingTemplateSnapshots(incoming, [structuredClone(sourceTemplate)], () => 'merge-fork');
+    const nextId = result.userTemplates[0]!.id!;
+
+    expect(nextId).toBe('merge-fork');
+    expect(nextId).not.toBe(sourceId);
+    expect(result.userTemplates[0]).toMatchObject({
+      templateOriginLineageId: sourceTemplate.templateLineageId ?? sourceId,
+    });
+    expect(result.cardSets[0]!.templateIds).toEqual([nextId]);
+    expect(result.storedCards[0]).toMatchObject({ uniqueId: 'merge-card', templateId: nextId, backingTemplateId: nextId });
+    expect(incoming.userTemplates[0]!.id).toBe(sourceId);
+  });
+
+  it('refuses a card id imported into a different Set without changing live work', async () => {
+    await applyProjectDocumentToWorkspace(fixture(), 'replace');
+    const before = useProjectStore.getState();
+    const incoming = fixture();
+    const first = incoming.storedCards[0]!;
+    incoming.cardSets = [{ id: 'other-set', name: 'Other Set', templateIds: [first.templateId] }];
+    incoming.activeCardSetId = 'other-set';
+    incoming.storedCards = [{ ...first, setId: 'other-set' }];
+
+    await expect(applyProjectDocumentToWorkspace(incoming, 'merge')).rejects.toThrow(/different Set.*independent copy/i);
+    expect(useProjectStore.getState()).toBe(before);
+  });
+
+  it('refuses conflicting same-id asset rows during merge without changing the workspace', async () => {
+    await applyProjectDocumentToWorkspace(fixture(), 'replace');
+    const before = useProjectStore.getState();
+    const incoming = fixture();
+    incoming.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY] = [{
+      ...imageCatalog()[0]!,
+      name: 'Different resource',
+      url: 'https://example.com/different.png',
+    }];
+
+    await expect(applyProjectDocumentToWorkspace(incoming, 'merge')).rejects.toThrow(/independent copy/i);
+    expect(useProjectStore.getState()).toBe(before);
   });
 
   it('adopts an agent revision in place, removes deleted cards, and preserves output preferences', async () => {

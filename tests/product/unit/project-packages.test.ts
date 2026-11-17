@@ -108,7 +108,7 @@ describe('portable CardForge project packages', () => {
     const hydrated = hydrateCardForgeProjectSnapshot(decoded);
 
     expect(decoded.manifest.projectRevision).toBe(snapshot.manifest.projectRevision);
-    expect(hydrated.version).toBe(2);
+    expect(hydrated.version).toBe(3);
     expect(hydrated.cardSets[0].plan).toEqual(project.cardSets[0].plan);
     expect(hydrated.storedCards[0]!.data.artwork).toBe(onePixelPng);
     expect(hydrated.userTemplates[0]!.freeformCanvas?.elements[0]?.imageSource).toBe(onePixelPng);
@@ -117,7 +117,7 @@ describe('portable CardForge project packages', () => {
     });
   });
 
-  it('reads the legacy v1 package while writing only the artifact-based v2 format', async () => {
+  it('reads the legacy v1 package while writing the current artifact-based format', async () => {
     const project = createProject();
     const assets: never[] = [];
     const revisionPayload = new TextEncoder().encode(JSON.stringify({ project, assets }));
@@ -140,7 +140,7 @@ describe('portable CardForge project packages', () => {
     expect(hydrateCardForgeProjectSnapshot(decoded).storedCards[0]?.uniqueId).toBe('card-1');
   });
 
-  it('writes the canonical v3 archive to a bounded destination stream', async () => {
+  it('writes the canonical v4 archive to a bounded destination stream', async () => {
     const snapshot = await buildCardForgeProjectSnapshot({ document: createProject(), name: 'Streamed Project' });
     const chunks: Uint8Array[] = [];
     await writeCardForgeProjectPackage(snapshot, new WritableStream<Uint8Array>({
@@ -296,7 +296,8 @@ describe('portable CardForge project packages', () => {
     const manifest = JSON.parse(rawManifest) as Record<string, unknown>;
     manifest.name = 'Changed without revision';
     const project = manifest.project as Record<string, unknown>;
-    project.activeCardSetId = 'different-set';
+    const sets = project.cardSets as Array<Record<string, unknown>>;
+    sets[0]!.name = 'Changed Set name';
     zip.file(CARDFORGE_PROJECT_MANIFEST_FILE, JSON.stringify(manifest), { compression: 'STORE' });
     const tampered = await zip.generateAsync({ type: 'uint8array', compression: 'STORE' });
 

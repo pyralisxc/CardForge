@@ -5,6 +5,7 @@ import {
   LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION,
   type CardForgeProjectPackageSnapshot,
   type PortableProjectDocumentV2,
+  type PortableProjectDocumentV3,
   type ProjectPackageAssetDescriptor,
 } from '../model/projectPackage';
 import { parseProjectDocumentValue, type ProjectDocumentV1 } from '../model/projectDocument';
@@ -51,13 +52,16 @@ export const referenceCardForgeProjectSnapshotAssets = (
 ): ProjectDocumentV1 => {
   const descriptors = new Map(snapshot.manifest.assets.map((asset) => [asset.id, asset]));
   const referenced = referenceProjectAssets(snapshot.manifest.project, descriptors, snapshot.assets, getRuntimeReference);
-  const runtime = snapshot.manifest.cardforgeProject === LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION
-    ? referenced
-    : {
-        ...(referenced as PortableProjectDocumentV2),
-        version: (referenced as PortableProjectDocumentV2).cardSets.some((set) => set.plan !== undefined) ? 2 : 1,
-        storedCards: (referenced as PortableProjectDocumentV2).artifacts.map(getCardFromArtifact),
-      };
+  let runtime = referenced;
+  if (snapshot.manifest.cardforgeProject !== LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION) {
+    const portable = referenced as PortableProjectDocumentV2 | PortableProjectDocumentV3;
+    const { artifacts, ...project } = portable;
+    runtime = {
+      ...project,
+      version: portable.version === 3 ? 3 : portable.cardSets.some((set) => set.plan !== undefined) ? 2 : 1,
+      storedCards: artifacts.map(getCardFromArtifact),
+    };
+  }
   const parsed = parseProjectDocumentValue(runtime);
   if (!parsed.success) throw new ProjectPackageError(parsed.error);
   return parsed.document;

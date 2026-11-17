@@ -144,7 +144,7 @@ describe('atomic MCP working-document workflow', () => {
   it('edits Set-owned context without editing the locked original creation brief', async () => {
     const current = makeCurrent();
     const result = await upsertWorkingCardSet({ access, documentId: current.id, expectedRevision: current.revision, setId: 'set-1', name: 'Set One', context: 'Keep the creator’s exact words.\nhttps://example.com is a note, not an image.' });
-    expect(result.document.version).toBe(2);
+    expect(result.document.version).toBe(3);
     expect(result.document.cardSets[0].plan?.context).toContain('creator’s exact words.\n');
     expect(result.document.productionPlan).toEqual(current.document.productionPlan);
     expect(storeMocks.updateStudioDocument).toHaveBeenCalledTimes(1);

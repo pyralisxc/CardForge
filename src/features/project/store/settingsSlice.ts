@@ -6,7 +6,8 @@ import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { PAPER_SIZES } from '@/domain/rendering';
 import { createPersonalTemplateFork, reconstructMinimalTemplateObject } from '@/domain/templates';
 
-import { selectAllTemplates } from './selectors';
+import { getCardSetTemplateIds, getTemplateOwnerSetId, prepareSetTemplateAcquisition } from '../model/setTemplateOwnership';
+import { resolveGeneratorFrontTemplateId, selectAllTemplates } from './selectors';
 import type { ProjectState, SettingsSlice } from './types';
 import { normalizeStudioView } from './workspaceDefaults';
 
@@ -98,8 +99,9 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       ...(source.templateIds ?? []),
       ...sourceCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
     ].filter((templateId): templateId is string => Boolean(templateId)));
-    const availableTemplates = selectAllTemplates(current);
-    const sourceTemplates = [...templateIds].map((templateId) => availableTemplates.find((template) => template.id === templateId));
+    const sourceTemplates = [...templateIds].map((templateId) => current.userTemplates.find((template) => (
+      template.id === templateId && getTemplateOwnerSetId(current, templateId) === id
+    )));
     if (sourceTemplates.some((template) => !template)) return null;
     const copiedTemplates = sourceTemplates.map((template) => {
       const sourceTemplate = template!;
@@ -154,11 +156,23 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     const current = get();
     if (!current.cardSets.some((candidate) => candidate.id === id)) return false;
     set((state) => {
+      const ownedTemplateIds = new Set(getCardSetTemplateIds(state, id).filter((templateId) => getTemplateOwnerSetId(state, templateId) === id));
+      const userTemplates = state.userTemplates.filter((template) => !template.id || !ownedTemplateIds.has(template.id));
+      const templates = selectAllTemplates({ ...state, userTemplates });
+      const generatorSelectedTemplateId = resolveGeneratorFrontTemplateId(templates, state.generatorSelectedTemplateId);
+      const selection = {
+        generatorSelectedTemplateId,
+        generatorSelectedBackingTemplateId: getCompatibleBackingId({ ...state, userTemplates }, generatorSelectedTemplateId, state.generatorSelectedBackingTemplateId),
+        templateEditorSelectedTemplateId: state.templateEditorSelectedTemplateId && ownedTemplateIds.has(state.templateEditorSelectedTemplateId)
+          ? generatorSelectedTemplateId : state.templateEditorSelectedTemplateId,
+      };
       const cardSets = state.cardSets.filter((candidate) => candidate.id !== id);
       const cardRemovalRecoveries = state.cardRemovalRecoveries.filter((entry) => entry.setId !== id);
       if (cardSets.length === 0) {
         return {
           cardSets: [],
+          userTemplates,
+          ...selection,
           cardRemovalRecoveries,
           activeCardSet: null,
           storedCards: state.storedCards.filter((card) => (card.setId || state.cardSets[0]?.id) !== id),
@@ -170,6 +184,8 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       if (!requested) return state;
       return {
         cardSets,
+        userTemplates,
+        ...selection,
         cardRemovalRecoveries,
         activeCardSet: requested,
         storedCards: state.storedCards.filter((card) => (card.setId || state.cardSets[0]?.id) !== id),
@@ -218,30 +234,37 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     const normalizedId = templateId.trim();
     if (!normalizedId || !get().cardSets.some((candidate) => candidate.id === setId)) return false;
     set((state) => {
+      const acquired = prepareSetTemplateAcquisition(state, setId, [normalizedId], selectAllTemplates(state));
+      const workingId = acquired.templateIds.get(normalizedId)!;
+      const stillUsed = state.storedCards.some((card) => (card.setId ?? state.cardSets[0]?.id) === setId
+        && (card.templateId === normalizedId || card.backingTemplateId === normalizedId));
       const cardSets = state.cardSets.map((candidate) => candidate.id === setId
-        ? withTemplateReference(candidate, normalizedId)
+        ? withTemplateReference(!stillUsed && workingId !== normalizedId
+          ? { ...candidate, templateIds: candidate.templateIds?.filter((id) => id !== normalizedId) }
+          : candidate, workingId)
         : candidate);
       const activeCardSet = state.activeCardSet?.id === setId
         ? cardSets.find((candidate) => candidate.id === setId) ?? state.activeCardSet
         : state.activeCardSet;
-      return { cardSets, activeCardSet };
+      return { cardSets, activeCardSet, userTemplates: acquired.userTemplates };
     });
     return true;
   },
   unreferenceTemplateFromCardSet: (setId, templateId) => {
     const state = get();
-    if (state.storedCards.some((card) => card.setId === setId
+    if (state.storedCards.some((card) => (card.setId ?? state.cardSets[0]?.id) === setId
       && (card.templateId === templateId || card.backingTemplateId === templateId))) return false;
     const target = state.cardSets.find((candidate) => candidate.id === setId);
     if (!target?.templateIds?.includes(templateId)) return false;
     set((current) => {
+      const owned = getTemplateOwnerSetId(current, templateId) === setId;
       const cardSets = current.cardSets.map((candidate) => candidate.id === setId
         ? { ...candidate, templateIds: candidate.templateIds?.filter((id) => id !== templateId) }
         : candidate);
       const activeCardSet = current.activeCardSet?.id === setId
         ? cardSets.find((candidate) => candidate.id === setId) ?? current.activeCardSet
         : current.activeCardSet;
-      return { cardSets, activeCardSet };
+      return { cardSets, activeCardSet, ...(owned ? { userTemplates: current.userTemplates.filter((template) => template.id !== templateId) } : {}) };
     });
     return true;
   },

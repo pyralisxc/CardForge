@@ -46,8 +46,33 @@ describe('Set-owned authoring context', () => {
     const prepared = prepareTemplateDocumentSet(source, 'private-id', 'Agent title', [existing]);
     expect(prepared.contextKept).toBe(true);
     expect(prepared.document.cardSets[0]).toMatchObject(existing);
+    const workingId = prepared.document.cardSets[0]!.templateIds?.[0];
+    expect(workingId).toBeTruthy();
+    expect(workingId).not.toBe(source.userTemplates[0]!.id);
+    expect(prepared.document.userTemplates).toHaveLength(2);
+    expect(prepared.document.userTemplates.find((template) => template.id === source.userTemplates[0]!.id)).toEqual(source.userTemplates[0]);
+    expect(prepared.document.userTemplates.find((template) => template.id === workingId)).toMatchObject({
+      templateOriginLineageId: source.userTemplates[0]!.templateLineageId ?? source.userTemplates[0]!.id,
+      templateOriginRevisionId: source.userTemplates[0]!.templateRevisionId,
+      templatePipelineContext: undefined,
+    });
+    expect(prepared.document.version).toBe(3);
     expect(prepared.document.productionPlan).toEqual(source.productionPlan);
     expect(source.cardSets).toEqual([]);
+  });
+  it('refuses to replace an existing generated Set when its cards cannot be mapped to the fork', () => {
+    const source = documentWithContext();
+    source.cardSets = [];
+    source.userTemplates = [{ id: 'prepared', name: 'Prepared', aspectRatio: '2:3', freeformCanvas: { width: 200, height: 300, elements: [] } }];
+    source.productionPlan = normalizeProjectProductionPlan({ version: 1, decisionMode: 'confirmed', purpose: 'Readable cards', deliverable: 'Cards', outputSize: { width: 63, height: 88, unit: 'mm' }, visualDirection: { summary: 'Quiet', palette: [], typography: [] }, editableFieldKeys: [], assets: [] });
+    const existing = { id: 'studio-document-private-id', name: 'Generated Set' };
+    expect(() => prepareTemplateDocumentSet(
+      source,
+      'private-id',
+      'Agent title',
+      [existing],
+      [{ uniqueId: 'existing-card', setId: existing.id, templateId: 'old-template', data: { title: 'Keep me' } }],
+    )).toThrow(/independent copy/i);
   });
   it('keeps context with the Set during normalization', () => {
     expect(normalizeCardSet({ id: 'set-a', name: 'First Set', plan })?.plan).toEqual(plan);
@@ -55,7 +80,7 @@ describe('Set-owned authoring context', () => {
 
   it('uses a forward-incompatible runtime boundary for context-bearing documents', () => {
     const document = documentWithContext();
-    expect(document.version).toBe(2);
+    expect(document.version).toBe(3);
     const parsed = parseProjectDocumentValue(JSON.parse(JSON.stringify(document)));
     expect(parsed.success).toBe(true);
     if (parsed.success) expect(parsed.document.cardSets[0].plan).toEqual(plan);
