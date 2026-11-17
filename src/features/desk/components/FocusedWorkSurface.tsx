@@ -12,9 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import type { CardFace, CardSet, CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
 import type { TCGCardTemplate } from '@/domain/templates';
-import { setCreatorLens, type CreatorInteractionSession } from '@/features/app-shell/client/environment';
+import { setCreatorLens, useEnvironmentToolLifecycle, type CreatorInteractionSession } from '@/features/app-shell/client/environment';
 import { getArtifactWorkState } from '@/features/card-generator/client';
-import { SetContextEditor } from './SetContextEditor';
+import { CardPreview, getTemplateAccent } from '@/features/card-rendering/client';
 import { CardRemovalUndo } from './CardRemovalUndo';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
@@ -22,8 +22,12 @@ import type { ArtifactSelectionScope } from '../model/focusedArtifactLayout';
 import { getCardTitle, workSourceLabel } from '../model/desk';
 import type { ReflectiveFieldFacet, ReflectiveOrganization } from '../model/reflectiveOrganization';
 import { FocusedSetArtifactSurface } from './FocusedSetArtifactSurface';
-import { SetTemplates } from './SetTemplates';
+import { SetDirection, SetTemplates, SetUpdates } from '@/features/project/client/ui';
 import styles from './Desk.module.css';
+
+const renderTemplatePreview = (card: DisplayCard, face: 'front' | 'back', targetWidthPx: number, highlightedElementId?: string) => (
+  <CardPreview card={card} face={face} targetWidthPx={targetWidthPx} highlightedElementId={highlightedElementId} />
+);
 
 export interface FocusedWorkSurfaceProps {
   item: AccountLibraryItem;
@@ -107,8 +111,9 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
           <div className={styles.contentToolbar}>
             <label className={styles.searchField}><span className="sr-only">Search cards in this work</span><Search aria-hidden="true" /><Input value={props.cardQuery} onChange={(event) => props.onCardQueryChange(event.target.value)} placeholder="Search cards" /></label>
             {!props.selectedCards.length ? <>
-            {currentSet ? <SetTemplates set={currentSet} cards={props.focusedCards} templates={templates} onDesign={props.onDesignTemplate} /> : null}
-            {currentSet ? <SetContextEditor key={currentSet.id} set={currentSet} /> : null}
+            {currentSet ? <SetTemplates set={currentSet} cards={props.focusedCards} templates={templates} onDesign={props.onDesignTemplate} renderPreview={renderTemplatePreview} getTemplateAccent={getTemplateAccent} /> : null}
+            {currentSet ? <SetDirection key={currentSet.id} set={currentSet} useLifecycle={useEnvironmentToolLifecycle} /> : null}
+            {currentSet ? <SetUpdates key={`updates-${currentSet.id}`} setId={currentSet.id} renderPreview={renderTemplatePreview} /> : null}
             {needsWorkCards.length ? <Button type="button" size="sm" variant="ghost" className="gap-1.5" onClick={() => props.onSelectionChange(needsWorkCards.map((card) => card.uniqueId))} title="Select Artifacts missing required Template values"><TriangleAlert className="h-4 w-4" />Needs work · {needsWorkCards.length}</Button> : null}
             </> : null}
           {props.selectedCards.length ? <div

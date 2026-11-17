@@ -8,6 +8,7 @@ import { createProjectWorkspaceDraft, useProjectStore } from '../store/workspace
 export interface OpenTemplateUpdateReview extends TemplateUpdateComparison {
   expectedReview: SetUpdateReview | undefined;
   initialChoices: Record<string, SetUpdateDecision>;
+  sourceFingerprint: string;
   persistenceScope: ReturnType<typeof getProjectPersistenceScope>;
 }
 
@@ -34,6 +35,7 @@ export const openSetTemplateUpdateReview = async (setId: string, templateId: str
     ...comparison,
     expectedReview: expectedReview ? structuredClone(expectedReview) : undefined,
     initialChoices: getTemplateUpdateReviewChoices(comparison, expectedReview, sourceFingerprint),
+    sourceFingerprint,
     persistenceScope,
   };
 };

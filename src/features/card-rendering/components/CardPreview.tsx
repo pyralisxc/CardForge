@@ -37,6 +37,7 @@ interface CardPreviewProps {
   /** Export-only projections of the authored background or outer clipping coverage. */
   productionLayer?: 'background' | 'mask';
   interactionOverlay?: ReactNode;
+  highlightedElementId?: string;
   highlightColor?: string;
   onSelect?: (card: DisplayCard) => void;
   onEdit?: (card: DisplayCard) => void;
@@ -97,6 +98,7 @@ export function CardPreview({
   isEditorPreview = false,
   productionLayer,
   interactionOverlay,
+  highlightedElementId,
   highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
   onSelect,
   onEdit,
@@ -332,6 +334,8 @@ export function CardPreview({
           backgroundPosition: 'center',
           pointerEvents: isEditorPreview ? 'auto' : 'none',
           ...structuredAppearanceStyle,
+          outline: renderElement.id === highlightedElementId ? '3px solid var(--cf-accent-strong)' : undefined,
+          outlineOffset: renderElement.id === highlightedElementId ? 2 : undefined,
         };
 
         if (renderElement.type === 'image') {
@@ -485,7 +489,7 @@ export function CardPreview({
           </ProjectBinaryFrame>
         );
       });
-  }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, highlightColor, renderWidthPx, isEditorPreview, productionLayer, templateToRender]);
+  }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, highlightColor, highlightedElementId, renderWidthPx, isEditorPreview, productionLayer, templateToRender]);
 
   const isInteractive = !isEditorPreview && (onSelect || onEdit);
 
