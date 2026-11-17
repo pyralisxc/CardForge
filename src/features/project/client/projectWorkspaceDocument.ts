@@ -84,7 +84,6 @@ export const rekeyConflictingTemplateSnapshots = (
   const incomingSnapshotIds = new Set(document.userTemplates.flatMap((template) => template.id ? [template.id] : []));
   const incomingReferenceIds = new Set([
     ...document.cardSets.flatMap((set) => set.templateIds ?? []),
-    ...document.cardSets.flatMap((set) => set.updateReviews?.map((review) => review.templateId) ?? []),
     ...document.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
   ].filter((id): id is string => Boolean(id)));
   for (const id of incomingReferenceIds) {

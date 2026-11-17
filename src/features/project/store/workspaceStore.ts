@@ -3,7 +3,7 @@ import { createStore } from 'zustand/vanilla';
 import type { StateCreator } from 'zustand';
 import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand/middleware';
 
-import { reconcileCardSets, resolveActiveCardSet } from '@/domain/cards';
+import { normalizeSetUpdateReviews, reconcileCardSets, resolveActiveCardSet } from '@/domain/cards';
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { migrateLegacyEditorPreferences } from '../client/editorPreferenceStorage';
 import {
@@ -86,6 +86,17 @@ const createHydratingWorkspaceJsonStorage = () => createJSONStorage<WorkspacePer
   ...inertStorage,
   getItem: createScopedProjectStorage('project-workspace', WORKSPACE_STORAGE_OPTIONS).getItem,
 }));
+
+const validatePersistedSetUpdateReviews = (set: unknown): void => {
+  if (!set || typeof set !== 'object' || Array.isArray(set)) {
+    throw new Error('The saved workspace contains an invalid Set record. Its saved and recovery data were left unchanged.');
+  }
+  try {
+    normalizeSetUpdateReviews((set as { updateReviews?: unknown }).updateReviews);
+  } catch {
+    throw new Error('The saved workspace contains unsupported Set Update Review metadata. Its saved and recovery data were left unchanged.');
+  }
+};
 
 let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
 let hydrationTask: { scope: ProjectPersistenceScope; promise: Promise<void>; signal?: AbortSignal } | null = null;
@@ -239,6 +250,11 @@ export const useProjectStore = create<ProjectState>()(
             || !Array.isArray((persisted as Partial<ProjectState>).cardSets)
             || !Array.isArray((persisted as Partial<ProjectState>).storedCards))) {
             throw new Error('The saved workspace is not readable. Its saved and recovery data were left unchanged.');
+          }
+          if (persisted !== undefined) {
+            const saved = persisted as Partial<ProjectState>;
+            saved.cardSets?.forEach(validatePersistedSetUpdateReviews);
+            if (saved.activeCardSet !== undefined && saved.activeCardSet !== null) validatePersistedSetUpdateReviews(saved.activeCardSet);
           }
           const merged = { ...current, ...(persisted as Partial<ProjectState>), cardRemovalRecoveries: [] };
           assertSetTemplateOwnership(merged);

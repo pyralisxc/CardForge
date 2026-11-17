@@ -268,19 +268,31 @@ describe('atomic project apply', () => {
     expect(incoming).toEqual(originalInput);
 
     const reviewOnlyReference = structuredClone(incoming);
-    reviewOnlyReference.cardSets[0]!.templateIds = [];
-    reviewOnlyReference.cardSets[0]!.updateReviews = [{
+    reviewOnlyReference.version = 4;
+    reviewOnlyReference.cardSets = [{
+      id: 'review-provenance-set',
+      name: 'Review provenance',
+      updateReviews: [{
+        version: 1, templateId: 'front-local', sourceLineageId: 'source-lineage',
+        sourceRevisionId: 'source-revision', sourceFingerprint: 'b'.repeat(64),
+        outcome: 'reviewed', decisions: [{ key: 'name', decision: 'keep' }],
+      }],
+    }];
+    reviewOnlyReference.activeCardSetId = 'review-provenance-set';
+    reviewOnlyReference.userTemplates = [];
+    reviewOnlyReference.storedCards = [];
+    await applyProjectDocumentToWorkspace(reviewOnlyReference, 'merge');
+    const withReviewProvenance = useProjectStore.getState();
+    const provenanceSet = withReviewProvenance.cardSets.find((set) => set.id === 'review-provenance-set')!;
+    expect(provenanceSet.templateIds ?? []).toEqual([]);
+    expect(provenanceSet.updateReviews).toEqual([{
       version: 1, templateId: 'front-local', sourceLineageId: 'source-lineage',
       sourceRevisionId: 'source-revision', sourceFingerprint: 'b'.repeat(64),
       outcome: 'reviewed', decisions: [{ key: 'name', decision: 'keep' }],
-    }];
-    reviewOnlyReference.storedCards = [];
-    await expect(applyProjectDocumentToWorkspace(reviewOnlyReference, 'merge')).rejects.toMatchObject({
-      name: 'SetTemplateOwnershipError',
-      kind: 'conflict',
-    });
-    expect(useProjectStore.getState()).toBe(beforeState);
-    expect(await storage.getItem('workspace')).toBe(beforeBytes);
+    }]);
+    expect(withReviewProvenance.userTemplates).toEqual(beforeState.userTemplates);
+    expect(withReviewProvenance.cardSets.find((set) => set.id === setId)?.templateIds).toEqual(beforeState.cardSets[0]!.templateIds);
+    expect(withReviewProvenance.storedCards).toEqual(beforeState.storedCards);
 
     const deferred = structuredClone(incoming);
     deferred.cardSets[0]!.templateIds = ['unresolved-historical-template'];
@@ -478,6 +490,42 @@ describe('atomic project apply', () => {
       sourceRevisionId: source.templateRevisionId, outcome: 'reviewed',
     }]);
     expect(parseBrowserWorkspaceRecord((await raw.getItem('workspace'))!).revision).toBe(beforeRevision + 1);
+  });
+
+  it('refuses a stale all-keep review after ledger-only work, then permits a reopened review', async () => {
+    const { set, current, source } = prepareTemplateUpdateReview();
+    await persistProjectWorkspaceNow();
+    const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
+    const originalRevision = current.templateRevisionId;
+    const comparison = openSetTemplateUpdateReview(set.id, current.id!, source.id!);
+    const keepChoices = Object.fromEntries(comparison.changes.map((change) => [change.key, 'keep' as const]));
+    const deferChoices = Object.fromEntries(comparison.changes.map((change) => [change.key, 'defer' as const]));
+
+    await expect(commitSetTemplateUpdateReview(comparison, keepChoices)).resolves.toMatchObject({
+      outcome: 'reviewed', changesTemplate: false,
+    });
+    const reviewedState = useProjectStore.getState();
+    const reviewedBytes = await raw.getItem('workspace');
+    expect(reviewedState.userTemplates.find((template) => template.id === current.id)?.templateRevisionId).toBe(originalRevision);
+    expect(reviewedState.cardSets.find((candidate) => candidate.id === set.id)?.updateReviews).toMatchObject([{
+      templateId: current.id, sourceLineageId: source.templateLineageId,
+      sourceRevisionId: source.templateRevisionId, outcome: 'reviewed',
+    }]);
+
+    await expect(commitSetTemplateUpdateReview(comparison, deferChoices)).rejects.toThrow(/review record changed/i);
+    expect(useProjectStore.getState()).toBe(reviewedState);
+    expect(await raw.getItem('workspace')).toBe(reviewedBytes);
+
+    const reopened = openSetTemplateUpdateReview(set.id, current.id!, source.id!);
+    expect(reopened.expectedReview).toMatchObject({ outcome: 'reviewed' });
+    await expect(commitSetTemplateUpdateReview(reopened, deferChoices)).resolves.toMatchObject({
+      outcome: 'deferred', changesTemplate: false,
+    });
+    expect(useProjectStore.getState().userTemplates.find((template) => template.id === current.id)?.templateRevisionId).toBe(originalRevision);
+    expect(useProjectStore.getState().cardSets.find((candidate) => candidate.id === set.id)?.updateReviews).toMatchObject([{
+      templateId: current.id, sourceLineageId: source.templateLineageId,
+      sourceRevisionId: source.templateRevisionId, outcome: 'deferred',
+    }]);
   });
 
   it('keeps review content and ledger unchanged when the atomic browser commit is cancelled or fails', async () => {

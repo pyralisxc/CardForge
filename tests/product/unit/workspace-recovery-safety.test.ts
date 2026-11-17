@@ -158,6 +158,35 @@ describe('workspace recovery failure safety', () => {
       .not.toHaveProperty('richTextHighlightColor');
   });
 
+  it.each(['cardSets', 'activeCardSet'] as const)('refuses v8 Update Review metadata in persisted %s without replacing saved or recovery bytes', async (location) => {
+    const scope = `account:recovery-safety-${sequence}` as const;
+    const raw = createBrowserKeyValueStorage(namespace);
+    const set = { id: 'review-set', name: 'Review Set', updateReviews: [] };
+    const invalidReview = {
+      version: 2, templateId: 'working-template', sourceLineageId: 'source-lineage',
+      sourceRevisionId: 'source-revision', sourceFingerprint: 'a'.repeat(64),
+      outcome: 'reviewed', decisions: [{ key: 'name', decision: 'keep' }],
+    };
+    const persisted = JSON.stringify({
+      state: {
+        userTemplates: [], appearanceStyles: [], storedCards: [],
+        cardSets: [{ ...set, updateReviews: location === 'cardSets' ? [invalidReview] : [] }],
+        activeCardSet: { ...set, updateReviews: location === 'activeCardSet' ? [invalidReview] : [] },
+      },
+      version: 8,
+    });
+    const recovery = JSON.stringify({ state: { name: 'recovery work' }, version: 8 });
+    await raw.setItem('workspace', persisted);
+    await raw.setItem('__recovery__:workspace', recovery);
+    const { hydrateProjectWorkspaceForScope } = await import('@/features/project/store/workspaceStore');
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await expect(hydrateProjectWorkspaceForScope(scope)).rejects.toThrow(/unsupported Set Update Review metadata/i);
+    await expect(raw.getItem('workspace')).resolves.toBe(persisted);
+    await expect(raw.getItem('__recovery__:workspace')).resolves.toBe(recovery);
+    await expect(raw.getItem('__quarantine__:workspace')).resolves.toBeNull();
+  });
+
   it('fails account hydration and disables autosave until a readable retry succeeds', async () => {
     const { hydrateProjectWorkspaceForScope, useProjectStore } = await import('@/features/project/store/workspaceStore');
     const raw = createBrowserKeyValueStorage(namespace);
