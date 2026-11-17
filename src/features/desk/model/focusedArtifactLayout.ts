@@ -223,6 +223,7 @@ export const getFocusedArtifactFrame = ({
   viewportHeight,
   padding = 40,
   includeGroupLabels = false,
+  additionalBounds = [],
 }: {
   layout: FocusedArtifactLayout;
   entries: readonly FocusedArtifactLayoutEntry[];
@@ -230,6 +231,7 @@ export const getFocusedArtifactFrame = ({
   viewportHeight: number;
   padding?: number;
   includeGroupLabels?: boolean;
+  additionalBounds?: readonly SpatialRect[];
 }): FocusedArtifactFrame => {
   const targetBounds = entries.length === 0
     ? layout.bounds
@@ -242,8 +244,11 @@ export const getFocusedArtifactFrame = ({
         const bottom = Math.max(...entries.map((entry) => entry.position.y + entry.height), ...groups.map((group) => group.y + group.height));
         return { x: left, y: top, width: right - left, height: bottom - top };
       })();
+  const bounds = [targetBounds, ...additionalBounds];
+  const left = Math.min(...bounds.map((rect) => rect.x));
+  const top = Math.min(...bounds.map((rect) => rect.y));
   return fitSpatialCameraToRect({
-    bounds: targetBounds,
+    bounds: { x: left, y: top, width: Math.max(...bounds.map((rect) => rect.x + rect.width)) - left, height: Math.max(...bounds.map((rect) => rect.y + rect.height)) - top },
     viewport: { width: viewportWidth, height: viewportHeight },
     padding,
     minZoom: 0.04,

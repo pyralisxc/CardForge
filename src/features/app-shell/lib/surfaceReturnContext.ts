@@ -28,7 +28,7 @@ export type LibrarySurfaceReturnContext = {
   libraryTypes?: string[];
   libraryTags?: string[];
   libraryTagMatch?: 'any' | 'all';
-  sort: 'recent' | 'name' | 'kind';
+  sort: 'recent' | 'name' | 'kind' | 'updates';
   density: 'gallery' | 'list' | 'expanded';
   sharedType: string;
   scrollTop: number;
@@ -95,7 +95,7 @@ const normalizeContext = (value: unknown): SurfaceReturnContext | null => {
     const query = textValue(record.query);
     const source = oneOf(record.source, ['all', 'device', 'google-drive', 'local-folder', 'assistant-draft', 'campaign', 'pipeline'] as const);
     const itemKind = oneOf(record.itemKind, ['all', 'set', 'template', 'asset', 'working-draft', 'campaign', 'published-resource'] as const);
-    const sort = oneOf(record.sort, ['recent', 'name', 'kind'] as const);
+    const sort = oneOf(record.sort, ['recent', 'name', 'kind', 'updates'] as const);
     const density = oneOf(record.density, ['gallery', 'list', 'expanded'] as const);
     const sharedType = textValue(record.sharedType);
     if (!scope || objectId === undefined || query === null || !source || !itemKind || !sort || !density || sharedType === null) return null;

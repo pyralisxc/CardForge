@@ -19,6 +19,7 @@ export interface DeskSavedView {
   tags: string[];
   sources: AccountLibrarySource[];
   tagMatch: DeskTagMatch;
+  updatesOnly?: boolean;
 }
 
 export interface DeskViewPreferences {
@@ -27,6 +28,7 @@ export interface DeskViewPreferences {
   tags: string[];
   sources: AccountLibrarySource[];
   tagMatch: DeskTagMatch;
+  updatesOnly?: boolean;
   saved: DeskSavedView[];
 }
 
@@ -60,6 +62,7 @@ export const normalizeDeskViewPreferences = (value: unknown): DeskViewPreference
       tags: strings(item.tags, 60),
       sources: sources(item.sources),
       tagMatch: item.tagMatch === 'all' ? 'all' : 'any' as const,
+      ...(item.updatesOnly === true ? { updatesOnly: true } : {}),
     } satisfies DeskSavedView];
   }).slice(0, 20) : [];
   return {
@@ -68,6 +71,7 @@ export const normalizeDeskViewPreferences = (value: unknown): DeskViewPreference
     tags: strings(record.tags, 60),
     sources: sources(record.sources),
     tagMatch: record.tagMatch === 'all' ? 'all' : 'any',
+    ...(record.updatesOnly === true ? { updatesOnly: true } : {}),
     saved,
   };
 };
@@ -119,13 +123,14 @@ export function useDeskViewPreferences(persistenceScope: ProjectPersistenceScope
         tags: current.tags,
         sources: current.sources,
         tagMatch: current.tagMatch,
+        updatesOnly: current.updatesOnly,
       }].slice(-20),
     }));
     return true;
   }, [update]);
   const applySaved = useCallback((id: string) => update((current) => {
     const saved = current.saved.find((view) => view.id === id);
-    return saved ? { ...current, ...saved } : current;
+    return saved ? { ...current, ...saved, updatesOnly: saved.updatesOnly } : current;
   }), [update]);
 
   return useMemo(() => ({ preferences, ready, unavailable, update, reset, saveCurrent, applySaved }), [applySaved, preferences, ready, reset, saveCurrent, unavailable, update]);

@@ -82,9 +82,9 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
       ? storedOrganization.positions
       : migrateLegacySetPositionsToMm(storedOrganization.positions)
   ), [storedOrganization.positions, storedOrganization.spatialVersion]);
-  const focusedCards = options.focusedSetId
+  const focusedCards = useMemo(() => options.focusedSetId
     ? displayCards.filter((card) => card.setId === options.focusedSetId || (!card.setId && cardSets[0]?.id === options.focusedSetId))
-    : [];
+    : [], [options.focusedSetId, displayCards, cardSets]);
   const generationCards = generationSet
     ? displayCards.filter((card) => card.setId === generationSet.id || (!card.setId && cardSets[0]?.id === generationSet.id))
     : [];

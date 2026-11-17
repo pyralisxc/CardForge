@@ -19,6 +19,7 @@ import { CARD_SET_BUILT_IN_TYPES, type CardFace } from '@/domain/cards';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import type { AccountLibraryItem, AccountLibraryOrganizationOperation, AccountLibrarySource } from '@/features/storage-management/client';
 import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
+import { UpdateAttentionFilter } from '@/features/project/client/ui';
 
 import type { DeskCamera } from '../hooks/useDeskCamera';
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
@@ -59,6 +60,8 @@ export interface DeskOverviewSurfaceProps {
   tagFilters: string[];
   tagFacets: DeskOrganizationFacet[];
   tagMatch: DeskTagMatch;
+  updatesOnly: boolean;
+  onUpdatesOnlyChange: (value: boolean) => void;
   activeDeskViews: DeskViewId[];
   availableDeskViews: DeskViewId[];
   savedViews: DeskSavedView[];
@@ -181,7 +184,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     {props.tagFacets.length ? <MultiSelectionFilterMenu allLabel="All tags" ariaLabel="Filter Desk by tag" compactLabel="Tags" className={styles.sourceSelect} values={props.tagFilters} onChange={props.onTagFiltersChange} options={props.tagFacets.map((facet) => ({ value: facet.id, label: `${facet.label} · ${facet.count}` }))} /> : null}
     {props.tagFilters.length > 1 ? <SelectionFilterMenu allLabel="Any tag" ariaLabel="Choose tag matching" compactLabel="Tags" value={props.tagMatch} onChange={(value) => props.onTagMatchChange(value === 'all' ? 'all' : 'any')} options={[{ value: 'any', label: 'Any tag' }, { value: 'all', label: 'All tags' }]} /> : null}
     {props.savedViews.length ? <SelectionFilterMenu allLabel="Saved views" ariaLabel="Apply a saved Desk view" compactLabel="Saved" value="all" onChange={(value) => { if (value !== 'all') props.onApplySavedView(value); }} options={props.savedViews.map((view) => ({ value: view.id, label: view.name }))} /> : null}
-    <span className={styles.deskRestrictionLabel} aria-live="polite">{props.activeRestrictionsLabel}</span>
+    <span className={styles.deskRestrictionLabel} aria-live="polite">{props.activeRestrictionsLabel}{props.updatesOnly ? ' · Updates to review' : ''}</span>
     {isSavingView ? <>
       <Input value={viewName} onChange={(event) => setViewName(event.target.value)} onKeyDown={(event) => {
         if (event.key === 'Enter') {
@@ -196,6 +199,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
       <Button type="button" size="sm" variant="ghost" onClick={saveView} disabled={!viewName.trim()}>Save</Button>
       <Button type="button" size="sm" variant="ghost" onClick={() => { setViewName(''); setIsSavingView(false); }}>Cancel</Button>
     </> : <Button type="button" size="sm" variant="ghost" onClick={() => setIsSavingView(true)}>Save view</Button>}
+    <UpdateAttentionFilter active={props.updatesOnly} onChange={props.onUpdatesOnlyChange} />
     <Button type="button" size="sm" variant="ghost" onClick={props.onResetViews}>Reset</Button>
     {props.selectedWorkItems.length ? <>
       <Button type="button" size="sm" variant="ghost" aria-expanded={isOrganizingSelection} onClick={() => setIsOrganizingSelection((open) => !open)}>
@@ -261,7 +265,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
       <div className={styles.deskToolbar} data-desk-toolbar>
         <div className={styles.deskFilterRow} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         <details ref={mobileFiltersRef} className={styles.mobileDeskFilters} data-mobile-desk-filters>
-          <summary aria-label="Open Desk filters"><SlidersHorizontal aria-hidden="true" /><span>Filters</span><span className={styles.mobileDeskFilterSummary}>{props.activeRestrictionsLabel}</span></summary>
+          <summary aria-label="Open Desk filters"><SlidersHorizontal aria-hidden="true" /><span>Filters</span><span className={styles.mobileDeskFilterSummary}>{props.activeRestrictionsLabel}{props.updatesOnly ? ' · Updates to review' : ''}</span></summary>
           <div className={styles.mobileDeskFilterPanel} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         </details>
         {!props.focusedItemId ? <Button type="button" size="sm" variant={touchMultiSelect ? 'secondary' : 'ghost'} aria-pressed={touchMultiSelect} onClick={() => setTouchMultiSelect((enabled) => !enabled)} title="Add items to selection by tapping; tap again to finish">{touchMultiSelect ? 'Done selecting' : 'Select multiple'}</Button> : null}

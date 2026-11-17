@@ -604,6 +604,8 @@ export function Desk({
             tagFilters={deskViewPreferences.preferences.tags}
             tagFacets={tagFacets}
             tagMatch={deskViewPreferences.preferences.tagMatch}
+            updatesOnly={Boolean(deskViewPreferences.preferences.updatesOnly)}
+            onUpdatesOnlyChange={(updatesOnly) => deskViewPreferences.update((current) => ({ ...current, updatesOnly }))}
             activeDeskViews={activeDeskViews}
             availableDeskViews={availableDeskViews}
             savedViews={deskViewPreferences.preferences.saved}

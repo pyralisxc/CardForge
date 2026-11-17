@@ -11,6 +11,14 @@ import { useSetTemplateUpdates, type SetTemplateUpdate } from '../hooks/useSetTe
 import { useWorkspaceUpdates } from '../hooks/useWorkspaceUpdates';
 import { TemplateUpdateReviewDialog } from './TemplateUpdateReviewDialog';
 
+export function UpdateAttentionFilter({ active, onChange }: { active: boolean; onChange: (active: boolean) => void }) {
+  const workspace = useWorkspaceUpdates();
+  const count = workspace.sets.filter((set) => set.pending > 0).length;
+  return <Button type="button" variant={active ? 'secondary' : 'ghost'} size="sm" className="gap-1.5" aria-label="Filter by Update review" aria-pressed={active}
+    title="Show loaded Sets with unresolved Updates, including deferred reviews. Unopened files are not checked; reading a notice does not resolve a review."
+    onClick={() => onChange(!active)}><RefreshCw className="h-4 w-4" aria-hidden="true" />Updates to review · {workspace.inspectionError ? 'Unavailable' : workspace.checking ? 'Checking' : `${count} ${count === 1 ? 'Set' : 'Sets'}`}</Button>;
+}
+
 export function SetUpdates({ setId }: { setId: string }) {
   const workspace = useWorkspaceUpdates();
   const set = workspace.sets.find((item) => item.set.id === setId);

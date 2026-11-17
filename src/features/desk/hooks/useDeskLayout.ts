@@ -30,7 +30,10 @@ interface DeskLayoutOptions {
   tagFilters: readonly string[];
   tagMatch: 'any' | 'all';
   viewIds: readonly string[];
+  updatesOnly: boolean;
+  updateSetIds: ReadonlySet<string>;
   focused: boolean;
+  focusedItemId: string | null;
   snapToGrid: boolean;
   selectedIds: readonly string[];
   onSelectionChange: (ids: string[], anchorId: string | null) => void;
@@ -45,7 +48,10 @@ export function useDeskLayout({
   tagFilters,
   tagMatch,
   viewIds,
+  updatesOnly,
+  updateSetIds,
   focused,
+  focusedItemId,
   snapToGrid,
   selectedIds,
   onSelectionChange,
@@ -97,12 +103,13 @@ export function useDeskLayout({
     const normalizedQuery = query.trim().toLocaleLowerCase();
     return workItems.filter((item) => (
       matchesDeskViews(item, viewIds)
+      && (!updatesOnly || item.id === focusedItemId || Boolean(item.references.localSetId && updateSetIds.has(item.references.localSetId)))
       && matchesDeskSourceFilters(item, sourceFilters)
       && matchesDeskTypeFilters(item, typeFilters)
       && matchesDeskTagFilters(item, tagFilters, tagMatch)
       && (!normalizedQuery || [item.name, ...item.details, workSourceLabel(item)].join(' ').toLocaleLowerCase().includes(normalizedQuery))
     )).toSorted((left, right) => normalizedDeskOrder.indexOf(left.id) - normalizedDeskOrder.indexOf(right.id));
-  }, [normalizedDeskOrder, query, sourceFilters, tagFilters, tagMatch, typeFilters, viewIds, workItems]);
+  }, [normalizedDeskOrder, query, sourceFilters, tagFilters, tagMatch, typeFilters, viewIds, workItems, updatesOnly, updateSetIds, focusedItemId]);
   const visibleItemIds = useMemo(() => visibleWork.map((item) => item.id), [visibleWork]);
 
   const {

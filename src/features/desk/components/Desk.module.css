@@ -2378,3 +2378,17 @@
 .resultFilter > :last-child {
   margin-left: auto;
 }
+
+.setTemplateObject {
+  position: absolute;
+  padding: 6px;
+  gap: 4px;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 12%);
+}
+
+.setTemplateObject > span { flex-shrink: 0; gap: 0; }
+.setTemplateObject > span:first-child { font-size: 7px; line-height: 10px; }
+.setTemplateObject > span:first-child svg { width: 9px; height: 9px; }
+.setTemplateObject strong { font-size: 9px; line-height: 12px; }
+.setTemplateObject small { font-size: 7px; line-height: 10px; }

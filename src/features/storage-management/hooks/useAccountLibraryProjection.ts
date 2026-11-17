@@ -220,7 +220,8 @@ export function useAccountLibraryProjection({
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [tagMatch, setTagMatch] = useState<'any' | 'all'>('any');
-  const [sort, setSort] = useState<'recent' | 'name' | 'kind'>('recent');
+  const [sort, setSort] = useState<'recent' | 'name' | 'kind' | 'updates'>('recent');
+  const [updatesOnly, setUpdatesOnly] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const refreshGeneration = useRef(0);
   const driveLibrary = driveLibrarySource?.scope === persistenceScope ? driveLibrarySource.value : null;
@@ -653,6 +654,8 @@ export function useAccountLibraryProjection({
     setTagFilters,
     setTagMatch,
     setSort,
+    updatesOnly,
+    setUpdatesOnly,
     openItem,
     refresh: () => { void refreshLibrarySources(); },
     driveConnection: driveLibrary?.connection ?? null,

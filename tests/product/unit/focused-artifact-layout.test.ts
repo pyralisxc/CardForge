@@ -34,6 +34,16 @@ const buildLayout = (count: number) => buildFocusedArtifactLayout({
 });
 
 describe('focused Artifact spatial layout', () => {
+  it('fits larger Template objects beside Artifacts without changing authored positions', () => {
+    const layout = buildLayout(1);
+    const before = structuredClone(layout);
+    const template = { x: -160, y: 0, width: 114, height: 210 };
+    const frame = getFocusedArtifactFrame({ layout, entries: layout.entries, additionalBounds: [template], viewportWidth: 1000, viewportHeight: 700 });
+    expect(500 + (template.x - frame.x) * frame.zoom).toBeGreaterThanOrEqual(40 - 0.001);
+    expect(350 + (template.y + template.height - frame.y) * frame.zoom).toBeLessThanOrEqual(660 + 0.001);
+    expect(layout).toEqual(before);
+  });
+
   it.each([
     { name: 'source order', priorities: new Map<string, number>(), expected: ['card-2', 'card-3'] },
     { name: 'selection', priorities: new Map([['card-0', 1]]), expected: ['card-0', 'card-3'] },

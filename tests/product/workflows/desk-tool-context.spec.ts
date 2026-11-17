@@ -43,6 +43,11 @@ for (const mobile of [false, true]) {
 
       await set.click();
       await set.press('Enter');
+      const fieldTemplate = page.locator('[data-desk-artifact-stage] [data-set-template]').first();
+      await expect(fieldTemplate).toBeVisible();
+      const templateBox = await fieldTemplate.boundingBox();
+      const artifactBox = await page.locator('[data-desk-artifact-stage] button[data-artifact-id]').first().boundingBox();
+      expect(templateBox!.width).toBeGreaterThan(artifactBox!.width * 1.25);
       const railUpdates = page.getByRole('button', { name: 'Updates for 100 Card Scale Set', exact: true });
       await railUpdates.click();
       await expect(updates).toBeVisible();
@@ -56,6 +61,13 @@ for (const mobile of [false, true]) {
       await updates.getByRole('button', { name: 'Review decisions', exact: true }).click();
       await page.keyboard.press('Escape');
       await expect(actions).toBeFocused();
+
+      await page.locator('[id^="library-object-set:"]').filter({ hasText: '100 Card Scale Set' }).click();
+      const libraryTemplate = page.getByRole('region', { name: 'Templates in this Set', exact: true }).getByRole('button', { name: /^Design Template Scale Fixture Template,/ });
+      await expect(libraryTemplate).toBeVisible();
+      await libraryTemplate.click();
+      await page.getByRole('button', { name: 'Close Design', exact: true }).click();
+      await expect(libraryTemplate).toBeFocused();
     });
 
     test('@golden @preview creates, designs, generates, edits and reopens a fresh Set without seeded cards', async ({ page }, testInfo) => {
@@ -87,7 +99,10 @@ for (const mobile of [false, true]) {
       const rail = page.locator('[data-desk-context-rail]');
       await rail.getByRole('button', { name: 'Done', exact: true }).click();
       await expect(design).toHaveCount(0);
-      await page.getByRole('button', { name: 'Design', exact: true }).click();
+      const preparedTemplate = page.locator('[data-desk-artifact-stage]').getByRole('button', { name: /^Design Template Creator loop Template Variant,/ });
+      await expect(preparedTemplate).toBeVisible();
+      await expect(page.locator('[data-desk-artifact-stage] [data-artifact-id]')).toHaveCount(0);
+      if (mobile) await preparedTemplate.tap(); else await preparedTemplate.click();
       if (mobile) await expect(design.getByRole('toolbar', { name: 'Canvas controls' })).toContainText('Creator loop Template Variant');
       else {
         await design.getByRole('button', { name: 'Card Setup', exact: true }).click();
@@ -95,6 +110,8 @@ for (const mobile of [false, true]) {
       }
       await rail.getByRole('button', { name: 'Done', exact: true }).click();
       await expect(design).toHaveCount(0);
+
+      await expect(preparedTemplate).toBeFocused();
 
       const openTool = async (name: 'Generate' | 'Output') => {
         if (mobile) {
