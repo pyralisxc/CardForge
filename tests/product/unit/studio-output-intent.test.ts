@@ -19,30 +19,10 @@ describe('exact output intent', () => {
     const changed = { ...document, storedCards: document.storedCards.map((card) => card.uniqueId === 'b' ? { ...card, backingData: { art: 'changed' } } : card) };
     expect(() => assertOutputContentUnchanged(intent, document, changed)).toThrow('needs repair');
   });
-  it('allows owned Template identity remapping without allowing authored content changes', () => {
-    const intent = outputIntentSchema.parse(raw);
-    const remapped = {
-      ...document,
-      storedCards: document.storedCards.map((card) => ({
-        ...card,
-        templateId: 'owned-front',
-        ...(card.backingTemplateId ? { backingTemplateId: 'owned-back' } : {}),
-      })),
-      userTemplates: [
-        { id: 'owned-front', templateSource: 'user', templateLibrarySource: 'personal', templateLineageId: 'owned-front', templateRevision: 1, templateOriginLineageId: 'front' },
-        { id: 'owned-back', templateUsage: 'back-preset', templateSource: 'user', templateLibrarySource: 'personal', templateLineageId: 'owned-back', templateRevision: 1, templateOriginLineageId: 'back' },
-      ],
-    };
-    expect(() => assertOutputContentUnchanged(intent, document, remapped)).not.toThrow();
-    const changed = {
-      ...remapped,
-      userTemplates: remapped.userTemplates.map((template) => template.id === 'owned-front' ? { ...template, name: 'Changed' } : template),
-    };
-    expect(() => assertOutputContentUnchanged(intent, document, changed)).toThrow('needs repair');
-  });
   it('keeps exact Output valid through legacy Set ownership conversion', () => {
     const source = createProjectScaleFixture(100);
     source.storedCards = source.storedCards.slice(0, 2);
+    source.userTemplates[0].templateContributorName = 'Original contributor';
     source.userTemplates[0].freeformCanvas!.elements = [{
       id: 'label', name: 'Label', type: 'text', x: 20, y: 30, width: 500, height: 80, zIndex: 1,
       content: 'Synthetic {{cardName}}', fontSizePx: 30, textColor: '#000000',
@@ -57,6 +37,16 @@ describe('exact output intent', () => {
     const intent = outputIntentSchema.parse({ ...raw, setId: 'scale-set-100', cardIds: ['scale-card-2', 'scale-card-1'] });
     const converted = materializeProjectTemplateOwnership(parsed.document).document;
     expect(() => assertOutputContentUnchanged(intent, parsed.document, converted)).not.toThrow();
+    const frontTemplateId = converted.storedCards.find((card) => card.uniqueId === 'scale-card-1')!.templateId;
+    const frontTemplate = converted.userTemplates.find((template) => template.id === frontTemplateId)!;
+    expect(frontTemplate.templateContributorName).toBe('Original contributor');
+    for (const field of ['name', 'templateContributorName'] as const) {
+      const changed = structuredClone(converted);
+      const template = changed.userTemplates.find((entry) => entry.id === frontTemplateId)!;
+      if (field === 'name') template.name = 'Changed name';
+      else template.templateContributorName = 'Changed contributor';
+      expect(() => assertOutputContentUnchanged(intent, parsed.document, changed)).toThrow('needs repair');
+    }
   });
   it('exposes a JSON schema for the protocol', () => {
     expect(z.toJSONSchema(outputIntentSchema, { io: 'input' })).toMatchObject({ type: 'object' });

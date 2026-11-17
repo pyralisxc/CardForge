@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { authoredPlanValuesEqual } from '@/domain/cards';
 import { PAPER_SIZES } from '@/domain/rendering';
 
 /** An export handoff is a proposal to the browser, never permission to download. */
@@ -18,13 +19,6 @@ export const outputIntentSchema = z.object({
 }).strict();
 
 export type OutputIntent = z.infer<typeof outputIntentSchema>;
-
-const orderedValue = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(orderedValue);
-  if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(Object.entries(value).sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, nested]) => [key, orderedValue(nested)]));
-};
 
 /** Validate the authored objects before any display selector can drop missing references. */
 export function validateOutputIntentDocument(intent: OutputIntent, value: unknown): void {
@@ -67,7 +61,6 @@ export function assertOutputContentUnchanged(intent: OutputIntent, before: unkno
     'templateLibrarySource',
     'templateAccessTier',
     'templateRegistryStatus',
-    'templateContributorName',
     'templateLineageId',
     'templateRevision',
     'templateRevisionId',
@@ -86,7 +79,7 @@ export function assertOutputContentUnchanged(intent: OutputIntent, before: unkno
     const templateContent = (template: Record<string, unknown> | undefined) => template
       ? Object.fromEntries(Object.entries(template).filter(([key]) => !templateIdentityFields.has(key)))
       : null;
-    return JSON.stringify(orderedValue({
+    return {
       cards: intent.cardIds.map((id) => {
         const card = cardsById.get(id)!;
         const { templateId, backingTemplateId, ...cardContent } = card;
@@ -96,7 +89,9 @@ export function assertOutputContentUnchanged(intent: OutputIntent, before: unkno
           back: templateContent(typeof backingTemplateId === 'string' ? templatesById.get(backingTemplateId) : undefined),
         };
       }),
-    }));
+    };
   };
-  if (content(before) !== content(after)) throw new Error('The selected source needs repair and cannot be opened as exact Output.');
+  if (!authoredPlanValuesEqual(content(before), content(after))) {
+    throw new Error('The selected source needs repair and cannot be opened as exact Output.');
+  }
 }
