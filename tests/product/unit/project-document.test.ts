@@ -197,9 +197,37 @@ describe('project document serialization', () => {
   });
 
   it('preserves opaque legacy Template fields until acquisition can refuse lossy conversion', () => {
+    const elements = [
+      {
+        id: 'opaque-late',
+        name: 'Late element',
+        type: 'shape',
+        x: 10,
+        y: 20,
+        width: 30,
+        height: 40,
+        zIndex: 20,
+        futureElementData: { owner: 'late' },
+      },
+      {
+        id: 'opaque-early',
+        name: 'Early element',
+        type: 'shape',
+        x: 50,
+        y: 60,
+        width: 70,
+        height: 80,
+        zIndex: 5,
+        futureElementData: { owner: 'early' },
+      },
+    ];
     const source = {
       version: 2 as const,
-      userTemplates: [{ ...template, futureAuthoredData: { decision: 'keep', nested: ['authored'] } }],
+      userTemplates: [{
+        ...template,
+        futureAuthoredData: { decision: 'keep', nested: ['authored'] },
+        freeformCanvas: { width: 630, height: 880, elements },
+      }],
       cardSets: [{ id: 'opaque-set', name: 'Opaque', templateIds: [template.id!] }],
       activeCardSetId: 'opaque-set',
       storedCards: [],
@@ -217,8 +245,41 @@ describe('project document serialization', () => {
     if (!parsed.success) return;
     expect((parsed.document.userTemplates[0] as TCGCardTemplate & { futureAuthoredData?: unknown }).futureAuthoredData)
       .toEqual({ decision: 'keep', nested: ['authored'] });
+    expect(parsed.document.userTemplates[0]!.freeformCanvas?.elements.map((element) => [
+      element.id,
+      (element as typeof element & { futureElementData?: unknown }).futureElementData,
+    ])).toEqual([
+      ['opaque-early', { owner: 'early' }],
+      ['opaque-late', { owner: 'late' }],
+    ]);
     expect(() => materializeProjectTemplateOwnership(parsed.document)).toThrow(/cannot preserve during Set acquisition/i);
     expect(parseProjectDocumentValue({ ...source, version: 3 })).toMatchObject({ success: false });
+    expect(source).toEqual(original);
+  });
+
+  it('retains unknown legacy document-root fields so ownership conversion can refuse them', () => {
+    const source = {
+      version: 2 as const,
+      userTemplates: [template],
+      cardSets: [{ id: 'opaque-root-set', name: 'Opaque root', templateIds: [template.id!] }],
+      activeCardSetId: 'opaque-root-set',
+      storedCards: [],
+      appearanceStyles: [],
+      exportSettings: {},
+      customAssets: {
+        'cardforge-maker-custom-textures': [], 'cardforge-maker-custom-dividers': [],
+        'cardforge-maker-custom-icons': [], 'cardforge-maker-custom-images': [],
+      },
+      futureDependency: { keep: ['unrecognized root content'] },
+    };
+    const original = structuredClone(source);
+    const parsed = parseProjectDocumentValue(source);
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect((parsed.document as ProjectDocumentV1 & { futureDependency?: unknown }).futureDependency)
+      .toEqual(source.futureDependency);
+    expect(() => materializeProjectTemplateOwnership(parsed.document)).toThrow(/unsupported creative fields/i);
     expect(source).toEqual(original);
   });
 

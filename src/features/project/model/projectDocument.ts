@@ -23,6 +23,11 @@ import { getProjectFontValue, remapProjectTemplateFonts, normalizeProjectFontAss
 import { assertSetTemplateOwnership, materializeLegacySetTemplates, prepareCardSetTemplateBindings, SetTemplateOwnershipError } from './setTemplateOwnership';
 
 const PROJECT_DOCUMENT_VERSION = 3;
+const PROJECT_DOCUMENT_ROOT_FIELDS = [
+  'version', 'userTemplates', 'cardSets', 'activeCardSetId', 'storedCards', 'appearanceStyles',
+  'exportSettings', 'customAssets', 'customFonts', 'productionPlan', 'mcpOperationReceipts',
+] as const;
+const isProjectDocumentRootField = (key: string) => PROJECT_DOCUMENT_ROOT_FIELDS.some((field) => field === key);
 
 export const CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-textures';
 export const CUSTOM_DIVIDER_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-dividers';
@@ -188,17 +193,37 @@ const getUnsupportedProjectDocumentReason = (value: unknown): string => {
   return 'Unsupported project document format. Import a CardForge project export.';
 };
 
-const retainRawAuthoredFields = (raw: unknown, normalized: unknown): unknown => {
+const getStableArrayIdentities = (values: unknown[], identityKey: string): string[] | null => {
+  const identities = values.map((value) => (
+    isRecord(value) && typeof value[identityKey] === 'string' && value[identityKey].length > 0
+      ? value[identityKey] as string
+      : null
+  ));
+  if (identities.some((identity) => identity === null) || new Set(identities).size !== identities.length) return null;
+  return identities as string[];
+};
+
+const retainRawAuthoredFields = (raw: unknown, normalized: unknown, fieldName?: string): unknown => {
   if (Array.isArray(raw) && Array.isArray(normalized)) {
+    if (authoredPlanInputSurvives(raw, normalized)) return normalized;
+    const identityKey = fieldName === 'fieldContracts' ? 'key' : 'id';
+    const rawIdentities = getStableArrayIdentities(raw, identityKey);
+    const normalizedIdentities = getStableArrayIdentities(normalized, identityKey);
+    if (!rawIdentities || !normalizedIdentities) return raw;
+    const rawById = new Map(raw.map((entry, index) => [rawIdentities[index]!, entry]));
+    const normalizedIds = new Set(normalizedIdentities);
     return [
-      ...normalized.map((entry, index) => retainRawAuthoredFields(raw[index], entry)),
-      ...raw.slice(normalized.length),
+      ...normalized.map((entry, index) => {
+        const rawEntry = rawById.get(normalizedIdentities[index]!);
+        return rawEntry === undefined ? entry : retainRawAuthoredFields(rawEntry, entry);
+      }),
+      ...raw.filter((_, index) => !normalizedIds.has(rawIdentities[index]!)),
     ];
   }
   if (isRecord(raw) && isRecord(normalized)) {
     const result: Record<string, unknown> = { ...raw, ...normalized };
     Object.keys(raw).forEach((key) => {
-      if (Object.hasOwn(normalized, key)) result[key] = retainRawAuthoredFields(raw[key], normalized[key]);
+      if (Object.hasOwn(normalized, key)) result[key] = retainRawAuthoredFields(raw[key], normalized[key], key);
     });
     return result;
   }
@@ -268,10 +293,7 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     || !isRecord(value.customAssets))) {
     throw new Error('The Set-owned document is incomplete. Its source was left unchanged.');
   }
-  if (value.version === 3 && Object.keys(value).some((key) => ![
-    'version', 'userTemplates', 'cardSets', 'activeCardSetId', 'storedCards', 'appearanceStyles',
-    'exportSettings', 'customAssets', 'customFonts', 'productionPlan', 'mcpOperationReceipts',
-  ].includes(key))) {
+  if (value.version === 3 && Object.keys(value).some((key) => !isProjectDocumentRootField(key))) {
     throw new Error('The Set-owned document contains unsupported creative fields. Its source was left unchanged.');
   }
   if (value.version === 3 && Object.keys(value.exportSettings as Record<string, unknown>).some((key) => ![
@@ -337,7 +359,11 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     }
   }
 
+  const legacyOpaqueRootFields = value.version === 3
+    ? {}
+    : Object.fromEntries(Object.entries(value).filter(([key]) => !isProjectDocumentRootField(key)));
   const document: ProjectDocument = {
+    ...legacyOpaqueRootFields,
     version: value.version,
     userTemplates,
     cardSets,

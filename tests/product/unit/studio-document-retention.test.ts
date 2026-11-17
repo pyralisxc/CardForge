@@ -58,6 +58,7 @@ describe('Studio document revision asset retention', () => {
     document.cardSets = [];
     document.storedCards = [];
     document.userTemplates = [];
+    delete document.activeCardSetId;
     mocks.chain.maybeSingle
       .mockResolvedValueOnce({ data: {
         id: 'document-1', title: 'Existing', creation_source: 'gpt', document_payload: document, revision: 7,

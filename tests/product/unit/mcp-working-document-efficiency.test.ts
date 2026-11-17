@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resolveTemplateCardFormat } from '@/domain/card-formats';
 import { normalizeTemplateFieldContracts } from '@/domain/templates/fieldContracts';
-import type { TCGCardTemplate } from '@/domain/templates';
+import { reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain/templates';
 import { normalizeEmbeddedTemplateAsset } from '@/features/studio-documents/server/embeddedTemplateAssets';
 
 const storeMocks = vi.hoisted(() => ({
@@ -39,7 +39,7 @@ import {
   patchWorkingDocument,
 } from '@/features/studio-documents/server/workingDocumentPatches';
 
-const makeTemplate = (): TCGCardTemplate => ({
+const makeTemplate = (): TCGCardTemplate => reconstructMinimalTemplateObject({
   id: 'template-1',
   name: 'Template One',
   aspectRatio: '63:88',
