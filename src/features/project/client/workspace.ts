@@ -23,3 +23,5 @@ export type { TemplateCommitChangeInput } from '../store/types';
 export { getTemplateOwnerSetId } from '../model/setTemplateOwnership';
 export { normalizeStudioView } from '../store/workspaceDefaults';
 export type { StudioView } from '../store/workspaceDefaults';
+export { openSetTemplateUpdateReview, commitSetTemplateUpdateReview, type OpenTemplateUpdateReview } from './setTemplateUpdateReview';
+export { isTemplateUpdateSource } from '../model/templateUpdateReview';

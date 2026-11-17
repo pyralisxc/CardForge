@@ -120,7 +120,7 @@ describe('project document serialization', () => {
     });
 
     expect(document).toEqual<ProjectDocumentV1>({
-      version: 3,
+      version: 4,
       userTemplates: [template],
       cardSets: [cardSet],
       activeCardSetId: cardSet.id,
@@ -172,7 +172,7 @@ describe('project document serialization', () => {
     let ordinal = 0;
     const { document, templateIdsBySet } = materializeProjectTemplateOwnership(source, () => `copy-${++ordinal}`);
 
-    expect(document.version).toBe(3);
+    expect(document.version).toBe(4);
     expect(document.userTemplates.slice(0, 3)).toEqual(original.userTemplates);
     for (const setId of ['set-a', 'set-b']) {
       const mapping = templateIdsBySet.get(setId)!;

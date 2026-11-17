@@ -9,13 +9,11 @@ import { Input } from '@/components/ui/input';
 import { MultiSelectionFilterMenu } from '@/components/ui/multi-selection-filter-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
 import type { CardFace, CardSet, CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
-import { extractTemplateFieldDefinitions, type TCGCardTemplate } from '@/domain/templates';
+import type { TCGCardTemplate } from '@/domain/templates';
 import { setCreatorLens, type CreatorInteractionSession } from '@/features/app-shell/client/environment';
 import { getArtifactWorkState } from '@/features/card-generator/client';
-import type { TemplateCommitChangeInput } from '@/features/project/client/workspace';
 import { SetContextEditor } from './SetContextEditor';
 import { CardRemovalUndo } from './CardRemovalUndo';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
@@ -65,8 +63,6 @@ export interface FocusedWorkSurfaceProps {
   onOpenWork: () => void;
   onOpenDesign: () => void;
   onDesignTemplate: (templateId: string) => void;
-  onCommitTemplateChange: (input: TemplateCommitChangeInput) => string;
-  onUnreferenceTemplate: (setId: string, templateId: string) => boolean;
   onOpenGenerate: () => void;
   onCardQueryChange: (value: string) => void;
   onOrganizationChange: (patch: Partial<Omit<CardSetOrganization, 'tags' | 'positions'>>) => void;
@@ -94,7 +90,6 @@ export interface FocusedWorkSurfaceProps {
 }
 
 export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
-  const { toast } = useToast();
   const recoveryFocusRef = useRef<HTMLElement>(null);
   const currentSet = props.currentSet;
   const templates = props.templates;
@@ -104,42 +99,6 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
   const needsWorkCards = props.focusedCards.filter((card) => getArtifactWorkState(card).needsWork);
   const setTagFilters = (filterIds: string[]) => props.setSession((current) => setCreatorLens(current, { ...current.lens, filterIds }));
 
-  const adoptTemplateRevision = (fromTemplateId: string, toTemplateId: string) => {
-    if (!currentSet) return;
-    const previous = templates.find((template) => template.id === fromTemplateId);
-    const next = templates.find((template) => template.id === toTemplateId);
-    if (!previous || !next) return;
-    const face = previous.templateUsage === 'back-preset' ? 'back' as const : 'front' as const;
-    const artifactIds = props.focusedCards.filter((card) => (
-      face === 'front' ? card.template.id === fromTemplateId : card.backingTemplate?.id === fromTemplateId
-    )).map((card) => card.uniqueId);
-    const previousKeys = new Set(extractTemplateFieldDefinitions(previous).map((field) => field.key));
-    const nextKeys = new Set(extractTemplateFieldDefinitions(next).map((field) => field.key));
-    const removedFieldKeys = [...previousKeys].filter((key) => !nextKeys.has(key));
-    if (artifactIds.length && removedFieldKeys.length) {
-      toast({
-        title: 'Template update not applied',
-        description: `This revision changes fields used by ${artifactIds.length} Artifact${artifactIds.length === 1 ? '' : 's'} and cannot be applied safely yet. Your current Template and data are preserved.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-    props.onCommitTemplateChange({
-      template: next,
-      source: next.templateSource,
-      sourceTemplateId: fromTemplateId,
-      artifactIds,
-      face,
-      removedFieldKeys,
-      setId: currentSet.id,
-    });
-    props.onUnreferenceTemplate(currentSet.id, fromTemplateId);
-    toast({
-      title: 'Template revision updated',
-      description: `${artifactIds.length} Artifact${artifactIds.length === 1 ? '' : 's'} now use “${next.name}”${removedFieldKeys.length ? `; removed fields were cleared from those Artifacts` : ''}.`,
-    });
-  };
-
   return <div className={styles.focusSurface} data-desk="focused" data-focus-transition="set-to-artifacts" data-artifact-focused={artifactFocused}>
     <section ref={recoveryFocusRef} tabIndex={-1} className={styles.focusWorkspace} data-desk-set-board data-artifact-focused={artifactFocused} data-has-selection={props.selectedCards.length > 0} aria-label={props.item.name}>
       {props.localSetId ? <>
@@ -148,7 +107,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
           <div className={styles.contentToolbar}>
             <label className={styles.searchField}><span className="sr-only">Search cards in this work</span><Search aria-hidden="true" /><Input value={props.cardQuery} onChange={(event) => props.onCardQueryChange(event.target.value)} placeholder="Search cards" /></label>
             {!props.selectedCards.length ? <>
-            {currentSet ? <SetTemplates set={currentSet} cards={props.focusedCards} templates={templates} onDesign={props.onDesignTemplate} onAdoptRevision={adoptTemplateRevision} /> : null}
+            {currentSet ? <SetTemplates set={currentSet} cards={props.focusedCards} templates={templates} onDesign={props.onDesignTemplate} /> : null}
             {currentSet ? <SetContextEditor key={currentSet.id} set={currentSet} /> : null}
             {needsWorkCards.length ? <Button type="button" size="sm" variant="ghost" className="gap-1.5" onClick={() => props.onSelectionChange(needsWorkCards.map((card) => card.uniqueId))} title="Select Artifacts missing required Template values"><TriangleAlert className="h-4 w-4" />Needs work · {needsWorkCards.length}</Button> : null}
             </> : null}

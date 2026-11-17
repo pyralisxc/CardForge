@@ -83,7 +83,7 @@ describe('account Studio documents', () => {
 
     const document = createProjectDocumentFromTemplateDraft(input, 'gpt-template-123');
 
-    expect(document.version).toBe(3);
+    expect(document.version).toBe(4);
     expect(document.productionPlan).toMatchObject({
       decisionMode: 'confirmed',
       outputSize: { width: 1080, height: 1350, unit: 'px' },

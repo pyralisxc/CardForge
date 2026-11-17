@@ -17,7 +17,8 @@ import {
   MAX_PROJECT_PACKAGE_ASSETS,
   MAX_PROJECT_PACKAGE_METADATA_BYTES,
 } from '@/features/project/model/projectPackage';
-import type { ProjectDocumentV1 } from '@/features/project/model/projectDocument';
+import type { CardForgeProjectManifestV4, CardForgeProjectPackageSnapshot } from '@/features/project/model/projectPackage';
+import { materializeProjectTemplateOwnership, type ProjectDocumentV1 } from '@/features/project/model/projectDocument';
 import { saveCardForgeProjectPackageToDevice } from '@/features/project/client/projectPackageDeviceSave';
 
 const onePixelPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZxQAAAAASUVORK5CYII=';
@@ -108,13 +109,68 @@ describe('portable CardForge project packages', () => {
     const hydrated = hydrateCardForgeProjectSnapshot(decoded);
 
     expect(decoded.manifest.projectRevision).toBe(snapshot.manifest.projectRevision);
-    expect(hydrated.version).toBe(3);
+    expect(hydrated.version).toBe(4);
     expect(hydrated.cardSets[0].plan).toEqual(project.cardSets[0].plan);
     expect(hydrated.storedCards[0]!.data.artwork).toBe(onePixelPng);
     expect(hydrated.userTemplates[0]!.freeformCanvas?.elements[0]?.imageSource).toBe(onePixelPng);
     expect(hydrated.cardSets[0]!.metadata).toEqual({
       workflow: 'card-set', type: 'Postcards', tags: ['Launch', 'Needs artwork'],
     });
+  });
+
+  it('round-trips only Update Review metadata and excludes historical-only asset references', async () => {
+    const { document } = materializeProjectTemplateOwnership(createProject());
+    const templateId = document.cardSets[0]!.templateIds![0]!;
+    const historicalAssetId = 'c'.repeat(64);
+    const review = {
+      version: 1 as const, templateId, sourceLineageId: 'source-lineage', sourceRevisionId: 'source-revision',
+      sourceFingerprint: 'd'.repeat(64), outcome: 'reviewed' as const,
+      decisions: [{ key: `${CARDFORGE_PROJECT_ASSET_REFERENCE_PREFIX}${historicalAssetId}`, decision: 'keep' as const }],
+    };
+    document.cardSets[0]!.updateReviews = [review];
+    const snapshot = await buildCardForgeProjectSnapshot({ document, name: 'Reviewed Set' });
+    const manifestText = JSON.stringify(snapshot.manifest);
+
+    expect(snapshot.manifest.cardforgeProject).toBe(5);
+    expect(snapshot.manifest.project.version).toBe(4);
+    expect(snapshot.manifest.project.cardSets[0]!.updateReviews).toEqual([review]);
+    expect(snapshot.manifest.assets.some((asset) => asset.id === historicalAssetId)).toBe(false);
+    expect(manifestText).not.toContain('old property value');
+
+    const decoded = await decodeCardForgeProjectPackage(
+      new Blob([new Uint8Array(await encodeCardForgeProjectPackage(snapshot))]),
+    );
+    expect(hydrateCardForgeProjectSnapshot(decoded).cardSets[0]!.updateReviews).toEqual([review]);
+
+    const malformed = structuredClone(document);
+    Object.assign(malformed.cardSets[0]!.updateReviews![0]!, { oldPropertyValue: 'old property value' });
+    await expect(buildCardForgeProjectSnapshot({ document: malformed, name: 'Unsupported Review Metadata' }))
+      .rejects.toThrow(/unsupported review information/i);
+  });
+
+  it('keeps outer package v4 bound to portable document v3 and validates its original digest', async () => {
+    const snapshot = await buildCardForgeProjectSnapshot({ document: createProject(), name: 'Legacy Set-owned Package' });
+    const project = {
+      ...structuredClone(snapshot.manifest.project),
+      version: 3 as const,
+      cardSets: snapshot.manifest.project.cardSets.map(({ updateReviews: _updateReviews, ...set }) => set),
+    };
+    const assets = snapshot.manifest.assets;
+    const revisionPayload = new TextEncoder().encode(JSON.stringify({ project, assets }));
+    const revision = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', revisionPayload)))
+      .map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    const manifest = {
+      ...snapshot.manifest, cardforgeProject: 4 as const, project, projectRevision: revision,
+    } as unknown as CardForgeProjectManifestV4;
+    const legacySnapshot: CardForgeProjectPackageSnapshot = { manifest, assets: snapshot.assets };
+
+    const decoded = await decodeCardForgeProjectPackage(
+      new Blob([new Uint8Array(await encodeCardForgeProjectPackage(legacySnapshot))]),
+    );
+
+    expect(decoded.manifest.cardforgeProject).toBe(4);
+    expect(decoded.manifest.project.version).toBe(3);
+    expect(hydrateCardForgeProjectSnapshot(decoded).version).toBe(3);
   });
 
   it('reads the legacy v1 package while writing the current artifact-based format', async () => {
@@ -140,7 +196,7 @@ describe('portable CardForge project packages', () => {
     expect(hydrateCardForgeProjectSnapshot(decoded).storedCards[0]?.uniqueId).toBe('card-1');
   });
 
-  it('writes the canonical v4 archive to a bounded destination stream', async () => {
+  it('writes the canonical v5 archive to a bounded destination stream', async () => {
     const snapshot = await buildCardForgeProjectSnapshot({ document: createProject(), name: 'Streamed Project' });
     const chunks: Uint8Array[] = [];
     await writeCardForgeProjectPackage(snapshot, new WritableStream<Uint8Array>({
@@ -304,7 +360,7 @@ describe('portable CardForge project packages', () => {
     await expect(decodeCardForgeProjectPackage(tampered)).rejects.toThrow(/revision/iu);
   });
 
-  it('rejects unknown fields in a new v4 manifest without changing older readers', async () => {
+  it('rejects unknown fields in a new v5 manifest without changing older readers', async () => {
     const snapshot = await buildCardForgeProjectSnapshot({ document: createProject(), name: 'Unknown Manifest Field' });
     const zip = await JSZip.loadAsync(await encodeCardForgeProjectPackage(snapshot));
     const rawManifest = await zip.file(CARDFORGE_PROJECT_MANIFEST_FILE)!.async('string');
@@ -314,7 +370,7 @@ describe('portable CardForge project packages', () => {
 
     await expect(decodeCardForgeProjectPackage(
       await zip.generateAsync({ type: 'uint8array', compression: 'STORE' }),
-    )).rejects.toThrow(/v4 project manifest contains unsupported fields/iu);
+    )).rejects.toThrow(/v5 project manifest contains unsupported fields/iu);
   });
 
   it('rejects archive entries outside the exact manifest instead of accepting hidden payloads', async () => {

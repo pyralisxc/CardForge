@@ -4,7 +4,7 @@ import type { StateCreator } from 'zustand';
 import { authoredPlanInputSurvives, ensureCardSetTemplateReferences } from '@/domain/cards';
 import { createPersonalTemplateFork, createPersonalTemplateRevision, getAuthoredTemplatePayload, reconstructMinimalTemplateObject, withIndependentTemplateIdentity, type TCGCardTemplate } from '@/domain/templates';
 
-import { getCardSetTemplateIds, getTemplateOwnerSetId, getTemplateReferenceSetIds, prepareSetTemplateAcquisition, preserveReferencedTemplateIdentities, SetTemplateOwnershipError } from '../model/setTemplateOwnership';
+import { getCardSetTemplateIds, getTemplateOwnerSetId, getTemplateReferenceSetIds, inheritCompletedSetUpdateReviews, prepareSetTemplateAcquisition, preserveReferencedTemplateIdentities, SetTemplateOwnershipError } from '../model/setTemplateOwnership';
 import { selectAllTemplates } from './selectors';
 import type { ProjectState, TemplateSlice } from './types';
 import { isDraftTemplateSelection } from './workspaceDefaults';
@@ -97,6 +97,9 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
           workingSets = state.cardSets.map((cardSet) => cardSet.id === destinationId ? {
             ...cardSet, templateIds: cardSet.templateIds?.map((id) => id === fromId ? workingFromId : id),
           } : cardSet);
+          workingSets = inheritCompletedSetUpdateReviews(
+            workingSets, getTemplateOwnerSetId(state, fromId), fromId, destinationId, workingFromId,
+          );
         }
         const forksSubset = scope && previous && ownerId === destinationId && state.storedCards.some((card) => (
           (card.setId ?? state.cardSets[0]?.id) === destinationId && !scope.has(card.uniqueId)
@@ -107,6 +110,9 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
             ...createPersonalTemplateFork(previous, { ...proposed, id: null }),
             templateContributorName: previous.templateContributorName,
           });
+          workingSets = inheritCompletedSetUpdateReviews(
+            workingSets, destinationId, proposed.id!, destinationId, reconstructed.id!,
+          );
         } else if (previous && ownerId !== destinationId) {
           const acquired = workingFromId !== fromId && proposed.id === fromId
             ? { userTemplates, templateIds: new Map([[fromId, workingFromId]]) }
@@ -119,6 +125,9 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
             templateRegistryStatus: 'localOnly', templateAccessTier: undefined,
             templateContributorName: previous.templateContributorName,
           }, previous));
+          workingSets = inheritCompletedSetUpdateReviews(
+            workingSets, ownerId, proposed.id!, destinationId, reconstructed.id!,
+          );
         } else {
           reconstructed = reconstructMinimalTemplateObject({
             ...(previous && proposed.templateRevisionId === previous.templateRevisionId

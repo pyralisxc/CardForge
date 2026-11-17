@@ -91,8 +91,8 @@ describe('Studio document revision asset retention', () => {
       cleanupOnFailure: false,
     }));
     expect(mocks.chain.update).toHaveBeenCalledWith(expect.objectContaining({
-      document_payload: expect.objectContaining({ version: 3 }), revision: 8,
-      catalog_dependencies: expect.objectContaining({ contractVersion: 1, sourcePayload: expect.objectContaining({ version: 3 }) }),
+      document_payload: expect.objectContaining({ version: 4 }), revision: 8,
+      catalog_dependencies: expect.objectContaining({ contractVersion: 1, sourcePayload: expect.objectContaining({ version: 4 }) }),
     }));
     expect(mocks.cleanupUploadedStudioDocumentAssets).not.toHaveBeenCalled();
     expect(mocks.removeStudioDocumentAssets).not.toHaveBeenCalled();

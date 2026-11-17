@@ -5,6 +5,8 @@ export {
   reconcileCardSets,
   resolveActiveCardSet,
 } from './cardSets';
+export { normalizeSetUpdateReviews } from './setUpdateReview';
+export type { SetUpdateDecision, SetUpdateReview } from './setUpdateReview';
 export type {
   CardData,
   CardFace,

@@ -13,6 +13,7 @@ import { getAuthoredTemplatePayload } from '@/domain/templates';
 import {
   CARDFORGE_PROJECT_MANIFEST_FILE,
   CARDFORGE_PROJECT_PACKAGE_VERSION,
+  SET_OWNERSHIP_CARDFORGE_PROJECT_PACKAGE_VERSION,
   CONTEXT_CARDFORGE_PROJECT_PACKAGE_VERSION,
   ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION,
   LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION,
@@ -27,11 +28,13 @@ import {
   isProjectPackageAssetMimeType,
   normalizeProjectFileName,
   type CardForgeProjectManifest,
-  type CardForgeProjectManifestV4,
+  type CardForgeProjectManifestV1,
+  type CardForgeProjectManifestV5,
   type CardForgeProjectPackageSnapshot,
-  type CardForgeProjectPackageSnapshotV4,
+  type CardForgeProjectPackageSnapshotV5,
   type PortableProjectDocumentV2,
   type PortableProjectDocumentV3,
+  type PortableProjectDocumentV4,
   type ProjectPackageAssetDescriptor,
   type ProjectPackageAssetSource,
   type ProjectPackageAssetMimeType,
@@ -231,27 +234,31 @@ const normalizeAssetDescriptor = (value: unknown): ProjectPackageAssetDescriptor
   return { id, mimeType, size, path };
 };
 
-const toPortableProjectDocument = (document: ProjectDocumentV1): PortableProjectDocumentV3 => {
+const toPortableProjectDocument = (document: ProjectDocumentV1): PortableProjectDocumentV4 => {
   const { storedCards, ...project } = document;
   return {
     ...project,
     userTemplates: project.userTemplates.map(getAuthoredTemplatePayload),
-    version: 3,
+    version: 4,
     artifacts: storedCards.map(createCardArtifact),
   };
 };
 
-const toRuntimeProjectDocument = (document: PortableProjectDocumentV2 | PortableProjectDocumentV3): ProjectDocumentV1 => {
+const toRuntimeProjectDocument = (
+  document: PortableProjectDocumentV2 | PortableProjectDocumentV3 | PortableProjectDocumentV4,
+): ProjectDocumentV1 => {
   const { artifacts, ...project } = document;
   return {
     ...project,
-    version: document.version === 3 ? 3 : project.cardSets.some((set) => set.plan !== undefined) ? 2 : 1,
+    version: document.version >= 3 ? document.version : project.cardSets.some((set) => set.plan !== undefined) ? 2 : 1,
     storedCards: artifacts.map(getCardFromArtifact),
   };
 };
 
-const parsePortableProjectDocument = (value: unknown): PortableProjectDocumentV2 | PortableProjectDocumentV3 | null => {
-  if (!isRecord(value) || (value.version !== 2 && value.version !== 3) || !Array.isArray(value.artifacts)) return null;
+const parsePortableProjectDocument = (
+  value: unknown,
+): PortableProjectDocumentV2 | PortableProjectDocumentV3 | PortableProjectDocumentV4 | null => {
+  if (!isRecord(value) || (value.version !== 2 && value.version !== 3 && value.version !== 4) || !Array.isArray(value.artifacts)) return null;
   const artifacts = value.artifacts.flatMap((artifact) => {
     if (!isRecord(artifact)
       || artifact.artifactType !== 'card'
@@ -264,29 +271,34 @@ const parsePortableProjectDocument = (value: unknown): PortableProjectDocumentV2
     return [artifact];
   });
   if (artifacts.length !== value.artifacts.length) return null;
-  if (value.version === 3 && Object.hasOwn(value, 'storedCards')) return null;
+  if (value.version >= 3 && Object.hasOwn(value, 'storedCards')) return null;
   const portableFields = { ...value };
   delete portableFields.artifacts;
   const runtime = parseProjectDocumentValue({
     ...portableFields,
-    version: value.version === 3 ? 3 : Array.isArray(value.cardSets) && value.cardSets.some((set) => isRecord(set) && set.plan !== undefined) ? 2 : 1,
+    version: value.version >= 3 ? value.version : Array.isArray(value.cardSets) && value.cardSets.some((set) => isRecord(set) && set.plan !== undefined) ? 2 : 1,
     storedCards: artifacts.map((artifact) => artifact.card),
   });
   if (!runtime.success) throw new ProjectPackageError(runtime.error);
-  return { ...toPortableProjectDocument(runtime.document), version: value.version };
+  return { ...toPortableProjectDocument(runtime.document), version: value.version } as (
+    PortableProjectDocumentV2 | PortableProjectDocumentV3 | PortableProjectDocumentV4
+  );
 };
 
 const parseManifest = async (value: unknown): Promise<CardForgeProjectManifest> => {
   if (!isRecord(value)
     || (value.cardforgeProject !== CARDFORGE_PROJECT_PACKAGE_VERSION
+      && value.cardforgeProject !== SET_OWNERSHIP_CARDFORGE_PROJECT_PACKAGE_VERSION
       && value.cardforgeProject !== CONTEXT_CARDFORGE_PROJECT_PACKAGE_VERSION
       && value.cardforgeProject !== ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION
       && value.cardforgeProject !== LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION)) {
     throw new ProjectPackageError('Unsupported CardForge project package version.');
   }
-  if (value.cardforgeProject === CARDFORGE_PROJECT_PACKAGE_VERSION
+  const packageVersion = value.cardforgeProject as 1 | 2 | 3 | 4 | 5;
+  if ((packageVersion === CARDFORGE_PROJECT_PACKAGE_VERSION
+      || packageVersion === SET_OWNERSHIP_CARDFORGE_PROJECT_PACKAGE_VERSION)
     && Object.keys(value).some((key) => !['cardforgeProject', 'name', 'projectRevision', 'savedAt', 'project', 'assets'].includes(key))) {
-    throw new ProjectPackageError('This v4 project manifest contains unsupported fields. The source was left unchanged.');
+    throw new ProjectPackageError(`This v${packageVersion} project manifest contains unsupported fields. The source was left unchanged.`);
   }
   const name = typeof value.name === 'string' ? normalizeProjectFileName(value.name) : '';
   const projectRevision = typeof value.projectRevision === 'string' ? value.projectRevision : '';
@@ -306,18 +318,22 @@ const parseManifest = async (value: unknown): Promise<CardForgeProjectManifest> 
   if (ids.size !== normalizedAssets.length || paths.size !== normalizedAssets.length) {
     throw new ProjectPackageError('The CardForge project contains duplicate packaged assets.');
   }
-  const isLegacy = value.cardforgeProject === LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION;
+  const isLegacy = packageVersion === LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION;
   const parsedProject = isLegacy ? parseProjectDocumentValue(value.project) : null;
   const portableProject = isLegacy ? null : parsePortableProjectDocument(value.project);
-  if (value.cardforgeProject === CARDFORGE_PROJECT_PACKAGE_VERSION && portableProject?.version !== 3) {
-    throw new ProjectPackageError('This package requires a Set-owned document. The source was left unchanged.');
+  if (packageVersion === CARDFORGE_PROJECT_PACKAGE_VERSION && portableProject?.version !== 4) {
+    throw new ProjectPackageError('This package requires a v4 Set-owned document. The source was left unchanged.');
   }
-  if (value.cardforgeProject !== CARDFORGE_PROJECT_PACKAGE_VERSION
-    && ((portableProject?.version === 3) || (parsedProject?.success && parsedProject.document.version === 3))) {
+  if (packageVersion === SET_OWNERSHIP_CARDFORGE_PROJECT_PACKAGE_VERSION && portableProject?.version !== 3) {
+    throw new ProjectPackageError('This package requires a v3 Set-owned document. The source was left unchanged.');
+  }
+  if (packageVersion < SET_OWNERSHIP_CARDFORGE_PROJECT_PACKAGE_VERSION
+    && ((portableProject?.version !== undefined && portableProject.version >= 3)
+      || (parsedProject?.success && parsedProject.document.version >= 3))) {
     throw new ProjectPackageError('Set ownership requires a newer CardForge package version. The source was left unchanged.');
   }
-  if (portableProject?.version === 3) assertSetTemplateOwnership(toRuntimeProjectDocument(portableProject), true);
-  if (value.cardforgeProject === ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION
+  if (portableProject && portableProject.version >= 3) assertSetTemplateOwnership(toRuntimeProjectDocument(portableProject), true);
+  if (packageVersion === ARTIFACT_CARDFORGE_PROJECT_PACKAGE_VERSION
     && portableProject?.cardSets.some((set) => set.plan !== undefined)) {
     throw new ProjectPackageError('Set context requires a newer CardForge package version. The source was left unchanged.');
   }
@@ -339,13 +355,13 @@ const parseManifest = async (value: unknown): Promise<CardForgeProjectManifest> 
       name,
       projectRevision,
       savedAt,
-      project: parsedProject.document,
+      project: parsedProject.document as CardForgeProjectManifestV1['project'],
       assets: normalizedAssets,
     };
   } else {
     if (!portableProject) throw new ProjectPackageError('The CardForge project artifact document is invalid.');
     manifest = {
-      cardforgeProject: value.cardforgeProject as 2 | 3 | 4,
+      cardforgeProject: packageVersion as 2 | 3 | 4 | 5,
       name,
       projectRevision,
       savedAt,
@@ -371,8 +387,8 @@ export const buildCardForgeProjectSnapshot = async ({
   name: string;
   resolveAssetReference?: (reference: string) => Promise<ResolvedProjectPackageAssetReference | null>;
   savedAt?: string;
-}): Promise<CardForgeProjectPackageSnapshotV4> => {
-  const authoredInput = document.version === 3
+}): Promise<CardForgeProjectPackageSnapshotV5> => {
+  const authoredInput = document.version >= 3
     ? { ...document, userTemplates: document.userTemplates.map(getAuthoredTemplatePayload) }
     : document;
   const parsed = parseProjectDocumentValue(authoredInput);
@@ -380,10 +396,10 @@ export const buildCardForgeProjectSnapshot = async ({
   document = materializeProjectTemplateOwnership(parsed.document).document;
   assertSetTemplateOwnership(document, true);
   const assets = new Map<string, { descriptor: ProjectPackageAssetDescriptor; source: ProjectPackageAssetSource }>();
-  const externalized = await externalizeProjectAssets(toPortableProjectDocument(document), assets, resolveAssetReference) as PortableProjectDocumentV3;
+  const externalized = await externalizeProjectAssets(toPortableProjectDocument(document), assets, resolveAssetReference) as PortableProjectDocumentV4;
   const descriptors = [...assets.values()].map(({ descriptor }) => descriptor).sort((left, right) => left.id.localeCompare(right.id));
   const projectRevision = await calculateProjectRevision(externalized, descriptors);
-  const manifest: CardForgeProjectManifestV4 = {
+  const manifest: CardForgeProjectManifestV5 = {
     cardforgeProject: CARDFORGE_PROJECT_PACKAGE_VERSION,
     name: normalizeProjectFileName(name),
     projectRevision,
@@ -507,7 +523,7 @@ export const hydrateCardForgeProjectSnapshot = (
   const hydrated = hydrateProjectAssets(snapshot.manifest.project, descriptors, snapshot.assets);
   const runtime = snapshot.manifest.cardforgeProject === LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION
     ? hydrated
-    : toRuntimeProjectDocument(hydrated as PortableProjectDocumentV2 | PortableProjectDocumentV3);
+    : toRuntimeProjectDocument(hydrated as PortableProjectDocumentV2 | PortableProjectDocumentV3 | PortableProjectDocumentV4);
   const parsed = parseProjectDocumentValue(runtime);
   if (!parsed.success) throw new ProjectPackageError(parsed.error);
   return parsed.document;

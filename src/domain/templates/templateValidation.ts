@@ -47,5 +47,27 @@ export const validateNativeTemplateStructure = (value: unknown): string | null =
     }
   }
 
+  const parentById = new Map<string, string>();
+  for (const element of canvas.elements) {
+    if (isRecord(element) && typeof element.id === 'string' && element.id.trim()
+      && typeof element.parentId === 'string' && element.parentId.trim()) {
+      parentById.set(element.id, element.parentId);
+    }
+  }
+  const completed = new Set<string>();
+  const cycleMessage = 'The design contains a cyclic element hierarchy. Its original structure must be kept rather than discarded.';
+  for (const start of parentById.keys()) {
+    const path = new Set<string>();
+    let current: string | undefined = start;
+    let steps = 0;
+    while (current && parentById.has(current) && !completed.has(current)) {
+      if (path.has(current) || steps >= parentById.size) return cycleMessage;
+      path.add(current);
+      current = parentById.get(current);
+      steps += 1;
+    }
+    for (const id of path) completed.add(id);
+  }
+
   return null;
 };

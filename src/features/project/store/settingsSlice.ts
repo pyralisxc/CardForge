@@ -1,12 +1,12 @@
 import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
-import { reconcileCardSets, resolveActiveCardSet, type CardSet } from '@/domain/cards';
+import { authoredPlanValuesEqual, reconcileCardSets, resolveActiveCardSet, type CardSet } from '@/domain/cards';
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { PAPER_SIZES } from '@/domain/rendering';
 import { createPersonalTemplateFork, reconstructMinimalTemplateObject } from '@/domain/templates';
 
-import { getCardSetTemplateIds, getTemplateOwnerSetId, prepareSetTemplateAcquisition } from '../model/setTemplateOwnership';
+import { getCardSetTemplateIds, getTemplateOwnerSetId, inheritCompletedSetUpdateReviews, prepareSetTemplateAcquisition, SetTemplateOwnershipError } from '../model/setTemplateOwnership';
 import { resolveGeneratorFrontTemplateId, selectAllTemplates } from './selectors';
 import type { ProjectState, SettingsSlice } from './types';
 import { normalizeStudioView } from './workspaceDefaults';
@@ -40,6 +40,25 @@ const withTemplateReference = (set: CardSet, templateId: string): CardSet => {
   const normalizedId = templateId.trim();
   if (!normalizedId || set.templateIds?.includes(normalizedId)) return set;
   return { ...set, templateIds: [...(set.templateIds ?? []), normalizedId] };
+};
+
+const mergeSetUpdateReviews = (
+  existing: CardSet['updateReviews'],
+  incoming: CardSet['updateReviews'],
+): CardSet['updateReviews'] => {
+  if (!existing?.length) return incoming?.length ? incoming : existing ?? incoming;
+  const bySource = new Map(existing.map((review) => [
+    JSON.stringify([review.templateId, review.sourceLineageId, review.sourceRevisionId]), review,
+  ]));
+  (incoming ?? []).forEach((review) => {
+    const key = JSON.stringify([review.templateId, review.sourceLineageId, review.sourceRevisionId]);
+    const previous = bySource.get(key);
+    if (previous && !authoredPlanValuesEqual(previous, review)) {
+      throw new SetTemplateOwnershipError('conflict', 'The imported Set has a conflicting Update Review record. Existing decisions were kept; open an independent copy or resolve the source snapshot before merging.');
+    }
+    bySource.set(key, structuredClone(review));
+  });
+  return [...bySource.values()];
 };
 
 export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSlice> = (set, get) => ({
@@ -131,6 +150,11 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
         id: duplicateId,
         name: duplicateName,
         templateIds: [...templateIds].map((templateId) => copiedTemplateIds.get(templateId)!),
+        updateReviews: source.updateReviews?.flatMap((review) => {
+          if (review.outcome !== 'reviewed') return [];
+          const templateId = copiedTemplateIds.get(review.templateId);
+          return templateId ? [{ ...structuredClone(review), templateId }] : [];
+        }),
         ...(organization ? { organization } : {}),
       };
       return {
@@ -207,7 +231,11 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     imported.forEach((incoming) => {
       const existing = merged.get(incoming.id);
       merged.set(incoming.id, existing
-        ? { ...incoming, templateIds: [...new Set([...(existing.templateIds ?? []), ...(incoming.templateIds ?? [])])] }
+        ? {
+          ...incoming,
+          templateIds: [...new Set([...(existing.templateIds ?? []), ...(incoming.templateIds ?? [])])],
+          updateReviews: mergeSetUpdateReviews(existing.updateReviews, incoming.updateReviews),
+        }
         : incoming);
     });
     const cardSets = Array.from(merged.values());
@@ -238,7 +266,10 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       const workingId = acquired.templateIds.get(normalizedId)!;
       const stillUsed = state.storedCards.some((card) => (card.setId ?? state.cardSets[0]?.id) === setId
         && (card.templateId === normalizedId || card.backingTemplateId === normalizedId));
-      const cardSets = state.cardSets.map((candidate) => candidate.id === setId
+      const inheritedSets = inheritCompletedSetUpdateReviews(
+        state.cardSets, getTemplateOwnerSetId(state, normalizedId), normalizedId, setId, workingId,
+      );
+      const cardSets = inheritedSets.map((candidate) => candidate.id === setId
         ? withTemplateReference(!stillUsed && workingId !== normalizedId
           ? { ...candidate, templateIds: candidate.templateIds?.filter((id) => id !== normalizedId) }
           : candidate, workingId)

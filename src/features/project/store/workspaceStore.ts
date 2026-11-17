@@ -3,7 +3,7 @@ import { createStore } from 'zustand/vanilla';
 import type { StateCreator } from 'zustand';
 import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand/middleware';
 
-import { reconcileCardSets, resolveActiveCardSet } from '@/domain/cards';
+import { normalizeSetUpdateReviews, reconcileCardSets, resolveActiveCardSet } from '@/domain/cards';
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { migrateLegacyEditorPreferences } from '../client/editorPreferenceStorage';
 import {
@@ -86,6 +86,17 @@ const createHydratingWorkspaceJsonStorage = () => createJSONStorage<WorkspacePer
   ...inertStorage,
   getItem: createScopedProjectStorage('project-workspace', WORKSPACE_STORAGE_OPTIONS).getItem,
 }));
+
+const validatePersistedSetUpdateReviews = (set: unknown): void => {
+  if (!set || typeof set !== 'object' || Array.isArray(set)) {
+    throw new Error('The saved workspace contains an invalid Set record. Its saved and recovery data were left unchanged.');
+  }
+  try {
+    normalizeSetUpdateReviews((set as { updateReviews?: unknown }).updateReviews);
+  } catch {
+    throw new Error('The saved workspace contains unsupported Set Update Review metadata. Its saved and recovery data were left unchanged.');
+  }
+};
 
 let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
 let hydrationTask: { scope: ProjectPersistenceScope; promise: Promise<void>; signal?: AbortSignal } | null = null;
@@ -240,13 +251,18 @@ export const useProjectStore = create<ProjectState>()(
             || !Array.isArray((persisted as Partial<ProjectState>).storedCards))) {
             throw new Error('The saved workspace is not readable. Its saved and recovery data were left unchanged.');
           }
+          if (persisted !== undefined) {
+            const saved = persisted as Partial<ProjectState>;
+            saved.cardSets?.forEach(validatePersistedSetUpdateReviews);
+            if (saved.activeCardSet !== undefined && saved.activeCardSet !== null) validatePersistedSetUpdateReviews(saved.activeCardSet);
+          }
           const merged = { ...current, ...(persisted as Partial<ProjectState>), cardRemovalRecoveries: [] };
           assertSetTemplateOwnership(merged);
           return merged;
         },
-        version: 7,
+        version: 8,
         migrate: (persistedState, version) => {
-          if (version > 7) throw new Error('This workspace requires a newer CardForge version. Reload before editing; your saved work was left unchanged.');
+          if (version > 8) throw new Error('This workspace requires a newer CardForge version. Reload before editing; your saved work was left unchanged.');
           const {
             activeTab,
             singleCardGeneratorSelectedTemplateId,
@@ -276,13 +292,15 @@ export const useProjectStore = create<ProjectState>()(
             studioView: normalizeStudioView(version < 2 ? activeTab : current.studioView),
           } as WorkspacePersistedState;
           const cardSets = reconcileCardSets({ cardSets: legacy.cardSets ?? [], activeCardSet: legacy.activeCardSet, storedCards: legacy.storedCards ?? [] });
-          const { state: owned, templateIdsBySet } = materializeLegacySetTemplates({
-            ...legacy, cardSets, storedCards: legacy.storedCards ?? [], userTemplates: legacy.userTemplates ?? [],
-          });
+          const { state: owned, templateIdsBySet } = version >= 7
+            ? { state: { ...legacy, cardSets }, templateIdsBySet: new Map<string, Map<string, string>>() }
+            : materializeLegacySetTemplates({
+              ...legacy, cardSets, storedCards: legacy.storedCards ?? [], userTemplates: legacy.userTemplates ?? [],
+            });
           const activeCardSet = resolveActiveCardSet({ cardSets: owned.cardSets, preferredId: legacy.activeCardSet?.id });
           const mapping = activeCardSet ? templateIdsBySet.get(activeCardSet.id) : undefined;
           const remap = (id: string | null) => id ? mapping?.get(id) ?? id : id;
-          if (scope !== 'unscoped-disabled') pendingSetOwnershipMigrations.add(scope);
+          if (version < 7 && scope !== 'unscoped-disabled') pendingSetOwnershipMigrations.add(scope);
           return {
             ...owned, activeCardSet,
             generatorSelectedTemplateId: remap(legacy.generatorSelectedTemplateId),

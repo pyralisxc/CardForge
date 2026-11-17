@@ -118,6 +118,10 @@ export const rekeyConflictingTemplateSnapshots = (
     cardSets: document.cardSets.map((set) => ({
       ...set,
       ...(set.templateIds ? { templateIds: set.templateIds.map((id) => mapTemplateId(id)!) } : {}),
+      ...(set.updateReviews ? { updateReviews: set.updateReviews.map((review) => ({
+        ...structuredClone(review),
+        templateId: mapTemplateId(review.templateId)!,
+      })) } : {}),
     })),
     storedCards: document.storedCards.map((card) => ({
       ...card,
@@ -255,19 +259,28 @@ export const applyProjectDocumentToWorkspace = async (
   const draft = createProjectWorkspaceDraft(options.expectedState);
   const legacyOwner = document.productionPlan && document.cardSets.length === 1 ? document.cardSets[0] : undefined;
   const cardSets = mode === 'adopt' ? document.cardSets.map((set) => {
-    const existingPlan = draft.getState().cardSets.find((current) => current.id === set.id)?.plan;
-    if (!existingPlan) return set;
-    if (legacyOwner?.id === set.id && !authoredPlanValuesEqual(existingPlan.brief, document.productionPlan)) {
+    const existingSet = draft.getState().cardSets.find((current) => current.id === set.id);
+    if (!existingSet) return set;
+    const existingPlan = existingSet.plan;
+    if (existingSet.updateReviews !== undefined
+      && !authoredPlanValuesEqual(existingSet.updateReviews, set.updateReviews ?? [])) {
+      throw new Error('This agent revision has different Set Update Review records. Both were kept; open an independent copy or review the ledger before updating this Set.');
+    }
+    if (existingPlan && legacyOwner?.id === set.id && !authoredPlanValuesEqual(existingPlan.brief, document.productionPlan)) {
       throw new Error('This legacy draft has a different creation brief from the current Set context. Both were kept; open an independent copy or review the brief before updating this Set.');
     }
-    if (set.plan && !authoredPlanValuesEqual(set.plan, existingPlan)) {
+    if (existingPlan && set.plan && !authoredPlanValuesEqual(set.plan, existingPlan)) {
       throw new Error('This agent revision has different Set context. Both were kept; open an independent copy or review the context before updating this Set.');
     }
-    return { ...set, plan: existingPlan };
+    return {
+      ...set,
+      ...(existingPlan ? { plan: existingPlan } : {}),
+      ...(existingSet.updateReviews !== undefined ? { updateReviews: structuredClone(existingSet.updateReviews) } : {}),
+    };
   }) : document.cardSets;
   const compatibleDocument: ProjectDocumentV1 = {
     ...document,
-    version: document.version === 3 ? 3 : cardSets.some((set) => set.plan) ? 2 : document.version,
+    version: document.version >= 3 ? document.version : cardSets.some((set) => set.plan) ? 2 : document.version,
     cardSets,
   };
   const ownedDocument = materializeProjectTemplateOwnership(materializeSetPlanOwnership(compatibleDocument)).document;

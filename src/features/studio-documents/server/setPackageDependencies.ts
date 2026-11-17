@@ -18,7 +18,7 @@ export async function interpretPipelineSetPackage(bytes: Uint8Array) {
   // Portable artifact envelopes are not present in the v1 runtime document.
   // Inspect them before projecting the canonical card payloads for the existing interpreter.
   let rawRuntime: unknown = project;
-  if (source.cardforgeProject === 2 || source.cardforgeProject === 3 || source.cardforgeProject === 4) {
+  if (source.cardforgeProject === 2 || source.cardforgeProject === 3 || source.cardforgeProject === 4 || source.cardforgeProject === 5) {
     // Portable packages own artifacts, not runtime storedCards.
     if (Object.prototype.hasOwnProperty.call(project, 'storedCards')) reasons.add('unsupported_package_project_field');
     if (!Array.isArray(project.artifacts) || project.artifacts.some(artifact => !record(artifact)

@@ -48,6 +48,13 @@ describe('browser IndexedDB storage', () => {
     });
     legacy.close();
     expect(await createBrowserKeyValueStorage('upgrade-test').getItem('work')).toBe('original authored work');
+    const upgraded = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(BROWSER_STORAGE_DATABASE);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    expect(upgraded.version).toBe(4);
+    upgraded.close();
     const legacyOutcome = await new Promise<string>((resolve) => {
       const request = indexedDB.open(BROWSER_STORAGE_DATABASE, 1);
       request.onsuccess = () => { request.result.close(); resolve('opened'); };

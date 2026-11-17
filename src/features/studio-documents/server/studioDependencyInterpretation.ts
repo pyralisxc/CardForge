@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { getImageFieldKeyForElement } from '@/domain/rendering';
+import { normalizeSetUpdateReviews } from '@/domain/cards/setUpdateReview';
 import { normalizeStudioDocumentPayload } from '../model';
 import { projectProductionPlanSchema, templateDraftSchema, templateDraftAppearanceSchema } from '../templateDraftSchema';
 import { getStudioDocumentAssetIdFromReference, getStudioDocumentFontIdFromReference } from '../assetReferences';
@@ -41,8 +42,16 @@ const operationReceipt = z.object({
 }).strict();
 const storedCard = z.object({ templateId: z.string(), backingTemplateId: z.string().nullable().optional(), data: scalarData, backingData: scalarData.optional(),
   uniqueId: z.string(), setId: z.string().optional(), setName: z.string().optional(), tagIds: z.array(z.string()).optional(), updatedAt: z.string().optional() }).strict();
+const updateReviews = z.unknown().optional().superRefine((value, context) => {
+  try {
+    normalizeSetUpdateReviews(value);
+  } catch {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'The Set Update Review ledger is invalid.' });
+  }
+});
 const set = z.object({ id: z.string(), name: z.string(), templateIds: z.array(z.string()).optional(),
   plan: z.object({ version: z.literal(1), context: z.string(), brief: projectProductionPlanSchema.optional() }).passthrough().optional(),
+  updateReviews,
   organization: z.object({ spatialVersion: z.literal(2).optional(), gridSizeMm: z.number().optional(), arrangement: z.string(), groupBy: z.string(),
     groupField: z.string().optional(), groupTagId: z.string().optional(), sort: z.string(), sortField: z.string().optional(),
     tags: z.array(z.object({id:z.string(),label:z.string()}).strict()), positions: z.record(z.string(),z.object({x:z.number(),y:z.number()}).strict()) }).strict().optional(),

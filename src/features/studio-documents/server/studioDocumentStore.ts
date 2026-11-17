@@ -353,7 +353,7 @@ export const updateStudioDocument = async ({
       409,
     );
   }
-  if (current.document.version === 3 && document.version !== 3) {
+  if (current.document.version >= 3 && document.version < current.document.version) {
     throw new StudioDocumentStoreError(
       'This Set-owned document cannot be downgraded. Reload the current document and retry with its current Set and Template ids.',
       409,
