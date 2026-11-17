@@ -357,6 +357,10 @@ const parseManifest = async (value: unknown): Promise<CardForgeProjectManifest> 
   return manifest;
 };
 
+/**
+ * Packages one supplied document snapshot, not an edition-history archive.
+ * Keep history payloads and historical-only assets out of ordinary packages.
+ */
 export const buildCardForgeProjectSnapshot = async ({
   document,
   name,
