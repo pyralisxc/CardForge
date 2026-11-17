@@ -218,6 +218,7 @@ describe('project document serialization', () => {
     expect((parsed.document.userTemplates[0] as TCGCardTemplate & { futureAuthoredData?: unknown }).futureAuthoredData)
       .toEqual({ decision: 'keep', nested: ['authored'] });
     expect(() => materializeProjectTemplateOwnership(parsed.document)).toThrow(/cannot preserve during Set acquisition/i);
+    expect(parseProjectDocumentValue({ ...source, version: 3 })).toMatchObject({ success: false });
     expect(source).toEqual(original);
   });
 

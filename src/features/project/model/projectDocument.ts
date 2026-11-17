@@ -179,7 +179,7 @@ const getUnsupportedProjectDocumentReason = (value: unknown): string => {
   if (isRecord(value)) {
     const state = isRecord(value.state) ? value.state : value;
     const storedCards = asArray<StoredDisplayCard>(state.storedCards);
-    const userTemplates = normalizeTemplates(state.userTemplates);
+    const userTemplates = normalizeTemplates(state.userTemplates, true);
     if (storedCards.length > 0 && userTemplates.length === 0) {
       return storedCardOnlyMessage;
     }
@@ -205,13 +205,13 @@ const retainRawAuthoredFields = (raw: unknown, normalized: unknown): unknown => 
   return normalized === undefined ? raw : normalized;
 };
 
-const normalizeTemplates = (value: unknown): TCGCardTemplate[] => (
+const normalizeTemplates = (value: unknown, preserveLegacyFields: boolean): TCGCardTemplate[] => (
   asArray<Partial<TCGCardTemplate>>(value)
     .filter(isLikelyTemplate)
-    .map((template) => retainRawAuthoredFields(
-      template,
-      reconstructMinimalTemplateObject({ ...template, templateSource: template.templateSource }),
-    ) as TCGCardTemplate)
+    .map((template) => {
+      const normalized = reconstructMinimalTemplateObject(template);
+      return preserveLegacyFields ? retainRawAuthoredFields(template, normalized) as TCGCardTemplate : normalized;
+    })
 );
 
 const normalizeCustomAssets = (value: unknown): ProjectDocumentCustomAssets => {
@@ -292,7 +292,7 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     preferredId: typeof value.activeCardSetId === 'string' ? value.activeCardSetId : storedCards[0]?.setId,
   });
   const customFonts = normalizeProjectFontAssets(value.customFonts);
-  const userTemplates = normalizeTemplates(value.userTemplates);
+  const userTemplates = normalizeTemplates(value.userTemplates, value.version !== 3);
   const appearanceStyles = asArray<AppearanceStylePreset>(value.appearanceStyles);
   const customAssets = normalizeCustomAssets(value.customAssets);
   const rawCustomAssets = isRecord(value.customAssets) ? value.customAssets : {};

@@ -1,8 +1,8 @@
 import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
-import { ensureCardSetTemplateReferences } from '@/domain/cards';
-import { createPersonalTemplateFork, createPersonalTemplateRevision, reconstructMinimalTemplateObject, withIndependentTemplateIdentity, type TCGCardTemplate } from '@/domain/templates';
+import { authoredPlanInputSurvives, ensureCardSetTemplateReferences } from '@/domain/cards';
+import { createPersonalTemplateFork, createPersonalTemplateRevision, getAuthoredTemplatePayload, reconstructMinimalTemplateObject, withIndependentTemplateIdentity, type TCGCardTemplate } from '@/domain/templates';
 
 import { getCardSetTemplateIds, getTemplateOwnerSetId, getTemplateReferenceSetIds, prepareSetTemplateAcquisition, preserveReferencedTemplateIdentities, SetTemplateOwnershipError } from '../model/setTemplateOwnership';
 import { selectAllTemplates } from './selectors';
@@ -216,7 +216,13 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
   installProjectDocumentTemplates: (templates, mode) => {
     let importedCount = 0;
     set((state) => {
-      const incoming = templates.map((template) => reconstructMinimalTemplateObject(template))
+      const incoming = templates.map((template) => {
+        const normalized = reconstructMinimalTemplateObject(template);
+        if (!authoredPlanInputSurvives(getAuthoredTemplatePayload(template), getAuthoredTemplatePayload(normalized))) {
+          throw new SetTemplateOwnershipError('unavailable', 'This document contains Template fields this CardForge version cannot preserve. Its source and the current workspace were left unchanged.');
+        }
+        return normalized;
+      })
         .filter((template) => Boolean(template.id?.trim()));
       importedCount = incoming.length;
       const reconstructed = preserveReferencedTemplateIdentities(state, incoming);
