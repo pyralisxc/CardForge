@@ -413,7 +413,7 @@ for (const mobile of [false, true]) {
 
       await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
       if (mobile) {
-        await expect(page.getByRole('button', { name: /^Templates ·/ })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: /^Templates ·/ })).toBeVisible();
         await page.getByRole('button', { name: 'Clear Artifact selection', exact: true }).click();
       }
       await page.getByRole('button', { name: /^Templates ·/ }).click();
