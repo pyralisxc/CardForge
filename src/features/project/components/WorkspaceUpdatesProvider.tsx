@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { ApiClientError } from '@/infrastructure/http/clientResponses';
-import { beginScopedSource, settleScopedSourceFailure, settleScopedSourceValue } from '@/shared/scopedSource';
+import { settleScopedSourceFailure, settleScopedSourceValue } from '@/shared/scopedSource';
 import { getProjectPersistenceScope } from '../persistence/projectPersistenceScope';
 import type { ProjectPersistenceScope } from '../lib/projectPersistenceIdentity';
 import { useProjectStore } from '../store/workspaceStore';
@@ -30,6 +30,7 @@ export function WorkspaceUpdatesProvider({ scope, loadSources, preferences, rend
   const userTemplates = useProjectStore((state) => state.userTemplates);
   const storedCards = useProjectStore((state) => state.storedCards);
   const [source, setSource] = useState<WorkspaceUpdatesContextValue['source']>(null);
+  const [sourceChecking, setSourceChecking] = useState(false);
   const [lastChecked, setLastChecked] = useState<number | null>(null);
   const [localRevision, setLocalRevision] = useState(0);
   const [receipts, setReceipts] = useState<UpdateNoticeReceipts | null>(null);
@@ -113,15 +114,18 @@ export function WorkspaceUpdatesProvider({ scope, loadSources, preferences, rend
     if (!isCurrent() || sourceRequest.current || Date.now() < retryAfter.current) return;
     const controller = new AbortController();
     sourceRequest.current = controller;
-    setSource((current) => beginScopedSource(current, scope));
+    if (isCurrent()) setSourceChecking(true);
     try {
       await observeSources(controller.signal);
     } catch {
       // The source observation retains the typed failure and last successful check.
     } finally {
-      if (sourceRequest.current === controller) sourceRequest.current = null;
+      if (sourceRequest.current === controller) {
+        sourceRequest.current = null;
+        if (isCurrent()) setSourceChecking(false);
+      }
     }
-  }, [isCurrent, observeSources, scope]);
+  }, [isCurrent, observeSources]);
 
   useEffect(() => {
     mounted.current = true;
@@ -197,7 +201,7 @@ export function WorkspaceUpdatesProvider({ scope, loadSources, preferences, rend
     return openSetTemplateUpdateReview(item.setId, item.template.id!, item.source.id!, signal, readSource);
   }, [isCurrent, observeSources]);
 
-  return <WorkspaceUpdatesContext.Provider value={{ scope, sets, checking, inspectionError, source, lastChecked, checkSources, refreshLocal, receipts, noticeError, noticeBusy,
+  return <WorkspaceUpdatesContext.Provider value={{ scope, sets, checking, sourceChecking, inspectionError, source, lastChecked, checkSources, refreshLocal, receipts, noticeError, noticeBusy,
     retryReceipts: () => { void hydrateReceipts(); }, acknowledge, openSet, closeSet, openReview, preferences }}>
     {children}
     {selectedSetId && cardSets.some((set) => set.id === selectedSetId) ? <SetUpdatesPanel key={selectedSetId} setId={selectedSetId} renderPreview={renderPreview} onClose={closeSet} /> : null}

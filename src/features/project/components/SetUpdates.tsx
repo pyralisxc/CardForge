@@ -20,10 +20,10 @@ export function SetUpdates({ setId }: { setId: string }) {
 }
 
 export function UpdateSourceStatus() {
-  const { source, lastChecked } = useWorkspaceUpdates();
+  const { source, sourceChecking, lastChecked } = useWorkspaceUpdates();
   const failureLabels = { authentication: 'Sign-in required', authorization: 'Source access not permitted', conflict: 'Source conflict', invalid: 'Invalid source response', not_found: 'Source not found', limit: 'Source check delayed', unavailable: 'Source unavailable' };
   return <div className="space-y-1 text-xs text-muted-foreground" role="status">
-    <p>{source?.phase === 'loading' ? 'Checking published Pipeline sources…' : source?.failure ? `${failureLabels[source.failure.kind]} · ${source.failure.message}` : lastChecked ? 'Published Pipeline sources checked.' : 'Published Pipeline sources have not been checked.'}</p>
+    <p>{sourceChecking ? 'Checking published Pipeline sources…' : source?.failure ? `${failureLabels[source.failure.kind]} · ${source.failure.message}` : lastChecked ? 'Published Pipeline sources checked.' : 'Published Pipeline sources have not been checked.'}</p>
     {source?.failure?.nextAction ? <p>{source.failure.nextAction}</p> : null}
     {lastChecked ? <p>Last checked <time dateTime={new Date(lastChecked).toISOString()} title={new Date(lastChecked).toLocaleString()}>{new Date(lastChecked).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time>.</p> : null}
     <p>Related designs loaded on this device are also compared. Unopened connected files are not checked.</p>
@@ -56,7 +56,7 @@ export function SetUpdatesPanel({ setId, renderPreview, onClose }: { setId: stri
         <DialogHeader><DialogTitle>Updates · {set.name}</DialogTitle><DialogDescription>Review related designs and keep your choices with this Set.</DialogDescription></DialogHeader>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
           <div className="flex gap-1" aria-label="Update views"><Button size="sm" variant={tab === 'pending' ? 'secondary' : 'ghost'} aria-pressed={tab === 'pending'} onClick={() => setTab('pending')}>To review{!updates.checking ? ` · ${updates.pending}` : ''}</Button><Button size="sm" variant={tab === 'decisions' ? 'secondary' : 'ghost'} aria-pressed={tab === 'decisions'} onClick={() => setTab('decisions')}>Review decisions</Button></div>
-          <Button size="sm" variant="outline" disabled={workspace.source?.phase === 'loading' || opening} onClick={() => { updates.refresh(); void workspace.checkSources(); }}>Check for updates</Button>
+          <Button size="sm" variant="outline" disabled={workspace.sourceChecking || opening} onClick={() => { updates.refresh(); void workspace.checkSources(); }}>Check for updates</Button>
         </div>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
           {workspace.noticeError ? <p role="alert" className="text-sm text-destructive">{workspace.noticeError}</p> : null}

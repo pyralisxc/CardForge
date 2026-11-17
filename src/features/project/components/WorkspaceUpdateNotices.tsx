@@ -42,7 +42,7 @@ export function WorkspaceUpdateNotices() {
           </div>
         </article>)}
       </div> : <p className="py-4 text-sm text-muted-foreground">No notices to show. Dismissed notices do not clear unfinished Set reviews.</p>}
-      <div className="space-y-3 border-t pt-3"><UpdateSourceStatus /><Button type="button" size="sm" variant="outline" disabled={updates.source?.phase === 'loading'} onClick={() => { updates.refreshLocal(); void updates.checkSources(); }}>Check for updates</Button></div>
+      <div className="space-y-3 border-t pt-3"><UpdateSourceStatus /><Button type="button" size="sm" variant="outline" disabled={updates.sourceChecking} onClick={() => { updates.refreshLocal(); void updates.checkSources(); }}>Check for updates</Button></div>
       <details className="border-t pt-3 text-sm">
         <summary className="cursor-pointer font-medium">Update preferences</summary>
         <fieldset disabled={!preferences.ready} className="mt-3 space-y-3">

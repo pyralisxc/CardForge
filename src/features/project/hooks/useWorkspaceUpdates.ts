@@ -33,6 +33,7 @@ export interface WorkspaceUpdatesContextValue {
   scope: ProjectPersistenceScope;
   sets: SetUpdateProjection[];
   checking: boolean;
+  sourceChecking: boolean;
   inspectionError: string | null;
   source: ScopedSourceSnapshot<ProjectPersistenceScope, TCGCardTemplate[], UpdateSourceFailure> | null;
   lastChecked: number | null;
