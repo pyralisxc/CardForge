@@ -36,6 +36,8 @@ export const toPipelineLibraryViewItem = (item: ReturnType<typeof useLibraryShar
     previewUrl: item.previewUrl, fontFamily: item.fontFamily, pipeline: item,
   });
 
+const NO_UPDATE_SETS: ReadonlySet<string> = new Set();
+
 export function useUnifiedLibraryView({
   activeScope,
   pipelineAccess,
@@ -43,12 +45,14 @@ export function useUnifiedLibraryView({
   shared,
   sharedType,
   revisionPage,
+  updateSetIds = NO_UPDATE_SETS,
 }: {
   activeScope: LibraryScope;
   pipelineAccess: boolean;
   projection: ReturnType<typeof useAccountLibraryProjection>;
   shared: ReturnType<typeof useLibrarySharedProjection>;
   sharedType: string;
+  updateSetIds?: ReadonlySet<string>;
   revisionPage?: { items: ReturnType<typeof useLibrarySharedProjection>['pipelineItems']; total: number; loading: boolean; failure: ReturnType<typeof useLibrarySharedProjection>['pipelineFailure'] };
 }) {
   const revisionItems = revisionPage?.items;
@@ -98,6 +102,7 @@ export function useUnifiedLibraryView({
   [activeScope, contributorPipelineItems, contributorPublishedItems, personalItems, pipelineAccess, publishedItems, revisionItems, pipelineItems]);
   const normalizedQuery = projection.query.trim().toLocaleLowerCase();
   const viewItems = useMemo(() => revisionItems ? pipelineItems : scopeItems.filter((item) => {
+    if (item.scope === 'personal' && projection.updatesOnly && !updateSetIds.has(item.personal.references.localSetId ?? '')) return false;
     if (activeScope !== 'personal' && sharedType !== 'all' && item.kindLabel !== sharedType && item.statusLabel !== sharedType && !semanticFacetLabels(item).includes(sharedType)) return false;
     const tags = item.scope === 'published'
       ? [
@@ -119,12 +124,19 @@ export function useUnifiedLibraryView({
       item.name, item.kindLabel, item.sourceLabel, item.statusLabel, item.summary,
       ...searchTags, ...searchTags.map(formatContentTaxonomyTag), ...semanticFacetLabels(item),
     ].join(' ').toLocaleLowerCase().includes(normalizedQuery);
-  }).toSorted((left, right) => projection.sort === 'name'
+  }).toSorted((left, right) => {
+    if (activeScope === 'personal' && projection.sort === 'updates') {
+      const attention = Number(right.scope === 'personal' && updateSetIds.has(right.personal.references.localSetId ?? ''))
+        - Number(left.scope === 'personal' && updateSetIds.has(left.personal.references.localSetId ?? ''));
+      if (attention) return attention;
+    }
+    return projection.sort === 'name'
     ? left.name.localeCompare(right.name)
     : projection.sort === 'kind'
       ? left.kindLabel.localeCompare(right.kindLabel) || left.name.localeCompare(right.name)
-      : (Date.parse(right.updatedAt ?? '') || 0) - (Date.parse(left.updatedAt ?? '') || 0) || left.name.localeCompare(right.name)),
-  [activeScope, normalizedQuery, projection.sort, scopeItems, sharedType, revisionItems, pipelineItems]);
+      : (Date.parse(right.updatedAt ?? '') || 0) - (Date.parse(left.updatedAt ?? '') || 0) || left.name.localeCompare(right.name);
+  }),
+  [activeScope, normalizedQuery, projection.sort, projection.updatesOnly, scopeItems, sharedType, revisionItems, pipelineItems, updateSetIds]);
   const sharedTypes = useMemo(() => [...new Set(scopeItems.flatMap((item) => [
     item.kindLabel,
     ...(activeScope === 'pipeline' ? [item.statusLabel] : []),

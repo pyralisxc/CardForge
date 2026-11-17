@@ -49,6 +49,26 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     setDirtyCloseTarget(open ? 'tool' : null);
   }, []);
   const previousFocusedWorkIdRef = useRef(focusedWorkId);
+  const toolReturnFocusRef = useRef(new Map<string, { element: HTMLElement; setId: string | null; artifactId: string | null }>());
+  const previousToolsRef = useRef(interactionSession.toolStack);
+  useEffect(() => {
+    const currentIds = new Set(interactionSession.toolStack.map((tool) => tool.instanceId));
+    const closed = previousToolsRef.current.filter((tool) => !currentIds.has(tool.instanceId));
+    previousToolsRef.current = interactionSession.toolStack;
+    const targets = closed.reverse().flatMap((tool) => {
+      const target = toolReturnFocusRef.current.get(tool.instanceId);
+      toolReturnFocusRef.current.delete(tool.instanceId);
+      return target && target.setId === interactionSession.focusPath.setId && target.artifactId === interactionSession.focusPath.artifactId ? [target.element] : [];
+    });
+    if (!targets.length) return;
+    const frame = requestAnimationFrame(() => {
+      for (const original of targets) {
+        const element = original.id ? document.getElementById(original.id) : original;
+        if (element?.isConnected && !element.closest('[inert]')) { element.focus({ preventScroll: true }); break; }
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [interactionSession.toolStack, interactionSession.focusPath.setId, interactionSession.focusPath.artifactId]);
   const initializedRef = useRef(false);
   // The router can replace entry metadata during commit, before restoration effects run.
   const [entrySnapshot] = useState(() => typeof window === 'undefined'
@@ -279,10 +299,17 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
       replaceSnapshot(current);
       pushSnapshot(focused);
     }
+    const tool = createCreatorTool(setId, toolId, targetIds);
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const triggerId = active?.closest('[role="menu"]')?.getAttribute('aria-labelledby');
+    const returnFocus = (triggerId ? document.getElementById(triggerId) : null) ?? active;
+    if (returnFocus && returnFocus !== document.body && !focused.session.toolStack.some((entry) => entry.instanceId === tool.instanceId)) {
+      toolReturnFocusRef.current.set(tool.instanceId, { element: returnFocus, setId: focused.session.focusPath.setId, artifactId: focused.session.focusPath.artifactId });
+    }
     const next = {
       ...focused,
       inspectorWorkId: null,
-      session: openCreatorTool(focused.session, createCreatorTool(setId, toolId, targetIds)),
+      session: openCreatorTool(focused.session, tool),
     };
     pushSnapshot(next);
     applySnapshot(next);

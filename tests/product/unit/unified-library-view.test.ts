@@ -24,6 +24,27 @@ const localSet: AccountLibraryItem = {
 };
 
 describe('unified Library view', () => {
+  it.each([false, true])('projects known Update attention by Set identity without changing work: filtered=%s', (updatesOnly) => {
+    const items = [
+      { ...localSet, name: 'Same name', updatedAt: '2026-10-02T00:00:00Z' },
+      { ...localSet, id: 'set:set-2', name: 'Same name', references: { localSetId: 'set-2' }, updatedAt: '2026-10-01T00:00:00Z' },
+    ];
+    const before = structuredClone(items);
+    const capture: { current?: ReturnType<typeof useUnifiedLibraryView> } = {};
+    function Harness() {
+      capture.current = useUnifiedLibraryView({
+        activeScope: 'personal', pipelineAccess: false, sharedType: 'all', updateSetIds: new Set(['set-2']),
+        projection: { items, visibleItems: items, query: '', sort: 'updates', updatesOnly, failures: [], isLoading: false } as never,
+        shared: { publishedItems: [], pipelineItems: [] } as never,
+      });
+      return null;
+    }
+    renderToStaticMarkup(createElement(Harness));
+    expect(capture.current?.viewItems.map((item) => item.id)).toEqual(updatesOnly ? ['set:set-2'] : ['set:set-2', 'set:set-1']);
+    expect(capture.current?.itemMap.size).toBe(2);
+    expect(items).toEqual(before);
+  });
+
   it('does not invent revision 1 for legacy rows and keeps their immutable ids distinguishable', () => {
     expect(getPipelineRevisionLabel({ id: 'legacy-first-identity', revisionNumber: null })).toBe('Unnumbered submission · legacy-f');
     expect(getPipelineRevisionLabel({ id: 'legacy-second-identity', revisionNumber: null })).toBe('Unnumbered submission · legacy-s');

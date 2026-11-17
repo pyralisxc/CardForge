@@ -48,7 +48,7 @@ export function useLibraryReturnContext({
   const createCompatibilityReturnTo = () => {
     const returnContext = storeSurfaceReturnContext({
       kind: 'library', scope: activeScope, objectId: selection.objectId, query: projection.query,
-      source: projection.source, itemKind: projection.kind, sort: projection.sort, density, sharedType,
+      source: projection.source, itemKind: projection.kind, sort: projection.sort, updatesOnly: projection.updatesOnly, density, sharedType,
       librarySources: projection.sourceFilters, libraryKinds: projection.kindFilters,
       libraryTypes: projection.typeFilters, libraryTags: projection.tagFilters, libraryTagMatch: projection.tagMatch,
       scrollTop: surfaceRef.current?.scrollTop ?? 0,
@@ -76,6 +76,7 @@ export function useLibraryReturnContext({
     projection.setTagFilters(context.libraryTags ?? []);
     projection.setTagMatch(context.libraryTagMatch ?? 'any');
     projection.setSort(context.sort);
+    projection.setUpdatesOnly(context.updatesOnly ?? false);
     if (context.objectId && itemMap.has(context.objectId)) {
       setSelection((current) => openEnvironmentDetail({ ...current, listOffset: context.scrollTop }, {
         objectId: context.objectId,

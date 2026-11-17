@@ -88,6 +88,7 @@ export function useDeskController({
 }: DeskControllerOptions) {
   const { toast } = useToast();
   const workspaceUpdates = useWorkspaceUpdates();
+  const updateSetIds = useMemo(() => new Set(workspaceUpdates.sets.filter((set) => set.pending > 0).map((set) => set.set.id)), [workspaceUpdates.sets]);
   const isSignedIn = experience.signedIn;
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
   const discoveredWork = useDeskWorkDiscovery({ persistenceScope, experience });
@@ -245,7 +246,10 @@ export function useDeskController({
     tagFilters: deskViewPreferences.preferences.tags,
     tagMatch: deskViewPreferences.preferences.tagMatch,
     viewIds: activeDeskViews,
+    updatesOnly: Boolean(deskViewPreferences.preferences.updatesOnly),
+    updateSetIds,
     focused: Boolean(focusedItem),
+    focusedItemId: focusedItem?.id ?? null,
     snapToGrid,
     selectedIds: selectedDeskIds,
     onSelectionChange: (ids, anchorId) => setInteractionSession((current) => selectCreatorDeskSets(current, ids, anchorId)),
@@ -494,6 +498,7 @@ export function useDeskController({
       types: context.deskTypes ?? current.types,
       tags: context.deskTags ?? current.tags,
       tagMatch: context.deskTagMatch ?? current.tagMatch,
+      updatesOnly: context.updatesOnly ?? current.updatesOnly,
     }));
     const restoredSetId = context.focusedWorkId?.startsWith('set:') ? context.focusedWorkId.slice(4) : null;
     restoreFocusedContext({
@@ -559,6 +564,7 @@ export function useDeskController({
       deskTypes: deskViewPreferences.preferences.types,
       deskTags: deskViewPreferences.preferences.tags,
       deskTagMatch: deskViewPreferences.preferences.tagMatch,
+      updatesOnly: Boolean(deskViewPreferences.preferences.updatesOnly),
       sort: 'desk',
       selectedCardIds: nextSelectedCardIds,
       cardQuery,

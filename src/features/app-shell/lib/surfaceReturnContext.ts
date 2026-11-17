@@ -1,5 +1,6 @@
 export type DeskSurfaceReturnContext = {
   kind: 'desk';
+  updatesOnly?: boolean;
   focusedWorkId: string | null;
   inspectorWorkId: string | null;
   query: string;
@@ -18,6 +19,7 @@ export type DeskSurfaceReturnContext = {
 
 export type LibrarySurfaceReturnContext = {
   kind: 'library';
+  updatesOnly?: boolean;
   scope: 'personal' | 'published' | 'pipeline' | 'campaigns';
   objectId: string | null;
   query: string;
@@ -28,7 +30,7 @@ export type LibrarySurfaceReturnContext = {
   libraryTypes?: string[];
   libraryTags?: string[];
   libraryTagMatch?: 'any' | 'all';
-  sort: 'recent' | 'name' | 'kind';
+  sort: 'recent' | 'name' | 'kind' | 'updates';
   density: 'gallery' | 'list' | 'expanded';
   sharedType: string;
   scrollTop: number;
@@ -64,6 +66,7 @@ const normalizeContext = (value: unknown): SurfaceReturnContext | null => {
   const record = value as Record<string, unknown>;
   const scrollTop = scrollValue(record.scrollTop);
   if (scrollTop === null) return null;
+  const attention = typeof record.updatesOnly === 'boolean' ? { updatesOnly: record.updatesOnly } : {};
 
   if (record.kind === 'desk') {
     const focusedWorkId = nullableTextValue(record.focusedWorkId);
@@ -86,7 +89,7 @@ const normalizeContext = (value: unknown): SurfaceReturnContext | null => {
     const deskTypes = Array.isArray(record.deskTypes) ? record.deskTypes.map(textValue).filter((value): value is string => value !== null).slice(0, 40) : undefined;
     const deskTags = Array.isArray(record.deskTags) ? record.deskTags.map(textValue).filter((value): value is string => value !== null).slice(0, 40) : undefined;
     const deskTagMatch = oneOf(record.deskTagMatch, ['any', 'all'] as const) ?? undefined;
-    return { kind: 'desk', focusedWorkId, inspectorWorkId, query, sourceFilter, sort, selectedCardIds, cardQuery, tagFilter, scrollTop, ...(deskViews ? { deskViews } : {}), ...(deskSources ? { deskSources } : {}), ...(deskTypes ? { deskTypes } : {}), ...(deskTags ? { deskTags } : {}), ...(deskTagMatch ? { deskTagMatch } : {}) };
+    return { kind: 'desk', focusedWorkId, inspectorWorkId, query, sourceFilter, sort, selectedCardIds, cardQuery, tagFilter, scrollTop, ...attention, ...(deskViews ? { deskViews } : {}), ...(deskSources ? { deskSources } : {}), ...(deskTypes ? { deskTypes } : {}), ...(deskTags ? { deskTags } : {}), ...(deskTagMatch ? { deskTagMatch } : {}) };
   }
 
   if (record.kind === 'library') {
@@ -95,7 +98,7 @@ const normalizeContext = (value: unknown): SurfaceReturnContext | null => {
     const query = textValue(record.query);
     const source = oneOf(record.source, ['all', 'device', 'google-drive', 'local-folder', 'assistant-draft', 'campaign', 'pipeline'] as const);
     const itemKind = oneOf(record.itemKind, ['all', 'set', 'template', 'asset', 'working-draft', 'campaign', 'published-resource'] as const);
-    const sort = oneOf(record.sort, ['recent', 'name', 'kind'] as const);
+    const sort = oneOf(record.sort, ['recent', 'name', 'kind', 'updates'] as const);
     const density = oneOf(record.density, ['gallery', 'list', 'expanded'] as const);
     const sharedType = textValue(record.sharedType);
     if (!scope || objectId === undefined || query === null || !source || !itemKind || !sort || !density || sharedType === null) return null;
@@ -108,7 +111,7 @@ const normalizeContext = (value: unknown): SurfaceReturnContext | null => {
     const libraryTypes = Array.isArray(record.libraryTypes) ? record.libraryTypes.map(textValue).filter((value): value is string => value !== null).slice(0, 40) : undefined;
     const libraryTags = Array.isArray(record.libraryTags) ? record.libraryTags.map(textValue).filter((value): value is string => value !== null).slice(0, 40) : undefined;
     const libraryTagMatch = oneOf(record.libraryTagMatch, ['any', 'all'] as const) ?? undefined;
-    return { kind: 'library', scope, objectId, query, source, itemKind, sort, density, sharedType, scrollTop, ...(librarySources ? { librarySources } : {}), ...(libraryKinds ? { libraryKinds } : {}), ...(libraryTypes ? { libraryTypes } : {}), ...(libraryTags ? { libraryTags } : {}), ...(libraryTagMatch ? { libraryTagMatch } : {}) };
+    return { kind: 'library', scope, objectId, query, source, itemKind, sort, density, sharedType, scrollTop, ...attention, ...(librarySources ? { librarySources } : {}), ...(libraryKinds ? { libraryKinds } : {}), ...(libraryTypes ? { libraryTypes } : {}), ...(libraryTags ? { libraryTags } : {}), ...(libraryTagMatch ? { libraryTagMatch } : {}) };
   }
 
   return null;

@@ -232,6 +232,16 @@ describe('Desk model', () => {
     })).toMatchObject({ views: ['my-work', 'my-published'], types: ['Postcards'], tags: ['launch', 'print'], sources: ['device', 'google-drive'], tagMatch: 'all', saved: [{ name: 'Launch work' }] });
   });
 
+  it('keeps Update attention opt-in in current and saved Desk views', () => {
+    expect(normalizeDeskViewPreferences(null).updatesOnly).toBeUndefined();
+    const preferences = normalizeDeskViewPreferences({ updatesOnly: true, saved: [
+      { id: 'updates', name: 'Needs review', views: ['my-work'], updatesOnly: true },
+      { id: 'all', name: 'All work', views: ['my-work'] },
+    ] });
+    expect(preferences.updatesOnly).toBe(true);
+    expect(preferences.saved.map((view) => view.updatesOnly)).toEqual([true, undefined]);
+  });
+
   it('migrates legacy pixels into versioned signed world geometry without clipping authored positions', () => {
     const geometry = normalizeDeskWorldGeometry({
       'set:one': { x: 120, y: 160 },

@@ -129,6 +129,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
   const { toast } = useToast();
   const workspaceUpdates = useWorkspaceUpdates();
+  const updateSetIds = useMemo(() => new Set(workspaceUpdates.sets.filter((set) => set.pending > 0).map((set) => set.set.id)), [workspaceUpdates.sets]);
   const [campaignDirty, setCampaignDirty] = useState(false);
   const [campaignCloseBlocked, setCampaignCloseBlocked] = useState<string | null>(null);
   const campaignExitReason = campaignCloseBlocked ?? (campaignDirty ? 'Save or cancel campaign edits before starting a Set.' : undefined);
@@ -273,6 +274,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     shared,
     sharedType,
     revisionPage: revisionsEnabled ? revisionQueue : undefined,
+    updateSetIds,
   });
   const revisionNavigationKey = JSON.stringify([revisionQueue.page, revisionQueue.status, revisionQueue.assetType, revisionQueue.trash, projection.query]);
   const priorRevisionNavigation = useRef(revisionNavigationKey);
@@ -553,11 +555,13 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     zones={zones} activeZone="library" viewportPolicy="desk" primaryScroll="contained" detail={activeTool ? null : currentRecord}
     presentation={presentation}
     detailVisual={currentItem ? <LibraryDetailVisual key={currentItem.id} item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} /> : undefined}
-    detailContent={selectedLocalSet ? <div className="flex flex-wrap gap-1 border-b pb-3" aria-label="Set tools">
-      <SetTemplates key={`templates-${selectedLocalSet.id}`} set={selectedLocalSet} cards={displayCards.filter((card) => (card.setId ?? cardSets[0]?.id) === selectedLocalSet.id)} templates={templates} onDesign={(id) => { openTemplateDesign(id); setDesignReturnFocusId(selection.focusReturnId ?? null); openTool('design', [id]); }} renderPreview={renderTemplatePreview} getTemplateAccent={getTemplateAccent} />
+    detailContent={selectedLocalSet ? <div className="min-w-0"><div className="flex flex-wrap gap-1 border-b pb-3" aria-label="Set tools">
       <SetDirection key={`direction-${selectedLocalSet.id}`} set={selectedLocalSet} useLifecycle={useEnvironmentToolLifecycle} />
       <SetUpdates key={`updates-${selectedLocalSet.id}`} setId={selectedLocalSet.id} />
-    </div> : currentItem?.scope === 'pipeline' ? <PipelineDetailContent
+    </div><SetTemplates key={`templates-${selectedLocalSet.id}`} presentation="contents" set={selectedLocalSet} cards={displayCards.filter((card) => (card.setId ?? cardSets[0]?.id) === selectedLocalSet.id)} templates={templates} onDesign={(id) => {
+      const returnFocusId = document.activeElement instanceof HTMLElement ? document.activeElement.id : null;
+      openTemplateDesign(id); setDesignReturnFocusId(returnFocusId || selection.focusReturnId || null); openTool('design', [id]);
+    }} renderPreview={renderTemplatePreview} getTemplateAccent={getTemplateAccent} /></div> : currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
       isOwner={experience.owner}
       currentContributorIds={shared.program?.currentContributorIds ?? []}

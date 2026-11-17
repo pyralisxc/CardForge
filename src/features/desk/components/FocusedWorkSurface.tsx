@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from 'react';
+import { useMemo, useRef, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from 'react';
 import { ArrowDown, ArrowUp, Boxes, Copy, Layers3, LayoutGrid, MoreHorizontal, Pencil, Search, Sparkles, Tag, Trash2, TriangleAlert, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ import type { ArtifactSelectionScope } from '../model/focusedArtifactLayout';
 import { getCardTitle, workSourceLabel } from '../model/desk';
 import type { ReflectiveFieldFacet, ReflectiveOrganization } from '../model/reflectiveOrganization';
 import { FocusedSetArtifactSurface } from './FocusedSetArtifactSurface';
-import { SetDirection, SetTemplates, SetUpdates } from '@/features/project/client/ui';
+import { SetDirection, SetTemplates, SetUpdates, getSetTemplateEntries } from '@/features/project/client/ui';
 import styles from './Desk.module.css';
 
 const renderTemplatePreview = (card: DisplayCard, face: 'front' | 'back', targetWidthPx: number, highlightedElementId?: string) => (
@@ -97,6 +97,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
   const recoveryFocusRef = useRef<HTMLElement>(null);
   const currentSet = props.currentSet;
   const templates = props.templates;
+  const templateEntries = useMemo(() => currentSet ? getSetTemplateEntries(currentSet, props.focusedCards, templates) : [], [currentSet, props.focusedCards, templates]);
   const artifactFocused = Boolean(props.session.focusPath.artifactId);
   const groupFields = props.availableFields.filter((field) => field.groupable && !field.semanticGrouping);
   const sortFields = props.availableFields.filter((field) => field.sortable);
@@ -163,7 +164,18 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
 
           {props.latestGeneratedIds.length ? <div className={styles.resultFilter} role="status"><Sparkles size={15} aria-hidden="true" /><span>Showing {props.visibleCards.length} newly generated card{props.visibleCards.length === 1 ? '' : 's'}</span><Button type="button" size="sm" variant="ghost" onClick={props.onClearGenerated}>Clear all</Button></div> : null}
         </> : null}
-        {props.sortedCards.length ? <FocusedSetArtifactSurface canExportClean={props.canExportClean} canUseProjectFiles={props.canUseProjectFiles} setId={props.localSetId} setName={props.item.name} allCards={props.focusedCards} groups={props.groups} organization={props.organization} session={props.session} setSession={props.setSession} snapToGrid={props.snapToGrid} touchMultiSelect={props.touchMultiSelect} showGrid={props.showGrid} stageRef={props.stageRef} onFocusArtifact={props.onFocusArtifact} onReturnToSet={props.onReturnToSet} onEditArtifact={props.onEditSelected} editingArtifactId={props.editingArtifactId} onCancelArtifactEdit={props.onCancelArtifactEdit} onArtifactEditDirtyChange={props.onArtifactEditDirtyChange} onSaveArtifact={props.onSaveArtifact} onDesignArtifact={props.onDesignArtifact} onMoveArtifacts={props.onMoveArtifacts} /> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{props.focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{props.focusedCards.length ? 'Clear the active filters to bring the cards back.' : 'Create a design from scratch or generate cards into this Set.'}</p>{!props.focusedCards.length ? <div className={styles.emptySetCompactActions}><Button type="button" onClick={props.onOpenDesign}>Create design</Button><Button type="button" variant="outline" onClick={props.onOpenGenerate}>Generate cards</Button></div> : null}</div></div>}
+        {!props.sortedCards.length && templateEntries.length > 0 ? <div className={styles.resultFilter} role="status"><span>{props.focusedCards.length ? 'No cards match this view. Your Templates remain available.' : 'Your designs are ready for the first card.'}</span>{!props.focusedCards.length ? <Button type="button" size="sm" variant="outline" onClick={props.onOpenGenerate}>Generate cards</Button> : null}</div> : null}
+        {props.sortedCards.length || templateEntries.length ? <FocusedSetArtifactSurface
+          canExportClean={props.canExportClean} canUseProjectFiles={props.canUseProjectFiles}
+          setId={props.localSetId} setName={props.item.name} allCards={props.focusedCards}
+          templateEntries={templateEntries} onDesignTemplate={props.onDesignTemplate}
+          groups={props.groups} organization={props.organization} session={props.session} setSession={props.setSession}
+          snapToGrid={props.snapToGrid} touchMultiSelect={props.touchMultiSelect} showGrid={props.showGrid}
+          stageRef={props.stageRef} onFocusArtifact={props.onFocusArtifact} onReturnToSet={props.onReturnToSet}
+          onEditArtifact={props.onEditSelected} editingArtifactId={props.editingArtifactId}
+          onCancelArtifactEdit={props.onCancelArtifactEdit} onArtifactEditDirtyChange={props.onArtifactEditDirtyChange}
+          onSaveArtifact={props.onSaveArtifact} onDesignArtifact={props.onDesignArtifact} onMoveArtifacts={props.onMoveArtifacts}
+        /> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{props.focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{props.focusedCards.length ? 'Clear the active filters to bring the cards back.' : 'Create a design from scratch or generate cards into this Set.'}</p>{!props.focusedCards.length ? <div className={styles.emptySetCompactActions}><Button type="button" onClick={props.onOpenDesign}>Create design</Button><Button type="button" variant="outline" onClick={props.onOpenGenerate}>Generate cards</Button></div> : null}</div></div>}
       </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}>{props.remoteIcon}<h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{props.item.name}</h2><p className={styles.emptyCopy}>{props.item.references.campaignId ? 'Open this campaign’s native workspace in the same Desk scene.' : props.item.references.pipelineLineageId ? 'Inspect this immutable publication in the same Desk scene. Its working copies remain separate.' : `This work stays owned by ${workSourceLabel(props.item)}.`}</p><Button type="button" onClick={props.onOpenWork}>Open work</Button></div></div>}
     </section>
   </div>;

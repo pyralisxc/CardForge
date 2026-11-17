@@ -14,7 +14,8 @@ import {
   setCreatorCamera,
   type CreatorInteractionSession,
 } from '@/features/app-shell/client/environment';
-import { ArtifactSlot, ArtifactThumbnail, CardWatermarkOverlay, getTemplateAccent, useArtifactFaces } from '@/features/card-rendering/client';
+import { ArtifactSlot, ArtifactThumbnail, CardPreview, CardWatermarkOverlay, getTemplateAccent, useArtifactFaces } from '@/features/card-rendering/client';
+import { SetTemplateObject, type SetTemplateEntry } from '@/features/project/client/ui';
 import {
   buildFocusedArtifactLayout,
   DEFAULT_SET_GRID_SIZE_MM,
@@ -36,6 +37,8 @@ interface FocusedSetArtifactSurfaceProps {
   setId: string;
   setName: string;
   allCards: DisplayCard[];
+  templateEntries: SetTemplateEntry[];
+  onDesignTemplate: (templateId: string) => void;
   canExportClean: boolean;
   canUseProjectFiles: boolean;
   groups: Array<[string, DisplayCard[]]>;
@@ -58,6 +61,8 @@ interface FocusedSetArtifactSurfaceProps {
 }
 
 type ClientPoint = { clientX: number; clientY: number };
+
+const renderTemplatePreview = (card: DisplayCard, face: CardFace, targetWidthPx: number) => <CardPreview card={card} face={face} targetWidthPx={targetWidthPx} />;
 
 const ArtifactTileVisual = memo(function ArtifactTileVisual({ card, face, setId, width, height, fullPreview, showImage, canExportClean, title, groupLabel, showGroupLabel, ordinal }: {
   card: DisplayCard;
@@ -125,6 +130,8 @@ export function FocusedSetArtifactSurface({
   setId,
   setName,
   allCards,
+  templateEntries,
+  onDesignTemplate,
   canExportClean,
   canUseProjectFiles,
   groups,
@@ -188,21 +195,42 @@ export function FocusedSetArtifactSurface({
     minimumWidth: 160,
     minimumHeight: 120,
   }), [layoutGroups, organization.arrangement]);
+  const templateLayout = useMemo(() => {
+    const sized = templateEntries.map((entry) => {
+      const physical = getCardPhysicalSizeMm({ ...entry.sample, template: entry.template });
+      const width = (physical.widthMm + 18) * Math.SQRT2;
+      const previewWidth = width - 16;
+      const preview = getCardPreviewLayout({ targetWidthPx: previewWidth, aspectRatio: entry.template.aspectRatio, canvas: getCardFaceCanvas(entry.sample, entry.face), isPrintMode: false });
+      return { entry, width, height: preview.visualHeightPx + 68, previewWidth };
+    });
+    const columns = Math.min(3, Math.ceil(Math.sqrt(sized.length)));
+    const columnWidth = Math.max(0, ...sized.map((item) => item.width)) + 14;
+    const rowHeight = Math.max(0, ...sized.map((item) => item.height)) + 14;
+    return sized.map((item, index) => ({ ...item, x: layout.bounds.x - columns * columnWidth - 24 + index % columns * columnWidth, y: layout.bounds.y + Math.floor(index / columns) * rowHeight }));
+  }, [templateEntries, layout.bounds.x, layout.bounds.y]);
+  const sceneLayout = useMemo(() => {
+    if (!templateLayout.length) return layout;
+    const rects = [...templateLayout, ...(layout.entries.length ? [layout.bounds] : [])];
+    const x = Math.min(...rects.map((rect) => rect.x));
+    const y = Math.min(...rects.map((rect) => rect.y));
+    return { ...layout, bounds: { x, y, width: Math.max(...rects.map((rect) => rect.x + rect.width)) - x, height: Math.max(...rects.map((rect) => rect.y + rect.height)) - y } };
+  }, [layout, templateLayout]);
   const entryById = useMemo(() => new Map(layout.entries.map((entry) => [entry.identity.artifactId, entry])), [layout.entries]);
   const workFrame = useMemo(() => getFocusedArtifactFrame({
-    layout,
+    layout: sceneLayout,
     entries: layout.entries,
+    additionalBounds: templateLayout,
     viewportWidth: viewportSize.width,
     viewportHeight: viewportSize.height,
     includeGroupLabels: organization.arrangement !== 'manual' && organization.groupBy !== 'none',
-  }), [layout, organization.arrangement, organization.groupBy, viewportSize.height, viewportSize.width]);
+  }), [layout, sceneLayout, templateLayout, organization.arrangement, organization.groupBy, viewportSize.height, viewportSize.width]);
   const wholeFrame = useMemo(() => getFocusedArtifactFrame({
-    layout,
+    layout: sceneLayout,
     entries: [],
     viewportWidth: viewportSize.width,
     viewportHeight: viewportSize.height,
     padding: 24,
-  }), [layout, viewportSize.height, viewportSize.width]);
+  }), [sceneLayout, viewportSize.height, viewportSize.width]);
   const visibleSelectionEntries = useMemo(() => (
     layout.entries.filter((entry) => session.selection.includes(entry.identity.artifactId))
   ), [layout.entries, session.selection]);
@@ -240,6 +268,12 @@ export function FocusedSetArtifactSurface({
   const cameraApiRef = useRef<ReturnType<typeof useSetSpatialCamera> | null>(null);
   const resolvePointerTarget = (point: ClientPoint, event: ReactPointerEvent<HTMLDivElement>) => {
     lastArtifactPointerTypeRef.current = event.pointerType;
+    if (event.pointerType === 'mouse') return null;
+    const templateTarget = (event.target as HTMLElement).closest<HTMLElement>('button[data-set-template]');
+    if (templateTarget) return { target: templateTarget, allowHold: false, onTap: () => {
+      templateTarget.focus({ preventScroll: true });
+      onDesignTemplate(templateTarget.dataset.setTemplate!);
+    } };
     if (event.pointerType !== 'touch') return null;
     const stage = viewportRef.current;
     if (!stage) return null;
@@ -308,7 +342,7 @@ export function FocusedSetArtifactSurface({
     viewportRef,
     viewport: viewportSize,
     camera: session.camera,
-    wholeBounds: layout.bounds,
+    wholeBounds: sceneLayout.bounds,
     wholeFrame,
     workFrame,
     selectionFrame,
@@ -749,6 +783,16 @@ export function FocusedSetArtifactSurface({
       >
         <div className={styles.artifactWorldSizer} style={{ width: viewportSize.width, height: viewportSize.height }}>
           <div data-artifact-world className={styles.artifactWorld} style={{ left: 0, top: 0, width: 1, height: 1, transform: `translate(${camera.offsetX}px, ${camera.offsetY}px) scale(${camera.camera.zoom})` }}>
+            {templateLayout.map(({ entry, x, y, width, height, previewWidth }) => {
+              const visible = x + width >= camera.camera.x - viewportSize.width / camera.camera.zoom / 2
+                && x <= camera.camera.x + viewportSize.width / camera.camera.zoom / 2
+                && y + height >= camera.camera.y - viewportSize.height / camera.camera.zoom / 2
+                && y <= camera.camera.y + viewportSize.height / camera.camera.zoom / 2;
+              return <SetTemplateObject key={entry.template.id} id={`set-template-field-${setId}-${entry.template.id}`} entry={entry}
+                className={styles.setTemplateObject} style={{ left: x, top: y, width, height }} tabIndex={visible ? 0 : -1}
+                onDesign={onDesignTemplate} accent={getTemplateAccent(entry.template.id!)} previewWidth={previewWidth}
+                showPreview={visible} renderPreview={renderTemplatePreview} />;
+            })}
             {marquee ? <span className={styles.deskMarquee} style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }} aria-hidden="true" /> : null}
             {organization.arrangement !== 'manual' && organization.groupBy !== 'none' ? layout.groups.map((group) => (
               <div key={group.label} data-artifact-group-label className={styles.artifactGroupLabel} style={{ left: group.x, top: group.y, width: group.width, height: group.height }}><strong title={group.label}>{group.label}</strong><span>{group.count}</span></div>
