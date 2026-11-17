@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { reconstructMinimalTemplateObject, validateNativeTemplateStructure, type TCGCardTemplate } from '@/domain/templates';
 import { normalizeSetUpdateReviews } from '@/domain/cards/setUpdateReview';
-import { createTemplateUpdateComparison, getTemplateUpdateReviewChoices, resolveTemplateUpdateReview } from '@/features/project/model/templateUpdateReview';
+import { createTemplateUpdateComparison, getTemplateUpdateReviewChoices, isTemplateUpdateReviewComplete, previewTemplateUpdateReview, resolveTemplateUpdateReview } from '@/features/project/model/templateUpdateReview';
 import type { SetTemplateState } from '@/features/project/model/setTemplateOwnership';
 
 const template = (id: string, keys: string[]) => reconstructMinimalTemplateObject({ id, name: 'Design', aspectRatio: '63:88', templateSource: 'user', templateLineageId: 'source', templateRevisionId: id,
@@ -27,6 +27,9 @@ describe('Set-owned selective Template Update review', () => {
     const x = comparison.changes.find((change) => change.path.at(-1) === 'x')!;
     expect(x.group).toBe('Element · name');
     const partial = resolveTemplateUpdateReview(state, comparison, source, { [x.key]: 'use' }, fingerprint);
+    expect(previewTemplateUpdateReview(comparison, { [x.key]: 'use' }).template).toEqual(partial.template);
+    expect(previewTemplateUpdateReview(comparison, {}).template).toEqual(current);
+    expect(() => previewTemplateUpdateReview(comparison, { unknown: 'use' })).toThrow(/unknown decision/i);
     expect(partial.template.freeformCanvas!.elements[0].x).toBe(20);
     expect(partial.template.name).toBe(current.name);
     expect(partial.review.outcome).toBe('deferred');
@@ -36,6 +39,9 @@ describe('Set-owned selective Template Update review', () => {
     expect(kept.review.outcome).toBe('reviewed');
     expect(kept.changesTemplate).toBe(false);
     expect(kept.template).toEqual(current);
+    expect(isTemplateUpdateReviewComplete(comparison, kept.review, fingerprint)).toBe(true);
+    expect(isTemplateUpdateReviewComplete(comparison, partial.review, fingerprint)).toBe(false);
+    expect(isTemplateUpdateReviewComplete(comparison, kept.review, 'b'.repeat(64))).toBe(false);
     expect(normalizeSetUpdateReviews([kept.review])).toEqual([kept.review]);
     expect(() => normalizeSetUpdateReviews([{ ...partial.review, outcome: 'reviewed' }])).toThrow(/deferred/i);
     expect(() => normalizeSetUpdateReviews([{ ...kept.review, oldSnapshot: current }])).toThrow(/unsupported/i);
@@ -64,8 +70,10 @@ describe('Set-owned selective Template Update review', () => {
     ]));
     state.userTemplates[0] = completed.template;
     state.cardSets[0].updateReviews = [completed.review];
+    expect(isTemplateUpdateReviewComplete(createTemplateUpdateComparison(state, 'set', 'current', source), completed.review, fingerprint)).toBe(true);
     state.userTemplates[0].freeformCanvas!.elements[0].x = 55;
     const edited = createTemplateUpdateComparison(state, 'set', 'current', source);
+    expect(isTemplateUpdateReviewComplete(edited, completed.review, fingerprint)).toBe(false);
     expect(getTemplateUpdateReviewChoices(edited, completed.review, fingerprint)).toEqual({ [key('name')]: 'keep', [key('x')]: 'defer' });
     expect(Object.values(getTemplateUpdateReviewChoices(edited, completed.review, 'b'.repeat(64)))).toEqual(['defer', 'defer']);
     expect(Object.values(getTemplateUpdateReviewChoices(edited, { ...completed.review, sourceRevisionId: 'different' }, fingerprint))).toEqual(['defer', 'defer']);
@@ -98,6 +106,7 @@ describe('Set-owned selective Template Update review', () => {
       [parentChange('group-b').key]: 'use' as const,
     };
     expect(() => resolveTemplateUpdateReview(state, comparison, source, keepAUseB, fingerprint)).toThrow(/valid design/i);
+    expect(() => previewTemplateUpdateReview(comparison, keepAUseB)).toThrow(/valid design/i);
     expect(state).toEqual(before);
 
     const useAll = Object.fromEntries(comparison.changes.map((change) => [change.key, 'use' as const]));

@@ -35,6 +35,11 @@ export const getTemplateUpdateReviewChoices = (
   return Object.fromEntries(comparison.changes.map(({ key }) => [key, decisions.get(key) === 'keep' ? 'keep' : 'defer']));
 };
 
+export const isTemplateUpdateReviewComplete = (
+  comparison: TemplateUpdateComparison, review: SetUpdateReview | undefined, fingerprint: string,
+): boolean => Boolean(review?.outcome === 'reviewed' && matchesReview(comparison, review, fingerprint)
+  && Object.values(getTemplateUpdateReviewChoices(comparison, review, fingerprint)).every((choice) => choice === 'keep'));
+
 const identityFields = new Set([
   'id', 'templateSource', 'templateLibrarySource', 'templateAccessTier', 'templateRegistryStatus',
   'templateLineageId', 'templateRevision', 'templateRevisionId', 'templateParentRevisionId',
@@ -134,6 +139,22 @@ const apply = (target: unknown, path: Segment[], value: unknown): void => {
   }
 };
 
+export const previewTemplateUpdateReview = (
+  comparison: TemplateUpdateComparison,
+  choices: Readonly<Record<string, SetUpdateDecision>>,
+): { template: TCGCardTemplate; changesTemplate: boolean } => {
+  const allowed = new Set(comparison.changes.map((change) => change.key));
+  if (Object.keys(choices).some((key) => !allowed.has(key)) || Object.values(choices).some((choice) => !['keep', 'use', 'defer'].includes(choice))) fail('The review contains an unknown decision.');
+  const proposed = structuredClone(comparison.current);
+  for (const change of comparison.changes) if (choices[change.key] === 'use') apply(proposed, change.path, change.after);
+  const template = canonical(proposed);
+  if (validateNativeTemplateStructure(template)) fail('Those choices do not form a valid design. Keep or defer the affected changes and review again.');
+  const fields = new Set(extractTemplateFieldDefinitions(template).map((field) => field.key));
+  const removed = extractTemplateFieldDefinitions(comparison.current).filter((field) => !fields.has(field.key));
+  if (removed.length && JSON.parse(comparison.bindings).length) fail('Those choices remove fields used by this Set. Keep or defer the affected changes so authored Artifact data stays intact.');
+  return { template, changesTemplate: !authoredPlanValuesEqual(templateUpdateContent(template), templateUpdateContent(comparison.current)) };
+};
+
 export const resolveTemplateUpdateReview = (
   state: SetTemplateState,
   comparison: TemplateUpdateComparison,
@@ -152,15 +173,8 @@ export const resolveTemplateUpdateReview = (
     ...(previous?.decisions.filter(({ key, decision }) => !allowed.has(key) && decision !== 'defer') ?? []),
     ...fresh.changes.map((change) => ({ key: change.key, decision: choices[change.key] ?? 'defer' as SetUpdateDecision })),
   ];
-  const proposed = structuredClone(fresh.current);
-  for (const change of fresh.changes) if (choices[change.key] === 'use') apply(proposed, change.path, change.after);
-  const template = canonical(proposed);
-  const validation = validateNativeTemplateStructure(template);
-  if (validation) fail('Those choices do not form a valid design. Defer the affected changes and review again.');
-  const fields = new Set(extractTemplateFieldDefinitions(template).map((field) => field.key));
-  const removed = extractTemplateFieldDefinitions(fresh.current).filter((field) => !fields.has(field.key));
-  if (removed.length && JSON.parse(fresh.bindings).length) fail('Those choices remove fields used by this Set. Keep or defer the affected changes so authored Artifact data stays intact.');
-  return { template, changesTemplate: !authoredPlanValuesEqual(templateUpdateContent(template), templateUpdateContent(fresh.current)), review: {
+  const { template, changesTemplate } = previewTemplateUpdateReview(fresh, choices);
+  return { template, changesTemplate, review: {
     version: 1, templateId: template.id!, sourceLineageId: source.templateLineageId!, sourceRevisionId: source.templateRevisionId!, sourceFingerprint,
     outcome: decisions.some((decision) => decision.decision === 'defer') ? 'deferred' : 'reviewed', decisions,
   } };

@@ -1760,6 +1760,13 @@
     padding-left: 6rem;
   }
 
+  .contentToolbar {
+    height: auto;
+    min-height: 3.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
   .focusSurface[data-artifact-focused="true"] {
     display: grid;
     height: 100%;

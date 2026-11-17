@@ -17,7 +17,7 @@ import { createCardFaceExportRenderer, getExportProfile } from '@/features/card-
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import {
-  ENVIRONMENT_ZONES, EnvironmentBoundaryNotice, EnvironmentSearch, EnvironmentShell, EnvironmentStatus, EnvironmentToolLayer,
+  ENVIRONMENT_ZONES, EnvironmentBoundaryNotice, EnvironmentSearch, EnvironmentShell, EnvironmentStatus, EnvironmentToolLayer, useEnvironmentToolLifecycle,
   closeEnvironmentDetail, closeEnvironmentToolSession, createSelectionSession, deriveEnvironmentPresentation, getVisibleEnvironmentZones,
   openEnvironmentDetail, openEnvironmentToolSession, setEnvironmentToolSessionDirty,
   type EnvironmentToolSession, type EnvironmentViewer, type SelectionSession,
@@ -31,7 +31,9 @@ import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import { NewSetDialog, usePublishedSetStarters } from '@/features/project/client/new-set';
 import { useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
+import { SetDirection, SetTemplates, SetUpdates } from '@/features/project/client/ui';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
+import { CardPreview, getTemplateAccent } from '@/features/card-rendering/client';
 
 import { useAccountLibraryProjection } from '../hooks/useAccountLibraryProjection';
 import { useAccountLibraryActions } from '../hooks/useAccountLibraryActions';
@@ -61,6 +63,10 @@ import styles from './UnifiedAccountLibrary.module.css';
 import { createPipelineReviewTarget, type PipelineReviewTarget } from '@/features/pipeline/client';
 import { libraryReviewSelection } from '../lib/libraryReviewSelection';
 const LibraryRevisionEntry = dynamic(() => import('./LibraryRevisionEntry').then(module => module.LibraryRevisionEntry));
+
+const renderTemplatePreview = (card: DisplayCard, face: 'front' | 'back', targetWidthPx: number, highlightedElementId?: string) => (
+  <CardPreview card={card} face={face} targetWidthPx={targetWidthPx} highlightedElementId={highlightedElementId} />
+);
 
 const renderPipelineTemplateSpecimen = async (
   card: DisplayCard,
@@ -281,6 +287,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       : []),
   ), [shared.pipelineItems]);
   const currentRecord = currentItem ? detailRecord(currentItem) : null;
+  const selectedLocalSet = currentItem?.scope === 'personal'
+    ? cardSets.find((set) => set.id === currentItem.personal.references.localSetId) : undefined;
   const cardsBySetId = useMemo(() => {
     const bySet = new Map<string, DisplayCard[]>();
     displayCards.forEach((card) => {
@@ -543,7 +551,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     zones={zones} activeZone="library" viewportPolicy="desk" primaryScroll="contained" detail={activeTool ? null : currentRecord}
     presentation={presentation}
     detailVisual={currentItem ? <LibraryDetailVisual key={currentItem.id} item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} /> : undefined}
-    detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
+    detailContent={selectedLocalSet ? <div className="flex flex-wrap gap-1 border-b pb-3" aria-label="Set tools">
+      <SetTemplates key={`templates-${selectedLocalSet.id}`} set={selectedLocalSet} cards={displayCards.filter((card) => (card.setId ?? cardSets[0]?.id) === selectedLocalSet.id)} templates={templates} onDesign={(id) => { openTemplateDesign(id); setDesignReturnFocusId(selection.focusReturnId ?? null); openTool('design', [id]); }} renderPreview={renderTemplatePreview} getTemplateAccent={getTemplateAccent} />
+      <SetDirection key={`direction-${selectedLocalSet.id}`} set={selectedLocalSet} useLifecycle={useEnvironmentToolLifecycle} />
+      <SetUpdates key={`updates-${selectedLocalSet.id}`} setId={selectedLocalSet.id} renderPreview={renderTemplatePreview} />
+    </div> : currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
       isOwner={experience.owner}
       currentContributorIds={shared.program?.currentContributorIds ?? []}
