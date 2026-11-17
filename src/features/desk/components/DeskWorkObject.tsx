@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Copy, Info, MoreHorizontal, Pencil, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { useArtifactFaces, useCaptureArtifactStackOrigins } from '@/features/card-rendering/client';
 import type { ActionDescriptor } from '@/features/app-shell/client/environment';
 import type { CardFace } from '@/domain/cards';
@@ -49,7 +50,6 @@ const menuItemClassName = 'min-h-11 md:min-h-9';
 const tileActionClassName = 'min-h-11 min-w-11 md:min-h-9 md:min-w-9';
 
 export function DeskWorkObject(props: DeskWorkObjectProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [faces, setFace] = useArtifactFaces();
   const captureStackOrigins = useCaptureArtifactStackOrigins();
   const face = faces[props.artifactIds[0]] ?? 'front';
@@ -80,7 +80,21 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     window.setTimeout(action, 0);
   };
 
-  return <article
+  const renderMenuItems = (Item: typeof DropdownMenuItem, Separator: typeof DropdownMenuSeparator) => <>
+    {props.item.references.localSetId
+      ? <Item className={menuItemClassName} onSelect={selectMenuAction(openSet)}><Pencil aria-hidden="true" />Open Set</Item>
+      : <Item className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'open'))}><Pencil aria-hidden="true" />Open in Studio</Item>}
+    {props.item.references.localSetId ? <Item className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'generate'))}><WandSparkles aria-hidden="true" />Generate cards</Item> : null}
+    <Item className={menuItemClassName} disabled={!props.canUseProjectFiles} onSelect={selectMenuAction(() => props.onOpenLocation(props.item))}><Save aria-hidden="true" />Save & move{props.canUseProjectFiles ? '' : `${DESK_METADATA_SEPARATOR}Creator Pass`}</Item>
+    {props.canSubmit && props.item.references.localSetId ? <Item className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenPipeline(props.item.references.localSetId!))}><UploadCloud aria-hidden="true" />Send to Pipeline</Item> : null}
+    {props.item.references.localSetId ? <Item className={menuItemClassName} onSelect={selectMenuAction(() => props.onDuplicate(props.item))}><Copy aria-hidden="true" />Duplicate</Item> : null}
+    {props.item.references.localSetId ? <Item className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'export'))}><Printer aria-hidden="true" />Output</Item> : null}
+    <Item className={menuItemClassName} onSelect={selectMenuAction(() => props.onInspect(props.item))}><Info aria-hidden="true" />Details</Item>
+    {props.onRunWorkAction ? getWorkActions(props.item, true, props.canSubmit, props.canUseProjectFiles, props.isOwner).filter(action=>['library.view-source','library.manage-location','library.delete-copy','desk.review-manage','desk.review-updates'].includes(action.id)).map(action=><Item key={action.id} className={menuItemClassName} disabled={action.availability.kind !== 'available'} title={action.availability.kind === 'disabled' ? action.availability.reason : undefined} onSelect={selectMenuAction(()=>{ document.getElementById(`set-info-${props.item.id}`)?.focus({preventScroll:true}); props.onRunWorkAction?.(props.item,action); })}>{action.label}</Item>) : null}
+    {props.item.references.localSetId ? <><Separator /><Item className={`${menuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(() => props.onDelete(props.item))}><Trash2 aria-hidden="true" />Delete device copy</Item></> : null}
+  </>;
+
+  return <ContextMenu><article
     className={styles.workTile}
     style={positionStyle}
     data-positioned={Boolean(props.position) && !props.focused}
@@ -92,13 +106,12 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     data-active={props.active}
     data-selected={props.selected}
     aria-hidden={props.obscured || undefined}
-    onContextMenu={(event) => {
-      if (props.focused) return;
-      event.preventDefault();
-      if (lastPointerTypeRef.current === 'touch' || props.shouldSuppressActivation(props.item.id)) return;
-      setMenuOpen(true);
-    }}
   >
+    <ContextMenuTrigger asChild disabled={props.focused}
+      onPointerDown={(event) => { if (event.pointerType !== 'mouse') event.preventDefault(); }}
+      onContextMenu={(event) => {
+        if (lastPointerTypeRef.current !== 'mouse' || props.shouldSuppressActivation(props.item.id)) event.preventDefault();
+      }}>
     <button
       id={`set-${props.item.id}`}
       type="button"
@@ -112,6 +125,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       onDragStart={(event) => event.preventDefault()}
       onPointerDown={(event) => {
         lastPointerTypeRef.current = event.pointerType;
+        if (event.button !== 0) return;
         event.currentTarget.style.cursor = 'grabbing';
         const modified = event.metaKey || event.ctrlKey || event.shiftKey;
         const additiveModeSelection = props.arrangeMode && !props.selected && !modified;
@@ -145,26 +159,19 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         {presentationMeta.organization ? <span className={styles.workOrganization} title={presentationMeta.organization}>{presentationMeta.organization}</span> : null}
       </span>
     </button>
+    </ContextMenuTrigger>
     {props.focused ? props.focusedSurface : <>
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => props.artifactIds.forEach((id) => setFace(id, face === 'front' ? 'back' : 'front'))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}
       <div className={styles.tileActions}>
-        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenu>
           <DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={`${styles.iconButton} ${tileActionClassName}`} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {props.item.references.localSetId
-              ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(openSet)}><Pencil aria-hidden="true" />Open Set</DropdownMenuItem>
-              : <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'open'))}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>}
-            {props.item.references.localSetId ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'generate'))}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
-            <DropdownMenuItem className={menuItemClassName} disabled={!props.canUseProjectFiles} onSelect={selectMenuAction(() => props.onOpenLocation(props.item))}><Save aria-hidden="true" />Save & move{props.canUseProjectFiles ? '' : `${DESK_METADATA_SEPARATOR}Creator Pass`}</DropdownMenuItem>
-            {props.canSubmit && props.item.references.localSetId ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenPipeline(props.item.references.localSetId!))}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
-            {props.item.references.localSetId ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onDuplicate(props.item))}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
-            {props.item.references.localSetId ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'export'))}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
-            <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onInspect(props.item))}><Info aria-hidden="true" />Details</DropdownMenuItem>
-            {props.onRunWorkAction ? getWorkActions(props.item, true, props.canSubmit, props.canUseProjectFiles, props.isOwner).filter(action=>['library.view-source','library.manage-location','library.delete-copy','desk.review-manage','desk.review-updates'].includes(action.id)).map(action=><DropdownMenuItem key={action.id} className={menuItemClassName} disabled={action.availability.kind !== 'available'} title={action.availability.kind === 'disabled' ? action.availability.reason : undefined} onSelect={selectMenuAction(()=>{ document.getElementById(`set-info-${props.item.id}`)?.focus({preventScroll:true}); props.onRunWorkAction?.(props.item,action); })}>{action.label}</DropdownMenuItem>) : null}
-            {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className={`${menuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(() => props.onDelete(props.item))}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+            {renderMenuItems(DropdownMenuItem, DropdownMenuSeparator)}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </>}
-  </article>;
+  </article>{!props.focused ? <ContextMenuContent aria-label={`Actions for ${props.item.name}`}>
+    {renderMenuItems(ContextMenuItem, ContextMenuSeparator)}
+  </ContextMenuContent> : null}</ContextMenu>;
 }

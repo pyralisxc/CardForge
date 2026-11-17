@@ -20,12 +20,20 @@ for (const mobile of [false, true]) {
     test('@golden @preview returns Updates focus to the originating Desk and Library controls', async ({ page }) => {
       test.setTimeout(120_000);
       await seedGuestScaleWorkspace(page, 100, { cardLimit: 1 });
+      if (!mobile) await page.setViewportSize({ width: 1024, height: 500 });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
       const actions = page.getByRole('button', { name: 'Actions for 100 Card Scale Set', exact: true });
       const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
       if (mobile) await actions.click();
-      else await set.click({ button: 'right' });
+      else {
+        await set.hover();
+        await page.mouse.down({ button: 'right' });
+        await expect(page.getByRole('menu')).toBeVisible();
+        await page.mouse.up({ button: 'right' });
+        await expect(page.getByRole('menu')).toBeVisible();
+        await expect(page.locator('[data-set-object][data-presentation="focused"]')).toHaveCount(0);
+      }
       await page.getByRole('menuitem', { name: 'Review updates', exact: true }).click();
       const updates = page.getByRole('dialog', { name: 'Updates · 100 Card Scale Set', exact: true });
       await expect(updates).toBeVisible();
