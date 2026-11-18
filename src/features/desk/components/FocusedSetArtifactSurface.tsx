@@ -221,6 +221,42 @@ export function FocusedSetArtifactSurface({
       }),
     }));
   }, [templateEntries, layout.bounds.x, layout.bounds.y, organization.templatePositions]);
+  const templateMembership = JSON.stringify([...new Set(templateLayout
+    .map(({ entry }) => entry.template.id)
+    .filter((id): id is string => Boolean(id)))].sort());
+  const templateIds = useMemo(() => JSON.parse(templateMembership) as string[], [templateMembership]);
+  useEffect(() => {
+    const validTemplateIds = new Set(templateIds);
+    const pruneTemplateHistory = (stack: SpatialHistoryEntry[]) => {
+      let changed = false;
+      const next: SpatialHistoryEntry[] = [];
+      for (const entry of stack) {
+        if (entry.kind !== 'template') {
+          next.push(entry);
+          continue;
+        }
+        const beforeEntries = Object.entries(entry.before).filter(([id]) => validTemplateIds.has(id));
+        const afterEntries = Object.entries(entry.after).filter(([id]) => validTemplateIds.has(id));
+        if (beforeEntries.length === Object.keys(entry.before).length
+          && afterEntries.length === Object.keys(entry.after).length) {
+          next.push(entry);
+          continue;
+        }
+        changed = true;
+        if (beforeEntries.length && afterEntries.length) {
+          next.push({ ...entry, before: Object.fromEntries(beforeEntries), after: Object.fromEntries(afterEntries) });
+        }
+      }
+      return changed ? next : stack;
+    };
+    const undoStack = pruneTemplateHistory(undoStackRef.current);
+    const redoStack = pruneTemplateHistory(redoStackRef.current);
+    if (undoStack !== undoStackRef.current || redoStack !== redoStackRef.current) {
+      undoStackRef.current = undoStack;
+      redoStackRef.current = redoStack;
+      setHistoryRevision((current) => current + 1);
+    }
+  }, [templateIds]);
   const sceneLayout = useMemo(() => {
     if (!templateLayout.length) return layout;
     const rects = [...templateLayout, ...(layout.entries.length ? [layout.bounds] : [])];

@@ -64,6 +64,7 @@ const workspaceStateFor = (
     ...Array.from({ length: additionalSets }, (_, index) => ({
       id: `touch-companion-${index + 1}`,
       name: `Touch Companion Set ${index + 1}`,
+      templateIds: [],
       organization: { arrangement: 'manual' as const, groupBy: 'none' as const, sort: 'manual' as const, tags: [], positions: {} },
     })),
   ];
@@ -141,6 +142,8 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
   publicTemplate?: boolean;
   templatePatch?: Partial<TCGCardTemplate>;
   unreadableFolderIndex?: boolean;
+  omitSetOrganization?: boolean;
+  preparedTemplatePair?: boolean;
 } = {}) => {
   const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
   if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
@@ -178,6 +181,28 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     state.storedCards = state.storedCards.map((card) => ({ ...card, backingData: { ...card.data, cardName: `Back · ${card.data.cardName}` } }));
   }
   if (options.templatePatch) state.userTemplates = state.userTemplates.map((template) => ({ ...template, ...options.templatePatch }));
+  if (options.preparedTemplatePair) {
+    const baseTemplate = state.userTemplates[0];
+    const set = state.cardSets[0];
+    if (!baseTemplate || !set) throw new Error('The prepared Template fixture requires a Set and source Template.');
+    const templateA = { ...baseTemplate, id: 'prepared-template-a', name: 'Prepared Template A' };
+    const templateB = { ...baseTemplate, id: 'prepared-template-b', name: 'Prepared Template B' };
+    state.userTemplates.push(templateA, templateB);
+    set.templateIds = [templateA.id!, templateB.id!];
+    set.organization = {
+      ...set.organization,
+      arrangement: 'manual',
+      groupBy: 'none',
+      sort: 'manual',
+      tags: [],
+      positions: {},
+      templatePositions: {
+        [templateA.id!]: { x: -180, y: -80 },
+        [templateB.id!]: { x: 120, y: -80 },
+      },
+    };
+  }
+  if (options.omitSetOrganization && state.cardSets[0]) delete state.cardSets[0].organization;
   if (options.publicTemplate) {
     const template = { ...state.userTemplates[0]!, templateSource: 'default' };
     state.userTemplates = [];

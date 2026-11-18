@@ -19,7 +19,7 @@ for (const mobile of [false, true]) {
 
     test('@golden @preview moves Templates independently and remembers their placement', async ({ page, context }) => {
       test.setTimeout(120_000);
-      await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
+      await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, omitSetOrganization: true });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
       const stage = page.locator('[data-set-spatial-stage]');
@@ -32,8 +32,19 @@ for (const mobile of [false, true]) {
         x: (node.parentElement as HTMLElement).style.left,
         y: (node.parentElement as HTMLElement).style.top,
       })));
+      const arrangement = async () => {
+        await page.locator('[data-set-organization-trigger]').click();
+        const value = await page.getByRole('combobox', { name: 'Arrange cards' }).innerText();
+        await page.locator('[data-set-organization-trigger]').click();
+        return value;
+      };
+      const assertArtifactOrganizationUnchanged = async () => {
+        expect(await artifactPositions()).toEqual(artifacts);
+        expect(await arrangement()).toBe('Arrange: Freeform');
+      };
       const before = await position();
       const artifacts = await artifactPositions();
+      expect(await arrangement()).toBe('Arrange: Freeform');
       const cdp = mobile ? await context.newCDPSession(page) : null;
       const startMove = async () => {
         const rect = (await template.boundingBox())!;
@@ -53,11 +64,12 @@ for (const mobile of [false, true]) {
       else await page.mouse.up();
       const moved = await position();
       expect(moved).not.toEqual(before);
-      expect(await artifactPositions()).toEqual(artifacts);
+      await assertArtifactOrganizationUnchanged();
       await expect(stage.locator('[data-artifact-id][aria-pressed="true"]')).toHaveCount(0);
       await expect(page.getByRole('region', { name: 'Design', exact: true })).toHaveCount(0);
       await page.getByRole('button', { name: 'Undo spatial move', exact: true }).click();
       expect(await position()).toEqual(before);
+      await assertArtifactOrganizationUnchanged();
       await page.getByRole('button', { name: 'Redo spatial move', exact: true }).click();
       expect(await position()).toEqual(moved);
 
@@ -79,12 +91,67 @@ for (const mobile of [false, true]) {
       await page.reload({ waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
       expect(await position()).toEqual(moved);
-      expect(await artifactPositions()).toEqual(artifacts);
+      await assertArtifactOrganizationUnchanged();
       await template.focus();
       await template.press('ArrowRight');
       expect(await position()).not.toEqual(moved);
       if (cdp) await cdp.detach();
     });
+
+    if (!mobile) {
+      test('@golden @preview prunes deleted Template placement from spatial history', async ({ page }) => {
+        test.setTimeout(120_000);
+        await seedGuestScaleWorkspace(page, 100, { cardLimit: 0, preparedTemplatePair: true });
+        await page.goto('/account', { waitUntil: 'domcontentloaded' });
+        await openScaleSet(page, 100);
+        const stage = page.locator('[data-set-spatial-stage]');
+        const templateA = stage.getByRole('button', { name: 'Design Template Prepared Template A, prepared for this Set', exact: true });
+        const templateB = stage.getByRole('button', { name: 'Design Template Prepared Template B, prepared for this Set', exact: true });
+        await expect(templateA).toBeVisible();
+        await expect(templateB).toBeVisible();
+        const position = (template: typeof templateA) => template.evaluate(node => ({ x: node.style.left, y: node.style.top }));
+        const dragTemplate = async (template: typeof templateA) => {
+          const rect = (await template.boundingBox())!;
+          const start = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+          await page.mouse.move(start.x, start.y);
+          await page.mouse.down();
+          await page.mouse.move(start.x + 54, start.y + 18, { steps: 4 });
+          await page.mouse.up();
+        };
+        const beforeA = await position(templateA);
+        const beforeB = await position(templateB);
+        await dragTemplate(templateA);
+        const movedA = await position(templateA);
+        expect(movedA).not.toEqual(beforeA);
+        await dragTemplate(templateB);
+        const movedB = await position(templateB);
+        expect(movedB).not.toEqual(beforeB);
+
+        await templateA.click();
+        await expect(page.getByRole('region', { name: 'Design', exact: true })).toBeVisible();
+        await page.getByRole('button', { name: 'Delete selected template' }).click();
+        const deleteDialog = page.getByRole('alertdialog');
+        await expect(deleteDialog.getByRole('heading', { name: 'Delete this Template?' })).toBeVisible();
+        await deleteDialog.getByRole('button', { name: 'Delete Template', exact: true }).click();
+        await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true }).click();
+
+        await expect(templateA).toHaveCount(0);
+        await expect(templateB).toBeVisible();
+        await page.getByRole('button', { name: 'Undo spatial move', exact: true }).click();
+        expect(await position(templateB)).toEqual(beforeB);
+        await expect(templateA).toHaveCount(0);
+        await page.getByRole('button', { name: 'Redo spatial move', exact: true }).click();
+        expect(await position(templateB)).toEqual(movedB);
+        await expect(templateA).toHaveCount(0);
+
+        await page.getByRole('button', { name: 'Back to Desk', exact: true }).click();
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await openScaleSet(page, 100);
+        await expect(templateA).toHaveCount(0);
+        await expect(templateB).toBeVisible();
+        expect(await position(templateB)).toEqual(movedB);
+      });
+    }
 
     test('@golden @preview holds empty space to select Artifacts without moving work', async ({ page, context }) => {
       test.setTimeout(120_000);
