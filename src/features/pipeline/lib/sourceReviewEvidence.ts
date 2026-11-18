@@ -17,7 +17,7 @@ export const sourceReviewEvidenceSchema = z.object({
   recordedBy: z.string().min(1), recordedAt: z.string().min(1),
 }).strict();
 export const sourceReviewSnapshotSchema = z.object({
-  submissionId: z.string().uuid(), candidateVersion: z.string().regex(/^[a-f0-9]{32}$/u),
+  submissionId: z.guid(), candidateVersion: z.string().regex(/^[a-f0-9]{32}$/u),
   evidence: sourceReviewEvidenceSchema.nullable(), canRecord: z.boolean(),
 });
 export type SourceReviewSnapshot = z.infer<typeof sourceReviewSnapshotSchema>;

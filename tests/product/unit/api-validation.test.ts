@@ -163,6 +163,21 @@ describe('apiValidation', () => {
     expect(issueMessages.some((message) => message.includes('ignoredField'))).toBe(true);
   });
 
+  it('rejects oversized collections before accumulating per-item validation errors', () => {
+    const result = cardAssetMetadataOverrideSchema.safeParse({
+      repositoryPathAliases: Array.from({ length: 32 }, () => 0),
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error('Expected oversized aliases to fail');
+    expect(result.error.issues).toHaveLength(1);
+    expect(result.error.issues[0]).toMatchObject({
+      code: 'too_big',
+      path: ['repositoryPathAliases'],
+      maximum: 8,
+    });
+  });
+
   it('keeps the premium CardForge asset sidecars valid and discoverable', async () => {
     const expectedSidecars = [
       'data/pipeline-bootstrap/metadata/textures/arcane-forge/forged-parchment.json',

@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     const selected = (parsedBody.data as Record<string,unknown>).managedRasterSelection;
     const selection = selected === undefined ? undefined : z.object({
       registryAssetId: z.string().min(1).max(200),
-      publishedSubmissionId: z.string().uuid(),
+      publishedSubmissionId: z.guid(),
       elementId: z.string().min(1).max(200),
     }).strict().safeParse(selected);
     if (selection && !selection.success) {

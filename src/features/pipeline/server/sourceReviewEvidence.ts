@@ -13,7 +13,7 @@ function failure(message?: string): never {
 }
 const client = () => getSupabaseServerClient() ?? fail('Pipeline is unavailable. Your observations are unchanged.');
 export async function readSourceReviewEvidence(submissionId: string) {
-  if (!z.string().uuid().safeParse(submissionId).success) fail('Choose an exact correction revision.', 400);
+  if (!z.guid().safeParse(submissionId).success) fail('Choose an exact correction revision.', 400);
   const { data, error } = await client().rpc('cardforge_read_source_review_evidence', { p_submission_id: submissionId });
   if (error) failure(error.message);
   const parsed = sourceReviewSnapshotSchema.safeParse(data);
@@ -24,7 +24,7 @@ export async function recordSourceReviewEvidence(submissionId: string, input: un
     facts: sourceReviewFactsSchema, expectedCandidateVersion: z.string().regex(/^[a-f0-9]{32}$/u),
     expectedEvidenceVersion: z.number().int().nonnegative().max(2_147_483_647),
   }).strict().safeParse(input);
-  if (!parsed.success || !z.string().uuid().safeParse(submissionId).success) fail('Provide the exact saved evidence snapshot.', 400);
+  if (!parsed.success || !z.guid().safeParse(submissionId).success) fail('Provide the exact saved evidence snapshot.', 400);
   const { data, error } = await client().rpc('cardforge_record_source_review_evidence', {
     p_submission_id: submissionId, p_facts: parsed.data.facts,
     p_expected_candidate_version: parsed.data.expectedCandidateVersion,

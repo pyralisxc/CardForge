@@ -27,7 +27,7 @@ function nativeError(error: { message?: string; code?: string }) {
 
 export async function readCatalogTrash(actorUserId: string, submissionId: string) {
   const db = await ownerDatabase(actorUserId);
-  if (!z.string().uuid().safeParse(submissionId).success) {
+  if (!z.guid().safeParse(submissionId).success) {
     throw new PipelineRegistryCommandError('Choose an exact Pipeline submission.', 400, 'catalog_trash_invalid');
   }
   const {data, error} = await db.rpc('cardforge_read_catalog_trash', {p_submission_id:submissionId});

@@ -13,7 +13,7 @@ import {
 } from '../lib/pipelineMediaPresentation';
 
 const baseSchema = z.object({
-  assetId: z.string(), name: z.string(), parentSubmissionId: z.string().uuid(), lineageId: z.string().uuid(),
+  assetId: z.string(), name: z.string(), parentSubmissionId: z.guid(), lineageId: z.guid(),
   baseRevisionNumber: z.number().int().nonnegative(), baseVersion: z.string(), registryVersion: z.string(),
   intendedAccessTier: mediaPresentationSchema.shape.intendedAccessTier,
   baseline: mediaPresentationValuesSchema, sourceBucket: z.string().min(1), sourcePath: z.string().min(1),
@@ -69,7 +69,7 @@ async function receipt(db: Client, assetId: string, submissionKey: string, prese
     .eq('target_registry_asset_id', assetId).eq('submission_key', submissionKey).not('media_presentation', 'is', null).maybeSingle();
   if (error) fail('The revision receipt is unavailable. Read the exact saved receipt before any further write; no source copy has been removed.');
   if (!data) return null;
-  const row = z.object({ id: z.string().uuid(), target_registry_asset_id: z.string(), submission_key: z.string().uuid(), revision_number: z.number().int().nonnegative(), status: z.string().refine(isContributorAssetStatus), editorial_review_status: z.string().refine(isPipelineEditorialReviewStatus), media_presentation: mediaPresentationSchema, source_storage_bucket: z.string().min(1), source_storage_path: z.string().min(1), trashed_at: z.string().nullable(), purge_state: z.string().nullable() }).safeParse(data);
+  const row = z.object({ id: z.guid(), target_registry_asset_id: z.string(), submission_key: z.guid(), revision_number: z.number().int().nonnegative(), status: z.string().refine(isContributorAssetStatus), editorial_review_status: z.string().refine(isPipelineEditorialReviewStatus), media_presentation: mediaPresentationSchema, source_storage_bucket: z.string().min(1), source_storage_path: z.string().min(1), trashed_at: z.string().nullable(), purge_state: z.string().nullable() }).safeParse(data);
   if (!row.success || row.data.target_registry_asset_id !== assetId || row.data.submission_key !== submissionKey) fail('The exact revision receipt could not be verified. This failed read does not establish absence.');
   if (!same(row.data.media_presentation, presentation) || row.data.trashed_at || row.data.purge_state) {
     fail('This attempt key already belongs to a different or unavailable revision. Reload before continuing.', 409, 'pipeline_media_conflict');
