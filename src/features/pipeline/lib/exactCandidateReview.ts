@@ -4,8 +4,8 @@ import { isRepositoryTemplate } from './registryContentValidation';
 import { templateReviewBaseSchema } from './templateReview';
 
 export const exactCandidateIdentitySchema = z.object({
-  submissionId: z.string().uuid(),
-  lineageId: z.string().uuid(),
+  submissionId: z.guid(),
+  lineageId: z.guid(),
   assetId: z.string().trim().min(1).max(200),
   revisionNumber: z.number().int().positive(),
   baseRevisionNumber: z.number().int().positive(),

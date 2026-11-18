@@ -12,6 +12,12 @@ const trashed = { ...active, trashedAt: '2026-10-26T00:00:00Z', purgeAfter: '202
 const accepts = (value: unknown) => catalogTrashCommandSchema.safeParse(value).success;
 
 describe('catalog Trash command boundary', () => {
+  it('preserves existing hexadecimal UUID identities without imposing new version bits', () => {
+    const submissionId = 'ABCDEF12-3456-7890-1234-567890ABCDEF';
+    const command = { action: 'trash', expected: { ...active, identity: { ...identity, submissionId } } };
+    expect(catalogTrashCommandSchema.parse(command)).toEqual(command);
+    expect(accepts({ ...command, expected: { ...active, identity: { ...identity, submissionId: submissionId.replace('A', 'G') } } })).toBe(false);
+  });
   it('accepts exact native Trash, Restore and Hold/unhold requests', () => {
     expect(accepts({action:'trash',expected:active})).toBe(true);
     expect(accepts({action:'restore',expected:trashed})).toBe(true);

@@ -17,6 +17,8 @@ The hosted lane also checks Profile's loading → verified guest and unavailable
 
 Production-health copy checks parse the returned HTML and inspect the relevant semantic surface: main content for Contributors, and the unique legal article inside main for legal publications. Shell announcements, attributes, serialized framework payloads, and explicitly hidden content do not establish publication truth. Missing or ambiguous content fails the check; entities and inline formatting are decoded before evaluating the same required/retired claims. These checks do not certify computed CSS visibility or replace browser acceptance.
 
+The required CI `verify` job runs `npm audit --omit=dev --audit-level=high` after dependency installation and before the full repository gate. High/critical production dependency findings fail the gate; an unavailable audit service is not a clean result. Dependency upgrades must also preserve API/MCP input contracts and verify affected native rendering. An audit does not replace reachability assessment or hosted provider acceptance.
+
 ## Prefer behavior and public contracts
 
 Tests should normally exercise exported functions, stores, parsers, policies, API contracts, persistence behavior, security behavior, or rendered outcomes. A refactor that preserves the same observable behavior should usually keep the same tests green.

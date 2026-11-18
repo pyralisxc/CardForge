@@ -8,8 +8,8 @@ export const mediaPresentationValuesSchema = z.object({
 
 export const mediaPresentationSchema = z.object({
   schemaVersion: z.literal(1),
-  parentSubmissionId: z.string().uuid(),
-  lineageId: z.string().uuid(),
+  parentSubmissionId: z.guid(),
+  lineageId: z.guid(),
   baseRevisionNumber: z.number().int().nonnegative(),
   baseVersion: z.string().regex(/^[a-f0-9]{32}$/),
   registryVersion: z.string().regex(/^[a-f0-9]{32}$/),
@@ -23,7 +23,7 @@ export type PipelineMediaPresentation = z.infer<typeof mediaPresentationSchema>;
 
 export const mediaRevisionInputSchema = z.object({
   assetId: z.string().trim().min(1).max(200),
-  submissionKey: z.string().uuid(),
+  submissionKey: z.guid(),
   presentation: mediaPresentationSchema,
 }).strict().refine(({ presentation: { baseline, proposed } }) => (
   baseline.tileMode !== proposed.tileMode || baseline.seamless !== proposed.seamless

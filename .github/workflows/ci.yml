@@ -43,6 +43,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: node scripts/run-ci-check.mjs --title "Dependency install" -- npm ci
+      - name: Audit production dependencies
+        run: node scripts/run-ci-check.mjs --title "Production dependency audit" -- npm audit --omit=dev --audit-level=high
       - name: Run full repository gate
         run: node scripts/run-ci-check.mjs --title "Full repository gate" -- npm run verify:full
 

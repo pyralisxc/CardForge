@@ -36,7 +36,7 @@ function receipt(data: unknown, submissionId: string) {
 }
 
 export async function readRevisionRecovery(actorUserId: string, submissionId: string) {
-  if (!z.string().uuid().safeParse(submissionId).success) {
+  if (!z.guid().safeParse(submissionId).success) {
     throw new PipelineRegistryCommandError('Choose an exact revision UUID.', 400, 'revision_recovery_invalid');
   }
   const actor = await actorDatabase(actorUserId);

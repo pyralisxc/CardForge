@@ -11,7 +11,7 @@ export async function GET(request?: Request) {
     if (query?.has('registryAssetId')) {
       const access = await getCurrentContributorAccess();
       requireContributionScope(access, 'library.submit');
-      const selection = z.object({ registryAssetId: z.string().min(1).max(200), publishedSubmissionId: z.string().uuid(), elementId: z.string().min(1).max(200) }).strict().safeParse(Object.fromEntries(query));
+      const selection = z.object({ registryAssetId: z.string().min(1).max(200), publishedSubmissionId: z.guid(), elementId: z.string().min(1).max(200) }).strict().safeParse(Object.fromEntries(query));
       if (!selection.success) return createApiErrorResponse(400, 'invalid_template_payload', 'Choose one exact published raster and image slot.');
       await verifySelectedPublishedManagedRaster(selection.data);
       // A read-only observation, not authority or a persistent receipt. Never return Storage/digest evidence.

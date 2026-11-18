@@ -4,10 +4,10 @@ import { dependencyImpactSchema } from './dependencyImpactContract';
 const timestamp = z.string().datetime({ offset: true });
 export const revisionRecoveryStateSchema = z.object({
   scope: z.literal('revision'),
-  submissionId: z.string().uuid(),
-  lineageId: z.string().uuid(),
+  submissionId: z.guid(),
+  lineageId: z.guid(),
   revisionNumber: z.number().int().nonnegative().nullable(),
-  registrySubmissionId: z.string().uuid().nullable(),
+  registrySubmissionId: z.guid().nullable(),
   revisionHighWater: z.number().int().nonnegative(),
   recoveryVersion: z.string().regex(/^(0|[1-9][0-9]*)$/u).max(19),
   status: z.enum(['draft', 'submitted', 'voting', 'publish_candidate', 'published', 'archived', 'rejected']),
