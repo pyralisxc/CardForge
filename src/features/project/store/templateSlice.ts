@@ -264,7 +264,14 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
     const userTemplates = targetSource === 'user' ? state.userTemplates.filter((template) => template.id !== templateId) : state.userTemplates;
     const allTemplates = selectAllTemplates({ defaultTemplates, userTemplates });
     const storedCards = state.storedCards.filter((card) => card.templateId !== templateId).map((card) => card.backingTemplateId === templateId ? { ...card, backingTemplateId: null, backingData: undefined } : card);
-    const cardSets = state.cardSets.map((cardSet) => ({ ...cardSet, templateIds: cardSet.templateIds?.filter((id) => id !== templateId) }));
+    const cardSets = state.cardSets.map((cardSet) => ({
+      ...cardSet,
+      templateIds: cardSet.templateIds?.filter((id) => id !== templateId),
+      ...(cardSet.organization?.templatePositions ? { organization: {
+        ...cardSet.organization,
+        templatePositions: Object.fromEntries(Object.entries(cardSet.organization.templatePositions).filter(([id]) => id !== templateId)),
+      } } : {}),
+    }));
     const activeCardSet = state.activeCardSet ? cardSets.find((cardSet) => cardSet.id === state.activeCardSet?.id) ?? state.activeCardSet : null;
     const selectedId = state.generatorSelectedTemplateId === templateId ? allTemplates.find((template) => Boolean(template.id?.trim()))?.id ?? null : state.generatorSelectedTemplateId;
     const editorSelectedId = state.templateEditorSelectedTemplateId === templateId ? selectFallbackEditorTemplateId(allTemplates, null, selectedId) : state.templateEditorSelectedTemplateId;

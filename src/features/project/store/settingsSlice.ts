@@ -114,10 +114,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     const sourceCards = current.storedCards.filter((card) => (
       card.setId === id || (!card.setId && current.cardSets[0]?.id === id)
     ));
-    const templateIds = new Set([
-      ...(source.templateIds ?? []),
-      ...sourceCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
-    ].filter((templateId): templateId is string => Boolean(templateId)));
+    const templateIds = new Set(getCardSetTemplateIds(current, id));
     const sourceTemplates = [...templateIds].map((templateId) => current.userTemplates.find((template) => (
       template.id === templateId && getTemplateOwnerSetId(current, templateId) === id
     )));
@@ -143,6 +140,12 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
           const nextId = cardIds.get(cardId);
           return nextId ? [[nextId, position] as const] : [];
         })),
+        ...(source.organization.templatePositions ? { templatePositions: Object.fromEntries(
+          Object.entries(source.organization.templatePositions).flatMap(([templateId, position]) => {
+            const nextId = copiedTemplateIds.get(templateId);
+            return nextId ? [[nextId, { ...position }] as const] : [];
+          }),
+        ) } : {}),
       } : undefined;
       const duplicate: CardSet = {
         ...source,
@@ -290,7 +293,14 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     set((current) => {
       const owned = getTemplateOwnerSetId(current, templateId) === setId;
       const cardSets = current.cardSets.map((candidate) => candidate.id === setId
-        ? { ...candidate, templateIds: candidate.templateIds?.filter((id) => id !== templateId) }
+        ? {
+          ...candidate,
+          templateIds: candidate.templateIds?.filter((id) => id !== templateId),
+          ...(candidate.organization?.templatePositions ? { organization: {
+            ...candidate.organization,
+            templatePositions: Object.fromEntries(Object.entries(candidate.organization.templatePositions).filter(([id]) => id !== templateId)),
+          } } : {}),
+        }
         : candidate);
       const activeCardSet = current.activeCardSet?.id === setId
         ? cardSets.find((candidate) => candidate.id === setId) ?? current.activeCardSet

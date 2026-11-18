@@ -66,6 +66,9 @@ export const mapProjectDocumentIdentity = (
     ...(set.organization ? { organization: {
       ...set.organization,
       positions: Object.fromEntries(Object.entries(set.organization.positions).map(([id, position]) => [cardIds.get(id) ?? id, position])),
+      ...(set.organization.templatePositions ? { templatePositions: Object.fromEntries(
+        Object.entries(set.organization.templatePositions).map(([id, position]) => [reference('template', id) ?? id, position]),
+      ) } : {}),
     } } : {}),
   }));
   return {

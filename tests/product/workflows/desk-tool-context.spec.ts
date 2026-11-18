@@ -17,6 +17,200 @@ for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
     test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });
 
+    test('@golden @preview moves Templates independently and remembers their placement', async ({ page, context }) => {
+      test.setTimeout(120_000);
+      await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, omitSetOrganization: true });
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await openScaleSet(page, 100);
+      const stage = page.locator('[data-set-spatial-stage]');
+      const template = stage.locator('[data-set-template]').first();
+      await expect(template).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Templates ·/ })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Updates for 100 Card Scale Set', exact: true })).toBeVisible();
+      const position = () => template.evaluate(node => ({ x: node.style.left, y: node.style.top }));
+      const artifactPositions = () => stage.locator('button[data-artifact-id]').evaluateAll(nodes => nodes.map(node => ({
+        x: (node.parentElement as HTMLElement).style.left,
+        y: (node.parentElement as HTMLElement).style.top,
+      })));
+      const arrangement = async () => {
+        await page.locator('[data-set-organization-trigger]').click();
+        const value = await page.getByRole('combobox', { name: 'Arrange cards' }).innerText();
+        await page.locator('[data-set-organization-trigger]').click();
+        return value;
+      };
+      const assertArtifactOrganizationUnchanged = async () => {
+        expect(await artifactPositions()).toEqual(artifacts);
+        expect(await arrangement()).toBe('Arrange: Freeform');
+      };
+      const before = await position();
+      const artifacts = await artifactPositions();
+      expect(await arrangement()).toBe('Arrange: Freeform');
+      const cdp = mobile ? await context.newCDPSession(page) : null;
+      const startMove = async () => {
+        const rect = (await template.boundingBox())!;
+        const start = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+        if (cdp) {
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start, id: 1 }] });
+          await expect(template).toHaveAttribute('data-spatial-held', 'true');
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: start.x + 60, y: start.y + 20, id: 1 }] });
+        } else {
+          await page.mouse.move(start.x, start.y);
+          await page.mouse.down();
+          await page.mouse.move(start.x + 60, start.y + 20, { steps: 5 });
+        }
+      };
+      await startMove();
+      if (cdp) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      else await page.mouse.up();
+      const moved = await position();
+      expect(moved).not.toEqual(before);
+      await assertArtifactOrganizationUnchanged();
+      await expect(stage.locator('[data-artifact-id][aria-pressed="true"]')).toHaveCount(0);
+      await expect(page.getByRole('region', { name: 'Design', exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Undo spatial move', exact: true }).click();
+      expect(await position()).toEqual(before);
+      await assertArtifactOrganizationUnchanged();
+      await page.getByRole('button', { name: 'Redo spatial move', exact: true }).click();
+      expect(await position()).toEqual(moved);
+
+      await startMove();
+      if (cdp) await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+      else {
+        await page.keyboard.press('Escape');
+        await page.mouse.up();
+      }
+      expect(await position()).toEqual(moved);
+      await expect(page.getByRole('region', { name: 'Design', exact: true })).toHaveCount(0);
+      await template.focus();
+      await template.press('Enter');
+      await expect(page.getByRole('region', { name: 'Design', exact: true })).toBeVisible();
+      await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(page.getByRole('region', { name: 'Design', exact: true })).toHaveCount(0);
+      expect(await position()).toEqual(moved);
+      await page.getByRole('button', { name: 'Back to Desk', exact: true }).click();
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await openScaleSet(page, 100);
+      expect(await position()).toEqual(moved);
+      await assertArtifactOrganizationUnchanged();
+      await template.focus();
+      await template.press('ArrowRight');
+      expect(await position()).not.toEqual(moved);
+      if (cdp) await cdp.detach();
+    });
+
+    if (!mobile) {
+      test('@golden @preview prunes deleted Template placement from spatial history', async ({ page }) => {
+        test.setTimeout(120_000);
+        await seedGuestScaleWorkspace(page, 100, { cardLimit: 0, preparedTemplatePair: true });
+        await page.goto('/account', { waitUntil: 'domcontentloaded' });
+        await openScaleSet(page, 100);
+        const stage = page.locator('[data-set-spatial-stage]');
+        const templateA = stage.getByRole('button', { name: 'Design Template Prepared Template A, prepared for this Set', exact: true });
+        const templateB = stage.getByRole('button', { name: 'Design Template Prepared Template B, prepared for this Set', exact: true });
+        await expect(templateA).toBeVisible();
+        await expect(templateB).toBeVisible();
+        const position = (template: typeof templateA) => template.evaluate(node => ({ x: node.style.left, y: node.style.top }));
+        const dragTemplate = async (template: typeof templateA) => {
+          const rect = (await template.boundingBox())!;
+          const start = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+          await page.mouse.move(start.x, start.y);
+          await page.mouse.down();
+          await page.mouse.move(start.x + 54, start.y + 18, { steps: 4 });
+          await page.mouse.up();
+        };
+        const beforeA = await position(templateA);
+        const beforeB = await position(templateB);
+        await dragTemplate(templateA);
+        const movedA = await position(templateA);
+        expect(movedA).not.toEqual(beforeA);
+        await dragTemplate(templateB);
+        const movedB = await position(templateB);
+        expect(movedB).not.toEqual(beforeB);
+
+        await templateA.click();
+        await expect(page.getByRole('region', { name: 'Design', exact: true })).toBeVisible();
+        await page.getByRole('button', { name: 'Delete selected template' }).click();
+        const deleteDialog = page.getByRole('alertdialog');
+        await expect(deleteDialog.getByRole('heading', { name: 'Delete this Template?' })).toBeVisible();
+        await deleteDialog.getByRole('button', { name: 'Delete Template', exact: true }).click();
+        await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true }).click();
+
+        await expect(templateA).toHaveCount(0);
+        await expect(templateB).toBeVisible();
+        await page.getByRole('button', { name: 'Undo spatial move', exact: true }).click();
+        expect(await position(templateB)).toEqual(beforeB);
+        await expect(templateA).toHaveCount(0);
+        await page.getByRole('button', { name: 'Redo spatial move', exact: true }).click();
+        expect(await position(templateB)).toEqual(movedB);
+        await expect(templateA).toHaveCount(0);
+
+        await page.getByRole('button', { name: 'Back to Desk', exact: true }).click();
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await openScaleSet(page, 100);
+        await expect(templateA).toHaveCount(0);
+        await expect(templateB).toBeVisible();
+        expect(await position(templateB)).toEqual(movedB);
+      });
+
+      test('@golden @preview preserves saved field organization after a Template move and card restoration', async ({ page }) => {
+        test.setTimeout(120_000);
+        await seedGuestScaleWorkspace(page, 100, {
+          cardLimit: 2,
+          organizationPatch: { groupBy: 'field', groupField: 'cost', sort: 'field-value', sortField: 'cost' },
+        });
+        await page.goto('/account', { waitUntil: 'domcontentloaded' });
+        await openScaleSet(page, 100);
+        const stage = page.locator('[data-set-spatial-stage]');
+        const template = stage.locator('[data-set-template]').first();
+        const organizationTrigger = page.locator('[data-set-organization-trigger]');
+        const expectFieldOrganization = async () => {
+          await organizationTrigger.click();
+          await expect(page.getByRole('combobox', { name: 'Group cards' })).toContainText('Group: field');
+          await expect(page.getByRole('combobox', { name: 'Field used for groups' })).toContainText('Cost');
+          await expect(page.getByRole('combobox', { name: 'Sort cards' })).toContainText('Sort by field');
+          await expect(page.getByRole('combobox', { name: 'Field used for sorting' })).toContainText('Cost');
+          await organizationTrigger.click();
+        };
+        const expectProjectedFallback = async () => {
+          await organizationTrigger.click();
+          await expect(page.getByRole('combobox', { name: 'Group cards' })).toContainText('No groups');
+          await expect(page.getByRole('combobox', { name: 'Sort cards' })).toContainText('Manual order');
+          await expect(page.getByRole('combobox', { name: 'Field used for groups' })).toHaveCount(0);
+          await expect(page.getByRole('combobox', { name: 'Field used for sorting' })).toHaveCount(0);
+          await organizationTrigger.click();
+        };
+        await expect(template).toBeVisible();
+        await expectFieldOrganization();
+
+        const search = page.getByRole('searchbox', { name: 'Search cards in this Set', exact: true });
+        await search.fill('Scale Card 0002');
+        await organizationTrigger.click();
+        await page.getByRole('button', { name: 'Select shown', exact: true }).click();
+        await page.keyboard.press('Escape');
+        const actions = page.getByRole('toolbar', { name: 'Selection actions', exact: true });
+        await actions.getByRole('button', { name: 'Remove', exact: true }).click();
+        await page.getByRole('alertdialog').getByRole('button', { name: 'Remove card', exact: true }).click();
+        await search.fill('');
+        await expect(stage.locator('button[data-artifact-id]')).toHaveCount(1);
+        await expectProjectedFallback();
+
+        const before = await template.evaluate(node => ({ x: node.style.left, y: node.style.top }));
+        const rect = (await template.boundingBox())!;
+        const start = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+        await page.mouse.move(start.x, start.y);
+        await page.mouse.down();
+        await page.mouse.move(start.x + 54, start.y + 18, { steps: 4 });
+        await page.mouse.up();
+        expect(await template.evaluate(node => ({ x: node.style.left, y: node.style.top }))).not.toEqual(before);
+        await expectProjectedFallback();
+
+        await page.getByRole('group', { name: 'Card removal recovery', exact: true })
+          .getByRole('button', { name: /^Undo latest removal/ }).click();
+        await expect(stage.locator('button[data-artifact-id]')).toHaveCount(2);
+        await expectFieldOrganization();
+      });
+    }
+
     test('@golden @preview holds empty space to select Artifacts without moving work', async ({ page, context }) => {
       test.setTimeout(120_000);
       await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
@@ -75,6 +269,18 @@ for (const mobile of [false, true]) {
         await expect(stage.locator('button[data-artifact-id][aria-pressed="true"]')).toHaveCount(2);
         expect(await geometry()).toEqual(before);
         await cdp.detach();
+      } else {
+        await page.getByRole('button', { name: 'Fit Work', exact: true }).focus();
+        await down();
+        await page.waitForTimeout(450);
+        await page.mouse.move(start.x + 12, start.y + 12, { steps: 3 });
+        await expect(stage.locator('[data-artifact-marquee]')).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(stage).toBeVisible();
+        await expect(stage.locator('[data-artifact-marquee]')).toHaveCount(0);
+        await page.mouse.up();
+        await expect(stage.locator('button[data-artifact-id][aria-pressed="true"]')).toHaveCount(2);
+        expect(await geometry()).toEqual(before);
       }
     });
 
@@ -426,10 +632,14 @@ for (const mobile of [false, true]) {
       await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
-      await page.getByRole('button', { name: /^Templates ·/ }).click();
-      const templateRow = page.getByRole('dialog', { name: 'Templates in this Set' });
-      const frontTemplate = templateRow.getByRole('button', { name: 'Design Template Scale Fixture Template, used by 100 Artifacts', exact: true });
-      const backTemplate = templateRow.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true });
+      const stage = page.locator('[data-set-spatial-stage]');
+      await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
+      const frontTemplate = stage.getByRole('button', { name: 'Design Template Scale Fixture Template, used by 100 Artifacts', exact: true });
+      const backTemplate = stage.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true });
+      const frontTemplateId = await frontTemplate.getAttribute('data-set-template');
+      const backTemplateId = await backTemplate.getAttribute('data-set-template');
+      expect(frontTemplateId).toBeTruthy();
+      expect(backTemplateId).toBeTruthy();
       await expect(frontTemplate).toHaveCSS('border-top-style', 'solid');
       const frontAccent = await frontTemplate.evaluate((node) => getComputedStyle(node).borderTopColor);
       const backAccent = await backTemplate.evaluate((node) => getComputedStyle(node).borderTopColor);
@@ -499,14 +709,15 @@ for (const mobile of [false, true]) {
 
       await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
       if (mobile) {
-        await expect(page.getByRole('button', { name: /^Templates ·/ })).toBeVisible();
         await page.getByRole('button', { name: 'Clear Artifact selection', exact: true }).click();
       }
-      await page.getByRole('button', { name: /^Templates ·/ }).click();
-      const reopenedTemplates = page.getByRole('dialog', { name: 'Templates in this Set' });
-      await expect(reopenedTemplates.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true })).toBeVisible();
-      await expect(reopenedTemplates.getByRole('button', { name: /Copy of Scale Fixture Back|Variant/ })).toHaveCount(0);
-      await reopenedTemplates.press('Escape');
+      await expect(page.getByRole('button', { name: /^Templates ·/ })).toHaveCount(0);
+      const restoredTemplates = stage.locator('[data-set-template]');
+      await expect(restoredTemplates).toHaveCount(2);
+      const restoredTemplateIds = await restoredTemplates.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-set-template')));
+      expect(restoredTemplateIds).toEqual(expect.arrayContaining([frontTemplateId, backTemplateId]));
+      await expect(stage.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true })).toBeVisible();
+      await expect(restoredTemplates.filter({ hasText: /Copy of Scale Fixture Back|Variant/ })).toHaveCount(0);
 
       const secondCard = page.locator('button[data-artifact-id="scale-card-2"]');
       await secondCard.click();

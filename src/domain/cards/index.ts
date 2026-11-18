@@ -2,6 +2,7 @@ export {
   ensureCardSetTemplateReferences,
   normalizeCardSet,
   normalizeCardTagIds,
+  normalizeTemplatePositions,
   reconcileCardSets,
   resolveActiveCardSet,
 } from './cardSets';

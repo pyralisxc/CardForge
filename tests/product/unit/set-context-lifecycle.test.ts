@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SetPlan } from '@/domain/cards';
 import { normalizeProjectProductionPlan } from '@/domain/cards';
+import { reconstructMinimalTemplateObject } from '@/domain/templates';
 import { applyCardSetPlan, applyProjectDocumentToWorkspace, captureCardSetProjectDocument, captureCurrentProjectDocument } from '@/features/project/client/projectWorkspaceDocument';
 import { buildCardForgeProjectSnapshot, encodeCardForgeProjectPackage, decodeCardForgeProjectPackage, hydrateCardForgeProjectSnapshot } from '@/features/project/lib/projectPackageCodec';
 import { createProjectDocumentFromState, type ProjectDocumentV1 } from '@/features/project/model/projectDocument';
@@ -23,6 +24,23 @@ const brief = normalizeProjectProductionPlan({
 const owner = () => useProjectStore.getState().cardSets.find((set) => set.id === 'context-a')!;
 const apply = (plan: SetPlan, expectedPlan: SetPlan | undefined = owner().plan, signal?: AbortSignal) => applyCardSetPlan({ setId: 'context-a', expectedScope: scope, expectedPlan, plan, signal });
 const storage = () => createBrowserKeyValueStorage(`project-workspace:${scope}`);
+const placementTemplate = (id = 'placement-template') => reconstructMinimalTemplateObject({
+  id,
+  name: 'Placement Template',
+  aspectRatio: '63:88',
+  templateSource: 'user',
+  templateLineageId: `${id}-lineage`,
+  templateRevisionId: `${id}-revision`,
+  freeformCanvas: { width: 630, height: 880, elements: [] },
+});
+const placementOrganization = (templatePositions?: Record<string, { x: number; y: number }>) => ({
+  arrangement: 'manual' as const,
+  groupBy: 'none' as const,
+  sort: 'manual' as const,
+  tags: [],
+  positions: {},
+  ...(templatePositions !== undefined ? { templatePositions } : {}),
+});
 
 describe('Set context native lifecycle', () => {
   beforeEach(async () => {
@@ -63,7 +81,7 @@ describe('Set context native lifecycle', () => {
   it('leaves future-version browser work byte-for-byte unchanged and refuses hydration', async () => {
     const futureScope = `account:future-${ordinal}` as const;
     const futureStorage = createBrowserKeyValueStorage(`project-workspace:${futureScope}`);
-    const saved = JSON.stringify({ version: 9, state: { cardSets: [{ id: 'future', name: 'Future Set', plan: original }], futureAuthoredData: { keep: ['all bytes'] } } });
+    const saved = JSON.stringify({ version: 10, state: { cardSets: [{ id: 'future', name: 'Future Set', plan: original }], futureAuthoredData: { keep: ['all bytes'] } } });
     await futureStorage.setItem('workspace', saved);
     await expect(hydrateProjectWorkspaceForScope(futureScope)).rejects.toThrow(/newer CardForge version/i);
     expect(await futureStorage.getItem('workspace')).toBe(saved);
@@ -85,10 +103,21 @@ describe('Set context native lifecycle', () => {
       state: {
         userTemplates: [original],
         cardSets: [
-          { id: 'legacy-a', name: 'Legacy A', templateIds: [original.id] },
-          { id: 'legacy-b', name: 'Legacy B', templateIds: [original.id] },
+          {
+            id: 'legacy-a', name: 'Legacy A', templateIds: [original.id],
+            organization: { arrangement: 'manual', groupBy: 'none', sort: 'manual', tags: [], positions: {}, templatePositions: { [original.id]: { x: -5, y: 7 } } },
+          },
+          {
+            id: 'legacy-b', name: 'Legacy B', templateIds: [original.id],
+            organization: { arrangement: 'manual', groupBy: 'none', sort: 'manual', tags: [], positions: {}, templatePositions: { [original.id]: { x: 15, y: -20 } } },
+          },
         ],
-        activeCardSet: { id: 'legacy-a', name: 'Legacy A' },
+        activeCardSet: {
+          id: 'legacy-a',
+          name: 'Legacy A',
+          templateIds: [original.id],
+          organization: { arrangement: 'manual', groupBy: 'none', sort: 'manual', tags: [], positions: {}, templatePositions: { [original.id]: { x: -5, y: 7 } } },
+        },
         storedCards: [
           { uniqueId: 'legacy-card-a', setId: 'legacy-a', templateId: original.id, data: { title: 'A' } },
           { uniqueId: 'legacy-card-b', setId: 'legacy-b', templateId: original.id, data: { title: 'B' } },
@@ -100,20 +129,108 @@ describe('Set context native lifecycle', () => {
     await hydrateProjectWorkspaceForScope(migrationScope);
     const persisted = JSON.parse(parseBrowserWorkspaceRecord((await savedStorage.getItem('workspace'))!).value) as {
       version: number;
-      state: { userTemplates: Array<{ id: string; templateSource: string }>; storedCards: Array<{ uniqueId: string; templateId: string }> };
+      state: {
+        userTemplates: Array<{ id: string; templateSource: string }>;
+        storedCards: Array<{ uniqueId: string; templateId: string }>;
+        cardSets: Array<{ id: string; organization?: { templatePositions?: Record<string, { x: number; y: number }> } }>;
+      };
     };
-    expect(persisted.version).toBe(8);
+    expect(persisted.version).toBe(9);
     expect(persisted.state.userTemplates.find((template) => template.id === original.id)).toMatchObject(original);
     const mappedIds = persisted.state.storedCards.map((card) => card.templateId);
     expect(mappedIds[0]).not.toBe(original.id);
     expect(mappedIds[1]).not.toBe(original.id);
     expect(mappedIds[0]).not.toBe(mappedIds[1]);
+    expect(persisted.state.cardSets.find((set) => set.id === 'legacy-a')?.organization?.templatePositions)
+      .toEqual({ [mappedIds[0]!]: { x: -5, y: 7 } });
+    expect(persisted.state.cardSets.find((set) => set.id === 'legacy-b')?.organization?.templatePositions)
+      .toEqual({ [mappedIds[1]!]: { x: 15, y: -20 } });
 
     await hydrateProjectWorkspaceForScope(`account:template-migration-away-${ordinal}`);
     await hydrateProjectWorkspaceForScope(migrationScope);
     expect(useProjectStore.getState().storedCards.filter((card) => card.uniqueId.startsWith('legacy-card-')).map((card) => card.templateId))
       .toEqual(mappedIds);
     expect(useProjectStore.getState().userTemplates.find((template) => template.id === original.id)?.templateSource).toBe('default');
+  });
+
+  it('migrates version-8 workspaces without inventing Template placement', async () => {
+    const migrationScope = `account:template-placement-migration-${ordinal}` as const;
+    const savedStorage = createBrowserKeyValueStorage(`project-workspace:${migrationScope}`);
+    const set = {
+      id: 'placement-migration-set',
+      name: 'Placement migration Set',
+      organization: {
+        arrangement: 'manual',
+        groupBy: 'none',
+        sort: 'manual',
+        tags: [],
+        positions: { 'legacy-card': { x: -12, y: 30 } },
+      },
+    };
+    await savedStorage.setItem('workspace', JSON.stringify({
+      version: 8,
+      state: {
+        userTemplates: [],
+        cardSets: [set],
+        activeCardSet: structuredClone(set),
+        storedCards: [],
+        appearanceStyles: [],
+      },
+    }));
+
+    await hydrateProjectWorkspaceForScope(migrationScope);
+    const persisted = JSON.parse(parseBrowserWorkspaceRecord((await savedStorage.getItem('workspace'))!).value) as {
+      version: number;
+      state: {
+        cardSets: Array<{ organization?: { templatePositions?: unknown } }>;
+        activeCardSet?: { organization?: { templatePositions?: unknown } } | null;
+      };
+    };
+    expect(persisted.version).toBe(9);
+    expect(persisted.state.cardSets[0]?.organization).not.toHaveProperty('templatePositions');
+    expect(persisted.state.activeCardSet?.organization).not.toHaveProperty('templatePositions');
+  });
+
+  it('preserves existing Template placement when adopted Set data omits it', async () => {
+    const design = placementTemplate();
+    const placements = { [design.id!]: { x: -24, y: 16 } };
+    const currentSet = { ...owner(), templateIds: [design.id!], organization: placementOrganization(placements) };
+    useProjectStore.setState((state) => ({
+      cardSets: state.cardSets.map((set) => set.id === currentSet.id ? currentSet : set),
+      activeCardSet: currentSet,
+      userTemplates: [design],
+    }));
+    await persistProjectWorkspaceNow();
+    const incoming = await captureCardSetProjectDocument(currentSet.id);
+    delete incoming.cardSets[0]!.organization!.templatePositions;
+
+    await applyProjectDocumentToWorkspace(incoming, 'adopt');
+
+    expect(owner().organization?.templatePositions).toEqual(placements);
+    expect(useProjectStore.getState().activeCardSet?.organization?.templatePositions).toEqual(placements);
+  });
+
+  it('refuses conflicting adopted Template placement without changing either revision', async () => {
+    const design = placementTemplate();
+    const placements = { [design.id!]: { x: -24, y: 16 } };
+    const currentSet = { ...owner(), templateIds: [design.id!], organization: placementOrganization(placements) };
+    useProjectStore.setState((state) => ({
+      cardSets: state.cardSets.map((set) => set.id === currentSet.id ? currentSet : set),
+      activeCardSet: currentSet,
+      userTemplates: [design],
+    }));
+    await persistProjectWorkspaceNow();
+    const previous = useProjectStore.getState();
+    const saved = await storage().getItem('workspace');
+    const incoming = await captureCardSetProjectDocument(currentSet.id);
+    incoming.cardSets[0]!.organization!.templatePositions![design.id!] = { x: -25, y: 16 };
+
+    await expect(applyProjectDocumentToWorkspace(incoming, 'adopt')).rejects.toThrow(/different Template placement/i);
+
+    expect(useProjectStore.getState()).toBe(previous);
+    expect(owner().organization?.templatePositions).toEqual(placements);
+    expect(incoming.cardSets[0]!.organization?.templatePositions?.[design.id!]).toEqual({ x: -25, y: 16 });
+    expect(await storage().getItem('workspace')).toBe(saved);
   });
 
   it('does not apply the old account draft to a same-ID Set after switching accounts', async () => {
@@ -270,7 +387,7 @@ describe('Set context native lifecycle', () => {
   });
 
   it.each([
-    { version: 9, plan: original },
+    { version: 10, plan: original },
     { version: 6, plan: { version: 99, context: 'Future context' } },
   ])('leaves unsupported retained signed-out work and account bytes unchanged (%j)', async ({ version, plan }) => {
     const guest = createBrowserKeyValueStorage('project-workspace:guest');

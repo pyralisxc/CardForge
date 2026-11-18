@@ -239,6 +239,13 @@ export const materializeLegacySetTemplates = <T extends SetTemplateState>(state:
     cardSets: state.cardSets.map((set) => ({
       ...set,
       ...(set.templateIds ? { templateIds: set.templateIds.map((id) => mappings.get(set.id)?.get(id) ?? id) } : {}),
+      ...(set.organization?.templatePositions ? { organization: {
+        ...set.organization,
+        templatePositions: Object.fromEntries(Object.entries(set.organization.templatePositions).map(([id, position]) => [
+          mappings.get(set.id)?.get(id) ?? id,
+          { ...position },
+        ])),
+      } } : {}),
     })),
     storedCards,
   });
@@ -249,7 +256,13 @@ export const assertSetTemplateOwnership = (state: SetTemplateState, requireCompl
   const snapshots = indexSnapshots(state.userTemplates);
   const owners = indexOwners(state);
   for (const set of state.cardSets) {
-    for (const id of getCardSetTemplateIds(state, set.id)) {
+    const referencedTemplateIds = new Set(getCardSetTemplateIds(state, set.id));
+    for (const id of Object.keys(set.organization?.templatePositions ?? {})) {
+      if (!referencedTemplateIds.has(id)) {
+        throw new SetTemplateOwnershipError('conflict', `Set ${set.name} has placement for Template ${id} without an existing Set reference. Add it as a prepared Template or bind it to an Artifact before positioning it; existing work was left unchanged.`);
+      }
+    }
+    for (const id of referencedTemplateIds) {
       const template = snapshots.get(id);
       if (!template || template.templateSource === 'default') {
         if (requireComplete) {
