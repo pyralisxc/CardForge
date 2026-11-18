@@ -17,6 +17,69 @@ for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
     test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });
 
+    test('@golden @preview moves Templates independently and remembers their placement', async ({ page, context }) => {
+      test.setTimeout(120_000);
+      await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await openScaleSet(page, 100);
+      const stage = page.locator('[data-set-spatial-stage]');
+      const template = stage.locator('[data-set-template]').first();
+      await expect(template).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Templates ·/ })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Updates for 100 Card Scale Set', exact: true })).toBeVisible();
+      const position = () => template.evaluate(node => ({ x: node.style.left, y: node.style.top }));
+      const artifactPositions = () => stage.locator('button[data-artifact-id]').evaluateAll(nodes => nodes.map(node => ({
+        x: (node.parentElement as HTMLElement).style.left,
+        y: (node.parentElement as HTMLElement).style.top,
+      })));
+      const before = await position();
+      const artifacts = await artifactPositions();
+      const cdp = mobile ? await context.newCDPSession(page) : null;
+      const startMove = async () => {
+        const rect = (await template.boundingBox())!;
+        const start = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+        if (cdp) {
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start, id: 1 }] });
+          await expect(template).toHaveAttribute('data-spatial-held', 'true');
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: start.x + 60, y: start.y + 20, id: 1 }] });
+        } else {
+          await page.mouse.move(start.x, start.y);
+          await page.mouse.down();
+          await page.mouse.move(start.x + 60, start.y + 20, { steps: 5 });
+        }
+      };
+      await startMove();
+      if (cdp) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      else await page.mouse.up();
+      const moved = await position();
+      expect(moved).not.toEqual(before);
+      expect(await artifactPositions()).toEqual(artifacts);
+      await expect(stage.locator('[data-artifact-id][aria-pressed="true"]')).toHaveCount(0);
+      await expect(page.getByRole('region', { name: 'Design', exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Undo spatial move', exact: true }).click();
+      expect(await position()).toEqual(before);
+      await page.getByRole('button', { name: 'Redo spatial move', exact: true }).click();
+      expect(await position()).toEqual(moved);
+
+      await startMove();
+      if (cdp) await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+      else {
+        await page.keyboard.press('Escape');
+        await page.mouse.up();
+      }
+      expect(await position()).toEqual(moved);
+      await expect(page.getByRole('region', { name: 'Design', exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Back to Desk', exact: true }).click();
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await openScaleSet(page, 100);
+      expect(await position()).toEqual(moved);
+      expect(await artifactPositions()).toEqual(artifacts);
+      await template.focus();
+      await template.press('ArrowRight');
+      expect(await position()).not.toEqual(moved);
+      if (cdp) await cdp.detach();
+    });
+
     test('@golden @preview holds empty space to select Artifacts without moving work', async ({ page, context }) => {
       test.setTimeout(120_000);
       await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });

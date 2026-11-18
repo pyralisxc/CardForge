@@ -46,6 +46,8 @@ export interface CardSetOrganization {
   sortField?: string;
   tags: CardSetTag[];
   positions: Record<string, CardSetCardPosition>;
+  /** Template identities have their own Set-local, physical-millimeter positions. */
+  templatePositions?: Record<string, CardSetCardPosition>;
 }
 
 /**

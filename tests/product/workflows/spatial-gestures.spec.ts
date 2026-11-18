@@ -248,9 +248,9 @@ test.describe('spatial touch workspace', () => {
     await expect(tile).not.toHaveAttribute('style', originalPosition!);
     const movedPosition = await tile.getAttribute('style');
     await expect(page.locator('[data-focused-artifact-workspace]')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Undo Artifact move' }).click();
+    await page.getByRole('button', { name: 'Undo spatial move' }).click();
     await expect(tile).toHaveAttribute('style', originalPosition!);
-    await page.getByRole('button', { name: 'Redo Artifact move' }).click();
+    await page.getByRole('button', { name: 'Redo spatial move' }).click();
     await expect(tile).toHaveAttribute('style', movedPosition!);
     const pinchPoint = await center(stage);
     const world = page.locator('[data-artifact-world]');

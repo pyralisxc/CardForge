@@ -4,9 +4,10 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { Minus, Plus, Redo2, RefreshCcw, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import type { SpatialResolvedPointerStart } from '@/components/ui/spatial-viewport';
+import { getSpatialDirectionForKey, type SpatialResolvedPointerStart } from '@/components/ui/spatial-viewport';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
 import type { CardFace, CardSetOrganization } from '@/domain/cards';
+import { snapSpatialValue } from '@/domain/spatial';
 import { getCardFaceCanvas, getCardPhysicalSizeMm, getCardPreviewLayout, hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import {
   focusCreatorArtifact,
@@ -58,6 +59,7 @@ interface FocusedSetArtifactSurfaceProps {
   onSaveArtifact: (card: DisplayCard) => void;
   onDesignArtifact: (card: DisplayCard, face: CardFace) => void;
   onMoveArtifacts: (positions: Record<string, ArtifactPosition>) => void;
+  onMoveTemplates: (positions: Record<string, ArtifactPosition>) => void;
 }
 
 type ClientPoint = { clientX: number; clientY: number };
@@ -96,8 +98,9 @@ const ArtifactTileVisual = memo(function ArtifactTileVisual({ card, face, setId,
 });
 
 type DragState = {
+  kind: 'artifact' | 'template';
   pointerId: number;
-  artifactId: string;
+  objectId: string;
   startClient: ClientPoint;
   latestClient: ClientPoint;
   startWorld: ArtifactPosition;
@@ -109,6 +112,7 @@ type DragState = {
 };
 
 type SpatialHistoryEntry = {
+  kind: DragState['kind'];
   before: Record<string, ArtifactPosition>;
   after: Record<string, ArtifactPosition>;
 };
@@ -151,11 +155,13 @@ export function FocusedSetArtifactSurface({
   onSaveArtifact,
   onDesignArtifact,
   onMoveArtifacts,
+  onMoveTemplates,
 }: FocusedSetArtifactSurfaceProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const selectionAnchorRef = useRef<string | null>(null);
   const suppressedClickRef = useRef<string | null>(null);
+  const suppressedTemplateClickRef = useRef<string | null>(null);
   const lastArtifactPointerTypeRef = useRef<string | null>(null);
   const touchTapRef = useRef<{ artifactId: string; x: number; y: number; at: number } | null>(null);
   const navigatorReturnArtifactIdRef = useRef<string | null>(null);
@@ -167,6 +173,7 @@ export function FocusedSetArtifactSurface({
   const edgePanLastTimeRef = useRef<number | null>(null);
   const [viewportSize, setViewportSize] = useState({ width: 900, height: 520 });
   const [dragPreview, setDragPreview] = useState<Record<string, ArtifactPosition>>({});
+  const [templateDragPreview, setTemplateDragPreview] = useState<Record<string, ArtifactPosition>>({});
   const [navigatorFocusId, setNavigatorFocusId] = useState<string | null>(null);
   const [faces, setFace] = useArtifactFaces();
   const [historyRevision, setHistoryRevision] = useState(0);
@@ -206,8 +213,14 @@ export function FocusedSetArtifactSurface({
     const columns = Math.min(3, Math.ceil(Math.sqrt(sized.length)));
     const columnWidth = Math.max(0, ...sized.map((item) => item.width)) + 14;
     const rowHeight = Math.max(0, ...sized.map((item) => item.height)) + 14;
-    return sized.map((item, index) => ({ ...item, x: layout.bounds.x - columns * columnWidth - 24 + index % columns * columnWidth, y: layout.bounds.y + Math.floor(index / columns) * rowHeight }));
-  }, [templateEntries, layout.bounds.x, layout.bounds.y]);
+    return sized.map((item, index) => ({
+      ...item,
+      ...(organization.templatePositions?.[item.entry.template.id!] ?? {
+        x: layout.bounds.x - columns * columnWidth - 24 + index % columns * columnWidth,
+        y: layout.bounds.y + Math.floor(index / columns) * rowHeight,
+      }),
+    }));
+  }, [templateEntries, layout.bounds.x, layout.bounds.y, organization.templatePositions]);
   const sceneLayout = useMemo(() => {
     if (!templateLayout.length) return layout;
     const rects = [...templateLayout, ...(layout.entries.length ? [layout.bounds] : [])];
@@ -253,11 +266,13 @@ export function FocusedSetArtifactSurface({
     stopEdgePan();
     const drag = dragRef.current;
     if (drag) {
+      if (drag.kind === 'template') suppressedTemplateClickRef.current = drag.objectId;
       setSession((current) => setCreatorCamera(current, drag.startCamera.camera));
     }
     dragRef.current = null;
     marqueeRef.current = null;
     setDragPreview({});
+    setTemplateDragPreview({});
     setMarquee(null);
   }, [setSession, stopEdgePan]);
 
@@ -270,7 +285,7 @@ export function FocusedSetArtifactSurface({
     lastArtifactPointerTypeRef.current = event.pointerType;
     if (event.pointerType === 'mouse') return null;
     const templateTarget = (event.target as HTMLElement).closest<HTMLElement>('button[data-set-template]');
-    if (templateTarget) return { target: templateTarget, allowHold: false, onTap: () => {
+    if (templateTarget) return { target: templateTarget, allowHold: true, onTap: () => {
       templateTarget.focus({ preventScroll: true });
       onDesignTemplate(templateTarget.dataset.setTemplate!);
     } };
@@ -331,9 +346,14 @@ export function FocusedSetArtifactSurface({
     };
   };
   const onResolvedPointerDown = (target: HTMLElement, event: SpatialResolvedPointerStart) => {
+    const templateId = target.dataset.setTemplate;
+    if (templateId) {
+      beginSpatialMoveFromPointer('template', templateId, event, target);
+      return;
+    }
     const artifactId = target.dataset.artifactId;
     const entry = artifactId ? entryById.get(artifactId) : null;
-    if (entry) beginArtifactMoveFromPointer(entry, event, target);
+    if (entry) beginSpatialMoveFromPointer('artifact', entry.identity.artifactId, event, target);
   };
 
   const beginMarquee = (point: ClientPoint, pointerId: number, viewport: HTMLDivElement, additive: string[] = []) => {
@@ -510,23 +530,27 @@ export function FocusedSetArtifactSurface({
 
   const commitSpatialMove = (
     after: Record<string, ArtifactPosition>,
-    artifactIds: readonly string[],
+    objectIds: readonly string[],
+    kind: DragState['kind'] = 'artifact',
   ) => {
-    const before = Object.fromEntries(artifactIds.flatMap((artifactId) => {
-      const entry = entryById.get(artifactId);
-      return entry ? [[artifactId, entry.position] as const] : [];
+    const before = Object.fromEntries(objectIds.flatMap((id) => {
+      const template = kind === 'template' ? templateLayout.find((item) => item.entry.template.id === id) : null;
+      const position = template ? { x: template.x, y: template.y } : kind === 'artifact' ? entryById.get(id)?.position : null;
+      return position ? [[id, position] as const] : [];
     }));
-    const historyAfter = Object.fromEntries(artifactIds.flatMap((artifactId) => (
-      after[artifactId] ? [[artifactId, after[artifactId]] as const] : []
+    const historyAfter = Object.fromEntries(objectIds.flatMap((id) => (
+      after[id] ? [[id, after[id]] as const] : []
     )));
     if (Object.keys(before).length === 0 || Object.keys(historyAfter).length === 0) return;
     undoStackRef.current = [...undoStackRef.current.slice(-(MAX_SPATIAL_HISTORY - 1)), {
+      kind,
       before,
       after: historyAfter,
     }];
     redoStackRef.current = [];
     setHistoryRevision((current) => current + 1);
-    onMoveArtifacts(organization.arrangement === 'manual' ? after : {
+    if (kind === 'template') onMoveTemplates(after);
+    else onMoveArtifacts(organization.arrangement === 'manual' ? after : {
       ...Object.fromEntries(layout.entries.map((entry) => [entry.identity.artifactId, entry.position])),
       ...after,
     });
@@ -536,7 +560,7 @@ export function FocusedSetArtifactSurface({
     const entry = undoStackRef.current.pop();
     if (!entry) return;
     redoStackRef.current.push(entry);
-    onMoveArtifacts(entry.before);
+    (entry.kind === 'template' ? onMoveTemplates : onMoveArtifacts)(entry.before);
     setHistoryRevision((current) => current + 1);
   };
 
@@ -544,7 +568,7 @@ export function FocusedSetArtifactSurface({
     const entry = redoStackRef.current.pop();
     if (!entry) return;
     undoStackRef.current.push(entry);
-    onMoveArtifacts(entry.after);
+    (entry.kind === 'template' ? onMoveTemplates : onMoveArtifacts)(entry.after);
     setHistoryRevision((current) => current + 1);
   };
 
@@ -561,7 +585,7 @@ export function FocusedSetArtifactSurface({
     commitSpatialMove(moved.positions, moved.affectedIds);
   };
 
-  const processArtifactDrag = useCallback((drag: DragState, point: ClientPoint) => {
+  const processSpatialDrag = useCallback((drag: DragState, point: ClientPoint) => {
     const world = camera.projectClientPoint(point);
     const delta = {
       x: world.x - drag.startWorld.x,
@@ -574,9 +598,18 @@ export function FocusedSetArtifactSurface({
     if (!drag.moved && screenDistance < 5) return false;
     if (!drag.moved) {
       camera.enterCustom();
-      if (!session.selection.includes(drag.artifactId)) updateSelection(drag.selectedIds);
+      if (drag.kind === 'artifact' && !session.selection.includes(drag.objectId)) updateSelection(drag.selectedIds);
     }
     drag.moved = true;
+    if (drag.kind === 'template') {
+      const origin = templateLayout.find((item) => item.entry.template.id === drag.objectId);
+      if (!origin) return false;
+      const step = organization.gridSizeMm ?? DEFAULT_SET_GRID_SIZE_MM;
+      const snap = (value: number) => snapToGrid ? snapSpatialValue(value, 0, step) : Math.round(value * 1000) / 1000;
+      drag.latestPositions = { [drag.objectId]: { x: snap(origin.x + delta.x), y: snap(origin.y + delta.y) } };
+      setTemplateDragPreview(drag.latestPositions);
+      return true;
+    }
     const moved = moveFocusedArtifactSelectionResult({
       entries: layout.entries,
       selectedIds: drag.selectedIds,
@@ -588,7 +621,7 @@ export function FocusedSetArtifactSurface({
     drag.latestAffectedIds = moved.affectedIds;
     setDragPreview(moved.positions);
     return true;
-  }, [camera, layout.entries, organization.gridSizeMm, session.selection, snapToGrid, updateSelection]);
+  }, [camera, layout.entries, organization.gridSizeMm, session.selection, snapToGrid, templateLayout, updateSelection]);
 
   const ensureEdgePanLoop = useCallback(() => {
     if (edgePanFrameRef.current !== null) return;
@@ -606,27 +639,29 @@ export function FocusedSetArtifactSurface({
         edgePanLastTimeRef.current = null;
         return;
       }
-      processArtifactDrag(drag, drag.latestClient);
+      processSpatialDrag(drag, drag.latestClient);
       edgePanFrameRef.current = requestAnimationFrame(tick);
     };
     edgePanFrameRef.current = requestAnimationFrame(tick);
-  }, [camera, processArtifactDrag]);
+  }, [camera, processSpatialDrag]);
 
-  function beginArtifactMoveFromPointer(
-    entry: FocusedArtifactLayoutEntry,
+  function beginSpatialMoveFromPointer(
+    kind: DragState['kind'],
+    objectId: string,
     event: Pick<ReactPointerEvent<HTMLElement>, 'button' | 'pointerId' | 'clientX' | 'clientY' | 'shiftKey' | 'metaKey' | 'ctrlKey'>,
     target: HTMLElement,
   ) {
     if (event.button !== 0) return;
     const startCamera = camera.capture();
     suppressedClickRef.current = null;
-    const artifactId = entry.identity.artifactId;
-    selectionAnchorRef.current = artifactId;
-    const selectedIds = session.selection.includes(artifactId) ? session.selection : [artifactId];
+    suppressedTemplateClickRef.current = null;
+    if (kind === 'artifact') selectionAnchorRef.current = objectId;
+    const selectedIds = kind === 'artifact' && session.selection.includes(objectId) ? session.selection : [objectId];
     const point = { clientX: event.clientX, clientY: event.clientY };
     dragRef.current = {
+      kind,
       pointerId: event.pointerId,
-      artifactId,
+      objectId,
       startClient: point,
       latestClient: point,
       startWorld: camera.projectClientPoint(point),
@@ -641,51 +676,75 @@ export function FocusedSetArtifactSurface({
 
   const beginArtifactMove = (entry: FocusedArtifactLayoutEntry, event: ReactPointerEvent<HTMLButtonElement>) => {
     lastArtifactPointerTypeRef.current = event.pointerType;
-    beginArtifactMoveFromPointer(entry, event, event.currentTarget);
+    beginSpatialMoveFromPointer('artifact', entry.identity.artifactId, event, event.currentTarget);
   };
 
-  const moveArtifact = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const moveSpatialObject = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     drag.latestClient = { clientX: event.clientX, clientY: event.clientY };
-    if (!processArtifactDrag(drag, drag.latestClient)) return;
+    if (!processSpatialDrag(drag, drag.latestClient)) return;
     event.preventDefault();
     ensureEdgePanLoop();
   };
 
-  const endArtifactMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const endSpatialMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     stopEdgePan();
     dragRef.current = null;
+    if (drag.kind === 'template') {
+      if (drag.moved || event.pointerType === 'touch') suppressedTemplateClickRef.current = drag.objectId;
+      if (drag.moved) commitSpatialMove(drag.latestPositions, drag.latestAffectedIds, 'template');
+      setTemplateDragPreview({});
+      return;
+    }
     if (drag.moved) {
       touchTapRef.current = null;
-      suppressedClickRef.current = drag.artifactId;
+      suppressedClickRef.current = drag.objectId;
       commitSpatialMove(drag.latestPositions, drag.latestAffectedIds);
     } else if (event.pointerType === 'touch') {
       // Touch UAs synthesize click after pointerup, and that click can arrive
       // after the Set rerenders. Commit the tap selection here and suppress the
       // synthetic click so it cannot toggle the same Artifact back off.
       handleTouchTap(
-        drag.artifactId,
+        drag.objectId,
         { clientX: event.clientX, clientY: event.clientY },
         event.shiftKey,
         event.metaKey || event.ctrlKey || touchMultiSelect,
         event.timeStamp,
       );
-      suppressedClickRef.current = drag.artifactId;
+      suppressedClickRef.current = drag.objectId;
     }
     setDragPreview({});
   };
 
-  const cancelArtifactMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const cancelSpatialMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     stopEdgePan();
     touchTapRef.current = null;
     dragRef.current = null;
     camera.restore(drag.startCamera);
+    if (drag.kind === 'template') suppressedTemplateClickRef.current = drag.objectId;
     setDragPreview({});
+    setTemplateDragPreview({});
+  };
+
+  const handleTemplateKey = (templateId: string, event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const direction = getSpatialDirectionForKey(event.key);
+    const origin = templateLayout.find((item) => item.entry.template.id === templateId);
+    if (!direction || !origin) return;
+    event.preventDefault();
+    camera.enterCustom();
+    const step = organization.gridSizeMm ?? DEFAULT_SET_GRID_SIZE_MM;
+    const amount = (event.shiftKey ? 5 : 1) * (snapToGrid ? step : 1);
+    const snap = (value: number) => snapToGrid ? snapSpatialValue(value, 0, step) : value;
+    commitSpatialMove({ [templateId]: {
+      x: snap(origin.x + (direction === 'left' ? -amount : direction === 'right' ? amount : 0)),
+      y: snap(origin.y + (direction === 'up' ? -amount : direction === 'down' ? amount : 0)),
+    } }, [templateId], 'template');
   };
 
   const handleArtifactKey = (artifactId: string, event: ReactKeyboardEvent<HTMLButtonElement>) => {
@@ -744,6 +803,7 @@ export function FocusedSetArtifactSurface({
         inert={focusedEntry ? true : undefined}
       >
       <p id={`artifact-field-instructions-${setId}`} className="sr-only">Drag empty space immediately to pan and pinch to zoom. Hold empty space, then drag to select multiple cards. Tap or click a card to select it; use Quick Actions Select Multiple on touch to add or remove cards without replacing the selection. Double tap, double click, or press Enter to focus it when Select Multiple is off. Hold a card then drag to move it. With a mouse, Shift-drag empty space to draw a selection. Moving a card switches to Freeform. Use Tab to reach visible Artifacts and Arrow or WASD keys to move selected Artifacts; hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
+      <p id={`template-movement-${setId}`} className="sr-only">Click, tap, or press Enter to design a Template. Drag to move it; on touch, hold before dragging. Arrow or WASD keys move the focused Template; Shift takes a larger step. Escape cancels a move. Templates move independently of Artifacts.</p>
       <div
         ref={(node) => { viewportRef.current = node; stageRef.current = node; }}
         tabIndex={-1}
@@ -786,6 +846,11 @@ export function FocusedSetArtifactSurface({
         }}
         onPointerCancel={cancelActiveSpatialGesture}
         onKeyDown={(event) => {
+          if (event.key === 'Escape' && dragRef.current) {
+            event.preventDefault();
+            cancelActiveSpatialGesture();
+            return;
+          }
           if (!(event.ctrlKey || event.metaKey) || event.key.toLocaleLowerCase() !== 'z') return;
           event.preventDefault();
           if (event.shiftKey) redoSpatialMove(); else undoSpatialMove();
@@ -794,13 +859,25 @@ export function FocusedSetArtifactSurface({
         <div className={styles.artifactWorldSizer} style={{ width: viewportSize.width, height: viewportSize.height }}>
           <div data-artifact-world className={styles.artifactWorld} style={{ left: 0, top: 0, width: 1, height: 1, transform: `translate(${camera.offsetX}px, ${camera.offsetY}px) scale(${camera.camera.zoom})` }}>
             {templateLayout.map(({ entry, x, y, width, height, previewWidth }) => {
-              const visible = x + width >= camera.camera.x - viewportSize.width / camera.camera.zoom / 2
-                && x <= camera.camera.x + viewportSize.width / camera.camera.zoom / 2
-                && y + height >= camera.camera.y - viewportSize.height / camera.camera.zoom / 2
-                && y <= camera.camera.y + viewportSize.height / camera.camera.zoom / 2;
+              const templateId = entry.template.id!;
+              const position = templateDragPreview[templateId] ?? { x, y };
+              const visible = position.x + width >= camera.camera.x - viewportSize.width / camera.camera.zoom / 2
+                && position.x <= camera.camera.x + viewportSize.width / camera.camera.zoom / 2
+                && position.y + height >= camera.camera.y - viewportSize.height / camera.camera.zoom / 2
+                && position.y <= camera.camera.y + viewportSize.height / camera.camera.zoom / 2;
               return <SetTemplateObject key={entry.template.id} id={`set-template-field-${setId}-${entry.template.id}`} entry={entry}
-                className={styles.setTemplateObject} style={{ left: x, top: y, width, height }} tabIndex={visible ? 0 : -1}
-                onDesign={onDesignTemplate} accent={getTemplateAccent(entry.template.id!)} previewWidth={previewWidth}
+                className={styles.setTemplateObject} style={{ left: position.x, top: position.y, width, height }} tabIndex={visible ? 0 : -1}
+                interaction={{
+                  'aria-describedby': `template-movement-${setId}`,
+                  onPointerDown: (event) => beginSpatialMoveFromPointer('template', templateId, event, event.currentTarget),
+                  onPointerMove: moveSpatialObject, onPointerUp: endSpatialMove,
+                  onPointerCancel: cancelSpatialMove, onLostPointerCapture: cancelSpatialMove,
+                  onKeyDown: (event) => handleTemplateKey(templateId, event),
+                }}
+                onDesign={(id) => {
+                  if (suppressedTemplateClickRef.current === id) { suppressedTemplateClickRef.current = null; return; }
+                  onDesignTemplate(id);
+                }} accent={getTemplateAccent(templateId)} previewWidth={previewWidth}
                 showPreview={visible} renderPreview={renderTemplatePreview} />;
             })}
             {marquee ? <span data-artifact-marquee className={styles.deskMarquee} style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }} aria-hidden="true" /> : null}
@@ -842,10 +919,10 @@ export function FocusedSetArtifactSurface({
                   aria-label={`${entry.title}. ${entry.subtitle}`}
                   aria-pressed={selected}
                   onPointerDown={(event) => beginArtifactMove(entry, event)}
-                  onPointerMove={moveArtifact}
-                  onPointerUp={endArtifactMove}
-                  onPointerCancel={cancelArtifactMove}
-                  onLostPointerCapture={cancelArtifactMove}
+                  onPointerMove={moveSpatialObject}
+                  onPointerUp={endSpatialMove}
+                  onPointerCancel={cancelSpatialMove}
+                  onLostPointerCapture={cancelSpatialMove}
                   onKeyDown={(event) => handleArtifactKey(artifactId, event)}
                   onDoubleClick={() => {
                     if (lastArtifactPointerTypeRef.current !== 'touch') focusArtifact(artifactId);
@@ -898,8 +975,8 @@ export function FocusedSetArtifactSurface({
         <Button type="button" size="sm" variant="ghost" aria-pressed={camera.mode === 'fit-work'} onClick={camera.fit}>Fit Work</Button>
         <Button type="button" size="sm" variant="ghost" disabled={visibleSelectionEntries.length === 0} aria-pressed={camera.mode === 'fit-selection'} onClick={camera.fitSelection}>Selection</Button>
         <Button type="button" size="sm" variant="ghost" aria-pressed={camera.mode === 'whole'} onClick={camera.whole}>Whole Set</Button>
-        <Button type="button" size="icon" variant="ghost" disabled={undoStackRef.current.length === 0} onClick={undoSpatialMove} aria-label="Undo Artifact move"><Undo2 aria-hidden="true" /></Button>
-        <Button type="button" size="icon" variant="ghost" disabled={redoStackRef.current.length === 0} onClick={redoSpatialMove} aria-label="Redo Artifact move"><Redo2 aria-hidden="true" /></Button>
+        <Button type="button" size="icon" variant="ghost" disabled={undoStackRef.current.length === 0} onClick={undoSpatialMove} aria-label="Undo spatial move"><Undo2 aria-hidden="true" /></Button>
+        <Button type="button" size="icon" variant="ghost" disabled={redoStackRef.current.length === 0} onClick={redoSpatialMove} aria-label="Redo spatial move"><Redo2 aria-hidden="true" /></Button>
         <FocusedArtifactNavigator
           setName={setName}
           entries={layout.entries}

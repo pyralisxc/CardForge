@@ -14,7 +14,6 @@ import type { DisplayCard } from '@/domain/rendering';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { setCreatorLens, useEnvironmentToolLifecycle, type CreatorInteractionSession } from '@/features/app-shell/client/environment';
 import { getArtifactWorkState } from '@/features/card-generator/client';
-import { CardPreview, getTemplateAccent } from '@/features/card-rendering/client';
 import { CardRemovalUndo } from './CardRemovalUndo';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
@@ -22,12 +21,8 @@ import type { ArtifactSelectionScope } from '../model/focusedArtifactLayout';
 import { getCardTitle, workSourceLabel } from '../model/desk';
 import type { ReflectiveFieldFacet, ReflectiveOrganization } from '../model/reflectiveOrganization';
 import { FocusedSetArtifactSurface } from './FocusedSetArtifactSurface';
-import { SetDirection, SetTemplates, SetUpdates, getSetTemplateEntries } from '@/features/project/client/ui';
+import { SetDirection, SetUpdates, getSetTemplateEntries } from '@/features/project/client/ui';
 import styles from './Desk.module.css';
-
-const renderTemplatePreview = (card: DisplayCard, face: 'front' | 'back', targetWidthPx: number, highlightedElementId?: string) => (
-  <CardPreview card={card} face={face} targetWidthPx={targetWidthPx} highlightedElementId={highlightedElementId} />
-);
 
 export interface FocusedWorkSurfaceProps {
   item: AccountLibraryItem;
@@ -111,7 +106,6 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
         {!artifactFocused ? <>
           <div className={styles.contentToolbar}>
             <label className={styles.searchField}><span className="sr-only">Search cards in this work</span><Search aria-hidden="true" /><Input value={props.cardQuery} onChange={(event) => props.onCardQueryChange(event.target.value)} placeholder="Search cards" /></label>
-            {currentSet ? <SetTemplates set={currentSet} cards={props.focusedCards} templates={templates} onDesign={props.onDesignTemplate} renderPreview={renderTemplatePreview} getTemplateAccent={getTemplateAccent} /> : null}
             {currentSet ? <SetDirection key={currentSet.id} set={currentSet} useLifecycle={useEnvironmentToolLifecycle} /> : null}
             {currentSet ? <SetUpdates key={`updates-${currentSet.id}`} setId={currentSet.id} /> : null}
             {!props.selectedCards.length ? <>
@@ -175,6 +169,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
           onEditArtifact={props.onEditSelected} editingArtifactId={props.editingArtifactId}
           onCancelArtifactEdit={props.onCancelArtifactEdit} onArtifactEditDirtyChange={props.onArtifactEditDirtyChange}
           onSaveArtifact={props.onSaveArtifact} onDesignArtifact={props.onDesignArtifact} onMoveArtifacts={props.onMoveArtifacts}
+          onMoveTemplates={(positions) => props.onOrganizationChange({ templatePositions: { ...props.organization.templatePositions, ...positions } })}
         /> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{props.focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{props.focusedCards.length ? 'Clear the active filters to bring the cards back.' : 'Create a design from scratch or generate cards into this Set.'}</p>{!props.focusedCards.length ? <div className={styles.emptySetCompactActions}><Button type="button" onClick={props.onOpenDesign}>Create design</Button><Button type="button" variant="outline" onClick={props.onOpenGenerate}>Generate cards</Button></div> : null}</div></div>}
       </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}>{props.remoteIcon}<h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{props.item.name}</h2><p className={styles.emptyCopy}>{props.item.references.campaignId ? 'Open this campaign’s native workspace in the same Desk scene.' : props.item.references.pipelineLineageId ? 'Inspect this immutable publication in the same Desk scene. Its working copies remain separate.' : `This work stays owned by ${workSourceLabel(props.item)}.`}</p><Button type="button" onClick={props.onOpenWork}>Open work</Button></div></div>}
     </section>
