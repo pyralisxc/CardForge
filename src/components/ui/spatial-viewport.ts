@@ -411,7 +411,8 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
         if (gesture.current?.mode !== 'pending') return;
         gesture.current.mode = 'drag';
         target.setAttribute('data-spatial-held', 'true');
-        if (target === heldViewport && !heldTarget.closest('button, input, [data-set-object]')) {
+        const heldControl = heldTarget.closest<HTMLElement>('button, input, [data-set-object]');
+        if (target === heldViewport && (!heldControl || !heldViewport.contains(heldControl))) {
           current.current.onEmptySpaceHold?.(point, heldPointerId, heldViewport);
         }
       }, 350);

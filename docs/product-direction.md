@@ -140,6 +140,8 @@ Physical work uses one canonical measurement model from Studio through Set organ
 
 Desk and Set use one orthographic world-to-screen transform per active spatial view. Grid, objects, selection chrome, world labels, and transient guides may render in separate DOM layers but consume the same camera transform. Gentle edge-pan moves the camera while a dragged object remains attached to the pointer; non-dragged objects keep their authored transforms. Culling and semantic zoom may reduce pixel detail but never scene membership or replay entrance animation. Intentional Set unfurl and Artifact focus are semantic transitions only: the transition layer may temporarily own travelling pixels, then the settled scene node resumes ownership. Studio/Design is a precision tool depth over the same focused Artifact and physical geometry, not a second authoring universe.
 
+Across the Desk overview and open Set, dragging empty space immediately pans; holding empty space before dragging draws a selection marquee. A hold released without drawing preserves selection, and cancellation never commits a selection. Mouse Shift-drag remains additive, while Quick Actions Select Multiple provides tap-based selection. These paths select work without moving it; Set Templates remain excluded from Artifact selection.
+
 Opening a work container changes focus rather than changing the mental model:
 
 > Desk → focused work → contained objects

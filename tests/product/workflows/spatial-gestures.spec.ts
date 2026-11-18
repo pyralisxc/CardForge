@@ -298,7 +298,7 @@ test.describe('spatial touch workspace', () => {
     await page.getByRole('button', { name: 'Whole Set', exact: true }).click();
     await expect(stage).toHaveAttribute('data-camera-mode', 'whole');
 
-    // Touch multi-selection is explicit rather than overloading empty-space hold.
+    // Select Multiple also supports tap-based selection without drawing a marquee.
     // Camera navigation remains available while Select Multiple changes only tap semantics.
     const quickActionsTrigger = page.getByRole('button', { name: 'Quick actions', exact: true });
     await quickActionsTrigger.click();

@@ -17,6 +17,67 @@ for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
     test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });
 
+    test('@golden @preview holds empty space to select Artifacts without moving work', async ({ page, context }) => {
+      test.setTimeout(120_000);
+      await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await openScaleSet(page, 100);
+      const stage = page.locator('[data-set-spatial-stage]');
+      const cards = stage.locator('button[data-artifact-id]');
+      await expect(cards).toHaveCount(2);
+      await expect(stage.locator('[data-set-template]')).toBeVisible();
+      const geometry = () => stage.evaluate(node => ({
+        camera: ['data-camera-x', 'data-camera-y', 'data-zoom'].map(key => node.getAttribute(key)),
+        cards: Array.from(node.querySelectorAll<HTMLElement>('button[data-artifact-id]')).map(card => ({
+          id: card.dataset.artifactId, left: card.style.left, top: card.style.top,
+        })),
+      }));
+      const before = await geometry();
+      const field = (await stage.boundingBox())!;
+      const boxes = await cards.evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().toJSON()));
+      const start = { x: Math.max(field.x + 8, Math.min(...boxes.map(box => box.x)) - 30), y: Math.max(field.y + 8, Math.min(...boxes.map(box => box.y)) - 30) };
+      const end = { x: Math.min(field.x + field.width - 8, Math.max(...boxes.map(box => box.right)) + 8), y: Math.min(field.y + field.height - 8, Math.max(...boxes.map(box => box.bottom)) + 8) };
+      expect(await page.evaluate(point => Boolean(document.elementFromPoint(point.x, point.y)?.closest('button, input')), start)).toBe(false);
+      const cdp = mobile ? await context.newCDPSession(page) : null;
+      const down = async () => {
+        if (cdp) await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start, id: 1 }] });
+        else { await page.mouse.move(start.x, start.y); await page.mouse.down(); }
+      };
+      const move = async () => {
+        if (cdp) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...end, id: 1 }] });
+        else await page.mouse.move(end.x, end.y, { steps: 5 });
+      };
+      const up = async () => {
+        if (cdp) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        else await page.mouse.up();
+      };
+      await down();
+      if (cdp) await expect(stage).toHaveAttribute('data-spatial-held', 'true');
+      else await page.waitForTimeout(450);
+      await move();
+      await expect(stage.locator('[data-artifact-marquee]')).toBeVisible();
+      await up();
+      await expect(stage.locator('button[data-artifact-id][aria-pressed="true"]')).toHaveCount(2);
+      await expect(stage.locator('[data-artifact-marquee]')).toHaveCount(0);
+      expect(await geometry()).toEqual(before);
+
+      // Releasing a hold without drawing must not clear the existing selection.
+      await down();
+      await page.waitForTimeout(450);
+      await up();
+      await expect(stage.locator('button[data-artifact-id][aria-pressed="true"]')).toHaveCount(2);
+      if (cdp) {
+        await down();
+        await page.waitForTimeout(450);
+        await move();
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+        await expect(stage.locator('[data-artifact-marquee]')).toHaveCount(0);
+        await expect(stage.locator('button[data-artifact-id][aria-pressed="true"]')).toHaveCount(2);
+        expect(await geometry()).toEqual(before);
+        await cdp.detach();
+      }
+    });
+
     test('@golden @preview returns Updates focus to the originating Desk and Library controls', async ({ page }) => {
       test.setTimeout(120_000);
       await seedGuestScaleWorkspace(page, 100, { cardLimit: 1 });

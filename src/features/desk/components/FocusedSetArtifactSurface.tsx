@@ -170,7 +170,7 @@ export function FocusedSetArtifactSurface({
   const [navigatorFocusId, setNavigatorFocusId] = useState<string | null>(null);
   const [faces, setFace] = useArtifactFaces();
   const [historyRevision, setHistoryRevision] = useState(0);
-  const marqueeRef = useRef<{ start: ArtifactPosition; additive: string[] } | null>(null);
+  const marqueeRef = useRef<{ start: ArtifactPosition; pointerId: number; additive: string[] } | null>(null);
   const [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   const cardById = useMemo(() => new Map(allCards.map((card) => [card.uniqueId, card])), [allCards]);
@@ -336,6 +336,14 @@ export function FocusedSetArtifactSurface({
     if (entry) beginArtifactMoveFromPointer(entry, event, target);
   };
 
+  const beginMarquee = (point: ClientPoint, pointerId: number, viewport: HTMLDivElement, additive: string[] = []) => {
+    const camera = cameraApiRef.current;
+    if (!camera) return;
+    camera.enterCustom();
+    marqueeRef.current = { start: camera.projectClientPoint(point), pointerId, additive };
+    viewport.setPointerCapture(pointerId);
+  };
+
   const camera = useSetSpatialCamera({
     resetKey: setId,
     disabled: Boolean(artifactFocusId),
@@ -351,6 +359,7 @@ export function FocusedSetArtifactSurface({
     onCancelDrag: cancelActiveSpatialGesture,
     resolvePointerTarget,
     onResolvedPointerDown,
+    onEmptySpaceHold: beginMarquee,
   });
   cameraApiRef.current = camera;
 
@@ -717,6 +726,7 @@ export function FocusedSetArtifactSurface({
   };
 
   const selectionRect = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeRef.current?.pointerId !== event.pointerId) return null;
     const start = marqueeRef.current?.start;
     if (!start) return null;
     const end = camera.projectClientPoint(event);
@@ -733,7 +743,7 @@ export function FocusedSetArtifactSurface({
         aria-hidden={Boolean(focusedEntry)}
         inert={focusedEntry ? true : undefined}
       >
-      <p id={`artifact-field-instructions-${setId}`} className="sr-only">Drag empty space to pan and pinch to zoom. Tap or click a card to select it; use Quick Actions Select Multiple on touch to add or remove cards without replacing the selection. Double tap, double click, or press Enter to focus it when Select Multiple is off. Hold a card then drag to move it. With a mouse, Shift-drag empty space to draw a selection. Moving a card switches to Freeform. Use Tab to reach visible Artifacts and Arrow or WASD keys to move selected Artifacts; hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
+      <p id={`artifact-field-instructions-${setId}`} className="sr-only">Drag empty space immediately to pan and pinch to zoom. Hold empty space, then drag to select multiple cards. Tap or click a card to select it; use Quick Actions Select Multiple on touch to add or remove cards without replacing the selection. Double tap, double click, or press Enter to focus it when Select Multiple is off. Hold a card then drag to move it. With a mouse, Shift-drag empty space to draw a selection. Moving a card switches to Freeform. Use Tab to reach visible Artifacts and Arrow or WASD keys to move selected Artifacts; hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
       <div
         ref={(node) => { viewportRef.current = node; stageRef.current = node; }}
         tabIndex={-1}
@@ -762,19 +772,19 @@ export function FocusedSetArtifactSurface({
         {...camera.gestures}
         onPointerDown={(event) => {
           if (event.button !== 0 || event.pointerType === 'touch' || !event.shiftKey || (event.target as HTMLElement).closest('button')) return;
-          camera.enterCustom();
-          marqueeRef.current = { start: camera.projectClientPoint(event), additive: event.ctrlKey || event.metaKey || event.shiftKey ? session.selection : [] };
-          event.currentTarget.setPointerCapture(event.pointerId);
+          beginMarquee(event, event.pointerId, event.currentTarget, session.selection);
         }}
         onPointerMove={(event) => { const rect = selectionRect(event); if (rect) setMarquee(rect); }}
         onPointerUp={(event) => {
           const rect = selectionRect(event), state = marqueeRef.current;
           if (!rect || !state) return;
-          const hits = layout.entries.filter((entry) => entry.position.x < rect.x + rect.width && entry.position.x + entry.width > rect.x && entry.position.y < rect.y + rect.height && entry.position.y + entry.height > rect.y).map((entry) => entry.identity.artifactId);
-          updateSelection([...new Set([...state.additive, ...hits])]);
           marqueeRef.current = null;
           setMarquee(null);
+          if (Math.hypot(rect.width, rect.height) * camera.camera.zoom < 6) return;
+          const hits = layout.entries.filter((entry) => entry.position.x < rect.x + rect.width && entry.position.x + entry.width > rect.x && entry.position.y < rect.y + rect.height && entry.position.y + entry.height > rect.y).map((entry) => entry.identity.artifactId);
+          updateSelection([...new Set([...state.additive, ...hits])]);
         }}
+        onPointerCancel={cancelActiveSpatialGesture}
         onKeyDown={(event) => {
           if (!(event.ctrlKey || event.metaKey) || event.key.toLocaleLowerCase() !== 'z') return;
           event.preventDefault();
@@ -793,7 +803,7 @@ export function FocusedSetArtifactSurface({
                 onDesign={onDesignTemplate} accent={getTemplateAccent(entry.template.id!)} previewWidth={previewWidth}
                 showPreview={visible} renderPreview={renderTemplatePreview} />;
             })}
-            {marquee ? <span className={styles.deskMarquee} style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }} aria-hidden="true" /> : null}
+            {marquee ? <span data-artifact-marquee className={styles.deskMarquee} style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }} aria-hidden="true" /> : null}
             {organization.arrangement !== 'manual' && organization.groupBy !== 'none' ? layout.groups.map((group) => (
               <div key={group.label} data-artifact-group-label className={styles.artifactGroupLabel} style={{ left: group.x, top: group.y, width: group.width, height: group.height }}><strong title={group.label}>{group.label}</strong><span>{group.count}</span></div>
             )) : null}
