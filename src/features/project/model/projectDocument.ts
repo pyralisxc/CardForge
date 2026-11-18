@@ -539,6 +539,10 @@ export const isolateProjectDocumentToCard = (document: ProjectDocumentV1, cardId
   const setId = card.setId ?? document.cardSets[0]?.id;
   if (!setId) throw new Error('The selected card has no Set. Move it into a Set before exporting.');
   const isolated = isolateProjectDocumentToSet({ ...document, storedCards: [card] }, setId);
+  const retainedTemplateIds = new Set([
+    ...(isolated.cardSets[0]?.templateIds ?? []),
+    ...isolated.storedCards.flatMap((entry) => [entry.templateId, entry.backingTemplateId]),
+  ].filter((id): id is string => Boolean(id)));
   return {
     ...isolated,
     cardSets: isolated.cardSets.map((set) => ({
@@ -547,6 +551,9 @@ export const isolateProjectDocumentToCard = (document: ProjectDocumentV1, cardId
         ...set.organization,
         tags: set.organization.tags.filter((tag) => card.tagIds?.includes(tag.id)),
         positions: set.organization.positions[cardId] ? { [cardId]: set.organization.positions[cardId] } : {},
+        ...(set.organization.templatePositions ? { templatePositions: Object.fromEntries(
+          Object.entries(set.organization.templatePositions).filter(([templateId]) => retainedTemplateIds.has(templateId)),
+        ) } : {}),
       } } : {}),
     })),
   };

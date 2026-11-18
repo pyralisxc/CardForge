@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { reconstructMinimalTemplateObject } from '@/domain/templates';
+import { assertSetTemplateOwnership } from '@/features/project/model/setTemplateOwnership';
+import { createProjectDocumentFromState, isolateProjectDocumentToSet, parseProjectDocumentValue } from '@/features/project/model/projectDocument';
 import { useProjectStore } from '@/features/project/store/workspaceStore';
 
 const template = (id: string, usage: 'standard' | 'back-preset' = 'standard') => reconstructMinimalTemplateObject({
@@ -27,7 +29,7 @@ describe('Set duplication Template isolation', () => {
     const original = {
       id: 'original',
       name: 'Original',
-      templateIds: ['front', 'back'],
+      templateIds: ['front', 'back', 'prepared'],
       updateReviews: [completedReview, deferredReview],
       organization: {
         arrangement: 'manual' as const,
@@ -45,28 +47,29 @@ describe('Set duplication Template isolation', () => {
     const card = { uniqueId: 'card', setId: original.id, templateId: 'front', backingTemplateId: 'back', data: { name: 'A' }, backingData: { name: 'B' } };
     useProjectStore.setState({ cardSets: [original], activeCardSet: original, storedCards: [card, { ...card, uniqueId: 'other-card' }], userTemplates: [front, back, prepared], defaultTemplates: [] });
     const copyId = useProjectStore.getState().duplicateCardSet(original.id);
-    expect(copyId).toBeTruthy();
+    if (!copyId) throw new Error('Expected the Set duplicate to be created.');
     const state = useProjectStore.getState();
     const copy = state.cardSets.find((set) => set.id === copyId)!;
+    const copiedTemplateIds = copy.templateIds ?? [];
     const copiedCard = state.storedCards.find((item) => item.setId === copyId)!;
     expect(copy.updateReviews).toEqual([{ ...completedReview, templateId: copiedCard.templateId }]);
     expect(copy.updateReviews?.[0]).not.toBe(original.updateReviews[0]);
     expect(copy.updateReviews?.[0]?.decisions).not.toBe(original.updateReviews[0].decisions);
     expect(state.cardSets.find((set) => set.id === original.id)?.updateReviews).toEqual([completedReview, deferredReview]);
-    expect(copy.templateIds).toHaveLength(3);
-    expect(copy.templateIds).not.toContain('prepared');
+    expect(copiedTemplateIds).toHaveLength(3);
+    expect(copiedTemplateIds).not.toContain('prepared');
     expect(copy.organization?.templatePositions).toEqual({
-      [copy.templateIds[0]!]: { x: -10, y: 15 },
-      [copy.templateIds[1]!]: { x: 20, y: -30 },
-      [copy.templateIds[2]!]: { x: -40, y: -50 },
+      [copiedTemplateIds[0]!]: { x: -10, y: 15 },
+      [copiedTemplateIds[1]!]: { x: 20, y: -30 },
+      [copiedTemplateIds[2]!]: { x: -40, y: -50 },
     });
-    expect(Object.keys(copy.organization?.templatePositions ?? {})).toEqual(copy.templateIds);
+    expect(Object.keys(copy.organization?.templatePositions ?? {})).toEqual(copiedTemplateIds);
     expect(copy.organization?.positions).toEqual({ [copiedCard.uniqueId]: { x: 90, y: -25 } });
     expect(state.cardSets.find((set) => set.id === original.id)?.organization?.templatePositions).toEqual(original.organization.templatePositions);
     expect(copiedCard.templateId).not.toBe('front');
     expect(copiedCard.backingTemplateId).not.toBe('back');
-    expect(copy.templateIds).toContain(copiedCard.templateId);
-    expect(copy.templateIds).toContain(copiedCard.backingTemplateId);
+    expect(copiedTemplateIds).toContain(copiedCard.templateId);
+    expect(copiedTemplateIds).toContain(copiedCard.backingTemplateId);
     const copiedFront = state.userTemplates.find((item) => item.id === copiedCard.templateId)!;
     expect(copiedFront.templateOriginLineageId).toBe('front-lineage');
     expect(copiedFront.templateOriginRevisionId).toBe('front-revision');
@@ -75,8 +78,27 @@ describe('Set duplication Template isolation', () => {
     expect(useProjectStore.getState().userTemplates.find((item) => item.id === 'front')?.name).toBe('front');
     expect(useProjectStore.getState().cardSets.find((set) => set.id === original.id)?.organization?.templatePositions)
       .toEqual(original.organization.templatePositions);
-    useProjectStore.getState().deleteTemplate(copiedCard.templateId, 'user');
+    const deletedTemplateId = copiedCard.templateId;
+    useProjectStore.getState().deleteTemplate(deletedTemplateId, 'user');
     expect(useProjectStore.getState().storedCards.find((item) => item.uniqueId === 'card')).toEqual(card);
+    const afterDelete = useProjectStore.getState();
+    const copiedSetAfterDelete = afterDelete.cardSets.find((set) => set.id === copyId)!;
+    expect(copiedSetAfterDelete.templateIds).not.toContain(deletedTemplateId);
+    expect(copiedSetAfterDelete.organization?.templatePositions).not.toHaveProperty(deletedTemplateId);
+    expect(Object.keys(copiedSetAfterDelete.organization?.templatePositions ?? {})).toEqual([
+      copiedTemplateIds[1], copiedTemplateIds[2],
+    ]);
+    expect(afterDelete.cardSets.find((set) => set.id === original.id)?.organization?.templatePositions)
+      .toEqual(original.organization.templatePositions);
+    const captured = createProjectDocumentFromState({
+      userTemplates: afterDelete.userTemplates,
+      cardSets: afterDelete.cardSets,
+      activeCardSetId: afterDelete.activeCardSet?.id,
+      storedCards: afterDelete.storedCards,
+      appearanceStyles: afterDelete.appearanceStyles,
+    });
+    const completeCopy = isolateProjectDocumentToSet(captured, copyId);
+    expect(parseProjectDocumentValue(completeCopy)).toMatchObject({ success: true });
 
     const destinationId = useProjectStore.getState().createCardSet('Destination');
     useProjectStore.getState().referenceTemplateInCardSet(destinationId, 'front');
@@ -136,6 +158,49 @@ describe('Set duplication Template isolation', () => {
     expect(useProjectStore.getState().userTemplates.some((item) => item.id === acquiredId || item.id === selectedId || item.id === moved.templateId)).toBe(false);
     expect(useProjectStore.getState().userTemplates.find((item) => item.id === library.id)).toEqual(library);
     expect(useProjectStore.getState().userTemplates.find((item) => item.id === front.id)).toEqual(front);
+  });
+
+  it('removes an unreferenced prepared Template placement with its Set snapshot', () => {
+    const prepared = template('prepared-only');
+    const sibling = template('prepared-sibling');
+    const set = {
+      id: 'prepared-set',
+      name: 'Prepared Set',
+      templateIds: [prepared.id!, sibling.id!],
+      organization: {
+        arrangement: 'manual' as const, groupBy: 'none' as const, sort: 'manual' as const,
+        tags: [], positions: {},
+        templatePositions: {
+          [prepared.id!]: { x: -12, y: 24 },
+          [sibling.id!]: { x: 30, y: -40 },
+        },
+      },
+    };
+    useProjectStore.setState({ cardSets: [set], activeCardSet: set, storedCards: [], userTemplates: [prepared, sibling] });
+
+    expect(useProjectStore.getState().unreferenceTemplateFromCardSet(set.id, prepared.id!)).toBe(true);
+
+    const state = useProjectStore.getState();
+    expect(state.cardSets[0]?.templateIds).toEqual([sibling.id]);
+    expect(state.cardSets[0]?.organization?.templatePositions).toEqual({ [sibling.id!]: { x: 30, y: -40 } });
+    expect(state.activeCardSet?.organization?.templatePositions).toEqual({ [sibling.id!]: { x: 30, y: -40 } });
+    expect(state.userTemplates.map((item) => item.id)).toEqual([sibling.id]);
+  });
+
+  it('rejects placement for a Template that the Set does not already reference', () => {
+    const referenced = template('referenced');
+    const dangling = template('dangling');
+    const set = {
+      id: 'placement-set',
+      name: 'Placement Set',
+      templateIds: [referenced.id!],
+      organization: {
+        arrangement: 'manual' as const, groupBy: 'none' as const, sort: 'manual' as const,
+        tags: [], positions: {}, templatePositions: { [dangling.id!]: { x: -10, y: 10 } },
+      },
+    };
+    expect(() => assertSetTemplateOwnership({ cardSets: [set], storedCards: [], userTemplates: [referenced, dangling] }))
+      .toThrow(/placement.*without an existing Set reference/i);
   });
 
   it('leaves the original untouched if a referenced design cannot be resolved', () => {

@@ -878,12 +878,19 @@ export function FocusedSetArtifactSurface({
                   onPointerDown: (event) => beginSpatialMoveFromPointer('template', templateId, event, event.currentTarget),
                   onPointerMove: moveSpatialObject, onPointerUp: endSpatialMove,
                   onPointerCancel: cancelSpatialMove, onLostPointerCapture: cancelSpatialMove,
+                  onClickCapture: (event) => {
+                    if (event.detail === 0) {
+                      suppressedTemplateClickRef.current = null;
+                      return;
+                    }
+                    if (suppressedTemplateClickRef.current !== templateId) return;
+                    suppressedTemplateClickRef.current = null;
+                    event.preventDefault();
+                    event.stopPropagation();
+                  },
                   onKeyDown: (event) => handleTemplateKey(templateId, event),
                 }}
-                onDesign={(id) => {
-                  if (suppressedTemplateClickRef.current === id) { suppressedTemplateClickRef.current = null; return; }
-                  onDesignTemplate(id);
-                }} accent={getTemplateAccent(templateId)} previewWidth={previewWidth}
+                onDesign={onDesignTemplate} accent={getTemplateAccent(templateId)} previewWidth={previewWidth}
                 showPreview={visible} renderPreview={renderTemplatePreview} />;
             })}
             {marquee ? <span data-artifact-marquee className={styles.deskMarquee} style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }} aria-hidden="true" /> : null}

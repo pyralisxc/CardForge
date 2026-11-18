@@ -44,7 +44,7 @@ const TemplateObjectPreview = memo(function TemplateObjectPreview({ entry, width
 export function SetTemplateObject({ entry, onDesign, renderPreview, accent, previewWidth = 88, id, className = '', style, tabIndex, showPreview = true, interaction }: {
   entry: SetTemplateEntry; onDesign: (templateId: string) => void; renderPreview: TemplatePreviewRenderer;
   accent: string; previewWidth?: number; id?: string; className?: string; style?: CSSProperties; tabIndex?: number; showPreview?: boolean;
-  interaction?: Pick<ButtonHTMLAttributes<HTMLButtonElement>, 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onPointerCancel' | 'onLostPointerCapture' | 'onKeyDown' | 'aria-describedby'>;
+  interaction?: Pick<ButtonHTMLAttributes<HTMLButtonElement>, 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onPointerCancel' | 'onLostPointerCapture' | 'onKeyDown' | 'onClickCapture' | 'aria-describedby'>;
 }) {
   const { template, face, artifactCount } = entry;
   const usage = artifactCount ? `${artifactCount} ${artifactCount === 1 ? 'Artifact' : 'Artifacts'}` : null;

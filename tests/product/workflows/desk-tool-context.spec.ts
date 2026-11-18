@@ -69,6 +69,12 @@ for (const mobile of [false, true]) {
       }
       expect(await position()).toEqual(moved);
       await expect(page.getByRole('region', { name: 'Design', exact: true })).toHaveCount(0);
+      await template.focus();
+      await template.press('Enter');
+      await expect(page.getByRole('region', { name: 'Design', exact: true })).toBeVisible();
+      await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(page.getByRole('region', { name: 'Design', exact: true })).toHaveCount(0);
+      expect(await position()).toEqual(moved);
       await page.getByRole('button', { name: 'Back to Desk', exact: true }).click();
       await page.reload({ waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);

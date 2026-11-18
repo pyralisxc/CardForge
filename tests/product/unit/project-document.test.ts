@@ -4,7 +4,7 @@ import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates'
 import type { PaperSize } from '@/domain/rendering';
 import type { CardAssetOption } from '@/features/pipeline/lib/cardAssets';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
-import { createProjectDocumentFromState, applyProjectDocumentToState, instantiateProjectDocumentCopy, isolateProjectDocumentToSet, parseProjectDocumentFile, type ProjectDocumentV1 } from '@/features/project/client/package-document';
+import { createProjectDocumentFromState, applyProjectDocumentToState, instantiateProjectDocumentCopy, isolateProjectDocumentToSet, isolateProjectDocumentToCard, parseProjectDocumentFile, type ProjectDocumentV1 } from '@/features/project/client/package-document';
 import { materializeProjectTemplateOwnership, parseProjectDocumentValue } from '@/features/project/model/projectDocument';
 
 const template: TCGCardTemplate = {
@@ -596,6 +596,39 @@ describe('project document serialization', () => {
       ['legacy-card', cardSet.id],
     ]);
     expect(isolated.userTemplates).toEqual([template]);
+  });
+
+  it('keeps one-card Template placements within the exported front/back and prepared scope', () => {
+    const sibling: TCGCardTemplate = { ...template, id: 'sibling-template', name: 'Sibling Template' };
+    const document = createProjectDocumentFromState({
+      userTemplates: [template, sibling],
+      cardSets: [{
+        ...cardSet,
+        organization: {
+          arrangement: 'manual', groupBy: 'none', sort: 'manual', tags: [], positions: {},
+          templatePositions: {
+            [template.id!]: { x: -14, y: 26 },
+            [sibling.id!]: { x: 38, y: -42 },
+          },
+        },
+      }],
+      activeCardSetId: cardSet.id,
+      storedCards: [
+        { ...storedCard, backingTemplateId: undefined },
+        { ...storedCard, uniqueId: 'sibling-card', templateId: sibling.id!, backingTemplateId: undefined },
+      ],
+      appearanceStyles: [],
+    });
+
+    const isolatedCard = isolateProjectDocumentToCard(document, storedCard.uniqueId);
+    expect(isolatedCard.storedCards).toHaveLength(1);
+    expect(isolatedCard.userTemplates.map((item) => item.id)).toEqual([template.id]);
+    expect(isolatedCard.cardSets[0]?.organization?.templatePositions).toEqual({
+      [template.id!]: { x: -14, y: 26 },
+    });
+
+    const isolatedSet = isolateProjectDocumentToSet(document, cardSet.id);
+    expect(isolatedSet.cardSets[0]?.organization?.templatePositions).toEqual(document.cardSets[0]?.organization?.templatePositions);
   });
 });
 

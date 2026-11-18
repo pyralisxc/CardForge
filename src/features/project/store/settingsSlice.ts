@@ -293,7 +293,14 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     set((current) => {
       const owned = getTemplateOwnerSetId(current, templateId) === setId;
       const cardSets = current.cardSets.map((candidate) => candidate.id === setId
-        ? { ...candidate, templateIds: candidate.templateIds?.filter((id) => id !== templateId) }
+        ? {
+          ...candidate,
+          templateIds: candidate.templateIds?.filter((id) => id !== templateId),
+          ...(candidate.organization?.templatePositions ? { organization: {
+            ...candidate.organization,
+            templatePositions: Object.fromEntries(Object.entries(candidate.organization.templatePositions).filter(([id]) => id !== templateId)),
+          } } : {}),
+        }
         : candidate);
       const activeCardSet = current.activeCardSet?.id === setId
         ? cardSets.find((candidate) => candidate.id === setId) ?? current.activeCardSet

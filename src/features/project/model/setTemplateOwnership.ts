@@ -31,7 +31,6 @@ const indexSnapshots = (templates: readonly TCGCardTemplate[]) => {
 
 export const getCardSetTemplateIds = (state: SetTemplateState, setId: string): string[] => [...new Set([
   ...(state.cardSets.find((set) => set.id === setId)?.templateIds ?? []),
-  ...Object.keys(state.cardSets.find((set) => set.id === setId)?.organization?.templatePositions ?? {}),
   ...state.storedCards.filter((card) => (card.setId ?? state.cardSets[0]?.id) === setId)
     .flatMap((card) => [card.templateId, card.backingTemplateId]),
 ].filter((id): id is string => Boolean(id)))];
@@ -44,10 +43,7 @@ const indexOwners = (state: SetTemplateState) => {
     sets.add(setId);
     owners.set(templateId, sets);
   };
-  state.cardSets.forEach((set) => {
-    set.templateIds?.forEach((id) => include(id, set.id));
-    Object.keys(set.organization?.templatePositions ?? {}).forEach((id) => include(id, set.id));
-  });
+  state.cardSets.forEach((set) => set.templateIds?.forEach((id) => include(id, set.id)));
   state.storedCards.forEach((card) => {
     const setId = card.setId ?? state.cardSets[0]?.id;
     include(card.templateId, setId);
@@ -108,10 +104,7 @@ export const preserveReferencedTemplateIdentities = (
     incomingById.set(template.id, template);
   }
   const referencedIds = new Set([
-    ...state.cardSets.flatMap((set) => [
-      ...(set.templateIds ?? []),
-      ...Object.keys(set.organization?.templatePositions ?? {}),
-    ]),
+    ...state.cardSets.flatMap((set) => set.templateIds ?? []),
     ...state.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
   ].filter((id): id is string => Boolean(id)));
   const currentById = new Map(state.userTemplates.flatMap((template) => template.id ? [[template.id, template] as const] : []));
@@ -263,7 +256,13 @@ export const assertSetTemplateOwnership = (state: SetTemplateState, requireCompl
   const snapshots = indexSnapshots(state.userTemplates);
   const owners = indexOwners(state);
   for (const set of state.cardSets) {
-    for (const id of getCardSetTemplateIds(state, set.id)) {
+    const referencedTemplateIds = new Set(getCardSetTemplateIds(state, set.id));
+    for (const id of Object.keys(set.organization?.templatePositions ?? {})) {
+      if (!referencedTemplateIds.has(id)) {
+        throw new SetTemplateOwnershipError('conflict', `Set ${set.name} has placement for Template ${id} without an existing Set reference. Add it as a prepared Template or bind it to an Artifact before positioning it; existing work was left unchanged.`);
+      }
+    }
+    for (const id of referencedTemplateIds) {
       const template = snapshots.get(id);
       if (!template || template.templateSource === 'default') {
         if (requireComplete) {
