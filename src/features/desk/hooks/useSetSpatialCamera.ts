@@ -61,6 +61,7 @@ export function useSetSpatialCamera({
   onCancelDrag,
   resolvePointerTarget,
   onResolvedPointerDown,
+  onEmptySpaceHold,
 }: {
   resetKey: string;
   disabled: boolean;
@@ -76,6 +77,7 @@ export function useSetSpatialCamera({
   onCancelDrag?: () => void;
   resolvePointerTarget?: (point: ClientSpatialPoint, event: ReactPointerEvent<HTMLDivElement>) => SpatialPointerTargetResolution;
   onResolvedPointerDown?: (target: HTMLElement, event: SpatialResolvedPointerStart) => void;
+  onEmptySpaceHold?: (point: ClientSpatialPoint, pointerId: number, viewport: HTMLDivElement) => void;
 }) {
   const cameraRef = useRef<SpatialCamera2D>(camera);
   cameraRef.current = camera;
@@ -247,6 +249,7 @@ export function useSetSpatialCamera({
     cancelDrag: onCancelDrag,
     resolvePointerTarget,
     onResolvedPointerDown,
+    onEmptySpaceHold,
     disabled,
   });
 
