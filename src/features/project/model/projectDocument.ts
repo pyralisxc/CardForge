@@ -641,6 +641,12 @@ export const instantiateProjectDocumentCopy = (
           const nextId = cardIds.get(cardId);
           return nextId ? [[nextId, position] as const] : [];
         })),
+        ...(set.organization.templatePositions ? { templatePositions: Object.fromEntries(
+          Object.entries(set.organization.templatePositions).map(([templateId, position]) => [
+            remapTemplateId(templateId) ?? templateId,
+            { ...position },
+          ]),
+        ) } : {}),
       } } : {}),
     })),
     activeCardSetId: document.activeCardSetId

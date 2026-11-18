@@ -3,7 +3,7 @@ import { createStore } from 'zustand/vanilla';
 import type { StateCreator } from 'zustand';
 import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand/middleware';
 
-import { normalizeSetUpdateReviews, reconcileCardSets, resolveActiveCardSet } from '@/domain/cards';
+import { normalizeSetUpdateReviews, normalizeTemplatePositions, reconcileCardSets, resolveActiveCardSet } from '@/domain/cards';
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { migrateLegacyEditorPreferences } from '../client/editorPreferenceStorage';
 import {
@@ -87,7 +87,7 @@ const createHydratingWorkspaceJsonStorage = () => createJSONStorage<WorkspacePer
   getItem: createScopedProjectStorage('project-workspace', WORKSPACE_STORAGE_OPTIONS).getItem,
 }));
 
-const validatePersistedSetUpdateReviews = (set: unknown): void => {
+const validatePersistedSetMetadata = (set: unknown): void => {
   if (!set || typeof set !== 'object' || Array.isArray(set)) {
     throw new Error('The saved workspace contains an invalid Set record. Its saved and recovery data were left unchanged.');
   }
@@ -96,13 +96,21 @@ const validatePersistedSetUpdateReviews = (set: unknown): void => {
   } catch {
     throw new Error('The saved workspace contains unsupported Set Update Review metadata. Its saved and recovery data were left unchanged.');
   }
+  const organization = (set as { organization?: unknown }).organization;
+  if (organization && typeof organization === 'object' && Object.hasOwn(organization, 'templatePositions')) {
+    try {
+      normalizeTemplatePositions((organization as { templatePositions?: unknown }).templatePositions);
+    } catch {
+      throw new Error('The saved workspace contains invalid Template placement metadata. Its saved and recovery data were left unchanged.');
+    }
+  }
 };
 
 let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
 let hydrationTask: { scope: ProjectPersistenceScope; promise: Promise<void>; signal?: AbortSignal } | null = null;
 let workspaceHydrationError: unknown = null;
 const pendingLegacyEditorPreferenceMigrations = new Map<ProjectPersistenceScope, unknown>();
-const pendingSetOwnershipMigrations = new Set<ProjectPersistenceScope>();
+const pendingWorkspaceMigrations = new Set<ProjectPersistenceScope>();
 
 const getCompatibleGeneratorBackingId = (
   templates: ReturnType<typeof selectAllTemplates>,
@@ -253,16 +261,16 @@ export const useProjectStore = create<ProjectState>()(
           }
           if (persisted !== undefined) {
             const saved = persisted as Partial<ProjectState>;
-            saved.cardSets?.forEach(validatePersistedSetUpdateReviews);
-            if (saved.activeCardSet !== undefined && saved.activeCardSet !== null) validatePersistedSetUpdateReviews(saved.activeCardSet);
+            saved.cardSets?.forEach(validatePersistedSetMetadata);
+            if (saved.activeCardSet !== undefined && saved.activeCardSet !== null) validatePersistedSetMetadata(saved.activeCardSet);
           }
           const merged = { ...current, ...(persisted as Partial<ProjectState>), cardRemovalRecoveries: [] };
           assertSetTemplateOwnership(merged);
           return merged;
         },
-        version: 8,
+        version: 9,
         migrate: (persistedState, version) => {
-          if (version > 8) throw new Error('This workspace requires a newer CardForge version. Reload before editing; your saved work was left unchanged.');
+          if (version > 9) throw new Error('This workspace requires a newer CardForge version. Reload before editing; your saved work was left unchanged.');
           const {
             activeTab,
             singleCardGeneratorSelectedTemplateId,
@@ -291,6 +299,8 @@ export const useProjectStore = create<ProjectState>()(
               ? current.generatorSelectedBackingTemplateId : singleCardGeneratorSelectedBackingTemplateId ?? null,
             studioView: normalizeStudioView(version < 2 ? activeTab : current.studioView),
           } as WorkspacePersistedState;
+          legacy.cardSets?.forEach(validatePersistedSetMetadata);
+          if (legacy.activeCardSet !== undefined && legacy.activeCardSet !== null) validatePersistedSetMetadata(legacy.activeCardSet);
           const cardSets = reconcileCardSets({ cardSets: legacy.cardSets ?? [], activeCardSet: legacy.activeCardSet, storedCards: legacy.storedCards ?? [] });
           const { state: owned, templateIdsBySet } = version >= 7
             ? { state: { ...legacy, cardSets }, templateIdsBySet: new Map<string, Map<string, string>>() }
@@ -300,7 +310,7 @@ export const useProjectStore = create<ProjectState>()(
           const activeCardSet = resolveActiveCardSet({ cardSets: owned.cardSets, preferredId: legacy.activeCardSet?.id });
           const mapping = activeCardSet ? templateIdsBySet.get(activeCardSet.id) : undefined;
           const remap = (id: string | null) => id ? mapping?.get(id) ?? id : id;
-          if (version < 7 && scope !== 'unscoped-disabled') pendingSetOwnershipMigrations.add(scope);
+          if (version < 9 && scope !== 'unscoped-disabled') pendingWorkspaceMigrations.add(scope);
           return {
             ...owned, activeCardSet,
             generatorSelectedTemplateId: remap(legacy.generatorSelectedTemplateId),
@@ -338,18 +348,18 @@ export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceS
     // cannot autosave initial state over a workspace still being restored.
     useProjectStore.persist.setOptions({ storage: createHydratingWorkspaceJsonStorage() });
     workspaceHydrationError = null;
-    pendingSetOwnershipMigrations.delete(scope);
+    pendingWorkspaceMigrations.delete(scope);
     await useProjectStore.persist.rehydrate();
     if (signal?.aborted || workspaceHydrationError || !useProjectStore.persist.hasHydrated()) {
       // Zustand reports hydration errors through its callback, not rehydrate's promise.
       // Disable autosave until retry succeeds so initial state cannot replace unreadable work.
       useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
       pendingLegacyEditorPreferenceMigrations.delete(scope);
-      pendingSetOwnershipMigrations.delete(scope);
+      pendingWorkspaceMigrations.delete(scope);
       signal?.throwIfAborted();
       throw workspaceHydrationError ?? new Error('The browser workspace could not be restored.');
     }
-    if (pendingSetOwnershipMigrations.delete(scope)) {
+    if (pendingWorkspaceMigrations.delete(scope)) {
       try {
         await persistProjectWorkspaceNow();
         signal?.throwIfAborted();

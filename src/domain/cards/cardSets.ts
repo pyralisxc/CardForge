@@ -1,4 +1,4 @@
-import type { CardSet, CardSetMetadata, CardSetOrganization, StoredDisplayCard } from './types';
+import type { CardSet, CardSetCardPosition, CardSetMetadata, CardSetOrganization, StoredDisplayCard } from './types';
 import { normalizeSetPlan } from './setPlan';
 import { normalizeSetUpdateReviews } from './setUpdateReview';
 
@@ -18,6 +18,44 @@ const cleanMetadataText = (value: unknown, limit: number): string | null => {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().replace(/\s+/gu, ' ').slice(0, limit);
   return normalized || null;
+};
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+export const normalizeTemplatePositions = (value: unknown): Record<string, CardSetCardPosition> => {
+  if (!isPlainRecord(value)) {
+    throw new Error('The Set contains invalid Template placement metadata. Its source was left unchanged.');
+  }
+  const entries: Array<[string, CardSetCardPosition]> = [];
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = typeof key === 'string' ? Object.getOwnPropertyDescriptor(value, key) : undefined;
+    const position = descriptor && 'value' in descriptor ? descriptor.value : undefined;
+    if (typeof key !== 'string' || !key.trim() || !descriptor?.enumerable || !isPlainRecord(position)) {
+      throw new Error('The Set contains invalid Template placement metadata. Its source was left unchanged.');
+    }
+    const coordinateKeys = Reflect.ownKeys(position);
+    const x = Object.getOwnPropertyDescriptor(position, 'x');
+    const y = Object.getOwnPropertyDescriptor(position, 'y');
+    if (coordinateKeys.length !== 2
+      || !coordinateKeys.includes('x')
+      || !coordinateKeys.includes('y')
+      || !x?.enumerable
+      || !y?.enumerable
+      || !('value' in x)
+      || !('value' in y)
+      || typeof x.value !== 'number'
+      || typeof y.value !== 'number'
+      || !Number.isFinite(x.value)
+      || !Number.isFinite(y.value)) {
+      throw new Error('The Set contains invalid Template placement metadata. Its source was left unchanged.');
+    }
+    entries.push([key, { x: x.value, y: y.value }]);
+  }
+  return Object.fromEntries(entries);
 };
 
 const normalizeMetadata = (value: unknown): CardSetMetadata | undefined => {
@@ -41,6 +79,9 @@ const normalizeMetadata = (value: unknown): CardSetMetadata | undefined => {
 const normalizeOrganization = (value: unknown): CardSetOrganization | undefined => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
   const record = value as Record<string, unknown>;
+  const templatePositions = Object.hasOwn(record, 'templatePositions')
+    ? normalizeTemplatePositions(record.templatePositions)
+    : undefined;
   const arrangements = new Set(['manual', 'grid', 'stack']);
   const groupings = new Set(['none', 'tag', 'field', 'template', 'content-type', 'batch']);
   const sorts = new Set(['manual', 'name', 'field-value', 'recently-changed']);
@@ -73,6 +114,7 @@ const normalizeOrganization = (value: unknown): CardSetOrganization | undefined 
     ...(cleanId(record.sortField) ? { sortField: cleanId(record.sortField)! } : {}),
     tags: tags.filter((tag, index) => tags.findIndex((candidate) => candidate.id === tag.id) === index),
     positions,
+    ...(templatePositions !== undefined ? { templatePositions } : {}),
   };
 };
 

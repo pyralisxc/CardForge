@@ -24,7 +24,24 @@ describe('Set duplication Template isolation', () => {
       ...completedReview, sourceRevisionId: 'deferred-revision', outcome: 'deferred' as const,
       decisions: [{ key: 'name', decision: 'defer' as const }],
     };
-    const original = { id: 'original', name: 'Original', templateIds: ['front', 'back', 'prepared'], updateReviews: [completedReview, deferredReview] };
+    const original = {
+      id: 'original',
+      name: 'Original',
+      templateIds: ['front', 'back'],
+      updateReviews: [completedReview, deferredReview],
+      organization: {
+        arrangement: 'manual' as const,
+        groupBy: 'none' as const,
+        sort: 'manual' as const,
+        tags: [],
+        positions: { card: { x: 90, y: -25 } },
+        templatePositions: {
+          front: { x: -10, y: 15 },
+          back: { x: 20, y: -30 },
+          prepared: { x: -40, y: -50 },
+        },
+      },
+    };
     const card = { uniqueId: 'card', setId: original.id, templateId: 'front', backingTemplateId: 'back', data: { name: 'A' }, backingData: { name: 'B' } };
     useProjectStore.setState({ cardSets: [original], activeCardSet: original, storedCards: [card, { ...card, uniqueId: 'other-card' }], userTemplates: [front, back, prepared], defaultTemplates: [] });
     const copyId = useProjectStore.getState().duplicateCardSet(original.id);
@@ -38,6 +55,14 @@ describe('Set duplication Template isolation', () => {
     expect(state.cardSets.find((set) => set.id === original.id)?.updateReviews).toEqual([completedReview, deferredReview]);
     expect(copy.templateIds).toHaveLength(3);
     expect(copy.templateIds).not.toContain('prepared');
+    expect(copy.organization?.templatePositions).toEqual({
+      [copy.templateIds[0]!]: { x: -10, y: 15 },
+      [copy.templateIds[1]!]: { x: 20, y: -30 },
+      [copy.templateIds[2]!]: { x: -40, y: -50 },
+    });
+    expect(Object.keys(copy.organization?.templatePositions ?? {})).toEqual(copy.templateIds);
+    expect(copy.organization?.positions).toEqual({ [copiedCard.uniqueId]: { x: 90, y: -25 } });
+    expect(state.cardSets.find((set) => set.id === original.id)?.organization?.templatePositions).toEqual(original.organization.templatePositions);
     expect(copiedCard.templateId).not.toBe('front');
     expect(copiedCard.backingTemplateId).not.toBe('back');
     expect(copy.templateIds).toContain(copiedCard.templateId);
@@ -48,6 +73,8 @@ describe('Set duplication Template isolation', () => {
     expect(copiedFront).toHaveProperty('templateOriginAncestors', [{ lineageId: 'upstream-lineage', revisionId: 'upstream-revision' }]);
     state.commitTemplateChange({ template: { ...copiedFront, name: 'Changed copy' }, source: 'user' });
     expect(useProjectStore.getState().userTemplates.find((item) => item.id === 'front')?.name).toBe('front');
+    expect(useProjectStore.getState().cardSets.find((set) => set.id === original.id)?.organization?.templatePositions)
+      .toEqual(original.organization.templatePositions);
     useProjectStore.getState().deleteTemplate(copiedCard.templateId, 'user');
     expect(useProjectStore.getState().storedCards.find((item) => item.uniqueId === 'card')).toEqual(card);
 

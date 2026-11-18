@@ -77,6 +77,43 @@ describe('portable versus provider working document identity', () => {
     expect(independent.cardSets[0]!.updateReviews?.[0]?.templateId).not.toBe(a.cardSets[0]!.updateReviews?.[0]?.templateId);
   });
 
+  it('remaps Template placements independently from Artifact positions through open, save, and copy', () => {
+    const source = structuredClone(document);
+    source.cardSets[0]!.templateIds = ['portable-template'];
+    source.cardSets[0]!.organization = {
+      arrangement: 'manual',
+      groupBy: 'none',
+      sort: 'manual',
+      tags: [],
+      positions: { 'portable-card': { x: 44, y: -12 } },
+      templatePositions: { 'portable-template': { x: -24, y: 18 } },
+    };
+    const identities: ProjectDocumentIdentityMap = {};
+    const opened = mapProjectDocumentIdentity(source, identities, 'open');
+    const openedSet = opened.cardSets[0]!;
+
+    expect(openedSet.organization?.positions).toEqual({
+      [opened.storedCards[0]!.uniqueId]: { x: 44, y: -12 },
+    });
+    expect(openedSet.organization?.templatePositions).toEqual({
+      [opened.userTemplates[0]!.id!]: { x: -24, y: 18 },
+    });
+    expect(mapProjectDocumentIdentity(opened, identities, 'save')).toEqual(source);
+
+    let sequence = 0;
+    const copied = instantiateProjectDocumentCopy(opened, (kind) => `${kind}-copy-${sequence += 1}`);
+    const copiedTemplateId = copied.cardSets[0]!.templateIds![0]!;
+    expect(copied.cardSets[0]!.organization?.positions).toEqual({
+      [copied.storedCards[0]!.uniqueId]: { x: 44, y: -12 },
+    });
+    expect(copied.cardSets[0]!.organization?.templatePositions).toEqual({
+      [copiedTemplateId]: { x: -24, y: 18 },
+    });
+    expect(copied.userTemplates.some((item) => item.id === copiedTemplateId)).toBe(true);
+    expect(copiedTemplateId).not.toBe(opened.cardSets[0]!.templateIds![0]);
+    expect(copied.cardSets[0]!.organization?.templatePositions).not.toHaveProperty(copied.storedCards[0]!.uniqueId);
+  });
+
   it('refuses Update Review metadata in a pre-v4 portable document', () => {
     const legacy = structuredClone(document);
     legacy.version = 3;

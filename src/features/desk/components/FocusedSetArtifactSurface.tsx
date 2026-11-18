@@ -276,6 +276,17 @@ export function FocusedSetArtifactSurface({
     setMarquee(null);
   }, [setSession, stopEdgePan]);
 
+  useEffect(() => {
+    const cancelOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || (!dragRef.current && !marqueeRef.current)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      cancelActiveSpatialGesture();
+    };
+    document.addEventListener('keydown', cancelOnEscape, true);
+    return () => document.removeEventListener('keydown', cancelOnEscape, true);
+  }, [cancelActiveSpatialGesture]);
+
   const setCamera = useCallback((next: { x: number; y: number; zoom: number }) => {
     setSession((current) => setCreatorCamera(current, next));
   }, [setSession]);
@@ -846,11 +857,6 @@ export function FocusedSetArtifactSurface({
         }}
         onPointerCancel={cancelActiveSpatialGesture}
         onKeyDown={(event) => {
-          if (event.key === 'Escape' && dragRef.current) {
-            event.preventDefault();
-            cancelActiveSpatialGesture();
-            return;
-          }
           if (!(event.ctrlKey || event.metaKey) || event.key.toLocaleLowerCase() !== 'z') return;
           event.preventDefault();
           if (event.shiftKey) redoSpatialMove(); else undoSpatialMove();

@@ -31,6 +31,7 @@ const indexSnapshots = (templates: readonly TCGCardTemplate[]) => {
 
 export const getCardSetTemplateIds = (state: SetTemplateState, setId: string): string[] => [...new Set([
   ...(state.cardSets.find((set) => set.id === setId)?.templateIds ?? []),
+  ...Object.keys(state.cardSets.find((set) => set.id === setId)?.organization?.templatePositions ?? {}),
   ...state.storedCards.filter((card) => (card.setId ?? state.cardSets[0]?.id) === setId)
     .flatMap((card) => [card.templateId, card.backingTemplateId]),
 ].filter((id): id is string => Boolean(id)))];
@@ -43,7 +44,10 @@ const indexOwners = (state: SetTemplateState) => {
     sets.add(setId);
     owners.set(templateId, sets);
   };
-  state.cardSets.forEach((set) => set.templateIds?.forEach((id) => include(id, set.id)));
+  state.cardSets.forEach((set) => {
+    set.templateIds?.forEach((id) => include(id, set.id));
+    Object.keys(set.organization?.templatePositions ?? {}).forEach((id) => include(id, set.id));
+  });
   state.storedCards.forEach((card) => {
     const setId = card.setId ?? state.cardSets[0]?.id;
     include(card.templateId, setId);
@@ -104,7 +108,10 @@ export const preserveReferencedTemplateIdentities = (
     incomingById.set(template.id, template);
   }
   const referencedIds = new Set([
-    ...state.cardSets.flatMap((set) => set.templateIds ?? []),
+    ...state.cardSets.flatMap((set) => [
+      ...(set.templateIds ?? []),
+      ...Object.keys(set.organization?.templatePositions ?? {}),
+    ]),
     ...state.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
   ].filter((id): id is string => Boolean(id)));
   const currentById = new Map(state.userTemplates.flatMap((template) => template.id ? [[template.id, template] as const] : []));
@@ -239,6 +246,13 @@ export const materializeLegacySetTemplates = <T extends SetTemplateState>(state:
     cardSets: state.cardSets.map((set) => ({
       ...set,
       ...(set.templateIds ? { templateIds: set.templateIds.map((id) => mappings.get(set.id)?.get(id) ?? id) } : {}),
+      ...(set.organization?.templatePositions ? { organization: {
+        ...set.organization,
+        templatePositions: Object.fromEntries(Object.entries(set.organization.templatePositions).map(([id, position]) => [
+          mappings.get(set.id)?.get(id) ?? id,
+          { ...position },
+        ])),
+      } } : {}),
     })),
     storedCards,
   });

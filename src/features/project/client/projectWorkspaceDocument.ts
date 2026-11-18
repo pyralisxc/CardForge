@@ -30,6 +30,7 @@ import { getProjectPersistenceScope, getScopedProjectStorageNamespace } from '..
 import { externalizeBrowserProjectAssetJson } from '../persistence/contentAddressedBrowserAssets';
 import { selectAllTemplates } from '../store/selectors';
 import { createProjectWorkspaceDraft, useProjectStore, type ProjectState } from '../store/workspaceStore';
+import { DEFAULT_CARD_SET_ORGANIZATION } from '../store/organizationSlice';
 import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '../model/projectAssetTraversal';
 
 import { prepareCompletedDeletionCleanup, notifyCompletedDeletionCleanup } from './completedDeletionCleanup';
@@ -84,6 +85,7 @@ export const rekeyConflictingTemplateSnapshots = (
   const incomingSnapshotIds = new Set(document.userTemplates.flatMap((template) => template.id ? [template.id] : []));
   const incomingReferenceIds = new Set([
     ...document.cardSets.flatMap((set) => set.templateIds ?? []),
+    ...document.cardSets.flatMap((set) => Object.keys(set.organization?.templatePositions ?? {})),
     ...document.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
   ].filter((id): id is string => Boolean(id)));
   for (const id of incomingReferenceIds) {
@@ -118,6 +120,13 @@ export const rekeyConflictingTemplateSnapshots = (
     cardSets: document.cardSets.map((set) => ({
       ...set,
       ...(set.templateIds ? { templateIds: set.templateIds.map((id) => mapTemplateId(id)!) } : {}),
+      ...(set.organization?.templatePositions ? { organization: {
+        ...set.organization,
+        templatePositions: Object.fromEntries(Object.entries(set.organization.templatePositions).map(([id, position]) => [
+          mapTemplateId(id)!,
+          { ...position },
+        ])),
+      } } : {}),
       ...(set.updateReviews ? { updateReviews: set.updateReviews.map((review) => ({
         ...structuredClone(review),
         templateId: mapTemplateId(review.templateId)!,
@@ -266,16 +275,30 @@ export const applyProjectDocumentToWorkspace = async (
       && !authoredPlanValuesEqual(existingSet.updateReviews, set.updateReviews ?? [])) {
       throw new Error('This agent revision has different Set Update Review records. Both were kept; open an independent copy or review the ledger before updating this Set.');
     }
+    const existingTemplatePositions = existingSet.organization?.templatePositions;
+    const incomingTemplatePositions = set.organization?.templatePositions;
+    if (existingTemplatePositions !== undefined
+      && incomingTemplatePositions !== undefined
+      && !authoredPlanValuesEqual(existingTemplatePositions, incomingTemplatePositions)) {
+      throw new Error('This agent revision has different Template placement. Both were kept; open an independent copy or review the placement before updating this Set.');
+    }
     if (existingPlan && legacyOwner?.id === set.id && !authoredPlanValuesEqual(existingPlan.brief, document.productionPlan)) {
       throw new Error('This legacy draft has a different creation brief from the current Set context. Both were kept; open an independent copy or review the brief before updating this Set.');
     }
     if (existingPlan && set.plan && !authoredPlanValuesEqual(set.plan, existingPlan)) {
       throw new Error('This agent revision has different Set context. Both were kept; open an independent copy or review the context before updating this Set.');
     }
+    const organization = existingTemplatePositions !== undefined && incomingTemplatePositions === undefined
+      ? {
+        ...(set.organization ?? DEFAULT_CARD_SET_ORGANIZATION),
+        templatePositions: structuredClone(existingTemplatePositions),
+      }
+      : set.organization;
     return {
       ...set,
       ...(existingPlan ? { plan: existingPlan } : {}),
       ...(existingSet.updateReviews !== undefined ? { updateReviews: structuredClone(existingSet.updateReviews) } : {}),
+      ...(organization ? { organization } : {}),
     };
   }) : document.cardSets;
   const compatibleDocument: ProjectDocumentV1 = {

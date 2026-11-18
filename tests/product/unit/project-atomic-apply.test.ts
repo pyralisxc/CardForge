@@ -103,7 +103,7 @@ describe('atomic project apply', () => {
     await applyProjectDocumentToWorkspace(fixture(), 'replace');
     const savedWorkspace = (await raw.getItem('workspace'))!;
     expect(parseBrowserWorkspaceRecord(savedWorkspace).revision).toBe(parseBrowserWorkspaceRecord(before).revision + 1);
-    expect(JSON.parse(parseBrowserWorkspaceRecord(savedWorkspace).value).version).toBe(8);
+    expect(JSON.parse(parseBrowserWorkspaceRecord(savedWorkspace).value).version).toBe(9);
     expect(await raw.getItem('__recovery__:workspace')).toBe(before);
     expect(await assets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).toContain('fixture-image');
     await restoreBrowserWorkspaceRecovery('previous');
@@ -193,6 +193,14 @@ describe('atomic project apply', () => {
     const sourceId = sourceTemplate.id!;
     const setId = incoming.cardSets[0]!.id;
     incoming.cardSets[0]!.templateIds = [sourceId];
+    incoming.cardSets[0]!.organization = {
+      arrangement: 'manual',
+      groupBy: 'none',
+      sort: 'manual',
+      tags: [],
+      positions: { 'merge-card': { x: 51, y: -9 } },
+      templatePositions: { [sourceId]: { x: -11, y: 37 } },
+    };
     const review = {
       version: 1 as const, templateId: sourceId, sourceLineageId: 'incoming-lineage',
       sourceRevisionId: 'incoming-r4', sourceFingerprint: 'a'.repeat(64),
@@ -223,9 +231,12 @@ describe('atomic project apply', () => {
       ],
     });
     expect(result.cardSets[0]!.templateIds).toEqual([nextId]);
+    expect(result.cardSets[0]!.organization?.templatePositions).toEqual({ [nextId]: { x: -11, y: 37 } });
+    expect(result.cardSets[0]!.organization?.positions).toEqual({ 'merge-card': { x: 51, y: -9 } });
     expect(result.cardSets[0]!.updateReviews).toEqual([{ ...review, templateId: nextId }]);
     expect(result.storedCards[0]).toMatchObject({ uniqueId: 'merge-card', templateId: nextId, backingTemplateId: nextId });
     expect(incoming.userTemplates[0]!.id).toBe(sourceId);
+    expect(incoming.cardSets[0]!.organization?.templatePositions).toEqual({ [sourceId]: { x: -11, y: 37 } });
   });
 
   it('refuses a missing incoming Template snapshot that aliases same-Set work without changing either copy', async () => {

@@ -187,6 +187,43 @@ describe('workspace recovery failure safety', () => {
     await expect(raw.getItem('__quarantine__:workspace')).resolves.toBeNull();
   });
 
+  it.each(['cardSets', 'activeCardSet'] as const)('refuses invalid Template placement in persisted %s without replacing saved or recovery bytes', async (location) => {
+    const scope = `account:recovery-safety-${sequence}` as const;
+    const raw = createBrowserKeyValueStorage(namespace);
+    const set = (invalidPlacement: boolean) => ({
+      id: 'placement-set',
+      name: 'Placement Set',
+      organization: {
+        arrangement: 'manual',
+        groupBy: 'none',
+        sort: 'manual',
+        tags: [],
+        positions: {},
+        ...(invalidPlacement ? { templatePositions: [] } : {}),
+      },
+    });
+    const persisted = JSON.stringify({
+      state: {
+        userTemplates: [],
+        appearanceStyles: [],
+        storedCards: [],
+        cardSets: [set(location === 'cardSets')],
+        activeCardSet: set(location === 'activeCardSet'),
+      },
+      version: 9,
+    });
+    const recovery = JSON.stringify({ state: { preserved: 'recovery bytes' }, version: 9 });
+    await raw.setItem('workspace', persisted);
+    await raw.setItem('__recovery__:workspace', recovery);
+    const { hydrateProjectWorkspaceForScope } = await import('@/features/project/store/workspaceStore');
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await expect(hydrateProjectWorkspaceForScope(scope)).rejects.toThrow(/invalid Template placement metadata/i);
+    await expect(raw.getItem('workspace')).resolves.toBe(persisted);
+    await expect(raw.getItem('__recovery__:workspace')).resolves.toBe(recovery);
+    await expect(raw.getItem('__quarantine__:workspace')).resolves.toBeNull();
+  });
+
   it('fails account hydration and disables autosave until a readable retry succeeds', async () => {
     const { hydrateProjectWorkspaceForScope, useProjectStore } = await import('@/features/project/store/workspaceStore');
     const raw = createBrowserKeyValueStorage(namespace);

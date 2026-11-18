@@ -138,6 +138,18 @@ for (const mobile of [false, true]) {
         await expect(stage.locator('button[data-artifact-id][aria-pressed="true"]')).toHaveCount(2);
         expect(await geometry()).toEqual(before);
         await cdp.detach();
+      } else {
+        await page.getByRole('button', { name: 'Fit Work', exact: true }).focus();
+        await down();
+        await page.waitForTimeout(450);
+        await page.mouse.move(start.x + 12, start.y + 12, { steps: 3 });
+        await expect(stage.locator('[data-artifact-marquee]')).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(stage).toBeVisible();
+        await expect(stage.locator('[data-artifact-marquee]')).toHaveCount(0);
+        await page.mouse.up();
+        await expect(stage.locator('button[data-artifact-id][aria-pressed="true"]')).toHaveCount(2);
+        expect(await geometry()).toEqual(before);
       }
     });
 
@@ -489,10 +501,14 @@ for (const mobile of [false, true]) {
       await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
-      await page.getByRole('button', { name: /^Templates ·/ }).click();
-      const templateRow = page.getByRole('dialog', { name: 'Templates in this Set' });
-      const frontTemplate = templateRow.getByRole('button', { name: 'Design Template Scale Fixture Template, used by 100 Artifacts', exact: true });
-      const backTemplate = templateRow.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true });
+      const stage = page.locator('[data-set-spatial-stage]');
+      await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
+      const frontTemplate = stage.getByRole('button', { name: 'Design Template Scale Fixture Template, used by 100 Artifacts', exact: true });
+      const backTemplate = stage.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true });
+      const frontTemplateId = await frontTemplate.getAttribute('data-set-template');
+      const backTemplateId = await backTemplate.getAttribute('data-set-template');
+      expect(frontTemplateId).toBeTruthy();
+      expect(backTemplateId).toBeTruthy();
       await expect(frontTemplate).toHaveCSS('border-top-style', 'solid');
       const frontAccent = await frontTemplate.evaluate((node) => getComputedStyle(node).borderTopColor);
       const backAccent = await backTemplate.evaluate((node) => getComputedStyle(node).borderTopColor);
@@ -562,14 +578,15 @@ for (const mobile of [false, true]) {
 
       await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
       if (mobile) {
-        await expect(page.getByRole('button', { name: /^Templates ·/ })).toBeVisible();
         await page.getByRole('button', { name: 'Clear Artifact selection', exact: true }).click();
       }
-      await page.getByRole('button', { name: /^Templates ·/ }).click();
-      const reopenedTemplates = page.getByRole('dialog', { name: 'Templates in this Set' });
-      await expect(reopenedTemplates.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true })).toBeVisible();
-      await expect(reopenedTemplates.getByRole('button', { name: /Copy of Scale Fixture Back|Variant/ })).toHaveCount(0);
-      await reopenedTemplates.press('Escape');
+      await expect(page.getByRole('button', { name: /^Templates ·/ })).toHaveCount(0);
+      const restoredTemplates = stage.locator('[data-set-template]');
+      await expect(restoredTemplates).toHaveCount(2);
+      const restoredTemplateIds = await restoredTemplates.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-set-template')));
+      expect(restoredTemplateIds).toEqual(expect.arrayContaining([frontTemplateId, backTemplateId]));
+      await expect(stage.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true })).toBeVisible();
+      await expect(restoredTemplates.filter({ hasText: /Copy of Scale Fixture Back|Variant/ })).toHaveCount(0);
 
       const secondCard = page.locator('button[data-artifact-id="scale-card-2"]');
       await secondCard.click();

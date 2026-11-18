@@ -366,6 +366,54 @@ describe('project document serialization', () => {
     expect(copied.mcpOperationReceipts).toBeUndefined();
   });
 
+  it('preserves signed Template placement in portable documents and rejects malformed placement', () => {
+    const source: ProjectDocumentV1 = {
+      version: 4,
+      userTemplates: [template],
+      cardSets: [{
+        ...cardSet,
+        templateIds: [template.id!],
+        organization: {
+          arrangement: 'manual',
+          groupBy: 'none',
+          sort: 'manual',
+          tags: [],
+          positions: {},
+          templatePositions: { [template.id!]: { x: -14, y: 26 } },
+        },
+      }],
+      activeCardSetId: cardSet.id,
+      storedCards: [],
+      appearanceStyles: [],
+      exportSettings: {},
+      customAssets: {
+        'cardforge-maker-custom-textures': [],
+        'cardforge-maker-custom-dividers': [],
+        'cardforge-maker-custom-icons': [],
+        'cardforge-maker-custom-images': [],
+      },
+    };
+    const parsed = parseProjectDocumentValue(source);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.document.cardSets[0]?.organization?.templatePositions).toEqual({
+      [template.id!]: { x: -14, y: 26 },
+    });
+
+    const invalidPlacements: unknown[] = [
+      [],
+      null,
+      { [template.id!]: { x: Number.POSITIVE_INFINITY, y: 1 } },
+      { [template.id!]: { x: 1, y: 2, depth: 3 } },
+      { ' ': { x: 1, y: 2 } },
+    ];
+    for (const templatePositions of invalidPlacements) {
+      const invalid = structuredClone(source);
+      (invalid.cardSets[0]!.organization as unknown as Record<string, unknown>).templatePositions = templatePositions;
+      expect(parseProjectDocumentValue(invalid)).toMatchObject({ success: false });
+    }
+  });
+
   it('parses modern project document JSON', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify({
       version: 1,
