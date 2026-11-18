@@ -3,8 +3,8 @@ import { getAuthoredTemplatePayload, type TCGCardTemplate } from '@/domain/templ
 
 export const templateReviewBaseSchema = z.object({
   assetId: z.string().trim().min(1).max(200),
-  parentSubmissionId: z.string().uuid(),
-  lineageId: z.string().uuid(),
+  parentSubmissionId: z.guid(),
+  lineageId: z.guid(),
   baseRevisionNumber: z.number().int().positive(),
   revisionHighWater: z.number().int().positive(),
   parentContentVersion: z.string().regex(/^[a-f0-9]{32}$/u),
@@ -12,7 +12,7 @@ export const templateReviewBaseSchema = z.object({
 }).strict();
 
 export const templateReviewReceiptSchema = z.object({
-  id: z.string().uuid(), assetId: z.string(), revisionNumber: z.number().int().positive(),
+  id: z.guid(), assetId: z.string(), revisionNumber: z.number().int().positive(),
   status: z.string(), editorialReviewStatus: z.string(), requestFingerprint: z.string(),
 });
 export type TemplateReviewReceipt = z.infer<typeof templateReviewReceiptSchema>;

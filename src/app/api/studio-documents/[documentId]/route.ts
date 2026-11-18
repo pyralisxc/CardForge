@@ -19,7 +19,7 @@ import {
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
 export const dynamic = 'force-dynamic';
-const idSchema = z.string().uuid();
+const idSchema = z.guid();
 
 const readDocumentId = async (context: { params: Promise<{ documentId: string }> }) => {
   const result = idSchema.safeParse((await context.params).documentId);

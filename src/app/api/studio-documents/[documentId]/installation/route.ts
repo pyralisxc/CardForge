@@ -11,7 +11,7 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastruct
 
 export const dynamic = 'force-dynamic';
 
-const idSchema = z.string().uuid();
+const idSchema = z.guid();
 const summarySchema = z.object({
   templateCount: z.number().int().min(0).max(500),
   templateAddedCount: z.number().int().min(0).max(500),

@@ -8,9 +8,9 @@ const timestamp = z.string().datetime({ offset: true }).refine(
   value => Number.isFinite(Date.parse(value)), 'Expected a finite timestamp',
 );
 export const catalogTrashIdentitySchema = z.object({
-  lineageId: z.string().uuid(),
-  submissionId: z.string().uuid(),
-  registrySubmissionId: z.string().uuid().nullable(),
+  lineageId: z.guid(),
+  submissionId: z.guid(),
+  registrySubmissionId: z.guid().nullable(),
   revisionHighWater: z.number().int().nonnegative().max(2147483647),
 }).strict();
 

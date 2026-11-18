@@ -9,7 +9,7 @@ import {
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
 export const dynamic = 'force-dynamic';
-const idSchema = z.string().uuid();
+const idSchema = z.guid();
 
 export async function POST(
   _request: Request,

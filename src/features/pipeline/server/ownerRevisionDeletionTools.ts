@@ -6,10 +6,10 @@ import { deleteOneTrashedPipelineRevision, RevisionDeleteError } from './ownerRe
 import { revalidateCardForgeCatalog } from './catalogCache';
 
 export const revisionDeleteConfirmationSchema = z.object({
-  submissionId: z.string().uuid(), name: z.string().min(1), storagePath: z.string().min(1).nullable(),
+  submissionId: z.guid(), name: z.string().min(1), storagePath: z.string().min(1).nullable(),
 }).strict();
 const rowSchema = z.object({
-  id: z.string().uuid(), name: z.string(), lineage_id: z.string().uuid().nullable(), status: z.string(),
+  id: z.guid(), name: z.string(), lineage_id: z.guid().nullable(), status: z.string(),
   source_storage_path: z.string().nullable(), source_storage_bucket: z.string().nullable(),
   trashed_at: z.string().nullable(), published_at: z.string().nullable(), retention_hold: z.boolean(),
   purge_state: z.string().nullable(), purge_claim_token: z.string().nullable(), purge_claimed_at: z.string().nullable(), owner_purge_requested_at: z.string().nullable(),
@@ -26,7 +26,7 @@ const unavailable = () => new PipelineRegistryCommandError('Exact revision delet
 // this observation is never accepted as deletion authority.
 export async function inspectOwnerRevisionDeletion(actorUserId: string, submissionId: string) {
   await owner(actorUserId);
-  if (!z.string().uuid().safeParse(submissionId).success) throw new PipelineRegistryCommandError('Choose an exact submission UUID.', 400, 'revision_delete_invalid');
+  if (!z.guid().safeParse(submissionId).success) throw new PipelineRegistryCommandError('Choose an exact submission UUID.', 400, 'revision_delete_invalid');
   const db = getSupabaseServerClient(); if (!db) throw unavailable();
   const result = await db.from('cardforge_contributor_asset_submissions').select('id,name,lineage_id,status,source_storage_path,source_storage_bucket,trashed_at,published_at,retention_hold,purge_state,purge_claim_token,purge_claimed_at,owner_purge_requested_at,contributor_lifecycle_state,revision_publication_retained').eq('id', submissionId).maybeSingle();
   if (result.error) throw unavailable();
@@ -39,7 +39,7 @@ export async function inspectOwnerRevisionDeletion(actorUserId: string, submissi
     db.from('cardforge_pipeline_asset_lineages').select('id,catalog_trashed_at,purge_state').eq('id', s.lineage_id ?? '').maybeSingle(),
   ]);
   if (registry.error || events.error || lineage.error || !Array.isArray(registry.data) || !Array.isArray(events.data)) throw unavailable();
-  const l = z.object({ id: z.string().uuid(), catalog_trashed_at: z.string().nullable(), purge_state: z.string().nullable() }).safeParse(lineage.data);
+  const l = z.object({ id: z.guid(), catalog_trashed_at: z.string().nullable(), purge_state: z.string().nullable() }).safeParse(lineage.data);
   const reasons: string[] = [];
   if (!l.success || l.data.id !== s.lineage_id) reasons.push('lineage_unavailable');
   else if (l.data.catalog_trashed_at || l.data.purge_state) reasons.push('catalog_recovery_or_worker_active');

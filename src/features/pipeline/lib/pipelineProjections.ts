@@ -231,12 +231,12 @@ export const fetchPipelineSubmissionPage = async ({ currentUserId, profiles, inc
 };
 
 const sharedTrashMetadata = z.object({
-  id: z.string().uuid(), lineageId: z.string().uuid().nullable(), assetType: z.enum(PIPELINE_TYPES),
+  id: z.guid(), lineageId: z.guid().nullable(), assetType: z.enum(PIPELINE_TYPES),
   name: z.string(), description: z.string(), status: z.enum(PIPELINE_STATUSES),
   revisionNumber: z.number().int().nonnegative().nullable(),
   catalogTrashedAt: z.string().datetime({ offset: true }).nullable(),
   catalogPurgeAfter: z.string().datetime({ offset: true }).nullable(),
-  catalogRetentionHold: z.boolean(), catalogSubmissionId: z.string().uuid().nullable(),
+  catalogRetentionHold: z.boolean(), catalogSubmissionId: z.guid().nullable(),
   trashedAt: z.string().datetime({ offset: true }).nullable(), purgeAfter: z.string().datetime({ offset: true }).nullable(),
   trashActorRole: z.enum(['owner', 'contributor', 'voting']).nullable(), trashPreviousStatus: z.enum(PIPELINE_STATUSES).nullable(),
   publicationRetained: z.boolean(), positiveVotes: z.number().int().nonnegative(), negativeVotes: z.number().int().nonnegative(),
