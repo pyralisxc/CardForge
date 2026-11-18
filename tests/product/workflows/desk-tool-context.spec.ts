@@ -151,6 +151,64 @@ for (const mobile of [false, true]) {
         await expect(templateB).toBeVisible();
         expect(await position(templateB)).toEqual(movedB);
       });
+
+      test('@golden @preview preserves saved field organization after a Template move and card restoration', async ({ page }) => {
+        test.setTimeout(120_000);
+        await seedGuestScaleWorkspace(page, 100, {
+          cardLimit: 2,
+          organizationPatch: { groupBy: 'field', groupField: 'cost', sort: 'field-value', sortField: 'cost' },
+        });
+        await page.goto('/account', { waitUntil: 'domcontentloaded' });
+        await openScaleSet(page, 100);
+        const stage = page.locator('[data-set-spatial-stage]');
+        const template = stage.locator('[data-set-template]').first();
+        const organizationTrigger = page.locator('[data-set-organization-trigger]');
+        const expectFieldOrganization = async () => {
+          await organizationTrigger.click();
+          await expect(page.getByRole('combobox', { name: 'Group cards' })).toContainText('Group: field');
+          await expect(page.getByRole('combobox', { name: 'Field used for groups' })).toContainText('Cost');
+          await expect(page.getByRole('combobox', { name: 'Sort cards' })).toContainText('Sort by field');
+          await expect(page.getByRole('combobox', { name: 'Field used for sorting' })).toContainText('Cost');
+          await organizationTrigger.click();
+        };
+        const expectProjectedFallback = async () => {
+          await organizationTrigger.click();
+          await expect(page.getByRole('combobox', { name: 'Group cards' })).toContainText('No groups');
+          await expect(page.getByRole('combobox', { name: 'Sort cards' })).toContainText('Manual order');
+          await expect(page.getByRole('combobox', { name: 'Field used for groups' })).toHaveCount(0);
+          await expect(page.getByRole('combobox', { name: 'Field used for sorting' })).toHaveCount(0);
+          await organizationTrigger.click();
+        };
+        await expect(template).toBeVisible();
+        await expectFieldOrganization();
+
+        const search = page.getByRole('searchbox', { name: 'Search cards in this Set', exact: true });
+        await search.fill('Scale Card 0002');
+        await organizationTrigger.click();
+        await page.getByRole('button', { name: 'Select shown', exact: true }).click();
+        await page.keyboard.press('Escape');
+        const actions = page.getByRole('toolbar', { name: 'Selection actions', exact: true });
+        await actions.getByRole('button', { name: 'Remove', exact: true }).click();
+        await page.getByRole('alertdialog').getByRole('button', { name: 'Remove card', exact: true }).click();
+        await search.fill('');
+        await expect(stage.locator('button[data-artifact-id]')).toHaveCount(1);
+        await expectProjectedFallback();
+
+        const before = await template.evaluate(node => ({ x: node.style.left, y: node.style.top }));
+        const rect = (await template.boundingBox())!;
+        const start = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+        await page.mouse.move(start.x, start.y);
+        await page.mouse.down();
+        await page.mouse.move(start.x + 54, start.y + 18, { steps: 4 });
+        await page.mouse.up();
+        expect(await template.evaluate(node => ({ x: node.style.left, y: node.style.top }))).not.toEqual(before);
+        await expectProjectedFallback();
+
+        await page.getByRole('group', { name: 'Card removal recovery', exact: true })
+          .getByRole('button', { name: /^Undo latest removal/ }).click();
+        await expect(stage.locator('button[data-artifact-id]')).toHaveCount(2);
+        await expectFieldOrganization();
+      });
     }
 
     test('@golden @preview holds empty space to select Artifacts without moving work', async ({ page, context }) => {

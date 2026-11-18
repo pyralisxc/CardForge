@@ -173,11 +173,10 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
             const referencedTemplateIds = new Set(templateEntries.map((entry) => entry.template.id).filter((id): id is string => Boolean(id)));
             const updates = Object.fromEntries(Object.entries(positions).filter(([id]) => referencedTemplateIds.has(id)));
             if (!Object.keys(updates).length) return;
-            const templatePositions = Object.fromEntries(Object.entries(props.organization.templatePositions ?? {}).filter(([id]) => referencedTemplateIds.has(id)));
-            props.onOrganizationChange({
-              ...props.organization,
-              templatePositions: { ...templatePositions, ...updates },
-            });
+            const templatePositions = { ...props.organization.templatePositions, ...updates };
+            props.onOrganizationChange(currentSet?.organization
+              ? { templatePositions }
+              : { ...props.organization, templatePositions });
           }}
         /> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{props.focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{props.focusedCards.length ? 'Clear the active filters to bring the cards back.' : 'Create a design from scratch or generate cards into this Set.'}</p>{!props.focusedCards.length ? <div className={styles.emptySetCompactActions}><Button type="button" onClick={props.onOpenDesign}>Create design</Button><Button type="button" variant="outline" onClick={props.onOpenGenerate}>Generate cards</Button></div> : null}</div></div>}
       </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}>{props.remoteIcon}<h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{props.item.name}</h2><p className={styles.emptyCopy}>{props.item.references.campaignId ? 'Open this campaign’s native workspace in the same Desk scene.' : props.item.references.pipelineLineageId ? 'Inspect this immutable publication in the same Desk scene. Its working copies remain separate.' : `This work stays owned by ${workSourceLabel(props.item)}.`}</p><Button type="button" onClick={props.onOpenWork}>Open work</Button></div></div>}

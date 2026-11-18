@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import type { CardSetOrganization } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 
 import { createProjectScaleFixture } from '../../../fixtures/projectScale';
@@ -141,6 +142,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
   emptyDesk?: boolean;
   publicTemplate?: boolean;
   templatePatch?: Partial<TCGCardTemplate>;
+  organizationPatch?: Partial<CardSetOrganization>;
   unreadableFolderIndex?: boolean;
   omitSetOrganization?: boolean;
   preparedTemplatePair?: boolean;
@@ -181,6 +183,11 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     state.storedCards = state.storedCards.map((card) => ({ ...card, backingData: { ...card.data, cardName: `Back · ${card.data.cardName}` } }));
   }
   if (options.templatePatch) state.userTemplates = state.userTemplates.map((template) => ({ ...template, ...options.templatePatch }));
+  if (options.organizationPatch) {
+    const set = state.cardSets[0];
+    if (!set?.organization) throw new Error('The organization fixture requires a saved Set organization.');
+    set.organization = { ...set.organization, ...options.organizationPatch };
+  }
   if (options.preparedTemplatePair) {
     const baseTemplate = state.userTemplates[0];
     const set = state.cardSets[0];
