@@ -6,6 +6,14 @@ import { seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 for (const surface of ['desk', 'library'] as const) {
   test(`@golden ${surface} restores remembered folder work and shows conflicts inside the compact inspector`, async ({ page }) => {
     test.setTimeout(120_000);
+    await page.addInitScript(() => {
+      if (typeof Reflect.get(window, 'showDirectoryPicker') !== 'function') {
+        Object.defineProperty(window, 'showDirectoryPicker', {
+          configurable: true,
+          value: () => Promise.reject(new DOMException('The native picker is not used by this fixture.', 'AbortError')),
+        });
+      }
+    });
     await page.setViewportSize({ width: 390, height: 844 });
     await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
     const document = createProjectScaleFixture(100);
