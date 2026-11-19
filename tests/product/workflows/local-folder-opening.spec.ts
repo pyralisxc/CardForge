@@ -77,8 +77,10 @@ for (const surface of ['desk', 'library'] as const) {
       });
       database.close();
     }, { workId, revision: snapshot.manifest.projectRevision });
-    await page.goto(href, { waitUntil: 'domcontentloaded' });
-    await inspect();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    if (surface === 'library') await inspect();
+    await expect(detail).toBeVisible();
+    await expect(detail.getByRole('heading', { name: 'Saved folder Set', exact: true })).toBeVisible();
     await detail.getByRole('button', { name: 'Open saved Set', exact: true }).click();
     await expect(page.locator('[data-set-spatial-stage] button[data-artifact-id]')).toHaveCount(2);
     await expect(page.getByRole('region', { name: 'Locations & connections', exact: true })).toHaveCount(0);
