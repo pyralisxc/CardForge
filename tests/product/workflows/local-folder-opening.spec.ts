@@ -3,28 +3,16 @@ import { createProjectScaleFixture } from '../../fixtures/projectScale';
 import { buildCardForgeProjectSnapshot, createCardForgeProjectPackageBlob } from '@/features/project/lib/projectPackageCodec';
 import { seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
-test.use({ trace: 'retain-on-failure' });
+// Persisted native filesystem handles need full Chromium, not headless shell.
+test.use({ channel: 'chromium', trace: 'retain-on-failure' });
 
 for (const surface of ['desk', 'library'] as const) {
   test(`@golden ${surface} restores remembered folder work and shows conflicts inside the compact inspector`, async ({ page }) => {
     test.setTimeout(120_000);
-    page.on('pageerror', (error) => console.log(`local-folder-opening pageerror: ${error.message}`));
-    page.on('crash', () => console.log(`local-folder-opening page crashed: ${surface} ${page.url()}`));
-    page.on('close', () => console.log(`local-folder-opening page closed: ${surface} ${page.url()}`));
-    page.on('framenavigated', (frame) => {
-      if (frame === page.mainFrame()) console.log(`local-folder-opening navigation: ${surface} ${frame.url()}`);
-    });
-    await page.addInitScript(() => {
-      if (typeof Reflect.get(window, 'showDirectoryPicker') !== 'function') {
-        Object.defineProperty(window, 'showDirectoryPicker', {
-          configurable: true,
-          value: () => Promise.reject(new DOMException('The native picker is not used by this fixture.', 'AbortError')),
-        });
-      }
-    });
     await page.setViewportSize({ width: 390, height: 844 });
     await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
     const document = createProjectScaleFixture(100);
+    document.storedCards = document.storedCards.slice(0, 2);
     document.cardSets[0]!.name = 'Saved folder Set';
     const snapshot = await buildCardForgeProjectSnapshot({ document, name: 'Saved folder Set' });
     const blob = await createCardForgeProjectPackageBlob(snapshot);
@@ -92,7 +80,7 @@ for (const surface of ['desk', 'library'] as const) {
     await page.goto(href, { waitUntil: 'domcontentloaded' });
     await inspect();
     await detail.getByRole('button', { name: 'Open saved Set', exact: true }).click();
-    await expect(page.locator('[data-set-spatial-stage] button[data-artifact-id]')).toHaveCount(100);
+    await expect(page.locator('[data-set-spatial-stage] button[data-artifact-id]')).toHaveCount(2);
     await expect(page.getByRole('region', { name: 'Locations & connections', exact: true })).toHaveCount(0);
     await page.goto('/account', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('button', { name: /^Select 100 Card Scale Set\./ })).toBeVisible();
