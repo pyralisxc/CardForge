@@ -406,7 +406,12 @@ export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding
   if (matches.length > 1) {
     throw new ProjectPackageError('More than one browser Set is linked to this folder. Open the intended Set from Desk or Library; no work was changed.');
   }
-  return openProjectDirectory(directory, namespace, expectedState, matches[0]);
+  const opened = await openProjectDirectory(directory, namespace, expectedState, matches[0]);
+  if (matches[0]) {
+    await persistBinding(opened, namespace);
+    assertFolderScope(namespace);
+  }
+  return opened;
 };
 
 export const saveProjectToAttachedFolder = async (): Promise<LocalProjectFolderBinding> => {

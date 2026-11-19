@@ -237,8 +237,32 @@ describe('one authoritative Set location across save entry points', () => {
     mock.values.set('test:local-work-folder-binding:set-c', binding);
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: binding.sourceRevision, document: { cardSets: [{ id: 'portable-set' }] } });
     vi.mocked((window as unknown as { showDirectoryPicker: () => Promise<unknown> }).showDirectoryPicker).mockResolvedValue(handle);
+    expect(await getLocalProjectFolderStatus()).toMatchObject({ binding: null });
     await expect(localFolder.openProjectFromFolder()).resolves.toMatchObject({ workId: 'set-c' });
     expect(handle.isSameEntry).toHaveBeenCalledWith(handle);
+    expect(mock.apply).not.toHaveBeenCalled();
+    expect(await getLocalProjectFolderStatus()).toMatchObject({
+      binding: expect.objectContaining({ workId: 'set-c', folderName: 'C' }),
+    });
+  });
+
+  it('keeps the current attachment when a known picker folder fails revision validation', async () => {
+    const selectedHandle = folder('A');
+    const attachedHandle = folder('B');
+    const selectedBinding = { handle: selectedHandle, folderName: 'A', workId: 'set-a', sourceRevision: 'a'.repeat(64) };
+    const attachedBinding = { handle: attachedHandle, folderName: 'B', workId: 'set-b', sourceRevision: 'c'.repeat(64) };
+    mock.localSets = [{ id: 'set-a' }, { id: 'set-b' }];
+    mock.values.set('test:local-project-folder-binding', { workId: 'set-b' });
+    mock.values.set('test:local-work-folder-binding-index', ['set-a', 'set-b']);
+    mock.values.set('test:local-work-folder-binding:set-a', selectedBinding);
+    mock.values.set('test:local-work-folder-binding:set-b', attachedBinding);
+    mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [{ id: 'portable-a' }] } });
+    vi.mocked((window as unknown as { showDirectoryPicker: () => Promise<unknown> }).showDirectoryPicker).mockResolvedValue(selectedHandle);
+    await expect(localFolder.openProjectFromFolder()).rejects.toThrow(/folder has changed.*do not save over the folder/);
+    expect(mock.values.get('test:local-project-folder-binding')).toEqual({ workId: 'set-b' });
+    expect(await getLocalProjectFolderStatus()).toMatchObject({
+      binding: expect.objectContaining({ workId: 'set-b', folderName: 'B' }),
+    });
     expect(mock.apply).not.toHaveBeenCalled();
   });
 
