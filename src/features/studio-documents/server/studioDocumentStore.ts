@@ -20,10 +20,7 @@ import {
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
-import {
-  externalizeStudioDocumentAssets,
-  removeStudioDocumentAssets,
-} from './studioDocumentAssetStore';
+import { externalizeStudioDocumentAssets } from './studioDocumentAssetStore';
 
 interface StudioDocumentRow {
   id: string;
