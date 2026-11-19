@@ -6,6 +6,8 @@ import { seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 for (const surface of ['desk', 'library'] as const) {
   test(`@golden ${surface} restores remembered folder work and shows conflicts inside the compact inspector`, async ({ page }) => {
     test.setTimeout(120_000);
+    page.on('pageerror', (error) => console.log(`local-folder-opening pageerror: ${error.message}`));
+    page.on('close', () => console.log(`local-folder-opening page closed: ${surface}`));
     await page.addInitScript(() => {
       if (typeof Reflect.get(window, 'showDirectoryPicker') !== 'function') {
         Object.defineProperty(window, 'showDirectoryPicker', {
@@ -56,6 +58,43 @@ for (const surface of ['desk', 'library'] as const) {
       await expect(page.getByRole('dialog')).toBeVisible();
     };
     await page.goto(href, { waitUntil: 'domcontentloaded' });
+    const state = await page.evaluate(async () => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('cardforge-browser-storage');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const store = database.transaction('key-value', 'readonly').objectStore('key-value');
+      const read = (key: string) => new Promise<unknown>((resolve, reject) => {
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const folderBindings = await Promise.all(['guest', 'local'].map(async (scope) => {
+        const workId = 'folder-restored-set';
+        const [index, binding] = await Promise.all([
+          read(`project-assets:${scope}:local-work-folder-binding-index`),
+          read(`project-assets:${scope}:local-work-folder-binding:${workId}`),
+        ]);
+        const value = binding as { folderName?: string; handle?: { getFileHandle?: unknown } } | undefined;
+        return {
+          scope,
+          index,
+          binding: value ? { folderName: value.folderName, hasDirectoryHandle: typeof value.handle?.getFileHandle === 'function' } : null,
+        };
+      }));
+      database.close();
+      return {
+        href: location.href,
+        secureContext: window.isSecureContext,
+        showDirectoryPicker: typeof Reflect.get(window, 'showDirectoryPicker'),
+        folderBindings,
+        libraryIds: Array.from(window.document.querySelectorAll<HTMLElement>('[id^="library-object-"]')).map((node) => node.id),
+        deskIds: Array.from(window.document.querySelectorAll<HTMLElement>('[id^="set-info-"]')).map((node) => node.id),
+        body: window.document.body.innerText.slice(0, 500),
+      };
+    });
+    console.log(`local-folder-opening state ${surface}: ${JSON.stringify(state)}`);
     await inspect();
     const detail = page.getByRole('dialog');
     await expect(detail.getByText('Saved file · not loaded', { exact: true })).toBeVisible();
