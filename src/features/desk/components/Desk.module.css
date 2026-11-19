@@ -2391,6 +2391,27 @@
 
 .setTemplateObject > span { flex-shrink: 0; gap: 0; }
 .setTemplateObject:active { cursor: grabbing; }
+.setTemplateObject[aria-pressed="true"] { outline: 2px solid var(--cf-accent); outline-offset: 3px; }
+.templateSelectionActions {
+  position: absolute;
+  z-index: 10;
+  top: 0.5rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: fit-content;
+  max-width: calc(100% - 1rem);
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--cf-border-subtle);
+  border-radius: 0.5rem;
+  background: var(--cf-surface);
+  color: var(--cf-text-strong);
+  font-size: 0.78rem;
+}
+.templateSelectionActions > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.templateSelectionActions > button { flex-shrink: 0; }
 .setTemplateObject > span:first-child { font-size: 7px; line-height: 10px; }
 .setTemplateObject > span:first-child svg { width: 9px; height: 9px; }
 .setTemplateObject strong { font-size: 9px; line-height: 12px; }

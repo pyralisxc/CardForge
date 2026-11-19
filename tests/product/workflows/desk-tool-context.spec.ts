@@ -17,6 +17,42 @@ for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
     test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });
 
+    test('@golden @preview selects a spatial Template before opening Design', async ({ page }) => {
+      test.setTimeout(120_000);
+      await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await openScaleSet(page, 100);
+      const stage = page.locator('[data-set-spatial-stage]');
+      const template = stage.locator('[data-set-template]').first();
+      const artifact = stage.locator('button[data-artifact-id]').first();
+      const design = page.getByRole('region', { name: 'Design', exact: true });
+      await artifact.click();
+      await expect(artifact).toHaveAttribute('aria-pressed', 'true');
+      const before = await template.boundingBox();
+      if (mobile) await template.tap(); else await template.click();
+      await expect(template).toHaveAttribute('aria-pressed', 'true');
+      await expect(artifact).toHaveAttribute('aria-pressed', 'true');
+      await expect(design).toHaveCount(0);
+      expect(await template.boundingBox()).toEqual(before);
+      await page.getByRole('button', { name: 'Open in Design', exact: true }).click();
+      await expect(design).toBeVisible();
+      const done = page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true });
+      await done.click();
+      await expect(design).toHaveCount(0);
+      await template.press('Space');
+      await expect(template).toHaveAttribute('aria-pressed', 'true');
+      await expect(design).toHaveCount(0);
+      await template.press('Enter');
+      await expect(design).toBeVisible();
+      await done.click();
+      await expect(design).toHaveCount(0);
+      if (mobile) {
+        await template.tap();
+        await template.tap();
+      } else await template.dblclick();
+      await expect(design).toBeVisible();
+    });
+
     test('@golden @preview moves Templates independently and remembers their placement', async ({ page, context }) => {
       test.setTimeout(120_000);
       await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, omitSetOrganization: true });
@@ -105,8 +141,8 @@ for (const mobile of [false, true]) {
         await page.goto('/account', { waitUntil: 'domcontentloaded' });
         await openScaleSet(page, 100);
         const stage = page.locator('[data-set-spatial-stage]');
-        const templateA = stage.getByRole('button', { name: 'Design Template Prepared Template A, prepared for this Set', exact: true });
-        const templateB = stage.getByRole('button', { name: 'Design Template Prepared Template B, prepared for this Set', exact: true });
+        const templateA = stage.getByRole('button', { name: 'Select Template Prepared Template A, prepared for this Set', exact: true });
+        const templateB = stage.getByRole('button', { name: 'Select Template Prepared Template B, prepared for this Set', exact: true });
         await expect(templateA).toBeVisible();
         await expect(templateB).toBeVisible();
         const position = (template: typeof templateA) => template.evaluate(node => ({ x: node.style.left, y: node.style.top }));
@@ -127,7 +163,7 @@ for (const mobile of [false, true]) {
         const movedB = await position(templateB);
         expect(movedB).not.toEqual(beforeB);
 
-        await templateA.click();
+        await templateA.dblclick();
         await expect(page.getByRole('region', { name: 'Design', exact: true })).toBeVisible();
         await page.getByRole('button', { name: 'Delete selected template' }).click();
         const deleteDialog = page.getByRole('alertdialog');
@@ -366,10 +402,12 @@ for (const mobile of [false, true]) {
       const rail = page.locator('[data-desk-context-rail]');
       await rail.getByRole('button', { name: 'Done', exact: true }).click();
       await expect(design).toHaveCount(0);
-      const preparedTemplate = page.locator('[data-desk-artifact-stage]').getByRole('button', { name: /^Design Template Creator loop Template Variant,/ });
+      const preparedTemplate = page.locator('[data-desk-artifact-stage]').getByRole('button', { name: /^Select Template Creator loop Template Variant,/ });
       await expect(preparedTemplate).toBeVisible();
       await expect(page.locator('[data-desk-artifact-stage] [data-artifact-id]')).toHaveCount(0);
       if (mobile) await preparedTemplate.tap(); else await preparedTemplate.click();
+      await expect(design).toHaveCount(0);
+      await page.getByRole('button', { name: 'Open in Design', exact: true }).click();
       if (mobile) await expect(design.getByRole('toolbar', { name: 'Canvas controls' })).toContainText('Creator loop Template Variant');
       else {
         await design.getByRole('button', { name: 'Card Setup', exact: true }).click();
@@ -378,7 +416,8 @@ for (const mobile of [false, true]) {
       await rail.getByRole('button', { name: 'Done', exact: true }).click();
       await expect(design).toHaveCount(0);
 
-      await expect(preparedTemplate).toBeFocused();
+      await expect(page.getByRole('group', { name: 'Selected Template actions', exact: true })
+        .getByRole('button', { name: 'Open in Design', exact: true })).toBeFocused();
 
       const openTool = async (name: 'Generate' | 'Output') => {
         if (mobile) {
@@ -634,8 +673,8 @@ for (const mobile of [false, true]) {
       await openScaleSet(page, 100);
       const stage = page.locator('[data-set-spatial-stage]');
       await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
-      const frontTemplate = stage.getByRole('button', { name: 'Design Template Scale Fixture Template, used by 100 Artifacts', exact: true });
-      const backTemplate = stage.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true });
+      const frontTemplate = stage.getByRole('button', { name: 'Select Template Scale Fixture Template, used by 100 Artifacts', exact: true });
+      const backTemplate = stage.getByRole('button', { name: 'Select back Template Scale Fixture Back, used by 100 Artifacts', exact: true });
       const frontTemplateId = await frontTemplate.getAttribute('data-set-template');
       const backTemplateId = await backTemplate.getAttribute('data-set-template');
       expect(frontTemplateId).toBeTruthy();
@@ -649,6 +688,7 @@ for (const mobile of [false, true]) {
       await expect(page.locator('[data-scene-depth="board"][data-scene-moving="true"]')).toHaveCount(0);
       await page.screenshot({ path: testInfo.outputPath('set-template-identity.png') });
       await backTemplate.click();
+      await page.getByRole('button', { name: 'Open in Design', exact: true }).click();
       const templateStudio = page.getByRole('region', { name: 'Design', exact: true });
       if (mobile) await expect(templateStudio.getByRole('toolbar', { name: 'Canvas controls' })).toContainText('Scale Fixture Back');
       else {
@@ -716,7 +756,7 @@ for (const mobile of [false, true]) {
       await expect(restoredTemplates).toHaveCount(2);
       const restoredTemplateIds = await restoredTemplates.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-set-template')));
       expect(restoredTemplateIds).toEqual(expect.arrayContaining([frontTemplateId, backTemplateId]));
-      await expect(stage.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true })).toBeVisible();
+      await expect(stage.getByRole('button', { name: 'Select back Template Scale Fixture Back, used by 100 Artifacts', exact: true })).toBeVisible();
       await expect(restoredTemplates.filter({ hasText: /Copy of Scale Fixture Back|Variant/ })).toHaveCount(0);
 
       const secondCard = page.locator('button[data-artifact-id="scale-card-2"]');
