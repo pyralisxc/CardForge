@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getCardTitle, getDeskSelectionLabel } from '@/features/desk/model/desk';
+import { getAccountLibraryEnvironmentActions } from '@/features/storage-management/model/accountLibraryEnvironment';
 
 describe('Desk authored card titles', () => {
   it.each(['Card Title', 'cardTitle', 'CARD_TITLE', 'Card-Name', 'card name', ' NAME ', 'Title'])('reads the authored %s header from stored card data', (key) => {
@@ -133,6 +134,20 @@ describe('Desk model', () => {
       organization: { workflow: 'assistant-document', type: null, tags: [], source: 'none', publicationState: 'temporary' },
     };
     expect(workDetailRecord(draft).kind).toBe('working-draft');
+  });
+
+  it('offers guest folder reopening without claiming unloaded work is available', () => {
+    const item: AccountLibraryItem = {
+      id: 'local-folder-work:saved', kind: 'set', name: 'Saved work',
+      locations: [{ source: 'local-folder', status: 'attached', label: 'Folder' }],
+      details: ['Saved folder work'], sizeBytes: null, revision: 'a'.repeat(64), updatedAt: null, expiresAt: null, webViewLink: null,
+      references: { localFolder: true, localFolderWorkId: 'saved' },
+      organization: { workflow: 'card-set', type: null, tags: [], source: 'none', publicationState: 'working' },
+    };
+    expect(workDetailRecord(item)).toMatchObject({ status: 'Saved file · not loaded', tone: 'neutral' });
+    expect(getWorkActions(item, true)[0]).toMatchObject({ label: 'Open saved Set', requiredPermission: 'guest', ownerFeature: 'project' });
+    expect(getAccountLibraryEnvironmentActions(item).find((action) => action.id === 'library.open'))
+      .toMatchObject({ label: 'Open saved Set', requiredPermission: 'guest', ownerFeature: 'project' });
   });
 
   it('normalizes unsafe persisted Set geometry without discarding valid organization', () => {

@@ -271,6 +271,7 @@ export function Desk({
     reorderSelectedCard,
     richTextHighlightColor,
     remoteWorkspaceItem,
+    actionError,
     runAction,
     runWorkAction,
     searchRef,
@@ -491,6 +492,7 @@ export function Desk({
         viewportPolicy="desk"
         primaryScroll="contained"
         detail={detail}
+        detailContent={actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : undefined}
         actionContext={focusedItem ? workDetailRecord(focusedItem) : null}
         actions={actions}
         accountControl={<><WorkspaceUpdateNotices /><PublicAuthControls /></>}

@@ -6,7 +6,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { createDeskReturnHref, createLibraryReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
 import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client';
 import { getGoogleDriveProjectBinding, loadGoogleDriveProjectLibrary, openGoogleDriveProject, type GoogleDriveProjectListResult } from '@/features/project/client/provider-google-drive';
-import { getLocalProjectFolderStatus, listLocalProjectWorkBindings, type LocalProjectFolderStatus, type LocalProjectWorkBindingStatus } from '@/features/project/client/provider-local-folder';
+import { getLocalProjectFolderStatus, listLocalProjectWorkBindings, openRememberedLocalProject, type LocalProjectFolderStatus, type LocalProjectWorkBindingStatus } from '@/features/project/client/provider-local-folder';
 import { PROJECT_FONT_LIBRARY_CHANGE_EVENT } from '@/features/project/client/assets';
 import { hydrateProjectLibraryWorkspaceForScope, useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
@@ -605,9 +605,10 @@ export function useAccountLibraryProjection({
         return navigate(`/account?section=library&scope=published&lineage=${encodeURIComponent(item.references.pipelineLineageId)}`);
       }
       if (item.references.localFolderWorkId) {
-        // A remembered directory handle cannot be elevated in the background.
-        // The Library location tool makes the user-triggered reconnect choice.
-        return navigate('/account?section=library&tool=locations');
+        const opened = await openRememberedLocalProject(item.references.localFolderWorkId);
+        activateSet(opened.setId);
+        void refreshLibrarySources();
+        return navigate(createDeskReturnHref(`set:${opened.setId}`));
       }
       if (item.references.driveFileId) {
         const binding = await openGoogleDriveProject({ fileId: item.references.driveFileId, name: item.name });
@@ -617,7 +618,7 @@ export function useAccountLibraryProjection({
     } finally {
       setBusyItemId(null);
     }
-  }, [activateSet, openTemplateDesign, router]);
+  }, [activateSet, openTemplateDesign, refreshLibrarySources, router]);
 
   return {
     items,

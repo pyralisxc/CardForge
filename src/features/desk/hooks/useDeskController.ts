@@ -728,7 +728,7 @@ export function useDeskController({
     }
   }, [focusWorkContext, projection, toast]);
 
-  const { actions, detail, runAction, runWorkAction } = useDeskActionRuntime({
+  const { actions, detail, actionError, runAction, runWorkAction } = useDeskActionRuntime({
     experience,
     focusedItem,
     inspectorItem,
@@ -892,6 +892,7 @@ export function useDeskController({
     renaming,
     richTextHighlightColor,
     remoteWorkspaceItem,
+    actionError,
     runAction,
     runWorkAction,
     searchRef,

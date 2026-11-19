@@ -193,10 +193,10 @@ export const workDetailRecord = (item: AccountLibraryItem): EnvironmentDetailRec
     ? 'Permission required'
     : item.kind === 'working-draft'
       ? 'Temporary work'
-      : 'Available',
+      : item.references.localFolderWorkId ? 'Saved file · not loaded' : 'Available',
   tone: item.locations.some((location) => location.status === 'needs-permission') || item.kind === 'working-draft'
     ? 'warning'
-    : 'success',
+    : item.references.localFolderWorkId ? 'neutral' : 'success',
   actionSources: getAccountLibraryActionSources(item),
   meta: [
     ['Source', workSourceLabel(item)],
@@ -241,8 +241,8 @@ export const getWorkActions = (
     : { kind: 'human-only', owner: 'cardforge' };
   return [
     {
-      id: 'desk.open-set', label: localSet ? 'Open Set' : item.references.campaignId ? 'Open campaign workspace' : item.references.pipelineLineageId ? 'Open published work' : item.kind === 'working-draft' ? 'Continue in Studio' : 'Open in Studio', ownerFeature: item.references.campaignId ? 'marketing-content' : item.references.pipelineLineageId ? 'pipeline' : item.kind === 'working-draft' ? 'studio-documents' : 'project',
-      supportedObjectKinds: [item.kind], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
+      id: 'desk.open-set', label: localSet ? 'Open Set' : item.references.localFolderWorkId ? 'Open saved Set' : item.references.campaignId ? 'Open campaign workspace' : item.references.pipelineLineageId ? 'Open published work' : item.kind === 'working-draft' ? 'Continue in Studio' : 'Open in Studio', ownerFeature: item.references.campaignId ? 'marketing-content' : item.references.pipelineLineageId ? 'pipeline' : item.kind === 'working-draft' ? 'studio-documents' : 'project',
+      supportedObjectKinds: [item.kind], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet || item.references.localFolderWorkId ? 'guest' : 'member',
       scope: 'object', hierarchy: 'primary', availability: { kind: 'available' }, commitment: item.references.driveFileId ? 'permission' : 'none',
       automation: openAutomation, result: item.references.campaignId || item.references.pipelineLineageId ? 'tool-opened' : 'navigation',
     },

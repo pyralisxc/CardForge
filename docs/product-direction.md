@@ -458,6 +458,8 @@ Library composes location/source truth; it does not own provider bytes or become
 
 The first shared durable-work capability slice now covers device, Google Drive, and local-folder destinations. Desk and Library use it to set a default destination and to distinguish Copy from Move. Move is always copy, verify, then remove the exact source revision; paths that cannot be composed safely require an explicit device handoff. This is the seed of the broader source-capability projection below, not a universal sync service.
 
+Opening saved folder work must complete that lifecycle: a missing browser working copy after Move is not a missing saved Set. Desk, Library and a reselected known folder use the same permission, package and revision checks, then resume existing browser work or restore the bound Set when absent. Restoration must not overwrite unrelated work or the saved file, and never silently install a changed revision. An unloaded folder is labeled saved, not verified available; access failures offer explicit reconnect guidance and remain visible in its inspector. Opening a new package as an independent copy remains distinct from continuing a known source; whole-workspace backups retain their recovery role.
+
 A shared source-capability projection should eventually describe, per source:
 
 - authoritative owner;

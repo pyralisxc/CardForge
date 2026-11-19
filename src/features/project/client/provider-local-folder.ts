@@ -4,6 +4,7 @@ export {
   getLocalProjectFolderStatus,
   isLocalProjectFolderSupported,
   openProjectFromFolder,
+  openRememberedLocalProject,
   getLocalProjectWorkBinding,
   listLocalProjectWorkBindings,
   reconnectAttachedProjectFolder,
@@ -12,7 +13,6 @@ export {
   saveCardSetToAttachedFolder,
   saveProjectToAttachedFolder,
 } from '../client/localProjectFolder';
-export { openRememberedLocalProject } from '../client/localFolderWorkingSession';
 export type {
   LocalProjectFolderBinding,
   LocalProjectFolderStatus,

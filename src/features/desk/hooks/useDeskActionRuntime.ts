@@ -1,6 +1,7 @@
 "use client";
 
 import { useToast } from '@/components/ui/use-toast';
+import { useState } from 'react';
 import {
   createActionDefinition,
   createActionRuntime,
@@ -76,16 +77,20 @@ export function createDeskActionDefinitions({ experience, commands, item: action
 
 export function useDeskActionRuntime({ experience, focusedItem, inspectorItem, commands }: DeskActionRuntimeOptions) {
   const { toast } = useToast();
+  const [failure, setFailure] = useState<{ itemId: string; message: string } | null>(null);
   const actionItem = inspectorItem ?? focusedItem;
   const definitions = createDeskActionDefinitions({experience, commands, item:actionItem});
   const runForItem = (item: AccountLibraryItem | null, action: ActionDescriptor) => {
+    setFailure(null);
     const runtime = createActionRuntime(createDeskActionDefinitions({experience, commands, item}));
     void runtime.execute(action.id, {targetIds:item ? [item.references.localSetId ?? item.id] : []}).catch((error:unknown)=>{
+      if (item) setFailure({ itemId: item.id, message: error instanceof Error ? error.message : 'The selected Desk action is unavailable.' });
       toast({title:'Action could not be completed',description:error instanceof Error ? error.message : 'The selected Desk action is unavailable.',variant:'destructive'});
     });
   };
 
   return {
+    actionError: failure?.itemId === inspectorItem?.id ? failure?.message : null,
     actions: definitions.map((definition) => definition.descriptor),
     detail: inspectorItem ? workDetailRecord(inspectorItem) : null,
     runAction: (action: ActionDescriptor) => runForItem(action.id === 'desk.create-set' ? null : actionItem, action),

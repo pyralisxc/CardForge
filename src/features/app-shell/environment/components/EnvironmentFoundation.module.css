@@ -894,6 +894,8 @@
 
 .detailMetaRow dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--cf-text-strong);
 }
 
