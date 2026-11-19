@@ -2,7 +2,9 @@
 
 This file owns CardForge's stable branch, CI, hosted Preview, provider-migration, and human acceptance boundaries. It is not a status ledger. Always query GitHub, Vercel, Supabase, and other providers for current state rather than recording transient SHAs, deployments, limits, or active work here.
 
-`AGENTS.md` and the repo-local Founder-to-Feature and Lean Repository Execution skills remain the development workflow authority. The [CardForge Confluence blueprint](https://pyralisholdings.atlassian.net/wiki/spaces/PYPH/pages/590018) owns greater cross-branch future direction; `docs/product-direction.md` records branch-local product and interaction context. Implementation ownership for this revision is described in `docs/architecture.md`, provider seams in `docs/integrations.md`, and operational procedure in `docs/operations.md`; source, live providers, and deployed behavior require their own verification.
+`AGENTS.md` and the repo-local Founder-to-Feature and Lean Repository Execution skills remain the development workflow authority. The [CardForge Google Drive product wiki](https://drive.google.com/file/d/1SagFp1f95MLEp7paLl3RP18apMbXDfzK/view) owns greater cross-branch future direction; `docs/product-direction.md` records branch-local product and interaction context. Implementation ownership for this revision is described in `docs/architecture.md`, provider seams in `docs/integrations.md`, and operational procedure in `docs/operations.md`; source, live providers, and deployed behavior require their own verification.
+
+The cross-version product wiki migrated from Confluence to [Google Drive](https://drive.google.com/file/d/1NSS0PQHyjsM18-kHEyTbWdaM6_QH1OXG/view) on November 19, 2026. Historical Confluence links do not overrule the Drive owner's current decisions. The next intended release is **0.1.0**, superseding the never-released 0.0.1 draft. This documentation decision does not authorize Main promotion, a tag, or publication.
 
 ## Branch roles
 
