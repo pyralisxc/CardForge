@@ -41,18 +41,19 @@ const TemplateObjectPreview = memo(function TemplateObjectPreview({ entry, width
   entry: SetTemplateEntry; width: number; renderPreview: TemplatePreviewRenderer;
 }) { return renderPreview(entry.sample, entry.face, width); });
 
-export function SetTemplateObject({ entry, onDesign, renderPreview, accent, previewWidth = 88, id, className = '', style, tabIndex, showPreview = true, interaction }: {
+export function SetTemplateObject({ entry, onDesign, onSelect, selected, renderPreview, accent, previewWidth = 88, id, className = '', style, tabIndex, showPreview = true, interaction }: {
   entry: SetTemplateEntry; onDesign: (templateId: string) => void; renderPreview: TemplatePreviewRenderer;
+  onSelect?: (templateId: string) => void; selected?: boolean;
   accent: string; previewWidth?: number; id?: string; className?: string; style?: CSSProperties; tabIndex?: number; showPreview?: boolean;
-  interaction?: Pick<ButtonHTMLAttributes<HTMLButtonElement>, 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onPointerCancel' | 'onLostPointerCapture' | 'onKeyDown' | 'onClickCapture' | 'aria-describedby'>;
+  interaction?: Pick<ButtonHTMLAttributes<HTMLButtonElement>, 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onPointerCancel' | 'onLostPointerCapture' | 'onKeyDown' | 'onClickCapture' | 'onDoubleClick' | 'aria-describedby'>;
 }) {
   const { template, face, artifactCount } = entry;
   const usage = artifactCount ? `${artifactCount} ${artifactCount === 1 ? 'Artifact' : 'Artifacts'}` : null;
   return <button {...interaction} id={id} type="button" className={`${styles.template} ${className}`} style={{ borderColor: accent, ...style }} tabIndex={tabIndex} data-set-template={template.id}
-    onClick={() => onDesign(template.id!)} aria-label={`Design ${face === 'back' ? 'back Template' : 'Template'} ${template.name}, ${usage ? `used by ${usage}` : 'prepared for this Set'}`}>
+    onClick={() => (onSelect ?? onDesign)(template.id!)} aria-pressed={onSelect ? Boolean(selected) : undefined} aria-label={`${onSelect ? 'Select' : 'Design'} ${face === 'back' ? 'back Template' : 'Template'} ${template.name}, ${usage ? `used by ${usage}` : 'prepared for this Set'}`}>
     <span className={styles.kind}><LayoutTemplate aria-hidden="true" />{face === 'back' ? 'Back Template' : 'Template'}</span>
     {showPreview ? <TemplateObjectPreview entry={entry} width={previewWidth} renderPreview={renderPreview} /> : null}
-    <span><strong>{template.name}</strong><small>{usage ?? 'Prepared · Template sample'}</small><small>Design in Studio</small></span>
+    <span><strong>{template.name}</strong><small>{usage ?? 'Prepared · Template sample'}</small><small>{onSelect ? 'Select to see actions' : 'Design in Studio'}</small></span>
   </button>;
 }
 

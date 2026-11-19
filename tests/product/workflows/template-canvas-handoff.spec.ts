@@ -13,8 +13,7 @@ for (const mobile of [false, true]) {
       await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true, templateContent: true });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
-      await page.getByRole('button', { name: /^Templates ·/ }).click();
-      await page.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true }).click();
+      await page.getByRole('button', { name: 'Select back Template Scale Fixture Back, used by 100 Artifacts', exact: true }).press('Enter');
       const canvas = page.getByRole('region', { name: 'Template canvas', exact: true });
       await expect(canvas).toBeVisible();
       await expect(canvas.getByText('Scale Fixture Back', { exact: true })).toBeVisible();
@@ -69,8 +68,7 @@ for (const mobile of [false, true]) {
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await page.getByRole('button', { name: 'Create your first Set', exact: true }).click();
       await page.getByRole('button', { name: /^Standard 52-card deck A complete editable/ }).click();
-      await page.getByRole('button', { name: /^Templates ·/ }).click();
-      const templateButton = page.getByRole('button', { name: 'Design Template Standard 52-card deck Template, used by 52 Artifacts', exact: true });
+      const templateButton = page.getByRole('button', { name: 'Select Template Standard 52-card deck Template, used by 52 Artifacts', exact: true });
       await expect(templateButton).toBeVisible();
       let releaseChunks!: () => void;
       const chunksReady = new Promise<void>((resolve) => { releaseChunks = resolve; });
@@ -79,7 +77,7 @@ for (const mobile of [false, true]) {
         await route.continue();
       });
       try {
-        await templateButton.click();
+        await templateButton.press('Enter');
         await expect(page.getByRole('status').filter({ hasText: 'Loading workspace tools' })).toBeVisible();
       } finally {
         releaseChunks();
@@ -92,7 +90,6 @@ for (const mobile of [false, true]) {
       await expect.poll(() => artwork.evaluate((node) => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
       await page.screenshot({ path: testInfo.outputPath('official-starter-studio.png') });
       await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true }).click();
-      await page.getByRole('button', { name: /^Templates ·/ }).click();
       await expect(templateButton).toBeVisible();
     });
   });

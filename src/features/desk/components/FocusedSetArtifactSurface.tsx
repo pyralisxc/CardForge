@@ -123,6 +123,8 @@ const TOUCH_ACQUISITION_RADIUS = 24;
 const TOUCH_DIRECT_TARGET_MIN = 32;
 const TOUCH_AMBIGUITY_DISTANCE = 7;
 const TOUCH_CLARITY_SEPARATION = 44;
+const DOUBLE_TAP_INTERVAL = 360;
+const DOUBLE_TAP_DISTANCE = 28;
 
 const identityFor = (setId: string, card: DisplayCard): ArtifactIdentity => ({
   artifactId: card.uniqueId,
@@ -164,6 +166,7 @@ export function FocusedSetArtifactSurface({
   const suppressedTemplateClickRef = useRef<string | null>(null);
   const lastArtifactPointerTypeRef = useRef<string | null>(null);
   const touchTapRef = useRef<{ artifactId: string; x: number; y: number; at: number } | null>(null);
+  const templateTapRef = useRef<{ templateId: string; x: number; y: number; at: number } | null>(null);
   const navigatorReturnArtifactIdRef = useRef<string | null>(null);
   const pendingSpatialFocusIdRef = useRef<string | null>(null);
   const previousArtifactFocusIdRef = useRef<string | null>(session.focusPath.artifactId);
@@ -174,6 +177,7 @@ export function FocusedSetArtifactSurface({
   const [viewportSize, setViewportSize] = useState({ width: 900, height: 520 });
   const [dragPreview, setDragPreview] = useState<Record<string, ArtifactPosition>>({});
   const [templateDragPreview, setTemplateDragPreview] = useState<Record<string, ArtifactPosition>>({});
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [navigatorFocusId, setNavigatorFocusId] = useState<string | null>(null);
   const [faces, setFace] = useArtifactFaces();
   const [historyRevision, setHistoryRevision] = useState(0);
@@ -225,8 +229,14 @@ export function FocusedSetArtifactSurface({
     .map(({ entry }) => entry.template.id)
     .filter((id): id is string => Boolean(id)))].sort());
   const templateIds = useMemo(() => JSON.parse(templateMembership) as string[], [templateMembership]);
+  const selectedTemplate = templateEntries.find((entry) => entry.template.id === selectedTemplateId)?.template;
+  useEffect(() => {
+    setSelectedTemplateId(null);
+    templateTapRef.current = null;
+  }, [setId]);
   useEffect(() => {
     const validTemplateIds = new Set(templateIds);
+    setSelectedTemplateId((id) => id && validTemplateIds.has(id) ? id : null);
     const pruneTemplateHistory = (stack: SpatialHistoryEntry[]) => {
       let changed = false;
       const next: SpatialHistoryEntry[] = [];
@@ -300,6 +310,7 @@ export function FocusedSetArtifactSurface({
 
   const cancelActiveSpatialGesture = useCallback(() => {
     stopEdgePan();
+    templateTapRef.current = null;
     const drag = dragRef.current;
     if (drag) {
       if (drag.kind === 'template') suppressedTemplateClickRef.current = drag.objectId;
@@ -332,9 +343,9 @@ export function FocusedSetArtifactSurface({
     lastArtifactPointerTypeRef.current = event.pointerType;
     if (event.pointerType === 'mouse') return null;
     const templateTarget = (event.target as HTMLElement).closest<HTMLElement>('button[data-set-template]');
-    if (templateTarget) return { target: templateTarget, allowHold: true, onTap: () => {
+    if (templateTarget) return { target: templateTarget, allowHold: true, onTap: (at: number) => {
       templateTarget.focus({ preventScroll: true });
-      onDesignTemplate(templateTarget.dataset.setTemplate!);
+      handleTemplateTap(templateTarget.dataset.setTemplate!, point, at);
     } };
     if (event.pointerType !== 'touch') return null;
     const stage = viewportRef.current;
@@ -404,6 +415,8 @@ export function FocusedSetArtifactSurface({
   };
 
   const beginMarquee = (point: ClientPoint, pointerId: number, viewport: HTMLDivElement, additive: string[] = []) => {
+    setSelectedTemplateId(null);
+    templateTapRef.current = null;
     const camera = cameraApiRef.current;
     if (!camera) return;
     camera.enterCustom();
@@ -501,6 +514,8 @@ export function FocusedSetArtifactSurface({
   }, [artifactFocusId, focusedEntry]);
 
   const updateSelection = useCallback((ids: readonly string[]) => {
+    setSelectedTemplateId(null);
+    templateTapRef.current = null;
     setSession((current) => selectCreatorArtifacts(current, ids));
   }, [setSession]);
 
@@ -522,6 +537,8 @@ export function FocusedSetArtifactSurface({
   };
 
   const focusArtifact = (artifactId: string, source: 'spatial' | 'navigator' | 'browse' = 'spatial') => {
+    setSelectedTemplateId(null);
+    templateTapRef.current = null;
     touchTapRef.current = null;
     const entry = entryById.get(artifactId);
     if (!entry) return;
@@ -552,8 +569,8 @@ export function FocusedSetArtifactSurface({
     if (
       previous
       && previous.artifactId === artifactId
-      && at - previous.at <= 360
-      && Math.hypot(point.clientX - previous.x, point.clientY - previous.y) <= 28
+      && at - previous.at <= DOUBLE_TAP_INTERVAL
+      && Math.hypot(point.clientX - previous.x, point.clientY - previous.y) <= DOUBLE_TAP_DISTANCE
     ) {
       touchTapRef.current = null;
       focusArtifact(artifactId);
@@ -561,6 +578,29 @@ export function FocusedSetArtifactSurface({
     }
     toggleArtifact(artifactId, range, additive);
     touchTapRef.current = { artifactId, x: point.clientX, y: point.clientY, at };
+  }
+
+  function selectTemplate(templateId: string) {
+    touchTapRef.current = null;
+    setSelectedTemplateId(templateId);
+  }
+
+  function designTemplate(templateId: string) {
+    templateTapRef.current = null;
+    selectTemplate(templateId);
+    onDesignTemplate(templateId);
+  }
+
+  function handleTemplateTap(templateId: string, point: ClientPoint, at: number) {
+    const previous = templateTapRef.current;
+    selectTemplate(templateId);
+    if (!touchMultiSelect && previous?.templateId === templateId
+      && at - previous.at <= DOUBLE_TAP_INTERVAL
+      && Math.hypot(point.clientX - previous.x, point.clientY - previous.y) <= DOUBLE_TAP_DISTANCE) {
+      designTemplate(templateId);
+      return;
+    }
+    templateTapRef.current = { templateId, x: point.clientX, y: point.clientY, at };
   }
 
   const browseFocusedArtifact = (direction: ArtifactBrowseDirection) => {
@@ -699,6 +739,8 @@ export function FocusedSetArtifactSurface({
     target: HTMLElement,
   ) {
     if (event.button !== 0) return;
+    templateTapRef.current = null;
+    if (kind === 'template') selectTemplate(objectId);
     const startCamera = camera.capture();
     suppressedClickRef.current = null;
     suppressedTemplateClickRef.current = null;
@@ -771,6 +813,7 @@ export function FocusedSetArtifactSurface({
     if (!drag || drag.pointerId !== event.pointerId) return;
     stopEdgePan();
     touchTapRef.current = null;
+    templateTapRef.current = null;
     dragRef.current = null;
     camera.restore(drag.startCamera);
     if (drag.kind === 'template') suppressedTemplateClickRef.current = drag.objectId;
@@ -780,10 +823,16 @@ export function FocusedSetArtifactSurface({
 
   const handleTemplateKey = (templateId: string, event: ReactKeyboardEvent<HTMLButtonElement>) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      designTemplate(templateId);
+      return;
+    }
     const direction = getSpatialDirectionForKey(event.key);
     const origin = templateLayout.find((item) => item.entry.template.id === templateId);
     if (!direction || !origin) return;
     event.preventDefault();
+    selectTemplate(templateId);
     camera.enterCustom();
     const step = organization.gridSizeMm ?? DEFAULT_SET_GRID_SIZE_MM;
     const amount = (event.shiftKey ? 5 : 1) * (snapToGrid ? step : 1);
@@ -850,7 +899,11 @@ export function FocusedSetArtifactSurface({
         inert={focusedEntry ? true : undefined}
       >
       <p id={`artifact-field-instructions-${setId}`} className="sr-only">Drag empty space immediately to pan and pinch to zoom. Hold empty space, then drag to select multiple cards. Tap or click a card to select it; use Quick Actions Select Multiple on touch to add or remove cards without replacing the selection. Double tap, double click, or press Enter to focus it when Select Multiple is off. Hold a card then drag to move it. With a mouse, Shift-drag empty space to draw a selection. Moving a card switches to Freeform. Use Tab to reach visible Artifacts and Arrow or WASD keys to move selected Artifacts; hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
-      <p id={`template-movement-${setId}`} className="sr-only">Click, tap, or press Enter to design a Template. Drag to move it; on touch, hold before dragging. Arrow or WASD keys move the focused Template; Shift takes a larger step. Escape cancels a move. Templates move independently of Artifacts.</p>
+      <p id={`template-movement-${setId}`} className="sr-only">Click, tap, or press Space to select a Template. Choose Open in Design, double click, double tap, or press Enter to design it. Drag to move it; on touch, hold before dragging. Arrow or WASD keys move the focused Template; Shift takes a larger step. Escape cancels a move. Templates move independently of Artifacts.</p>
+      {selectedTemplate ? <div className={styles.templateSelectionActions} role="group" aria-label="Selected Template actions">
+        <span>Template · {selectedTemplate.name}</span>
+        <Button type="button" size="sm" variant="outline" onClick={() => designTemplate(selectedTemplate.id!)}>Open in Design</Button>
+      </div> : null}
       <div
         ref={(node) => { viewportRef.current = node; stageRef.current = node; }}
         tabIndex={-1}
@@ -911,7 +964,10 @@ export function FocusedSetArtifactSurface({
                 className={styles.setTemplateObject} style={{ left: position.x, top: position.y, width, height }} tabIndex={visible ? 0 : -1}
                 interaction={{
                   'aria-describedby': `template-movement-${setId}`,
-                  onPointerDown: (event) => beginSpatialMoveFromPointer('template', templateId, event, event.currentTarget),
+                  onPointerDown: (event) => {
+                    lastArtifactPointerTypeRef.current = event.pointerType;
+                    beginSpatialMoveFromPointer('template', templateId, event, event.currentTarget);
+                  },
                   onPointerMove: moveSpatialObject, onPointerUp: endSpatialMove,
                   onPointerCancel: cancelSpatialMove, onLostPointerCapture: cancelSpatialMove,
                   onClickCapture: (event) => {
@@ -925,8 +981,12 @@ export function FocusedSetArtifactSurface({
                     event.stopPropagation();
                   },
                   onKeyDown: (event) => handleTemplateKey(templateId, event),
+                  onDoubleClick: () => {
+                    if (lastArtifactPointerTypeRef.current !== 'touch' && !touchMultiSelect) designTemplate(templateId);
+                  },
                 }}
-                onDesign={onDesignTemplate} accent={getTemplateAccent(templateId)} previewWidth={previewWidth}
+                onDesign={designTemplate} onSelect={selectTemplate} selected={selectedTemplateId === templateId}
+                accent={getTemplateAccent(templateId)} previewWidth={previewWidth}
                 showPreview={visible} renderPreview={renderTemplatePreview} />;
             })}
             {marquee ? <span data-artifact-marquee className={styles.deskMarquee} style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }} aria-hidden="true" /> : null}
