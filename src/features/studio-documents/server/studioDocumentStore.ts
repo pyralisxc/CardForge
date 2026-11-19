@@ -297,7 +297,7 @@ export const createStudioDocument = async ({
   const documentId = randomUUID();
   const preparedDocument = prepareOwnedStudioDocument(document);
   const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document: preparedDocument });
-  const { data, error } = await requireStore()
+  const insertQuery = () => requireStore()
     .from('cardforge_studio_documents')
     .insert({
       id: documentId,
@@ -319,16 +319,49 @@ export const createStudioDocument = async ({
     })
     .select(DOCUMENT_COLUMNS)
     .single();
-  if (error || !data) {
-    try {
-      await removeStudioDocumentAssets(ownerUserId, documentId);
-    } catch (assetError) {
-      console.error('Unable to clean artwork after a failed Studio document creation:', assetError);
-    }
-    console.error('Failed to create Studio document:', error);
-    throw new StudioDocumentStoreError('Unable to create the Studio document.');
+
+  // An INSERT response can fail after PostgreSQL has committed the row. Its
+  // private image/font references may already be stored in that row.
+  let insertion: Awaited<ReturnType<typeof insertQuery>> | null = null;
+  try {
+    insertion = await insertQuery();
+  } catch (insertError) {
+    console.error('Studio document creation acknowledgement was unavailable:', insertError);
   }
-  return toDocument(data as unknown as StudioDocumentRow);
+  if (!insertion?.error && insertion?.data?.id === documentId) {
+    return toDocument(insertion.data as unknown as StudioDocumentRow);
+  }
+
+  // Use the generated identity and owner, never a title or a "latest draft"
+  // search. A proven row is usable even when the original reply was lost.
+  // A missing/failed lookup is NOT proof that the earlier insert cannot
+  // still finish. Never delete bytes or blindly retry in that state.
+  let persistedRow: StudioDocumentRow | null = null;
+  try {
+    const { data: persisted, error: readError } = await requireStore()
+      .from('cardforge_studio_documents')
+      .select(DOCUMENT_COLUMNS)
+      .eq('id', documentId)
+      .eq('owner_user_id', ownerUserId)
+      .maybeSingle();
+    if (readError) {
+      console.error('Unable to reconcile Studio document creation:', readError);
+    } else if (persisted?.id === documentId) {
+      persistedRow = persisted as unknown as StudioDocumentRow;
+    }
+  } catch (readError) {
+    console.error('Studio document creation readback was unavailable:', readError);
+  }
+  if (persistedRow) return toDocument(persistedRow);
+
+  console.error('Studio document creation remains unconfirmed; private assets retained:', {
+    documentId,
+    insertError: insertion?.error ?? null,
+  });
+  throw new StudioDocumentStoreError(
+    'Studio document creation could not be confirmed. Check your existing Studio working documents before creating another.',
+    503,
+  );
 };
 
 export const updateStudioDocument = async ({
