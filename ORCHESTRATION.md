@@ -4,7 +4,9 @@ This file owns CardForge's stable branch, CI, hosted Preview, provider-migration
 
 `AGENTS.md` and the repo-local Founder-to-Feature and Lean Repository Execution skills remain the development workflow authority. The [CardForge Google Drive product wiki](https://drive.google.com/file/d/1SagFp1f95MLEp7paLl3RP18apMbXDfzK/view) owns greater cross-branch future direction; `docs/product-direction.md` records branch-local product and interaction context. Implementation ownership for this revision is described in `docs/architecture.md`, provider seams in `docs/integrations.md`, and operational procedure in `docs/operations.md`; source, live providers, and deployed behavior require their own verification.
 
-The cross-version product wiki migrated from Confluence to [Google Drive](https://drive.google.com/file/d/1NSS0PQHyjsM18-kHEyTbWdaM6_QH1OXG/view) on November 19, 2026. Historical Confluence links do not overrule the Drive owner's current decisions. The next intended release is **0.1.0**, superseding the never-released 0.0.1 draft. This documentation decision does not authorize Main promotion, a tag, or publication.\n\n## Branch roles
+The cross-version product wiki migrated from Confluence to [Google Drive](https://drive.google.com/file/d/1NSS0PQHyjsM18-kHEyTbWdaM6_QH1OXG/view) on November 19, 2026. Historical Confluence links do not overrule the Drive owner's current decisions. The next intended release is **0.1.0**, superseding the never-released 0.0.1 draft. This documentation decision does not authorize Main promotion, a tag, or publication.
+
+## Branch roles
 
 - A coherent feature branch and pull request own each active implementation package. Normal feature PRs target `vercel-preview`, not `main`; split only at independent ownership, rollback, or high-risk rollout boundaries.
 - GitHub CI is the normal deterministic code-health loop. Ordinary feature, documentation, and test branches do not deploy to Vercel.

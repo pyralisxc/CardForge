@@ -28,7 +28,9 @@ For branch roles, CI cadence, accumulated Preview integration, exact-SHA product
 
 The [CardForge Google Drive product wiki](https://drive.google.com/file/d/1SagFp1f95MLEp7paLl3RP18apMbXDfzK/view) owns greater cross-branch future direction and founder decisions; its [version roadmap](https://drive.google.com/file/d/149L5wVHbkQDKDF5Ysb8X3AfrKXHiWCFe/view) describes milestone goals and target months, not evidence that they are implemented or released. `docs/product-direction.md` retains the branch-local product and interaction context; `docs/architecture.md` describes this revision's implementation ownership and invariants, subject to source and execution verification. Where future direction differs from this branch, identify the difference rather than rewriting a planned capability as shipped. If the blueprint is unavailable, use this repository's self-contained context and explicitly flag that newer decisions were not checked.
 
-The next intended foundation release is 0.1.0 (in progress), superseding the unreleased 0.0.1 draft. No publication or Main promotion is implied.\n\nPRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. Development Intelligence owns rebuildable repository topology/semantic analysis plus durable accepted semantic authority in its canonical persistence; CardForge does not store a parallel machine semantic checkpoint. The live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
+The next intended foundation release is 0.1.0 (in progress), superseding the unreleased 0.0.1 draft. No publication or Main promotion is implied.
+
+PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. Development Intelligence owns rebuildable repository topology/semantic analysis plus durable accepted semantic authority in its canonical persistence; CardForge does not store a parallel machine semantic checkpoint. The live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
 
 Cameron may use global Founder-to-Feature or Lean Repository Execution skills in ChatGPT/Codex, but CardForge does not depend on them. The repo-local copies specialize those methods for CardForge and win on CardForge-specific ownership, provider, verification, and documentation rules.
 
@@ -150,7 +152,7 @@ Follow one chain: **Drive wiki intent → this revision's product/source context
 
 ### Canonical living truth
 
-- [Confluence blueprint](https://drive.google.com/file/d/1SagFp1f95MLEp7paLl3RP18apMbXDfzK/view) and [version roadmap](https://drive.google.com/file/d/149L5wVHbkQDKDF5Ysb8X3AfrKXHiWCFe/view): cross-branch product direction, founder decisions, unresolved questions, and milestone targets; not implementation or deployment status.
+- [Google Drive product wiki](https://drive.google.com/file/d/1SagFp1f95MLEp7paLl3RP18apMbXDfzK/view) and [version roadmap](https://drive.google.com/file/d/149L5wVHbkQDKDF5Ysb8X3AfrKXHiWCFe/view): cross-branch product direction, founder decisions, unresolved questions, and milestone targets; not implementation or deployment status.
 - `docs/architecture.md`: current shipped ownership, invariants, and source-of-truth behavior.
 - **Development Intelligence (external):** rebuildable repository topology plus durable accepted semantic/review authority. Its graph evidence is derived from current source and remains distinct from CardForge product intent.
 - `docs/product-direction.md`: branch-local product and interaction context and boundaries; not a second future roadmap.
