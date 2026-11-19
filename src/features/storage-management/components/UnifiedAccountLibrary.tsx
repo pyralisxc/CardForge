@@ -471,6 +471,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     openLocations,
     personalActions,
     runAction: executeAction,
+    actionError,
     runPersonalAction,
     runPublishedRowAction,
   } = useAccountLibraryActions({
@@ -555,7 +556,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     zones={zones} activeZone="library" viewportPolicy="desk" primaryScroll="contained" detail={activeTool ? null : currentRecord}
     presentation={presentation}
     detailVisual={currentItem ? <LibraryDetailVisual key={currentItem.id} item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} /> : undefined}
-    detailContent={selectedLocalSet ? <div className="min-w-0"><div className="flex flex-wrap gap-1 border-b pb-3" aria-label="Set tools">
+    detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{selectedLocalSet ? <div className="min-w-0"><div className="flex flex-wrap gap-1 border-b pb-3" aria-label="Set tools">
       <SetDirection key={`direction-${selectedLocalSet.id}`} set={selectedLocalSet} useLifecycle={useEnvironmentToolLifecycle} />
       <SetUpdates key={`updates-${selectedLocalSet.id}`} setId={selectedLocalSet.id} />
     </div><SetTemplates key={`templates-${selectedLocalSet.id}`} presentation="contents" set={selectedLocalSet} cards={displayCards.filter((card) => (card.setId ?? cardSets[0]?.id) === selectedLocalSet.id)} templates={templates} onDesign={(id) => {
@@ -590,7 +591,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         && shared.program.currentContributorIds.includes(publishedRevisionByLineage.get(currentItem.published.lineageId)!.contributorId)
       )}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
-    /> : undefined}
+    /> : undefined}</>}
     primaryDisabledReason={campaignExitReason}
     primaryAction={createLibraryZoneAction('library.create-set', 'New Set')}
     showPrimaryAction={!activeTool}

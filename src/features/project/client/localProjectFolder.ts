@@ -15,6 +15,7 @@ import {
   writeStructuredBrowserValue,
 } from '../persistence/structuredBrowserStorage';
 import { useProjectStore } from '../store/workspaceStore';
+import { mapProjectDocumentIdentity } from '../model/projectDocumentIdentity';
 import { applyProjectDocumentToWorkspace, captureCardSetProjectDocument, captureCurrentProjectDocument } from './projectWorkspaceDocument';
 
 const LOCAL_PROJECT_FILE_NAME = `project${CARDFORGE_PROJECT_FILE_EXTENSION}`;
@@ -312,28 +313,49 @@ export const saveCardSetToAttachedFolder = async (setId: string): Promise<LocalP
   return await writeSnapshotToDirectory(binding.handle, binding, setId, namespace);
 };
 
-export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding> => {
-  const expectedState = useProjectStore.getState();
-  const namespace = getScopedProjectStorageNamespace('project-assets');
-  const directory = await chooseDirectory();
-  assertFolderScope(namespace);
-  await requireWritePermission(directory);
+const openProjectDirectory = async (
+  directory: FileSystemDirectoryHandle,
+  namespace: string,
+  expectedState: ReturnType<typeof useProjectStore.getState>,
+  remembered?: LocalProjectFolderBinding & { workId: string },
+): Promise<LocalProjectFolderBinding> => {
   assertFolderScope(namespace);
   let fileHandle: FileSystemFileHandle;
   try {
     fileHandle = await directory.getFileHandle(LOCAL_PROJECT_FILE_NAME);
   } catch (error) {
     if (error instanceof DOMException && error.name === 'NotFoundError') {
-      throw new ProjectPackageError(`“${directory.name}” does not contain ${LOCAL_PROJECT_FILE_NAME}. Choose a CardForge project folder or use “Save current project to folder” to create one.`);
+      throw new ProjectPackageError(`“${directory.name}” does not contain ${LOCAL_PROJECT_FILE_NAME}. Choose the saved project folder; use “Save workspace backup to folder” to create a new backup.`);
     }
     throw error;
   }
   const file = await fileHandle.getFile();
   assertFolderScope(namespace);
+  const inspected = await decodeProjectFile(file);
+  assertFolderScope(namespace);
+  if (inspected.format !== 'cardforge-package' || !inspected.sourceRevision) {
+    if (remembered) throw new ProjectPackageError('This remembered folder no longer contains one current CardForge Set. Browser and folder work were left unchanged.');
+    throw new ProjectPackageError('The selected folder does not contain a current .cardforge project package.');
+  }
+  if (remembered) {
+    if (inspected.document.cardSets.length !== 1) {
+      throw new ProjectPackageError('This remembered folder no longer contains one current CardForge Set. Browser and folder work were left unchanged.');
+    }
+    if (!remembered.sourceRevision || inspected.sourceRevision !== remembered.sourceRevision) {
+      throw new ProjectPackageError('The folder has changed or its saved revision is unavailable. Browser and folder work were left unchanged. Back up both copies before comparing them; do not save over the folder.');
+    }
+    if (useProjectStore.getState().cardSets.some((set) => set.id === remembered.workId)) return remembered;
+  }
   const decoded = await decodeBrowserProjectFile(file);
   assertFolderScope(namespace);
-  if (decoded.format !== 'cardforge-package' || !decoded.sourceRevision) {
-    throw new ProjectPackageError('The selected folder does not contain a current .cardforge project package.');
+  if (remembered) {
+    // Restore the saved Set identity, but isolate its resources from other work.
+    const document = mapProjectDocumentIdentity(decoded.document, {
+      set: { [decoded.document.cardSets[0]!.id]: remembered.workId },
+    }, 'open');
+    await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, preserveOutputPreferences: true });
+    assertFolderScope(namespace);
+    return remembered;
   }
   const imported = await applyProjectDocumentToWorkspace(decoded.document, 'copy', { expectedState });
   assertFolderScope(namespace);
@@ -351,6 +373,45 @@ export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding
   }
   await persistBinding(binding, namespace);
   return binding;
+};
+
+export const openRememberedLocalProject = async (workId: string): Promise<{ setId: string; sourceRevision: string }> => {
+  const namespace = getScopedProjectStorageNamespace('project-assets');
+  const expectedState = useProjectStore.getState();
+  const binding = await getLocalProjectWorkBinding(workId, namespace);
+  assertFolderScope(namespace);
+  if (!binding?.handle) throw new ProjectPackageError('This folder link is unavailable. Choose Open project folder in Library → Locations to reconnect it.');
+  const permission = await getPermission(binding.handle, false);
+  assertFolderScope(namespace);
+  if (permission !== 'granted') {
+    throw new ProjectPackageError('This folder needs permission again. Choose Open project folder in Library → Locations to reconnect it; CardForge will not request access in the background.');
+  }
+  const opened = await openProjectDirectory(binding.handle, namespace, expectedState, { ...binding, workId });
+  return { setId: workId, sourceRevision: opened.sourceRevision! };
+};
+
+export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding> => {
+  const expectedState = useProjectStore.getState();
+  const namespace = getScopedProjectStorageNamespace('project-assets');
+  const directory = await chooseDirectory();
+  assertFolderScope(namespace);
+  await requireWritePermission(directory);
+  assertFolderScope(namespace);
+  const matches: Array<LocalProjectFolderBinding & { workId: string }> = [];
+  for (const workId of await readWorkBindingIndex(namespace)) {
+    const binding = await getLocalProjectWorkBinding(workId, namespace);
+    if (binding && await directory.isSameEntry(binding.handle)) matches.push({ ...binding, workId });
+    assertFolderScope(namespace);
+  }
+  if (matches.length > 1) {
+    throw new ProjectPackageError('More than one browser Set is linked to this folder. Open the intended Set from Desk or Library; no work was changed.');
+  }
+  const opened = await openProjectDirectory(directory, namespace, expectedState, matches[0]);
+  if (matches[0]) {
+    await persistBinding(opened, namespace);
+    assertFolderScope(namespace);
+  }
+  return opened;
 };
 
 export const saveProjectToAttachedFolder = async (): Promise<LocalProjectFolderBinding> => {

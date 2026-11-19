@@ -40,7 +40,8 @@ export const getPersonalLibraryStatus = (item: AccountLibraryItem): { label: str
       ? { label: 'Source unavailable', tone: 'warning' }
       : item.locations.some((location) => location.status === 'needs-permission')
     ? { label: 'Permission required', tone: 'warning' }
-    : item.kind === 'working-draft' ? { label: 'Temporary work', tone: 'warning' } : { label: 'Available', tone: 'success' }
+    : item.kind === 'working-draft' ? { label: 'Temporary work', tone: 'warning' }
+      : item.references.localFolderWorkId ? { label: 'Saved file · not loaded', tone: 'neutral' } : { label: 'Available', tone: 'success' }
 );
 
 const agentLabel = (item: AccountLibraryItem): string => {

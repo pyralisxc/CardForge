@@ -1,7 +1,7 @@
 "use client";
 
 import type { PipelineDesignSource } from '@/features/pipeline/client/engagement';
-import type { Dispatch, SetStateAction } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 
 import { useToast } from '@/components/ui/use-toast';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
@@ -87,6 +87,7 @@ export function useAccountLibraryActions({
   setPendingDeleteItem,
 }: UseAccountLibraryActionsOptions) {
   const { toast } = useToast();
+  const [failure, setFailure] = useState<{ itemId: string; message: string } | null>(null);
   const projectWorkspace = useProjectLibraryWorkspace();
   const {
     openTemplateDesign,
@@ -294,9 +295,11 @@ export function useAccountLibraryActions({
   };
 
   const executeAction = (action: ActionDescriptor, target: CommandTarget, descriptors: readonly ActionDescriptor[]) => {
+    setFailure(null);
     const runtime = createActionRuntime(createAccountLibraryActionDefinitions(descriptors, commandsFor(target)));
     const targetId = target?.scope === 'personal' ? target.personal.id : target?.id;
     void runtime.execute(action.id, { targetIds: targetId ? [targetId] : [] }).catch((error: unknown) => {
+      if (targetId) setFailure({ itemId: targetId, message: error instanceof Error ? error.message : 'The selected Library action is unavailable.' });
       toast({ title: 'Library action could not be completed', description: error instanceof Error ? error.message : 'The selected Library action is unavailable.', variant: 'destructive' });
     });
   };
@@ -314,6 +317,7 @@ export function useAccountLibraryActions({
   };
 
   return {
+    actionError: failure?.itemId === (currentItem?.scope === 'personal' ? currentItem.personal.id : currentItem?.id) ? failure?.message : null,
     actions,
     openLocations,
     personalActions,
