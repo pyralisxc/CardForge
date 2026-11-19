@@ -261,7 +261,7 @@ export const captureCardProjectDocument = async (cardId: string): Promise<Projec
 export const applyProjectDocumentToWorkspace = async (
   document: ProjectDocumentV1,
   mode: ProjectWorkspaceApplyMode,
-  options: { expectedState?: ProjectState; replaceSetIds?: readonly string[]; signal?: AbortSignal; validatePreparedDocument?: (prepared: ProjectDocumentV1) => void } = {},
+  options: { expectedState?: ProjectState; replaceSetIds?: readonly string[]; preserveOutputPreferences?: boolean; signal?: AbortSignal; validatePreparedDocument?: (prepared: ProjectDocumentV1) => void } = {},
 ): Promise<ProjectWorkspaceApplySummary> => {
   options.signal?.throwIfAborted();
   const draft = createProjectWorkspaceDraft(options.expectedState);
@@ -354,7 +354,7 @@ const applyPreparedProjectDocument = async (
   draft: ReturnType<typeof createProjectWorkspaceDraft>,
   cleanup: Awaited<ReturnType<typeof prepareCompletedDeletionCleanup>>,
   mode: ProjectWorkspaceApplyMode,
-  options: { replaceSetIds?: readonly string[]; signal?: AbortSignal; expectedCatalogValues?: Record<string, string | null> },
+  options: { replaceSetIds?: readonly string[]; preserveOutputPreferences?: boolean; signal?: AbortSignal; expectedCatalogValues?: Record<string, string | null> },
 ): Promise<ProjectWorkspaceApplySummary> => {
   const document = cleanup.document;
   const independent = mode === 'copy'
@@ -469,7 +469,7 @@ const applyPreparedProjectDocument = async (
 
   const afterSets = draft.getState();
   // A copy or agent revision must not replace workspace-level output preferences.
-  if (mode !== 'adopt' && mode !== 'copy') {
+  if (!options.preserveOutputPreferences && mode !== 'adopt' && mode !== 'copy') {
     if (patch.selectedPaperSize) afterSets.setSelectedPaperSize(patch.selectedPaperSize);
     afterSets.setPdfOptions({
       margin: patch.pdfMarginMm,

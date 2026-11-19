@@ -220,7 +220,10 @@ describe('one authoritative Set location across save entry points', () => {
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: binding.sourceRevision,
       document: { cardSets: [{ id: 'portable-set' }], activeCardSetId: 'portable-set', userTemplates: [], storedCards: [], customAssets: {}, appearanceStyles: [] } });
     await expect(openRememberedLocalProject('set-c')).resolves.toEqual({ setId: 'set-c', sourceRevision: binding.sourceRevision });
-    expect(mock.apply).toHaveBeenCalledWith(expect.objectContaining({ cardSets: [{ id: 'set-c' }], activeCardSetId: 'set-c' }), 'merge', { expectedState: expect.any(Object) });
+    expect(mock.apply).toHaveBeenCalledWith(expect.objectContaining({ cardSets: [{ id: 'set-c' }], activeCardSetId: 'set-c' }), 'merge', {
+      expectedState: expect.any(Object),
+      preserveOutputPreferences: true,
+    });
     expect(mock.localSets).toEqual([{ id: 'other-set' }]);
     expect(mock.values.get('test:local-work-folder-binding:set-c')).toBe(binding);
     expect(handle.getFileHandle).toHaveBeenCalledWith('project.cardforge');

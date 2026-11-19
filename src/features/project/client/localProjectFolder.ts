@@ -353,7 +353,7 @@ const openProjectDirectory = async (
     const document = mapProjectDocumentIdentity(decoded.document, {
       set: { [decoded.document.cardSets[0]!.id]: remembered.workId },
     }, 'open');
-    await applyProjectDocumentToWorkspace(document, 'merge', { expectedState });
+    await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, preserveOutputPreferences: true });
     assertFolderScope(namespace);
     return remembered;
   }

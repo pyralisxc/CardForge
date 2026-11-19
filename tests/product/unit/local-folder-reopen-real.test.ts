@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { PAPER_SIZES } from '@/domain/rendering';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
 import { applyProjectDocumentToWorkspace } from '@/features/project/client/projectWorkspaceDocument';
 import { buildCardForgeProjectSnapshot, createCardForgeProjectPackageBlob } from '@/features/project/lib/projectPackageCodec';
@@ -38,8 +39,38 @@ it('reopens a genuinely copied Set without importing its portable identity or ch
 
 it('restores moved-out work with real package decoding while preserving unrelated browser content and the folder', async () => {
   const document = createProjectScaleFixture(100);
+  const packageOutputPreferences = {
+    selectedPaperSize: PAPER_SIZES[1]!,
+    pdfMarginMm: 8,
+    pdfCardSpacingMm: 3,
+    pdfIncludeCutLines: false,
+    pdfDuplexLayout: 'same-page' as const,
+    exportMode: 'virtual' as const,
+    exportDpi: 300,
+  };
+  document.exportSettings = packageOutputPreferences;
   const unrelated = await applyProjectDocumentToWorkspace(document, 'copy');
+  const workspaceOutputPreferences = {
+    selectedPaperSize: PAPER_SIZES[0]!,
+    pdfMarginMm: 5,
+    pdfCardSpacingMm: 1,
+    pdfIncludeCutLines: true,
+    pdfDuplexLayout: 'separate-pages' as const,
+    exportMode: 'physical' as const,
+    exportDpi: 150,
+  };
+  useProjectStore.setState(workspaceOutputPreferences);
+  await persistProjectWorkspaceNow();
   const before = useProjectStore.getState();
+  expect({
+    selectedPaperSize: before.selectedPaperSize,
+    pdfMarginMm: before.pdfMarginMm,
+    pdfCardSpacingMm: before.pdfCardSpacingMm,
+    pdfIncludeCutLines: before.pdfIncludeCutLines,
+    pdfDuplexLayout: before.pdfDuplexLayout,
+    exportMode: before.exportMode,
+    exportDpi: before.exportDpi,
+  }).toEqual(workspaceOutputPreferences);
   const snapshot = await buildCardForgeProjectSnapshot({ document, name: 'Saved Set' });
   const blob = await createCardForgeProjectPackageBlob(snapshot);
   const file = new File([blob], 'project.cardforge');
@@ -50,6 +81,15 @@ it('restores moved-out work with real package decoding while preserving unrelate
   await expect(openRememberedLocalProject(workId)).resolves.toEqual({ setId: workId, sourceRevision: snapshot.manifest.projectRevision });
   const restored = useProjectStore.getState();
   expect(restored.cardSets.find((set) => set.id === workId)?.name).toBe(document.cardSets[0]!.name);
+  expect({
+    selectedPaperSize: restored.selectedPaperSize,
+    pdfMarginMm: restored.pdfMarginMm,
+    pdfCardSpacingMm: restored.pdfCardSpacingMm,
+    pdfIncludeCutLines: restored.pdfIncludeCutLines,
+    pdfDuplexLayout: restored.pdfDuplexLayout,
+    exportMode: restored.exportMode,
+    exportDpi: restored.exportDpi,
+  }).toEqual(workspaceOutputPreferences);
   expect(restored.cardSets.filter((set) => set.id !== workId)).toEqual(before.cardSets);
   expect(restored.storedCards.filter((card) => card.setId !== workId)).toEqual(before.storedCards);
   expect(restored.userTemplates).toEqual(expect.arrayContaining(before.userTemplates));
