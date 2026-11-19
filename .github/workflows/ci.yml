@@ -71,8 +71,8 @@ jobs:
         name: Install dependencies
         run: node scripts/run-ci-check.mjs --title "Browser dependency install" -- npm ci
       - if: steps.route.outputs.browser_golden == 'true'
-        name: Install Chromium
-        run: node scripts/run-ci-check.mjs --title "Chromium install" -- npx playwright install --with-deps chromium
+        name: Install test browsers
+        run: node scripts/run-ci-check.mjs --title "Browser install" -- npx playwright install --with-deps chromium chrome
       - if: steps.route.outputs.browser_smoke_files != ''
         name: Run affected browser smoke
         env:

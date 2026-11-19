@@ -3,8 +3,8 @@ import { createProjectScaleFixture } from '../../fixtures/projectScale';
 import { buildCardForgeProjectSnapshot, createCardForgeProjectPackageBlob } from '@/features/project/lib/projectPackageCodec';
 import { seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
-// Persisted native filesystem handles need full Chromium, not headless shell.
-test.use({ channel: 'chromium', trace: 'retain-on-failure' });
+// Exercise persisted native handles in Chrome Stable, not the bundled Chromium build.
+test.use({ channel: 'chrome', trace: 'retain-on-failure' });
 
 for (const surface of ['desk', 'library'] as const) {
   test(`@golden ${surface} restores remembered folder work and shows conflicts inside the compact inspector`, async ({ page }) => {

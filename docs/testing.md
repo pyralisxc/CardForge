@@ -15,6 +15,8 @@ The CI browser job runs `npm run smoke:preview` for affected feature owners; sha
 
 The hosted lane also checks Profile's loading → verified guest and unavailable → retry transitions by delaying or rejecting the entitlement request, then allowing the real signed-out response. It does not fabricate a signed-in provider session or replace signed-in acceptance.
 
+The local-folder workflow uses Chrome Stable with real OPFS directory handles persisted through IndexedDB. Install it with `npx playwright install chrome` in addition to the default Chromium browser; CI installs both. This controlled fixture proves the remembered-folder application flow, not the native directory picker or physical Android behavior.
+
 Production-health copy checks parse the returned HTML and inspect the relevant semantic surface: main content for Contributors, and the unique legal article inside main for legal publications. Shell announcements, attributes, serialized framework payloads, and explicitly hidden content do not establish publication truth. Missing or ambiguous content fails the check; entities and inline formatting are decoded before evaluating the same required/retired claims. These checks do not certify computed CSS visibility or replace browser acceptance.
 
 The required CI `verify` job runs `npm audit --omit=dev --audit-level=high` after dependency installation and before the full repository gate. High/critical production dependency findings fail the gate; an unavailable audit service is not a clean result. Dependency upgrades must also preserve API/MCP input contracts and verify affected native rendering. An audit does not replace reachability assessment or hosted provider acceptance.
