@@ -109,6 +109,7 @@ export function LocalProjectFolderPanel({
   const binding = status?.binding ?? null;
   const scopeUnverified = Boolean(binding && !binding.workId && binding.packageScope !== 'workspace');
   const permission = status?.permission ?? 'prompt';
+  const readPermission = status?.readPermission ?? 'prompt';
 
   return (
     <div className={embedded ? 'py-1' : 'mt-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3'}>
@@ -130,7 +131,7 @@ export function LocalProjectFolderPanel({
 
       {binding ? (
         <div className="mt-3 rounded border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-xs text-[var(--cf-text-muted)]">
-          <p><span className="font-semibold text-[var(--cf-text-strong)]">{binding.folderName}</span> · {permission === 'granted' ? 'folder permission active' : 'permission needs reconnecting'}</p>
+          <p><span className="font-semibold text-[var(--cf-text-strong)]">{binding.folderName}</span> · {permission === 'granted' ? 'read/write permission active' : readPermission === 'granted' ? 'read access active · allow saving to write' : 'permission required to reopen or save'}</p>
           <p className="mt-1">Last project revision: {binding.sourceRevision ? binding.sourceRevision.slice(0, 12) : 'unknown'}{binding.lastSavedAt ? ` · saved ${new Date(binding.lastSavedAt).toLocaleString()}` : ''}</p>
         </div>
       ) : null}
@@ -194,11 +195,11 @@ export function LocalProjectFolderPanel({
                 variant="outline"
                 disabled={Boolean(busyAction) || !canUseProjectFiles}
                 onClick={() => void run('reconnect', async () => {
-                  await reconnectAttachedProjectFolder();
-                  toast({ title: 'Folder reconnected', description: 'CardForge can write to the selected project folder again.' });
+                  await reconnectAttachedProjectFolder(binding.handle);
+                  toast({ title: 'Folder access confirmed', description: 'Write permission was granted. Choose Open saved Set when you want to load the file.' });
                 })}
               >
-                <FolderOpen className="mr-2 h-4 w-4" /> Reconnect folder
+                <FolderOpen className="mr-2 h-4 w-4" /> {readPermission === 'granted' ? 'Allow folder saving' : 'Reconnect folder'}
               </Button>
             ) : null}
             <Button
