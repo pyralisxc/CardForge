@@ -6,7 +6,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { createDeskReturnHref, createLibraryReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
 import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client';
 import { getGoogleDriveProjectBinding, loadGoogleDriveProjectLibrary, openGoogleDriveProject, type GoogleDriveProjectListResult } from '@/features/project/client/provider-google-drive';
-import { getLocalProjectFolderStatus, listLocalProjectWorkBindings, openRememberedLocalProject, type LocalProjectFolderStatus, type LocalProjectWorkBindingStatus } from '@/features/project/client/provider-local-folder';
+import { getLocalProjectFolderStatus, listLocalProjectWorkBindings, openRememberedLocalProject, LOCAL_PROJECT_FOLDER_CHANGE_EVENT, type LocalProjectFolderStatus, type LocalProjectWorkBindingStatus } from '@/features/project/client/provider-local-folder';
 import { PROJECT_FONT_LIBRARY_CHANGE_EVENT } from '@/features/project/client/assets';
 import { hydrateProjectLibraryWorkspaceForScope, useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
@@ -224,6 +224,7 @@ export function useAccountLibraryProjection({
   const [updatesOnly, setUpdatesOnly] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const refreshGeneration = useRef(0);
+  const folderRefreshGeneration = useRef(0);
   const driveLibrary = driveLibrarySource?.scope === persistenceScope ? driveLibrarySource.value : null;
   const driveBindingFileId = driveBindingSource?.scope === persistenceScope ? driveBindingSource.value : null;
   const localFolder = localFolderSource?.scope === persistenceScope ? localFolderSource.value : null;
@@ -249,6 +250,7 @@ export function useAccountLibraryProjection({
     // Prevent an older account's in-flight source from publishing a value or
     // failure after the persistence namespace changes.
     refreshGeneration.current += 1;
+    folderRefreshGeneration.current += 1;
     setHydrated(false);
     setLoadingSourceIds(new Set());
     setHydrationFailure(null);
@@ -289,6 +291,45 @@ export function useAccountLibraryProjection({
     return () => { cancelled = true; };
   }, [organizationPreferenceKey]);
 
+  // Source-scoped invalidation: recheck only folder permission and bindings,
+  // not unrelated Drive, Pipeline, account or catalog providers.
+  const refreshLocalFolderSources = useCallback(async () => {
+    const generation = ++folderRefreshGeneration.current;
+    setLoadingSourceIds((current) => new Set([...current, 'local-folder-status', 'local-folder-work']));
+    setLocalFolderSource((previous) => beginScopedSource(previous, persistenceScope));
+    setLocalWorkFolderSource((previous) => beginScopedSource(previous, persistenceScope));
+    const [status, works] = await Promise.allSettled([
+      getLocalProjectFolderStatus(),
+      listLocalProjectWorkBindings(),
+    ]);
+    if (generation !== folderRefreshGeneration.current) return;
+    const statusFailure = status.status === 'rejected'
+      ? sourceFailure('local-folder', status.reason, 'Local-folder status is unavailable.') : null;
+    const worksFailure = works.status === 'rejected'
+      ? sourceFailure('local-folder', works.reason, 'Saved local-folder locations are unavailable.') : null;
+    if (status.status === 'fulfilled') {
+      setLocalFolderSource(settleScopedSourceValue(persistenceScope, status.value));
+    } else {
+      setLocalFolderSource((previous) => settleScopedSourceFailure(previous, persistenceScope, statusFailure!));
+    }
+    if (works.status === 'fulfilled') {
+      setLocalWorkFolderSource(settleScopedSourceValue(persistenceScope, works.value, { empty: works.value.length === 0 }));
+    } else {
+      setLocalWorkFolderSource((previous) => settleScopedSourceFailure(previous, persistenceScope, worksFailure!));
+    }
+    const failure = worksFailure ?? statusFailure;
+    setSourceFailures((current) => [
+      ...current.filter((item) => item.id !== 'local-folder'),
+      ...(failure ? [failure] : []),
+    ]);
+    setLoadingSourceIds((current) => {
+      const next = new Set(current);
+      next.delete('local-folder-status');
+      next.delete('local-folder-work');
+      return next;
+    });
+  }, [persistenceScope]);
+
   const refreshLibrarySources = useCallback(async () => {
     const generation = refreshGeneration.current + 1;
     refreshGeneration.current = generation;
@@ -315,10 +356,6 @@ export function useAccountLibraryProjection({
 
     begin('device-assets', 'device-assets');
     setLocalResourceSource((previous) => beginScopedSource(previous, persistenceScope));
-    begin('local-folder-status', 'local-folder');
-    setLocalFolderSource((previous) => beginScopedSource(previous, persistenceScope));
-    begin('local-folder-work', 'local-folder');
-    setLocalWorkFolderSource((previous) => beginScopedSource(previous, persistenceScope));
     begin('published-library', 'published-library');
     if (isSignedIn) {
       begin('google-drive-library', 'google-drive');
@@ -355,33 +392,7 @@ export function useAccountLibraryProjection({
       })
       .finally(() => { if (current()) finish('device-assets'); });
 
-    const folderStatus = getLocalProjectFolderStatus()
-      .then((value) => {
-        if (!current()) return;
-        setLocalFolderSource(settleScopedSourceValue(persistenceScope, value));
-      })
-      .catch((error) => {
-        if (!current()) return;
-        const failure = sourceFailure('local-folder', error, 'Local-folder status is unavailable.');
-        setFailure(failure, 'local-folder');
-        setLocalFolderSource((previous) => settleScopedSourceFailure(previous, persistenceScope, failure));
-      })
-      .finally(() => { if (current()) finish('local-folder-status'); });
-
-    const folderWork = listLocalProjectWorkBindings()
-      .then((value) => {
-        if (!current()) return;
-        setLocalWorkFolderSource(settleScopedSourceValue(persistenceScope, value, { empty: value.length === 0 }));
-      })
-      .catch((error) => {
-        if (!current()) return;
-        const failure = sourceFailure('local-folder', error, 'Saved local-folder locations are unavailable.');
-        setFailure(failure, 'local-folder');
-        // A failed refresh must not replace reconnectable folder-only work
-        // with an empty list. Browser permission is never requested here.
-        setLocalWorkFolderSource((previous) => settleScopedSourceFailure(previous, persistenceScope, failure));
-      })
-      .finally(() => { if (current()) finish('local-folder-work'); });
+    const folderSources = refreshLocalFolderSources();
 
     const bootstrap = loadCardForgeStudioBootstrap()
       .then((value) => {
@@ -453,13 +464,20 @@ export function useAccountLibraryProjection({
 
     // This await only lets callers observe that a refresh round has settled.
     // Each source above applies independently as soon as it resolves.
-    await Promise.allSettled([deviceAssets, folderStatus, folderWork, bootstrap, ...signedInTasks]);
-  }, [isSignedIn, persistenceScope, setDefaultTemplatesFromFiles]);
+    await Promise.allSettled([deviceAssets, folderSources, bootstrap, ...signedInTasks]);
+  }, [isSignedIn, persistenceScope, refreshLocalFolderSources, setDefaultTemplatesFromFiles]);
 
   useEffect(() => {
     if (!hydrated) return;
     void refreshLibrarySources();
   }, [hydrated, refreshLibrarySources]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const refreshFolders = () => { void refreshLocalFolderSources(); };
+    window.addEventListener(LOCAL_PROJECT_FOLDER_CHANGE_EVENT, refreshFolders);
+    return () => window.removeEventListener(LOCAL_PROJECT_FOLDER_CHANGE_EVENT, refreshFolders);
+  }, [hydrated, refreshLocalFolderSources]);
 
   useEffect(() => {
     if (!hydrated) return;

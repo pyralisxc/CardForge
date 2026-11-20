@@ -52,7 +52,7 @@ import { GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT, resetGoogleDriveTargetSaveSt
 import { repairConfirmedGoogleDriveLink } from '@/features/project/client/googleDriveLinkRepair';
 import * as localFolder from '@/features/project/client/localProjectFolder';
 import { disconnectLocalProjectFolder, getLocalProjectFolderStatus, saveCardSetToAttachedFolder, saveProjectToAttachedFolder } from '@/features/project/client/localProjectFolder';
-import { openRememberedLocalProject } from '@/features/project/client/localProjectFolder';
+import { openRememberedLocalProject, LOCAL_PROJECT_FOLDER_CHANGE_EVENT, reconnectAttachedProjectFolder } from '@/features/project/client/localProjectFolder';
 
 const driveBinding = { fileId: 'drive-file-12345', name: 'C', providerRevision: '1', projectRevision: 'a'.repeat(64), workId: 'set-c' };
 const folder = (name: string) => {
@@ -264,6 +264,58 @@ describe('one authoritative Set location across save entry points', () => {
       binding: expect.objectContaining({ workId: 'set-b', folderName: 'B' }),
     });
     expect(mock.apply).not.toHaveBeenCalled();
+  });
+
+
+  it('opens a saved Set with read permission, without demanding write access', async () => {
+    const handle = folder('Read only');
+    mock.localSets = [{ id: 'set-c' }];
+    mock.values.set('test:local-work-folder-binding:set-c', {
+      handle, folderName: 'Read only', workId: 'set-c', sourceRevision: 'b'.repeat(64),
+    });
+    mock.decode.mockResolvedValue({
+      format: 'cardforge-package', sourceRevision: 'b'.repeat(64),
+      document: { cardSets: [{ id: 'portable-set' }] },
+    });
+    handle.queryPermission.mockImplementation(async (options?: { mode?: string }) =>
+      options?.mode === 'read' ? 'granted' : 'prompt');
+    await expect(openRememberedLocalProject('set-c')).resolves.toMatchObject({ setId: 'set-c' });
+    expect(handle.queryPermission).toHaveBeenCalledWith({ mode: 'read' });
+    expect(handle.queryPermission).not.toHaveBeenCalledWith({ mode: 'readwrite' });
+    mock.values.set('test:local-project-folder-binding', { workId: 'set-c' });
+    expect(await getLocalProjectFolderStatus()).toMatchObject({ readPermission: 'granted', permission: 'prompt' });
+  });
+
+  it('requests reconnect permission before IndexedDB reads and invalidates after a confirmed binding', async () => {
+    const handle = folder('C');
+    const saved = { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'b'.repeat(64) };
+    mock.values.set('test:local-project-folder-binding', { workId: 'set-c' });
+    mock.values.set('test:local-work-folder-binding:set-c', saved);
+    let readStarted = false;
+    mock.read.mockImplementation(async (key: string) => { readStarted = true; return mock.values.get(key) ?? null; });
+    handle.queryPermission.mockResolvedValueOnce('prompt');
+    const requestPermission = vi.fn(async ({ mode }: { mode?: string }) => {
+      expect(mode).toBe('readwrite');
+      expect(readStarted).toBe(false);
+      return 'granted' as const;
+    });
+    const nativeHandle = Object.assign(handle, { requestPermission });
+    expect(await reconnectAttachedProjectFolder(nativeHandle as unknown as FileSystemDirectoryHandle)).toBe(saved);
+    expect(requestPermission).toHaveBeenCalledOnce();
+    expect(window.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: LOCAL_PROJECT_FOLDER_CHANGE_EVENT }));
+    expect(mock.values.get('test:local-project-folder-binding')).toEqual({ workId: 'set-c' });
+    expect(handle.getFileHandle).not.toHaveBeenCalled();
+  });
+
+  it('rejects a mismatched reconnect handle without rebinding or dispatching', async () => {
+    const attached = folder('Attached');
+    const wrong = folder('Wrong');
+    mock.values.set('test:local-project-folder-binding', { workId: 'set-c' });
+    mock.values.set('test:local-work-folder-binding:set-c', { handle: attached, folderName: 'Attached', workId: 'set-c' });
+    await expect(reconnectAttachedProjectFolder(wrong as unknown as FileSystemDirectoryHandle)).rejects.toThrow('selected folder changed');
+    expect(mock.values.get('test:local-project-folder-binding')).toEqual({ workId: 'set-c' });
+    expect(window.dispatchEvent).not.toHaveBeenCalled();
+    expect(wrong.getFileHandle).not.toHaveBeenCalled();
   });
 
   it('preserves verified workspace backup saves', async () => {

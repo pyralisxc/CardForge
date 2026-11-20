@@ -22,6 +22,11 @@ const LOCAL_PROJECT_FILE_NAME = `project${CARDFORGE_PROJECT_FILE_EXTENSION}`;
 const LOCAL_FOLDER_BINDING_KEY = 'local-project-folder-binding';
 const LOCAL_WORK_FOLDER_BINDING_KEY = 'local-work-folder-binding';
 const LOCAL_WORK_FOLDER_INDEX_KEY = 'local-work-folder-binding-index';
+/** No duplicate state: views reread the owner after a confirmed binding change. */
+export const LOCAL_PROJECT_FOLDER_CHANGE_EVENT = 'cardforge:local-folder-changed';
+const notifyLocalProjectFolderChange = () => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(LOCAL_PROJECT_FOLDER_CHANGE_EVENT));
+};
 
 type FileSystemPermissionMode = 'read' | 'readwrite';
 type FileSystemPermissionState = 'granted' | 'denied' | 'prompt';
@@ -52,6 +57,7 @@ export interface LocalProjectFolderStatus {
   supported: boolean;
   binding: LocalProjectFolderBinding | null;
   permission: FileSystemPermissionState | 'unavailable';
+  readPermission: FileSystemPermissionState | 'unavailable';
   source: ProjectSourceDescriptor;
 }
 
@@ -94,17 +100,20 @@ const indexWorkBinding = async (workId: string, namespace: string): Promise<void
 const getPermission = async (
   handle: FileSystemDirectoryHandle,
   request: boolean,
+  mode: FileSystemPermissionMode = 'readwrite',
 ): Promise<FileSystemPermissionState> => {
   const permissionHandle = handle as PermissionAwareDirectoryHandle;
   if (!permissionHandle.queryPermission) return 'granted';
-  const current = await permissionHandle.queryPermission({ mode: 'readwrite' });
+  const current = await permissionHandle.queryPermission({ mode });
   if (current === 'granted' || !request || !permissionHandle.requestPermission) return current;
-  return await permissionHandle.requestPermission({ mode: 'readwrite' });
+  return await permissionHandle.requestPermission({ mode });
 };
 
 const persistBinding = async (binding: LocalProjectFolderBinding, namespace: string): Promise<void> => {
   assertFolderScope(namespace);
   await writeStructuredBrowserValue(getBindingStorageKey(namespace), binding.workId ? { workId: binding.workId } : binding);
+  assertFolderScope(namespace);
+  notifyLocalProjectFolderChange();
 };
 
 const readAttachedBinding = async (namespace: string): Promise<LocalProjectFolderBinding | null> => {
@@ -132,11 +141,11 @@ const fileExists = async (directory: FileSystemDirectoryHandle, name: string): P
   }
 };
 
-const chooseDirectory = async (): Promise<FileSystemDirectoryHandle> => {
+const chooseDirectory = async (mode: FileSystemPermissionMode = 'readwrite'): Promise<FileSystemDirectoryHandle> => {
   if (typeof window === 'undefined') throw new ProjectPackageError('Local project folders are available only in the browser.');
   const picker = (window as DirectoryPickerWindow).showDirectoryPicker;
   if (!picker) throw new ProjectPackageError('This browser does not support direct project-folder access. Use a .cardforge project file instead.');
-  return await picker.call(window, { id: 'cardforge-project-folder', mode: 'readwrite', startIn: 'documents' });
+  return await picker.call(window, { id: 'cardforge-project-folder', mode, startIn: 'documents' });
 };
 
 const writeSnapshotToDirectory = async (
@@ -242,12 +251,15 @@ export const getLocalProjectFolderStatus = async (): Promise<LocalProjectFolderS
   const binding = supported
     ? await readAttachedBinding(namespace)
     : null;
-  const permission = binding ? await getPermission(binding.handle, false) : supported ? 'prompt' : 'unavailable';
+  const [permission, readPermission] = binding
+    ? await Promise.all([getPermission(binding.handle, false), getPermission(binding.handle, false, 'read')])
+    : [supported ? 'prompt' : 'unavailable', supported ? 'prompt' : 'unavailable'] as const;
   assertFolderScope(namespace);
   return {
     supported,
     binding,
     permission,
+    readPermission,
     source: {
       provider: binding ? 'local-folder' : 'browser',
       displayName: binding?.folderName ?? 'This browser',
@@ -298,7 +310,7 @@ export const listLocalProjectWorkBindings = async (): Promise<LocalProjectWorkBi
   const bindings = await Promise.all(ids.map(async (workId) => {
     const binding = await getLocalProjectWorkBinding(workId, namespace);
     if (!binding?.handle) return null;
-    const permission = await getPermission(binding.handle, false);
+    const permission = await getPermission(binding.handle, false, 'read');
     return { ...binding, workId, permission } satisfies LocalProjectWorkBindingStatus;
   }));
   assertFolderScope(namespace);
@@ -381,10 +393,10 @@ export const openRememberedLocalProject = async (workId: string): Promise<{ setI
   const binding = await getLocalProjectWorkBinding(workId, namespace);
   assertFolderScope(namespace);
   if (!binding?.handle) throw new ProjectPackageError('This folder link is unavailable. Choose Open project folder in Library → Locations to reconnect it.');
-  const permission = await getPermission(binding.handle, false);
+  const permission = await getPermission(binding.handle, false, 'read');
   assertFolderScope(namespace);
   if (permission !== 'granted') {
-    throw new ProjectPackageError('This folder needs permission again. Choose Open project folder in Library → Locations to reconnect it; CardForge will not request access in the background.');
+    throw new ProjectPackageError('This folder needs read permission again. Choose Reconnect folder or Open project folder in Library → Locations; CardForge will not request access in the background.');
   }
   const opened = await openProjectDirectory(binding.handle, namespace, expectedState, { ...binding, workId });
   return { setId: workId, sourceRevision: opened.sourceRevision! };
@@ -393,9 +405,12 @@ export const openRememberedLocalProject = async (workId: string): Promise<{ setI
 export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding> => {
   const expectedState = useProjectStore.getState();
   const namespace = getScopedProjectStorageNamespace('project-assets');
-  const directory = await chooseDirectory();
+  const directory = await chooseDirectory('read');
   assertFolderScope(namespace);
-  await requireWritePermission(directory);
+  // A picker open is a user gesture; reading must not require write access.
+  if (await getPermission(directory, false, 'read') !== 'granted') {
+    throw new ProjectPackageError('The selected folder did not grant read access. Choose it again to open the saved Set.');
+  }
   assertFolderScope(namespace);
   const matches: Array<LocalProjectFolderBinding & { workId: string }> = [];
   for (const workId of await readWorkBindingIndex(namespace)) {
@@ -425,12 +440,23 @@ export const saveProjectToAttachedFolder = async (): Promise<LocalProjectFolderB
   return await writeSnapshotToDirectory(binding.handle, binding, binding.workId ?? undefined, namespace);
 };
 
-export const reconnectAttachedProjectFolder = async (): Promise<LocalProjectFolderBinding> => {
+export const reconnectAttachedProjectFolder = async (presentedHandle?: FileSystemDirectoryHandle): Promise<LocalProjectFolderBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
+  // The panel already has this handle. Request permission before awaiting IDB,
+  // so the browser still sees the explicit click's transient user activation.
+  if (presentedHandle) await requireWritePermission(presentedHandle);
+  assertFolderScope(namespace);
   const binding = await readAttachedBinding(namespace);
   assertFolderScope(namespace);
   if (!binding?.handle) throw new ProjectPackageError('No local project folder is attached.');
-  await requireWritePermission(binding.handle);
+  if (presentedHandle) {
+    if (!await presentedHandle.isSameEntry(binding.handle)) {
+      throw new ProjectPackageError('The selected folder changed while reconnecting. No folder binding was changed.');
+    }
+  } else {
+    await requireWritePermission(binding.handle);
+  }
+  assertFolderScope(namespace);
   await persistBinding(binding, namespace);
   return binding;
 };
@@ -451,6 +477,8 @@ export const disconnectLocalProjectFolder = async (): Promise<void> => {
   }
   await writeStructuredBrowserValue(getWorkBindingIndexStorageKey(namespace), matching.filter((binding) => !binding.matches).map((binding) => binding.workId));
   await removeStructuredBrowserValue(getBindingStorageKey(namespace));
+  assertFolderScope(namespace);
+  notifyLocalProjectFolderChange();
 };
 
 export const getLocalProjectFileName = () => LOCAL_PROJECT_FILE_NAME;
