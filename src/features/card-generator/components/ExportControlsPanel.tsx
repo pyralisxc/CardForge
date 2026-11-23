@@ -145,6 +145,40 @@ export function ExportControlsPanel({
   const isTabletopExporting = isZipExporting && zipExportKind === 'tabletop-simulator';
   const exportsDisabled = isEntitlementPending || generatedDisplayCards.length === 0 || isZipExporting;
 
+  const exportProgress = isZipExporting && zipProgress ? (
+    <div
+      className="rounded-md border bg-background p-3"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold">
+            {zipExportKind === 'tabletop-simulator'
+              ? 'Tabletop Simulator export running'
+              : zipExportKind === 'print-png-set'
+                ? 'Print production PNG export running'
+                : zipExportKind === 'press-candidate'
+                  ? 'Press candidate export running'
+                  : 'PNG set export running'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {zipExportKind === 'tabletop-simulator'
+              ? `Rendering ${zipProgress.done} of ${zipProgress.total} 4K spritesheet faces.`
+              : (zipExportKind === 'print-png-set' || zipExportKind === 'press-candidate')
+                ? `Rendering ${zipProgress.done} of ${zipProgress.total} bleed-bearing production faces.`
+                : `Rendering ${zipProgress.done} of ${zipProgress.total} individual card faces.`}
+          </p>
+        </div>
+        <p className="text-sm font-semibold tabular-nums">{progressPercent}%</p>
+      </div>
+      <Progress value={progressPercent} className="h-2" />
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        Keep CardForge open until the browser download begins. CardForge creates the archive locally and does not upload a second copy.
+      </p>
+    </div>
+  ) : null;
+
   return (
     <>
       <Card>
@@ -254,6 +288,7 @@ export function ExportControlsPanel({
                 ZIP size varies with the artwork, number of faces, and selected detail.
               </p>
             ) : null}
+            {isPngSetExporting ? exportProgress : null}
           </section>
 
 
@@ -309,6 +344,7 @@ export function ExportControlsPanel({
                     ? 'Checking account access…'
                     : `Download print production PNG ZIP (${exportFaceCount} ${exportFaceCount === 1 ? 'face' : 'faces'})`}
               </Button>
+              {isPrintPngSetExporting ? exportProgress : null}
             </section>
           ) : null}
 
@@ -327,6 +363,7 @@ export function ExportControlsPanel({
                   ? `Preparing press candidate… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
                   : 'Download color-managed press candidate ZIP'}
               </Button>
+              {zipExportKind === 'press-candidate' ? exportProgress : null}
             </section>
           ) : null}
 
@@ -501,6 +538,7 @@ export function ExportControlsPanel({
                   ? 'Checking account access…'
                   : `Export ${tabletopSummary.preset.label.toLowerCase()} TTS ZIP`}
             </Button>
+            {isTabletopExporting ? exportProgress : null}
           </section>
             </>
           )}
@@ -508,37 +546,7 @@ export function ExportControlsPanel({
         </CardContent>
       </Card>
 
-      {isZipExporting && zipProgress ? (
-        <div
-          className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-4xl rounded-xl border bg-background/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold">
-                {zipExportKind === 'tabletop-simulator'
-                  ? 'Tabletop Simulator export running'
-                  : zipExportKind === 'print-png-set'
-                    ? 'Print production PNG export running'
-                    : 'PNG set export running'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {zipExportKind === 'tabletop-simulator'
-                  ? `Rendering ${zipProgress.done} of ${zipProgress.total} 4K spritesheet faces.`
-                  : zipExportKind === 'print-png-set'
-                    ? `Rendering ${zipProgress.done} of ${zipProgress.total} bleed-bearing production faces.`
-                    : `Rendering ${zipProgress.done} of ${zipProgress.total} individual card faces.`}
-              </p>
-            </div>
-            <p className="text-sm font-semibold tabular-nums">{progressPercent}%</p>
-          </div>
-          <Progress value={progressPercent} className="h-2" />
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Keep CardForge open until the browser download begins. CardForge creates the archive locally and does not upload a second copy.
-          </p>
-        </div>
-      ) : null}
+
     </>
   );
 }
