@@ -359,7 +359,7 @@ describe('location failure and detach safety', () => {
       if (failure === 'permission') handle.queryPermission.mockResolvedValue('denied');
       if (failure === 'account') handle.queryPermission.mockImplementation(async () => { mock.namespace = 'other'; return 'granted'; });
       await expect(openRememberedLocalProject('set-c')).rejects.toThrow({
-        permission: 'needs permission', revision: 'one current CardForge Set', account: 'account changed',
+        permission: 'needs read permission again', revision: 'one current CardForge Set', account: 'account changed',
       }[failure]);
       expect(mock.apply).not.toHaveBeenCalled();
       expect(mock.values.get('test:local-work-folder-binding:set-c')).toBe(binding);
