@@ -1,6 +1,7 @@
 export {
   disconnectLocalProjectFolder,
   getLocalProjectFileName,
+  LOCAL_PROJECT_FOLDER_CHANGE_EVENT,
   getLocalProjectFolderStatus,
   isLocalProjectFolderSupported,
   openProjectFromFolder,

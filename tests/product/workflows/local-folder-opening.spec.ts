@@ -11,6 +11,15 @@ for (const surface of ['desk', 'library'] as const) {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
+    const href = surface === 'desk' ? '/account' : '/account?section=library&scope=personal';
+    await page.goto(href, { waitUntil: 'domcontentloaded' });
+    // The collection is already mounted before the folder link changes.
+    // Source invalidation must update it in place, without a hard reload.
+    if (surface === 'desk') {
+      await expect(page.getByRole('button', { name: /^Select 100 Card Scale Set\./ })).toBeVisible();
+    } else {
+      await expect(page.locator('[id^="library-object-"]').filter({ hasText: '100 Card Scale Set' })).toBeVisible();
+    }
     const document = createProjectScaleFixture(100);
     document.storedCards = document.storedCards.slice(0, 2);
     document.cardSets[0]!.name = 'Saved folder Set';
@@ -42,8 +51,10 @@ for (const surface of ['desk', 'library'] as const) {
         transaction.onerror = () => reject(transaction.error);
       });
       database.close();
+      // Native owner emits this same invalidation after confirmed save/open/
+      // reconnect/detach; this fixture exercises the already-mounted consumer.
+      window.dispatchEvent(new Event('cardforge:local-folder-changed'));
     }, { bytes, workId });
-    const href = surface === 'desk' ? '/account' : '/account?section=library&scope=personal';
     const inspect = async () => {
       if (surface === 'desk') {
         await page.getByRole('button', { name: 'Actions for Saved folder Set', exact: true }).click();
@@ -51,7 +62,6 @@ for (const surface of ['desk', 'library'] as const) {
       } else await page.locator('[id^="library-object-"]').filter({ hasText: 'Saved folder Set' }).click();
       await expect(page.getByRole('dialog')).toBeVisible();
     };
-    await page.goto(href, { waitUntil: 'domcontentloaded' });
     await inspect();
     const detail = page.getByRole('dialog');
     await expect(detail.getByText('Saved file · not loaded', { exact: true })).toBeVisible();
