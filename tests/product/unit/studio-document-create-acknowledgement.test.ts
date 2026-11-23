@@ -1,6 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
+import {
+  collectStudioDocumentAssetIds,
+  collectStudioDocumentFontIds,
+  getStudioDocumentAssetReference,
+  getStudioDocumentFontReference,
+} from '@/features/studio-documents/assetReferences';
+
+const privateImageId = 'a'.repeat(64);
+const privateFontId = 'b'.repeat(64);
+const privateImageReference = getStudioDocumentAssetReference(privateImageId);
+const privateFontReference = getStudioDocumentFontReference(privateFontId);
 
 const mocks = vi.hoisted(() => {
   const chain = {
@@ -35,6 +46,23 @@ const makeDocument = () => {
   document.storedCards = [];
   document.userTemplates = [];
   delete document.activeCardSetId;
+  document.customAssets['cardforge-maker-custom-images'].push({
+    id: 'qa-asset-image',
+    name: 'QA private artwork',
+    kind: 'image',
+    url: 'data:image/webp;base64,AAECAw==',
+    tileMode: 'contain',
+    seamless: false,
+    allowedTargets: ['image'],
+  });
+  document.customFonts = [{
+    id: 'qa-asset-font',
+    name: 'QA private font',
+    value: 'font-personal-qa-asset-font',
+    mimeType: 'font/woff2',
+    dataUrl: 'data:font/woff2;base64,AAECAw==',
+    fileSizeBytes: 4,
+  }];
   return document;
 };
 
@@ -67,10 +95,25 @@ describe('Studio document first-create acknowledgement and private assets', () =
     mocks.chain.eq.mockReturnValue(mocks.chain);
     mocks.chain.single.mockResolvedValue({ data: null, error: null });
     mocks.chain.maybeSingle.mockResolvedValue({ data: null, error: null });
+    // Mock Storage, not bytes: the inserted payload must contain genuine
+    // owner-scoped private references, not only claimed uploaded IDs.
     mocks.externalizeStudioDocumentAssets.mockImplementation(async ({ document }: { document: ReturnType<typeof makeDocument> }) => ({
-      document,
-      uploadedAssetIds: ['private-image'],
-      uploadedFontIds: ['private-font'],
+      document: {
+        ...document,
+        customAssets: {
+          ...document.customAssets,
+          'cardforge-maker-custom-images': document.customAssets['cardforge-maker-custom-images'].map((asset) => ({
+            ...asset,
+            url: privateImageReference,
+          })),
+        },
+        customFonts: document.customFonts?.map((font) => ({
+          ...font,
+          dataUrl: privateFontReference,
+        })),
+      },
+      uploadedAssetIds: [privateImageId],
+      uploadedFontIds: [privateFontId],
     }));
   });
 
@@ -86,8 +129,17 @@ describe('Studio document first-create acknowledgement and private assets', () =
     mocks.chain.single.mockResolvedValue({ data: null, error: { message: 'response lost' } });
     mocks.chain.maybeSingle.mockImplementation(async () => ({ data: persistedRow(), error: null }));
     const created = await createStudioDocument(makeCreation());
-    const inserted = mocks.chain.insert.mock.calls[0][0] as { id: string };
+    const inserted = mocks.chain.insert.mock.calls[0][0] as {
+      id: string;
+      document_payload: ReturnType<typeof makeDocument>;
+    };
     expect(created.id).toBe(inserted.id);
+    expect(collectStudioDocumentAssetIds(inserted.document_payload)).toEqual([privateImageId]);
+    expect(collectStudioDocumentFontIds(inserted.document_payload)).toEqual([privateFontId]);
+    // Exact persisted row readback must preserve both private references.
+    expect(collectStudioDocumentAssetIds(created.document)).toEqual([privateImageId]);
+    expect(collectStudioDocumentFontIds(created.document)).toEqual([privateFontId]);
+    expect(created.document.customFonts?.[0]?.dataUrl).toBe(privateFontReference);
     expect(mocks.chain.eq).toHaveBeenCalledWith('id', inserted.id);
     expect(mocks.chain.eq).toHaveBeenCalledWith('owner_user_id', 'author-1');
     expect(mocks.chain.insert).toHaveBeenCalledTimes(1);

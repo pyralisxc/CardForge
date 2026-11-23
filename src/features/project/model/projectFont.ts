@@ -57,6 +57,13 @@ const isBrowserProjectAssetReference = (value: string): boolean => (
   /^cardforge-browser-asset:\/\/[a-f0-9]{64}$/u.test(value)
 );
 
+// Studio temporarily stores fonts as owner-scoped private references.
+// This parser preserves their identity; only the Studio asset owner
+// can authorize a signed URL for reading the actual bytes.
+const isStudioDocumentFontReference = (value: string): boolean => (
+  /^cardforge-studio-font:\/\/[a-f0-9]{64}$/u.test(value)
+);
+
 export const normalizeProjectFontAsset = (value: unknown): ProjectFontAsset | null => {
   if (!isRecord(value)) return null;
   const id = typeof value.id === 'string' ? value.id.trim() : '';
@@ -68,6 +75,7 @@ export const normalizeProjectFontAsset = (value: unknown): ProjectFontAsset | nu
   if (!Number.isInteger(fileSizeBytes) || fileSizeBytes <= 0 || fileSizeBytes > MAX_PROJECT_FONT_BYTES) return null;
   if (!isPortableProjectAssetReference(dataUrl)
     && !isBrowserProjectAssetReference(dataUrl)
+    && !isStudioDocumentFontReference(dataUrl)
     && normalizeDataUrlMime(dataUrl) !== mimeType) return null;
   const sourceProvider = value.sourceProvider === 'google-drive' ? 'google-drive' : undefined;
   const optionalString = (input: unknown, max: number) => (
