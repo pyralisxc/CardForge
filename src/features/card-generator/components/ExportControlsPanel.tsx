@@ -63,20 +63,6 @@ interface ExportControlsPanelProps {
   onStartCheckout: () => void;
 }
 
-const BASELINE_PNG_BYTES_PER_FACE_AT_HIGH_DETAIL = 226_884;
-
-const formatBytes = (bytes: number) => {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let value = bytes;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-  return `${value >= 10 || unitIndex === 0 ? Math.round(value) : value.toFixed(1)} ${units[unitIndex]}`;
-};
-
 export function ExportControlsPanel({
   beforeExport,
   defaultPdfProfile,
@@ -125,17 +111,6 @@ export function ExportControlsPanel({
   const rasterDimensions = firstCard
     ? getRasterExportDimensionsPx(firstCard, exportMode, exportDpi)
     : null;
-  const baselineDimensions = firstCard
-    ? getRasterExportDimensionsPx(firstCard, exportMode, 300)
-    : null;
-  const rasterAreaScale = rasterDimensions && baselineDimensions
-    ? (rasterDimensions.widthPx * rasterDimensions.heightPx)
-      / (baselineDimensions.widthPx * baselineDimensions.heightPx)
-    : 1;
-  const estimatedPngZipBytes = exportFaceCount
-    * BASELINE_PNG_BYTES_PER_FACE_AT_HIGH_DETAIL
-    * rasterAreaScale;
-
   const tabletopSummary = useMemo(() => {
     const preset = getTabletopSimulatorExportPreset(tabletopQuality);
     let sheets: ReturnType<typeof createTabletopSimulatorSheets> = [];
@@ -276,7 +251,7 @@ export function ExportControlsPanel({
             </Button>
             {generatedDisplayCards.length > 0 ? (
               <p className="text-xs text-muted-foreground">
-                Estimated PNG ZIP size: about {formatBytes(estimatedPngZipBytes)}. Exact size depends on artwork and template complexity.
+                ZIP size varies with the artwork, number of faces, and selected detail.
               </p>
             ) : null}
           </section>
@@ -553,7 +528,7 @@ export function ExportControlsPanel({
                   ? `Rendering ${zipProgress.done} of ${zipProgress.total} 4K spritesheet faces.`
                   : zipExportKind === 'print-png-set'
                     ? `Rendering ${zipProgress.done} of ${zipProgress.total} bleed-bearing production faces.`
-                    : `Rendering ${zipProgress.done} of ${zipProgress.total} individual card faces. Estimated PNG ZIP size about ${formatBytes(estimatedPngZipBytes)}.`}
+                    : `Rendering ${zipProgress.done} of ${zipProgress.total} individual card faces.`}
               </p>
             </div>
             <p className="text-sm font-semibold tabular-nums">{progressPercent}%</p>

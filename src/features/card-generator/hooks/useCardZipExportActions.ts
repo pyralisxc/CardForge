@@ -183,7 +183,7 @@ export function useCardZipExportActions({
       trackExportCompleted('png_set', generatedDisplayCards.length);
       toast({
         title: 'ZIP download requested',
-        description: `${exportItems.length} ${exportCopy.outputLabel} generated for ${fileNamePrefix}.zip using ${getRasterExportQualityOption(exportDpi).label.toLowerCase()} raster quality${canExportClean ? '' : ' with the CardForge watermark'}.`,
+        description: `${exportItems.length} ${exportCopy.outputLabel} generated for ${fileNamePrefix}.zip (${content.size.toLocaleString()} bytes) using ${getRasterExportQualityOption(exportDpi).label.toLowerCase()} raster quality${canExportClean ? '' : ' with the CardForge watermark'}.`,
       });
     } catch (err) {
       trackExportFailed('png_set', 'render_or_archive', generatedDisplayCards.length);
