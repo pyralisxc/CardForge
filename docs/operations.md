@@ -74,6 +74,8 @@ The former reusable QA accounts are retired. For authenticated Preview acceptanc
 
 Google's dedicated Preview OAuth client authorizes the stable Preview origin and its `/api/project-sources/google-drive/callback` redirect. The Google app is in Testing, so the selected Google account must also be an allowed test user. Google limits refresh tokens for this external Testing app's Drive grant to seven days; reconnect through the native flow when required ([OAuth app states](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview)). A disconnected Drive account does not imply that Preview OAuth is unsupported. CardForge Clerk sign-in and Drive consent are separate boundaries; Vercel dashboard authentication is provider administration, not a required tester sign-in. Changing the Google app's publishing status affects its clients and is a separate provider decision.
 
+For an authorized Preview Drive reconnect, the dedicated Google OAuth app can show an unverified-app notice while in Testing. First match the stable Preview origin, app and intended test account. Treat the notice as expected rather than a defect or a request for fresh authorization; continue the native flow where supported. If the browser requires the user to handle the warning or consent, hand off only that step and verify the connection after return. Stop for an unexpected app, account or scope, or an actual provider denial.
+
 No password, verification secret, API key, OAuth token, or bypass value belongs in the repository. Use Clerk's provider-defined development testing path and the provider dashboards when a fresh authenticated browser session is required.
 
 ### Preview developer plugin acceptance
