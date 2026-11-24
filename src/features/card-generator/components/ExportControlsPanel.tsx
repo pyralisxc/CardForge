@@ -15,6 +15,7 @@ import { getCardExportDimensionsPx, getCardProductionGeometryMm, hasCardBacking 
 import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
 import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
+import { useOutputActivity } from './OutputActivity';
 import type { ZipExportKind } from '@/features/card-generator/hooks/useCardZipExportActions';
 import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 import {
@@ -32,6 +33,7 @@ import {
 } from '@/features/card-generator/lib/zipExport';
 
 interface ExportControlsPanelProps {
+  setName?: string;
   beforeExport?: () => Promise<void>;
   defaultPdfProfile?: 'sheet' | 'screen';
   canExportClean: boolean;
@@ -64,6 +66,7 @@ interface ExportControlsPanelProps {
 }
 
 export function ExportControlsPanel({
+  setName,
   beforeExport,
   defaultPdfProfile,
   canExportClean,
@@ -94,6 +97,7 @@ export function ExportControlsPanel({
   onSetPdfOptions,
   onStartCheckout,
 }: ExportControlsPanelProps) {
+  const outputActivity = useOutputActivity();
   const [tabletopQuality, setTabletopQuality] = useState<TabletopSimulatorExportQuality>('standard');
   const firstCard = generatedDisplayCards[0];
   const exportFaceCount = generatedDisplayCards.reduce(
@@ -143,7 +147,7 @@ export function ExportControlsPanel({
   const isPngSetExporting = isZipExporting && zipExportKind === 'png-set';
   const isPrintPngSetExporting = isZipExporting && zipExportKind === 'print-png-set';
   const isTabletopExporting = isZipExporting && zipExportKind === 'tabletop-simulator';
-  const exportsDisabled = isEntitlementPending || generatedDisplayCards.length === 0 || isZipExporting;
+  const exportsDisabled = isEntitlementPending || generatedDisplayCards.length === 0 || isZipExporting || outputActivity?.activity?.phase === 'running';
 
   const exportProgress = isZipExporting && zipProgress ? (
     <div
@@ -448,6 +452,7 @@ export function ExportControlsPanel({
                 </div>
               ) : null}
               <SaveAsPdfButton
+                setName={setName}
                 beforeExport={beforeExport}
                 generatedDisplayCards={generatedDisplayCards}
                 selectedPaperSize={selectedPaperSize}
@@ -459,7 +464,7 @@ export function ExportControlsPanel({
                 exportDpi={exportDpi}
                 richTextHighlightColor={richTextHighlightColor}
                 canExportClean={canExportClean}
-                disabled={isEntitlementPending || generatedDisplayCards.length === 0}
+                disabled={exportsDisabled}
                 templateName={firstCard?.template?.name}
               />
             </div>
@@ -474,6 +479,7 @@ export function ExportControlsPanel({
               </p>
             </div>
             <SaveAsPdfButton
+                setName={setName}
               beforeExport={beforeExport}
               pdfProfile="screen"
               generatedDisplayCards={generatedDisplayCards}

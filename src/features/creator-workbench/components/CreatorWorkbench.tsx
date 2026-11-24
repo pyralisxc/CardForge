@@ -292,6 +292,7 @@ export function CreatorWorkbench({
   }
 
   const { handleExportAllAsZip, handleExportPrintPngSet, handleExportPressCandidate, handleExportTabletopSimulatorSpritesheets, isZipExporting, zipExportKind, zipProgress } = useCardZipExportActions({
+    setName: activeCardSet?.name,
     canExportClean: projectCapabilities.canExportClean,
     exportDpi,
     exportMode,
@@ -503,7 +504,7 @@ export function CreatorWorkbench({
         canSubmitToPipeline={canSubmitTemplateRevisions}
         saveMoveOpen={saveMoveOpen}
         onSaveMoveOpenChange={setSaveMoveOpen}
-        outputPanelProps={{ beforeExport: outputIntent || outputBlocked ? beforePreparedExport : undefined, defaultPdfProfile: outputIntent?.layout, canExportClean: projectCapabilities.canExportClean, isEntitlementPending, exportDpi, exportEntitlementLabel, exportEntitlementMessage, exportGateMessage, exportMode, generatedDisplayCards: orderedOutputCards, isCheckoutStarting, isZipExporting, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, richTextHighlightColor, selectedPaperSize, zipExportKind, zipProgress, onExportAllAsZip: handleExportAllAsZip, onExportPrintPngSet: handleExportPrintPngSet, onExportPressCandidate: handleExportPressCandidate, onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets, onSelectPaperSize: setSelectedPaperSizeAction, onSetExportDpi: setExportDpiAction, onSetExportMode: setExportModeAction, onSetPdfOptions: setPdfOptionsAction, onStartCheckout: handleStartCheckout }}
+        outputPanelProps={{ setName: activeCardSet.name, beforeExport: outputIntent || outputBlocked ? beforePreparedExport : undefined, defaultPdfProfile: outputIntent?.layout, canExportClean: projectCapabilities.canExportClean, isEntitlementPending, exportDpi, exportEntitlementLabel, exportEntitlementMessage, exportGateMessage, exportMode, generatedDisplayCards: orderedOutputCards, isCheckoutStarting, isZipExporting, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, richTextHighlightColor, selectedPaperSize, zipExportKind, zipProgress, onExportAllAsZip: handleExportAllAsZip, onExportPrintPngSet: handleExportPrintPngSet, onExportPressCandidate: handleExportPressCandidate, onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets, onSelectPaperSize: setSelectedPaperSizeAction, onSetExportDpi: setExportDpiAction, onSetExportMode: setExportModeAction, onSetPdfOptions: setPdfOptionsAction, onStartCheckout: handleStartCheckout }}
         saveMoveDialogProps={{ isSignedIn: accountEntitlement.isSignedIn, canUseProjectFiles: projectCapabilities.canUseProjectFiles, setId: activeCardSet.id, setName: activeCardSet.name }}
       /> : null}
       </>}

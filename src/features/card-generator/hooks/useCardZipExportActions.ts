@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from 'react';
+import { useOutputActivity } from '../components/OutputActivity';
 
 import {
   getExportProfile,
@@ -38,6 +39,7 @@ type ToastFn = ReturnType<typeof useToast>['toast'];
 export type ZipExportKind = 'png-set' | 'print-png-set' | 'press-candidate' | 'tabletop-simulator';
 
 interface UseCardZipExportActionsInput {
+  setName?: string;
   canExportClean: boolean;
   exportDpi: number;
   exportMode: ExportMode;
@@ -48,6 +50,7 @@ interface UseCardZipExportActionsInput {
 }
 
 export function useCardZipExportActions({
+  setName,
   canExportClean,
   exportDpi,
   exportMode,
@@ -59,6 +62,7 @@ export function useCardZipExportActions({
   const [zipProgress, setZipProgress] = useState<{ done: number; total: number } | null>(null);
   const [isZipExporting, setIsZipExporting] = useState(false);
   const [zipExportKind, setZipExportKind] = useState<ZipExportKind | null>(null);
+  const outputActivity = useOutputActivity();
   const brand = useBrandPresentation();
   const exportWatermark = resolveCardExportWatermark(canExportClean, brand);
 
@@ -74,7 +78,9 @@ export function useCardZipExportActions({
       return;
     }
     const items = createCardZipExportItems(generatedDisplayCards);
-    setZipExportKind('press-candidate'); setIsZipExporting(true); setZipProgress({ done: 0, total: items.length });
+    const activity = outputActivity?.begin(`Press candidate${setName ? ` · ${setName}` : ''}`);
+    if (outputActivity && !activity) return;
+    setZipExportKind('press-candidate'); setIsZipExporting(true); setZipProgress({ done: 0, total: items.length }); activity?.progress(0, items.length);
     trackExportStarted('pdf', generatedDisplayCards.length);
     try {
       await beforeExport?.();
@@ -96,7 +102,7 @@ export function useCardZipExportActions({
               const context = canvas.getContext('2d', { colorSpace: 'srgb', willReadFrequently: true });
               if (!context) throw new Error('The browser cannot read the rendered production pixels. Retry in a supported browser.');
               const rgb = compositeWhiteRgb(context.getImageData(0, 0, canvas.width, canvas.height).data);
-              setZipProgress({ done: ++done, total: items.length });
+              setZipProgress({ done: ++done, total: items.length }); activity?.progress(done, items.length);
               yield { uniqueId: item.card.uniqueId, cardIndex: item.cardIndex, face: item.face,
                 widthPx: canvas.width, heightPx: canvas.height, rgb,
                 geometry: getTemplateProductionGeometryMm(getCardFaceTemplate(item.card, item.face)) };
@@ -133,20 +139,24 @@ export function useCardZipExportActions({
       link.href = url; link.download = `cardforge-press-candidate${canExportClean ? '' : '-watermarked'}.zip`;
       document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
       trackExportCompleted('pdf', generatedDisplayCards.length);
+      activity?.finish('requested');
       toast({ title: 'Press candidate download requested', description: `${items.length} color-managed faces were generated with hashes, geometry and pending-validation reports. Check your browser downloads. Press ready: not yet.` });
     } catch (error) {
       trackExportFailed('pdf', 'press_candidate', generatedDisplayCards.length);
+      activity?.finish('failed', error instanceof Error ? error.message : 'Retry from Output.');
       toast({ title: 'Press candidate export failed', description: error instanceof Error ? error.message : 'The candidate could not be built. Your Set is unchanged; retry after resolving the export failure.', variant: 'destructive' });
     } finally { setIsZipExporting(false); setZipProgress(null); setZipExportKind(null); }
-  }, [beforeExport, canExportClean, exportDpi, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
+  }, [beforeExport, canExportClean, exportDpi, exportWatermark, generatedDisplayCards, outputActivity, richTextHighlightColor, setName, toast]);
 
   const handleExportAllAsZip = useCallback(async () => {
     if (generatedDisplayCards.length === 0) return;
     const exportItems = createCardZipExportItems(generatedDisplayCards);
     const exportCopy = createZipExportCopy(exportMode, exportItems.length);
+    const activity = outputActivity?.begin(`PNG set${setName ? ` · ${setName}` : ''}`);
+    if (outputActivity && !activity) return;
     setZipExportKind('png-set');
     setIsZipExporting(true);
-    setZipProgress({ done: 0, total: exportItems.length });
+    setZipProgress({ done: 0, total: exportItems.length }); activity?.progress(0, exportItems.length);
     trackExportStarted('png_set', generatedDisplayCards.length);
 
     try {
@@ -163,7 +173,7 @@ export function useCardZipExportActions({
           const exportItem = exportItems[i];
           const blob = await renderer.renderToBlob(exportItem.card, exportItem.face);
           folder.file(getZipExportFileName(exportItem), blob);
-          setZipProgress({ done: i + 1, total: exportItems.length });
+          setZipProgress({ done: i + 1, total: exportItems.length }); activity?.progress(i + 1, exportItems.length);
         }
       } finally {
         renderer.cleanup();
@@ -181,19 +191,21 @@ export function useCardZipExportActions({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       trackExportCompleted('png_set', generatedDisplayCards.length);
+      activity?.finish('requested');
       toast({
         title: 'ZIP download requested',
         description: `${exportItems.length} ${exportCopy.outputLabel} generated for ${fileNamePrefix}.zip (${content.size.toLocaleString()} bytes) using ${getRasterExportQualityOption(exportDpi).label.toLowerCase()} raster quality${canExportClean ? '' : ' with the CardForge watermark'}.`,
       });
     } catch (err) {
       trackExportFailed('png_set', 'render_or_archive', generatedDisplayCards.length);
+      activity?.finish('failed', err instanceof Error ? err.message : 'Retry from Output.');
       toast({ title: 'Export Failed', description: (err as Error).message, variant: 'destructive' });
     } finally {
       setIsZipExporting(false);
       setZipProgress(null);
       setZipExportKind(null);
     }
-  }, [beforeExport, canExportClean, exportDpi, exportMode, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
+  }, [beforeExport, canExportClean, exportDpi, exportMode, exportWatermark, generatedDisplayCards, outputActivity, richTextHighlightColor, setName, toast]);
 
   const handleExportPrintPngSet = useCallback(async () => {
     if (generatedDisplayCards.length === 0) return;
@@ -208,9 +220,11 @@ export function useCardZipExportActions({
       return;
     }
     const exportItems = createCardZipExportItems(generatedDisplayCards);
+    const activity = outputActivity?.begin(`Print production PNG${setName ? ` · ${setName}` : ''}`);
+    if (outputActivity && !activity) return;
     setZipExportKind('print-png-set');
     setIsZipExporting(true);
-    setZipProgress({ done: 0, total: exportItems.length });
+    setZipProgress({ done: 0, total: exportItems.length }); activity?.progress(0, exportItems.length);
     trackExportStarted('print_png_set', generatedDisplayCards.length);
 
     try {
@@ -227,7 +241,7 @@ export function useCardZipExportActions({
           const exportItem = exportItems[i];
           const blob = await renderer.renderProductionToBlob(exportItem.card, exportItem.face);
           folder.file(getPrintProductionFileName(exportItem), blob);
-          setZipProgress({ done: i + 1, total: exportItems.length });
+          setZipProgress({ done: i + 1, total: exportItems.length }); activity?.progress(i + 1, exportItems.length);
         }
         preflight = createPrintProductionPreflight(generatedDisplayCards, exportDpi, renderer.getSourceImageDetails());
       } finally {
@@ -271,19 +285,21 @@ export function useCardZipExportActions({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       trackExportCompleted('print_png_set', generatedDisplayCards.length);
+      activity?.finish('requested');
       toast({
         title: 'Print production download requested',
         description: `${exportItems.length} bleed-bearing face${exportItems.length === 1 ? '' : 's'} generated with geometry and preflight reports. Check browser downloads. Production prepared: yes. Press ready: ${preflight.pressReady ? 'yes' : 'not yet'}${canExportClean ? '' : ' · CardForge watermark included'}.`,
       });
     } catch (err) {
       trackExportFailed('print_png_set', 'render_or_archive', generatedDisplayCards.length);
+      activity?.finish('failed', err instanceof Error ? err.message : 'Retry from Output.');
       toast({ title: 'Print production export failed', description: (err as Error).message, variant: 'destructive' });
     } finally {
       setIsZipExporting(false);
       setZipProgress(null);
       setZipExportKind(null);
     }
-  }, [beforeExport, canExportClean, exportDpi, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
+  }, [beforeExport, canExportClean, exportDpi, exportWatermark, generatedDisplayCards, outputActivity, richTextHighlightColor, setName, toast]);
 
   const handleExportTabletopSimulatorSpritesheets = useCallback(async (
     quality: TabletopSimulatorExportQuality = 'standard'
@@ -300,9 +316,11 @@ export function useCardZipExportActions({
       return;
     }
     const totalRenderJobs = sheets.reduce((total, sheet) => total + 1 + (sheet.hasBacks ? 1 : 0), 0);
+    const activity = outputActivity?.begin(`Tabletop Simulator${setName ? ` · ${setName}` : ''}`);
+    if (outputActivity && !activity) return;
     setZipExportKind('tabletop-simulator');
     setIsZipExporting(true);
-    setZipProgress({ done: 0, total: totalRenderJobs });
+    setZipProgress({ done: 0, total: totalRenderJobs }); activity?.progress(0, totalRenderJobs);
     trackExportStarted('tabletop_simulator', generatedDisplayCards.length);
 
     try {
@@ -378,7 +396,7 @@ export function useCardZipExportActions({
           if (!sheetBlob) throw new Error('Tabletop Simulator spritesheet did not produce a PNG blob.');
           folder.file(getTabletopSimulatorSheetFileName(sheet, face), sheetBlob);
           completed += 1;
-          setZipProgress({ done: completed, total: totalRenderJobs });
+          setZipProgress({ done: completed, total: totalRenderJobs }); activity?.progress(completed, totalRenderJobs);
           return cellSize;
         } finally {
           sheetCanvas.width = 0;
@@ -433,19 +451,21 @@ export function useCardZipExportActions({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       trackExportCompleted('tabletop_simulator', generatedDisplayCards.length);
+      activity?.finish('requested');
       toast({
         title: 'Tabletop Simulator download requested',
         description: `${sheets.length} ${preset.label.toLowerCase()} sheet${sheets.length === 1 ? '' : 's'} generated with a manifest. Check browser downloads${canExportClean ? '' : ' and the CardForge watermark'}. Create each custom deck with ${preset.grid.columns} columns and ${preset.grid.rows} rows.`,
       });
     } catch (err) {
       trackExportFailed('tabletop_simulator', 'render_or_archive', generatedDisplayCards.length);
+      activity?.finish('failed', err instanceof Error ? err.message : 'Retry from Output.');
       toast({ title: 'Tabletop Simulator export failed', description: (err as Error).message, variant: 'destructive' });
     } finally {
       setIsZipExporting(false);
       setZipProgress(null);
       setZipExportKind(null);
     }
-  }, [beforeExport, canExportClean, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
+  }, [beforeExport, canExportClean, exportWatermark, generatedDisplayCards, outputActivity, richTextHighlightColor, setName, toast]);
 
   return {
     handleExportPressCandidate,
