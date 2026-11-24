@@ -10,7 +10,7 @@ test('@golden gives an empty Set one creation next step before output controls',
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 0 });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
-  await expect(page.getByPlaceholder('Search cards in this Set')).toHaveCount(0);
+  await expect(page.locator('button[data-artifact-id]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Output', exact: true }).click();
 
   const output = page.getByRole('region', { name: 'Output Set', exact: true });
@@ -206,8 +206,7 @@ test(`@golden keeps complete SVG ${variant} Stretch composition in the native ca
   const source = '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="720" viewBox="0 0 720 720"><rect width="360" height="360" fill="#0055ff"/><rect x="360" width="360" height="360" fill="#00aa55"/><rect y="360" width="360" height="360" fill="#aa3300"/><rect x="360" y="360" width="360" height="360" fill="#ffcc00"/></svg>';
   await page.route('**/svg-stretch-regression.svg', (route) => route.fulfill({ body: source, contentType: 'image/svg+xml' }));
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 1, templatePatch: {
-    cardBackgroundImageUrl: variant === 'foundation' ? '/svg-stretch-regression.svg' : '',
-    ...(variant === 'foundation' ? { cardBackgroundImageFit: 'fill' as const } : {}),
+    ...(variant === 'foundation' ? { cardBackgroundImageUrl: '/svg-stretch-regression.svg', cardBackgroundImageFit: 'fill' as const } : {}),
     appearance: { material: { baseColor: '#ff00ff', ...(variant === 'texture' ? { texture: { kind: 'uploaded', imageSource: '/svg-stretch-regression.svg', tileMode: 'stretch', intensity: 100 } } : {}) } },
     freeformCanvas: { width: 630, height: 880, elements: variant === 'tint' ? [{
       id: 'stretch-tint', name: 'Tinted SVG', type: 'text', content: '', padding: 'p-0', borderWidth: '_none_', backgroundColor: '#2546c7', fillColor: '#2546c7', x: 0, y: 0, width: 630, height: 880, zIndex: 1,
@@ -251,7 +250,7 @@ test('downloads one Set with remote artwork and frame bytes or fails without a d
   await page.route('https://portable-art.example/**', (route) => route.fulfill({ body: route.request().url() === artUrl ? art : frame, contentType: 'image/png', headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' } }));
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, additionalSets: 1, exportSample: true, templatePatch: { cardBorderImageSource: frameUrl } });
   await page.evaluate(async (url) => {
-    const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('cardforge-browser-storage', 1); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('cardforge-browser-storage'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction('key-value', 'readwrite');
       const store = tx.objectStore('key-value');
@@ -309,7 +308,7 @@ test('downloads one Set with remote artwork and frame bytes or fails without a d
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   const savedWorkspaces = await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('cardforge-browser-storage', 1); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('cardforge-browser-storage'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
     const records = await Promise.all(['guest', 'local'].map((scope) => new Promise<string>((resolve, reject) => { const request = db.transaction('key-value').objectStore('key-value').get(`project-workspace:${scope}:workspace`); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); })));
     db.close();
     return records.map((record) => JSON.parse(JSON.parse(record).value).state.cardSets as Array<{ id: string; name: string }>);
