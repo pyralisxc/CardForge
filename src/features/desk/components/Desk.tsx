@@ -32,6 +32,7 @@ import { DEFAULT_EXPERIENCE_SETTINGS, type StudioAutosaveDelaySeconds } from '@/
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
+import { OutputActivityProvider, OutputActivityStatus } from '@/features/card-generator/client/output-activity';
 import type { CardFace } from '@/domain/cards';
 import { ArtifactScene, type ArtifactSceneHandle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
@@ -147,7 +148,11 @@ const deskStorageStatusLabel = (sourceStatuses: readonly { phase: string }[]): s
   return [...phases].map((phase) => labels[phase] ?? 'Storage needs attention').join(' · ');
 };
 
-export function Desk({
+export function Desk(props: DeskProps) {
+  return <OutputActivityProvider><DeskContent {...props} /></OutputActivityProvider>;
+}
+
+function DeskContent({
   defaultAutosaveDelaySeconds = DEFAULT_EXPERIENCE_SETTINGS.studioAutosaveDelaySeconds,
   businessIdentity,
   persistenceScope,
@@ -557,6 +562,7 @@ export function Desk({
               : undefined}
         />}
         statusContent={<>
+          <OutputActivityStatus />
           <EnvironmentStatus label={projection.isLoading ? 'Refreshing workspace' : `${visibleWork.length} visible work`} tone={projection.isLoading ? 'warning' : 'neutral'} />
           <EnvironmentStatus label={storageStatusLabel} icon={HardDrive} tone={storageNeedsAttention ? 'warning' : 'success'} onClick={() => setStorageOpen(true)} title="Open Locations & connections" />
           <EnvironmentStatus label={saveStatusLabel} tone={browserSaveStatus === 'failed' ? 'danger' : browserSaveStatus === 'saving' ? 'warning' : 'success'} onClick={requestBrowserWorkspaceRecovery} title="Open browser workspace, recovery, and backup tools" />

@@ -32,8 +32,10 @@ import { hasCardBacking } from '@/domain/rendering';
 import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 import { useBrandPresentation } from '@/features/brand-presentation/client';
 import { MAX_PDF_CARDS_PER_FILE, MAX_TOTAL_PDF_EXPORT_CARDS } from '../lib/pdfExportLimits';
+import { useOutputActivity } from './OutputActivity';
 
 interface SaveAsPdfButtonProps {
+  setName?: string;
   generatedDisplayCards: DisplayCard[];
   selectedPaperSize: PaperSize;
   pdfMarginMm: number;
@@ -51,6 +53,7 @@ interface SaveAsPdfButtonProps {
 }
 
 export function SaveAsPdfButton({
+  setName,
   generatedDisplayCards,
   selectedPaperSize,
   pdfMarginMm,
@@ -67,6 +70,7 @@ export function SaveAsPdfButton({
   beforeExport,
 }: SaveAsPdfButtonProps) {
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
+  const outputActivity = useOutputActivity();
   const { toast } = useToast();
   const brand = useBrandPresentation();
 
@@ -151,6 +155,8 @@ export function SaveAsPdfButton({
           : `Using ${rasterQuality.label.toLowerCase()} raster quality${firstCardDimensions ? ` (${firstCardDimensions.widthPx} × ${firstCardDimensions.heightPx}px for the first template)` : ''}.`,
     });
 
+    const activity = outputActivity?.begin(`${isScreenPdf ? 'Digital PDF' : 'PDF'}${setName ? ` · ${setName}` : ''}`);
+    if (outputActivity && !activity) { setIsLoadingPdf(false); return; }
     trackExportStarted('pdf', generatedDisplayCards.length);
     let requestedChunks = 0;
     try {
@@ -272,6 +278,7 @@ export function SaveAsPdfButton({
       }
 
       trackExportCompleted('pdf', generatedDisplayCards.length);
+      activity?.finish('requested');
 
       if (totalChunks > 1) {
         toast({
@@ -287,6 +294,9 @@ export function SaveAsPdfButton({
 
     } catch (error) {
       trackExportFailed('pdf', 'render_or_download', generatedDisplayCards.length);
+      activity?.finish('failed', requestedChunks > 0
+        ? `${requestedChunks} of ${totalChunks} downloads were requested. Check browser downloads before retrying.`
+        : extractErrorMessage(error));
       console.error("Error generating PDF:", error);
       toast({
         title: 'PDF export failed',

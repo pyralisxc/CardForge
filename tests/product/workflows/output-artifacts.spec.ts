@@ -49,10 +49,12 @@ test('does not download a success artifact when authored artwork fails to load',
   await page.getByRole('option', { name: 'Print physical cards', exact: true }).click();
   await page.getByRole('button', { name: 'Download color-managed press candidate ZIP', exact: true }).click();
   await expect(page.getByText('Press candidate export failed', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Press candidate · 100 Card Scale Set: export failed.' })).toBeVisible();
   expect(downloads).toBe(0);
   await page.getByText('Print PDF', { exact: true }).click();
   await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();
   await expect(page.getByText('PDF export failed', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'PDF · 100 Card Scale Set: export failed.' })).toBeVisible();
   expect(downloads).toBe(0);
 });
 
@@ -315,4 +317,50 @@ test('downloads one Set with remote artwork and frame bytes or fails without a d
   const savedSets = savedWorkspaces.find((sets) => sets.length === 2);
   expect(savedSets).toBeDefined();
   expect(savedSets!.filter((set) => set.name === '100 Card Scale Set')).toHaveLength(1);
+});
+
+test('keeps export progress and one download when leaving and reopening Output', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 12, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
+  const rail = page.locator('[data-desk-context-rail]');
+  const openOutput = async () => {
+    await rail.getByRole('button', { name: 'More Set actions', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Output', exact: true }).click();
+  };
+  await openOutput();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: /^Download PNG set/ }).click();
+  const status = page.getByRole('status').filter({ hasText: /PNG set · 100 Card Scale Set:.*(?:Rendering|Finalizing)/ });
+  await expect(status).toBeVisible();
+  await rail.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(page.getByRole('searchbox', { name: 'Search cards in this Set' })).toBeVisible();
+  await expect(status).toBeVisible();
+  await openOutput();
+  await expect(page.getByRole('button', { name: /^Download PNG set/ })).toBeDisabled();
+  const artifact = await download;
+  expect(await artifact.failure()).toBeNull();
+  await expect(page.getByRole('status').filter({ hasText: 'PNG set · 100 Card Scale Set: download requested. Check your browser downloads.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Download PNG set/ })).toBeEnabled();
+});
+
+test('keeps a PDF export visible after returning to the Set', async ({ page }) => {
+  test.setTimeout(180_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 12, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
+  const rail = page.locator('[data-desk-context-rail]');
+  await rail.getByRole('button', { name: 'Output', exact: true }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download digital PDF', exact: true }).click();
+  const status = page.getByRole('status').filter({ hasText: 'Digital PDF · 100 Card Scale Set: Preparing download.' });
+  await expect(status).toBeVisible();
+  await rail.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(page.getByRole('searchbox', { name: 'Search cards in this Set' })).toBeVisible();
+  await expect(status).toBeVisible();
+  const artifact = await download;
+  expect(await artifact.failure()).toBeNull();
+  await expect(page.getByRole('status').filter({ hasText: 'Digital PDF · 100 Card Scale Set: download requested.' })).toBeVisible();
 });
