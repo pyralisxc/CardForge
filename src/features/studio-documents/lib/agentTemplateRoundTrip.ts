@@ -83,8 +83,16 @@ const reusePrivateAssets = async <T>(value: T, project: unknown, documentId: str
   const visit = async (entry: unknown, scope: ProjectAssetScope): Promise<unknown> => {
     if (scope === 'opaque') return entry;
     if (typeof entry === 'string') return resolve(entry);
-    if (Array.isArray(entry)) return Promise.all(entry.map((child) => visit(child, projectAssetArrayScope(scope))));
-    if (entry && typeof entry === 'object') return Object.fromEntries(await Promise.all(Object.entries(entry).map(async ([key, child]) => [key, await visit(child, projectAssetChildScope(scope, key))])));
+    if (Array.isArray(entry)) {
+      const values: unknown[] = [];
+      for (const child of entry) values.push(await visit(child, projectAssetArrayScope(scope)));
+      return values;
+    }
+    if (entry && typeof entry === 'object') {
+      const values: Array<[string, unknown]> = [];
+      for (const [key, child] of Object.entries(entry)) values.push([key, await visit(child, projectAssetChildScope(scope, key))]);
+      return Object.fromEntries(values);
+    }
     return entry;
   };
   return await visit(value, 'root') as T;
