@@ -45,6 +45,13 @@ it('keeps an original PNG larger than the former Studio attachment limit', async
   expect(result.uploadedAssetIds).toContain(createHash('sha256').update(bytes).digest('hex'));
   expect(mocks.upload).toHaveBeenCalledWith(expect.any(String), bytes, expect.objectContaining({ contentType: 'image/png' }));
 });
+it('does not save a reference that only the browser can resolve', async () => {
+  const document = createProjectScaleFixture(100);
+  document.customAssets['cardforge-maker-custom-images'].push({ id: 'browser-fixture', name: 'fixture', kind: 'image', url: `cardforge-browser-asset://${'a'.repeat(64)}`, tileMode: 'contain', seamless: false, allowedTargets: ['image'] });
+  mocks.upload.mockReset();
+  await expect(externalizeStudioDocumentAssets({ ownerUserId: 'owner', documentId: 'doc', document })).rejects.toThrow('only available in its original workspace');
+  expect(mocks.upload).not.toHaveBeenCalled();
+});
 it('finds current referenced font beyond retained historical pages', async () => {
   mocks.list.mockReset(); mocks.signed.mockReset();
   mocks.signed.mockResolvedValue({ data: [{ path: `owner/doc/${id}`, signedUrl: 'https://example.invalid' }], error: null });

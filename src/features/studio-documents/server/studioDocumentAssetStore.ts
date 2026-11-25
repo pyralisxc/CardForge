@@ -144,6 +144,9 @@ export const externalizeStudioDocumentAssets = async ({
         }
         return getStudioDocumentFontReference(preparedFont.id);
       }
+      if (value.startsWith('cardforge-browser-asset://') || value.startsWith('cardforge-project-asset://')) {
+        throw new StudioDocumentStoreError('This artwork is only available in its original workspace. Keep the local copy and reopen the Studio draft before saving.', 409);
+      }
       return value;
     }
     if (Array.isArray(value)) {

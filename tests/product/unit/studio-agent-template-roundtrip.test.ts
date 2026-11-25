@@ -64,6 +64,18 @@ afterEach(() => {
 });
 
 describe('agent Template Studio round trip', () => {
+  it('reuses the existing private object for unchanged browser artwork', async () => {
+    const id = 'a'.repeat(64);
+    const withImage = (imageSource: string): TCGCardTemplate => ({ ...template, freeformCanvas: { width: 630, height: 880, elements: [{ id: 'art', type: 'image', name: 'Art', x: 0, y: 0, width: 100, height: 100, zIndex: 1, imageSource, content: imageSource }] } });
+    const source = { ...projectDocument, userTemplates: [withImage(`cardforge-studio-asset://${id}`)] };
+    await rememberAgentTemplateLink(template.id!, '11111111-1111-4111-8111-111111111111', 2);
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ document: { id: '11111111-1111-4111-8111-111111111111', title: 'Agent Template', creationSource: 'gpt', revision: 2, document: source } })).mockResolvedValueOnce(jsonResponse({ document: { revision: 3 } }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(syncAgentTemplateSave(withImage(`cardforge-browser-asset://${id}`))).resolves.toEqual({ status: 'synced', revision: 3 });
+    const payload = JSON.parse(String(fetchMock.mock.calls[1][1].body));
+    expect(payload.document.userTemplates[0].freeformCanvas.elements[0].imageSource).toBe(`cardforge-studio-asset://${id}`);
+  });
+
   it('only discovers and syncs an agent document in an account workspace without conflating document and Template revisions', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({

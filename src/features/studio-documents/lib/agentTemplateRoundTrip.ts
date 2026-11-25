@@ -5,6 +5,8 @@ import { getProjectPersistenceScope } from '@/features/project/client/persistenc
 import { readProjectPreference, removeProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { normalizeStudioDocumentPayload, type StudioDocumentSource } from '../model';
+import { collectStudioDocumentAssetIds, collectStudioDocumentFontIds, getStudioDocumentAssetReference, getStudioDocumentFontReference } from '../assetReferences';
+import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '@/features/project/client/package-document';
 
 const AGENT_TEMPLATE_LINKS_PREFERENCE = 'agent-template-links-v1';
 
@@ -17,6 +19,41 @@ export type AgentTemplateSyncResult =
   | { status: 'conflict'; revision: number };
 
 const getPreferenceKey = () => `${AGENT_TEMPLATE_LINKS_PREFERENCE}:${getProjectPersistenceScope()}`;
+
+// Reuse exact existing private objects when a browser Template still contains
+// their hydrated bytes. This avoids resending large unchanged artwork.
+const reusePrivateAssets = async <T>(value: T, project: unknown): Promise<T> => {
+  const images = new Set(collectStudioDocumentAssetIds(project));
+  const fonts = new Set(collectStudioDocumentFontIds(project));
+  const pending = new Map<string, Promise<string>>();
+  const resolve = (entry: string) => {
+    let result = pending.get(entry);
+    if (result) return result;
+    result = (async () => {
+      const browserId = /^cardforge-browser-asset:\/\/([a-f0-9]{64})$/u.exec(entry)?.[1];
+      let id = browserId;
+      if (!id && /^data:(?:image\/|font\/|application\/(?:font-woff|x-font-ttf|x-font-opentype))[^,]*;base64,/iu.test(entry)) {
+        const blob = await (await fetch(entry)).blob();
+        const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+        id = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+      }
+      if (id && images.has(id)) return getStudioDocumentAssetReference(id);
+      if (id && fonts.has(id)) return getStudioDocumentFontReference(id);
+      if (browserId) throw new Error('New browser artwork could not be transferred to the linked ChatGPT draft.');
+      return entry;
+    })();
+    pending.set(entry, result);
+    return result;
+  };
+  const visit = async (entry: unknown, scope: ProjectAssetScope): Promise<unknown> => {
+    if (scope === 'opaque') return entry;
+    if (typeof entry === 'string') return resolve(entry);
+    if (Array.isArray(entry)) return Promise.all(entry.map((child) => visit(child, projectAssetArrayScope(scope))));
+    if (entry && typeof entry === 'object') return Object.fromEntries(await Promise.all(Object.entries(entry).map(async ([key, child]) => [key, await visit(child, projectAssetChildScope(scope, key))])));
+    return entry;
+  };
+  return await visit(value, 'root') as T;
+};
 
 const readLinks = async (): Promise<AgentTemplateLinks> => {
   const parsed = await readProjectPreference<unknown>(getPreferenceKey());
@@ -98,7 +135,8 @@ export const syncAgentTemplateSave = async (template: TCGCardTemplate): Promise<
   const nextTemplates = [...project.userTemplates];
   // Working-document revision is a container concurrency token. It must never
   // masquerade as the Template's own lineage revision.
-  nextTemplates[templateIndex] = { ...template, templateSource: 'user', templateLibrarySource: 'personal' };
+  const reusableTemplate = await reusePrivateAssets(template, project);
+  nextTemplates[templateIndex] = { ...reusableTemplate, templateSource: 'user', templateLibrarySource: 'personal' };
   const updateResponse = await fetch(`/api/studio-documents/${encodeURIComponent(link.documentId)}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
     body: JSON.stringify({ expectedRevision: currentRevision, title, document: { ...project, userTemplates: nextTemplates } }),
