@@ -46,6 +46,34 @@ const fontStoragePath = (ownerUserId: string, documentId: string, assetId: strin
   `${storagePrefix(ownerUserId, documentId)}/${assetId}`
 );
 
+const privateAssetLocation = (ownerUserId: string, documentId: string, id: string, mimeType: string) => {
+  if (!/^[a-f0-9]{64}$/u.test(id) || !isProjectPackageAssetMimeType(mimeType)) throw new StudioDocumentStoreError('The private asset identity or format is invalid.', 400);
+  return mimeType.startsWith('image/')
+    ? { bucket: STUDIO_DOCUMENT_ASSET_BUCKET, path: imageStoragePath(ownerUserId, documentId, id) }
+    : { bucket: STUDIO_DOCUMENT_FONT_BUCKET, path: fontStoragePath(ownerUserId, documentId, id) };
+};
+
+export const verifyPrivateStudioAsset = async (ownerUserId: string, documentId: string, id: string, mimeType: string, expectedSize?: number): Promise<boolean> => {
+  const { bucket, path } = privateAssetLocation(ownerUserId, documentId, id, mimeType);
+  const { data, error } = await requireStore().storage.from(bucket).download(path);
+  if (error) {
+    if (Number(error.statusCode ?? error.status) === 404) return false;
+    throw new StudioDocumentStoreError('Private artwork storage is unavailable. The local draft was kept.', 503);
+  }
+  if (!data) throw new StudioDocumentStoreError('The private artwork read could not be confirmed. The local draft was kept.', 503);
+  if (data.size < 1 || data.size > MAX_PROJECT_PACKAGE_ASSET_BYTES || (expectedSize !== undefined && data.size !== expectedSize) || (data.type && data.type !== mimeType)) return false;
+  return createHash('sha256').update(Buffer.from(await data.arrayBuffer())).digest('hex') === id;
+};
+
+export const preparePrivateStudioAssetUpload = async ({ ownerUserId, documentId, id, mimeType, size }: { ownerUserId: string; documentId: string; id: string; mimeType: string; size: number }) => {
+  if (!Number.isSafeInteger(size) || size < 1 || size > MAX_PROJECT_PACKAGE_ASSET_BYTES) throw new StudioDocumentStoreError('The private asset exceeds the portable project asset limit.', 413);
+  const { bucket, path } = privateAssetLocation(ownerUserId, documentId, id, mimeType);
+  if (await verifyPrivateStudioAsset(ownerUserId, documentId, id, mimeType, size)) return { alreadyPresent: true, signedUrl: null };
+  const { data, error } = await requireStore().storage.from(bucket).createSignedUploadUrl(path, { upsert: false });
+  if (error || !data?.signedUrl) throw new StudioDocumentStoreError('Unable to prepare the private artwork transfer.', 503);
+  return { alreadyPresent: false, signedUrl: data.signedUrl };
+};
+
 const readObjectSize = (value: unknown): number | null => {
   if (!value || typeof value !== 'object') return null;
   const metadata = (value as { metadata?: unknown }).metadata;

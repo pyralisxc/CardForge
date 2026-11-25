@@ -15,6 +15,7 @@ export {
   BROWSER_PROJECT_ASSET_REFERENCE_PREFIX,
   copyBrowserProjectAssets,
   getBrowserProjectAssetIds,
+  readBrowserProjectAssetReference,
 } from '../persistence/contentAddressedBrowserAssets';
 export {
   canUploadCustomLocalAssets,

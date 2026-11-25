@@ -7,6 +7,8 @@ import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { normalizeStudioDocumentPayload, type StudioDocumentSource } from '../model';
 import { collectStudioDocumentAssetIds, collectStudioDocumentFontIds, getStudioDocumentAssetReference, getStudioDocumentFontReference } from '../assetReferences';
 import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '@/features/project/client/package-document';
+import { isProjectPackageAssetMimeType } from '@/features/project/client/package-document';
+import { readBrowserProjectAssetReference } from '@/features/project/client/assets';
 
 const AGENT_TEMPLATE_LINKS_PREFERENCE = 'agent-template-links-v1';
 
@@ -22,9 +24,10 @@ const getPreferenceKey = () => `${AGENT_TEMPLATE_LINKS_PREFERENCE}:${getProjectP
 
 // Reuse exact existing private objects when a browser Template still contains
 // their hydrated bytes. This avoids resending large unchanged artwork.
-const reusePrivateAssets = async <T>(value: T, project: unknown): Promise<T> => {
+const reusePrivateAssets = async <T>(value: T, project: unknown, documentId: string, expectedRevision: number): Promise<T> => {
   const images = new Set(collectStudioDocumentAssetIds(project));
   const fonts = new Set(collectStudioDocumentFontIds(project));
+  const scope = getProjectPersistenceScope();
   const pending = new Map<string, Promise<string>>();
   const resolve = (entry: string) => {
     let result = pending.get(entry);
@@ -32,15 +35,47 @@ const reusePrivateAssets = async <T>(value: T, project: unknown): Promise<T> => 
     result = (async () => {
       const browserId = /^cardforge-browser-asset:\/\/([a-f0-9]{64})$/u.exec(entry)?.[1];
       let id = browserId;
+      let blob: Blob | undefined;
       if (!id && /^data:(?:image\/|font\/|application\/(?:font-woff|x-font-ttf|x-font-opentype))[^,]*;base64,/iu.test(entry)) {
-        const blob = await (await fetch(entry)).blob();
+        blob = await (await fetch(entry)).blob();
         const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
         id = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
       }
       if (id && images.has(id)) return getStudioDocumentAssetReference(id);
       if (id && fonts.has(id)) return getStudioDocumentFontReference(id);
-      if (browserId) throw new Error('New browser artwork could not be transferred to the linked ChatGPT draft.');
-      return entry;
+      if (!id) return entry;
+      if (browserId) {
+        const asset = await readBrowserProjectAssetReference(entry, scope);
+        if (!asset) throw new Error('The browser artwork is unavailable. Your local draft was kept.');
+        blob = new Blob([new Uint8Array(asset.bytes)], { type: asset.mimeType });
+        const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+        if (Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('') !== id) throw new Error('The browser artwork failed its integrity check. Your local draft was kept.');
+      }
+      if (!blob || !isProjectPackageAssetMimeType(blob.type)) throw new Error('This artwork format cannot be transferred to the linked draft.');
+      const mimeType = blob.type;
+      const plan = async () => {
+        if (getProjectPersistenceScope() !== scope) throw new Error('The workspace account changed. Your local draft was kept.');
+        const response = await fetch(`/api/studio-documents/${encodeURIComponent(documentId)}/asset-upload`, {
+          method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, mimeType, size: blob!.size, expectedRevision }),
+        });
+        if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to prepare the private artwork transfer.'));
+        const result = await response.json() as { upload?: { alreadyPresent?: unknown; signedUrl?: unknown } };
+        if (result.upload?.alreadyPresent === true) return null;
+        if (result.upload?.alreadyPresent !== false || typeof result.upload.signedUrl !== 'string') throw new Error('The private artwork transfer could not be prepared.');
+        return result.upload.signedUrl;
+      };
+      const signedUrl = await plan();
+      if (signedUrl) {
+        const form = new FormData();
+        form.append('cacheControl', '3600');
+        form.append('', blob, 'asset');
+        let uploaded = false;
+        try { uploaded = (await fetch(signedUrl, { method: 'PUT', headers: { 'x-upsert': 'false' }, body: form })).ok; } catch { /* reconcile an uncertain response */ }
+        if (!uploaded && await plan() !== null) throw new Error('The artwork transfer could not be confirmed. Your local draft was kept.');
+      }
+      if (getProjectPersistenceScope() !== scope) throw new Error('The workspace account changed. Your local draft was kept.');
+      return mimeType.startsWith('image/') ? getStudioDocumentAssetReference(id) : getStudioDocumentFontReference(id);
     })();
     pending.set(entry, result);
     return result;
@@ -135,7 +170,7 @@ export const syncAgentTemplateSave = async (template: TCGCardTemplate): Promise<
   const nextTemplates = [...project.userTemplates];
   // Working-document revision is a container concurrency token. It must never
   // masquerade as the Template's own lineage revision.
-  const reusableTemplate = await reusePrivateAssets(template, project);
+  const reusableTemplate = await reusePrivateAssets(template, project, link.documentId, currentRevision);
   nextTemplates[templateIndex] = { ...reusableTemplate, templateSource: 'user', templateLibrarySource: 'personal' };
   const updateResponse = await fetch(`/api/studio-documents/${encodeURIComponent(link.documentId)}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
@@ -152,7 +187,8 @@ export const syncAgentTemplateSave = async (template: TCGCardTemplate): Promise<
     throw new Error(await readApiErrorMessage(updateResponse, 'Your Template was saved locally, but its ChatGPT working draft could not be updated.'));
   }
   const updatedPayload = await updateResponse.json() as { document?: { revision?: unknown } };
-  const updatedRevision = Number.isInteger(updatedPayload.document?.revision) ? Number(updatedPayload.document?.revision) : currentRevision + 1;
+  const updatedRevision = Number.isSafeInteger(updatedPayload.document?.revision) ? Number(updatedPayload.document?.revision) : null;
+  if (updatedRevision !== currentRevision + 1) throw new Error('The ChatGPT draft save could not be confirmed. Reopen its current revision before saving again; your browser copy was kept.');
   await rememberAgentTemplateLink(templateId, link.documentId, updatedRevision);
   return { status: 'synced', revision: updatedRevision };
 };

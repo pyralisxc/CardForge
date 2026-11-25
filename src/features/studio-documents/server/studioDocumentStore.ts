@@ -20,7 +20,8 @@ import {
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
-import { externalizeStudioDocumentAssets } from './studioDocumentAssetStore';
+import { externalizeStudioDocumentAssets, getStudioDocumentAssetDownloads, verifyPrivateStudioAsset } from './studioDocumentAssetStore';
+import { collectStudioDocumentAssetIds, collectStudioDocumentFontIds, getStudioDocumentAssetReference, getStudioDocumentFontReference } from '../assetReferences';
 
 interface StudioDocumentRow {
   id: string;
@@ -398,6 +399,22 @@ export const updateStudioDocument = async ({
     document: preparedDocument,
     cleanupOnFailure: false,
   });
+  // A client may have uploaded bytes directly. Never commit a new reference
+  // until Storage proves that its content and MIME match its address.
+  const oldImages = new Set(collectStudioDocumentAssetIds(current.document));
+  const oldFonts = new Set(collectStudioDocumentFontIds(current.document));
+  const staged = [
+    ...collectStudioDocumentAssetIds(externalized.document).filter((id) => !oldImages.has(id) && !externalized.uploadedAssetIds.includes(id)).map(getStudioDocumentAssetReference),
+    ...collectStudioDocumentFontIds(externalized.document).filter((id) => !oldFonts.has(id) && !externalized.uploadedFontIds.includes(id)).map(getStudioDocumentFontReference),
+  ];
+  if (staged.length) {
+    const downloads = await getStudioDocumentAssetDownloads({ ownerUserId, documentId, value: staged, requireVerifiedSize: true });
+    for (const asset of downloads) {
+      if (asset.size === null || !await verifyPrivateStudioAsset(ownerUserId, documentId, asset.id, asset.mimeType, asset.size)) {
+        throw new StudioDocumentStoreError('The transferred private asset could not be verified. The working draft was not changed.', 409);
+      }
+    }
+  }
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .update({

@@ -2,9 +2,9 @@ import { createHash, randomBytes } from 'node:crypto';
 import sharp from 'sharp';
 import { expect, it, vi } from 'vitest';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
-const mocks = vi.hoisted(() => ({ list: vi.fn(), signed: vi.fn(), upload: vi.fn() }));
-vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ storage: { from: () => ({ list: mocks.list, createSignedUrls: mocks.signed, upload: mocks.upload }) } }) }));
-import { externalizeStudioDocumentAssets, getStudioDocumentAssetDownloads } from '@/features/studio-documents/server/studioDocumentAssetStore';
+const mocks = vi.hoisted(() => ({ list: vi.fn(), signed: vi.fn(), upload: vi.fn(), download: vi.fn(), signedUpload: vi.fn() }));
+vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ storage: { from: () => ({ list: mocks.list, createSignedUrls: mocks.signed, upload: mocks.upload, download: mocks.download, createSignedUploadUrl: mocks.signedUpload }) } }) }));
+import { externalizeStudioDocumentAssets, getStudioDocumentAssetDownloads, preparePrivateStudioAssetUpload, verifyPrivateStudioAsset } from '@/features/studio-documents/server/studioDocumentAssetStore';
 const id = 'f'.repeat(64);
 it('finds current referenced artwork after historical objects and rejects incomplete listing', async () => {
   mocks.list.mockReset(); mocks.signed.mockReset();
@@ -51,6 +51,18 @@ it('does not save a reference that only the browser can resolve', async () => {
   mocks.upload.mockReset();
   await expect(externalizeStudioDocumentAssets({ ownerUserId: 'owner', documentId: 'doc', document })).rejects.toThrow('only available in its original workspace');
   expect(mocks.upload).not.toHaveBeenCalled();
+});
+it('recognizes a previously uploaded object only when its length, format and digest match', async () => {
+  const bytes = Buffer.from('private original');
+  const digest = createHash('sha256').update(bytes).digest('hex');
+  mocks.download.mockResolvedValue({ data: new Blob([bytes], { type: 'image/png' }), error: null });
+  expect(await verifyPrivateStudioAsset('owner', 'doc', digest, 'image/png', bytes.length)).toBe(true);
+  expect(await verifyPrivateStudioAsset('owner', 'doc', digest, 'image/png', bytes.length + 1)).toBe(false);
+  expect(await verifyPrivateStudioAsset('owner', 'doc', 'b'.repeat(64), 'image/png', bytes.length)).toBe(false);
+  expect(await verifyPrivateStudioAsset('owner', 'doc', digest, 'image/jpeg', bytes.length)).toBe(false);
+  mocks.signedUpload.mockReset();
+  expect(await preparePrivateStudioAssetUpload({ ownerUserId: 'owner', documentId: 'doc', id: digest, mimeType: 'image/png', size: bytes.length })).toEqual({ alreadyPresent: true, signedUrl: null });
+  expect(mocks.signedUpload).not.toHaveBeenCalled();
 });
 it('finds current referenced font beyond retained historical pages', async () => {
   mocks.list.mockReset(); mocks.signed.mockReset();
