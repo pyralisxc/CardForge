@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Layers, Minus, MoreHorizontal, Navigation, Pencil, Plus, RefreshCcw, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Layers, Minus, MoreHorizontal, Navigation, Pencil, Plus, RefreshCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -403,7 +403,7 @@ export function FocusedArtifactWorkspace({
         </div>
         <div className={styles.artifactInspectorActions}>
           <Button type="button" size="sm" variant="ghost" onClick={designTemplate}><Layers className="mr-1.5 h-4 w-4" aria-hidden="true" />{dirty ? 'Save & Design Template' : 'Design Template'}</Button>
-          <Button type="button" size="icon" variant="ghost" onClick={() => { setSelectedTargetId(null); setShowAllFields(false); }} aria-label="Close field inspector"><X aria-hidden="true" /></Button>
+          {showAllFields || selectedTarget ? <Button type="button" size="sm" variant="ghost" onClick={() => { setSelectedTargetId(null); setShowAllFields(false); }}>Choose field</Button> : null}
         </div>
       </header>
       <div className={styles.artifactInspectorBody}>
@@ -426,7 +426,6 @@ export function FocusedArtifactWorkspace({
           <Pencil aria-hidden="true" />
           <strong>Edit where you are looking</strong>
           <p>Tap a highlighted region on the Artifact. Use All fields when you prefer a complete form or keyboard path.</p>
-          <Button type="button" variant="outline" onClick={() => setShowAllFields(true)}>Show all fields</Button>
         </div>}
       </div>
     </aside> : null}
@@ -458,9 +457,9 @@ export function FocusedArtifactWorkspace({
       {editing ? <>
         <span className={styles.artifactEditModeLabel}><Pencil aria-hidden="true" />Editing Artifact</span>
         <Button type="button" size="sm" variant="ghost" onClick={onCancelEdit}>Cancel</Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => { setShowAllFields(true); setSelectedTargetId(null); }}>All fields</Button>
       </> : null}
       <span className="max-[600px]:hidden contents">
-        {editing ? <Button type="button" size="sm" variant="outline" onClick={() => { setShowAllFields(true); setSelectedTargetId(null); }}>All fields</Button> : null}
         <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom - 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
         <span className={styles.artifactZoomValue} aria-live="polite">{Math.round(viewport.zoom * 100)}%</span>
         <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom + 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
@@ -469,7 +468,6 @@ export function FocusedArtifactWorkspace({
       <DropdownMenu>
         <DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" className="min-[601px]:hidden" aria-label="More focused Artifact actions"><MoreHorizontal aria-hidden="true" />More</Button></DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {editing ? <DropdownMenuItem onSelect={() => { setShowAllFields(true); setSelectedTargetId(null); }}>All fields</DropdownMenuItem> : null}
           <DropdownMenuItem onSelect={() => viewport.changeZoom(viewport.zoom - 0.15)}><Minus aria-hidden="true" />Zoom out · {Math.round(viewport.zoom * 100)}%</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => viewport.changeZoom(viewport.zoom + 0.15)}><Plus aria-hidden="true" />Zoom in</DropdownMenuItem>
           <DropdownMenuItem onSelect={viewport.fit}>Fit Artifact</DropdownMenuItem>

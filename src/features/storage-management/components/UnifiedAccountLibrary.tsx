@@ -13,7 +13,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import type { DisplayCard } from '@/domain/rendering';
-import type { CardFace } from '@/domain/cards';
+import { getCardTitle, type CardFace } from '@/domain/cards';
 import { createCardFaceExportRenderer, getExportProfile } from '@/features/card-generator/client/export';
 import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
 import { LinkedFolderSave } from '@/features/project/client/locations';
@@ -35,7 +35,7 @@ import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { NewSetDialog, usePublishedSetStarters } from '@/features/project/client/new-set';
 import { useProjectLibraryWorkspace, type LibraryCardEditSession } from '@/features/project/client/libraryWorkspace';
 import { FocusedArtifactWorkspace } from '@/features/artifact-edit/client';
-import { SetDirection, SetTemplates, SetUpdates, WorkspaceUpdateNotices, useWorkspaceUpdates } from '@/features/project/client/ui';
+import { SetDirection, SetTemplates, SetUpdates, WorkspaceUpdateNotices, useWorkspaceUpdates, useProjectDownload } from '@/features/project/client/ui';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import { CardPreview, getTemplateAccent } from '@/features/card-rendering/client';
 
@@ -302,6 +302,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const currentRecord = currentItem ? detailRecord(currentItem) : null;
   const selectedLocalSet = currentItem?.scope === 'personal'
     ? cardSets.find((set) => set.id === currentItem.personal.references.localSetId) : undefined;
+  const downloadSelectedSet = useProjectDownload({ canUseProjectFiles: experience.capabilities.canUseProjectFiles, setId: selectedLocalSet?.id ?? null, toast });
   const hasLinkedDrive = Boolean(selectedLocalSet && currentItem?.scope === 'personal' && currentItem.personal.references.driveFileId);
   const driveWorkingSession = useGoogleDriveWorkingSession({
     setId: selectedLocalSet?.id ?? null,
@@ -327,8 +328,10 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const selectedSetCards = selectedLocalSet ? displayCards.filter((card) => (
     (card.setId ?? cardSets[0]?.id) === selectedLocalSet.id
   )) : [];
+  const cardIndexById = new Map(selectedSetCards.map((card, index) => [card.uniqueId, index]));
+  const cardTitle = (card: DisplayCard) => getCardTitle(card, cardIndexById.get(card.uniqueId) ?? 0);
   const visibleSetCards = selectedSetCards.filter((card) => (
-    String(card.data.cardName ?? card.data.title ?? card.data.name ?? 'Card').toLocaleLowerCase().includes(cardQuery.trim().toLocaleLowerCase())
+    cardTitle(card).toLocaleLowerCase().includes(cardQuery.trim().toLocaleLowerCase())
   ));
   const startCardEdit = (setId: string, cardId: string) => {
     const session = projectWorkspace.actions.beginCardEdit(setId, cardId);
@@ -604,6 +607,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{selectedLocalSet ? <div className="min-w-0"><div className="flex flex-wrap gap-1 border-b pb-3" aria-label="Set tools">
       <SetDirection key={`direction-${selectedLocalSet.id}`} set={selectedLocalSet} useLifecycle={useEnvironmentToolLifecycle} />
       <SetUpdates key={`updates-${selectedLocalSet.id}`} setId={selectedLocalSet.id} />
+      <Button type="button" variant="outline" onClick={() => { void downloadSelectedSet(); }}>Download Set</Button>
     </div>
     {hasLinkedDrive ? <section className="space-y-2 border-t pt-4" aria-label="Google Drive save">
       <p role="status" className="text-sm text-muted-foreground">{driveWorkingSession.state.message}</p>
@@ -625,7 +629,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         <label className="sr-only" htmlFor="library-card-search">Search cards in this Set</label>
         <input id="library-card-search" className="w-full rounded border bg-background px-3 py-2 text-sm" value={cardQuery} onChange={(event) => setCardQuery(event.target.value)} placeholder="Search cards" />
         <ul className="grid gap-2">{visibleSetCards.map((card) => {
-          const name = String(card.data.cardName ?? card.data.title ?? card.data.name ?? 'Card');
+          const name = cardTitle(card);
           return <li key={card.uniqueId}><Button id={`library-edit-card-${card.uniqueId}`} type="button" variant="outline" className="w-full justify-start" onClick={() => startCardEdit(selectedLocalSet.id, card.uniqueId)}>Edit {name}</Button></li>;
         })}</ul>
         {!visibleSetCards.length ? <p className="text-sm text-muted-foreground">No matching cards.</p> : null}
@@ -851,7 +855,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       ) : null}
       {activeTool === 'card-edit' && cardEditSession?.scope === persistenceScope ? (
         <EnvironmentToolLayer id="library-card-edit-title" eyebrow="Library tool"
-          title={`Edit ${String(cardEditSession.card.data.cardName ?? cardEditSession.card.data.title ?? cardEditSession.card.data.name ?? 'card')}`}
+          title={`Edit ${cardTitle(cardEditSession.card)}`}
           summary="Edit this card in its Set without leaving Library."
           closeLabel="Close card editor" onClose={() => runAction(actions[0]!)} dirty={toolDirty}
           onDirtyCloseRequest={requestDirtyToolClose} presentation={activeToolSession?.presentation}>
@@ -859,7 +863,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
             <FocusedArtifactWorkspace key={cardEditSession.card.uniqueId}
               artifactId={cardEditSession.card.uniqueId} card={cardEditSession.card}
               canExportClean={experience.capabilities.canExportClean} canUseProjectFiles={experience.capabilities.canUseProjectFiles}
-              setName={cardEditSession.card.setName ?? 'Set'} title={String(cardEditSession.card.data.cardName ?? cardEditSession.card.data.title ?? cardEditSession.card.data.name ?? 'Card')}
+              setName={cardEditSession.card.setName ?? 'Set'} title={cardTitle(cardEditSession.card)}
               subtitle={cardEditSession.card.template.name ?? 'Card'}
               availableDirections={{ up: false, down: false, left: false, right: false }} onBrowse={() => {}}
               editing onEdit={() => {}} onExitFocus={() => runAction(actions[0]!)}
@@ -902,6 +906,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
             businessIdentity={businessIdentity}
             initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE}
             tool="design"
+            contextSetId={selectedLocalSet?.id ?? null}
             onDirtyChange={setToolDirty}
           />
         </EnvironmentToolLayer>

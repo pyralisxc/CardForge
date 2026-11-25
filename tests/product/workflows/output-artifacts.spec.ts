@@ -233,9 +233,9 @@ test('@golden @preview downloads actual card PNG, Set ZIP, PDF and Tabletop shee
   // A Download action must work without requesting file-system permissions.
   // Keep native file-handle streaming for actual Save flows, not this copy.
   await page.getByRole('button', { name: 'Done', exact: true }).click();
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'More Set actions', exact: true }).click();
   const projectDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download Set', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Download Set', exact: true }).click();
   const projectZip = await JSZip.loadAsync(await save(await projectDownload));
   const project = JSON.parse(await projectZip.file('cardforge-project.json')!.async('string'));
   expect(project.projectRevision).toMatch(/^[a-f0-9]{64}$/u);
@@ -317,10 +317,9 @@ test('downloads one Set with remote artwork and frame bytes or fails without a d
   }, artUrl);
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
-  await page.locator('button[data-artifact-id="scale-card-1"]').press('Enter');
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'More Set actions', exact: true }).click();
   const downloading = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download Set', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Download Set', exact: true }).click();
   const download = await downloading;
   const path = testInfo.outputPath('remote-artwork.cardforge');
   await download.saveAs(path);
@@ -341,10 +340,13 @@ test('downloads one Set with remote artwork and frame bytes or fails without a d
   await page.route('https://portable-art.example/**', (route) => route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' } }));
   let extraDownloads = 0;
   page.on('download', () => { extraDownloads += 1; });
-  await page.getByRole('button', { name: 'Download Set', exact: true }).click();
+  await page.getByRole('button', { name: 'More Set actions', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Download Set', exact: true }).click();
   await expect(page.getByText('Set not downloaded', { exact: true })).toBeVisible();
   expect(extraDownloads).toBe(0);
 
+  await page.goto('/account?section=library&scope=personal&tool=design&artifact=scale-template');
+  await expect(page.getByRole('region', { name: 'Design Template', exact: true })).toBeVisible();
   await page.locator('input[type="file"][accept*=".cardforge"]').first().setInputFiles(path);
   await expect(page.getByRole('alertdialog', { name: 'Import project file?' })).toBeVisible();
   await page.getByRole('button', { name: 'Replace Workspace', exact: true }).click();

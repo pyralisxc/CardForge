@@ -455,6 +455,7 @@ export function CreatorWorkbench({
         <div hidden={studioView !== 'template'} data-testid="layout-studio-panel" data-state={studioView === 'template' ? 'active' : 'inactive'} tabIndex={-1} className="min-h-0 flex-1 space-y-3">
           {generatorBackWorkflow ? <GeneratorBackWorkflowBanner mode={generatorBackWorkflow} onReturn={onReturnToGenerator ?? handleReturnToGenerator} /> : null}
           <CardTemplateMaker
+            showProjectActions={!contextSetId}
             pipelineDesignSource={pipelineDesignSource}
             canUseProjectFiles={projectCapabilities.canUseProjectFiles}
             showCardWatermark={showVisibleCardWatermark}

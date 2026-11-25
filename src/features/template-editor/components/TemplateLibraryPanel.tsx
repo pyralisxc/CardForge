@@ -15,6 +15,7 @@ import type { TCGCardTemplate, TemplateUsage } from '@/domain/templates';
 import { getTemplateCardMeasurement } from '@/domain/card-formats';
 
 interface TemplateLibraryPanelProps {
+  showProjectActions?: boolean;
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
   currentTemplate: TCGCardTemplate;
@@ -67,6 +68,7 @@ export const getTemplateQuickView = (
 };
 
 export function TemplateLibraryPanel({
+  showProjectActions = true,
   canUseProjectFiles,
   showCardWatermark,
   currentTemplate,
@@ -139,7 +141,7 @@ export function TemplateLibraryPanel({
           <Button type="button" variant="outline" size="sm" onClick={onClone} disabled={!currentTemplateId} aria-label="Clone selected template" className={buttonClassName}><Copy className="h-4 w-4" /></Button>
           <Button type="button" variant="outline" size="sm" onClick={onDelete} disabled={!currentTemplateId} aria-label="Delete selected template" className={buttonClassName}><Trash2 className="h-4 w-4 text-[#ff554a]" /></Button>
         </div>
-        <div className="space-y-2 border-t border-[#1b2029] pt-2">
+        {showProjectActions ? <div className="space-y-2 border-t border-[#1b2029] pt-2">
           <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             <Button type="button" variant="outline" size="sm" onClick={onExportProject} className={cn(buttonClassName, 'min-w-0 gap-1 text-xs')}>
               <FolderDown className="h-4 w-4" /> Download Set
@@ -173,7 +175,7 @@ export function TemplateLibraryPanel({
               </Button>
             </div>
           ) : null}
-        </div>
+        </div> : null}
         <div className="space-y-1.5 pt-1">
           {visibleTemplates.map((template) => (
             <div key={template.id}><button

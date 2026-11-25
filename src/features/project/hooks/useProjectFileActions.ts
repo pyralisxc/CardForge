@@ -142,34 +142,28 @@ export const buildProjectImportPreview = ({
   };
 };
 
-export function useProjectFileActions(input: UseProjectFileActionsInput) {
-  const {
-    canUseProjectFiles,
-    fileInputRef,
-    projectFileGateMessage,
-    toast,
-    userTemplates,
-  } = input;
-  const [pendingProjectImport, setPendingProjectImport] = useState<PendingProjectImport | null>(null);
+const useProjectFileGate = (projectFileGateMessage: string | null | undefined, toast: ToastFn) => useCallback(() => {
+  toast({ title: 'Upgrade to move projects', description: withNextStep(
+    projectFileGateMessage || 'Portable project files are temporarily unavailable for this account.',
+    'Refresh the account page and try again. Your current work remains unchanged.',
+  ) });
+}, [projectFileGateMessage, toast]);
 
-  const showProjectFileGate = useCallback(() => {
-    toast({
-      title: 'Upgrade to move projects',
-      description: withNextStep(
-        projectFileGateMessage || 'Portable project files are temporarily unavailable for this account.',
-        'Refresh the account page and try again. Your current work remains unchanged.',
-      ),
-    });
-  }, [projectFileGateMessage, toast]);
-
-  const handleExportProject = useCallback(async () => {
+export function useProjectDownload({ canUseProjectFiles, projectFileGateMessage, setId, toast }: {
+  canUseProjectFiles: boolean;
+  projectFileGateMessage?: string | null;
+  setId?: string | null;
+  toast: ToastFn;
+}) {
+  const showProjectFileGate = useProjectFileGate(projectFileGateMessage, toast);
+  const downloadProject = useCallback(async () => {
     if (!canUseProjectFiles) {
       showProjectFileGate();
       return;
     }
 
     try {
-      const activeSetId = useProjectStore.getState().activeCardSet?.id;
+      const activeSetId = setId === undefined ? useProjectStore.getState().activeCardSet?.id : setId;
       if (!activeSetId) {
         toast({ title: 'Set not downloaded', description: 'Choose a Set before downloading it. Your work is unchanged.' });
         return;
@@ -206,7 +200,24 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
         variant: 'destructive',
       });
     }
-  }, [canUseProjectFiles, showProjectFileGate, toast]);
+  }, [canUseProjectFiles, setId, showProjectFileGate, toast]);
+
+  return downloadProject;
+}
+
+export function useProjectFileActions(input: UseProjectFileActionsInput) {
+  const {
+    canUseProjectFiles,
+    fileInputRef,
+    projectFileGateMessage,
+    toast,
+    userTemplates,
+  } = input;
+  const [pendingProjectImport, setPendingProjectImport] = useState<PendingProjectImport | null>(null);
+
+  const showProjectFileGate = useProjectFileGate(projectFileGateMessage, toast);
+
+  const handleExportProject = useProjectDownload({ canUseProjectFiles, projectFileGateMessage, toast });
 
   const handleChooseImportProject = useCallback(() => {
     if (!canUseProjectFiles) {

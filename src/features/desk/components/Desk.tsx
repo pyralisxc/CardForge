@@ -42,6 +42,7 @@ import {
   WorkspaceUpdateNotices,
   useBrowserStoragePersistence,
   useBrowserWorkspaceSaveStatus,
+  useProjectDownload,
 } from '@/features/project/client/ui';
 import {
   getAccountLibraryWorkPreview,
@@ -463,6 +464,11 @@ function DeskContent({
   };
   const storageNeedsAttention = projection.failures.length > 0
     || projection.sourceStatuses.some((source) => source.phase === 'loading' || source.phase === 'incomplete' || source.phase === 'unavailable' || source.phase === 'permission-required' || source.phase === 'expired');
+  const downloadSelectedSet = useProjectDownload({
+    canUseProjectFiles: experience.capabilities.canUseProjectFiles,
+    setId: focusedLocalSetId,
+    toast,
+  });
   const saveStatusLabel = browserSaveStatus === 'saving'
     ? 'Saving local working copy…'
     : browserSaveStatus === 'failed'
@@ -537,6 +543,7 @@ function DeskContent({
           onDesignArtifactCopy={(face) => { if (focusedArtifact) designCard(focusedArtifact, face); }}
           onOpenGenerate={() => { if (focusedItem) { setGenerationRevisionScopeIds([]); openWorkLane(focusedItem, 'generate'); } }}
           onOpenLocation={() => { if (focusedItem) setLocationItem(focusedItem); }}
+          onDownloadSet={() => { void downloadSelectedSet(); }}
           onDuplicateWork={() => { if (focusedItem) duplicateWork(focusedItem); }}
           onOpenOutput={() => { if (focusedItem) openWorkLane(focusedItem, 'export'); }}
           onInspect={() => { if (focusedItem) inspectItem(focusedItem); }}

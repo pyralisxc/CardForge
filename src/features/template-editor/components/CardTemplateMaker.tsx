@@ -49,6 +49,7 @@ import { TemplatePipelineAttemptRecovery } from './TemplatePipelineAttemptRecove
 import { PipelineSourceFeedback, PublishedSourceFeedback, type PipelineDesignSource } from '@/features/pipeline/client/engagement';
 
 interface CardTemplateMakerProps {
+  showProjectActions?: boolean;
   pipelineDesignSource?: PipelineDesignSource | null;
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
@@ -85,6 +86,7 @@ interface CardTemplateMakerProps {
 }
 
 export function CardTemplateMaker({
+  showProjectActions,
   pipelineDesignSource,
   canUseProjectFiles,
   showCardWatermark,
@@ -396,7 +398,7 @@ export function CardTemplateMaker({
         <MobileCanvasControls actions={editorActions} isDirty={isDirty} templateName={currentTemplate.name} onOpenInspector={() => setMobilePanel('inspector')} onOpenMenu={openLibrary} />
         <div className="cardforge-maker-grid grid min-h-0 min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
           {contributorFontFaceCss && <style>{contributorFontFaceCss}</style>}
-          <TemplateEditorLibrarySidebar backFaceTemplates={backFaceTemplates} canUseProjectFiles={canUseProjectFiles} commands={commands} controller={controller} defaultTemplates={defaultTemplates} elements={elements} fileInputRef={fileInputRef} isCheckoutStarting={isCheckoutStarting} onDeleteTemplate={onDeleteTemplate} onElementAdded={() => setMobilePanel('canvas')} onExportProject={onExportProject} onImportProject={onImportProject} onLoadProject={onLoadProject} onSelectElement={selectElement} onSelectTemplateId={onSelectTemplateForEditing} onStartCheckout={onStartCheckout} projectFileGateMessage={projectFileGateMessage} richTextHighlightColor={richTextHighlightColor} showCardWatermark={showCardWatermark} templates={templates} userTemplates={userTemplates} requestedSectionId={requestedLibrarySectionId} onRequestedSectionHandled={() => setRequestedLibrarySectionId(null)} onClose={() => setMobilePanel('canvas')} />
+          <TemplateEditorLibrarySidebar showProjectActions={showProjectActions} backFaceTemplates={backFaceTemplates} canUseProjectFiles={canUseProjectFiles} commands={commands} controller={controller} defaultTemplates={defaultTemplates} elements={elements} fileInputRef={fileInputRef} isCheckoutStarting={isCheckoutStarting} onDeleteTemplate={onDeleteTemplate} onElementAdded={() => setMobilePanel('canvas')} onExportProject={onExportProject} onImportProject={onImportProject} onLoadProject={onLoadProject} onSelectElement={selectElement} onSelectTemplateId={onSelectTemplateForEditing} onStartCheckout={onStartCheckout} projectFileGateMessage={projectFileGateMessage} richTextHighlightColor={richTextHighlightColor} showCardWatermark={showCardWatermark} templates={templates} userTemplates={userTemplates} requestedSectionId={requestedLibrarySectionId} onRequestedSectionHandled={() => setRequestedLibrarySectionId(null)} onClose={() => setMobilePanel('canvas')} />
           <TemplateCanvasStage autoFitCanvas={autoFitCanvas} canvas={canvas} canvasFrameStyle={canvasFrameStyle} canvasRef={canvasRef} currentTemplate={currentTemplate} gridSize={gridSize} rulerUnit={commands.customUnit} rulerPixelsPerUnit={commands.rulerPixelsPerUnit} livePreviewData={livePreviewData} previewMode={previewMode} richTextHighlightColor={richTextHighlightColor} selectedElement={selectedElement} showCardWatermark={showCardWatermark} showGrid={showGrid} stageRef={stageRef} zoom={zoom} onCanvasKeyDown={handleCanvasKeyDown} onClearDepthSelection={clearDepthSelection} onDeselectCanvas={() => setSelectedElementId(null)} onDrop={handleDrop} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onStagePointerDownCapture={handleStagePointerDownCapture} onStagePointerMoveCapture={handleStagePointerMoveCapture} onStagePointerUpCapture={handleStagePointerUpCapture} onStageWheel={handleStageWheel} renderEditableElement={renderEditableElement} />
           <TemplateEditorInspectorSidebar managedAdoption={!isReviewDraft && (canSubmitNewTemplate || canSubmitExistingRevision) && selectedElement ? {
             pendingName: pendingRaster?.selection.elementId === selectedElement.id ? pendingRaster.name : undefined,

@@ -124,4 +124,4 @@
   .library[data-density="list"] .objectCopy > span:not(.objectTopline) { display: none; }
 }
 
-.libraryCardEditor :global([aria-label="Close field inspector"]) { margin-right: 3.25rem; }
+.libraryCardEditor :global([aria-label="Artifact field inspector"] header) { padding-right: 3.25rem; }

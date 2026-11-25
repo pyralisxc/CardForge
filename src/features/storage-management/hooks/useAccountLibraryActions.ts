@@ -127,7 +127,7 @@ export function useAccountLibraryActions({
   const actions: ActionDescriptor[] = activeTool
     ? [zoneAction(activeTool === 'locations' ? 'library.close-locations' : 'library.close-tool', activeTool === 'locations' ? 'Close locations' : activeTool === 'edit-contribution' ? 'Close submission editor' : activeTool === 'design' ? 'Close Design' : activeTool === 'card-edit' ? 'Close card editor' : 'Close contribution tool')]
     : currentItem?.scope === 'personal'
-      ? personalActions(currentItem.personal)
+      ? personalActions(currentItem.personal).filter((action) => action.id !== 'library.review-updates')
       : currentItem?.scope === 'published' || currentItem?.scope === 'pipeline' ? contextualActions(currentItem)
         : [zoneAction('library.create-set', 'New Set')];
 
