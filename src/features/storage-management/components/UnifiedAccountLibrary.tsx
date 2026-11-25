@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import type { DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
 import { createCardFaceExportRenderer, getExportProfile } from '@/features/card-generator/client/export';
+import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
+import { LinkedFolderSave } from '@/features/project/client/locations';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import {
@@ -305,6 +307,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     setId: selectedLocalSet?.id ?? null,
     name: selectedLocalSet?.name ?? 'CardForge Set',
     enabled: hasLinkedDrive && isSignedIn && experience.capabilities.canUseProjectFiles,
+    renderThumbnail: createGoogleDriveProjectThumbnail,
   });
   useEffect(() => { setCardQuery(''); }, [selectedLocalSet?.id]);
   useEffect(() => {
@@ -610,6 +613,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         {shouldOfferGoogleDriveReconciliation(driveWorkingSession.state.phase) ? <Button type="button" variant="outline" onClick={() => { void driveWorkingSession.reconcile(); }}>Check Drive</Button> : null}
       </div>
     </section> : null}
+    {currentItem?.scope === 'personal' && currentItem.personal.references.localFolder && experience.capabilities.canUseProjectFiles ? <section className="pt-3" aria-label="Linked folder save"><LinkedFolderSave key={selectedLocalSet.id} setId={selectedLocalSet.id} onChanged={projection.refresh} /></section> : null}
     <SetTemplates key={`templates-${selectedLocalSet.id}`} presentation="contents" set={selectedLocalSet} cards={displayCards.filter((card) => (card.setId ?? cardSets[0]?.id) === selectedLocalSet.id)} templates={templates} onDesign={(id) => {
       const returnFocusId = document.activeElement instanceof HTMLElement ? document.activeElement.id : null;
       openTemplateDesign(id); setDesignReturnFocusId(returnFocusId || selection.focusReturnId || null); openTool('design', [id]);

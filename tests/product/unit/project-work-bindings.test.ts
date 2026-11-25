@@ -144,17 +144,39 @@ describe('one authoritative Set location across save entry points', () => {
     }));
     const renderThumbnail = vi.fn(async () => 'canonical-preview');
     await saveCurrentProjectToGoogleDrive({ name: 'C', renderThumbnail });
-    await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' });
+    const expectedBinding = await getGoogleDriveWorkBinding('set-c');
+    await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: expectedBinding!, renderThumbnail });
     await saveCurrentProjectToGoogleDrive({ name: 'C' });
     expect(mock.captureWorkspace).not.toHaveBeenCalled();
     expect(mock.captureSet).toHaveBeenCalledTimes(3);
     expect(renderThumbnail).toHaveBeenCalledWith(expect.objectContaining({ cardSets: [{ id: 'set-c', name: 'C' }] }));
     expect(prepare[0]).toMatchObject({ thumbnail: 'canonical-preview' });
+    expect(prepare[1]).toMatchObject({ fileId: driveBinding.fileId, thumbnail: 'canonical-preview' });
     expect(prepare.map((value) => [value.fileId, value.workId, value.expectedProviderRevision])).toEqual([
       [driveBinding.fileId, 'set-c', '1'], [driveBinding.fileId, 'set-c', headToken('2')], [driveBinding.fileId, 'set-c', headToken('3')],
     ]);
     expect(mock.values.get('test:google-drive-project-binding')).toEqual({ workId: 'set-c' });
     expect(await getGoogleDriveProjectBinding()).toMatchObject({ providerRevision: headToken('4') });
+  });
+
+  it('does not create a Drive destination when a direct save loses its captured link', async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: driveBinding })).rejects.toThrow('linked Drive document changed');
+    mock.values.set('test:google-drive-work-binding:set-c', { ...driveBinding, fileId: 'drive-file-other' });
+    await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: driveBinding })).rejects.toThrow('linked Drive document changed');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mock.captureSet).not.toHaveBeenCalled();
+  });
+
+  it('does not open a new folder when a direct save loses its captured link', async () => {
+    const handle = folder('C');
+    const binding = { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'b'.repeat(64) };
+    await expect(saveCardSetToAttachedFolder('set-c', binding as unknown as localFolder.LocalProjectFolderBinding)).rejects.toThrow('linked folder changed');
+    mock.values.set('test:local-work-folder-binding:set-c', { ...binding, handle: folder('Other') });
+    await expect(saveCardSetToAttachedFolder('set-c', binding as unknown as localFolder.LocalProjectFolderBinding)).rejects.toThrow('linked folder changed');
+    expect((window as unknown as { showDirectoryPicker: () => Promise<unknown> }).showDirectoryPicker).not.toHaveBeenCalled();
+    expect(mock.captureSet).not.toHaveBeenCalled();
   });
 
   it('saves a folder attachment using its canonical Set revision and scope', async () => {

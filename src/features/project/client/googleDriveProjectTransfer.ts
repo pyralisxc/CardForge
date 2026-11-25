@@ -575,12 +575,14 @@ export const saveCardSetToGoogleDrive = async ({
   name,
   asNew = false,
   renderThumbnail,
+  expectedBinding,
   signal,
 }: {
   setId: string;
   name: string;
   asNew?: boolean;
   renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
+  expectedBinding?: Pick<GoogleDriveProjectBinding, 'fileId' | 'accountId' | 'providerRevision' | 'projectRevision'>;
   signal?: AbortSignal;
 }): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
@@ -593,6 +595,11 @@ export const saveCardSetToGoogleDrive = async ({
       signal?.throwIfAborted();
       const existing = asNew ? null : await getGoogleDriveWorkBinding(setId);
       assertBindingScope(namespace);
+      if (expectedBinding && (!existing || !isSameGoogleDriveTarget(existing, expectedBinding)
+        || existing.providerRevision !== expectedBinding.providerRevision
+        || existing.projectRevision !== expectedBinding.projectRevision)) {
+        throw new ProjectPackageError('The linked Drive document changed. Check its location before saving; browser work was left unchanged.');
+      }
       if (initial && existing?.fileId !== initial.fileId) {
         throw new ProjectPackageError('The Set’s Drive target changed while another save completed. Reopen the current file before saving.');
       }

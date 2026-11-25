@@ -96,6 +96,9 @@ for (const surface of ['desk', 'library', 'library-edit'] as const) {
       await expect(page).toHaveURL(/section=library/);
       await expect(page.getByRole('button', { name: 'Edit Scale Card 0001', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Edit Scale Card 0002', exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Save to folder Saved folder Set', exact: true }).click();
+      await expect(page.getByText('Saved to folder-opening-fixture.', { exact: true })).toBeVisible();
+      await expect(page).toHaveURL(/section=library/);
     } else {
       await detail.getByRole('button', { name: 'Open saved Set', exact: true }).click();
       await expect(page.locator('[data-set-spatial-stage] button[data-artifact-id]')).toHaveCount(2);
@@ -104,5 +107,14 @@ for (const surface of ['desk', 'library', 'library-edit'] as const) {
     await page.goto('/account', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('button', { name: /^Select 100 Card Scale Set\./ })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Select Saved folder Set\./ })).toHaveCount(1);
+    if (surface === 'library-edit') {
+      const savedSet = page.getByRole('button', { name: /^(Select|Selected) Saved folder Set\./ });
+      await savedSet.click();
+      await savedSet.press('Enter');
+      await expect(page.getByText('Saved to folder-opening-fixture.', { exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Save to folder folder-opening-fixture', exact: true }).click();
+      await expect(page.getByText('Saved to folder-opening-fixture.', { exact: true })).toBeVisible();
+      await expect(page.locator('[data-set-spatial-stage]')).toBeVisible();
+    }
   });
 }

@@ -6,6 +6,7 @@ export type {
   ProjectWorkLocationContextProps,
   ProjectWorkLocationTarget,
 } from '../components/ProjectWorkLocationDialog';
+export { LinkedFolderSave } from '../components/LinkedFolderSave';
 export { exportCardProjectPackage } from './cardPackageExport';
 export {
   canMoveWork,

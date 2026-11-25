@@ -32,6 +32,7 @@ import { openRememberedLocalProject } from '@/features/project/client/provider-l
 import { useSpatialWorkspacePreferences } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { createPublishedSetCopy } from '@/features/project/client/published-sets';
+import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
 import { useWorkspaceUpdates } from '@/features/project/client/ui';
 import { applyAccountLibraryOrganizationOperation, applyAccountLibraryPrivateOrganization, useAccountLibraryProjection, type AccountLibraryItem, type AccountLibraryOrganizationOperation, type AccountLibrarySource } from '@/features/storage-management/client';
 
@@ -266,6 +267,7 @@ export function useDeskController({
     setId: focusedLocalSetId,
     name: focusedItem?.name ?? 'CardForge Set',
     enabled: Boolean(focusedLocalSetId),
+    renderThumbnail: createGoogleDriveProjectThumbnail,
   });
   const driveWorkingState = driveWorkingSession.state;
   const workingLocationStatus = driveWorkingState.phase === 'unlinked' ? null : {

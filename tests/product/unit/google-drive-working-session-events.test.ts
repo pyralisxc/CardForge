@@ -256,7 +256,8 @@ describe('Drive hook recovery barriers and independent copies', () => {
     vi.useFakeTimers();
     try {
       harness.dirty.mockResolvedValue(true);
-      const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+      const renderThumbnail = vi.fn(async () => 'preview');
+      const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings(), renderThumbnail });
       await flush();
       expect(latest()).toMatchObject({ phase: 'dirty', message: expect.stringContaining('Unsaved') });
       harness.subscription?.();
@@ -264,7 +265,7 @@ describe('Drive hook recovery barriers and independent copies', () => {
       await vi.advanceTimersByTimeAsync(60_000);
       expect(harness.save).not.toHaveBeenCalled();
       await session.saveNow();
-      expect(harness.save).toHaveBeenCalledExactlyOnceWith({ setId: 'set-c', name: 'F' });
+      expect(harness.save).toHaveBeenCalledExactlyOnceWith({ setId: 'set-c', name: 'F', expectedBinding: harness.current, renderThumbnail });
       const confirmedReads = harness.dirty.mock.calls.length;
       for (let edit = 0; edit < 25; edit++) harness.subscription?.();
       await flush();
