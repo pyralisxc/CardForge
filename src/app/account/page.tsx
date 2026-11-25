@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
+import { unstable_rethrow } from 'next/navigation';
 
 import { AccountDeskBoundary } from '@/features/account/client/profile';
 import {
-  getCurrentCardforgeEntitlement,
+  getCurrentCardforgeUserAccess,
   getAccountAccessLabel,
   getAccountDeskKey,
-  isClerkAuthConfigured,
   projectAccountExperience,
   resolveAccountEntitlement,
+  resolveCardforgeEntitlementForAccess,
   resolveAccountSection,
 } from '@/features/account/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
@@ -86,13 +87,11 @@ export default async function AccountPage({
   const needsPlans = activeSection === 'profile';
   const needsAccountContent = activeSection === 'library';
   const needsBusinessIdentity = activeSection === 'desk' || activeSection === 'library';
-  const [entitlementResult, basePlans, productAccessPrices, accountContentBlocks, businessIdentity, experienceSettings] = await Promise.all([
-    getCurrentCardforgeEntitlement().then((entitlement) => ({ entitlement, unavailable: false })).catch((error) => {
-      console.error('Unable to verify account access during page render:', error);
-      return {
-        entitlement: resolveAccountEntitlement({ authConfigured: isClerkAuthConfigured() }),
-        unavailable: true,
-      };
+  const [identity, basePlans, productAccessPrices, accountContentBlocks, businessIdentity, experienceSettings] = await Promise.all([
+    getCurrentCardforgeUserAccess().catch((error) => {
+      unstable_rethrow(error);
+      console.error('Unable to verify account identity during page render:', error);
+      return null;
     }),
     needsPlans ? getMcpAllowances() : Promise.resolve([]),
     needsPlans ? getCurrentProductAccessPricePresentation() : Promise.resolve(null),
@@ -100,6 +99,31 @@ export default async function AccountPage({
     needsBusinessIdentity ? getCachedBusinessIdentity() : Promise.resolve(DEFAULT_BUSINESS_IDENTITY),
     getCachedExperienceSettings(),
   ]);
+  if (!identity) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[var(--cf-canvas)] px-5 py-12 text-[var(--cf-text)]">
+        <div className="grid max-w-md gap-4 text-center">
+          <h1 className="text-xl font-semibold">Account identity unavailable</h1>
+          <p>CardForge could not verify which workspace to open. Your saved work has not been changed. Try again when your account is available.</p>
+          <a className="underline" href="">Try again</a>
+        </div>
+      </main>
+    );
+  }
+  const entitlementResult = await resolveCardforgeEntitlementForAccess(identity)
+    .then((entitlement) => ({ entitlement, unavailable: false }))
+    .catch((error) => {
+      unstable_rethrow(error);
+      console.error('Unable to verify account access during page render:', error);
+      return {
+        entitlement: resolveAccountEntitlement({
+          authConfigured: identity.authConfigured,
+          accountUserId: identity.user?.id ?? null,
+          isSignedIn: Boolean(identity.user),
+        }),
+        unavailable: true,
+      };
+    });
   const plans = productAccessPrices
     ? applyProductAccessPricePresentation(basePlans, productAccessPrices)
     : basePlans;
