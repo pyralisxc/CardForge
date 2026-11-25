@@ -239,6 +239,25 @@ test.describe('Desk desktop spatial interaction', () => {
     await artifact.click();
     await expect(artifact).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(() => stage.boundingBox()).toEqual(stageBeforeSelection);
+    const selectionActions = page.getByRole('toolbar', { name: 'Selection actions' });
+    for (const width of [768, 800, 929, 1040]) {
+      await page.setViewportSize({ width, height: 650 });
+      await expect.poll(() => selectionActions.locator('..').evaluate((toolbar) => {
+        const outer = toolbar.getBoundingClientRect();
+        const controls = Array.from(toolbar.children, (element) => element.getBoundingClientRect()).filter((rect) => rect.width > 0 && rect.height > 0);
+        return controls.some((rect) => rect.left < outer.left - 1 || rect.right > outer.right + 1)
+          || controls.some((left, index) => controls.slice(index + 1).some((right) => Math.min(left.right, right.right) - Math.max(left.left, right.left) > 1 && Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top) > 1));
+      })).toBe(false);
+    }
+    await page.setViewportSize({ width: 929, height: 650 });
+    const tagInput = selectionActions.getByRole('textbox', { name: 'New tag name' });
+    await selectionActions.getByRole('button', { name: 'Remove', exact: true }).focus();
+    for (let index = 0; index < 4 && !await tagInput.evaluate((input) => input === document.activeElement); index += 1) await page.keyboard.press('Tab');
+    await expect(tagInput).toBeFocused();
+    await expect.poll(async () => {
+      const [bar, input] = await Promise.all([selectionActions.boundingBox(), tagInput.boundingBox()]);
+      return Boolean(bar && input && input.x >= bar.x - 1 && input.x + input.width <= bar.x + bar.width + 1);
+    }).toBe(true);
     await page.getByRole('button', { name: 'Clear Artifact selection', exact: true }).click();
     await expect(artifact).toHaveAttribute('aria-pressed', 'false');
     await artifact.dblclick();

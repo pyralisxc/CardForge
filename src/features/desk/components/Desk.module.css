@@ -298,6 +298,7 @@
 .deskFilterRow {
   display: flex;
   min-width: 0;
+  flex: 1 1 20rem;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.25rem;
@@ -351,6 +352,17 @@
   display: flex;
   align-items: center;
   gap: 0.1rem;
+}
+
+@media (min-width: 768px) {
+  .deskToolbar {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .spatialControls {
+    flex: 0 0 auto;
+  }
 }
 
 .compactSpatialControls {
@@ -1489,6 +1501,22 @@
     overflow: hidden;
   }
 
+}
+
+@media (min-width: 768px) and (max-width: 1040px) {
+  .contentToolbar {
+    height: 3.5rem;
+    flex-wrap: nowrap;
+  }
+
+  .contentToolbar > .searchField {
+    min-width: 0;
+    flex: 1 1 8rem;
+  }
+
+  .selectionBar {
+    min-width: 9rem;
+  }
 }
 
 @media (max-width: 767px) {
