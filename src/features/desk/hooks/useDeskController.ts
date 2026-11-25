@@ -272,6 +272,10 @@ export function useDeskController({
     phase: driveWorkingState.phase,
     message: driveWorkingState.message,
     needsAttention: driveWorkingNeedsAttention(driveWorkingState.phase),
+    onSave: focusedItem?.references.driveFileId && isSignedIn && experience.capabilities.canUseProjectFiles
+      ? () => { void driveWorkingSession.saveNow(); }
+      : undefined,
+    canSave: driveWorkingState.phase === 'clean' || driveWorkingState.phase === 'dirty',
     onRepair: driveWorkingState.phase === 'recovery-required'
       ? () => { void driveWorkingSession.repairLink(); }
       : undefined,
