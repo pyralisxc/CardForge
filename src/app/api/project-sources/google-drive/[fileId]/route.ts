@@ -54,11 +54,13 @@ export async function DELETE(
     const body = await parseGoogleDriveProjectJson(request);
     const expectedProviderRevision = typeof body.expectedProviderRevision === 'string' ? body.expectedProviderRevision.trim() : '';
     const expectedProjectRevision = typeof body.expectedProjectRevision === 'string' ? body.expectedProjectRevision.trim() : '';
+    const expectedAccountId = typeof body.expectedAccountId === 'string' ? body.expectedAccountId.trim() : undefined;
     const deleted = await deleteGoogleDriveProject({
       ownerUserId,
       fileId,
       expectedProviderRevision,
       expectedProjectRevision,
+      expectedAccountId,
     });
     return Response.json({ deleted });
   } catch (error) {

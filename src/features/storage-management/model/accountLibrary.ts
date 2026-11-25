@@ -30,6 +30,7 @@ export interface AccountLibraryReferences {
   localTemplateId?: string;
   localResourceId?: string;
   driveFileId?: string;
+  driveAccountId?: string;
   driveProviderRevision?: string;
   driveProjectRevision?: string;
   localFolder?: boolean;
@@ -148,6 +149,7 @@ interface LocalTemplateInput {
 }
 
 interface DriveProjectInput {
+  accountId?: string;
   localWorkId?: string;
   fileId: string;
   name: string;
@@ -347,6 +349,7 @@ export const buildAccountLibraryItems = ({
     if (matchingWork) {
       matchingWork.locations.push(location);
       matchingWork.references.driveFileId = project.fileId;
+      matchingWork.references.driveAccountId = project.accountId;
       matchingWork.references.driveProviderRevision = project.providerRevision;
       matchingWork.references.driveProjectRevision = project.projectRevision ?? undefined;
       matchingWork.revision = project.projectRevision;
@@ -374,6 +377,7 @@ export const buildAccountLibraryItems = ({
       webViewLink: project.webViewLink,
       references: {
         driveFileId: project.fileId,
+        ...(project.accountId ? { driveAccountId: project.accountId } : {}),
         driveProviderRevision: project.providerRevision,
         ...(project.projectRevision ? { driveProjectRevision: project.projectRevision } : {}),
       },

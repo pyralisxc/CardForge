@@ -128,6 +128,7 @@ describe('account library model', () => {
       localSets: [],
       driveProjects: [{
         fileId: 'drive-project-1',
+        accountId: 'account-a',
         name: 'Campaign.cardforge',
         providerRevision: '7',
         projectRevision: 'project-revision',
@@ -165,6 +166,7 @@ describe('account library model', () => {
 
     expect(items.map((item) => item.kind)).toEqual(['set', 'set', 'asset', 'working-draft']);
     expect(items[0]?.locations[0]).toMatchObject({ source: 'google-drive', status: 'attached' });
+    expect(items[0]?.references.driveAccountId).toBe('account-a');
     expect(items[0]?.workPreview).toEqual({ kind: 'image', url: 'https://lh3.googleusercontent.com/drive-preview-1' });
     expect(items[1]).toMatchObject({
       id: 'local-folder-work:missing-local-work',

@@ -7,15 +7,16 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveWorkBinding, refreshGoogleDriveProject } from '../client/googleDriveProjectTransfer';
 
 /** File actions belong to the selected Set; Project remains the provider owner. */
-export function SelectedDriveFileActions({ fileId, name, providerRevision, projectRevision, localSetId, disabled, onChanged, onOpenCopy }: {
+export function SelectedDriveFileActions({ fileId, accountId, name, providerRevision, projectRevision, localSetId, disabled, onChanged, onOpenCopy }: {
   fileId: string;
+  accountId?: string;
   name: string;
   providerRevision?: string;
   projectRevision?: string;
   localSetId?: string;
   disabled?: boolean;
   onChanged: () => void;
-  onOpenCopy: (setId: string) => void;
+  onOpenCopy: (setId: string | null) => void;
 }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
@@ -40,17 +41,17 @@ export function SelectedDriveFileActions({ fileId, name, providerRevision, proje
 
   return <>
     <div className="flex flex-wrap gap-2" aria-label="Google Drive file actions">
-      <Button type="button" size="sm" variant="outline" disabled={disabled || busy} onClick={() => void run(async () => {
-        const copy = await copyGoogleDriveProjectToBrowser({ fileId, name });
-        if (!copy.workId) throw new Error('The independent copy has no Set to open.');
-        onOpenCopy(copy.workId);
+      <Button type="button" size="sm" variant="outline" disabled={disabled || busy || !accountId} onClick={() => void run(async () => {
+        if (!accountId) throw new Error('Refresh this Set to confirm its connected Drive account.');
+        const copy = await copyGoogleDriveProjectToBrowser({ fileId, name, accountId });
+        onOpenCopy(copy.workId ?? null);
       }, 'Independent device copy created')}>Make independent copy</Button>
-      {localSetId ? <Button type="button" size="sm" variant="outline" disabled={disabled || busy} onClick={() => void run(async () => {
+      {localSetId ? <Button type="button" size="sm" variant="outline" disabled={disabled || busy || !accountId} onClick={() => void run(async () => {
         const binding = await getGoogleDriveWorkBinding(localSetId);
-        if (!binding || binding.fileId !== fileId) throw new Error('The Drive link changed. Refresh the selected Set before trying again.');
+        if (!accountId || !binding || binding.fileId !== fileId || binding.accountId !== accountId) throw new Error('The Drive link or account changed. Refresh the selected Set before trying again.');
         await refreshGoogleDriveProject(binding);
       }, 'Working copy refreshed')}>Refresh working copy</Button> : null}
-      {localSetId ? <Button type="button" size="sm" variant="outline" disabled={disabled || busy || !providerRevision || !projectRevision} onClick={() => setConfirmTrash(true)}>Move Drive file to Trash</Button> : null}
+      {localSetId ? <Button type="button" size="sm" variant="outline" disabled={disabled || busy || !accountId || !providerRevision || !projectRevision} onClick={() => setConfirmTrash(true)}>Move Drive file to Trash</Button> : null}
     </div>
     <AlertDialog open={confirmTrash} onOpenChange={(open) => { if (!busy) setConfirmTrash(open); }}>
       <AlertDialogContent>
@@ -59,9 +60,9 @@ export function SelectedDriveFileActions({ fileId, name, providerRevision, proje
         </AlertDialogDescription></AlertDialogHeader>
         <AlertDialogFooter><AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel><AlertDialogAction disabled={busy} onClick={(event) => {
           event.preventDefault();
-          if (!providerRevision || !projectRevision) return;
+          if (!accountId || !providerRevision || !projectRevision) return;
           void run(async () => {
-            await deleteGoogleDriveProjectCopy({ fileId, providerRevision, projectRevision });
+            await deleteGoogleDriveProjectCopy({ fileId, accountId, providerRevision, projectRevision });
             setConfirmTrash(false);
           }, 'Drive file moved to Trash');
         }}>Move to Trash</AlertDialogAction></AlertDialogFooter>

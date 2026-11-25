@@ -113,6 +113,24 @@ describe('one authoritative Set location across save entry points', () => {
     expect(mock.values.size).toBe(0);
   });
 
+  it('does not import a Drive copy when the selected account changed', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
+      'X-CardForge-Provider-Revision': headToken('1'), 'X-CardForge-Project-Revision': 'b'.repeat(64), 'X-CardForge-Provider-Account': 'other-account',
+    } })));
+    await expect(copyGoogleDriveProjectToBrowser({ fileId: driveBinding.fileId, name: 'C', accountId: 'selected-account' })).rejects.toThrow('account changed');
+    expect(mock.apply).not.toHaveBeenCalled();
+  });
+
+  it('returns a successful independent import even when no active Set is available', async () => {
+    mock.apply.mockResolvedValueOnce({ activeSetId: null } as never);
+    mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [] } });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
+      'X-CardForge-Provider-Revision': headToken('1'), 'X-CardForge-Project-Revision': 'b'.repeat(64), 'X-CardForge-Provider-Account': 'selected-account',
+    } })));
+    await expect(copyGoogleDriveProjectToBrowser({ fileId: driveBinding.fileId, name: 'C', accountId: 'selected-account' })).resolves.toMatchObject({ workId: null });
+    expect(mock.apply).toHaveBeenCalledOnce();
+  });
+
   it.each([1, 2])('retains explicit package scope when opening a %i-Set historical package', async (count) => {
     const document = { cardSets: Array.from({ length: count }, (_, index) => ({ id: `old-${index}` })), userTemplates: [], storedCards: [], appearanceStyles: [], customAssets: {} };
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document });

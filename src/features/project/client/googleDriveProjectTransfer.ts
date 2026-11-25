@@ -807,7 +807,7 @@ export const refreshGoogleDriveProject = async (binding: GoogleDriveProjectBindi
 };
 
 export const copyGoogleDriveProjectToBrowser = async (
-  summary: Pick<GoogleDriveProjectSummary, 'fileId' | 'name'>,
+  summary: Pick<GoogleDriveProjectSummary, 'fileId' | 'name' | 'accountId'>,
 ): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const expectedState = useProjectStore.getState();
@@ -827,11 +827,13 @@ const deleteGoogleDriveProjectRevision = async ({
   fileId,
   providerRevision,
   projectRevision,
+  accountId,
   fallback,
 }: {
   fileId: string;
   providerRevision: string;
   projectRevision: string;
+  accountId?: string;
   fallback: string;
 }): Promise<void> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
@@ -862,6 +864,7 @@ const deleteGoogleDriveProjectRevision = async ({
     body: JSON.stringify({
       expectedProviderRevision: providerRevision,
       expectedProjectRevision: projectRevision,
+      ...(accountId ? { expectedAccountId: accountId } : {}),
     }),
     }));
   } catch {
@@ -908,6 +911,7 @@ export const deleteGoogleDriveProjectFromLibrary = async (
     fileId: summary.fileId,
     providerRevision: summary.providerRevision,
     projectRevision: summary.projectRevision,
+    accountId: summary.accountId,
     fallback: 'Unable to delete the Google Drive project.',
   });
 };
@@ -916,12 +920,14 @@ export const deleteGoogleDriveProjectCopy = async ({
   fileId,
   providerRevision,
   projectRevision,
+  accountId,
 }: {
   fileId: string;
   providerRevision: string;
   projectRevision: string;
+  accountId?: string;
 }): Promise<void> => {
-  await deleteGoogleDriveProjectRevision({ fileId, providerRevision, projectRevision, fallback: 'Unable to remove the Google Drive copy.' });
+  await deleteGoogleDriveProjectRevision({ fileId, providerRevision, projectRevision, accountId, fallback: 'Unable to remove the Google Drive copy.' });
 };
 
 export const disconnectGoogleDriveStorage = async (): Promise<void> => {
