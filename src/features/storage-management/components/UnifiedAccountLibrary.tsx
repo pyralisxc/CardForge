@@ -16,7 +16,7 @@ import type { DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
 import { createCardFaceExportRenderer, getExportProfile } from '@/features/card-generator/client/export';
 import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
-import { LinkedFolderSave } from '@/features/project/client/locations';
+import { LinkedFolderSave, SelectedDriveFileActions } from '@/features/project/client/locations';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import {
@@ -601,7 +601,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     zones={zones} activeZone="library" viewportPolicy="desk" primaryScroll="contained" detail={activeTool ? null : currentRecord}
     presentation={presentation}
     detailVisual={currentItem ? <LibraryDetailVisual key={currentItem.id} item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} /> : undefined}
-    detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{selectedLocalSet ? <div className="min-w-0"><div className="flex flex-wrap gap-1 border-b pb-3" aria-label="Set tools">
+    detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{currentItem?.scope === 'personal' && currentItem.personal.references.driveFileId ? <SelectedDriveFileActions key={currentItem.id} fileId={currentItem.personal.references.driveFileId} name={currentItem.name} providerRevision={currentItem.personal.references.driveProviderRevision} projectRevision={currentItem.personal.references.driveProjectRevision} localSetId={currentItem.personal.references.localSetId} disabled={!isSignedIn || !experience.capabilities.canUseProjectFiles} onChanged={projection.refresh} onOpenCopy={(id) => projection.router.push(createDeskReturnHref(`set:${id}`))} /> : null}{selectedLocalSet ? <div className="min-w-0"><div className="flex flex-wrap gap-1 border-b pb-3" aria-label="Set tools">
       <SetDirection key={`direction-${selectedLocalSet.id}`} set={selectedLocalSet} useLifecycle={useEnvironmentToolLifecycle} />
       <SetUpdates key={`updates-${selectedLocalSet.id}`} setId={selectedLocalSet.id} />
     </div>
@@ -937,7 +937,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         <AlertDialogDescription className="leading-6 text-[var(--cf-text-muted)]">
           {pendingDeleteItem?.references.localSetId
             ? `Only the device copy of ${pendingDeleteItem.name} will be removed. Other verified locations remain unchanged.`
-            : `The Google Drive copy of ${pendingDeleteItem?.name ?? 'this Set'} will be moved to Drive Trash at its exact current revision. Device and local-folder copies remain unchanged.`}
+            : `The Google Drive copy of ${pendingDeleteItem?.name ?? 'this Set'} will be moved to Drive Trash after checking its last known revision. Device and local-folder copies remain unchanged.`}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void confirmDeleteCopy()}>{pendingDeleteItem?.references.localSetId ? 'Delete device copy' : 'Move Drive copy to Trash'}</AlertDialogAction></AlertDialogFooter>

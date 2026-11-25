@@ -843,15 +843,37 @@ const deleteGoogleDriveProjectRevision = async ({
     binding: await getGoogleDriveWorkBinding(workId, namespace),
   })));
   assertBindingScope(namespace);
-  const response = await observeProviderBoundaryResponse('google_drive', 'project_delete', () => fetch(`/api/project-sources/google-drive/${encodeURIComponent(fileId)}`, {
+  const fileKey = driveTargetKey(namespace, { fileId })!;
+  const affected = bindings.filter(entry => entry.binding?.fileId === fileId);
+  if (unresolvedDriveTargetSaves.has(fileKey)) throw unresolvedDriveTargetSaves.get(fileKey);
+  if (activeDriveTargetSaves.has(fileKey) || affected.some(entry => activeDriveTargetSaves.has(`${namespace}:drive-commitment:${entry.workId}`))) {
+    throw new ProjectPackageError('A Drive save is still in progress. Wait for its result and check the file before moving it to Trash. Browser work was left unchanged.');
+  }
+  // Share the existing per-file hold with manual and automatic saves until the
+  // provider result and local link cleanup are known. Independent Save as new
+  // targets a different file and remains available.
+  const pending = new GoogleDriveUnknownCommitError('The Drive Trash result is not confirmed. Keep the browser work, check the file in Google Drive, and reload before another save or Trash attempt.');
+  unresolvedDriveTargetSaves.set(fileKey, pending);
+  let response: Response;
+  try {
+    response = await observeProviderBoundaryResponse('google_drive', 'project_delete', () => fetch(`/api/project-sources/google-drive/${encodeURIComponent(fileId)}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       expectedProviderRevision: providerRevision,
       expectedProjectRevision: projectRevision,
     }),
-  }));
-  if (!response.ok) throw await readApiError(response, fallback);
+    }));
+  } catch {
+    throw pending;
+  }
+  if (!response.ok) {
+    // A server error can follow a committed provider mutation. Do not replay.
+    if (response.status >= 500) throw pending;
+    unresolvedDriveTargetSaves.delete(fileKey);
+    throw await readApiError(response, fallback);
+  }
+  try {
   assertBindingScope(namespace);
   for (const entry of bindings) {
     if (entry.binding?.fileId !== fileId) continue;
@@ -870,6 +892,12 @@ const deleteGoogleDriveProjectRevision = async ({
       removeDriveAttachment(namespace, value => !value?.workId && attachmentMatches(value, attached))
     ));
   }
+  } catch {
+    const cleanup = new GoogleDriveUnknownCommitError('Drive confirmed the file moved to Trash, but CardForge could not finish clearing its browser link. Your browser work remains available. Check Drive and reload before saving again.');
+    unresolvedDriveTargetSaves.set(fileKey, cleanup);
+    throw cleanup;
+  }
+  unresolvedDriveTargetSaves.delete(fileKey);
 };
 
 export const deleteGoogleDriveProjectFromLibrary = async (

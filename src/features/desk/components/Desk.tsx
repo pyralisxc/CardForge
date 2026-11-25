@@ -4,6 +4,8 @@ import { zoneAction, getWorkActions } from '../model/desk';
 
 import Link from 'next/link';
 import { deleteGoogleDriveProjectCopy } from '@/features/project/client/provider-google-drive';
+import { SelectedDriveFileActions } from '@/features/project/client/locations';
+import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -497,7 +499,7 @@ function DeskContent({
         viewportPolicy="desk"
         primaryScroll="contained"
         detail={detail}
-        detailContent={actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : undefined}
+        detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{inspectorItem?.references.driveFileId ? <SelectedDriveFileActions key={inspectorItem.id} fileId={inspectorItem.references.driveFileId} name={inspectorItem.name} providerRevision={inspectorItem.references.driveProviderRevision} projectRevision={inspectorItem.references.driveProjectRevision} localSetId={inspectorItem.references.localSetId} disabled={!experience.signedIn || !experience.capabilities.canUseProjectFiles} onChanged={projection.refresh} onOpenCopy={(id) => projection.router.push(createDeskReturnHref(`set:${id}`))} /> : null}</>}
         actionContext={focusedItem ? workDetailRecord(focusedItem) : null}
         actions={actions}
         accountControl={<><WorkspaceUpdateNotices /><PublicAuthControls /></>}

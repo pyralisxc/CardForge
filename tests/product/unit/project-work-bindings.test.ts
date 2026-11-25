@@ -457,6 +457,21 @@ describe('location failure and detach safety', () => {
     expect(mock.values.get('test:google-drive-project-binding')).toEqual({ workId: 'set-c' });
   });
 
+  it.each(['network', 'server'] as const)('holds the Drive file after an unconfirmed %s Trash result', async (failure) => {
+    mock.localSets = [{ id: 'set-c' }];
+    mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
+    const fetch = vi.fn(async () => {
+      if (failure === 'network') throw new Error('connection lost');
+      return new Response(null, { status: 503 });
+    });
+    vi.stubGlobal('fetch', fetch);
+    await expect(deleteGoogleDriveProjectCopy(driveBinding)).rejects.toThrow('Trash result is not confirmed');
+    expect(await getGoogleDriveWorkBinding('set-c')).toEqual(driveBinding);
+    await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' })).rejects.toThrow('Trash result is not confirmed');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(mock.apply).not.toHaveBeenCalled();
+  });
+
   it('forgets all links to the selected folder but keeps other folders and all source files', async () => {
     const handle = folder('selected');
     const other = folder('other');
