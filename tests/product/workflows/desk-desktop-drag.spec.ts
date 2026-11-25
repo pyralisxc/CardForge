@@ -174,7 +174,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await actionsTrigger.click();
     const menu = page.getByRole('menu');
     await expect(menu).toBeVisible();
-    await expect(menu.getByRole('menuitem')).toHaveCount(7);
+    await expect(menu.getByRole('menuitem')).toHaveCount(9);
     await expect(menu.getByRole('menuitem', { name: 'Open Set' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Generate cards' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: /^Save & move/ })).toBeVisible();
@@ -182,6 +182,8 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(menu.getByRole('menuitem', { name: 'Duplicate' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Output' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Details' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Review updates' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Remove from Desk' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Delete device copy' })).toBeVisible();
 
     await page.keyboard.press('Escape');
