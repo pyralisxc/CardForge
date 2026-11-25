@@ -290,7 +290,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     if (!activeTool) priorRevisionNavigation.current = revisionNavigationKey;
   }, [activeTool, revisionsEnabled, revisionNavigationKey]);
   const currentItem = selection.objectId ? itemMap.get(selection.objectId) ?? null : null;
-  cardEditContext.current = { scope: persistenceScope, itemId: currentItem?.id ?? '' };
+  cardEditContext.current = { scope: persistenceScope, itemId: selection.objectId ?? '' };
   const contentHealth = useMemo(() => buildPipelineContentHealth({ catalog: shared.catalog, program: shared.program }), [shared.catalog, shared.program]);
   const publishedRevisionByLineage = useMemo(() => new Map(
     shared.pipelineItems.flatMap((item) => item.currentPublishedSubmission?.lineageId

@@ -6,7 +6,7 @@ import { seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 // Exercise persisted native handles in Chrome Stable, not the bundled Chromium build.
 test.use({ channel: 'chrome', trace: 'retain-on-failure' });
 
-for (const surface of ['desk', 'library'] as const) {
+for (const surface of ['desk', 'library', 'library-edit'] as const) {
   test(`@golden ${surface} restores remembered folder work and shows conflicts inside the compact inspector`, async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -88,11 +88,18 @@ for (const surface of ['desk', 'library'] as const) {
       database.close();
     }, { workId, revision: snapshot.manifest.projectRevision });
     await page.reload({ waitUntil: 'domcontentloaded' });
-    if (surface === 'library') await inspect();
+    if (surface !== 'desk') await inspect();
     await expect(detail).toBeVisible();
     await expect(detail.getByRole('heading', { name: 'Saved folder Set', exact: true })).toBeVisible();
-    await detail.getByRole('button', { name: 'Open saved Set', exact: true }).click();
-    await expect(page.locator('[data-set-spatial-stage] button[data-artifact-id]')).toHaveCount(2);
+    if (surface === 'library-edit') {
+      await detail.getByRole('button', { name: 'Open Set in Library', exact: true }).click();
+      await expect(page).toHaveURL(/section=library/);
+      await expect(page.getByRole('button', { name: 'Edit Scale Card 0001', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Edit Scale Card 0002', exact: true })).toBeVisible();
+    } else {
+      await detail.getByRole('button', { name: 'Open saved Set', exact: true }).click();
+      await expect(page.locator('[data-set-spatial-stage] button[data-artifact-id]')).toHaveCount(2);
+    }
     await expect(page.getByRole('region', { name: 'Locations & connections', exact: true })).toHaveCount(0);
     await page.goto('/account', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('button', { name: /^Select 100 Card Scale Set\./ })).toBeVisible();
