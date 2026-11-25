@@ -49,11 +49,12 @@ test('matching back creates a new back and returns to the same Generate context'
   await page.getByRole('textbox', { name: 'Add your card list' }).fill('cardName,rules\nDraft card,Keep this input');
   await page.getByRole('button', { name: 'Change setup', exact: true }).click();
   await page.getByRole('button', { name: 'Create matching back', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Design Artifacts', exact: true })).toBeVisible();
-  const creation = page.getByRole('dialog');
+  const creation = page.getByRole('dialog', { name: 'Create a card back Template', exact: true });
+  await expect(creation).toBeVisible();
   await expect(creation.getByRole('combobox', { name: 'Choose card format' })).toContainText('63 × 88 mm');
   await creation.getByRole('textbox', { name: 'Template name' }).fill('Matching back proof');
   await creation.getByRole('button', { name: 'Create and open canvas' }).click();
+  await expect(page.getByRole('region', { name: 'Design', exact: true })).toBeVisible();
   await expect(page.getByText('Create and save a matching back, then choose whether to apply it to this set.')).toBeVisible();
   await page.getByRole('button', { name: 'Back to Generate', exact: true }).click();
   if (await page.getByRole('alertdialog').isVisible()) await page.getByRole('button', { name: 'Close Design', exact: true }).click();
