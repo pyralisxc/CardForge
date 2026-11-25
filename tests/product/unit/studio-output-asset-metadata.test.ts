@@ -63,6 +63,12 @@ it('recognizes a previously uploaded object only when its length, format and dig
   mocks.signedUpload.mockReset();
   expect(await preparePrivateStudioAssetUpload({ ownerUserId: 'owner', documentId: 'doc', id: digest, mimeType: 'image/png', size: bytes.length })).toEqual({ alreadyPresent: true, signedUrl: null });
   expect(mocks.signedUpload).not.toHaveBeenCalled();
+  mocks.download.mockResolvedValue({ data: null, error: { status: 503 } });
+  await expect(preparePrivateStudioAssetUpload({ ownerUserId: 'owner', documentId: 'doc', id: digest, mimeType: 'image/png', size: bytes.length })).rejects.toMatchObject({ status: 503 });
+  expect(mocks.signedUpload).not.toHaveBeenCalled();
+  mocks.download.mockResolvedValue({ data: null, error: { status: 404 } });
+  mocks.signedUpload.mockResolvedValue({ data: { signedUrl: 'https://storage.invalid/upload' }, error: null });
+  expect(await preparePrivateStudioAssetUpload({ ownerUserId: 'owner', documentId: 'doc', id: digest, mimeType: 'image/png', size: bytes.length })).toMatchObject({ alreadyPresent: false });
 });
 it('finds current referenced font beyond retained historical pages', async () => {
   mocks.list.mockReset(); mocks.signed.mockReset();

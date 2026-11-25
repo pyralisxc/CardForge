@@ -1,8 +1,9 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
-const f = vi.hoisted(() => ({ get: vi.fn(), read: vi.fn(), account: vi.fn(), assets: vi.fn() }));
-vi.mock('@/features/studio-documents/server', async (original) => ({ ...await original<object>(), getStudioDocument: f.get, readStudioOutputIntent: f.read, getCurrentStudioDocumentAccount: f.account, getStudioDocumentAssetDownloads: f.assets }));
+const f = vi.hoisted(() => ({ get: vi.fn(), read: vi.fn(), account: vi.fn(), assets: vi.fn(), plan: vi.fn() }));
+vi.mock('@/features/studio-documents/server', async (original) => ({ ...await original<object>(), getStudioDocument: f.get, readStudioOutputIntent: f.read, getCurrentStudioDocumentAccount: f.account, getStudioDocumentAssetDownloads: f.assets, preparePrivateStudioAssetUpload: f.plan }));
 import { GET } from '@/app/api/studio-documents/[documentId]/route';
+import { POST as planUpload } from '@/app/api/studio-documents/[documentId]/asset-upload/route';
 const id = 'a2393740-a748-42cc-a942-1aa7c16641db';
 const intent = { documentId: id, revision: 2, setId: 'set', cardIds: ['b','a'], paper: 'A4 (210×297 mm)', marginMm: 5, spacingMm: 0, cutLines: false, duplex: 'same-page', mode: 'virtual', quality: 150 };
 const raw = { cardSets: [{ id: 'set' }], storedCards: [{ uniqueId: 'a', setId: 'set', templateId: 'front', data: {} }, { uniqueId: 'b', setId: 'set', templateId: 'front', data: {}, backingTemplateId: 'back', backingData: {} }], userTemplates: [{ id: 'front' }, { id: 'back', templateUsage: 'back-preset' }] };
@@ -28,4 +29,14 @@ it('resolves a short reference with the complete 10,000-card selection in the re
  const request = req(intent); expect(request.url.length).toBeLessThan(250);
  const response = await GET(request, context); expect(response.status).toBe(200);
  expect((await response.json()).outputIntent.cardIds).toEqual(cardIds);
+});
+it('plans an owner-scoped private transfer only for the exact current revision', async () => {
+ f.get.mockReset(); f.get.mockResolvedValue({ revision: 2 }); f.plan.mockResolvedValue({ alreadyPresent: false, signedUrl: 'https://storage.invalid/signed' });
+ const request = () => new Request('https://cardforge.test/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'a'.repeat(64), mimeType: 'image/png', size: 4, expectedRevision: 2 }) });
+ expect((await planUpload(request(), context)).status).toBe(200);
+ expect(f.get).toHaveBeenCalledWith('account', id, 24);
+ expect(f.plan).toHaveBeenCalledWith(expect.objectContaining({ ownerUserId: 'account', documentId: id, expectedRevision: 2 }));
+ f.plan.mockClear(); f.get.mockResolvedValue({ revision: 3 });
+ expect((await planUpload(request(), context)).status).toBe(409);
+ expect(f.plan).not.toHaveBeenCalled();
 });
