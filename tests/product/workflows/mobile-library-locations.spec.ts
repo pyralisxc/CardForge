@@ -15,6 +15,47 @@ test.describe('mobile Library location tools', () => {
     expect(bounds?.height).toBeGreaterThanOrEqual(44);
   };
 
+  test('keeps multiple local Sets intact when removed from and added back to Desk', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100, { additionalSets: 2, cardLimit: 0 });
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+    for (const index of [1, 2]) {
+      const tile = page.locator(`[data-desk-set-object-id="set:touch-companion-${index}"]`);
+      await expect(tile).toBeVisible();
+      await tile.getByRole('button', { name: `Actions for Touch Companion Set ${index}` }).click();
+      await page.getByRole('menuitem', { name: 'Remove from Desk' }).click();
+      await expect(tile).toHaveCount(0);
+    }
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-desk-set-object-id="set:touch-companion-1"]')).toHaveCount(0);
+    await page.goto('/account?focus=set%3Atouch-companion-1', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-desk="focused"]').first()).toBeVisible();
+    await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+    await page.goto('/account', { waitUntil: 'domcontentloaded' });
+    const restored = page.locator('[data-desk-set-object-id="set:touch-companion-1"]');
+    await expect(restored).toBeVisible();
+    await restored.getByRole('button', { name: 'Actions for Touch Companion Set 1' }).click();
+    await page.getByRole('menuitem', { name: 'Remove from Desk' }).click();
+    await expect(restored).toHaveCount(0);
+    await page.getByRole('button', { name: 'Add from Library', exact: true }).first().click();
+    const picker = page.getByRole('dialog', { name: 'Add from Library' });
+    for (const index of [1, 2]) {
+      const row = picker.getByText(`Touch Companion Set ${index}`, { exact: true }).locator('../..');
+      await row.getByRole('button', { name: 'Add to Desk' }).click();
+      await expect(row.getByRole('button', { name: 'On Desk' })).toBeDisabled();
+    }
+    await picker.getByRole('button', { name: 'Done', exact: true }).click();
+    for (const index of [1, 2]) await expect(page.locator(`[data-desk-set-object-id="set:touch-companion-${index}"]`)).toBeVisible();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    for (const index of [1, 2]) await expect(page.locator(`[data-desk-set-object-id="set:touch-companion-${index}"]`)).toBeVisible();
+    let downloads = 0;
+    page.on('request', (request) => { if (request.url().includes('/api/project-sources/google-drive/')) downloads += 1; });
+    const first = page.locator('[data-desk-set-object-id="set:touch-companion-1"]');
+    await first.getByRole('button', { name: 'Actions for Touch Companion Set 1' }).click();
+    await page.getByRole('menuitem', { name: 'Open Set', exact: true }).click();
+    await expect(page.locator('[data-desk="focused"]').first()).toBeVisible();
+    expect(downloads).toBe(0);
+  });
+
   test('@golden gives Locations the compact Task viewport while keeping its controls scrollable', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.setViewportSize({ width: 320, height: 640 });

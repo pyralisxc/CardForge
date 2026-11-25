@@ -45,13 +45,18 @@ export const materializeBrowserProjectSnapshot = async (
   return document;
 };
 
-export const decodeBrowserProjectFile = async (file: File): Promise<DecodedProjectFile> => {
+export const decodeBrowserProjectFile = async (
+  file: File,
+  validateDocument?: (document: DecodedProjectFile['document']) => void,
+): Promise<DecodedProjectFile> => {
   if (!file.name.toLowerCase().endsWith(CARDFORGE_PROJECT_FILE_EXTENSION)) {
-    return decodeProjectFile(file);
+    const decoded = await decodeProjectFile(file);
+    validateDocument?.(decoded.document);
+    return decoded;
   }
   const snapshot = await decodeCardForgeProjectPackage(file);
   return {
-    document: await materializeBrowserProjectSnapshot(snapshot),
+    document: await materializeBrowserProjectSnapshot(snapshot, validateDocument),
     name: snapshot.manifest.name,
     sourceRevision: snapshot.manifest.projectRevision,
     format: 'cardforge-package',

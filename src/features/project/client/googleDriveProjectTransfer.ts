@@ -7,6 +7,7 @@ import {
   ProjectPackageError,
 } from '../lib/projectPackageCodec';
 import { buildBrowserCardForgeProjectSnapshot, decodeBrowserProjectFile } from './browserProjectPackage';
+import { requireCompleteSingleSet } from './validateSingleSet';
 import {
   GOOGLE_DRIVE_PROJECT_MIME_TYPE,
   GOOGLE_DRIVE_PROJECT_PROVIDER,
@@ -645,6 +646,7 @@ export const saveCardSetToGoogleDrive = async ({
 
 const downloadGoogleDriveProject = async (
   summary: Pick<GoogleDriveProjectSummary, 'fileId' | 'name' | 'accountId'>,
+  requireSingleSet = false,
 ) => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const response = await observeProviderBoundaryResponse('google_drive', 'project_download', () => (
@@ -664,7 +666,7 @@ const downloadGoogleDriveProject = async (
   const blob = await response.blob();
   assertBindingScope(namespace);
   const file = new File([blob], summary.name, { type: GOOGLE_DRIVE_PROJECT_MIME_TYPE, lastModified: Date.parse(modifiedAt) || Date.now() });
-  const decoded = await decodeBrowserProjectFile(file);
+  const decoded = await decodeBrowserProjectFile(file, requireSingleSet ? requireCompleteSingleSet : undefined);
   assertBindingScope(namespace);
   if (decoded.format !== 'cardforge-package' || decoded.sourceRevision !== projectRevision) {
     throw new ProjectPackageError('The downloaded Google Drive project does not match its source revision.');
@@ -697,19 +699,30 @@ const downloadedBinding = ({
 
 export const openGoogleDriveProject = async (
   summary: Pick<GoogleDriveProjectSummary, 'fileId' | 'name' | 'accountId'>,
+  options: { requireSingleSet?: boolean } = {},
 ): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   if (summary.accountId) {
     const existing = await findOpenDriveBinding(summary.fileId, summary.accountId);
     assertBindingScope(namespace);
-    if (existing) return existing;
+    if (existing) {
+      if (options.requireSingleSet && existing.packageScope !== 'set') {
+        throw new ProjectPackageError('This is a workspace backup. Open it through browser recovery instead.');
+      }
+      return existing;
+    }
   }
   const expectedState = useProjectStore.getState();
-  const { decoded, accountId, providerRevision, projectRevision, modifiedAt } = await downloadGoogleDriveProject(summary);
+  const { decoded, accountId, providerRevision, projectRevision, modifiedAt } = await downloadGoogleDriveProject(summary, options.requireSingleSet);
   assertBindingScope(namespace);
   const existing = await findOpenDriveBinding(summary.fileId, accountId);
   assertBindingScope(namespace);
-  if (existing) return existing;
+  if (existing) {
+    if (options.requireSingleSet && existing.packageScope !== 'set') {
+      throw new ProjectPackageError('This is a workspace backup. Open it through browser recovery instead.');
+    }
+    return existing;
+  }
   if (decoded.document.cardSets.length === 0) {
     throw new ProjectPackageError('This Drive package has no Set to reopen. Use an independent browser copy to import its design resources. Browser work was left unchanged.');
   }

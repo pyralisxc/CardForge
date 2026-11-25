@@ -353,6 +353,22 @@
   gap: 0.1rem;
 }
 
+@media (min-width: 768px) {
+  .deskFilterRow {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+  }
+
+  .spatialControls,
+  .deskToolbar > button {
+    flex: 0 0 auto;
+  }
+
+  .deskAddFromLibrary {
+    order: -1;
+  }
+}
+
 .compactSpatialControls {
   display: none;
 }
@@ -1489,6 +1505,22 @@
     overflow: hidden;
   }
 
+}
+
+@media (min-width: 768px) and (max-width: 1040px) {
+  .contentToolbar {
+    height: 3.5rem;
+    flex-wrap: nowrap;
+  }
+
+  .contentToolbar > .searchField {
+    min-width: 0;
+    flex: 1 1 8rem;
+  }
+
+  .selectionBar {
+    min-width: 9rem;
+  }
 }
 
 @media (max-width: 767px) {

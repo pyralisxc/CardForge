@@ -101,6 +101,11 @@ test.describe('Desk desktop spatial interaction', () => {
 
     const toolbar = page.locator('[data-desk-toolbar]');
     await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toBeVisible();
+    await expect.poll(() => toolbar.evaluate((node) => {
+      const rail = node.getBoundingClientRect();
+      const add = Array.from(node.querySelectorAll('button')).find((button) => button.textContent?.trim() === 'Add from Library')?.getBoundingClientRect();
+      return Boolean(add && add.left >= rail.left - 1 && add.right <= rail.right + 1);
+    })).toBe(true);
     await expect(page.locator('header').getByRole('button', { name: 'Zoom Desk out', exact: true })).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
@@ -116,8 +121,9 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
     await expect(setButton).toBeInViewport({ ratio: 0.99 });
 
-    for (const width of [1024, 1180, 1440]) {
-      await page.setViewportSize({ width, height: 720 });
+    const expectToolbarControlsClear = async (widths = [901, 929, 960, 1024, 1180, 1440], height = 720) => {
+      for (const width of widths) {
+      await page.setViewportSize({ width, height });
       await expect.poll(() => toolbar.evaluate((node) => {
         const controls = Array.from(node.querySelectorAll<HTMLElement>('button, input, summary'))
           .map((element) => ({
@@ -131,7 +137,17 @@ test.describe('Desk desktop spatial interaction', () => {
           return overlapWidth > 1 && overlapHeight > 1 ? [`${left.name} overlaps ${right.name}`] : [];
         }));
       })).toEqual([]);
-    }
+      await toolbar.getByRole('button', { name: 'Add from Library', exact: true }).click({ trial: true });
+      await setButton.click({ trial: true });
+      }
+    };
+    await expectToolbarControlsClear();
+    const enlargedLabels = await page.addStyleTag({ content: '[data-desk-toolbar] button { font-size: 18px !important; }' });
+    await expectToolbarControlsClear();
+    await enlargedLabels.evaluate((node) => node.parentNode?.removeChild(node));
+    await toolbar.getByRole('button', { name: /^Organize / }).click();
+    await expectToolbarControlsClear([901, 1024], 600);
+    await toolbar.getByRole('button', { name: 'Close organize', exact: true }).click();
     await page.setViewportSize({ width: 1024, height: 720 });
 
     const storage = page.getByRole('button', { name: /Storage/ }).first();
@@ -174,7 +190,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await actionsTrigger.click();
     const menu = page.getByRole('menu');
     await expect(menu).toBeVisible();
-    await expect(menu.getByRole('menuitem')).toHaveCount(7);
+    await expect(menu.getByRole('menuitem')).toHaveCount(9);
     await expect(menu.getByRole('menuitem', { name: 'Open Set' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Generate cards' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: /^Save & move/ })).toBeVisible();
@@ -182,6 +198,8 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(menu.getByRole('menuitem', { name: 'Duplicate' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Output' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Details' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Review updates' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Remove from Desk' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Delete device copy' })).toBeVisible();
 
     await page.keyboard.press('Escape');
@@ -237,6 +255,25 @@ test.describe('Desk desktop spatial interaction', () => {
     await artifact.click();
     await expect(artifact).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(() => stage.boundingBox()).toEqual(stageBeforeSelection);
+    const selectionActions = page.getByRole('toolbar', { name: 'Selection actions' });
+    for (const width of [768, 800, 929, 1040]) {
+      await page.setViewportSize({ width, height: 650 });
+      await expect.poll(() => selectionActions.locator('..').evaluate((toolbar) => {
+        const outer = toolbar.getBoundingClientRect();
+        const controls = Array.from(toolbar.children, (element) => element.getBoundingClientRect()).filter((rect) => rect.width > 0 && rect.height > 0);
+        return controls.some((rect) => rect.left < outer.left - 1 || rect.right > outer.right + 1)
+          || controls.some((left, index) => controls.slice(index + 1).some((right) => Math.min(left.right, right.right) - Math.max(left.left, right.left) > 1 && Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top) > 1));
+      })).toBe(false);
+    }
+    await page.setViewportSize({ width: 929, height: 650 });
+    const tagInput = selectionActions.getByRole('textbox', { name: 'New tag name' });
+    await selectionActions.getByRole('button', { name: 'Remove', exact: true }).focus();
+    for (let index = 0; index < 4 && !await tagInput.evaluate((input) => input === document.activeElement); index += 1) await page.keyboard.press('Tab');
+    await expect(tagInput).toBeFocused();
+    await expect.poll(async () => {
+      const [bar, input] = await Promise.all([selectionActions.boundingBox(), tagInput.boundingBox()]);
+      return Boolean(bar && input && input.x >= bar.x - 1 && input.x + input.width <= bar.x + bar.width + 1);
+    }).toBe(true);
     await page.getByRole('button', { name: 'Clear Artifact selection', exact: true }).click();
     await expect(artifact).toHaveAttribute('aria-pressed', 'false');
     await artifact.dblclick();

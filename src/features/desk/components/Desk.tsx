@@ -32,6 +32,8 @@ import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { DEFAULT_EXPERIENCE_SETTINGS, type StudioAutosaveDelaySeconds } from '@/features/experience-settings/client';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import { OutputActivityProvider, OutputActivityStatus } from '@/features/card-generator/client/output-activity';
@@ -180,6 +182,8 @@ function DeskContent({
   const [generationRevisionScopeIds, setGenerationRevisionScopeIds] = useState<string[]>([]);
   const [designIntent, setDesignIntent] = useState<DesignToolIntent | null>(null);
   const [storageOpen, setStorageOpen] = useState(false);
+  const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
+  const [libraryPickerError, setLibraryPickerError] = useState<string | null>(null);
   const deletingCopyRef = useRef(false);
   const [deletingCopy, setDeletingCopy] = useState(false);
   const [artifactEditId, setArtifactEditId] = useState<string | null>(null);
@@ -189,6 +193,10 @@ function DeskContent({
   const pendingArtifactExitRef = useRef<(() => void) | null>(null);
   const {
     actions,
+    addLibrarySetToDesk,
+    deskMembership,
+    librarySetItems,
+    removeSetFromDesk,
     activeWorkId,
     addGeneratedCards,
     reviseGeneratedCards,
@@ -262,6 +270,7 @@ function DeskContent({
     otherSets,
     pendingDeleteCards,
     pendingDeleteWork,
+    preparingWorkId,
     reviewWork,
     closeReviewWork,
     pipelineSubmitSetId,
@@ -601,6 +610,7 @@ function DeskContent({
         onCloseDetail={() => setInspectorWorkId(null)}
       >
         <div className={styles.spatialPlane} data-desk-plane data-studio-context={studioTool?.tool === 'design' ? 'true' : undefined} data-focused={Boolean(focusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
+          {deskMembership.status === 'unavailable' ? <p role="alert">Desk placement is unavailable. Your device Sets remain visible; check browser storage before adding or removing Sets.</p> : null}
           <DeskOverviewSurface
             workItemsCount={workItems.length}
             visibleWork={visibleWork}
@@ -730,10 +740,26 @@ function DeskContent({
             onDuplicate={duplicateWork}
             onInspect={inspectItem}
             onDelete={setPendingDeleteWork}
+            onRemoveFromDesk={(item) => { void removeSetFromDesk(item).catch(() => toast({ title: 'Desk placement could not be saved', description: 'Your device and provider work is unchanged.', variant: 'destructive' })); }}
+            onAddFromLibrary={() => { setLibraryPickerError(null); setLibraryPickerOpen(true); }}
             onCreate={openCreateMenu}
             onRetry={refreshDeskSources}
             onNavigate={projection.router.push}
           />
+          <Dialog open={libraryPickerOpen} onOpenChange={setLibraryPickerOpen}>
+            <DialogContent><DialogHeader><DialogTitle>Add from Library</DialogTitle><DialogDescription>Choose a Set to prepare on this device. Once added, it is ready to open and edit. Removing it from Desk does not delete your work.</DialogDescription></DialogHeader>
+              {deskMembership.status === 'unavailable' ? <p role="alert">Desk placement is unavailable. Your device work remains available; check browser storage before adding or removing Sets.</p> : null}
+              {libraryPickerError ? <p role="alert">{libraryPickerError}</p> : null}
+              <div className="max-h-[55vh] space-y-2 overflow-y-auto">
+                {librarySetItems.map((item) => {
+                  const added = Boolean(item.references.localSetId && deskMembership.ids.includes(item.references.localSetId));
+                  return <div key={item.id} className="flex items-center justify-between gap-3 rounded border p-3"><div><strong>{item.name}</strong><p className="text-sm">{item.locations.map((location) => location.label).join(' · ')}</p></div><Button type="button" variant="outline" disabled={added || Boolean(preparingWorkId) || deskMembership.status !== 'ready'} onClick={() => { setLibraryPickerError(null); void addLibrarySetToDesk(item).catch((error: unknown) => setLibraryPickerError(error instanceof Error ? error.message : 'This Set could not be prepared. Existing work is unchanged.')); }}>{added ? 'On Desk' : preparingWorkId === item.id ? 'Preparing…' : 'Add to Desk'}</Button></div>;
+                })}
+                {!projection.isLoading && librarySetItems.length === 0 ? <p>No Sets are available from connected sources.</p> : null}
+                {projection.isLoading ? <p role="status">Checking connected sources…</p> : null}
+              </div><Button type="button" variant="outline" onClick={() => setLibraryPickerOpen(false)}>Done</Button>
+            </DialogContent>
+          </Dialog>
         </div>
         {storageOpen ? <EnvironmentToolLayer
           id="desk-storage-title"

@@ -44,6 +44,7 @@ interface DeskWorkObjectProps {
   onDuplicate: (item: AccountLibraryItem) => void;
   onInspect: (item: AccountLibraryItem) => void;
   onDelete: (item: AccountLibraryItem) => void;
+  onRemoveFromDesk: (item: AccountLibraryItem) => void;
 }
 
 const menuItemClassName = 'min-h-11 md:min-h-9';
@@ -91,7 +92,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     {props.item.references.localSetId ? <Item className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'export'))}><Printer aria-hidden="true" />Output</Item> : null}
     <Item className={menuItemClassName} onSelect={selectMenuAction(() => props.onInspect(props.item))}><Info aria-hidden="true" />Details</Item>
     {props.onRunWorkAction ? getWorkActions(props.item, true, props.canSubmit, props.canUseProjectFiles, props.isOwner).filter(action=>['library.view-source','library.manage-location','library.delete-copy','desk.review-manage','desk.review-updates'].includes(action.id)).map(action=><Item key={action.id} className={menuItemClassName} disabled={action.availability.kind !== 'available'} title={action.availability.kind === 'disabled' ? action.availability.reason : undefined} onSelect={selectMenuAction(()=>{ document.getElementById(`set-info-${props.item.id}`)?.focus({preventScroll:true}); props.onRunWorkAction?.(props.item,action); })}>{action.label}</Item>) : null}
-    {props.item.references.localSetId ? <><Separator /><Item className={`${menuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(() => props.onDelete(props.item))}><Trash2 aria-hidden="true" />Delete device copy</Item></> : null}
+    {props.item.references.localSetId ? <><Separator /><Item className={menuItemClassName} onSelect={selectMenuAction(() => props.onRemoveFromDesk(props.item))}>Remove from Desk</Item><Item className={`${menuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(() => props.onDelete(props.item))}><Trash2 aria-hidden="true" />Delete device copy</Item></> : null}
   </>;
 
   return <ContextMenu><article

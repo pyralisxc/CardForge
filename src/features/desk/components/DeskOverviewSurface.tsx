@@ -106,6 +106,8 @@ export interface DeskOverviewSurfaceProps {
   onDuplicate: (item: AccountLibraryItem) => void;
   onInspect: (item: AccountLibraryItem) => void;
   onDelete: (item: AccountLibraryItem) => void;
+  onRemoveFromDesk: (item: AccountLibraryItem) => void;
+  onAddFromLibrary: () => void;
   onCreate: () => void;
   onRetry: () => void;
   onNavigate: (href: string) => void;
@@ -269,6 +271,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
           <div className={styles.mobileDeskFilterPanel} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         </details>
         {!props.focusedItemId ? <Button type="button" size="sm" variant={touchMultiSelect ? 'secondary' : 'ghost'} aria-pressed={touchMultiSelect} onClick={() => setTouchMultiSelect((enabled) => !enabled)} title="Add items to selection by tapping; tap again to finish">{touchMultiSelect ? 'Done selecting' : 'Select multiple'}</Button> : null}
+        {!props.focusedItemId ? <Button type="button" size="sm" variant="outline" className={styles.deskAddFromLibrary} onClick={props.onAddFromLibrary}>Add from Library</Button> : null}
         {fullViewControls}
         <div className={`${styles.spatialControls} ${styles.compactSpatialControls}`} aria-label="Compact Desk view controls">{compactViewControls}</div>
       </div>
@@ -317,7 +320,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
             {props.visibleWork.map((item) => {
               const featured = item.id === props.activeWorkId;
               const focused = item.id === props.focusedItemId;
-              return <DeskWorkObject key={item.id} item={item} active={featured} featured={featured} focused={focused} selected={props.selectedIds.includes(item.id)} arrangeMode={touchMultiSelect} obscured={Boolean(props.focusedItemId) && !focused} position={props.positions[item.id]} presentationSize={props.presentationSize(item)} canUseProjectFiles={props.canUseProjectFiles} canSubmit={props.canSubmit} isOwner={props.isOwner} onRunWorkAction={props.onRunWorkAction} preview={(face) => props.renderWorkPreview(item, featured, focused, face)} canFlip={props.canFlipWork(item)} artifactIds={props.previewArtifactIds(item)} focusedSurface={focused ? props.renderFocusedSurface(item) : null} beginDrag={props.beginDrag} moveDrag={props.moveDrag} endDrag={props.endDrag} shouldSuppressActivation={props.shouldSuppressActivation} onSelect={props.onSelectWork} onFocus={props.onFocusWork} onOpenLane={props.onOpenLane} onOpenLocation={props.onOpenLocation} onOpenPipeline={props.onOpenPipeline} onDuplicate={props.onDuplicate} onInspect={props.onInspect} onDelete={props.onDelete} />;
+              return <DeskWorkObject key={item.id} item={item} active={featured} featured={featured} focused={focused} selected={props.selectedIds.includes(item.id)} arrangeMode={touchMultiSelect} obscured={Boolean(props.focusedItemId) && !focused} position={props.positions[item.id]} presentationSize={props.presentationSize(item)} canUseProjectFiles={props.canUseProjectFiles} canSubmit={props.canSubmit} isOwner={props.isOwner} onRunWorkAction={props.onRunWorkAction} preview={(face) => props.renderWorkPreview(item, featured, focused, face)} canFlip={props.canFlipWork(item)} artifactIds={props.previewArtifactIds(item)} focusedSurface={focused ? props.renderFocusedSurface(item) : null} beginDrag={props.beginDrag} moveDrag={props.moveDrag} endDrag={props.endDrag} shouldSuppressActivation={props.shouldSuppressActivation} onSelect={props.onSelectWork} onFocus={props.onFocusWork} onOpenLane={props.onOpenLane} onOpenLocation={props.onOpenLocation} onOpenPipeline={props.onOpenPipeline} onDuplicate={props.onDuplicate} onInspect={props.onInspect} onDelete={props.onDelete} onRemoveFromDesk={props.onRemoveFromDesk} />;
             })}
           </div>
         </div>
@@ -346,7 +349,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         <FolderPlus aria-hidden="true" />
         <strong>Your desk is ready</strong>
         <p className={styles.emptyCopy}>A Set keeps related cards together. Start a new Set to create one, open a .cardforge Set file, or customize a published starter. Library also holds saved work.</p>
-        <div className="flex flex-wrap justify-center gap-2"><Button type="button" onClick={props.onCreate}>Create your first Set</Button><Button type="button" variant="outline" onClick={() => props.onNavigate('/account?section=library')}>Open Library</Button></div>
+        <div className="flex flex-wrap justify-center gap-2"><Button type="button" onClick={props.onCreate}>Create your first Set</Button><Button type="button" variant="outline" onClick={props.onAddFromLibrary}>Add from Library</Button><Button type="button" variant="outline" onClick={() => props.onNavigate('/account?section=library')}>Open Library</Button></div>
       </div></div>}
     </section>
   </div>;
