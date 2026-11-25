@@ -71,7 +71,11 @@ export const preparePrivateStudioAssetUpload = async ({ ownerUserId, documentId,
   if (!Number.isSafeInteger(size) || size < 1 || size > (mimeType === 'application/json' ? MAX_PROJECT_PACKAGE_METADATA_BYTES : MAX_PROJECT_PACKAGE_ASSET_BYTES)) throw new StudioDocumentStoreError('The private asset exceeds the portable project asset limit.', 413);
   const { bucket, path } = privateAssetLocation(ownerUserId, documentId, id, mimeType);
   if (await verifyPrivateStudioAsset(ownerUserId, documentId, id, mimeType, size)) return { alreadyPresent: true, signedUrl: null };
-  const { data, error } = await requireStore().storage.from(bucket).createSignedUploadUrl(path, { upsert: false });
+  const storage = requireStore().storage.from(bucket);
+  const existing = await storage.info(path);
+  if (existing.data) throw new StudioDocumentStoreError('A private asset at this address has different content or metadata. The working draft was not changed.', 409);
+  if (!existing.error || Number(existing.error.statusCode ?? existing.error.status) !== 404) throw new StudioDocumentStoreError('Private artwork storage is unavailable. The local draft was kept.', 503);
+  const { data, error } = await storage.createSignedUploadUrl(path, { upsert: false });
   if (error || !data?.signedUrl) throw new StudioDocumentStoreError('Unable to prepare the private artwork transfer.', 503);
   return { alreadyPresent: false, signedUrl: data.signedUrl };
 };

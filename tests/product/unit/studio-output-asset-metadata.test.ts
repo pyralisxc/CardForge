@@ -2,8 +2,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import sharp from 'sharp';
 import { expect, it, vi } from 'vitest';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
-const mocks = vi.hoisted(() => ({ list: vi.fn(), signed: vi.fn(), upload: vi.fn(), download: vi.fn(), signedUpload: vi.fn() }));
-vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ storage: { from: () => ({ list: mocks.list, createSignedUrls: mocks.signed, upload: mocks.upload, download: mocks.download, createSignedUploadUrl: mocks.signedUpload }) } }) }));
+const mocks = vi.hoisted(() => ({ list: vi.fn(), signed: vi.fn(), upload: vi.fn(), download: vi.fn(), signedUpload: vi.fn(), info: vi.fn() }));
+vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ storage: { from: () => ({ list: mocks.list, createSignedUrls: mocks.signed, upload: mocks.upload, download: mocks.download, createSignedUploadUrl: mocks.signedUpload, info: mocks.info }) } }) }));
 import { externalizeStudioDocumentAssets, getStudioDocumentAssetDownloads, preparePrivateStudioAssetUpload, readPrivateStudioTemplate, verifyPrivateStudioAsset } from '@/features/studio-documents/server/studioDocumentAssetStore';
 const id = 'f'.repeat(64);
 it('finds current referenced artwork after historical objects and rejects incomplete listing', async () => {
@@ -67,8 +67,11 @@ it('recognizes a previously uploaded object only when its length, format and dig
   await expect(preparePrivateStudioAssetUpload({ ownerUserId: 'owner', documentId: 'doc', id: digest, mimeType: 'image/png', size: bytes.length })).rejects.toMatchObject({ status: 503 });
   expect(mocks.signedUpload).not.toHaveBeenCalled();
   mocks.download.mockResolvedValue({ data: null, error: { status: 404 } });
+  mocks.info.mockResolvedValue({ data: null, error: { status: 404 } });
   mocks.signedUpload.mockResolvedValue({ data: { signedUrl: 'https://storage.invalid/upload' }, error: null });
   expect(await preparePrivateStudioAssetUpload({ ownerUserId: 'owner', documentId: 'doc', id: digest, mimeType: 'image/png', size: bytes.length })).toMatchObject({ alreadyPresent: false });
+  mocks.info.mockResolvedValue({ data: { name: 'existing' }, error: null });
+  await expect(preparePrivateStudioAssetUpload({ ownerUserId: 'owner', documentId: 'doc', id: digest, mimeType: 'image/png', size: bytes.length })).rejects.toMatchObject({ status: 409 });
 });
 it('reads transferred Template metadata only when its bytes match its content address', async () => {
   const json = JSON.stringify({ id: 'template', name: 'Transferred' });
