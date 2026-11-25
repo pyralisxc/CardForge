@@ -144,7 +144,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await expectToolbarControlsClear();
     const enlargedLabels = await page.addStyleTag({ content: '[data-desk-toolbar] button { font-size: 18px !important; }' });
     await expectToolbarControlsClear();
-    await enlargedLabels.evaluate((element) => element.remove());
+    await enlargedLabels.evaluate((node) => node.parentNode?.removeChild(node));
     await toolbar.getByRole('button', { name: /^Organize / }).click();
     await expectToolbarControlsClear([901, 1024], 600);
     await toolbar.getByRole('button', { name: 'Close organize', exact: true }).click();
