@@ -50,6 +50,7 @@ vi.mock('@/features/project/store/workspaceStore', () => {
 
 import { GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT, resetGoogleDriveTargetSaveStateForTests, serializeGoogleDriveTargetSave, getGoogleDriveSaveBarrier, getGoogleDriveWorkBinding, GoogleDriveUnknownCommitError, GoogleDriveSaveLinkageError, disconnectGoogleDriveStorage, copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
 import { repairConfirmedGoogleDriveLink } from '@/features/project/client/googleDriveLinkRepair';
+import { loadGoogleDriveProjectLibrary } from '@/features/project/client/provider-google-drive';
 import * as localFolder from '@/features/project/client/localProjectFolder';
 import { disconnectLocalProjectFolder, getLocalProjectFolderStatus, saveCardSetToAttachedFolder, saveProjectToAttachedFolder } from '@/features/project/client/localProjectFolder';
 import { openRememberedLocalProject, LOCAL_PROJECT_FOLDER_CHANGE_EVENT, reconnectAttachedProjectFolder } from '@/features/project/client/localProjectFolder';
@@ -84,6 +85,36 @@ beforeEach(() => {
 });
 
 describe('one authoritative Set location across save entry points', () => {
+  it('rechecks device bindings when a shared Drive list started before a Set was opened', async () => {
+    let release!: () => void;
+    let entered!: () => void;
+    const blocked = new Promise<void>((resolve) => { release = resolve; });
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    let first = true;
+    mock.localSets = [{ id: 'old-set' }];
+    mock.read.mockImplementation(async (key: string) => {
+      if (first && key === 'test:google-drive-work-binding:old-set') {
+        first = false;
+        entered();
+        await blocked;
+      }
+      return mock.values.get(key) ?? null;
+    });
+    const fetch = vi.fn(async () => Response.json({ connection: { status: 'active' }, projects: [
+      { fileId: driveBinding.fileId, name: 'C', accountId: 'account-a', thumbnailLink: null },
+    ] }));
+    vi.stubGlobal('fetch', fetch);
+    const earlier = loadGoogleDriveProjectLibrary();
+    await started;
+    mock.localSets = [{ id: 'old-set' }, { id: 'set-c' }];
+    mock.values.set('test:google-drive-work-binding:set-c', { ...driveBinding, accountId: 'account-a' });
+    const afterOpen = loadGoogleDriveProjectLibrary();
+    release();
+    await earlier;
+    expect((await afterOpen).projects[0]).toMatchObject({ localWorkId: 'set-c' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('resumes the exact file/account working Set without downloading or importing again', async () => {
     const binding = { ...driveBinding, accountId: 'account-a', portableWorkId: 'old-set' };
     mock.localSets = [{ id: 'set-c' }];

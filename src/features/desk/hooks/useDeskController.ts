@@ -648,6 +648,7 @@ export function useDeskController({
         });
         const workId = binding.workId;
         if (!workId) throw new Error('This Drive document has no Set that CardForge can focus.');
+        projection.recordDriveWorkBinding(binding);
         await placePreparedSet(workId);
         setActiveCardSetId(workId);
         projection.refresh();
@@ -684,6 +685,7 @@ export function useDeskController({
           accountId: item.references.driveAccountId,
         }, { requireSingleSet: true });
         setId = binding.workId ?? undefined;
+        projection.recordDriveWorkBinding(binding);
       } else if (!setId && item.references.localFolderWorkId) {
         setId = (await openRememberedLocalProject(item.references.localFolderWorkId)).setId;
       }

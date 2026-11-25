@@ -5,7 +5,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 
 import { createDeskReturnHref, createLibraryReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
 import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client';
-import { getGoogleDriveProjectBinding, loadGoogleDriveProjectLibrary, openGoogleDriveProject, type GoogleDriveProjectListResult } from '@/features/project/client/provider-google-drive';
+import { getGoogleDriveProjectBinding, loadGoogleDriveProjectLibrary, openGoogleDriveProject, type GoogleDriveProjectBinding, type GoogleDriveProjectListResult } from '@/features/project/client/provider-google-drive';
 import { getLocalProjectFolderStatus, listLocalProjectWorkBindings, openRememberedLocalProject, LOCAL_PROJECT_FOLDER_CHANGE_EVENT, type LocalProjectFolderStatus, type LocalProjectWorkBindingStatus } from '@/features/project/client/provider-local-folder';
 import { PROJECT_FONT_LIBRARY_CHANGE_EVENT } from '@/features/project/client/assets';
 import { hydrateProjectLibraryWorkspaceForScope, useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
@@ -49,6 +49,18 @@ interface StudioDocumentSummary {
 
 const EMPTY_STUDIO_DOCUMENT_SUMMARIES: StudioDocumentSummary[] = [];
 const EMPTY_LOCAL_PROJECT_WORK_BINDINGS: LocalProjectWorkBindingStatus[] = [];
+
+export const withConfirmedDriveWorkBinding = (library: GoogleDriveProjectListResult, binding: GoogleDriveProjectBinding): GoogleDriveProjectListResult => {
+  if (!binding.accountId || !binding.workId) return library;
+  return {
+    ...library,
+    projects: library.projects.map((project) => (
+      project.fileId === binding.fileId && project.accountId === binding.accountId
+        ? { ...project, localWorkId: binding.workId! }
+        : project
+    )),
+  };
+};
 
 const loadAllStudioDocumentSummaries = async (): Promise<StudioDocumentSummary[]> => {
   let cursor: number | null = 0;
@@ -237,6 +249,16 @@ export function useAccountLibraryProjection({
     : EMPTY_STUDIO_DOCUMENT_SUMMARIES;
   const localResources = useMemo(() => localResourceSource?.scope === persistenceScope ? localResourceSource.value ?? [] : [], [localResourceSource, persistenceScope]);
   const loadingSources = loadingSourceIds.size > 0;
+  const recordDriveWorkBinding = useCallback((binding: GoogleDriveProjectBinding) => {
+    if (!binding.accountId || !binding.workId) return;
+    setDriveLibrarySource((previous) => {
+      if (!previous || previous.scope !== persistenceScope || !previous.value) return previous;
+      return {
+        ...previous,
+        value: withConfirmedDriveWorkBinding(previous.value, binding),
+      };
+    });
+  }, [persistenceScope]);
   // Compatibility values keep existing deep-link return contexts readable;
   // the collection itself uses the full multi-select arrays below.
   const kind = kindFilters[0] ?? 'all';
@@ -695,6 +717,7 @@ export function useAccountLibraryProjection({
     updatesOnly,
     setUpdatesOnly,
     openItem,
+    recordDriveWorkBinding,
     refresh: () => { void refreshLibrarySources(); },
     driveConnection: driveLibrary?.connection ?? null,
     localFolderSupported: localFolder?.supported ?? false,
