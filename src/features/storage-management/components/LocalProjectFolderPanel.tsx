@@ -176,7 +176,7 @@ export function LocalProjectFolderPanel({
                 router.push(opened.workId ? createDeskReturnHref(`set:${opened.workId}`) : '/account');
               })}>Reopen project folder</Button>
             </div> : null}
-            <Button
+            {!binding.workId ? <Button
               type="button"
               size="sm"
               disabled={Boolean(busyAction) || !canUseProjectFiles || permission !== 'granted' || scopeUnverified}
@@ -186,8 +186,8 @@ export function LocalProjectFolderPanel({
               })}
             >
               {busyAction === 'save' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {scopeUnverified ? 'Reopen before saving' : binding.workId ? 'Save attached Set' : 'Save workspace backup'}
-            </Button>
+              {scopeUnverified ? 'Reopen before saving' : 'Save workspace backup'}
+            </Button> : <p className="text-sm text-[var(--cf-text-muted)]">Save this Set from Desk or Library.</p>}
             {permission !== 'granted' ? (
               <Button
                 type="button"

@@ -1098,13 +1098,18 @@ export const deleteGoogleDriveProject = async ({
   fileId,
   expectedProviderRevision,
   expectedProjectRevision,
+  expectedAccountId,
 }: {
   ownerUserId: string;
   fileId: string;
   expectedProviderRevision: string;
   expectedProjectRevision: string;
+  expectedAccountId?: string;
 }): Promise<GoogleDriveProjectSummary> => {
   const { row, accessToken } = await requireConnection(ownerUserId);
+  if (expectedAccountId && row.external_account_id !== expectedAccountId) {
+    throw new ProjectStorageProviderError('The connected Google account changed. Refresh the selected file before moving it to Trash.', 409, { kind: 'conflict' });
+  }
   const rootFolderId = requireSelectedRootFolderId(row);
   const current = await getDriveFileMetadata({ accessToken, fileId });
   const summary = await assertOwnedCardForgeProject(current, rootFolderId);

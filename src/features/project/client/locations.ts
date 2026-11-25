@@ -7,6 +7,7 @@ export type {
   ProjectWorkLocationTarget,
 } from '../components/ProjectWorkLocationDialog';
 export { LinkedFolderSave } from '../components/LinkedFolderSave';
+export { SelectedDriveFileActions } from '../components/SelectedDriveFileActions';
 export { exportCardProjectPackage } from './cardPackageExport';
 export {
   canMoveWork,
