@@ -5,6 +5,8 @@ import { createHash } from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
 import sharp from 'sharp';
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
+import { createProjectScaleFixture } from '../../fixtures/projectScale';
+import { buildCardForgeProjectSnapshot, encodeCardForgeProjectPackage } from '@/features/project/lib/projectPackageCodec';
 
 test('@golden gives an empty Set one creation next step before output controls', async ({ page }, testInfo) => {
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 0 });
@@ -21,6 +23,39 @@ test('@golden gives an empty Set one creation next step before output controls',
   await expect(output.getByRole('button', { name: /^Download PNG set/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Return to Desk', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('empty-set-output.png') });
+});
+
+test('starts new work at Standard and retains a chosen raster quality on reload', async ({ page }) => {
+  const document = createProjectScaleFixture(100);
+  document.storedCards = document.storedCards.slice(0, 1);
+  const bytes = await encodeCardForgeProjectPackage(await buildCardForgeProjectSnapshot({ document, name: 'Quality preference' }));
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'Create your first Set', exact: true }).click();
+  await page.getByLabel('Choose a .cardforge Set file', { exact: true }).setInputFiles({
+    name: 'quality.cardforge', mimeType: 'application/octet-stream', buffer: Buffer.from(bytes),
+  });
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  const quality = page.getByRole('combobox', { name: 'Raster quality', exact: true });
+  await expect(quality).toHaveText('Standard');
+  await quality.click();
+  await page.getByRole('option', { name: 'High detail', exact: true }).click();
+  await expect(quality).toHaveText('High detail');
+  await expect.poll(() => page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('cardforge-browser-storage');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const values = await Promise.all(['guest', 'local'].map((scope) => new Promise<string | undefined>((resolve, reject) => {
+      const request = database.transaction('key-value').objectStore('key-value').get(`project-workspace:${scope}:workspace`);
+      request.onsuccess = () => resolve(request.result as string | undefined);
+      request.onerror = () => reject(request.error);
+    })));
+    database.close();
+    return values.some((value) => value && JSON.parse(JSON.parse(value).value).state.exportDpi === 300);
+  })).toBe(true);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(quality).toHaveText('High detail');
 });
 
 test('does not download a success artifact when authored artwork fails to load', async ({ page }) => {

@@ -74,7 +74,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
   pdfIncludeCutLines: false,
   pdfDuplexLayout: 'separate-pages',
   exportMode: 'physical',
-  exportDpi: 300,
+  exportDpi: 150,
 
   setSelectedPaperSize: (size) => set({ selectedPaperSize: size }),
   setStudioView: (view) => set({ studioView: normalizeStudioView(view) }),
