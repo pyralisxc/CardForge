@@ -130,7 +130,7 @@ test('@golden actual Workbench applies exact selection and settings before the e
  await page.goto(`http://localhost/proof?${params}`); await page.addScriptTag({ content: workbenchBundle });
  await expect(page.getByText('Prepared selection: 2 cards, in the requested order.')).toBeVisible();
  expect(downloads).toBe(0); await expect(page.getByLabel(/Margins/)).toHaveValue('7'); await expect(page.getByLabel(/Card spacing/)).toHaveValue('2');
- const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();
+ const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download digital sheet PDF', exact: true }).click();
  const pdf = await PDFDocument.load(await readFile((await (await download).path())!)); expect(pdf.getPageCount()).toBe(1); expect(pdf.getPage(0).getWidth()).toBeCloseTo(210 * 72 / 25.4, 1); const faces = pdf.context.enumerateIndirectObjects().filter(([, value]) => value instanceof PDFRawStream && String(value.dict.get(PDFName.of('Subtype'))) === '/Image' && value.dict.has(PDFName.of('SMask'))); expect(faces).toHaveLength(3);
  const zipDownload = page.waitForEvent('download'); await page.getByRole('button', { name: /Download PNG set/ }).click();
  const zip = await JSZip.loadAsync(await readFile((await (await zipDownload).path())!));

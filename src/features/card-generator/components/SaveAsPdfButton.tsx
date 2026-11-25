@@ -35,6 +35,7 @@ import { MAX_PDF_CARDS_PER_FILE, MAX_TOTAL_PDF_EXPORT_CARDS } from '../lib/pdfEx
 import { useOutputActivity } from './OutputActivity';
 
 interface SaveAsPdfButtonProps {
+  buttonLabel?: string;
   setName?: string;
   generatedDisplayCards: DisplayCard[];
   selectedPaperSize: PaperSize;
@@ -53,6 +54,7 @@ interface SaveAsPdfButtonProps {
 }
 
 export function SaveAsPdfButton({
+  buttonLabel,
   setName,
   generatedDisplayCards,
   selectedPaperSize,
@@ -338,7 +340,7 @@ export function SaveAsPdfButton({
 
 
   return (
-    <Button onClick={handleSaveAsPdf} disabled={disabled || isLoadingPdf} variant={pdfProfile === 'screen' ? 'outline' : 'default'} className="w-full">
+    <Button onClick={handleSaveAsPdf} disabled={disabled || isLoadingPdf} variant={pdfProfile === 'screen' || exportMode === 'virtual' ? 'outline' : 'default'} className="w-full">
       {isLoadingPdf ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -347,7 +349,7 @@ export function SaveAsPdfButton({
       ) : (
         <>
           <FileDown className="mr-2 h-4 w-4" />
-          {pdfProfile === 'screen' ? 'Download digital PDF' : 'Save as PDF'}
+          {buttonLabel ?? (pdfProfile === 'screen' ? 'Download digital PDF' : 'Save as PDF')}
         </>
       )}
     </Button>
