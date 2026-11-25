@@ -36,7 +36,6 @@ import {
 interface ExportControlsPanelProps {
   setName?: string;
   beforeExport?: () => Promise<void>;
-  defaultPdfProfile?: 'sheet' | 'screen';
   canExportClean: boolean;
   isEntitlementPending: boolean;
   exportDpi: number;
@@ -69,7 +68,6 @@ interface ExportControlsPanelProps {
 export function ExportControlsPanel({
   setName,
   beforeExport,
-  defaultPdfProfile,
   canExportClean,
   isEntitlementPending,
   exportDpi,
@@ -108,9 +106,7 @@ export function ExportControlsPanel({
   const rasterQuality = getRasterExportQualityOption(exportDpi);
   const pressDpi = getPressCandidateDpi(exportDpi);
   const pressQuality = getRasterExportQualityOption(pressDpi);
-  const productionGeometry = firstCard && exportMode === 'physical'
-    ? getCardProductionGeometryMm(firstCard)
-    : null;
+  const productionGeometry = firstCard ? getCardProductionGeometryMm(firstCard) : null;
   const printPreflight = useMemo(
     () => createPrintProductionPreflight(generatedDisplayCards, exportDpi),
     [exportDpi, generatedDisplayCards],
@@ -191,12 +187,13 @@ export function ExportControlsPanel({
   ) : null;
 
   const printPdf = (
-          <details className="rounded-md border bg-muted/20 p-3" open={exportMode === 'physical' || defaultPdfProfile === 'sheet' ? true : undefined}>
+          <details className="rounded-md border bg-muted/20 p-3" open>
             <summary className="cursor-pointer font-semibold">Print PDF</summary>
             <div className="mt-4 space-y-3">
               <p className="text-xs text-muted-foreground">
                 PDF arranges cards on paper using your selected raster quality. Page geometry and cut lines remain sharp, but the cards are RGB raster images—not vector, CMYK, PDF/X, or printer-specific prepress output.
               </p>
+              <p className="text-xs text-muted-foreground">{isEntitlementPending ? 'Checking download access…' : canExportClean ? 'This download has no CardForge watermark.' : 'This download includes the CardForge watermark.'} Raster quality: {rasterQuality.label}.</p>
               <SaveAsPdfButton
                 setName={setName}
                 beforeExport={beforeExport}
@@ -206,7 +203,7 @@ export function ExportControlsPanel({
                 pdfCardSpacingMm={pdfCardSpacingMm}
                 pdfIncludeCutLines={pdfIncludeCutLines}
                 pdfDuplexLayout={pdfDuplexLayout}
-                exportMode={exportMode}
+                exportMode="physical"
                 exportDpi={exportDpi}
                 richTextHighlightColor={richTextHighlightColor}
                 canExportClean={canExportClean}
@@ -266,27 +263,25 @@ export function ExportControlsPanel({
                   <Scissors className="h-3 w-3" />Include cut lines
                 </Label>
               </div>
-              {exportMode === 'physical' ? (
-                <div className="space-y-1">
-                  <Label htmlFor="pdfDuplexLayout" className="text-xs">Front/back layout</Label>
-                  <Select
-                    value={pdfDuplexLayout}
-                    onValueChange={(value) => onSetPdfOptions({ duplexLayout: value as PdfDuplexLayout })}
-                  >
-                    <SelectTrigger id="pdfDuplexLayout" className="h-9 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="separate-pages">Duplex sheets · flip long edge</SelectItem>
-                      <SelectItem value="separate-pages-short-edge">Duplex sheets · flip short edge</SelectItem>
-                      <SelectItem value="same-page">Front + back on same sheet</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Duplex sheets pair every front sheet with its back, placing backs for the selected paper-flip edge. Match that edge in your printer settings and print a two-sided alignment proof at actual size. Same sheet places each back after its front for review, hand cutting, or manual assembly.
-                  </p>
-                </div>
-              ) : null}
+              <div className="space-y-1">
+                <Label htmlFor="pdfDuplexLayout" className="text-xs">Front/back layout</Label>
+                <Select
+                  value={pdfDuplexLayout}
+                  onValueChange={(value) => onSetPdfOptions({ duplexLayout: value as PdfDuplexLayout })}
+                >
+                  <SelectTrigger id="pdfDuplexLayout" className="h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="separate-pages">Duplex sheets · flip long edge</SelectItem>
+                    <SelectItem value="separate-pages-short-edge">Duplex sheets · flip short edge</SelectItem>
+                    <SelectItem value="same-page">Front + back on same sheet</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Duplex sheets pair every front sheet with its back, placing backs for the selected paper-flip edge. Match that edge in your printer settings and print a two-sided alignment proof at actual size. Same sheet places each back after its front for review, hand cutting, or manual assembly.
+                </p>
+              </div>
             </div>
           </details>
   );
@@ -300,16 +295,6 @@ export function ExportControlsPanel({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {generatedDisplayCards.length > 0 ? (
-            <div className="rounded-md border bg-muted/40 p-3 text-xs">
-              <p className="font-semibold text-foreground">{exportEntitlementLabel}</p>
-              <p className="mt-1 text-muted-foreground">{exportEntitlementMessage}</p>
-              <p className="mt-2 text-muted-foreground">
-                CardForge builds exports locally, then your browser saves the single finished file to its configured download location. No server copy is created.
-              </p>
-            </div>
-          ) : null}
-
           {generatedDisplayCards.length === 0 ? (
             <div className="rounded-md border border-dashed bg-muted/20 p-3 text-sm">
               <p className="font-semibold text-foreground">Add cards before exporting</p>
@@ -319,20 +304,28 @@ export function ExportControlsPanel({
             </div>
           ) : (
             <>
-          <div className="space-y-1">
-            <Label htmlFor="exportMode" className="text-sm font-medium">Primary use</Label>
-            <Select value={exportMode} onValueChange={(value) => onSetExportMode(value as ExportMode)}>
-              <SelectTrigger id="exportMode" className="h-9 text-xs">
+          {printPdf}
+
+          <div className="space-y-1 rounded-md border bg-muted/20 p-3">
+            <Label htmlFor="exportDpi" className="text-xs">Raster quality</Label>
+            <Select value={String(exportDpi)} onValueChange={(value) => onSetExportDpi(parseInt(value, 10))}>
+              <SelectTrigger id="exportDpi" className="h-9 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="physical">Print physical cards</SelectItem>
-                <SelectItem value="virtual">Share or play digitally</SelectItem>
+                {RASTER_EXPORT_QUALITY_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={String(option.value)}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              This changes filenames and quality warnings. Each destination below owns its own format and settings.
-            </p>
+            <p className="text-xs text-muted-foreground">{rasterQuality.description}</p>
+            {rasterDimensions ? (
+              <p className="text-xs font-medium text-foreground">
+                {rasterDimensions.widthPx} × {rasterDimensions.heightPx}px per face for this template. Enlarging beyond those pixels softens the image.
+              </p>
+            ) : null}
           </div>
 
           {!isEntitlementPending && !canExportClean && exportGateMessage ? (
@@ -351,7 +344,15 @@ export function ExportControlsPanel({
             </div>
           ) : null}
 
-          {exportMode === 'physical' ? printPdf : null}
+          {generatedDisplayCards.length > 0 ? (
+            <div className="rounded-md border bg-muted/40 p-3 text-xs">
+              <p className="font-semibold text-foreground">{exportEntitlementLabel}</p>
+              <p className="mt-1 text-muted-foreground">{exportEntitlementMessage}</p>
+              <p className="mt-2 text-muted-foreground">
+                CardForge builds exports locally, then your browser saves the single finished file to its configured download location. No server copy is created.
+              </p>
+            </div>
+          ) : null}
 
           <section aria-labelledby="raster-export-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
             <div>
@@ -364,25 +365,19 @@ export function ExportControlsPanel({
               </p>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="exportDpi" className="text-xs">Raster quality</Label>
-              <Select value={String(exportDpi)} onValueChange={(value) => onSetExportDpi(parseInt(value, 10))}>
-                <SelectTrigger id="exportDpi" className="h-9 text-xs">
+              <Label htmlFor="exportMode" className="text-sm font-medium">Individual image profile</Label>
+              <Select value={exportMode} onValueChange={(value) => onSetExportMode(value as ExportMode)}>
+                <SelectTrigger id="exportMode" className="h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {RASTER_EXPORT_QUALITY_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={String(option.value)}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="physical">Print images</SelectItem>
+                  <SelectItem value="virtual">Digital images</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">{rasterQuality.description}</p>
-              {rasterDimensions ? (
-                <p className="text-xs font-medium text-foreground">
-                  {rasterDimensions.widthPx} × {rasterDimensions.heightPx}px per face for this template. Enlarging beyond those pixels softens the image.
-                </p>
-              ) : null}
+              <p className="text-xs text-muted-foreground">
+                Changes image filenames and quality warnings. Print and digital PDFs use their own formats.
+              </p>
             </div>
             <Button
               variant="outline"
@@ -407,7 +402,7 @@ export function ExportControlsPanel({
 
 
 
-          {exportMode === 'physical' && productionGeometry ? (
+          {productionGeometry ? (
             <section aria-labelledby="print-production-png-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
               <div>
                 <h3 id="print-production-png-heading" className="font-semibold">Print production PNGs</h3>
@@ -462,7 +457,7 @@ export function ExportControlsPanel({
             </section>
           ) : null}
 
-          {exportMode === 'physical' && productionGeometry ? (
+          {productionGeometry ? (
             <section aria-labelledby="press-candidate-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
               <h3 id="press-candidate-heading" className="font-semibold">Color-managed press candidate · validation pending</h3>
               <p className="text-xs text-muted-foreground">
@@ -487,8 +482,6 @@ export function ExportControlsPanel({
             </section>
           ) : null}
 
-          {exportMode !== 'physical' ? printPdf : null}
-
           <section aria-labelledby="screen-pdf-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
             <div>
               <h3 id="screen-pdf-heading" className="font-semibold">Digital PDF · easy sharing</h3>
@@ -501,6 +494,24 @@ export function ExportControlsPanel({
                 setName={setName}
               beforeExport={beforeExport}
               pdfProfile="screen"
+              generatedDisplayCards={generatedDisplayCards}
+              selectedPaperSize={selectedPaperSize}
+              pdfMarginMm={pdfMarginMm}
+              pdfCardSpacingMm={pdfCardSpacingMm}
+              pdfIncludeCutLines={pdfIncludeCutLines}
+              pdfDuplexLayout={pdfDuplexLayout}
+              exportMode="virtual"
+              exportDpi={exportDpi}
+              richTextHighlightColor={richTextHighlightColor}
+              canExportClean={canExportClean}
+              disabled={exportsDisabled}
+              templateName={firstCard?.template?.name}
+            />
+            <p className="text-xs text-muted-foreground">For a digital sheet with multiple card faces per page, use the selected paper size, margins and spacing without print bleed or cut lines.</p>
+            <SaveAsPdfButton
+              buttonLabel="Download digital sheet PDF"
+              setName={setName}
+              beforeExport={beforeExport}
               generatedDisplayCards={generatedDisplayCards}
               selectedPaperSize={selectedPaperSize}
               pdfMarginMm={pdfMarginMm}

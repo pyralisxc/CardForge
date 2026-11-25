@@ -19,7 +19,7 @@ test('@golden gives an empty Set one creation next step before output controls',
   await expect(output.getByText('Prepare this Set for export', { exact: true })).toBeVisible();
   await expect(output.getByText('Add cards before exporting', { exact: true })).toBeVisible();
   await expect(output.getByText(/Return to Desk, then create a design or generate cards/)).toBeVisible();
-  await expect(output.getByText('Primary use', { exact: true })).toHaveCount(0);
+  await expect(output.getByText('Individual image profile', { exact: true })).toHaveCount(0);
   await expect(output.getByRole('button', { name: /^Download PNG set/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Return to Desk', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('empty-set-output.png') });
@@ -80,8 +80,8 @@ test('does not download a success artifact when authored artwork fails to load',
   }
   await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
   await page.getByRole('button', { name: 'Output', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Primary use', exact: true }).click();
-  await page.getByRole('option', { name: 'Print physical cards', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Individual image profile', exact: true }).click();
+  await page.getByRole('option', { name: 'Print images', exact: true }).click();
   await page.getByRole('button', { name: 'Download color-managed press candidate ZIP', exact: true }).click();
   await expect(page.getByText('Press candidate export failed', { exact: true })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'Press candidate · 100 Card Scale Set: export failed.' })).toBeVisible();
@@ -132,6 +132,11 @@ test('@golden @preview downloads actual card PNG, Set ZIP, PDF and Tabletop shee
   await testInfo.attach('authored-cinzel-export-front', { body: png, contentType: 'image/png' });
   await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
   await page.getByRole('button', { name: 'Output', exact: true }).click();
+  const printPanel = page.locator('details').filter({ has: page.getByText('Print PDF', { exact: true }) });
+  await expect(printPanel).toHaveAttribute('open', '');
+  await expect(printPanel.getByRole('button', { name: 'Save as PDF', exact: true })).toBeVisible();
+  const upsell = page.getByRole('button', { name: 'Get watermark-free downloads', exact: true });
+  if (await upsell.isVisible()) expect((await printPanel.boundingBox())!.y).toBeLessThan((await upsell.boundingBox())!.y);
   const zipDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: /^Download PNG set/ }).click();
   const pngSetFile = await zipDownload;
@@ -141,8 +146,8 @@ test('@golden @preview downloads actual card PNG, Set ZIP, PDF and Tabletop shee
   const images = Object.values(zip.files).filter((file) => file.name.endsWith('.png'));
   expect(images).toHaveLength(4);
   for (const file of images) expect(pngSize(await file.async('nodebuffer'))).toEqual(pngSize(png));
-  await page.getByRole('combobox', { name: 'Primary use', exact: true }).click();
-  await page.getByRole('option', { name: 'Print physical cards', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Individual image profile', exact: true }).click();
+  await page.getByRole('option', { name: 'Digital images', exact: true }).click();
   const productionDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: /^Download print production PNG ZIP/ }).click();
   const productionZip = await JSZip.loadAsync(await save(await productionDownload));
@@ -216,6 +221,9 @@ test('@golden @preview downloads actual card PNG, Set ZIP, PDF and Tabletop shee
   const pdf = await save(await pdfDownload);
   expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
   expect(pdf.toString('latin1')).toContain('/Subtype /Image');
+  const printDocument = await PDFDocument.load(pdf);
+  expect(printDocument.getPageCount()).toBe(2);
+  expect(printDocument.getPages()[0].getWidth()).toBeGreaterThan(500);
   expect(pdf.length).toBeLessThan(5_000_000);
   for (const close of await page.getByRole('button', { name: 'Close notification', exact: true }).all()) {
     if (await close.isVisible()) await close.click();
