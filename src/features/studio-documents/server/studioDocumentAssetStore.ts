@@ -2,7 +2,10 @@ import { createHash } from 'node:crypto';
 
 import {
   isProjectFontMimeType,
-  MAX_PROJECT_FONT_BYTES,
+  MAX_PROJECT_PACKAGE_ASSET_BYTES,
+  MAX_PROJECT_PACKAGE_ASSETS,
+  isProjectPackageAssetMimeType,
+  type ProjectPackageAssetMimeType,
   projectAssetArrayScope,
   projectAssetChildScope,
   type ProjectAssetScope,
@@ -23,10 +26,9 @@ import {
   STUDIO_DOCUMENT_FONT_BUCKET,
   type StudioDocumentAssetDownload,
 } from '../assetReferences';
-import { normalizeEmbeddedTemplateAsset, type EmbeddedTemplateAssetMimeType } from './embeddedTemplateAssets';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 
-const DATA_IMAGE_PATTERN = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=\s]+)$/u;
+const DATA_IMAGE_PATTERN = /^data:(image\/(?:png|jpeg|webp|gif|svg\+xml));base64,([A-Za-z0-9+/=\s]+)$/u;
 const DATA_FONT_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=\s]+)$/u;
 
 const requireStore = () => {
@@ -65,8 +67,8 @@ const decodeFontDataUri = (value: string): { mimeType: ProjectFontMimeType; byte
   const mimeType = match[1]?.toLowerCase() ?? '';
   if (!isProjectFontMimeType(mimeType)) return null;
   const bytes = Buffer.from((match[2] ?? '').replace(/\s+/gu, ''), 'base64');
-  if (bytes.length <= 0 || bytes.length > MAX_PROJECT_FONT_BYTES) {
-    throw new StudioDocumentStoreError(`A private Studio font must be ${Math.round(MAX_PROJECT_FONT_BYTES / 1024 / 1024)} MB or smaller.`, 413);
+  if (bytes.length <= 0 || bytes.length > MAX_PROJECT_PACKAGE_ASSET_BYTES) {
+    throw new StudioDocumentStoreError('A private Studio asset exceeds the portable project asset limit.', 413);
   }
   return { mimeType, bytes };
 };
@@ -87,26 +89,25 @@ export const externalizeStudioDocumentAssets = async ({
    */
   cleanupOnFailure?: boolean;
 }): Promise<{ document: ProjectDocumentV1; uploadedAssetIds: string[]; uploadedFontIds: string[] }> => {
-  const pendingImages = new Map<string, Promise<{ id: string; bytes: Buffer } | null>>();
+  const pendingImages = new Map<string, { id: string; bytes: Buffer; mimeType: ProjectPackageAssetMimeType }>();
   const pendingFonts = new Map<string, { id: string; bytes: Buffer; mimeType: ProjectFontMimeType }>();
-  const images = new Map<string, Buffer>();
+  const images = new Map<string, { bytes: Buffer; mimeType: ProjectPackageAssetMimeType }>();
   const fonts = new Map<string, { bytes: Buffer; mimeType: ProjectFontMimeType }>();
 
   const prepareImage = (value: string) => {
     const match = DATA_IMAGE_PATTERN.exec(value);
     if (!match) return null;
-    let pending = pendingImages.get(value);
-    if (!pending) {
-      pending = normalizeEmbeddedTemplateAsset({
-        mimeType: match[1] as EmbeddedTemplateAssetMimeType,
-        data: match[2],
-      }).then((normalized) => ({
-        id: createHash('sha256').update(normalized.bytes).digest('hex'),
-        bytes: normalized.bytes,
-      }));
-      pendingImages.set(value, pending);
+    const existing = pendingImages.get(value);
+    if (existing) return existing;
+    const mimeType = match[1].toLowerCase();
+    if (!isProjectPackageAssetMimeType(mimeType)) return null;
+    const bytes = Buffer.from(match[2].replace(/\s+/gu, ''), 'base64');
+    if (!bytes.length || bytes.length > MAX_PROJECT_PACKAGE_ASSET_BYTES) {
+      throw new StudioDocumentStoreError('A private Studio asset exceeds the portable project asset limit.', 413);
     }
-    return pending;
+    const prepared = { id: createHash('sha256').update(bytes).digest('hex'), bytes, mimeType };
+    pendingImages.set(value, prepared);
+    return prepared;
   };
 
   const prepareFont = (value: string) => {
@@ -128,7 +129,7 @@ export const externalizeStudioDocumentAssets = async ({
     if (typeof value === 'string') {
       const preparedImage = await prepareImage(value);
       if (preparedImage) {
-        images.set(preparedImage.id, preparedImage.bytes);
+        images.set(preparedImage.id, { bytes: preparedImage.bytes, mimeType: preparedImage.mimeType });
         if (images.size > MAX_STUDIO_DOCUMENT_ASSETS) {
           throw new StudioDocumentStoreError(`A Studio document can contain at most ${MAX_STUDIO_DOCUMENT_ASSETS} private artwork files.`, 413);
         }
@@ -162,6 +163,9 @@ export const externalizeStudioDocumentAssets = async ({
   const storedDocument = await visit(document) as ProjectDocumentV1;
   const referencedImageIds = collectStudioDocumentAssetIds(storedDocument);
   const referencedFontIds = collectStudioDocumentFontIds(storedDocument);
+  if (new Set([...referencedImageIds, ...referencedFontIds]).size !== referencedImageIds.length + referencedFontIds.length || referencedImageIds.length + referencedFontIds.length > MAX_PROJECT_PACKAGE_ASSETS) {
+    throw new StudioDocumentStoreError('The Studio document exceeds the portable project asset count or has ambiguous asset references.', 413);
+  }
   if (referencedImageIds.length > MAX_STUDIO_DOCUMENT_ASSETS) {
     throw new StudioDocumentStoreError(`A Studio document can contain at most ${MAX_STUDIO_DOCUMENT_ASSETS} private artwork files.`, 413);
   }
@@ -171,15 +175,12 @@ export const externalizeStudioDocumentAssets = async ({
 
   const prefix = storagePrefix(ownerUserId, documentId);
   const [existingImageList, existingFontList] = await Promise.all([
-    requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).list(prefix, { limit: MAX_STUDIO_DOCUMENT_ASSETS }),
-    requireStore().storage.from(STUDIO_DOCUMENT_FONT_BUCKET).list(prefix, { limit: MAX_STUDIO_DOCUMENT_FONTS }),
+    listReferencedMetadata(STUDIO_DOCUMENT_ASSET_BUCKET, prefix, referencedImageIds.map((id) => `${id}.webp`)),
+    listReferencedMetadata(STUDIO_DOCUMENT_FONT_BUCKET, prefix, referencedFontIds),
   ]);
-  if (existingImageList.error || existingFontList.error) {
-    throw new StudioDocumentStoreError('Unable to inspect private Studio asset capacity.');
-  }
   const imageSizes = new Map<string, number>();
   const existingImageIds = new Set<string>();
-  (existingImageList.data ?? []).forEach((item) => {
+  existingImageList.forEach((item) => {
     const id = item.name.endsWith('.webp') ? item.name.slice(0, -5) : '';
     const size = readObjectSize(item);
     if (id) existingImageIds.add(id);
@@ -187,44 +188,41 @@ export const externalizeStudioDocumentAssets = async ({
   });
   const fontSizes = new Map<string, number>();
   const existingFontIds = new Set<string>();
-  (existingFontList.data ?? []).forEach((item) => {
+  existingFontList.forEach((item) => {
     const id = item.name;
     const size = readObjectSize(item);
     if (id) existingFontIds.add(id);
     if (id && size !== null) fontSizes.set(id, size);
   });
 
+  if (referencedImageIds.some((id) => !images.has(id) && !imageSizes.has(id)) || referencedFontIds.some((id) => !fonts.has(id) && !fontSizes.has(id))) {
+    throw new StudioDocumentStoreError('Private Studio asset metadata is unavailable.', 503);
+  }
+
   const totalBytes = referencedImageIds.reduce((total, id) => (
-    total + (images.get(id)?.byteLength ?? imageSizes.get(id) ?? 0)
+    total + (images.get(id)?.bytes.byteLength ?? imageSizes.get(id) ?? 0)
   ), 0) + referencedFontIds.reduce((total, id) => (
     total + (fonts.get(id)?.bytes.byteLength ?? fontSizes.get(id) ?? 0)
   ), 0);
   if (totalBytes > MAX_STUDIO_DOCUMENT_ASSET_STORAGE_BYTES) {
-    throw new StudioDocumentStoreError('This Studio document contains more than 128 MB of private artwork and fonts.', 413);
+    throw new StudioDocumentStoreError('This Studio document exceeds the portable project asset budget.', 413);
   }
 
   const uploadedAssetIds: string[] = [];
   const uploadedFontIds: string[] = [];
   try {
-    for (const [assetId, bytes] of images) {
-      if (existingImageIds.has(assetId)) continue;
-      const { error } = await requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).upload(
-        imageStoragePath(ownerUserId, documentId, assetId),
-        bytes,
-        { contentType: 'image/webp', cacheControl: '3600', upsert: false },
-      );
-      if (error) throw new StudioDocumentStoreError('Unable to store private Studio artwork.');
-      uploadedAssetIds.push(assetId);
-    }
-    for (const [assetId, font] of fonts) {
-      if (existingFontIds.has(assetId)) continue;
-      const { error } = await requireStore().storage.from(STUDIO_DOCUMENT_FONT_BUCKET).upload(
-        fontStoragePath(ownerUserId, documentId, assetId),
-        font.bytes,
-        { contentType: font.mimeType, cacheControl: '3600', upsert: false },
-      );
-      if (error) throw new StudioDocumentStoreError('Unable to store a private Studio font.');
-      uploadedFontIds.push(assetId);
+    const uploads = [
+      ...[...images].filter(([id]) => !existingImageIds.has(id)).map(([id, image]) => ({ id, ...image, bucket: STUDIO_DOCUMENT_ASSET_BUCKET, path: imageStoragePath(ownerUserId, documentId, id), uploaded: uploadedAssetIds })),
+      ...[...fonts].filter(([id]) => !existingFontIds.has(id)).map(([id, font]) => ({ id, ...font, bucket: STUDIO_DOCUMENT_FONT_BUCKET, path: fontStoragePath(ownerUserId, documentId, id), uploaded: uploadedFontIds })),
+    ];
+    for (let start = 0; start < uploads.length; start += 8) {
+      const batch = await Promise.allSettled(uploads.slice(start, start + 8).map(async (item) => {
+        const { error } = await requireStore().storage.from(item.bucket).upload(item.path, item.bytes, { contentType: item.mimeType, cacheControl: '3600', upsert: false });
+        if (error) throw new StudioDocumentStoreError('Unable to store a private Studio asset.');
+        item.uploaded.push(item.id);
+      }));
+      const failure = batch.find((result) => result.status === 'rejected');
+      if (failure?.status === 'rejected') throw failure.reason;
     }
   } catch (error) {
     if (cleanupOnFailure) {
@@ -312,6 +310,18 @@ const listReferencedMetadata = async (bucket: string, prefix: string, names: str
   return found;
 };
 
+const signAssetPaths = async (bucket: string, paths: string[]): Promise<Map<string, string>> => {
+  const urls = new Map<string, string>();
+  // Provider calls remain bounded even when a portable project uses thousands
+  // of distinct assets; each URL is still owned by the document's prefix.
+  for (let start = 0; start < paths.length; start += 100) {
+    const { data, error } = await requireStore().storage.from(bucket).createSignedUrls(paths.slice(start, start + 100), 15 * 60);
+    if (error || !data) throw new StudioDocumentStoreError('Unable to authorize private Studio asset downloads.');
+    for (const item of data) if (item.path && item.signedUrl) urls.set(item.path, item.signedUrl);
+  }
+  return urls;
+};
+
 export const getStudioDocumentAssetDownloads = async ({
   ownerUserId,
   documentId,
@@ -329,25 +339,16 @@ export const getStudioDocumentAssetDownloads = async ({
   const prefix = storagePrefix(ownerUserId, documentId);
   const imagePaths = imageIds.map((id) => imageStoragePath(ownerUserId, documentId, id));
   const fontPaths = fontIds.map((id) => fontStoragePath(ownerUserId, documentId, id));
-  const [imageSigned, fontSigned, fontList, imageList] = await Promise.all([
-    imagePaths.length > 0
-      ? requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).createSignedUrls(imagePaths, 15 * 60)
-      : Promise.resolve({ data: [], error: null }),
-    fontPaths.length > 0
-      ? requireStore().storage.from(STUDIO_DOCUMENT_FONT_BUCKET).createSignedUrls(fontPaths, 15 * 60)
-      : Promise.resolve({ data: [], error: null }),
+  const [imageUrlByPath, fontUrlByPath, fontList, imageList] = await Promise.all([
+    signAssetPaths(STUDIO_DOCUMENT_ASSET_BUCKET, imagePaths),
+    signAssetPaths(STUDIO_DOCUMENT_FONT_BUCKET, fontPaths),
     fontIds.length > 0
       ? listReferencedMetadata(STUDIO_DOCUMENT_FONT_BUCKET, prefix, fontIds)
       : Promise.resolve(new Map()),
-    requireVerifiedSize && imageIds.length > 0
+    imageIds.length > 0
       ? listReferencedMetadata(STUDIO_DOCUMENT_ASSET_BUCKET, prefix, imageIds.map((id) => `${id}.webp`))
       : Promise.resolve(new Map()),
   ]);
-  if (imageSigned.error || fontSigned.error) {
-    throw new StudioDocumentStoreError('Unable to authorize private Studio asset downloads.');
-  }
-  const imageUrlByPath = new Map((imageSigned.data ?? []).map((item) => [item.path, item.signedUrl]));
-  const fontUrlByPath = new Map((fontSigned.data ?? []).map((item) => [item.path, item.signedUrl]));
   const mimeFromDocument = collectFontMimeTypes(value);
   const mimeFromStorage = new Map<string, string>();
   fontList.forEach((item) => {
@@ -360,7 +361,9 @@ export const getStudioDocumentAssetDownloads = async ({
     if (!signedUrl) throw new StudioDocumentStoreError('One of this document’s private artwork files is unavailable.');
     const size = readObjectSize(imageList.get(`${id}.webp`));
     if (requireVerifiedSize && size === null) throw new StudioDocumentStoreError('Exact private artwork metadata is unavailable.', 503);
-    return { id, kind: 'image', mimeType: 'image/webp', size, signedUrl };
+    const mimeType = readObjectMimeType(imageList.get(`${id}.webp`)) ?? 'image/webp';
+    if (!isProjectPackageAssetMimeType(mimeType) || !mimeType.startsWith('image/')) throw new StudioDocumentStoreError('A private artwork file has an unsupported format.', 503);
+    return { id, kind: 'image', mimeType, size, signedUrl };
   });
   const fontDownloads = fontIds.map((id): StudioDocumentAssetDownload => {
     const signedUrl = fontUrlByPath.get(fontStoragePath(ownerUserId, documentId, id));
@@ -377,16 +380,20 @@ export const getStudioDocumentAssetDownloads = async ({
 
 export const removeStudioDocumentAssets = async (ownerUserId: string, documentId: string): Promise<void> => {
   const prefix = storagePrefix(ownerUserId, documentId);
-  const [images, fonts] = await Promise.all([
-    requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).list(prefix, { limit: MAX_STUDIO_DOCUMENT_ASSETS }),
-    requireStore().storage.from(STUDIO_DOCUMENT_FONT_BUCKET).list(prefix, { limit: MAX_STUDIO_DOCUMENT_FONTS }),
-  ]);
-  if (images.error || fonts.error) throw new StudioDocumentStoreError('Unable to inspect private Studio assets for removal.');
-  const imagePaths = (images.data ?? []).map((item) => `${prefix}/${item.name}`);
-  const fontPaths = (fonts.data ?? []).map((item) => `${prefix}/${item.name}`);
-  const [imagesRemoved, fontsRemoved] = await Promise.all([
-    imagePaths.length > 0 ? requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).remove(imagePaths) : Promise.resolve({ error: null }),
-    fontPaths.length > 0 ? requireStore().storage.from(STUDIO_DOCUMENT_FONT_BUCKET).remove(fontPaths) : Promise.resolve({ error: null }),
-  ]);
-  if (imagesRemoved.error || fontsRemoved.error) throw new StudioDocumentStoreError('Unable to remove private Studio assets.');
+  const removeBucket = async (bucket: string) => {
+    const storage = requireStore().storage.from(bucket);
+    const names: string[] = [];
+    for (let offset = 0;; offset += 256) {
+      const { data, error } = await storage.list(prefix, { limit: 256, offset, sortBy: { column: 'name', order: 'asc' } });
+      if (error || !Array.isArray(data)) throw new StudioDocumentStoreError('Unable to inspect private Studio assets for removal.');
+      if (data.length && names.length && data[0].name <= names[names.length - 1]) throw new StudioDocumentStoreError('Private Studio asset listing did not advance.', 503);
+      names.push(...data.map((item) => item.name));
+      if (data.length < 256) break;
+    }
+    for (let start = 0; start < names.length; start += 256) {
+      const removed = await storage.remove(names.slice(start, start + 256).map((name) => `${prefix}/${name}`));
+      if (removed.error) throw new StudioDocumentStoreError('Unable to remove private Studio assets.');
+    }
+  };
+  await Promise.all([removeBucket(STUDIO_DOCUMENT_ASSET_BUCKET), removeBucket(STUDIO_DOCUMENT_FONT_BUCKET)]);
 };

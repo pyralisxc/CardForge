@@ -21,3 +21,5 @@ export type {
   ProjectDocument,
 } from '../model/projectDocument';
 export { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '../model/projectAssetTraversal';
+export { isProjectPackageAssetMimeType, MAX_PROJECT_PACKAGE_ASSET_BYTES, MAX_PROJECT_PACKAGE_ASSETS, MAX_PROJECT_PACKAGE_BYTES } from '../model/projectPackage';
+export type { ProjectPackageAssetMimeType } from '../model/projectPackage';

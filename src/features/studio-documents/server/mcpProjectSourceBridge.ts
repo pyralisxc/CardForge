@@ -1,18 +1,23 @@
 import { createHash } from 'node:crypto';
+import { createWriteStream, openAsBlob } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Writable } from 'node:stream';
 
 import type { StudioAgentAccess } from './studioAgentAccess';
 import { describeAgentBoundaryFailure, type AgentBoundaryFailureMetadata } from '@/shared/boundaryFailure';
 import {
   ProjectStorageProviderError,
   buildCardForgeProjectSnapshot,
-  createCardForgeProjectPackageBlob,
+  writeCardForgeProjectPackage,
   getGoogleDriveProject,
   getGoogleDriveProjectSummary,
   GOOGLE_DRIVE_PROJECT_PROVIDER,
   updateGoogleDriveProjectFromServer,
   type ProjectDocumentV1,
 } from '@/features/project/server';
-import { replaceStudioDocumentAssetReferences } from '../assetReferences';
+import { getStudioDocumentAssetIdFromReference, getStudioDocumentFontIdFromReference } from '../assetReferences';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 import { getStudioDocumentRetentionHours } from './studioDocumentAccess';
 import { getStudioDocumentAssetDownloads } from './studioDocumentAssetStore';
@@ -137,7 +142,7 @@ export const checkoutConnectedProjectForAgent = async ({
   return { source: source.summary, workingDocument };
 };
 
-const materializeWorkingDocumentAssets = async ({
+const createWorkingDocumentAssetResolver = async ({
   ownerUserId,
   documentId,
   document,
@@ -145,26 +150,29 @@ const materializeWorkingDocumentAssets = async ({
   ownerUserId: string;
   documentId: string;
   document: ProjectDocumentV1;
-}): Promise<ProjectDocumentV1> => {
-  const downloads = await getStudioDocumentAssetDownloads({ ownerUserId, documentId, value: document });
-  if (downloads.length === 0) return document;
-  const replacements = new Map<string, string>();
-  for (const download of downloads) {
-    const response = await fetch(download.signedUrl, { cache: 'no-store' });
-    if (!response.ok) {
-      throw new StudioDocumentStoreError('CardForge could not read one of the agent working document’s private artwork files.', 503);
-    }
-    const bytes = Buffer.from(await response.arrayBuffer());
-    if (download.size !== null && bytes.length !== download.size) {
-      throw new StudioDocumentStoreError('Private agent artwork changed unexpectedly while preparing the project commit.', 409);
-    }
-    const digest = createHash('sha256').update(bytes).digest('hex');
-    if (digest !== download.id) {
-      throw new StudioDocumentStoreError('Private agent artwork failed its content-addressed integrity check.', 409);
-    }
-    replacements.set(download.id, `data:${download.mimeType};base64,${bytes.toString('base64')}`);
-  }
-  return replaceStudioDocumentAssetReferences(document, replacements) as ProjectDocumentV1;
+}) => {
+  const downloads = await getStudioDocumentAssetDownloads({ ownerUserId, documentId, value: document, requireVerifiedSize: true });
+  const byId = new Map(downloads.map((download) => [download.id, download]));
+  return async (reference: string) => {
+    const id = getStudioDocumentAssetIdFromReference(reference) ?? getStudioDocumentFontIdFromReference(reference);
+    if (!id) return null;
+    const download = byId.get(id);
+    if (!download || download.size === null) throw new StudioDocumentStoreError('A private agent asset is unavailable.', 503);
+    return {
+      mimeType: download.mimeType,
+      source: {
+        kind: 'lazy' as const,
+        size: download.size,
+        load: async () => {
+          const response = await fetch(download.signedUrl, { cache: 'no-store' });
+          if (!response.ok) throw new StudioDocumentStoreError('CardForge could not read one of the agent working document’s private assets.', 503);
+          const bytes = new Uint8Array(await response.arrayBuffer());
+          if (bytes.byteLength !== download.size || createHash('sha256').update(bytes).digest('hex') !== id) throw new StudioDocumentStoreError('A private agent asset failed its size or integrity check.', 409);
+          return bytes;
+        },
+      },
+    };
+  };
 };
 
 export const commitAgentWorkingProjectToSource = async ({
@@ -217,25 +225,35 @@ export const commitAgentWorkingProjectToSource = async ({
       409,
     );
   }
-  const hydratedDocument = await materializeWorkingDocumentAssets({
+  const resolveAssetReference = await createWorkingDocumentAssetResolver({
     ownerUserId: access.user.id,
     documentId,
     document: workingDocument.document,
   });
   const snapshot = await buildCardForgeProjectSnapshot({
-    document: hydratedDocument,
+    document: workingDocument.document,
     name: sourceProject.projectName,
+    resolveAssetReference,
   });
-  const blob = await createCardForgeProjectPackageBlob(snapshot);
-  const updated = await updateGoogleDriveProjectFromServer({
-    ownerUserId: accountUserId,
-    fileId: projectId,
-    name: sourceProject.projectName,
-    blob,
-    projectRevision: snapshot.manifest.projectRevision,
-    expectedProviderRevision,
-    expectedProjectRevision,
-  });
+  const directory = await mkdtemp(join(tmpdir(), 'cardforge-project-'));
+  let updated;
+  try {
+    const path = join(directory, 'project.cardforge');
+    await writeCardForgeProjectPackage(snapshot, Writable.toWeb(createWriteStream(path)) as WritableStream<Uint8Array>);
+    const blob = await openAsBlob(path, { type: 'application/vnd.cardforge.project+zip' });
+    updated = await updateGoogleDriveProjectFromServer({
+      ownerUserId: accountUserId,
+      fileId: projectId,
+      name: sourceProject.projectName,
+      blob,
+      projectRevision: snapshot.manifest.projectRevision,
+      expectedProviderRevision,
+      expectedProjectRevision,
+    });
+  } finally {
+    // A cleanup failure must never mask an acknowledged provider commit.
+    await rm(directory, { recursive: true, force: true }).catch(() => console.error('Unable to remove a temporary Studio project package.'));
+  }
   const nextProjectRevision = updated.projectRevision ?? snapshot.manifest.projectRevision;
   let linkageFailure: AgentBoundaryFailureMetadata | null = null;
   let lineage = null;

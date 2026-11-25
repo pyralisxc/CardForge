@@ -159,7 +159,7 @@ const externalizeProjectAssets = async (
       }
       return getProjectPackageAssetReference(id);
     };
-    const cacheable = value.startsWith('data:') || value.startsWith('cardforge-browser-asset://');
+    const cacheable = value.startsWith('data:') || value.startsWith('cardforge-browser-asset://') || Boolean(resolveAssetReference);
     if (!cacheable) return prepare();
     let result = referenceResults.get(value);
     if (!result) {
@@ -191,24 +191,29 @@ const hydrateProjectAssets = (
   assets: CardForgeProjectPackageSnapshot['assets'],
   depth = 0,
   scope: ProjectAssetScope = 'root',
+  hydratedById = new Map<string, string>(),
 ): unknown => {
   if (depth > 80) throw new ProjectPackageError('This project is nested too deeply to open safely.');
   if (scope === 'opaque') return value;
   if (typeof value === 'string') {
     const id = getProjectPackageAssetIdFromReference(value);
     if (!id) return value;
+    const cached = hydratedById.get(id);
+    if (cached) return cached;
     const descriptor = descriptors.get(id);
     const source = assets.get(id);
     if (!descriptor || !(source instanceof Uint8Array)) {
       throw new ProjectPackageError(`This project is missing required asset ${id.slice(0, 12)}….`);
     }
     const bytes = source;
-    return `data:${descriptor.mimeType};base64,${encodeBase64(bytes)}`;
+    const hydrated = `data:${descriptor.mimeType};base64,${encodeBase64(bytes)}`;
+    hydratedById.set(id, hydrated);
+    return hydrated;
   }
-  if (Array.isArray(value)) return value.map((entry) => hydrateProjectAssets(entry, descriptors, assets, depth + 1, projectAssetArrayScope(scope)));
+  if (Array.isArray(value)) return value.map((entry) => hydrateProjectAssets(entry, descriptors, assets, depth + 1, projectAssetArrayScope(scope), hydratedById));
   if (isRecord(value)) {
     return Object.fromEntries(Object.entries(value).map(([key, entry]) => (
-      [key, hydrateProjectAssets(entry, descriptors, assets, depth + 1, projectAssetChildScope(scope, key))]
+      [key, hydrateProjectAssets(entry, descriptors, assets, depth + 1, projectAssetChildScope(scope, key), hydratedById)]
     )));
   }
   return value;

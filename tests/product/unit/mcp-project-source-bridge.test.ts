@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { decodeCardForgeProjectPackage } from '@/features/project/server';
 
 vi.mock('server-only', () => ({}));
 
@@ -12,6 +14,7 @@ const documentMocks = vi.hoisted(() => ({
   getStudioDocument: vi.fn(),
   recordStudioDocumentProjectSourceCommit: vi.fn(),
 }));
+const assetMocks = vi.hoisted(() => ({ downloads: vi.fn(async () => [] as unknown[]) }));
 
 vi.mock('@/features/project/server', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/features/project/server')>(),
@@ -22,7 +25,7 @@ vi.mock('@/features/studio-documents/server/studioDocumentAccess', () => ({
   getStudioDocumentRetentionHours: vi.fn(async () => 24),
 }));
 vi.mock('@/features/studio-documents/server/studioDocumentAssetStore', () => ({
-  getStudioDocumentAssetDownloads: vi.fn(async () => []),
+  getStudioDocumentAssetDownloads: assetMocks.downloads,
 }));
 
 import {
@@ -159,6 +162,31 @@ describe('MCP connected-project revision bridge', () => {
     }));
     expect(result.source.workId).toBe('set-source');
     expect(documentMocks.recordStudioDocumentProjectSourceCommit).toHaveBeenCalledOnce();
+  });
+
+  it('writes the original private artwork bytes to the portable package', async () => {
+    const bytes = Buffer.from('original portable image');
+    const id = createHash('sha256').update(bytes).digest('hex');
+    const withArtwork = structuredClone(document);
+    withArtwork.storedCards[0].data.art = `cardforge-studio-asset://${id}`;
+    assetMocks.downloads.mockResolvedValueOnce([{ id, kind: 'image', mimeType: 'image/png', size: bytes.length, signedUrl: 'https://example.invalid/asset' }]);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(bytes)));
+    documentMocks.getStudioDocument.mockResolvedValue({
+      revision: 3, document: withArtwork, sourceProjectProvider: 'google-drive', sourceProjectExternalId: 'drive_file_source',
+      sourceProviderRevision: '8', sourceProjectRevision: sourceRevision, sourceProjectName: 'Source Set.cardforge',
+    });
+    projectMocks.updateGoogleDriveProjectFromServer.mockImplementation(async (input) => {
+      const snapshot = await decodeCardForgeProjectPackage(input.blob);
+      expect(snapshot.manifest.assets).toContainEqual(expect.objectContaining({ id, mimeType: 'image/png', size: bytes.length }));
+      expect(Buffer.from(snapshot.assets.get(id) as Uint8Array)).toEqual(bytes);
+      return { ...driveSource.summary, providerRevision: '9', projectRevision: input.projectRevision };
+    });
+    documentMocks.recordStudioDocumentProjectSourceCommit.mockResolvedValue({});
+    try {
+      await commitAgentWorkingProjectToSource({ access, documentId: 'working-source', expectedDocumentRevision: 3, provider: 'google-drive', projectId: 'drive_file_source', expectedProviderRevision: '8', expectedProjectRevision: sourceRevision });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('rejects a commit whose supplied revisions do not match the checkout lineage', async () => {

@@ -21,6 +21,19 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastruct
 export const dynamic = 'force-dynamic';
 const idSchema = z.guid();
 
+// A valid portable document can carry more metadata than a buffered function
+// response permits. Preserve the ordinary JSON contract while streaming it.
+const streamDocumentResponse = (value: unknown): Response => {
+  const bytes = new TextEncoder().encode(JSON.stringify(value));
+  let offset = 0;
+  return new Response(new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (offset >= bytes.length) return controller.close();
+      controller.enqueue(bytes.subarray(offset, offset += 64 * 1024));
+    },
+  }), { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
+};
+
 const readDocumentId = async (context: { params: Promise<{ documentId: string }> }) => {
   const result = idSchema.safeParse((await context.params).documentId);
   return result.success ? result.data : null;
@@ -77,7 +90,7 @@ export async function GET(
       value: document.document,
       requireVerifiedSize: Boolean(outputIntent),
     });
-    return createNoStoreJsonResponse({ document, assets, watermark: account.watermark, ...(outputIntent ? { outputIntent } : {}) });
+    return streamDocumentResponse({ document, assets, watermark: account.watermark, ...(outputIntent ? { outputIntent } : {}) });
   } catch (error) {
     return toErrorResponse(error, 'Unable to load the Studio document.');
   }

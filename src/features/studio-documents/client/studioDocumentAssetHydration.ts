@@ -1,7 +1,8 @@
 "use client";
 
 import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope, type ProjectDocumentV1 } from '@/features/project/client/package-document';
-import { isProjectFontMimeType, MAX_PROJECT_FONT_BYTES } from '@/features/project/client/assets';
+import { isProjectFontMimeType } from '@/features/project/client/assets';
+import { isProjectPackageAssetMimeType, MAX_PROJECT_PACKAGE_ASSET_BYTES, MAX_PROJECT_PACKAGE_ASSETS } from '@/features/project/client/package-document';
 import {
   replaceStudioDocumentAssetReferences,
   collectStudioDocumentAssetIds, collectStudioDocumentFontIds,
@@ -42,7 +43,7 @@ export const hydrateStudioDocumentAssetValue = async <Value>(
     if (expected.size !== images.size + fonts.size || assets.some((asset) => !asset || typeof asset.id !== 'string' || typeof asset.signedUrl !== 'string' || !asset.signedUrl || (asset.kind !== 'image' && asset.kind !== 'font') || (asset.kind === 'image' ? !images.has(asset.id) : !fonts.has(asset.id)))) throw new Error('The private asset list is invalid or ambiguous.');
     const observed = new Set(assets.map((asset) => asset.id));
     if (observed.size !== assets.length || observed.size !== expected.size || [...expected].some((id) => !observed.has(id))) throw new Error('The private asset list is incomplete or ambiguous.');
-    if (images.size > MAX_STUDIO_DOCUMENT_ASSETS || fonts.size > MAX_STUDIO_DOCUMENT_FONTS || assets.some((asset) => !Number.isSafeInteger(asset.size) || asset.size === null || asset.size < 1 || (asset.kind === 'font' && (asset.size > MAX_PROJECT_FONT_BYTES || !isProjectFontMimeType(asset.mimeType))) || (asset.kind === 'image' && asset.mimeType !== 'image/webp')) || assets.reduce((sum, asset) => sum + (asset.size ?? 0), 0) > MAX_STUDIO_DOCUMENT_ASSET_STORAGE_BYTES) throw new Error('The private asset sizes or formats are invalid.');
+    if (expected.size > MAX_PROJECT_PACKAGE_ASSETS || images.size > MAX_STUDIO_DOCUMENT_ASSETS || fonts.size > MAX_STUDIO_DOCUMENT_FONTS || assets.some((asset) => !Number.isSafeInteger(asset.size) || asset.size === null || asset.size < 1 || asset.size > MAX_PROJECT_PACKAGE_ASSET_BYTES || (asset.kind === 'font' && !isProjectFontMimeType(asset.mimeType)) || (asset.kind === 'image' && (!asset.mimeType.startsWith('image/') || !isProjectPackageAssetMimeType(asset.mimeType)))) || assets.reduce((sum, asset) => sum + (asset.size ?? 0), 0) > MAX_STUDIO_DOCUMENT_ASSET_STORAGE_BYTES) throw new Error('The private asset sizes or formats are invalid.');
   }
   const replacements = new Map<string, string>();
   for (let start = 0; start < assets.length; start += 4) {
