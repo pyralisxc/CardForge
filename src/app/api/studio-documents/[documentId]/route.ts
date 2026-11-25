@@ -11,6 +11,7 @@ import {
   StudioDocumentStoreError,
   updateStudioDocument,
   readStudioOutputIntent, validateOutputIntentDocument,
+  readPrivateStudioTemplate,
 } from '@/features/studio-documents/server';
 import {
   parseJsonBodyWithLimit,
@@ -112,8 +113,12 @@ export async function PATCH(
       );
     }
     const body = parsedBody.data as Record<string, unknown>;
+    if (body.templateAssetId !== undefined) {
+      if (typeof body.templateAssetId !== 'string' || !/^[a-f0-9]{64}$/u.test(body.templateAssetId) || body.template !== undefined || body.document !== undefined) return createApiErrorResponse(400, 'studio_document_invalid', 'The Template transfer is invalid.');
+    }
     const expectedRevision = body.expectedRevision;
     const account = await getCurrentStudioDocumentAccount();
+    if (typeof body.templateAssetId === 'string') body.template = await readPrivateStudioTemplate(account.ownerUserId, documentId, body.templateAssetId);
     let title = normalizeStudioDocumentTitle(body.title);
     let document = normalizeStudioDocumentPayload(body.document);
     if (body.template && typeof body.template === 'object' && !Array.isArray(body.template)) {

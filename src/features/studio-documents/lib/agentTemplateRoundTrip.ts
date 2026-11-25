@@ -9,6 +9,7 @@ import { collectStudioDocumentAssetIds, collectStudioDocumentFontIds, getStudioD
 import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '@/features/project/client/package-document';
 import { isProjectPackageAssetMimeType } from '@/features/project/client/package-document';
 import { readBrowserProjectAssetReference } from '@/features/project/client/assets';
+import { STUDIO_CONTENT_MAX_JSON_BODY_BYTES } from '@/infrastructure/http/apiValidation';
 
 const AGENT_TEMPLATE_LINKS_PREFERENCE = 'agent-template-links-v1';
 
@@ -21,6 +22,31 @@ export type AgentTemplateSyncResult =
   | { status: 'conflict'; revision: number };
 
 const getPreferenceKey = () => `${AGENT_TEMPLATE_LINKS_PREFERENCE}:${getProjectPersistenceScope()}`;
+
+const transferPrivateBlob = async (blob: Blob, id: string, documentId: string, expectedRevision: number, scope: string) => {
+  const plan = async () => {
+    if (getProjectPersistenceScope() !== scope) throw new Error('The workspace account changed. Your local draft was kept.');
+    const response = await fetch(`/api/studio-documents/${encodeURIComponent(documentId)}/asset-upload`, {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, mimeType: blob.type, size: blob.size, expectedRevision }),
+    });
+    if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to prepare the private transfer.'));
+    const result = await response.json() as { upload?: { alreadyPresent?: unknown; signedUrl?: unknown } };
+    if (result.upload?.alreadyPresent === true) return null;
+    if (result.upload?.alreadyPresent !== false || typeof result.upload.signedUrl !== 'string') throw new Error('The private transfer could not be prepared.');
+    return result.upload.signedUrl;
+  };
+  const signedUrl = await plan();
+  if (signedUrl) {
+    const form = new FormData();
+    form.append('cacheControl', '3600');
+    form.append('', blob, 'asset');
+    let uploaded = false;
+    try { uploaded = (await fetch(signedUrl, { method: 'PUT', headers: { 'x-upsert': 'false' }, body: form })).ok; } catch { /* reconcile an uncertain response */ }
+    if (!uploaded && await plan() !== null) throw new Error('The private transfer could not be confirmed. Your local draft was kept.');
+  }
+  if (getProjectPersistenceScope() !== scope) throw new Error('The workspace account changed. Your local draft was kept.');
+};
 
 // Reuse exact existing private objects when a browser Template still contains
 // their hydrated bytes. This avoids resending large unchanged artwork.
@@ -53,28 +79,7 @@ const reusePrivateAssets = async <T>(value: T, project: unknown, documentId: str
       }
       if (!blob || !isProjectPackageAssetMimeType(blob.type)) throw new Error('This artwork format cannot be transferred to the linked draft.');
       const mimeType = blob.type;
-      const plan = async () => {
-        if (getProjectPersistenceScope() !== scope) throw new Error('The workspace account changed. Your local draft was kept.');
-        const response = await fetch(`/api/studio-documents/${encodeURIComponent(documentId)}/asset-upload`, {
-          method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, mimeType, size: blob!.size, expectedRevision }),
-        });
-        if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to prepare the private artwork transfer.'));
-        const result = await response.json() as { upload?: { alreadyPresent?: unknown; signedUrl?: unknown } };
-        if (result.upload?.alreadyPresent === true) return null;
-        if (result.upload?.alreadyPresent !== false || typeof result.upload.signedUrl !== 'string') throw new Error('The private artwork transfer could not be prepared.');
-        return result.upload.signedUrl;
-      };
-      const signedUrl = await plan();
-      if (signedUrl) {
-        const form = new FormData();
-        form.append('cacheControl', '3600');
-        form.append('', blob, 'asset');
-        let uploaded = false;
-        try { uploaded = (await fetch(signedUrl, { method: 'PUT', headers: { 'x-upsert': 'false' }, body: form })).ok; } catch { /* reconcile an uncertain response */ }
-        if (!uploaded && await plan() !== null) throw new Error('The artwork transfer could not be confirmed. Your local draft was kept.');
-      }
-      if (getProjectPersistenceScope() !== scope) throw new Error('The workspace account changed. Your local draft was kept.');
+      await transferPrivateBlob(blob, id, documentId, expectedRevision, scope);
       return mimeType.startsWith('image/') ? getStudioDocumentAssetReference(id) : getStudioDocumentFontReference(id);
     })();
     pending.set(entry, result);
@@ -178,9 +183,18 @@ export const syncAgentTemplateSave = async (template: TCGCardTemplate): Promise<
   // Working-document revision is a container concurrency token. It must never
   // masquerade as the Template's own lineage revision.
   const reusableTemplate = await reusePrivateAssets(template, project, link.documentId, currentRevision);
+  const updatedTemplate = { ...reusableTemplate, templateSource: 'user', templateLibrarySource: 'personal' };
+  let body = JSON.stringify({ expectedRevision: currentRevision, template: updatedTemplate });
+  if (new TextEncoder().encode(body).byteLength > STUDIO_CONTENT_MAX_JSON_BODY_BYTES) {
+    const blob = new Blob([JSON.stringify(updatedTemplate)], { type: 'application/json' });
+    const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+    const id = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+    await transferPrivateBlob(blob, id, link.documentId, currentRevision, getProjectPersistenceScope());
+    body = JSON.stringify({ expectedRevision: currentRevision, templateAssetId: id });
+  }
   const updateResponse = await fetch(`/api/studio-documents/${encodeURIComponent(link.documentId)}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
-    body: JSON.stringify({ expectedRevision: currentRevision, template: { ...reusableTemplate, templateSource: 'user', templateLibrarySource: 'personal' } }),
+    body,
   });
   if (!updateResponse.ok) {
     if (updateResponse.status === 409) {

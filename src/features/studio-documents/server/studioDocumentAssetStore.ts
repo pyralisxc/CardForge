@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import {
   isProjectFontMimeType,
   MAX_PROJECT_PACKAGE_ASSET_BYTES,
+  MAX_PROJECT_PACKAGE_METADATA_BYTES,
   MAX_PROJECT_PACKAGE_ASSETS,
   isProjectPackageAssetMimeType,
   type ProjectPackageAssetMimeType,
@@ -47,7 +48,8 @@ const fontStoragePath = (ownerUserId: string, documentId: string, assetId: strin
 );
 
 const privateAssetLocation = (ownerUserId: string, documentId: string, id: string, mimeType: string) => {
-  if (!/^[a-f0-9]{64}$/u.test(id) || !isProjectPackageAssetMimeType(mimeType)) throw new StudioDocumentStoreError('The private asset identity or format is invalid.', 400);
+  if (!/^[a-f0-9]{64}$/u.test(id) || (mimeType !== 'application/json' && !isProjectPackageAssetMimeType(mimeType))) throw new StudioDocumentStoreError('The private asset identity or format is invalid.', 400);
+  if (mimeType === 'application/json') return { bucket: STUDIO_DOCUMENT_ASSET_BUCKET, path: `${storagePrefix(ownerUserId, documentId)}/template-${id}.json` };
   return mimeType.startsWith('image/')
     ? { bucket: STUDIO_DOCUMENT_ASSET_BUCKET, path: imageStoragePath(ownerUserId, documentId, id) }
     : { bucket: STUDIO_DOCUMENT_FONT_BUCKET, path: fontStoragePath(ownerUserId, documentId, id) };
@@ -61,17 +63,26 @@ export const verifyPrivateStudioAsset = async (ownerUserId: string, documentId: 
     throw new StudioDocumentStoreError('Private artwork storage is unavailable. The local draft was kept.', 503);
   }
   if (!data) throw new StudioDocumentStoreError('The private artwork read could not be confirmed. The local draft was kept.', 503);
-  if (data.size < 1 || data.size > MAX_PROJECT_PACKAGE_ASSET_BYTES || (expectedSize !== undefined && data.size !== expectedSize) || (data.type && data.type !== mimeType)) return false;
+  if (data.size < 1 || data.size > (mimeType === 'application/json' ? MAX_PROJECT_PACKAGE_METADATA_BYTES : MAX_PROJECT_PACKAGE_ASSET_BYTES) || (expectedSize !== undefined && data.size !== expectedSize) || (data.type && data.type !== mimeType)) return false;
   return createHash('sha256').update(Buffer.from(await data.arrayBuffer())).digest('hex') === id;
 };
 
 export const preparePrivateStudioAssetUpload = async ({ ownerUserId, documentId, id, mimeType, size }: { ownerUserId: string; documentId: string; id: string; mimeType: string; size: number }) => {
-  if (!Number.isSafeInteger(size) || size < 1 || size > MAX_PROJECT_PACKAGE_ASSET_BYTES) throw new StudioDocumentStoreError('The private asset exceeds the portable project asset limit.', 413);
+  if (!Number.isSafeInteger(size) || size < 1 || size > (mimeType === 'application/json' ? MAX_PROJECT_PACKAGE_METADATA_BYTES : MAX_PROJECT_PACKAGE_ASSET_BYTES)) throw new StudioDocumentStoreError('The private asset exceeds the portable project asset limit.', 413);
   const { bucket, path } = privateAssetLocation(ownerUserId, documentId, id, mimeType);
   if (await verifyPrivateStudioAsset(ownerUserId, documentId, id, mimeType, size)) return { alreadyPresent: true, signedUrl: null };
   const { data, error } = await requireStore().storage.from(bucket).createSignedUploadUrl(path, { upsert: false });
   if (error || !data?.signedUrl) throw new StudioDocumentStoreError('Unable to prepare the private artwork transfer.', 503);
   return { alreadyPresent: false, signedUrl: data.signedUrl };
+};
+
+export const readPrivateStudioTemplate = async (ownerUserId: string, documentId: string, id: string): Promise<unknown> => {
+  const { bucket, path } = privateAssetLocation(ownerUserId, documentId, id, 'application/json');
+  const { data, error } = await requireStore().storage.from(bucket).download(path);
+  if (error || !data || data.size < 1 || data.size > MAX_PROJECT_PACKAGE_METADATA_BYTES || (data.type && data.type !== 'application/json')) throw new StudioDocumentStoreError('The transferred Template is unavailable. The working draft was not changed.', 503);
+  const bytes = Buffer.from(await data.arrayBuffer());
+  if (createHash('sha256').update(bytes).digest('hex') !== id) throw new StudioDocumentStoreError('The transferred Template failed its integrity check.', 409);
+  try { return JSON.parse(bytes.toString('utf8')); } catch { throw new StudioDocumentStoreError('The transferred Template is invalid.', 400); }
 };
 
 const readObjectSize = (value: unknown): number | null => {

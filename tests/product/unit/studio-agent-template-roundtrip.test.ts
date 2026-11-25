@@ -99,6 +99,20 @@ describe('agent Template Studio round trip', () => {
     expect(fetchMock.mock.calls[4][0]).toContain('/asset-upload');
     expect(fetchMock.mock.calls[5][1]).toMatchObject({ method: 'PATCH' });
   });
+  it('transfers an oversized Template without sending it in the update request', async () => {
+    const large: TCGCardTemplate = { ...template, freeformCanvas: { width: 630, height: 880, elements: [{ id: 'text', type: 'text', name: 'Text', x: 0, y: 0, width: 100, height: 100, zIndex: 1, content: 'x'.repeat(4 * 1024 * 1024) }] } };
+    await rememberAgentTemplateLink(template.id!, '11111111-1111-4111-8111-111111111111', 2);
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ document: { id: '11111111-1111-4111-8111-111111111111', title: 'Agent Template', creationSource: 'gpt', revision: 2, document: projectDocument } }))
+      .mockResolvedValueOnce(jsonResponse({ upload: { alreadyPresent: false, signedUrl: 'https://storage.example.invalid/private' } }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(jsonResponse({ document: { revision: 3 } }));
+    vi.stubGlobal('fetch', fetchMock); vi.stubGlobal('crypto', webcrypto);
+    await expect(syncAgentTemplateSave(large)).resolves.toEqual({ status: 'synced', revision: 3 });
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1].body)).mimeType).toBe('application/json');
+    const patch = JSON.parse(String(fetchMock.mock.calls[3][1].body));
+    expect(patch.templateAssetId).toMatch(/^[a-f0-9]{64}$/u);
+    expect(patch).not.toHaveProperty('template');
+  });
   it('reuses the existing private object for unchanged browser artwork', async () => {
     const id = 'a'.repeat(64);
     const withImage = (imageSource: string): TCGCardTemplate => ({ ...template, freeformCanvas: { width: 630, height: 880, elements: [{ id: 'art', type: 'image', name: 'Art', x: 0, y: 0, width: 100, height: 100, zIndex: 1, imageSource, content: imageSource }] } });

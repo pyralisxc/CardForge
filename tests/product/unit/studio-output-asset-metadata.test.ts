@@ -4,7 +4,7 @@ import { expect, it, vi } from 'vitest';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
 const mocks = vi.hoisted(() => ({ list: vi.fn(), signed: vi.fn(), upload: vi.fn(), download: vi.fn(), signedUpload: vi.fn() }));
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ storage: { from: () => ({ list: mocks.list, createSignedUrls: mocks.signed, upload: mocks.upload, download: mocks.download, createSignedUploadUrl: mocks.signedUpload }) } }) }));
-import { externalizeStudioDocumentAssets, getStudioDocumentAssetDownloads, preparePrivateStudioAssetUpload, verifyPrivateStudioAsset } from '@/features/studio-documents/server/studioDocumentAssetStore';
+import { externalizeStudioDocumentAssets, getStudioDocumentAssetDownloads, preparePrivateStudioAssetUpload, readPrivateStudioTemplate, verifyPrivateStudioAsset } from '@/features/studio-documents/server/studioDocumentAssetStore';
 const id = 'f'.repeat(64);
 it('finds current referenced artwork after historical objects and rejects incomplete listing', async () => {
   mocks.list.mockReset(); mocks.signed.mockReset();
@@ -69,6 +69,13 @@ it('recognizes a previously uploaded object only when its length, format and dig
   mocks.download.mockResolvedValue({ data: null, error: { status: 404 } });
   mocks.signedUpload.mockResolvedValue({ data: { signedUrl: 'https://storage.invalid/upload' }, error: null });
   expect(await preparePrivateStudioAssetUpload({ ownerUserId: 'owner', documentId: 'doc', id: digest, mimeType: 'image/png', size: bytes.length })).toMatchObject({ alreadyPresent: false });
+});
+it('reads transferred Template metadata only when its bytes match its content address', async () => {
+  const json = JSON.stringify({ id: 'template', name: 'Transferred' });
+  const digest = createHash('sha256').update(json).digest('hex');
+  mocks.download.mockResolvedValue({ data: new Blob([json], { type: 'application/json' }), error: null });
+  expect(await readPrivateStudioTemplate('owner', 'doc', digest)).toEqual({ id: 'template', name: 'Transferred' });
+  await expect(readPrivateStudioTemplate('owner', 'doc', 'a'.repeat(64))).rejects.toMatchObject({ status: 409 });
 });
 it('finds current referenced font beyond retained historical pages', async () => {
   mocks.list.mockReset(); mocks.signed.mockReset();

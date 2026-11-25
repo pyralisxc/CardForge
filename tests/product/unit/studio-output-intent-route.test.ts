@@ -1,8 +1,8 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
 vi.mock('server-only', () => ({}));
-const f = vi.hoisted(() => ({ get: vi.fn(), read: vi.fn(), account: vi.fn(), assets: vi.fn(), plan: vi.fn(), update: vi.fn() }));
-vi.mock('@/features/studio-documents/server', async (original) => ({ ...await original<object>(), getStudioDocument: f.get, readStudioOutputIntent: f.read, getCurrentStudioDocumentAccount: f.account, getStudioDocumentAssetDownloads: f.assets, preparePrivateStudioAssetUpload: f.plan, updateStudioDocument: f.update }));
+const f = vi.hoisted(() => ({ get: vi.fn(), read: vi.fn(), account: vi.fn(), assets: vi.fn(), plan: vi.fn(), update: vi.fn(), template: vi.fn() }));
+vi.mock('@/features/studio-documents/server', async (original) => ({ ...await original<object>(), getStudioDocument: f.get, readStudioOutputIntent: f.read, getCurrentStudioDocumentAccount: f.account, getStudioDocumentAssetDownloads: f.assets, preparePrivateStudioAssetUpload: f.plan, updateStudioDocument: f.update, readPrivateStudioTemplate: f.template }));
 import { GET, PATCH } from '@/app/api/studio-documents/[documentId]/route';
 import { POST as planUpload } from '@/app/api/studio-documents/[documentId]/asset-upload/route';
 const id = 'a2393740-a748-42cc-a942-1aa7c16641db';
@@ -52,4 +52,15 @@ it('updates only the named Template against the exact current document revision'
  f.update.mockClear(); f.get.mockResolvedValue({ revision: 3, title: 'Existing', document });
  expect((await PATCH(request(), context)).status).toBe(409);
  expect(f.update).not.toHaveBeenCalled();
+});
+it('reads a private transferred Template for the exact owner before the revision update', async () => {
+ const document = createProjectScaleFixture(100);
+ const original = document.userTemplates[0];
+ f.get.mockReset(); f.get.mockResolvedValue({ revision: 2, title: 'Existing', document });
+ f.template.mockResolvedValue({ ...original, name: 'Transferred' });
+ f.update.mockImplementation(async ({ document: updated }) => ({ revision: 3, document: updated }));
+ const request = new Request('https://cardforge.test/api/document', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedRevision: 2, templateAssetId: 'f'.repeat(64) }) });
+ expect((await PATCH(request, context)).status).toBe(200);
+ expect(f.template).toHaveBeenCalledWith('account', id, 'f'.repeat(64));
+ expect(f.update).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 2, document: expect.objectContaining({ userTemplates: expect.arrayContaining([expect.objectContaining({ id: original.id, name: 'Transferred' })]) }) }));
 });
