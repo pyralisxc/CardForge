@@ -82,7 +82,7 @@ describe('agent Template Studio round trip', () => {
     expect(JSON.parse(String(fetchMock.mock.calls[2][1].body))).toMatchObject({ id, expectedRevision: 2, size: 4, mimeType: 'image/png' });
     expect(fetchMock.mock.calls[3][0]).toBe('https://storage.example.invalid/private');
     const patch = JSON.parse(String(fetchMock.mock.calls[4][1].body));
-    expect(patch.document.userTemplates[0].freeformCanvas.elements[0].imageSource).toBe(`cardforge-studio-asset://${id}`);
+    expect(patch.template.freeformCanvas.elements[0].imageSource).toBe(`cardforge-studio-asset://${id}`);
   });
   it('reconciles an uncertain upload before saving the linked revision', async () => {
     const dataUrl = 'data:image/png;base64,AQIDBA==';
@@ -108,7 +108,7 @@ describe('agent Template Studio round trip', () => {
     vi.stubGlobal('fetch', fetchMock);
     await expect(syncAgentTemplateSave(withImage(`cardforge-browser-asset://${id}`))).resolves.toEqual({ status: 'synced', revision: 3 });
     const payload = JSON.parse(String(fetchMock.mock.calls[1][1].body));
-    expect(payload.document.userTemplates[0].freeformCanvas.elements[0].imageSource).toBe(`cardforge-studio-asset://${id}`);
+    expect(payload.template.freeformCanvas.elements[0].imageSource).toBe(`cardforge-studio-asset://${id}`);
   });
 
   it('only discovers and syncs an agent document in an account workspace without conflating document and Template revisions', async () => {
@@ -166,14 +166,14 @@ describe('agent Template Studio round trip', () => {
     expect(patchCall[1]).toMatchObject({ method: 'PATCH' });
     const body = JSON.parse(String(patchCall[1]?.body)) as {
       expectedRevision: number;
-      document: { userTemplates: TCGCardTemplate[] };
+      template: TCGCardTemplate;
     };
     expect(body.expectedRevision).toBe(2);
-    expect(body.document.userTemplates[0]).toMatchObject({
+    expect(body.template).toMatchObject({
       id: template.id,
       name: 'Saved in Studio',
     });
-    expect(body.document.userTemplates[0]?.templateRevision).toBe(template.templateRevision);
+    expect(body.template.templateRevision).toBe(template.templateRevision);
   });
 
   it('protects a newer ChatGPT revision from an older Studio save', async () => {

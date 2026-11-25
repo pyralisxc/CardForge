@@ -112,13 +112,25 @@ export async function PATCH(
       );
     }
     const body = parsedBody.data as Record<string, unknown>;
-    const title = normalizeStudioDocumentTitle(body.title);
-    const document = normalizeStudioDocumentPayload(body.document);
     const expectedRevision = body.expectedRevision;
+    const account = await getCurrentStudioDocumentAccount();
+    let title = normalizeStudioDocumentTitle(body.title);
+    let document = normalizeStudioDocumentPayload(body.document);
+    if (body.template && typeof body.template === 'object' && !Array.isArray(body.template)) {
+      const template = body.template as Record<string, unknown>;
+      if (typeof template.id !== 'string' || !Number.isInteger(expectedRevision) || Number(expectedRevision) < 1) return createApiErrorResponse(400, 'studio_document_invalid', 'A Template and current revision are required.');
+      const current = await getStudioDocument(account.ownerUserId, documentId, account.retentionHours);
+      if (current.revision !== expectedRevision) throw new StudioDocumentStoreError('The Studio draft changed. Reopen its current revision before saving.', 409);
+      const index = current.document.userTemplates.findIndex((item) => item.id === template.id);
+      if (index < 0) throw new StudioDocumentStoreError('The linked Template is no longer present.', 409);
+      const templates = [...current.document.userTemplates];
+      templates[index] = template as unknown as typeof templates[number];
+      document = normalizeStudioDocumentPayload({ ...current.document, userTemplates: templates });
+      title = current.title;
+    }
     if (!title || !document || !Number.isInteger(expectedRevision) || Number(expectedRevision) < 1) {
       return createApiErrorResponse(400, 'studio_document_invalid', 'Title, project document, and current revision are required.');
     }
-    const account = await getCurrentStudioDocumentAccount();
     const updated = await updateStudioDocument({
       ownerUserId: account.ownerUserId,
       documentId,

@@ -1,8 +1,9 @@
 import { beforeEach, expect, it, vi } from 'vitest';
+import { createProjectScaleFixture } from '../../fixtures/projectScale';
 vi.mock('server-only', () => ({}));
-const f = vi.hoisted(() => ({ get: vi.fn(), read: vi.fn(), account: vi.fn(), assets: vi.fn(), plan: vi.fn() }));
-vi.mock('@/features/studio-documents/server', async (original) => ({ ...await original<object>(), getStudioDocument: f.get, readStudioOutputIntent: f.read, getCurrentStudioDocumentAccount: f.account, getStudioDocumentAssetDownloads: f.assets, preparePrivateStudioAssetUpload: f.plan }));
-import { GET } from '@/app/api/studio-documents/[documentId]/route';
+const f = vi.hoisted(() => ({ get: vi.fn(), read: vi.fn(), account: vi.fn(), assets: vi.fn(), plan: vi.fn(), update: vi.fn() }));
+vi.mock('@/features/studio-documents/server', async (original) => ({ ...await original<object>(), getStudioDocument: f.get, readStudioOutputIntent: f.read, getCurrentStudioDocumentAccount: f.account, getStudioDocumentAssetDownloads: f.assets, preparePrivateStudioAssetUpload: f.plan, updateStudioDocument: f.update }));
+import { GET, PATCH } from '@/app/api/studio-documents/[documentId]/route';
 import { POST as planUpload } from '@/app/api/studio-documents/[documentId]/asset-upload/route';
 const id = 'a2393740-a748-42cc-a942-1aa7c16641db';
 const intent = { documentId: id, revision: 2, setId: 'set', cardIds: ['b','a'], paper: 'A4 (210×297 mm)', marginMm: 5, spacingMm: 0, cutLines: false, duplex: 'same-page', mode: 'virtual', quality: 150 };
@@ -39,4 +40,16 @@ it('plans an owner-scoped private transfer only for the exact current revision',
  f.plan.mockClear(); f.get.mockResolvedValue({ revision: 3 });
  expect((await planUpload(request(), context)).status).toBe(409);
  expect(f.plan).not.toHaveBeenCalled();
+});
+it('updates only the named Template against the exact current document revision', async () => {
+ const document = createProjectScaleFixture(100);
+ const original = document.userTemplates[0];
+ f.get.mockReset(); f.get.mockResolvedValue({ revision: 2, title: 'Existing', document });
+ f.update.mockImplementation(async ({ document: updated }) => ({ revision: 3, document: updated }));
+ const request = () => new Request('https://cardforge.test/api/document', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedRevision: 2, template: { ...original, name: 'Changed' } }) });
+ expect((await PATCH(request(), context)).status).toBe(200);
+ expect(f.update).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 2, title: 'Existing', document: expect.objectContaining({ storedCards: document.storedCards, userTemplates: expect.arrayContaining([expect.objectContaining({ id: original.id, name: 'Changed' })]) }) }));
+ f.update.mockClear(); f.get.mockResolvedValue({ revision: 3, title: 'Existing', document });
+ expect((await PATCH(request(), context)).status).toBe(409);
+ expect(f.update).not.toHaveBeenCalled();
 });

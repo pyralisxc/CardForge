@@ -175,14 +175,12 @@ export const syncAgentTemplateSave = async (template: TCGCardTemplate): Promise<
   const templateIndex = project.userTemplates.findIndex((candidate) => candidate.id === templateId);
   if (templateIndex < 0) { await forgetAgentTemplateLink(templateId); return { status: 'unlinked' }; }
 
-  const nextTemplates = [...project.userTemplates];
   // Working-document revision is a container concurrency token. It must never
   // masquerade as the Template's own lineage revision.
   const reusableTemplate = await reusePrivateAssets(template, project, link.documentId, currentRevision);
-  nextTemplates[templateIndex] = { ...reusableTemplate, templateSource: 'user', templateLibrarySource: 'personal' };
   const updateResponse = await fetch(`/api/studio-documents/${encodeURIComponent(link.documentId)}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
-    body: JSON.stringify({ expectedRevision: currentRevision, title, document: { ...project, userTemplates: nextTemplates } }),
+    body: JSON.stringify({ expectedRevision: currentRevision, template: { ...reusableTemplate, templateSource: 'user', templateLibrarySource: 'personal' } }),
   });
   if (!updateResponse.ok) {
     if (updateResponse.status === 409) {
