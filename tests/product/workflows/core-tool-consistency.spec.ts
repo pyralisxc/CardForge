@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import JSZip from 'jszip';
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
 test('Personal Library renders native local artwork and fonts and identifies missing sources', async ({ page }) => {
@@ -140,6 +142,15 @@ for (const width of [1440, 390]) test(`Library edits the same card and retains t
   await page.goto('/account?section=library');
   const openSet = () => page.locator('[id^="library-object-set:"]').filter({ hasText: '100 Card Scale Set' }).click();
   await openSet();
+  if (width === 1440) {
+    const downloading = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download Set', exact: true }).click();
+    const file = await downloading;
+    const archive = await JSZip.loadAsync(await readFile((await file.path())!));
+    const manifest = JSON.parse(await archive.file('cardforge-project.json')!.async('string'));
+    expect(manifest.project.cardSets.map((set: { id: string }) => set.id)).toEqual(['scale-set-100']);
+    expect(manifest.project.artifacts).toHaveLength(2);
+  }
   const readWorkspaces = () => page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('cardforge-browser-storage');
