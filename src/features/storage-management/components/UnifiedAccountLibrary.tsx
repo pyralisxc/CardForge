@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import type { DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
 import { createCardFaceExportRenderer, getExportProfile } from '@/features/card-generator/client/export';
+import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
+import { LinkedFolderSave } from '@/features/project/client/locations';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import {
@@ -26,7 +28,7 @@ import {
 import type { WorkbenchBusinessIdentity } from '@/features/creator-workbench/client';
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
 import { buildPipelineContentHealth, PipelineContentHealthPanel, type PipelineSubmission } from '@/features/pipeline/client';
-import { deleteGoogleDriveProjectCopy } from '@/features/project/client/provider-google-drive';
+import { deleteGoogleDriveProjectCopy, shouldOfferGoogleDriveReconciliation, useGoogleDriveWorkingSession } from '@/features/project/client/provider-google-drive';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -300,6 +302,13 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const currentRecord = currentItem ? detailRecord(currentItem) : null;
   const selectedLocalSet = currentItem?.scope === 'personal'
     ? cardSets.find((set) => set.id === currentItem.personal.references.localSetId) : undefined;
+  const hasLinkedDrive = Boolean(selectedLocalSet && currentItem?.scope === 'personal' && currentItem.personal.references.driveFileId);
+  const driveWorkingSession = useGoogleDriveWorkingSession({
+    setId: selectedLocalSet?.id ?? null,
+    name: selectedLocalSet?.name ?? 'CardForge Set',
+    enabled: hasLinkedDrive && isSignedIn && experience.capabilities.canUseProjectFiles,
+    renderThumbnail: createGoogleDriveProjectThumbnail,
+  });
   useEffect(() => { setCardQuery(''); }, [selectedLocalSet?.id]);
   useEffect(() => {
     setCardEditSession(null);
@@ -595,7 +604,17 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{selectedLocalSet ? <div className="min-w-0"><div className="flex flex-wrap gap-1 border-b pb-3" aria-label="Set tools">
       <SetDirection key={`direction-${selectedLocalSet.id}`} set={selectedLocalSet} useLifecycle={useEnvironmentToolLifecycle} />
       <SetUpdates key={`updates-${selectedLocalSet.id}`} setId={selectedLocalSet.id} />
-    </div><SetTemplates key={`templates-${selectedLocalSet.id}`} presentation="contents" set={selectedLocalSet} cards={displayCards.filter((card) => (card.setId ?? cardSets[0]?.id) === selectedLocalSet.id)} templates={templates} onDesign={(id) => {
+    </div>
+    {hasLinkedDrive ? <section className="space-y-2 border-t pt-4" aria-label="Google Drive save">
+      <p role="status" className="text-sm text-muted-foreground">{driveWorkingSession.state.message}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" disabled={!isSignedIn || !experience.capabilities.canUseProjectFiles || !['clean', 'dirty'].includes(driveWorkingSession.state.phase)} onClick={() => { void driveWorkingSession.saveNow(); }}>Save to Google Drive</Button>
+        {driveWorkingSession.state.phase === 'recovery-required' ? <Button type="button" variant="outline" onClick={() => { void driveWorkingSession.repairLink(); }}>Repair link</Button> : null}
+        {shouldOfferGoogleDriveReconciliation(driveWorkingSession.state.phase) ? <Button type="button" variant="outline" onClick={() => { void driveWorkingSession.reconcile(); }}>Check Drive</Button> : null}
+      </div>
+    </section> : null}
+    {currentItem?.scope === 'personal' && currentItem.personal.references.localFolder && experience.capabilities.canUseProjectFiles ? <section className="pt-3" aria-label="Linked folder save"><LinkedFolderSave key={selectedLocalSet.id} setId={selectedLocalSet.id} onChanged={projection.refresh} /></section> : null}
+    <SetTemplates key={`templates-${selectedLocalSet.id}`} presentation="contents" set={selectedLocalSet} cards={displayCards.filter((card) => (card.setId ?? cardSets[0]?.id) === selectedLocalSet.id)} templates={templates} onDesign={(id) => {
       const returnFocusId = document.activeElement instanceof HTMLElement ? document.activeElement.id : null;
       openTemplateDesign(id); setDesignReturnFocusId(returnFocusId || selection.focusReturnId || null); openTool('design', [id]);
     }} renderPreview={renderTemplatePreview} getTemplateAccent={getTemplateAccent} />

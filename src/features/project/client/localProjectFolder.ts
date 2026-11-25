@@ -317,9 +317,14 @@ export const listLocalProjectWorkBindings = async (): Promise<LocalProjectWorkBi
   return bindings.flatMap((binding) => binding ? [binding] : []);
 };
 
-export const saveCardSetToAttachedFolder = async (setId: string): Promise<LocalProjectFolderBinding> => {
+export const saveCardSetToAttachedFolder = async (setId: string, expectedBinding?: LocalProjectFolderBinding): Promise<LocalProjectFolderBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const binding = await getLocalProjectWorkBinding(setId, namespace);
+  assertFolderScope(namespace);
+  if (expectedBinding && (!binding?.handle || binding.sourceRevision !== expectedBinding.sourceRevision
+    || !await binding.handle.isSameEntry(expectedBinding.handle))) {
+    throw new ProjectPackageError('The linked folder changed or is unavailable. Check its location before saving; browser work was left unchanged.');
+  }
   assertFolderScope(namespace);
   if (!binding?.handle) return await saveCardSetToNewFolder({ setId });
   return await writeSnapshotToDirectory(binding.handle, binding, setId, namespace);

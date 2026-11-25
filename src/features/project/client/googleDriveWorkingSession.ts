@@ -6,6 +6,7 @@ import { ApiClientError } from '@/infrastructure/http/clientResponses';
 import type { StudioAutosaveDelaySeconds } from '@/features/experience-settings/client';
 
 import type { GoogleDriveProjectSummary } from '../model/googleDriveProject';
+import type { ProjectDocumentV1 } from '../model/projectDocument';
 import { useProjectStore } from '../store/workspaceStore';
 import { getProjectPersistenceScope, getScopedProjectStorageNamespace } from '../persistence/projectPersistenceScope';
 import { repairConfirmedGoogleDriveLink } from './googleDriveLinkRepair';
@@ -152,15 +153,19 @@ export function useGoogleDriveWorkingSession({
   name,
   enabled = true,
   autosave,
+  renderThumbnail,
 }: {
   setId: string | null;
   name: string;
   enabled?: boolean;
   autosave?: { enabled: boolean; delaySeconds: StudioAutosaveDelaySeconds; isEnabled: () => boolean };
+  renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
 }) {
   const scope = getProjectPersistenceScope();
   const autosaveRef = useRef(autosave);
   autosaveRef.current = autosave;
+  const thumbnailRef = useRef(renderThumbnail);
+  thumbnailRef.current = renderThumbnail;
   const [state, setState] = useState<GoogleDriveWorkingSessionState>(initialState);
   const bindingRef = useRef<GoogleDriveProjectBinding | null>(null);
   const writableRef = useRef<boolean | null>(null);
@@ -281,7 +286,9 @@ export function useGoogleDriveWorkingSession({
         try {
           const controller = automatic ? new AbortController() : null;
           automaticSaveRef.current = controller;
-          const saved = await saveCardSetToGoogleDrive({ setId, name, ...(controller ? { signal: controller.signal } : {}) });
+          const saved = await saveCardSetToGoogleDrive({ setId, name, expectedBinding: binding,
+            ...(thumbnailRef.current ? { renderThumbnail: thumbnailRef.current } : {}),
+            ...(controller ? { signal: controller.signal } : {}) });
           if (await canPublishForBinding(saved, generation)) {
             bindingRef.current = saved;
             const checkedSavedEdit = localCheckRef.current;

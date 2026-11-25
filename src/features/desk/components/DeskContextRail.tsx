@@ -30,6 +30,7 @@ import { Input } from '@/components/ui/input';
 import type { CardFace } from '@/domain/cards';
 import { isActionAvailable, type ActionDescriptor } from '@/features/app-shell/client/environment';
 import { useArtifactFace } from '@/features/card-rendering/client';
+import { LinkedFolderSave } from '@/features/project/client/locations';
 import type { DeskCamera } from '../hooks/useDeskCamera';
 import styles from './Desk.module.css';
 
@@ -44,10 +45,14 @@ interface DeskContextRailProps {
   toolName?: string;
   toolDirty?: boolean;
   localSet: boolean;
+  linkedFolderSetId?: string;
+  onFolderSaved?: () => void;
   workingLocationStatus?: {
     phase: string;
     message: string;
     needsAttention: boolean;
+    onSave?: () => void;
+    canSave?: boolean;
     onRepair?: () => void;
     onReconcile?: () => void;
   } | null;
@@ -166,6 +171,8 @@ export function DeskContextRail(props: DeskContextRailProps) {
           {props.localSet ? <Button type="button" size="sm" variant="outline" title="Design" onClick={() => props.onOpenDesign()}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Design</span></Button> : null}
           {props.localSet ? <Button type="button" size="sm" variant="outline" className="max-md:hidden" title="Generate" onClick={props.onOpenGenerate}><WandSparkles className="h-4 w-4" aria-hidden="true" /><span>Generate</span></Button> : null}
           {props.localSet ? <Button type="button" size="sm" variant="outline" className="max-md:hidden" title="Output" onClick={props.onOpenOutput}><Printer className="h-4 w-4" aria-hidden="true" /><span>Output</span></Button> : null}
+          {workingLocationStatus?.onSave ? <Button type="button" size="sm" variant="outline" aria-label="Save to Google Drive" title="Save to Google Drive" disabled={!workingLocationStatus.canSave} onClick={workingLocationStatus.onSave}><Save aria-hidden="true" /><span className="max-md:hidden">Save to Drive</span></Button> : null}
+          {props.linkedFolderSetId ? <LinkedFolderSave key={props.linkedFolderSetId} setId={props.linkedFolderSetId} compact onChanged={props.onFolderSaved} /> : null}
           <Button type="button" size="sm" variant="ghost" className={styles.desktopSaveAction} title="Save & move" onClick={props.onOpenLocation}><Save className="h-4 w-4" aria-hidden="true" /><span>Save &amp; move</span></Button>
           <DropdownMenu><DropdownMenuTrigger asChild><Button ref={setActionsRef} type="button" size="icon" variant="ghost" aria-label="More Set actions" title="More Set actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
             {props.localSet ? <DropdownMenuItem className={`${compactMenuItemClassName} md:hidden`} onSelect={selectMenuAction(props.onOpenGenerate)}><WandSparkles aria-hidden="true" />Generate</DropdownMenuItem> : null}

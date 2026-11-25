@@ -513,6 +513,8 @@ function DeskContent({
           toolName={toolName}
           toolDirty={activeTool?.dirty}
           localSet={Boolean(focusedLocalSetId)}
+          linkedFolderSetId={focusedLocalSetId && focusedItem?.references.localFolder && experience.capabilities.canUseProjectFiles ? focusedLocalSetId : undefined}
+          onFolderSaved={onWorkLocationChanged}
           workingLocationStatus={workingLocationStatus}
           renaming={renaming}
           renameDraft={renameDraft}
