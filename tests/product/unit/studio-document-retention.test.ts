@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => {
   const cleanupUploadedStudioDocumentAssets = vi.fn();
   const externalizeStudioDocumentAssets = vi.fn();
   const removeStudioDocumentAssets = vi.fn();
+  const getStudioDocumentAssetDownloads = vi.fn();
+  const verifyPrivateStudioAsset = vi.fn();
   const chain = {
     update: vi.fn(),
     eq: vi.fn(),
@@ -22,6 +24,8 @@ const mocks = vi.hoisted(() => {
     cleanupUploadedStudioDocumentAssets,
     externalizeStudioDocumentAssets,
     removeStudioDocumentAssets,
+    getStudioDocumentAssetDownloads,
+    verifyPrivateStudioAsset,
     chain,
     store,
   };
@@ -31,6 +35,8 @@ vi.mock('@/features/studio-documents/server/studioDocumentAssetStore', () => ({
   cleanupUploadedStudioDocumentAssets: mocks.cleanupUploadedStudioDocumentAssets,
   externalizeStudioDocumentAssets: mocks.externalizeStudioDocumentAssets,
   removeStudioDocumentAssets: mocks.removeStudioDocumentAssets,
+  getStudioDocumentAssetDownloads: mocks.getStudioDocumentAssetDownloads,
+  verifyPrivateStudioAsset: mocks.verifyPrivateStudioAsset,
 }));
 
 vi.mock('@/infrastructure/database/supabaseServer', () => ({
@@ -95,6 +101,20 @@ describe('Studio document revision asset retention', () => {
       catalog_dependencies: expect.objectContaining({ contractVersion: 1, sourcePayload: expect.objectContaining({ version: 4 }) }),
     }));
     expect(mocks.cleanupUploadedStudioDocumentAssets).not.toHaveBeenCalled();
+    expect(mocks.removeStudioDocumentAssets).not.toHaveBeenCalled();
+  });
+  it('does not commit an unverified directly uploaded asset', async () => {
+    const document = createProjectScaleFixture(100);
+    document.cardSets = []; document.storedCards = []; document.userTemplates = []; delete document.activeCardSetId;
+    const id = 'c'.repeat(64);
+    const withAsset = structuredClone(document);
+    withAsset.customAssets['cardforge-maker-custom-images'].push({ id: 'fixture', name: 'Fixture', kind: 'image', url: `cardforge-studio-asset://${id}`, tileMode: 'contain', seamless: false, allowedTargets: ['image'] });
+    mocks.chain.maybeSingle.mockResolvedValueOnce({ data: { id: 'document-1', title: 'Existing', creation_source: 'gpt', document_payload: document, revision: 7, created_at: '2026-10-01T00:00:00.000Z', updated_at: '2026-10-01T00:00:00.000Z', last_activity_at: '2026-10-01T00:00:00.000Z', expires_at: '2027-10-01T00:00:00.000Z', retention_hours: 12, deleted_at: null, purge_after: null }, error: null });
+    mocks.externalizeStudioDocumentAssets.mockResolvedValue({ document: withAsset, uploadedAssetIds: [], uploadedFontIds: [] });
+    mocks.getStudioDocumentAssetDownloads.mockResolvedValue([{ id, mimeType: 'image/png', size: 4 }]);
+    mocks.verifyPrivateStudioAsset.mockResolvedValue(false);
+    await expect(updateStudioDocument({ ownerUserId: 'account-1', documentId: 'document-1', title: 'Changed', document: withAsset, expectedRevision: 7, retentionHours: 12 })).rejects.toMatchObject({ status: 409 });
+    expect(mocks.chain.update).not.toHaveBeenCalled();
     expect(mocks.removeStudioDocumentAssets).not.toHaveBeenCalled();
   });
   it('reconciles the exact raw snapshot without normalizing unknown fields away', async () => {

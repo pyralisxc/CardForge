@@ -1,22 +1,15 @@
 import { projectAssetArrayScope, projectAssetChildScope, type ProjectAssetScope } from '@/features/project/client/package-document';
+import { MAX_PROJECT_PACKAGE_ASSETS, MAX_PROJECT_PACKAGE_BYTES, type ProjectPackageAssetMimeType } from '@/features/project/client/package-document';
 
 export const STUDIO_DOCUMENT_ASSET_BUCKET = 'cardforge-studio-document-assets';
 export const STUDIO_DOCUMENT_ASSET_REFERENCE_PREFIX = 'cardforge-studio-asset://';
 export const STUDIO_DOCUMENT_FONT_BUCKET = 'cardforge-studio-document-fonts';
 export const STUDIO_DOCUMENT_FONT_REFERENCE_PREFIX = 'cardforge-studio-font://';
-export const MAX_STUDIO_DOCUMENT_ASSETS = 256;
-export const MAX_STUDIO_DOCUMENT_FONTS = 64;
-export const MAX_STUDIO_DOCUMENT_ASSET_STORAGE_BYTES = 128 * 1024 * 1024;
+export const MAX_STUDIO_DOCUMENT_ASSETS = MAX_PROJECT_PACKAGE_ASSETS;
+export const MAX_STUDIO_DOCUMENT_FONTS = MAX_PROJECT_PACKAGE_ASSETS;
+export const MAX_STUDIO_DOCUMENT_ASSET_STORAGE_BYTES = MAX_PROJECT_PACKAGE_BYTES;
 
-export type StudioDocumentPrivateAssetMimeType =
-  | 'image/webp'
-  | 'font/woff2'
-  | 'font/woff'
-  | 'font/ttf'
-  | 'font/otf'
-  | 'application/font-woff'
-  | 'application/x-font-ttf'
-  | 'application/x-font-opentype';
+export type StudioDocumentPrivateAssetMimeType = ProjectPackageAssetMimeType;
 
 export interface StudioDocumentAssetDownload {
   id: string;

@@ -17,3 +17,10 @@ it('verifies exact closure, byte length and SHA before replacing a private refer
   vi.stubGlobal('fetch', vi.fn(async () => new Response(new Blob([new Uint8Array([1, 2, 4])], { type: 'image/webp' }))));
   await expect(hydrateStudioDocumentAssetValue(value, [item], undefined, true)).rejects.toThrow('digest');
 });
+
+it.each(['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/webp'] as const)('hydrates original %s bytes only after digest verification', async (mimeType) => {
+  class SyntheticFileReader { result: string | null = null; onload: (() => void) | null = null; onerror: (() => void) | null = null; error: Error | null = null; readAsDataURL(blob: Blob) { void blob.arrayBuffer().then((value) => { this.result = `data:${blob.type};base64,${Buffer.from(value).toString('base64')}`; this.onload?.(); }); } }
+  vi.stubGlobal('FileReader', SyntheticFileReader); vi.stubGlobal('crypto', webcrypto);
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(new Blob([bytes], { type: mimeType }))));
+  expect((await hydrateStudioDocumentAssetValue(value, [{ ...item, mimeType }], undefined, true)).image).toBe(`data:${mimeType};base64,${Buffer.from(bytes).toString('base64')}`);
+});

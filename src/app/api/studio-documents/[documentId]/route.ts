@@ -11,6 +11,7 @@ import {
   StudioDocumentStoreError,
   updateStudioDocument,
   readStudioOutputIntent, validateOutputIntentDocument,
+  readPrivateStudioTemplate,
 } from '@/features/studio-documents/server';
 import {
   parseJsonBodyWithLimit,
@@ -20,6 +21,19 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastruct
 
 export const dynamic = 'force-dynamic';
 const idSchema = z.guid();
+
+// A valid portable document can carry more metadata than a buffered function
+// response permits. Preserve the ordinary JSON contract while streaming it.
+const streamDocumentResponse = (value: unknown): Response => {
+  const bytes = new TextEncoder().encode(JSON.stringify(value));
+  let offset = 0;
+  return new Response(new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (offset >= bytes.length) return controller.close();
+      controller.enqueue(bytes.subarray(offset, offset += 64 * 1024));
+    },
+  }), { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
+};
 
 const readDocumentId = async (context: { params: Promise<{ documentId: string }> }) => {
   const result = idSchema.safeParse((await context.params).documentId);
@@ -77,7 +91,7 @@ export async function GET(
       value: document.document,
       requireVerifiedSize: Boolean(outputIntent),
     });
-    return createNoStoreJsonResponse({ document, assets, watermark: account.watermark, ...(outputIntent ? { outputIntent } : {}) });
+    return streamDocumentResponse({ document, assets, watermark: account.watermark, ...(outputIntent ? { outputIntent } : {}) });
   } catch (error) {
     return toErrorResponse(error, 'Unable to load the Studio document.');
   }
@@ -99,13 +113,29 @@ export async function PATCH(
       );
     }
     const body = parsedBody.data as Record<string, unknown>;
-    const title = normalizeStudioDocumentTitle(body.title);
-    const document = normalizeStudioDocumentPayload(body.document);
+    if (body.templateAssetId !== undefined) {
+      if (typeof body.templateAssetId !== 'string' || !/^[a-f0-9]{64}$/u.test(body.templateAssetId) || body.template !== undefined || body.document !== undefined) return createApiErrorResponse(400, 'studio_document_invalid', 'The Template transfer is invalid.');
+    }
     const expectedRevision = body.expectedRevision;
+    const account = await getCurrentStudioDocumentAccount();
+    if (typeof body.templateAssetId === 'string') body.template = await readPrivateStudioTemplate(account.ownerUserId, documentId, body.templateAssetId);
+    let title = normalizeStudioDocumentTitle(body.title);
+    let document = normalizeStudioDocumentPayload(body.document);
+    if (body.template && typeof body.template === 'object' && !Array.isArray(body.template)) {
+      const template = body.template as Record<string, unknown>;
+      if (typeof template.id !== 'string' || !Number.isInteger(expectedRevision) || Number(expectedRevision) < 1) return createApiErrorResponse(400, 'studio_document_invalid', 'A Template and current revision are required.');
+      const current = await getStudioDocument(account.ownerUserId, documentId, account.retentionHours);
+      if (current.revision !== expectedRevision) throw new StudioDocumentStoreError('The Studio draft changed. Reopen its current revision before saving.', 409);
+      const index = current.document.userTemplates.findIndex((item) => item.id === template.id);
+      if (index < 0) throw new StudioDocumentStoreError('The linked Template is no longer present.', 409);
+      const templates = [...current.document.userTemplates];
+      templates[index] = template as unknown as typeof templates[number];
+      document = normalizeStudioDocumentPayload({ ...current.document, userTemplates: templates });
+      title = current.title;
+    }
     if (!title || !document || !Number.isInteger(expectedRevision) || Number(expectedRevision) < 1) {
       return createApiErrorResponse(400, 'studio_document_invalid', 'Title, project document, and current revision are required.');
     }
-    const account = await getCurrentStudioDocumentAccount();
     const updated = await updateStudioDocument({
       ownerUserId: account.ownerUserId,
       documentId,

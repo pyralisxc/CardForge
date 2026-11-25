@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto';
+import { createHash, webcrypto } from 'node:crypto';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -64,6 +65,66 @@ afterEach(() => {
 });
 
 describe('agent Template Studio round trip', () => {
+  it('transfers new artwork directly before saving its content-addressed reference', async () => {
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    const id = createHash('sha256').update(bytes).digest('hex');
+    const dataUrl = 'data:image/png;base64,AQIDBA==';
+    const withImage: TCGCardTemplate = { ...template, freeformCanvas: { width: 630, height: 880, elements: [{ id: 'art', type: 'image', name: 'Art', x: 0, y: 0, width: 100, height: 100, zIndex: 1, imageSource: dataUrl, content: dataUrl }] } };
+    await rememberAgentTemplateLink(template.id!, '11111111-1111-4111-8111-111111111111', 2);
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ document: { id: '11111111-1111-4111-8111-111111111111', title: 'Agent Template', creationSource: 'gpt', revision: 2, document: projectDocument } }))
+      .mockResolvedValueOnce(new Response(new Blob([bytes], { type: 'image/png' })))
+      .mockResolvedValueOnce(jsonResponse({ upload: { alreadyPresent: false, signedUrl: 'https://storage.example.invalid/private' } }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(jsonResponse({ document: { revision: 3 } }));
+    vi.stubGlobal('fetch', fetchMock); vi.stubGlobal('crypto', webcrypto);
+    await expect(syncAgentTemplateSave(withImage)).resolves.toEqual({ status: 'synced', revision: 3 });
+    expect(fetchMock.mock.calls[2][0]).toContain('/asset-upload');
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1].body))).toMatchObject({ id, expectedRevision: 2, size: 4, mimeType: 'image/png' });
+    expect(fetchMock.mock.calls[3][0]).toBe('https://storage.example.invalid/private');
+    const patch = JSON.parse(String(fetchMock.mock.calls[4][1].body));
+    expect(patch.template.freeformCanvas.elements[0].imageSource).toBe(`cardforge-studio-asset://${id}`);
+  });
+  it('reconciles an uncertain upload before saving the linked revision', async () => {
+    const dataUrl = 'data:image/png;base64,AQIDBA==';
+    const withImage: TCGCardTemplate = { ...template, freeformCanvas: { width: 630, height: 880, elements: [{ id: 'art', type: 'image', name: 'Art', x: 0, y: 0, width: 100, height: 100, zIndex: 1, imageSource: dataUrl, content: dataUrl }] } };
+    await rememberAgentTemplateLink(template.id!, '11111111-1111-4111-8111-111111111111', 2);
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ document: { id: '11111111-1111-4111-8111-111111111111', title: 'Agent Template', creationSource: 'gpt', revision: 2, document: projectDocument } }))
+      .mockResolvedValueOnce(new Response(new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'image/png' })))
+      .mockResolvedValueOnce(jsonResponse({ upload: { alreadyPresent: false, signedUrl: 'https://storage.example.invalid/private' } }))
+      .mockRejectedValueOnce(new Error('upload acknowledgement lost'))
+      .mockResolvedValueOnce(jsonResponse({ upload: { alreadyPresent: true, signedUrl: null } }))
+      .mockResolvedValueOnce(jsonResponse({ document: { revision: 3 } }));
+    vi.stubGlobal('fetch', fetchMock); vi.stubGlobal('crypto', webcrypto);
+    await expect(syncAgentTemplateSave(withImage)).resolves.toEqual({ status: 'synced', revision: 3 });
+    expect(fetchMock.mock.calls[4][0]).toContain('/asset-upload');
+    expect(fetchMock.mock.calls[5][1]).toMatchObject({ method: 'PATCH' });
+  });
+  it('transfers an oversized Template without sending it in the update request', async () => {
+    const large: TCGCardTemplate = { ...template, freeformCanvas: { width: 630, height: 880, elements: [{ id: 'text', type: 'text', name: 'Text', x: 0, y: 0, width: 100, height: 100, zIndex: 1, content: 'x'.repeat(4 * 1024 * 1024) }] } };
+    await rememberAgentTemplateLink(template.id!, '11111111-1111-4111-8111-111111111111', 2);
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ document: { id: '11111111-1111-4111-8111-111111111111', title: 'Agent Template', creationSource: 'gpt', revision: 2, document: projectDocument } }))
+      .mockResolvedValueOnce(jsonResponse({ upload: { alreadyPresent: false, signedUrl: 'https://storage.example.invalid/private' } }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(jsonResponse({ document: { revision: 3 } }));
+    vi.stubGlobal('fetch', fetchMock); vi.stubGlobal('crypto', webcrypto);
+    await expect(syncAgentTemplateSave(large)).resolves.toEqual({ status: 'synced', revision: 3 });
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1].body)).mimeType).toBe('application/json');
+    const patch = JSON.parse(String(fetchMock.mock.calls[3][1].body));
+    expect(patch.templateAssetId).toMatch(/^[a-f0-9]{64}$/u);
+    expect(patch).not.toHaveProperty('template');
+  });
+  it('reuses the existing private object for unchanged browser artwork', async () => {
+    const id = 'a'.repeat(64);
+    const withImage = (imageSource: string): TCGCardTemplate => ({ ...template, freeformCanvas: { width: 630, height: 880, elements: [{ id: 'art', type: 'image', name: 'Art', x: 0, y: 0, width: 100, height: 100, zIndex: 1, imageSource, content: imageSource }] } });
+    const source = { ...projectDocument, userTemplates: [withImage(`cardforge-studio-asset://${id}`)] };
+    await rememberAgentTemplateLink(template.id!, '11111111-1111-4111-8111-111111111111', 2);
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ document: { id: '11111111-1111-4111-8111-111111111111', title: 'Agent Template', creationSource: 'gpt', revision: 2, document: source } })).mockResolvedValueOnce(jsonResponse({ document: { revision: 3 } }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(syncAgentTemplateSave(withImage(`cardforge-browser-asset://${id}`))).resolves.toEqual({ status: 'synced', revision: 3 });
+    const payload = JSON.parse(String(fetchMock.mock.calls[1][1].body));
+    expect(payload.template.freeformCanvas.elements[0].imageSource).toBe(`cardforge-studio-asset://${id}`);
+  });
+
   it('only discovers and syncs an agent document in an account workspace without conflating document and Template revisions', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({
@@ -119,14 +180,14 @@ describe('agent Template Studio round trip', () => {
     expect(patchCall[1]).toMatchObject({ method: 'PATCH' });
     const body = JSON.parse(String(patchCall[1]?.body)) as {
       expectedRevision: number;
-      document: { userTemplates: TCGCardTemplate[] };
+      template: TCGCardTemplate;
     };
     expect(body.expectedRevision).toBe(2);
-    expect(body.document.userTemplates[0]).toMatchObject({
+    expect(body.template).toMatchObject({
       id: template.id,
       name: 'Saved in Studio',
     });
-    expect(body.document.userTemplates[0]?.templateRevision).toBe(template.templateRevision);
+    expect(body.template.templateRevision).toBe(template.templateRevision);
   });
 
   it('protects a newer ChatGPT revision from an older Studio save', async () => {

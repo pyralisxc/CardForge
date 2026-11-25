@@ -1,7 +1,10 @@
+import { createHash, randomBytes } from 'node:crypto';
+import sharp from 'sharp';
 import { expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ list: vi.fn(), signed: vi.fn() }));
-vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ storage: { from: () => ({ list: mocks.list, createSignedUrls: mocks.signed }) } }) }));
-import { getStudioDocumentAssetDownloads } from '@/features/studio-documents/server/studioDocumentAssetStore';
+import { createProjectScaleFixture } from '../../fixtures/projectScale';
+const mocks = vi.hoisted(() => ({ list: vi.fn(), signed: vi.fn(), upload: vi.fn(), download: vi.fn(), signedUpload: vi.fn(), info: vi.fn() }));
+vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ storage: { from: () => ({ list: mocks.list, createSignedUrls: mocks.signed, upload: mocks.upload, download: mocks.download, createSignedUploadUrl: mocks.signedUpload, info: mocks.info }) } }) }));
+import { externalizeStudioDocumentAssets, getStudioDocumentAssetDownloads, preparePrivateStudioAssetUpload, readPrivateStudioTemplate, verifyPrivateStudioAsset } from '@/features/studio-documents/server/studioDocumentAssetStore';
 const id = 'f'.repeat(64);
 it('finds current referenced artwork after historical objects and rejects incomplete listing', async () => {
   mocks.list.mockReset(); mocks.signed.mockReset();
@@ -14,6 +17,68 @@ it('finds current referenced artwork after historical objects and rejects incomp
   expect(mocks.list).toHaveBeenCalledTimes(2);
   mocks.list.mockResolvedValue({ data: null, error: null });
   await expect(getStudioDocumentAssetDownloads(input)).rejects.toThrow('incomplete');
+});
+it.each(['image/png', 'image/gif', 'image/svg+xml'])('stores original %s bytes and advertises their original format', async (mimeType) => {
+  const bytes = Buffer.from(`original artwork ${mimeType}`);
+  const digest = createHash('sha256').update(bytes).digest('hex');
+  const document = createProjectScaleFixture(100);
+  document.customAssets['cardforge-maker-custom-images'].push({ id: 'fixture', name: 'fixture', kind: 'image', url: `data:${mimeType};base64,${bytes.toString('base64')}`, tileMode: 'contain', seamless: false, allowedTargets: ['image'] });
+  mocks.list.mockReset(); mocks.signed.mockReset(); mocks.upload.mockReset();
+  mocks.list.mockResolvedValue({ data: [], error: null });
+  mocks.upload.mockResolvedValue({ error: null });
+  const result = await externalizeStudioDocumentAssets({ ownerUserId: 'owner', documentId: 'doc', document });
+  expect(result.document.customAssets['cardforge-maker-custom-images'].at(-1)?.url).toBe(`cardforge-studio-asset://${digest}`);
+  expect(mocks.upload).toHaveBeenCalledWith(`owner/doc/${digest}.webp`, bytes, expect.objectContaining({ contentType: mimeType }));
+  mocks.list.mockResolvedValue({ data: [{ name: `${digest}.webp`, metadata: { size: bytes.length, mimetype: mimeType } }], error: null });
+  mocks.signed.mockResolvedValue({ data: [{ path: `owner/doc/${digest}.webp`, signedUrl: 'https://example.invalid' }], error: null });
+  expect(await getStudioDocumentAssetDownloads({ ownerUserId: 'owner', documentId: 'doc', value: result.document, requireVerifiedSize: true })).toMatchObject([{ id: digest, size: bytes.length, mimeType }]);
+});
+it('keeps an original PNG larger than the former Studio attachment limit', async () => {
+  const bytes = await sharp(randomBytes(1024 * 1024 * 3), { raw: { width: 1024, height: 1024, channels: 3 } }).png().toBuffer();
+  expect(bytes.length).toBeGreaterThan(2_400_000);
+  const document = createProjectScaleFixture(100);
+  document.customAssets['cardforge-maker-custom-images'].push({ id: 'large-fixture', name: 'fixture', kind: 'image', url: `data:image/png;base64,${bytes.toString('base64')}`, tileMode: 'contain', seamless: false, allowedTargets: ['image'] });
+  mocks.list.mockReset(); mocks.upload.mockReset();
+  mocks.list.mockResolvedValue({ data: [], error: null });
+  mocks.upload.mockResolvedValue({ error: null });
+  const result = await externalizeStudioDocumentAssets({ ownerUserId: 'owner', documentId: 'doc', document });
+  expect(result.uploadedAssetIds).toContain(createHash('sha256').update(bytes).digest('hex'));
+  expect(mocks.upload).toHaveBeenCalledWith(expect.any(String), bytes, expect.objectContaining({ contentType: 'image/png' }));
+});
+it('does not save a reference that only the browser can resolve', async () => {
+  const document = createProjectScaleFixture(100);
+  document.customAssets['cardforge-maker-custom-images'].push({ id: 'browser-fixture', name: 'fixture', kind: 'image', url: `cardforge-browser-asset://${'a'.repeat(64)}`, tileMode: 'contain', seamless: false, allowedTargets: ['image'] });
+  mocks.upload.mockReset();
+  await expect(externalizeStudioDocumentAssets({ ownerUserId: 'owner', documentId: 'doc', document })).rejects.toThrow('only available in its original workspace');
+  expect(mocks.upload).not.toHaveBeenCalled();
+});
+it('recognizes a previously uploaded object only when its length, format and digest match', async () => {
+  const bytes = Buffer.from('private original');
+  const digest = createHash('sha256').update(bytes).digest('hex');
+  mocks.download.mockResolvedValue({ data: new Blob([bytes], { type: 'image/png' }), error: null });
+  expect(await verifyPrivateStudioAsset('owner', 'doc', digest, 'image/png', bytes.length)).toBe(true);
+  expect(await verifyPrivateStudioAsset('owner', 'doc', digest, 'image/png', bytes.length + 1)).toBe(false);
+  expect(await verifyPrivateStudioAsset('owner', 'doc', 'b'.repeat(64), 'image/png', bytes.length)).toBe(false);
+  expect(await verifyPrivateStudioAsset('owner', 'doc', digest, 'image/jpeg', bytes.length)).toBe(false);
+  mocks.signedUpload.mockReset();
+  expect(await preparePrivateStudioAssetUpload({ ownerUserId: 'owner', documentId: 'doc', id: digest, mimeType: 'image/png', size: bytes.length })).toEqual({ alreadyPresent: true, signedUrl: null });
+  expect(mocks.signedUpload).not.toHaveBeenCalled();
+  mocks.download.mockResolvedValue({ data: null, error: { status: 503 } });
+  await expect(preparePrivateStudioAssetUpload({ ownerUserId: 'owner', documentId: 'doc', id: digest, mimeType: 'image/png', size: bytes.length })).rejects.toMatchObject({ status: 503 });
+  expect(mocks.signedUpload).not.toHaveBeenCalled();
+  mocks.download.mockResolvedValue({ data: null, error: { status: 404 } });
+  mocks.info.mockResolvedValue({ data: null, error: { status: 404 } });
+  mocks.signedUpload.mockResolvedValue({ data: { signedUrl: 'https://storage.invalid/upload' }, error: null });
+  expect(await preparePrivateStudioAssetUpload({ ownerUserId: 'owner', documentId: 'doc', id: digest, mimeType: 'image/png', size: bytes.length })).toMatchObject({ alreadyPresent: false });
+  mocks.info.mockResolvedValue({ data: { name: 'existing' }, error: null });
+  await expect(preparePrivateStudioAssetUpload({ ownerUserId: 'owner', documentId: 'doc', id: digest, mimeType: 'image/png', size: bytes.length })).rejects.toMatchObject({ status: 409 });
+});
+it('reads transferred Template metadata only when its bytes match its content address', async () => {
+  const json = JSON.stringify({ id: 'template', name: 'Transferred' });
+  const digest = createHash('sha256').update(json).digest('hex');
+  mocks.download.mockResolvedValue({ data: new Blob([json], { type: 'application/json' }), error: null });
+  expect(await readPrivateStudioTemplate('owner', 'doc', digest)).toEqual({ id: 'template', name: 'Transferred' });
+  await expect(readPrivateStudioTemplate('owner', 'doc', 'a'.repeat(64))).rejects.toMatchObject({ status: 409 });
 });
 it('finds current referenced font beyond retained historical pages', async () => {
   mocks.list.mockReset(); mocks.signed.mockReset();
