@@ -10,6 +10,59 @@ const READY_TIMEOUT = 120_000;
 test.describe('Desk desktop spatial interaction', () => {
   test.describe.configure({ timeout: READY_TIMEOUT });
 
+  test('a tile Details action keeps the invoking Set when another Set is selected', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100, { additionalSets: 2, cardLimit: 0 });
+    await page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('cardforge-browser-storage', 1);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const value = JSON.stringify({ version: 4, positions: {
+        'set:scale-set-100': { x: 170, y: 0, z: 1 },
+        'set:touch-companion-1': { x: 0, y: 0, z: 2 },
+        'set:touch-companion-2': { x: 42, y: 0, z: 3 },
+      } });
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction('key-value', 'readwrite');
+        for (const scope of ['guest', 'local']) transaction.objectStore('key-value').put(value, `project-preferences:home-desk-order:positions:${scope}`);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      });
+      db.close();
+    });
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+    await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+    const first = page.getByRole('button', { name: /^(Select|Selected) Touch Companion Set 1/ });
+    await first.focus();
+    await first.press('Space');
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: 'Actions for Touch Companion Set 2' }).click();
+    await expect(page.getByRole('menu', { name: 'Actions for Touch Companion Set 2' }).getByText('Touch Companion Set 2', { exact: true })).toBeVisible();
+    await expect(page.locator('[data-desk-set-object-id="set:touch-companion-1"] button[aria-pressed]')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('[data-desk-set-object-id="set:touch-companion-2"] button[aria-pressed]')).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('menuitem', { name: 'Details', exact: true }).click();
+    await expect(page.getByRole('complementary', { name: 'Details for Touch Companion Set 2' })).toBeVisible();
+    await page.getByRole('button', { name: 'Close details for Touch Companion Set 2' }).click();
+    await first.focus();
+    await first.press('Control+Space');
+    const firstPressed = page.locator('[data-desk-set-object-id="set:touch-companion-1"] button[aria-pressed]');
+    const secondPressed = page.locator('[data-desk-set-object-id="set:touch-companion-2"] button[aria-pressed]');
+    await expect(firstPressed).toHaveAttribute('aria-pressed', 'true');
+    await expect(secondPressed).toHaveAttribute('aria-pressed', 'true');
+    const secondActions = page.getByRole('button', { name: 'Actions for Touch Companion Set 2' });
+    await secondActions.focus();
+    await secondActions.press('Enter');
+    await expect(page.getByRole('menu', { name: 'Actions for Touch Companion Set 2' })).toBeVisible();
+    await expect(firstPressed).toHaveAttribute('aria-pressed', 'true');
+    await expect(secondPressed).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    await first.click({ button: 'right', position: { x: 5, y: 20 } });
+    await expect(page.getByRole('menu', { name: 'Actions for Touch Companion Set 1' })).toBeVisible();
+    await expect(firstPressed).toHaveAttribute('aria-pressed', 'true');
+    await expect(secondPressed).toHaveAttribute('aria-pressed', 'true');
+  });
+
   test('@golden @preview desktop Desk uses direct grab-and-drag movement without entering Move mode', async ({ page }) => {
     await installBrowserPerformanceObservers(page);
     await seedGuestScaleWorkspace(page, 100);
