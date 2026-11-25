@@ -20,6 +20,7 @@ import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 import { filterCompatibleTemplateAssets } from '@/features/template-editor/lib/templateAssetCompatibility';
 
 interface TemplateEditorLibrarySidebarProps {
+  showProjectActions?: boolean;
   backFaceTemplates: TCGCardTemplate[];
   canUseProjectFiles: boolean;
   commands: TemplateEditorCommands;
@@ -47,6 +48,7 @@ interface TemplateEditorLibrarySidebarProps {
 }
 
 export function TemplateEditorLibrarySidebar({
+  showProjectActions,
   backFaceTemplates,
   canUseProjectFiles,
   commands,
@@ -83,6 +85,7 @@ export function TemplateEditorLibrarySidebar({
       label: 'Templates',
       content: (
         <TemplateLibraryPanel
+          showProjectActions={showProjectActions}
           canUseProjectFiles={canUseProjectFiles}
           showCardWatermark={showCardWatermark}
           currentTemplate={currentTemplate}

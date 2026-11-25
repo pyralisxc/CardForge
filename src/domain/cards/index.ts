@@ -1,3 +1,4 @@
+export { getCardTitle } from './cardTitle';
 export {
   ensureCardSetTemplateReferences,
   normalizeCardSet,

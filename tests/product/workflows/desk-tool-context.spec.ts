@@ -504,10 +504,7 @@ for (const mobile of [false, true]) {
       await first.press('Enter');
       await rail.getByRole('button', { name: 'Edit', exact: true }).click();
       const editor = page.locator('[data-artifact-edit-workspace]');
-      if (mobile) {
-        await editor.getByRole('button', { name: 'More focused Artifact actions', exact: true }).click();
-        await page.getByRole('menuitem', { name: 'All fields', exact: true }).click();
-      } else await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+      await editor.getByRole('button', { name: 'All fields', exact: true }).click();
       await editor.getByRole('textbox', { name: /Card title|Card name/i }).first().fill('First card revised');
       await editor.getByRole('button', { name: 'Save & Done', exact: true }).click();
       await expect(editor).toHaveCount(0);
@@ -545,10 +542,7 @@ for (const mobile of [false, true]) {
       await page.getByRole('button', { name: 'Edit', exact: true }).click();
       const editor = page.locator('[data-artifact-edit-workspace]');
       const openFields = async () => {
-        if (mobile) {
-          await editor.getByRole('button', { name: 'More focused Artifact actions', exact: true }).click();
-          await page.getByRole('menuitem', { name: 'All fields', exact: true }).click();
-        } else await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+        await editor.getByRole('button', { name: 'All fields', exact: true }).click();
       };
       await openFields();
       const artwork = editor.getByRole('textbox', { name: /Artwork \(Image URL or Upload\)/ });
@@ -592,10 +586,7 @@ for (const mobile of [false, true]) {
       await page.getByRole('button', { name: 'Edit', exact: true }).click();
       const editor = page.locator('[data-artifact-edit-workspace]');
       const openFields = async () => {
-        if (mobile) {
-          await editor.getByRole('button', { name: 'More focused Artifact actions', exact: true }).click();
-          await page.getByRole('menuitem', { name: 'All fields', exact: true }).click();
-        } else await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+        await editor.getByRole('button', { name: 'All fields', exact: true }).click();
       };
       await openFields();
       const artwork = editor.getByRole('textbox', { name: /Artwork \(Image URL or Upload\)/ });
@@ -711,10 +702,7 @@ for (const mobile of [false, true]) {
       await rail.getByRole('button', { name: 'Edit', exact: true }).click();
       const editor = page.locator('[data-artifact-edit-workspace]');
       const openAllFields = async () => {
-        if (mobile) {
-          await editor.getByRole('button', { name: 'More focused Artifact actions', exact: true }).click();
-          await page.getByRole('menuitem', { name: 'All fields', exact: true }).click();
-        } else await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+        await editor.getByRole('button', { name: 'All fields', exact: true }).click();
       };
       await openAllFields();
       const artwork = editor.getByRole('textbox', { name: /Artwork/ }).first();

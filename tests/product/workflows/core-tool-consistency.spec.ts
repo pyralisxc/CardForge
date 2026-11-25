@@ -55,6 +55,8 @@ test('matching back creates a new back and returns to the same Generate context'
   await creation.getByRole('textbox', { name: 'Template name' }).fill('Matching back proof');
   await creation.getByRole('button', { name: 'Create and open canvas' }).click();
   await expect(page.getByRole('region', { name: 'Design', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Download Set', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Open project', exact: true })).toHaveCount(0);
   await expect(page.getByText('Create and save a matching back, then choose whether to apply it to this set.')).toBeVisible();
   await page.getByRole('button', { name: 'Back to Generate', exact: true }).click();
   if (await page.getByRole('alertdialog').isVisible()) await page.getByRole('button', { name: 'Close Design', exact: true }).click();
@@ -99,6 +101,8 @@ test('standalone Library Template keeps drafts across cancelled close and naviga
   });
   await page.goto('/account?section=library&scope=personal&tool=design&artifact=scale-template');
   await expect(page.getByRole('region', { name: 'Design Template', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Download Set', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open project', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Card Setup', exact: true }).click();
   const name = page.getByLabel('Template name', { exact: true });
   await name.fill('Unsaved Library draft');
@@ -116,6 +120,17 @@ test('standalone Library Template keeps drafts across cancelled close and naviga
   await expect(page).not.toHaveURL(/tool=design/);
   await page.goBack();
   await expect(page).not.toHaveURL(/tool=design/);
+});
+
+test('Library finds cards by the same authored name field as Desk', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, titleField: 'Card Title' });
+  await page.goto('/account?section=library');
+  await page.locator('[id^="library-object-set:"]').filter({ hasText: '100 Card Scale Set' }).click();
+  await expect(page.getByRole('button', { name: 'Edit Scale Card 0001', exact: true })).toBeVisible();
+  await page.getByPlaceholder('Search cards').fill('0002');
+  await expect(page.getByRole('button', { name: 'Edit Scale Card 0002', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit Scale Card 0001', exact: true })).toHaveCount(0);
 });
 
 for (const width of [1440, 390]) test(`Library edits the same card and retains the Set after reload at ${width}px`, async ({ page }) => {
@@ -142,7 +157,8 @@ for (const width of [1440, 390]) test(`Library edits the same card and retains t
   const before = await readWorkspaces();
   await page.getByRole('button', { name: 'Edit Scale Card 0001', exact: true }).click();
   const editor = page.locator('[data-artifact-edit-workspace]');
-  await editor.getByRole('button', { name: 'Show all fields', exact: true }).click();
+  await expect(editor.getByRole('button', { name: 'All fields', exact: true })).toHaveCount(1);
+  await editor.getByRole('button', { name: 'All fields', exact: true }).click();
   const title = editor.getByRole('textbox', { name: /Card title|Card name/i }).first();
   await title.fill('Revised in Library');
   await page.getByRole('button', { name: 'Close card editor', exact: true }).click();

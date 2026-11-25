@@ -1,4 +1,3 @@
-import type { DisplayCard } from '@/domain/rendering';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { ActionDescriptor, EnvironmentDetailRecord } from '@/features/app-shell/client/environment';
 import { createSendToPipelineActionDescriptor } from '@/features/pipeline/client';
@@ -172,16 +171,7 @@ export const getDeskWorkPresentationMeta = (item: AccountLibraryItem): DeskWorkP
   };
 };
 
-export const getCardTitle = (card: Pick<DisplayCard, 'data'>, index: number): string => {
-  const canonical = [card.data.cardName, card.data.name, card.data.title]
-    .find((value) => value != null && String(value).trim());
-  if (canonical !== undefined) return String(canonical);
-  const authored = Object.entries(card.data).find(([key, value]) => (
-    /^(?:card[\s_-]*)?(?:name|title)$/i.test(key.trim())
-      && value != null && String(value).trim()
-  ));
-  return String(authored?.[1] ?? `Card ${index + 1}`);
-};
+export { getCardTitle } from '@/domain/cards';
 
 export const workDetailRecord = (item: AccountLibraryItem): EnvironmentDetailRecord => ({
   id: item.id,

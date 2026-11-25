@@ -15,5 +15,6 @@ export {
   buildProjectImportPreview,
   buildProjectImportSummary,
   useProjectFileActions,
+  useProjectDownload,
 } from '../hooks/useProjectFileActions';
 export type { ProjectImportMode, ProjectImportPreview } from '../hooks/useProjectFileActions';

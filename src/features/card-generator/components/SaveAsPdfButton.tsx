@@ -338,7 +338,7 @@ export function SaveAsPdfButton({
 
 
   return (
-    <Button onClick={handleSaveAsPdf} disabled={disabled || isLoadingPdf} variant="outline" className="w-full">
+    <Button onClick={handleSaveAsPdf} disabled={disabled || isLoadingPdf} variant={pdfProfile === 'screen' ? 'outline' : 'default'} className="w-full">
       {isLoadingPdf ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />

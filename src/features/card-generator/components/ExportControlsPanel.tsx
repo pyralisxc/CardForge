@@ -197,6 +197,22 @@ export function ExportControlsPanel({
               <p className="text-xs text-muted-foreground">
                 PDF arranges cards on paper using your selected raster quality. Page geometry and cut lines remain sharp, but the cards are RGB raster images—not vector, CMYK, PDF/X, or printer-specific prepress output.
               </p>
+              <SaveAsPdfButton
+                setName={setName}
+                beforeExport={beforeExport}
+                generatedDisplayCards={generatedDisplayCards}
+                selectedPaperSize={selectedPaperSize}
+                pdfMarginMm={pdfMarginMm}
+                pdfCardSpacingMm={pdfCardSpacingMm}
+                pdfIncludeCutLines={pdfIncludeCutLines}
+                pdfDuplexLayout={pdfDuplexLayout}
+                exportMode={exportMode}
+                exportDpi={exportDpi}
+                richTextHighlightColor={richTextHighlightColor}
+                canExportClean={canExportClean}
+                disabled={exportsDisabled}
+                templateName={firstCard?.template?.name}
+              />
               <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={onSelectPaperSize} />
               <Label className="text-sm font-medium">PDF layout</Label>
               <TooltipProvider>
@@ -271,22 +287,6 @@ export function ExportControlsPanel({
                   </p>
                 </div>
               ) : null}
-              <SaveAsPdfButton
-                setName={setName}
-                beforeExport={beforeExport}
-                generatedDisplayCards={generatedDisplayCards}
-                selectedPaperSize={selectedPaperSize}
-                pdfMarginMm={pdfMarginMm}
-                pdfCardSpacingMm={pdfCardSpacingMm}
-                pdfIncludeCutLines={pdfIncludeCutLines}
-                pdfDuplexLayout={pdfDuplexLayout}
-                exportMode={exportMode}
-                exportDpi={exportDpi}
-                richTextHighlightColor={richTextHighlightColor}
-                canExportClean={canExportClean}
-                disabled={exportsDisabled}
-                templateName={firstCard?.template?.name}
-              />
             </div>
           </details>
   );

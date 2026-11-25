@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Cloud,
   Copy,
+  Download,
   Home,
   Info,
   MoreHorizontal,
@@ -77,6 +78,7 @@ interface DeskContextRailProps {
   onOpenDesign: (face?: CardFace) => void;
   onOpenGenerate: () => void;
   onOpenLocation: () => void;
+  onDownloadSet: () => void;
   onDuplicateWork: () => void;
   onOpenOutput: () => void;
   onInspect: () => void;
@@ -178,6 +180,7 @@ export function DeskContextRail(props: DeskContextRailProps) {
             {props.localSet ? <DropdownMenuItem className={`${compactMenuItemClassName} md:hidden`} onSelect={selectMenuAction(props.onOpenGenerate)}><WandSparkles aria-hidden="true" />Generate</DropdownMenuItem> : null}
             {props.localSet ? <DropdownMenuItem className={`${compactMenuItemClassName} md:hidden`} onSelect={selectMenuAction(props.onOpenOutput)}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
             <DropdownMenuItem className={`${compactMenuItemClassName} md:hidden`} onSelect={selectMenuAction(props.onOpenLocation)}><Save aria-hidden="true" />Save &amp; move</DropdownMenuItem>
+            {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onDownloadSet)}><Download aria-hidden="true" />Download Set</DropdownMenuItem> : null}
             {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onToggleRenaming)}><Pencil aria-hidden="true" />Rename</DropdownMenuItem> : null}
             {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onDuplicateWork)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onInspect)}><Info aria-hidden="true" />Details</DropdownMenuItem>
