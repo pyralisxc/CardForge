@@ -151,6 +151,7 @@ export function ProjectWorkLocationDialog({
     const actionKey = `${destination}:${asNew ? 'save-new' : move ? 'move' : 'copy'}`;
     const expectedState = useProjectStore.getState();
     const scope = getProjectPersistenceScope();
+    const saveLinkedLocation = source === 'device' && target.locations.includes(destination);
     let destinationCreated = false;
     let sourceReceiptKnown = false;
     setDriveConflict(null);
@@ -174,11 +175,13 @@ export function ProjectWorkLocationDialog({
         throw new Error('Open this source on the device before sending it to that location.');
       }
       toast({
-        title: asNew ? 'New Drive copy saved' : move ? 'Set moved' : 'Set copied',
+        title: asNew ? 'New Drive copy saved' : move ? 'Set moved' : saveLinkedLocation ? 'Set saved' : 'Set copied',
         description: asNew
-          ? `${target.name} now has a separate Google Drive copy. The newer existing Drive document was left unchanged.`
+          ? `${target.name} now has a separate Google Drive copy. The existing Drive document was left unchanged.`
           : move
           ? `${target.name} was verified at ${capabilities.find((capability) => capability.id === destination)?.label} before the source copy was removed.`
+          : saveLinkedLocation
+          ? `${target.name} was saved to ${capabilities.find((capability) => capability.id === destination)?.label}.`
           : `${target.name} is now available at ${capabilities.find((capability) => capability.id === destination)?.label}.`,
       });
       onChanged?.();
@@ -209,7 +212,8 @@ export function ProjectWorkLocationDialog({
         <DialogHeader>
           <DialogTitle className={styles.title}>Save &amp; move {target?.name ?? 'Set'}</DialogTitle>
           <DialogDescription className={styles.description}>
-            A move always writes and verifies the destination first. If verification fails, the source stays unchanged.
+            Save changes to a linked location, or copy or move the Set to another location.
+            {' '}A move always writes and verifies the destination first. If verification fails, the source stays unchanged.
             {' '}Drive documents can be copied here; remove the original separately in Drive when you are ready.
           </DialogDescription>
         </DialogHeader>
@@ -252,7 +256,7 @@ export function ProjectWorkLocationDialog({
                   <span>{isCurrent ? 'Current copy' : capability.available ? capability.revisionSafe ? 'Revision-safe provider copy' : 'User-owned portable copy' : capability.reason}</span>
                 </div>
                 <div className={styles.locationActions}>
-                  {copyAvailable ? <Button type="button" size="sm" variant="outline" disabled={busyAction !== null || driveUpdateBlocked} onClick={() => void transfer(capability.id, false)}>{busyAction === `${capability.id}:copy` ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}{isCurrent ? 'Update copy' : 'Copy here'}</Button> : null}
+                  {copyAvailable ? <Button type="button" size="sm" variant="outline" disabled={busyAction !== null || driveUpdateBlocked} onClick={() => void transfer(capability.id, false)}>{busyAction === `${capability.id}:copy` ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}{isCurrent ? 'Save changes' : 'Copy here'}</Button> : null}
                   {driveUpdateBlocked && target?.localSetId ? <Button type="button" size="sm" disabled={busyAction !== null} onClick={() => void transfer('google-drive', false, true)}>{busyAction === 'google-drive:save-new' ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}Save as new</Button> : null}
                   {moveAvailable ? <Button type="button" size="sm" disabled={busyAction !== null || driveUpdateBlocked} onClick={() => void transfer(capability.id, true)}>{busyAction === `${capability.id}:move` ? <Loader2 className="animate-spin" aria-hidden="true" /> : <MoveRight aria-hidden="true" />}Move here</Button> : null}
                   {!copyAvailable && !isCurrent ? <span className={styles.unavailable}>{capability.available ? 'Open on device first' : 'Not available'}</span> : null}
