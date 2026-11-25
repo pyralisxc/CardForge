@@ -101,6 +101,11 @@ test.describe('Desk desktop spatial interaction', () => {
 
     const toolbar = page.locator('[data-desk-toolbar]');
     await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toBeVisible();
+    await expect.poll(() => toolbar.evaluate((node) => {
+      const rail = node.getBoundingClientRect();
+      const add = Array.from(node.querySelectorAll('button')).find((button) => button.textContent?.trim() === 'Add from Library')?.getBoundingClientRect();
+      return Boolean(add && add.left >= rail.left - 1 && add.right <= rail.right + 1);
+    })).toBe(true);
     await expect(page.locator('header').getByRole('button', { name: 'Zoom Desk out', exact: true })).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
@@ -116,8 +121,9 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
     await expect(setButton).toBeInViewport({ ratio: 0.99 });
 
-    for (const width of [1024, 1180, 1440]) {
-      await page.setViewportSize({ width, height: 720 });
+    const expectToolbarControlsClear = async (widths = [901, 929, 960, 1024, 1180, 1440], height = 720) => {
+      for (const width of widths) {
+      await page.setViewportSize({ width, height });
       await expect.poll(() => toolbar.evaluate((node) => {
         const controls = Array.from(node.querySelectorAll<HTMLElement>('button, input, summary'))
           .map((element) => ({
@@ -131,7 +137,17 @@ test.describe('Desk desktop spatial interaction', () => {
           return overlapWidth > 1 && overlapHeight > 1 ? [`${left.name} overlaps ${right.name}`] : [];
         }));
       })).toEqual([]);
-    }
+      await toolbar.getByRole('button', { name: 'Add from Library', exact: true }).click({ trial: true });
+      await setButton.click({ trial: true });
+      }
+    };
+    await expectToolbarControlsClear();
+    const enlargedLabels = await page.addStyleTag({ content: '[data-desk-toolbar] button { font-size: 18px !important; }' });
+    await expectToolbarControlsClear();
+    await enlargedLabels.evaluate((element) => element.remove());
+    await toolbar.getByRole('button', { name: /^Organize / }).click();
+    await expectToolbarControlsClear([901, 1024], 600);
+    await toolbar.getByRole('button', { name: 'Close organize', exact: true }).click();
     await page.setViewportSize({ width: 1024, height: 720 });
 
     const storage = page.getByRole('button', { name: /Storage/ }).first();

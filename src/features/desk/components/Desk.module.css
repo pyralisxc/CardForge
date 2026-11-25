@@ -298,7 +298,6 @@
 .deskFilterRow {
   display: flex;
   min-width: 0;
-  flex: 1 1 20rem;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.25rem;
@@ -355,13 +354,18 @@
 }
 
 @media (min-width: 768px) {
-  .deskToolbar {
-    flex-wrap: wrap;
-    justify-content: flex-end;
+  .deskFilterRow {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
   }
 
-  .spatialControls {
+  .spatialControls,
+  .deskToolbar > button {
     flex: 0 0 auto;
+  }
+
+  .deskAddFromLibrary {
+    order: -1;
   }
 }
 

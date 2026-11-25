@@ -271,7 +271,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
           <div className={styles.mobileDeskFilterPanel} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         </details>
         {!props.focusedItemId ? <Button type="button" size="sm" variant={touchMultiSelect ? 'secondary' : 'ghost'} aria-pressed={touchMultiSelect} onClick={() => setTouchMultiSelect((enabled) => !enabled)} title="Add items to selection by tapping; tap again to finish">{touchMultiSelect ? 'Done selecting' : 'Select multiple'}</Button> : null}
-        {!props.focusedItemId ? <Button type="button" size="sm" variant="outline" onClick={props.onAddFromLibrary}>Add from Library</Button> : null}
+        {!props.focusedItemId ? <Button type="button" size="sm" variant="outline" className={styles.deskAddFromLibrary} onClick={props.onAddFromLibrary}>Add from Library</Button> : null}
         {fullViewControls}
         <div className={`${styles.spatialControls} ${styles.compactSpatialControls}`} aria-label="Compact Desk view controls">{compactViewControls}</div>
       </div>
