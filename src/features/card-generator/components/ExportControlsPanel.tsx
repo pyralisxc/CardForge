@@ -20,6 +20,7 @@ import type { ZipExportKind } from '@/features/card-generator/hooks/useCardZipEx
 import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 import {
   RASTER_EXPORT_QUALITY_OPTIONS,
+  getPressCandidateDpi,
   getRasterExportDimensionsPx,
   getRasterExportQualityOption,
   type ExportMode,
@@ -105,12 +106,18 @@ export function ExportControlsPanel({
     0
   );
   const rasterQuality = getRasterExportQualityOption(exportDpi);
+  const pressDpi = getPressCandidateDpi(exportDpi);
+  const pressQuality = getRasterExportQualityOption(pressDpi);
   const productionGeometry = firstCard && exportMode === 'physical'
     ? getCardProductionGeometryMm(firstCard)
     : null;
   const printPreflight = useMemo(
     () => createPrintProductionPreflight(generatedDisplayCards, exportDpi),
     [exportDpi, generatedDisplayCards],
+  );
+  const pressPreflight = useMemo(
+    () => createPrintProductionPreflight(generatedDisplayCards, pressDpi),
+    [pressDpi, generatedDisplayCards],
   );
   const rasterDimensions = firstCard
     ? getRasterExportDimensionsPx(firstCard, exportMode, exportDpi)
@@ -183,199 +190,12 @@ export function ExportControlsPanel({
     </div>
   ) : null;
 
-  return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle id="generator-export-heading" className="text-xl">
-            {generatedDisplayCards.length === 0 ? 'Prepare this Set for export' : 'Export the finished set'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {generatedDisplayCards.length > 0 ? (
-            <div className="rounded-md border bg-muted/40 p-3 text-xs">
-              <p className="font-semibold text-foreground">{exportEntitlementLabel}</p>
-              <p className="mt-1 text-muted-foreground">{exportEntitlementMessage}</p>
-              <p className="mt-2 text-muted-foreground">
-                CardForge builds exports locally, then your browser saves the single finished file to its configured download location. No server copy is created.
-              </p>
-            </div>
-          ) : null}
-
-          {generatedDisplayCards.length === 0 ? (
-            <div className="rounded-md border border-dashed bg-muted/20 p-3 text-sm">
-              <p className="font-semibold text-foreground">Add cards before exporting</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Return to Desk, then create a design or generate cards. Output settings and downloads appear as soon as this Set has its first card.
-              </p>
-            </div>
-          ) : (
-            <>
-          <div className="space-y-1">
-            <Label htmlFor="exportMode" className="text-sm font-medium">Primary use</Label>
-            <Select value={exportMode} onValueChange={(value) => onSetExportMode(value as ExportMode)}>
-              <SelectTrigger id="exportMode" className="h-9 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="physical">Print physical cards</SelectItem>
-                <SelectItem value="virtual">Share or play digitally</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              This changes filenames and quality warnings. Each destination below owns its own format and settings.
-            </p>
-          </div>
-
-          {!isEntitlementPending && !canExportClean && exportGateMessage ? (
-            <div className="space-y-3 rounded-md border border-primary/30 bg-primary/10 p-3 text-xs text-muted-foreground">
-              <p>{exportGateMessage}</p>
-              <Button
-                type="button"
-                size="sm"
-                onClick={onStartCheckout}
-                disabled={isCheckoutStarting}
-                className="w-full"
-              >
-                {isCheckoutStarting ? 'Checking access...' : 'Get watermark-free downloads'}
-              </Button>
-              <p>You can download every format now with the watermark. Creator Pass makes those same files clean.</p>
-            </div>
-          ) : null}
-
-          <section aria-labelledby="raster-export-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
-            <div>
-              <h3 id="raster-export-heading" className="font-semibold">Individual images and PNG set</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Raster images have fixed pixels. PNG is lossless and best for card masters; JPEG and WebP are smaller, lossy choices in each card&apos;s download menu.
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                The selected raster quality also controls the card images embedded in Print PDF below.
-              </p>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="exportDpi" className="text-xs">Raster quality</Label>
-              <Select value={String(exportDpi)} onValueChange={(value) => onSetExportDpi(parseInt(value, 10))}>
-                <SelectTrigger id="exportDpi" className="h-9 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {RASTER_EXPORT_QUALITY_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={String(option.value)}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">{rasterQuality.description}</p>
-              {rasterDimensions ? (
-                <p className="text-xs font-medium text-foreground">
-                  {rasterDimensions.widthPx} × {rasterDimensions.heightPx}px per face for this template. Enlarging beyond those pixels softens the image.
-                </p>
-              ) : null}
-            </div>
-            <Button
-              variant="outline"
-              onClick={onExportAllAsZip}
-              disabled={exportsDisabled}
-              className="w-full gap-2"
-            >
-              <Download className="h-4 w-4" />
-              {isPngSetExporting
-                ? `Preparing PNGs… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
-                : isEntitlementPending
-                  ? 'Checking account access…'
-                  : `Download PNG set (${exportFaceCount} ${exportFaceCount === 1 ? 'file' : 'files'})`}
-            </Button>
-            {generatedDisplayCards.length > 0 ? (
-              <p className="text-xs text-muted-foreground">
-                ZIP size varies with the artwork, number of faces, and selected detail.
-              </p>
-            ) : null}
-            {isPngSetExporting ? exportProgress : null}
-          </section>
-
-
-
-          {exportMode === 'physical' && productionGeometry ? (
-            <section aria-labelledby="print-production-png-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
-              <div>
-                <h3 id="print-production-png-heading" className="font-semibold">Print production PNGs</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Keeps the authored trim design unchanged and adds the format&apos;s bleed outside it. The ZIP includes exact production geometry metadata for each face.
-                </p>
-              </div>
-              <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-                <p><span className="font-medium text-foreground">Trim:</span> {productionGeometry.trimWidthMm} × {productionGeometry.trimHeightMm} mm</p>
-                <p><span className="font-medium text-foreground">Bleed:</span> {productionGeometry.bleedMm} mm on every edge</p>
-                <p><span className="font-medium text-foreground">Safe margin:</span> {productionGeometry.safeMarginMm} mm inside trim</p>
-                <p><span className="font-medium text-foreground">Production face:</span> {productionGeometry.productionWidthMm} × {productionGeometry.productionHeightMm} mm</p>
-              </div>
-              <div className="grid gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-xs">
-                <p className="font-semibold text-foreground">
-                  Production preflight: {printPreflight.productionPrepared ? 'Prepared' : 'Blocked'}
-                </p>
-                <p className="text-muted-foreground">
-                  {printPreflight.issueSummary.blockers} blockers · {printPreflight.issueSummary.warnings} review warnings · {printPreflight.issueSummary.standardsGaps} press-standard gap{printPreflight.issueSummary.standardsGaps === 1 ? '' : 's'}.
-                </p>
-                <p className="font-medium text-foreground">
-                  Press ready: {printPreflight.pressReady ? 'Yes' : 'Not yet'}
-                </p>
-                {!printPreflight.pressReady ? (
-                  <p className="text-muted-foreground">
-                    These PNGs and sheet PDFs have no ICC output intent. The separate color-managed press candidate below still requires independent prepress and professional-workflow acceptance.
-                  </p>
-                ) : null}
-                {printPreflight.issues.filter((issue) => issue.severity === 'blocker').slice(0, 2).map((issue) => (
-                  <p key={`${issue.code}:${issue.scope}:${issue.message}`} className="text-[var(--cf-danger)]">
-                    {issue.message}
-                  </p>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Bleed repeats the authored background edge pixels, not mirrored card borders or text. The trim design stays in place; digital rounded corners are not a physical cut specification. Inspect every edge and keep important content inside the safe area. The ZIP includes preflight and geometry reports.
-              </p>
-              <Button
-                variant="outline"
-                onClick={onExportPrintPngSet}
-                disabled={exportsDisabled || !printPreflight.productionPrepared}
-                className="w-full gap-2"
-              >
-                <Download className="h-4 w-4" />
-                {isPrintPngSetExporting
-                  ? `Preparing print PNGs… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
-                  : isEntitlementPending
-                    ? 'Checking account access…'
-                    : `Download print production PNG ZIP (${exportFaceCount} ${exportFaceCount === 1 ? 'face' : 'faces'})`}
-              </Button>
-              {isPrintPngSetExporting ? exportProgress : null}
-            </section>
-          ) : null}
-
-          {exportMode === 'physical' && productionGeometry ? (
-            <section aria-labelledby="press-candidate-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
-              <h3 id="press-candidate-heading" className="font-semibold">Color-managed press candidate · validation pending</h3>
-              <p className="text-xs text-muted-foreground">
-                One bleed-bearing face per page, with exact trim/bleed boxes, white-paper compositing and tagged sRGB pixels.
-                The embedded FOGRA39L coated-offset reference is an older printing condition, not printer/stock calibration or preconverted CMYK.
-                This is not an imposed duplex sheet, a PDF/X conformance certificate, or press-ready acceptance.
-              </p>
-              <p className="text-xs text-muted-foreground">The ZIP includes PDFs, exact pixel/PDF/profile hashes, geometry, preflight and complete profile notices. Independent PDF/X validation and a representative professional print workflow are still required.</p>
-              <Button variant="outline" onClick={onExportPressCandidate} disabled={exportsDisabled || !printPreflight.productionPrepared} className="w-full gap-2">
-                <Download className="h-4 w-4" />
-                {isZipExporting && zipExportKind === 'press-candidate'
-                  ? `Preparing press candidate… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
-                  : 'Download color-managed press candidate ZIP'}
-              </Button>
-              {zipExportKind === 'press-candidate' ? exportProgress : null}
-            </section>
-          ) : null}
-
-          <details className="rounded-md border bg-muted/20 p-3" open={defaultPdfProfile === 'sheet' ? true : undefined}>
+  const printPdf = (
+          <details className="rounded-md border bg-muted/20 p-3" open={exportMode === 'physical' || defaultPdfProfile === 'sheet' ? true : undefined}>
             <summary className="cursor-pointer font-semibold">Print PDF</summary>
             <div className="mt-4 space-y-3">
               <p className="text-xs text-muted-foreground">
-                PDF arranges the selected raster quality on paper. Page geometry and cut lines remain sharp, but the cards are RGB raster images—not vector, CMYK, PDF/X, or printer-specific prepress output.
+                PDF arranges cards on paper using your selected raster quality. Page geometry and cut lines remain sharp, but the cards are RGB raster images—not vector, CMYK, PDF/X, or printer-specific prepress output.
               </p>
               <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={onSelectPaperSize} />
               <Label className="text-sm font-medium">PDF layout</Label>
@@ -469,6 +289,205 @@ export function ExportControlsPanel({
               />
             </div>
           </details>
+  );
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle id="generator-export-heading" className="text-xl">
+            {generatedDisplayCards.length === 0 ? 'Prepare this Set for export' : 'Export the finished set'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {generatedDisplayCards.length > 0 ? (
+            <div className="rounded-md border bg-muted/40 p-3 text-xs">
+              <p className="font-semibold text-foreground">{exportEntitlementLabel}</p>
+              <p className="mt-1 text-muted-foreground">{exportEntitlementMessage}</p>
+              <p className="mt-2 text-muted-foreground">
+                CardForge builds exports locally, then your browser saves the single finished file to its configured download location. No server copy is created.
+              </p>
+            </div>
+          ) : null}
+
+          {generatedDisplayCards.length === 0 ? (
+            <div className="rounded-md border border-dashed bg-muted/20 p-3 text-sm">
+              <p className="font-semibold text-foreground">Add cards before exporting</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Return to Desk, then create a design or generate cards. Output settings and downloads appear as soon as this Set has its first card.
+              </p>
+            </div>
+          ) : (
+            <>
+          <div className="space-y-1">
+            <Label htmlFor="exportMode" className="text-sm font-medium">Primary use</Label>
+            <Select value={exportMode} onValueChange={(value) => onSetExportMode(value as ExportMode)}>
+              <SelectTrigger id="exportMode" className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="physical">Print physical cards</SelectItem>
+                <SelectItem value="virtual">Share or play digitally</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              This changes filenames and quality warnings. Each destination below owns its own format and settings.
+            </p>
+          </div>
+
+          {!isEntitlementPending && !canExportClean && exportGateMessage ? (
+            <div className="space-y-3 rounded-md border border-primary/30 bg-primary/10 p-3 text-xs text-muted-foreground">
+              <p>{exportGateMessage}</p>
+              <Button
+                type="button"
+                size="sm"
+                onClick={onStartCheckout}
+                disabled={isCheckoutStarting}
+                className="w-full"
+              >
+                {isCheckoutStarting ? 'Checking access...' : 'Get watermark-free downloads'}
+              </Button>
+              <p>You can download every format now with the watermark. Creator Pass makes those same files clean.</p>
+            </div>
+          ) : null}
+
+          {exportMode === 'physical' ? printPdf : null}
+
+          <section aria-labelledby="raster-export-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
+            <div>
+              <h3 id="raster-export-heading" className="font-semibold">Individual images and PNG set</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Raster images have fixed pixels. PNG is lossless and best for card masters; JPEG and WebP are smaller, lossy choices in each card&apos;s download menu.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                The selected raster quality also controls the card images embedded in both PDF downloads.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="exportDpi" className="text-xs">Raster quality</Label>
+              <Select value={String(exportDpi)} onValueChange={(value) => onSetExportDpi(parseInt(value, 10))}>
+                <SelectTrigger id="exportDpi" className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RASTER_EXPORT_QUALITY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={String(option.value)}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">{rasterQuality.description}</p>
+              {rasterDimensions ? (
+                <p className="text-xs font-medium text-foreground">
+                  {rasterDimensions.widthPx} × {rasterDimensions.heightPx}px per face for this template. Enlarging beyond those pixels softens the image.
+                </p>
+              ) : null}
+            </div>
+            <Button
+              variant="outline"
+              onClick={onExportAllAsZip}
+              disabled={exportsDisabled}
+              className="w-full gap-2"
+            >
+              <Download className="h-4 w-4" />
+              {isPngSetExporting
+                ? `Preparing PNGs… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
+                : isEntitlementPending
+                  ? 'Checking account access…'
+                  : `Download PNG set (${exportFaceCount} ${exportFaceCount === 1 ? 'file' : 'files'})`}
+            </Button>
+            {generatedDisplayCards.length > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                ZIP size varies with the artwork, number of faces, and selected detail.
+              </p>
+            ) : null}
+            {isPngSetExporting ? exportProgress : null}
+          </section>
+
+
+
+          {exportMode === 'physical' && productionGeometry ? (
+            <section aria-labelledby="print-production-png-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
+              <div>
+                <h3 id="print-production-png-heading" className="font-semibold">Print production PNGs</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Keeps the authored trim design unchanged and adds the format&apos;s bleed outside it. The ZIP includes exact production geometry metadata for each face.
+                </p>
+              </div>
+              <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                <p><span className="font-medium text-foreground">Trim:</span> {productionGeometry.trimWidthMm} × {productionGeometry.trimHeightMm} mm</p>
+                <p><span className="font-medium text-foreground">Bleed:</span> {productionGeometry.bleedMm} mm on every edge</p>
+                <p><span className="font-medium text-foreground">Safe margin:</span> {productionGeometry.safeMarginMm} mm inside trim</p>
+                <p><span className="font-medium text-foreground">Production face:</span> {productionGeometry.productionWidthMm} × {productionGeometry.productionHeightMm} mm</p>
+              </div>
+              <div className="grid gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-xs">
+                <p className="font-semibold text-foreground">
+                  Print PNG preflight: {printPreflight.productionPrepared ? 'Prepared' : 'Blocked'}
+                </p>
+                <p className="text-muted-foreground">
+                  {printPreflight.issueSummary.blockers} blockers · {printPreflight.issueSummary.warnings} review warnings · {printPreflight.issueSummary.standardsGaps} press-standard gap{printPreflight.issueSummary.standardsGaps === 1 ? '' : 's'}.
+                </p>
+                <p className="font-medium text-foreground">
+                  Press ready: {printPreflight.pressReady ? 'Yes' : 'Not yet'}
+                </p>
+                {!printPreflight.pressReady ? (
+                  <p className="text-muted-foreground">
+                    These PNGs and sheet PDFs have no ICC output intent. The separate color-managed press candidate below still requires independent prepress and professional-workflow acceptance.
+                  </p>
+                ) : null}
+                {printPreflight.issues.filter((issue) => issue.severity === 'blocker').slice(0, 2).map((issue) => (
+                  <p key={`${issue.code}:${issue.scope}:${issue.message}`} className="text-[var(--cf-danger)]">
+                    {issue.message}
+                  </p>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Bleed repeats the authored background edge pixels, not mirrored card borders or text. The trim design stays in place; digital rounded corners are not a physical cut specification. Inspect every edge and keep important content inside the safe area. The ZIP includes preflight and geometry reports.
+              </p>
+              <Button
+                variant="outline"
+                onClick={onExportPrintPngSet}
+                disabled={exportsDisabled || !printPreflight.productionPrepared}
+                className="w-full gap-2"
+              >
+                <Download className="h-4 w-4" />
+                {isPrintPngSetExporting
+                  ? `Preparing print PNGs… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
+                  : isEntitlementPending
+                    ? 'Checking account access…'
+                    : `Download print production PNG ZIP (${exportFaceCount} ${exportFaceCount === 1 ? 'face' : 'faces'})`}
+              </Button>
+              {isPrintPngSetExporting ? exportProgress : null}
+            </section>
+          ) : null}
+
+          {exportMode === 'physical' && productionGeometry ? (
+            <section aria-labelledby="press-candidate-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
+              <h3 id="press-candidate-heading" className="font-semibold">Color-managed press candidate · validation pending</h3>
+              <p className="text-xs text-muted-foreground">
+                One bleed-bearing face per page, with exact trim/bleed boxes, white-paper compositing and tagged sRGB pixels.
+                The embedded FOGRA39L coated-offset reference is an older printing condition, not printer/stock calibration or preconverted CMYK.
+                This is not an imposed duplex sheet, a PDF/X conformance certificate, or press-ready acceptance.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Press candidates require at least 300 PPI at the actual production size, including bleed. This package uses {pressQuality.label} quality{pressDpi !== exportDpi ? ' to meet that minimum' : ''}. Other exports keep your selected raster quality. Higher output density cannot restore missing detail in original artwork.
+              </p>
+              <p className="text-xs text-muted-foreground">The ZIP includes PDFs, exact pixel/PDF/profile hashes, geometry, preflight and complete profile notices. Independent PDF/X validation and a representative professional print workflow are still required.</p>
+              {pressPreflight.issues.filter((issue) => issue.severity === 'blocker').slice(0, 2).map((issue) => (
+                <p key={`${issue.code}:${issue.scope}:${issue.message}`} className="text-xs text-[var(--cf-danger)]">{issue.message}</p>
+              ))}
+              <Button variant="outline" onClick={onExportPressCandidate} disabled={exportsDisabled || !pressPreflight.productionPrepared} className="w-full gap-2">
+                <Download className="h-4 w-4" />
+                {isZipExporting && zipExportKind === 'press-candidate'
+                  ? `Preparing press candidate… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
+                  : 'Download color-managed press candidate ZIP'}
+              </Button>
+              {zipExportKind === 'press-candidate' ? exportProgress : null}
+            </section>
+          ) : null}
+
+          {exportMode !== 'physical' ? printPdf : null}
 
           <section aria-labelledby="screen-pdf-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
             <div>
@@ -489,7 +508,7 @@ export function ExportControlsPanel({
               pdfIncludeCutLines={pdfIncludeCutLines}
               pdfDuplexLayout={pdfDuplexLayout}
               exportMode="virtual"
-              exportDpi={150}
+              exportDpi={exportDpi}
               richTextHighlightColor={richTextHighlightColor}
               canExportClean={canExportClean}
               disabled={exportsDisabled}

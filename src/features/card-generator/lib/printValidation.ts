@@ -125,6 +125,9 @@ export const getExportProfile = (mode: ExportMode, dpiOverride?: number): Export
   };
 };
 
+/** Press candidates need headroom above 300 PPI after bleed and pixel rounding. */
+export const getPressCandidateDpi = (selectedDpi: number): number => Math.max(300, clampDpi(selectedDpi));
+
 export const getRasterExportQualityOption = (value: number): RasterExportQualityOption =>
   RASTER_EXPORT_QUALITY_OPTIONS.find((option) => option.value === value)
   ?? {

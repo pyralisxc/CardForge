@@ -100,8 +100,7 @@ export function SaveAsPdfButton({
 
     const isScreenPdf = pdfProfile === 'screen';
     const activeMode: ExportMode = isScreenPdf ? 'virtual' : exportMode;
-    // Digital copies have their own screen recipe, independent of print settings.
-    const activeDpi = isScreenPdf ? 150 : exportDpi;
+    const activeDpi = exportDpi;
     const exportProfile = getExportProfile(activeMode, activeDpi);
     const rasterQuality = getRasterExportQualityOption(activeDpi);
     const firstCardDimensions = generatedDisplayCards[0]

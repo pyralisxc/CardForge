@@ -5,6 +5,7 @@ import { useOutputActivity } from '../components/OutputActivity';
 
 import {
   getExportProfile,
+  getPressCandidateDpi,
   getRasterExportQualityOption,
   type ExportMode,
 } from '@/features/card-generator/lib/printValidation';
@@ -72,7 +73,8 @@ export function useCardZipExportActions({
       toast({ title: 'PDF export size limit reached', description: `Export at most ${MAX_TOTAL_PDF_EXPORT_CARDS} cards per download; split this Set into smaller export batches.`, variant: 'destructive' });
       return;
     }
-    let preflight = createPrintProductionPreflight(generatedDisplayCards, exportDpi, undefined, PRESS_COLOR_REFERENCE.id);
+    const pressDpi = getPressCandidateDpi(exportDpi);
+    let preflight = createPrintProductionPreflight(generatedDisplayCards, pressDpi, undefined, PRESS_COLOR_REFERENCE.id);
     if (!preflight.productionPrepared) {
       toast({ title: 'Press candidate preflight blocked', description: preflight.issues.find((issue) => issue.severity === 'blocker')?.message, variant: 'destructive' });
       return;
@@ -89,7 +91,7 @@ export function useCardZipExportActions({
       ]);
       const profiles = await loadPressColorProfiles();
       const zip = new JSZip();
-      const renderer = createCardFaceExportRenderer(getExportProfile('physical', exportDpi), richTextHighlightColor, exportWatermark);
+      const renderer = createCardFaceExportRenderer(getExportProfile('physical', pressDpi), richTextHighlightColor, exportWatermark);
       const createdAt = new Date().toISOString();
       const partCount = Math.ceil(generatedDisplayCards.length / MAX_PDF_CARDS_PER_FILE);
       let done = 0;
@@ -115,7 +117,7 @@ export function useCardZipExportActions({
           zip.file(`${name}.pdf`, result.pdf);
           zip.file(`${name}-report.json`, JSON.stringify({ ...result.report, watermarkApplied: !canExportClean }, null, 2));
         }
-        preflight = createPrintProductionPreflight(generatedDisplayCards, exportDpi, renderer.getSourceImageDetails(), PRESS_COLOR_REFERENCE.id);
+        preflight = createPrintProductionPreflight(generatedDisplayCards, pressDpi, renderer.getSourceImageDetails(), PRESS_COLOR_REFERENCE.id);
       } finally { renderer.cleanup(); }
       if (!preflight.productionPrepared) throw new Error('The rendered production preflight failed. No candidate was exported.');
       zip.file('cardforge-print-preflight.json', JSON.stringify(preflight, null, 2));

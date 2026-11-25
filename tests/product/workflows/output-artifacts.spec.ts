@@ -5,6 +5,8 @@ import { createHash } from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
 import sharp from 'sharp';
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
+import { createProjectScaleFixture } from '../../fixtures/projectScale';
+import { buildCardForgeProjectSnapshot, encodeCardForgeProjectPackage } from '@/features/project/lib/projectPackageCodec';
 
 test('@golden gives an empty Set one creation next step before output controls', async ({ page }, testInfo) => {
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 0 });
@@ -21,6 +23,39 @@ test('@golden gives an empty Set one creation next step before output controls',
   await expect(output.getByRole('button', { name: /^Download PNG set/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Return to Desk', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('empty-set-output.png') });
+});
+
+test('starts new work at Standard and retains a chosen raster quality on reload', async ({ page }) => {
+  const document = createProjectScaleFixture(100);
+  document.storedCards = document.storedCards.slice(0, 1);
+  const bytes = await encodeCardForgeProjectPackage(await buildCardForgeProjectSnapshot({ document, name: 'Quality preference' }));
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'Create your first Set', exact: true }).click();
+  await page.getByLabel('Choose a .cardforge Set file', { exact: true }).setInputFiles({
+    name: 'quality.cardforge', mimeType: 'application/octet-stream', buffer: Buffer.from(bytes),
+  });
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  const quality = page.getByRole('combobox', { name: 'Raster quality', exact: true });
+  await expect(quality).toHaveText('Standard');
+  await quality.click();
+  await page.getByRole('option', { name: 'High detail', exact: true }).click();
+  await expect(quality).toHaveText('High detail');
+  await expect.poll(() => page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('cardforge-browser-storage');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const values = await Promise.all(['guest', 'local'].map((scope) => new Promise<string | undefined>((resolve, reject) => {
+      const request = database.transaction('key-value').objectStore('key-value').get(`project-workspace:${scope}:workspace`);
+      request.onsuccess = () => resolve(request.result as string | undefined);
+      request.onerror = () => reject(request.error);
+    })));
+    database.close();
+    return values.some((value) => value && JSON.parse(JSON.parse(value).value).state.exportDpi === 300);
+  })).toBe(true);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(quality).toHaveText('High detail');
 });
 
 test('does not download a success artifact when authored artwork fails to load', async ({ page }) => {
@@ -51,7 +86,8 @@ test('does not download a success artifact when authored artwork fails to load',
   await expect(page.getByText('Press candidate export failed', { exact: true })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'Press candidate · 100 Card Scale Set: export failed.' })).toBeVisible();
   expect(downloads).toBe(0);
-  await page.getByText('Print PDF', { exact: true }).click();
+  const printPdf = page.locator('details').filter({ has: page.getByText('Print PDF', { exact: true }) });
+  if (await printPdf.getAttribute('open') === null) await printPdf.locator('summary').click();
   await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();
   await expect(page.getByText('PDF export failed', { exact: true })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'PDF · 100 Card Scale Set: export failed.' })).toBeVisible();
@@ -130,6 +166,8 @@ test('@golden @preview downloads actual card PNG, Set ZIP, PDF and Tabletop shee
   for (const close of await page.getByRole('button', { name: 'Close notification', exact: true }).all()) {
     if (await close.isVisible()) await close.click();
   }
+  await page.getByRole('combobox', { name: 'Raster quality', exact: true }).click();
+  await page.getByRole('option', { name: 'Standard', exact: true }).click();
   const pressDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download color-managed press candidate ZIP', exact: true }).click();
   const pressFile = await pressDownload;
@@ -143,7 +181,8 @@ test('@golden @preview downloads actual card PNG, Set ZIP, PDF and Tabletop shee
   expect(candidateReport).toMatchObject({ pressReady: false, standardsValidation: 'pending', professionalAcceptance: 'pending', declaredStandard: 'PDF/X-4', paperComposite: 'opaque-white', watermarkApplied });
   expect(candidateReport.pdfSha256).toBe(createHash('sha256').update(candidateBytes).digest('hex'));
   expect(candidateReport.pages.map((entry: { face: string }) => entry.face)).toEqual(['front', 'back', 'front', 'back']);
-  expect(candidatePreflight).toMatchObject({ productionPrepared: true, pressReady: false, sourceImageDetail: { measured: true }, colorManagement: { pressStandard: 'PDF/X-4', independentValidation: 'pending', professionalAcceptance: 'pending' } });
+  expect(candidatePreflight).toMatchObject({ requestedDpi: 300, productionPrepared: true, pressReady: false, sourceImageDetail: { measured: true }, colorManagement: { pressStandard: 'PDF/X-4', independentValidation: 'pending', professionalAcceptance: 'pending' } });
+  await expect(page.getByRole('combobox', { name: 'Raster quality', exact: true })).toHaveText('Standard');
   expect(candidatePreflight.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'standards.independent_validation_pending' }), expect.objectContaining({ code: 'resolution.source_below_300_ppi' })]));
   expect(candidateBytes.subarray(0, 8).toString()).toBe('%PDF-1.6');
   const candidatePdf = await PDFDocument.load(candidateBytes, { updateMetadata: false });
@@ -165,8 +204,13 @@ test('@golden @preview downloads actual card PNG, Set ZIP, PDF and Tabletop shee
   expect(digitalPdfText.match(/\/Type\s*\/Page\b/g)).toHaveLength(4);
   expect(digitalPdfText).toContain('/Subtype /Image');
   expect(digitalPdfText).toContain('/MediaBox');
+  expect(digitalPdfText).toContain('/Width 744');
+  expect(digitalPdfText).toContain('/Height 1040');
+  await page.getByRole('combobox', { name: 'Raster quality', exact: true }).click();
+  await page.getByRole('option', { name: 'High detail', exact: true }).click();
   expect(digitalPdf.length).toBeLessThan(5_000_000);
-  await page.getByText('Print PDF', { exact: true }).click();
+  const printPdf = page.locator('details').filter({ has: page.getByText('Print PDF', { exact: true }) });
+  if (await printPdf.getAttribute('open') === null) await printPdf.locator('summary').click();
   const pdfDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();
   const pdf = await save(await pdfDownload);
