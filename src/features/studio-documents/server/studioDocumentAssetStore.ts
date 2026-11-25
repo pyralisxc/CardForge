@@ -38,6 +38,7 @@ const requireStore = () => {
 };
 
 const storagePrefix = (ownerUserId: string, documentId: string) => `${ownerUserId}/${documentId}`;
+// Retain the historical key shape for old drafts; object metadata owns MIME.
 const imageStoragePath = (ownerUserId: string, documentId: string, assetId: string) => (
   `${storagePrefix(ownerUserId, documentId)}/${assetId}.webp`
 );
