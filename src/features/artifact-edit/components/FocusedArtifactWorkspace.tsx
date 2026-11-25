@@ -14,7 +14,7 @@ import { buildArtifactFieldTargetMap, completeCardDataWithTemplateDefaults, Gene
 import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
 import { useEditorPreferences } from '@/features/editor-preferences/client';
 import { useToast } from '@/components/ui/use-toast';
-import type { ArtifactBrowseDirection } from '../model/focusedArtifactLayout';
+import type { ArtifactBrowseDirection } from '../model/focusedArtifactInteraction';
 import {
   isFocusedArtifactDirectPointer,
   isFocusedArtifactDoubleTap,
@@ -22,7 +22,7 @@ import {
   type FocusedArtifactTap,
 } from '../model/focusedArtifactInteraction';
 
-import styles from './Desk.module.css';
+import styles from './FocusedArtifactWorkspace.module.css';
 
 const CardActions = dynamic(() => import('@/features/card-generator/client/card-actions').then((module) => module.CardActions), { ssr: false });
 
@@ -41,7 +41,7 @@ interface FocusedArtifactWorkspaceProps {
   editing: boolean;
   onCancelEdit: () => void;
   onDirtyChange: (dirty: boolean) => void;
-  onSave: (card: DisplayCard) => void;
+  onSave: (card: DisplayCard) => boolean | void;
   onDesign: (card: DisplayCard, face: CardFace) => void;
 }
 
@@ -308,8 +308,8 @@ export function FocusedArtifactWorkspace({
       backingData: card.backingTemplate ? completeCardDataWithTemplateDefaults(initialBack[0], backData, true) : undefined,
       updatedAt: new Date().toISOString(),
     };
+    if (onSave(updatedCard) === false) return null;
     onDirtyChange(false);
-    onSave(updatedCard);
     return updatedCard;
   };
   const designTemplate = () => {

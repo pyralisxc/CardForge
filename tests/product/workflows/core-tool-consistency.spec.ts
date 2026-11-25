@@ -49,11 +49,12 @@ test('matching back creates a new back and returns to the same Generate context'
   await page.getByRole('textbox', { name: 'Add your card list' }).fill('cardName,rules\nDraft card,Keep this input');
   await page.getByRole('button', { name: 'Change setup', exact: true }).click();
   await page.getByRole('button', { name: 'Create matching back', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Design Artifacts', exact: true })).toBeVisible();
-  const creation = page.getByRole('dialog');
+  const creation = page.getByRole('dialog', { name: 'Create a card back Template', exact: true });
+  await expect(creation).toBeVisible();
   await expect(creation.getByRole('combobox', { name: 'Choose card format' })).toContainText('63 × 88 mm');
   await creation.getByRole('textbox', { name: 'Template name' }).fill('Matching back proof');
   await creation.getByRole('button', { name: 'Create and open canvas' }).click();
+  await expect(page.getByRole('region', { name: 'Design', exact: true })).toBeVisible();
   await expect(page.getByText('Create and save a matching back, then choose whether to apply it to this set.')).toBeVisible();
   await page.getByRole('button', { name: 'Back to Generate', exact: true }).click();
   if (await page.getByRole('alertdialog').isVisible()) await page.getByRole('button', { name: 'Close Design', exact: true }).click();
@@ -115,4 +116,52 @@ test('standalone Library Template keeps drafts across cancelled close and naviga
   await expect(page).not.toHaveURL(/tool=design/);
   await page.goBack();
   await expect(page).not.toHaveURL(/tool=design/);
+});
+
+for (const width of [1440, 390]) test(`Library edits the same card and retains the Set after reload at ${width}px`, async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width, height: 900 });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, exportSample: true });
+  await page.goto('/account?section=library');
+  const openSet = () => page.locator('[id^="library-object-set:"]').filter({ hasText: '100 Card Scale Set' }).click();
+  await openSet();
+  const readWorkspaces = () => page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('cardforge-browser-storage');
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    const records = await Promise.all(['guest', 'local'].map((scope) => new Promise<string>((resolve, reject) => {
+      const request = database.transaction('key-value').objectStore('key-value').get(`project-workspace:${scope}:workspace`);
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    })));
+    database.close();
+    return records.map((record) => JSON.parse(JSON.parse(record).value).state);
+  });
+  // Startup can normalize Template identities; capture the actual workspace baseline.
+  await page.waitForTimeout(500);
+  const before = await readWorkspaces();
+  await page.getByRole('button', { name: 'Edit Scale Card 0001', exact: true }).click();
+  const editor = page.locator('[data-artifact-edit-workspace]');
+  await editor.getByRole('button', { name: 'Show all fields', exact: true }).click();
+  const title = editor.getByRole('textbox', { name: /Card title|Card name/i }).first();
+  await title.fill('Revised in Library');
+  await page.getByRole('button', { name: 'Close card editor', exact: true }).click();
+  await expect(page.getByRole('alertdialog')).toContainText('unsaved');
+  await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
+  await expect(title).toHaveValue('Revised in Library');
+  await editor.getByRole('button', { name: 'Save & Done', exact: true }).click();
+  await expect(page).toHaveURL(/section=library/);
+  await expect(page.getByRole('button', { name: 'Edit Revised in Library', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit Scale Card 0002', exact: true })).toBeVisible();
+  await page.reload();
+  await openSet();
+  await expect(page.getByRole('button', { name: 'Edit Revised in Library', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit Scale Card 0002', exact: true })).toBeVisible();
+  const workspaces = await readWorkspaces();
+  const scope = workspaces.findIndex((state) => state.storedCards.some((card: { data: { cardName?: string } }) => card.data.cardName === 'Revised in Library'));
+  expect(scope).toBeGreaterThanOrEqual(0);
+  const saved = workspaces[scope];
+  expect(saved.storedCards).toHaveLength(2);
+  expect(saved.storedCards[0]).toMatchObject({ uniqueId: 'scale-card-1', setId: 'scale-set-100', templateId: before[scope].storedCards[0].templateId, data: { cardName: 'Revised in Library', artwork: `cardforge-browser-asset://${'1'.padStart(64, '0')}` } });
+  expect(saved.storedCards[1]).toMatchObject({ uniqueId: 'scale-card-2', setId: 'scale-set-100', templateId: before[scope].storedCards[1].templateId, data: { cardName: 'Scale Card 0002', artwork: `cardforge-browser-asset://${'2'.padStart(64, '0')}` } });
 });

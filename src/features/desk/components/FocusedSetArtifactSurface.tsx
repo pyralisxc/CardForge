@@ -31,7 +31,7 @@ import {
 import { getCardTitle } from '../model/desk';
 import { useSetSpatialCamera, type SetCameraSnapshot } from '../hooks/useSetSpatialCamera';
 import { FocusedArtifactNavigator } from './FocusedArtifactNavigator';
-import { FocusedArtifactWorkspace } from './FocusedArtifactWorkspace';
+import { FocusedArtifactWorkspace } from '@/features/artifact-edit/client';
 import styles from './Desk.module.css';
 
 interface FocusedSetArtifactSurfaceProps {

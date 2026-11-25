@@ -3,7 +3,7 @@ import { getPipelineTrashState } from '@/features/pipeline/client';
 
 import { PIPELINE_ENGAGEMENT_CHANGED, notifyPipelineEngagementChanged, loadPipelineEngagement, parsePipelineVoteReceipt, PipelineSourceDisclosure, type PipelineDesignSource } from '@/features/pipeline/client/engagement';
 import dynamic from 'next/dynamic';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { HardDrive } from 'lucide-react';
 
 import {
@@ -11,6 +11,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
 import type { DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
 import { createCardFaceExportRenderer, getExportProfile } from '@/features/card-generator/client/export';
@@ -30,7 +31,8 @@ import { type ProjectPersistenceScope } from '@/features/project/client/persiste
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import { NewSetDialog, usePublishedSetStarters } from '@/features/project/client/new-set';
-import { useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
+import { useProjectLibraryWorkspace, type LibraryCardEditSession } from '@/features/project/client/libraryWorkspace';
+import { FocusedArtifactWorkspace } from '@/features/artifact-edit/client';
 import { SetDirection, SetTemplates, SetUpdates, WorkspaceUpdateNotices, useWorkspaceUpdates } from '@/features/project/client/ui';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import { CardPreview, getTemplateAccent } from '@/features/card-rendering/client';
@@ -95,7 +97,7 @@ const LibraryDesignWorkspace = dynamic(() => import(
   '@/features/creator-workbench/client'
 ).then((module) => module.CreatorWorkbench), { ssr: false });
 
-type LibraryToolId = 'review-manage' | 'pipeline-operations' | 'revise-existing' | 'locations' | 'contribute' | 'edit-contribution' | 'design';
+type LibraryToolId = 'review-manage' | 'pipeline-operations' | 'revise-existing' | 'locations' | 'contribute' | 'edit-contribution' | 'design' | 'card-edit';
 
 const createLibraryToolSession = (
   toolId: LibraryToolId,
@@ -107,8 +109,9 @@ const createLibraryToolSession = (
     ? 'storage-management'
     : toolId === 'design'
       ? 'template-editor'
+      : toolId === 'card-edit' ? 'card-generator'
       : 'pipeline',
-  presentation: toolId === 'design' ? 'floating' : 'sheet',
+  presentation: toolId === 'design' || toolId === 'card-edit' ? 'floating' : 'sheet',
   targetIds: [...targetIds],
   dirty: false,
 });
@@ -154,6 +157,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const activeTool = activeToolSession?.toolId ?? null;
   const sharedTrashSessionKey = JSON.stringify([activeScope, isSignedIn, experience.owner, persistenceScope, sharedTrashMode, activeTool]);
   const toolDirty = activeToolSession?.dirty ?? false;
+  const [cardEditSession, setCardEditSession] = useState<LibraryCardEditSession | null>(null);
+  const [cardQuery, setCardQuery] = useState('');
+  const cardEditContext = useRef({ scope: persistenceScope, itemId: '' });
   const [designSourceState, setDesignSourceState] = useState<{ scope: string; source: PipelineDesignSource } | null>(null);
   const designSourceScope = persistenceScope;
   const designSource = designSourceState?.scope === designSourceScope ? designSourceState.source : null;
@@ -212,14 +218,15 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   };
   const closeTool = () => {
     setDesignSource(null);
+    setCardEditSession(null);
     setToolStack((current) => closeEnvironmentToolSession(current).stack);
   };
-  const setToolDirty = (dirty: boolean) => {
+  const setToolDirty = useCallback((dirty: boolean) => {
     setToolStack((current) => {
       const active = current.at(-1);
-      return active ? setEnvironmentToolSessionDirty(current, active.instanceId, dirty) : current;
+      return active && active.dirty !== dirty ? setEnvironmentToolSessionDirty(current, active.instanceId, dirty) : current;
     });
-  };
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -283,6 +290,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     if (!activeTool) priorRevisionNavigation.current = revisionNavigationKey;
   }, [activeTool, revisionsEnabled, revisionNavigationKey]);
   const currentItem = selection.objectId ? itemMap.get(selection.objectId) ?? null : null;
+  cardEditContext.current = { scope: persistenceScope, itemId: selection.objectId ?? '' };
   const contentHealth = useMemo(() => buildPipelineContentHealth({ catalog: shared.catalog, program: shared.program }), [shared.catalog, shared.program]);
   const publishedRevisionByLineage = useMemo(() => new Map(
     shared.pipelineItems.flatMap((item) => item.currentPublishedSubmission?.lineageId
@@ -292,6 +300,34 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const currentRecord = currentItem ? detailRecord(currentItem) : null;
   const selectedLocalSet = currentItem?.scope === 'personal'
     ? cardSets.find((set) => set.id === currentItem.personal.references.localSetId) : undefined;
+  useEffect(() => { setCardQuery(''); }, [selectedLocalSet?.id]);
+  useEffect(() => {
+    setCardEditSession(null);
+    setToolStack((current) => current.at(-1)?.toolId === 'card-edit' ? [] : current);
+  }, [persistenceScope]);
+  const prepareSelectedSetHere = async (item: AccountLibraryItem) => {
+    const captured = { ...cardEditContext.current };
+    try {
+      const setId = await projection.prepareSetInLibrary(item);
+      if (cardEditContext.current.scope !== captured.scope || cardEditContext.current.itemId !== captured.itemId) return;
+      setSelection((current) => openEnvironmentDetail(current, { objectId: `set:${setId}`, listOffset: current.listOffset, focusReturnId: `library-object-set:${setId}` }));
+    } catch (error) {
+      toast({ title: 'Set was not opened', description: error instanceof Error ? error.message : 'Refresh the location and try again.', variant: 'destructive' });
+    }
+  };
+  const selectedSetCards = selectedLocalSet ? displayCards.filter((card) => (
+    (card.setId ?? cardSets[0]?.id) === selectedLocalSet.id
+  )) : [];
+  const visibleSetCards = selectedSetCards.filter((card) => (
+    String(card.data.cardName ?? card.data.title ?? card.data.name ?? 'Card').toLocaleLowerCase().includes(cardQuery.trim().toLocaleLowerCase())
+  ));
+  const startCardEdit = (setId: string, cardId: string) => {
+    const session = projectWorkspace.actions.beginCardEdit(setId, cardId);
+    if (!session) { toast({ title: 'Card unavailable', description: 'Refresh this Set before editing. No work was changed.', variant: 'destructive' }); return; }
+    setCardEditSession(session);
+    setDesignReturnFocusId(`library-edit-card-${cardId}`);
+    openTool('card-edit', [setId, cardId]);
+  };
   const cardsBySetId = useMemo(() => {
     const bySet = new Map<string, DisplayCard[]>();
     displayCards.forEach((card) => {
@@ -562,7 +598,20 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     </div><SetTemplates key={`templates-${selectedLocalSet.id}`} presentation="contents" set={selectedLocalSet} cards={displayCards.filter((card) => (card.setId ?? cardSets[0]?.id) === selectedLocalSet.id)} templates={templates} onDesign={(id) => {
       const returnFocusId = document.activeElement instanceof HTMLElement ? document.activeElement.id : null;
       openTemplateDesign(id); setDesignReturnFocusId(returnFocusId || selection.focusReturnId || null); openTool('design', [id]);
-    }} renderPreview={renderTemplatePreview} getTemplateAccent={getTemplateAccent} /></div> : currentItem?.scope === 'pipeline' ? <PipelineDetailContent
+    }} renderPreview={renderTemplatePreview} getTemplateAccent={getTemplateAccent} />
+    <section className="space-y-2 pt-4" aria-label="Cards in this Set">
+      <h3 className="font-semibold">Cards · {selectedSetCards.length}</h3>
+      <p className="text-xs text-muted-foreground">Edit an existing card here. Changes update the local working copy; use Save &amp; move for another location.</p>
+      {selectedSetCards.length > 0 ? <>
+        <label className="sr-only" htmlFor="library-card-search">Search cards in this Set</label>
+        <input id="library-card-search" className="w-full rounded border bg-background px-3 py-2 text-sm" value={cardQuery} onChange={(event) => setCardQuery(event.target.value)} placeholder="Search cards" />
+        <ul className="grid gap-2">{visibleSetCards.map((card) => {
+          const name = String(card.data.cardName ?? card.data.title ?? card.data.name ?? 'Card');
+          return <li key={card.uniqueId}><Button id={`library-edit-card-${card.uniqueId}`} type="button" variant="outline" className="w-full justify-start" onClick={() => startCardEdit(selectedLocalSet.id, card.uniqueId)}>Edit {name}</Button></li>;
+        })}</ul>
+        {!visibleSetCards.length ? <p className="text-sm text-muted-foreground">No matching cards.</p> : null}
+      </> : <p className="text-sm text-muted-foreground">No editable cards in this Set.</p>}
+    </section></div> : currentItem?.scope === 'personal' && currentItem.personal.kind === 'set' && (currentItem.personal.references.driveFileId || currentItem.personal.references.localFolderWorkId) ? <div className="space-y-2"><p className="text-sm text-muted-foreground">Open the current Set in this workspace to edit its cards in Library.</p><Button type="button" variant="outline" disabled={Boolean(projection.busyItemId) || !experience.capabilities.canUseProjectFiles} onClick={() => void prepareSelectedSetHere(currentItem.personal)}>Open Set in Library</Button></div> : currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
       isOwner={experience.owner}
       currentContributorIds={shared.program?.currentContributorIds ?? []}
@@ -605,7 +654,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       <EnvironmentStatus label="Storage" icon={HardDrive} tone={projection.failures.length ? 'warning' : 'success'} onClick={openLocations} title="Open Locations & connections" />
       <EnvironmentStatus label={activeScope === 'campaigns' ? 'Marketing work' : activeLoading ? 'Loading objects' : `${unfilteredScopeItemCount} object${unfilteredScopeItemCount === 1 ? '' : 's'}`} tone={activeLoading ? 'warning' : 'neutral'} />
     </>}
-    footerContent={activeTool ? <span>{activeTool === 'locations' ? 'Nothing moves between locations automatically' : activeTool === 'edit-contribution' ? 'Only your current Pipeline submission details will change' : activeTool === 'design' ? 'Design changes stay with the selected local Template' : 'Submission preserves the selected source until you confirm'}</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <span>Work stays in its named location until you move it.</span>}
+    footerContent={activeTool ? <span>{activeTool === 'locations' ? 'Nothing moves between locations automatically' : activeTool === 'edit-contribution' ? 'Only your current Pipeline submission details will change' : activeTool === 'design' ? 'Design changes stay with the selected local Template' : activeTool === 'card-edit' ? 'Card changes update this local working copy' : 'Submission preserves the selected source until you confirm'}</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <span>Work stays in its named location until you move it.</span>}
     onCommand={() => searchRef.current?.focus()}
     onAction={runAction} onCloseDetail={closeDetail}
   >
@@ -779,6 +828,41 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
               closeOrExecute(actions[0]!);
             }}
           />
+        </EnvironmentToolLayer>
+      ) : null}
+      {activeTool === 'card-edit' && cardEditSession?.scope === persistenceScope ? (
+        <EnvironmentToolLayer id="library-card-edit-title" eyebrow="Library tool"
+          title={`Edit ${String(cardEditSession.card.data.cardName ?? cardEditSession.card.data.title ?? cardEditSession.card.data.name ?? 'card')}`}
+          summary="Edit this card in its Set without leaving Library."
+          closeLabel="Close card editor" onClose={() => runAction(actions[0]!)} dirty={toolDirty}
+          onDirtyCloseRequest={requestDirtyToolClose} presentation={activeToolSession?.presentation}>
+          <div className={`${styles.libraryCardEditor} relative h-full min-h-0 w-full min-w-0`}>
+            <FocusedArtifactWorkspace key={cardEditSession.card.uniqueId}
+              artifactId={cardEditSession.card.uniqueId} card={cardEditSession.card}
+              canExportClean={experience.capabilities.canExportClean} canUseProjectFiles={experience.capabilities.canUseProjectFiles}
+              setName={cardEditSession.card.setName ?? 'Set'} title={String(cardEditSession.card.data.cardName ?? cardEditSession.card.data.title ?? cardEditSession.card.data.name ?? 'Card')}
+              subtitle={cardEditSession.card.template.name ?? 'Card'}
+              availableDirections={{ up: false, down: false, left: false, right: false }} onBrowse={() => {}}
+              editing onEdit={() => {}} onExitFocus={() => runAction(actions[0]!)}
+              onCancelEdit={() => { if (toolDirty) requestDirtyToolClose(); else runAction(actions[0]!); }}
+              onDirtyChange={setToolDirty}
+              onSave={(card) => {
+                try {
+                  if (!projectWorkspace.actions.saveCardEdit(cardEditSession, card)) throw new Error('This card, Template or account changed while you were editing. Your draft is still open; copy your changes and reopen the current card.');
+                  setToolDirty(false); closeTool();
+                  requestAnimationFrame(() => document.getElementById(`library-edit-card-${card.uniqueId}`)?.focus());
+                  return true;
+                } catch (error) {
+                  toast({ title: 'Card was not updated', description: error instanceof Error ? error.message : 'The card could not be updated.', variant: 'destructive' });
+                  return false;
+                }
+              }}
+              onDesign={(card, face) => {
+                const id = face === 'back' ? card.backingTemplate?.id : card.template.id;
+                if (!id) { toast({ title: 'Template unavailable', description: 'Refresh this Set before opening Design.', variant: 'destructive' }); return; }
+                openTemplateDesign(id); setDesignReturnFocusId(`library-edit-card-${card.uniqueId}`); openTool('design', [id]);
+              }} />
+          </div>
         </EnvironmentToolLayer>
       ) : null}
       {activeTool === 'design' ? (
