@@ -31,7 +31,7 @@ import {
   type LibraryViewItem,
 } from '../components/LibraryObjectPresentation';
 
-type LibraryTool = 'review-manage' | 'pipeline-operations' | 'revise-existing' | 'locations' | 'contribute' | 'edit-contribution' | 'design' | null;
+type LibraryTool = 'review-manage' | 'pipeline-operations' | 'revise-existing' | 'locations' | 'contribute' | 'edit-contribution' | 'design' | 'card-edit' | null;
 type LibraryToolId = Exclude<LibraryTool, null>;
 type AccountLibraryProjection = Pick<ReturnType<typeof useAccountLibraryProjection>, 'busyItemId' | 'openItem' | 'refresh' | 'router'>;
 type CommandTarget = LibraryViewItem | { scope: 'personal'; id: string; personal: AccountLibraryItem } | null;
@@ -125,7 +125,7 @@ export function useAccountLibraryActions({
   ];
 
   const actions: ActionDescriptor[] = activeTool
-    ? [zoneAction(activeTool === 'locations' ? 'library.close-locations' : 'library.close-tool', activeTool === 'locations' ? 'Close locations' : activeTool === 'edit-contribution' ? 'Close submission editor' : activeTool === 'design' ? 'Close Design' : 'Close contribution tool')]
+    ? [zoneAction(activeTool === 'locations' ? 'library.close-locations' : 'library.close-tool', activeTool === 'locations' ? 'Close locations' : activeTool === 'edit-contribution' ? 'Close submission editor' : activeTool === 'design' ? 'Close Design' : activeTool === 'card-edit' ? 'Close card editor' : 'Close contribution tool')]
     : currentItem?.scope === 'personal'
       ? personalActions(currentItem.personal)
       : currentItem?.scope === 'published' || currentItem?.scope === 'pipeline' ? contextualActions(currentItem)
@@ -181,7 +181,7 @@ export function useAccountLibraryActions({
       ? 'library-locations-trigger'
       : activeTool === 'edit-contribution' && editingSubmission
         ? `library-object-pipeline:${editingSubmission.targetRegistryAssetId ?? editingSubmission.registryAssetId ?? editingSubmission.id}`
-        : activeTool === 'design' ? designReturnFocusId : 'library-contribute-trigger';
+        : activeTool === 'design' || activeTool === 'card-edit' ? designReturnFocusId : 'library-contribute-trigger';
     closeTool();
     setEditingSubmission(null);
     setDesignReturnFocusId(null);

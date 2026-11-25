@@ -600,6 +600,24 @@ export function useAccountLibraryProjection({
     return true;
   }, [organizationPreferenceKey, privateOrganizationReady, updateSetMetadata]);
 
+  const prepareSetInLibrary = useCallback(async (item: AccountLibraryItem): Promise<string> => {
+    setBusyItemId(item.id);
+    try {
+      let setId = item.references.localSetId;
+      if (!setId && item.references.localFolderWorkId) {
+        setId = (await openRememberedLocalProject(item.references.localFolderWorkId)).setId;
+      } else if (!setId && item.references.driveFileId) {
+        setId = (await openGoogleDriveProject({ fileId: item.references.driveFileId, name: item.name })).workId ?? undefined;
+      }
+      if (!setId) throw new Error('This Set could not be opened in the current workspace. Its source was left unchanged.');
+      activateSet(setId);
+      void refreshLibrarySources();
+      return setId;
+    } finally {
+      setBusyItemId(null);
+    }
+  }, [activateSet, refreshLibrarySources]);
+
   const openItem = useCallback(async (item: AccountLibraryItem, returnTo: string = createLibraryReturnHref()) : Promise<string> => {
     const navigate = (href: string) => { router.push(href); return href; };
     setBusyItemId(item.id);
@@ -640,6 +658,7 @@ export function useAccountLibraryProjection({
 
   return {
     items,
+    prepareSetInLibrary,
     localResources,
     visibleItems,
     featuredItem: home.featuredItem,

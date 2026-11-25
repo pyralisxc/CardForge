@@ -123,3 +123,5 @@
   .library[data-density="list"] .objectCopy { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
   .library[data-density="list"] .objectCopy > span:not(.objectTopline) { display: none; }
 }
+
+.libraryCardEditor :global([aria-label="Close field inspector"]) { margin-right: 3.25rem; }
