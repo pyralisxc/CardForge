@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
@@ -146,7 +145,9 @@ for (const width of [1440, 390]) test(`Library edits the same card and retains t
     const downloading = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download Set', exact: true }).click();
     const file = await downloading;
-    const archive = await JSZip.loadAsync(await readFile((await file.path())!));
+    const chunks: Buffer[] = [];
+    for await (const chunk of await file.createReadStream()) chunks.push(Buffer.from(chunk));
+    const archive = await JSZip.loadAsync(Buffer.concat(chunks));
     const manifest = JSON.parse(await archive.file('cardforge-project.json')!.async('string'));
     expect(manifest.project.cardSets.map((set: { id: string }) => set.id)).toEqual(['scale-set-100']);
     expect(manifest.project.artifacts).toHaveLength(2);
