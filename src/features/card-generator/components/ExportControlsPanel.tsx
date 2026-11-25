@@ -360,6 +360,9 @@ export function ExportControlsPanel({
                 The embedded FOGRA39L coated-offset reference is an older printing condition, not printer/stock calibration or preconverted CMYK.
                 This is not an imposed duplex sheet, a PDF/X conformance certificate, or press-ready acceptance.
               </p>
+              <p className="text-xs text-muted-foreground">
+                Press candidates require at least 300 PPI at the actual production size, including bleed. Standard raster quality can fall just below that limit after pixel rounding; choose High detail or Maximum to avoid this rounding issue. This limit does not establish the detail of the original artwork.
+              </p>
               <p className="text-xs text-muted-foreground">The ZIP includes PDFs, exact pixel/PDF/profile hashes, geometry, preflight and complete profile notices. Independent PDF/X validation and a representative professional print workflow are still required.</p>
               <Button variant="outline" onClick={onExportPressCandidate} disabled={exportsDisabled || !printPreflight.productionPrepared} className="w-full gap-2">
                 <Download className="h-4 w-4" />
