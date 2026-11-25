@@ -1,14 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
-import { Database, HardDrive, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { Database, HardDrive, RefreshCw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import type { CardAssetOption } from '@/domain/templates';
-import { createCardSetTransfer } from '@/features/project/client/package-transfer';
 import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, type ProjectDocumentCustomAssets } from '@/features/project/client/package-document';
 import { getBrowserStorageHealth, type BrowserStorageHealth } from '@/features/project/client/persistence-storage';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
@@ -68,7 +65,6 @@ export function AccountStorageLibrary({
   focus = 'overview',
 }: AccountStorageLibraryProps) {
   const { toast } = useToast();
-  const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
   const [hydrationError, setHydrationError] = useState<string | null>(null);
   const [deviceHealth, setDeviceHealth] = useState<BrowserStorageHealth | null>(null);
@@ -76,8 +72,7 @@ export function AccountStorageLibrary({
   const [draftRefreshVersion, setDraftRefreshVersion] = useState(0);
 
   const projectWorkspace = useProjectLibraryWorkspace();
-  const { cardSets, storedCards, templates, userTemplates } = projectWorkspace;
-  const { activateSet, deleteSet } = projectWorkspace.actions;
+  const { cardSets, storedCards, userTemplates } = projectWorkspace;
 
   useEffect(() => {
     let cancelled = false;
@@ -119,23 +114,6 @@ export function AccountStorageLibrary({
     if (hydrated) void refreshDeviceDetails();
   }, [hydrated, refreshDeviceDetails]);
 
-  const portableSetBytes = useMemo(() => {
-    if (!hydrated) return {};
-    const next: Record<string, number> = {};
-    cardSets.forEach((set) => {
-      const transfer = createCardSetTransfer({ set, storedCards, templates, customAssets });
-      next[set.id] = new Blob([JSON.stringify(transfer)]).size;
-    });
-    return next;
-  }, [cardSets, customAssets, hydrated, storedCards, templates]);
-
-  const cardCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    storedCards.forEach((card) => {
-      if (card.setId) counts.set(card.setId, (counts.get(card.setId) ?? 0) + 1);
-    });
-    return counts;
-  }, [storedCards]);
   const customAssetCount = useMemo(() => Object.values(customAssets).reduce(
     (total, assets) => total + assets.length,
     0,
@@ -143,17 +121,6 @@ export function AccountStorageLibrary({
   const customAssetBytes = useMemo(() => new Blob([JSON.stringify(customAssets)]).size, [customAssets]);
   const showDevice = focus === 'overview' || focus === 'device';
   const showDrafts = focus === 'overview' || focus === 'drafts';
-
-  const removeLocalSet = useCallback((setId: string) => {
-    const target = cardSets.find((set) => set.id === setId);
-    if (!target) return;
-    if (!deleteSet(setId)) return;
-    toast({
-      title: 'Set removed from this device',
-      description: `“${target.name}” and its local cards were removed here. Shared Templates and assets were left alone.`,
-    });
-    void refreshDeviceDetails();
-  }, [cardSets, deleteSet, refreshDeviceDetails, toast]);
 
   return (
     <section className={embedded ? undefined : 'mx-auto max-w-4xl px-4 pb-8 md:px-6'} aria-labelledby={embedded ? undefined : 'storage-library-title'}>
@@ -186,36 +153,7 @@ export function AccountStorageLibrary({
             detail={`${cardSets.length} set${cardSets.length === 1 ? '' : 's'} · ${storedCards.length} card${storedCards.length === 1 ? '' : 's'} · ${userTemplates.length} personal Template${userTemplates.length === 1 ? '' : 's'} · ${customAssetCount} custom asset${customAssetCount === 1 ? '' : 's'} (${formatBytes(customAssetBytes)} serialized)`}
           />
           {hydrationError ? <p className="mt-4 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]">{hydrationError}</p> : null}
-          <div className="mt-6">
-            <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">On this device</h3>
-            <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">Portable-size estimates can overlap because Templates and artwork may be shared by multiple Sets.</p>
-            {!hydrated ? (
-              <p className="mt-3 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Loading this device workspace…</p>
-            ) : (
-              <div className="mt-3 divide-y divide-[var(--cf-border-subtle)] border-y border-[var(--cf-border-subtle)]">
-                {cardSets.map((set) => (
-                  <div key={set.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[var(--cf-text-strong)]">{set.name}</p>
-                      <p className="mt-1 text-xs text-[#bba57c]">{cardCounts.get(set.id) ?? 0} card{(cardCounts.get(set.id) ?? 0) === 1 ? '' : 's'} · {formatBytes(portableSetBytes[set.id])} portable estimate · device only</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => { activateSet(set.id); router.push(createDeskReturnHref(`set:${set.id}`)); }}>Open</Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          if (window.confirm(`Remove “${set.name}” from this device? Its local cards will also be removed.`)) removeLocalSet(set.id);
-                        }}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" /> Remove from device
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <p className="mt-4 text-sm text-[var(--cf-text-muted)]">Open or remove individual Sets from Desk or Library.</p>
         </div> : null}
 
         {showDrafts ? <AssistantDraftLibrary isSignedIn={isSignedIn} refreshVersion={draftRefreshVersion} /> : null}

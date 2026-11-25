@@ -129,4 +129,14 @@ describe('Google Drive shared-folder capabilities', () => {
     })).rejects.toMatchObject({ status: 403, kind: 'authorization' });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it('does not trash a file after the selected Drive account changes', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(Response.json({ access_token: 'private-access' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(deleteGoogleDriveProject({
+      ownerUserId: 'user-1', fileId: 'drive_file_12345', expectedProviderRevision: headToken('native-head-1'),
+      expectedProjectRevision: 'a'.repeat(64), expectedAccountId: 'another-google-user',
+    })).rejects.toMatchObject({ status: 409, kind: 'conflict' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
