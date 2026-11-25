@@ -1,5 +1,5 @@
 import { getCachedGoogleDriveProjectPreview } from '../client/googleDriveProjectPreviewCache';
-import { attachGoogleDriveWorkBindings, loadGoogleDriveProjectLibrary as loadNativeGoogleDriveProjectLibrary } from '../client/googleDriveProjectTransfer';
+import { attachGoogleDriveWorkBindings, loadGoogleDriveProjectLibraryFromProvider } from '../client/googleDriveProjectTransfer';
 import type { GoogleDriveProjectListResult } from '../model/googleDriveProject';
 import { getProjectPersistenceScope } from '../persistence/projectPersistenceScope';
 
@@ -81,7 +81,7 @@ const readNativeGoogleDriveProjectLibrary = (): Promise<GoogleDriveProjectListRe
   const scope = getProjectPersistenceScope();
   if (inFlightLibraryRead?.scope === scope) return inFlightLibraryRead.request;
 
-  const request = loadNativeGoogleDriveProjectLibrary();
+  const request = loadGoogleDriveProjectLibraryFromProvider();
   const entry: InFlightLibraryRead = { scope, request };
   inFlightLibraryRead = entry;
   const clearIfCurrent = () => {
