@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BROWSER_STORAGE_DATABASE, BROWSER_STORAGE_SAVE_STATUS_EVENT, createBrowserKeyValueStorage, createIndexedDbStorage, getBrowserRecoverySnapshot, getBrowserWorkspaceSaveStatus, getBrowserStorageHealth, getConstrainedImageSize, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
 import { parseBrowserWorkspaceRecord, getBrowserWorkspaceRecoveryState, restoreBrowserWorkspaceRecovery, setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
-import { readProjectPreference, removeProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
+import { readProjectPreference, removeProjectPreference, updateProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import { needsBrowserRecoveryAttention } from '@/features/project/components/BrowserStorageAlerts';
 import {
   getBrowserStoragePersistenceState,
@@ -21,6 +21,17 @@ const deleteDatabase = () => new Promise<void>((resolve, reject) => {
 describe('browser IndexedDB storage', () => {
   beforeEach(async () => {
     await deleteDatabase();
+  });
+
+  it('retains concurrent preference additions in a single native transaction per update', async () => {
+    await writeProjectPreference('desk-membership', ['existing']);
+    const append = (id: string) => updateProjectPreference('desk-membership', (current) => {
+      if (!Array.isArray(current)) throw new Error('Unreadable placement');
+      return [...current, id];
+    });
+    await Promise.all([append('first'), append('second')]);
+    expect(await readProjectPreference<string[]>('desk-membership')).toEqual(expect.arrayContaining(['existing', 'first', 'second']));
+    expect(await readProjectPreference<string[]>('desk-membership')).toHaveLength(3);
   });
 
   it('round-trips and removes persisted values', async () => {

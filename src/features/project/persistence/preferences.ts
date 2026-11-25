@@ -1,4 +1,4 @@
-import { createIndexedDbStorage } from './indexedDbStorage';
+import { createIndexedDbStorage, updateBrowserKeyValue } from './indexedDbStorage';
 
 const PREFERENCE_NAMESPACE = 'project-preferences';
 
@@ -33,6 +33,12 @@ export const readProjectPreference = async <T>(key: string): Promise<T | null> =
 
 export const writeProjectPreference = async <T>(key: string, value: T, options: { suppressWriteErrors?: boolean } = {}): Promise<void> => {
   await getPreferenceStorage(options.suppressWriteErrors ?? true).setItem(key, JSON.stringify(value));
+};
+
+/** Updates one preference in a single browser transaction, including across tabs. */
+export const updateProjectPreference = async <T>(key: string, update: (current: unknown | null) => T): Promise<T> => {
+  const raw = await updateBrowserKeyValue(PREFERENCE_NAMESPACE, key, (current) => JSON.stringify(update(current === null ? null : JSON.parse(current))));
+  return JSON.parse(raw) as T;
 };
 
 export const removeProjectPreference = async (key: string): Promise<void> => {
