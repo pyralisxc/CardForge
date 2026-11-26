@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { z } from 'zod/v4';
 
@@ -30,6 +30,7 @@ export function PipelineSubmissionEditPanel({
   onDirtyChange,
   savedTemplates,
   onContinueRevision,
+  renderRevisionRecovery,
 }: {
   submission: PipelineSubmission;
   onCancel: () => void;
@@ -37,6 +38,7 @@ export function PipelineSubmissionEditPanel({
   onUpdated: () => Promise<void> | void;
   savedTemplates?: TCGCardTemplate[];
   onContinueRevision?: (template: TCGCardTemplate, revisionBase: z.infer<typeof contributorTemplateRevisionBase>) => Promise<void>;
+  renderRevisionRecovery?: (templateId: string, busy: boolean) => ReactNode;
 }) {
   const { toast } = useToast();
   const [name, setName] = useState(submission.name);
@@ -111,7 +113,7 @@ export function PipelineSubmissionEditPanel({
 
   if (submission.editorialReviewStatus && submission.editorialReviewStatus !== 'pending') return <>
     <ContributorReviewFeedback submissionId={submission.id} renderNext={(feedback) => feedback.revisionBase && savedTemplates && onContinueRevision
-      ? <ContributorRevisionContinue templates={savedTemplates} revisionBase={feedback.revisionBase} onContinue={onContinueRevision} /> : null} />
+      ? <ContributorRevisionContinue templates={savedTemplates} revisionBase={feedback.revisionBase} onContinue={onContinueRevision} renderRecovery={renderRevisionRecovery} /> : null} />
     <p>This reviewed revision is preserved. Continue changes in a new revision of your saved work.</p>
   </>;
 

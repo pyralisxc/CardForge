@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { z } from 'zod/v4';
 import { contributorTemplateRevisionBase } from '../lib/contributorDraftContract';
@@ -8,10 +8,11 @@ import { contributorTemplateRevisionBase } from '../lib/contributorDraftContract
 type RevisionBase = z.infer<typeof contributorTemplateRevisionBase>;
 
 /** Select the saved working copy deliberately; the owner of the handoff retains its exact attempt. */
-export function ContributorRevisionContinue({ templates, revisionBase, onContinue }: {
+export function ContributorRevisionContinue({ templates, revisionBase, onContinue, renderRecovery }: {
   templates: TCGCardTemplate[];
   revisionBase: RevisionBase;
   onContinue: (template: TCGCardTemplate, revisionBase: RevisionBase) => Promise<void>;
+  renderRecovery?: (templateId: string, busy: boolean) => ReactNode;
 }) {
   const [selected, setSelected] = useState('');
   const [busy, setBusy] = useState(false);
@@ -35,6 +36,7 @@ export function ContributorRevisionContinue({ templates, revisionBase, onContinu
     </label>
     <p>This creates a Pipeline draft on the reviewed revision’s lineage. Your saved Template stays in Design.</p>
     <button type="button" disabled={!chosen || busy} onClick={() => void submit()}>{busy ? 'Continuing…' : 'Continue saved Template'}</button>
+    {chosen?.id ? renderRecovery?.(chosen.id, busy) : null}
     {error ? <p role="alert">{error}</p> : null}
   </section>;
 }

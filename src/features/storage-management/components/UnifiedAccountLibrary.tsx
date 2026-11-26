@@ -38,6 +38,7 @@ import { FocusedArtifactWorkspace } from '@/features/artifact-edit/client';
 import { CardRemovalUndo, SetDirection, SetTemplates, SetUpdates, WorkspaceUpdateNotices, useWorkspaceUpdates, useProjectDownload } from '@/features/project/client/ui';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import { CardPreview, getTemplateAccent } from '@/features/card-rendering/client';
+import { retainReviewedTemplateAttempt, resolveTemplatePipelineAttempt } from '@/features/template-editor/client';
 
 import { useAccountLibraryProjection } from '../hooks/useAccountLibraryProjection';
 import { useAccountLibraryActions } from '../hooks/useAccountLibraryActions';
@@ -68,6 +69,8 @@ import styles from './UnifiedAccountLibrary.module.css';
 import { createPipelineReviewTarget, type PipelineReviewTarget } from '@/features/pipeline/client';
 import { libraryReviewSelection } from '../lib/libraryReviewSelection';
 const LibraryRevisionEntry = dynamic(() => import('./LibraryRevisionEntry').then(module => module.LibraryRevisionEntry));
+const TemplatePipelineAttemptRecovery = dynamic(() => import('@/features/template-editor/client').then(module => module.TemplatePipelineAttemptRecovery));
+const ignoreAttemptState = () => {};
 
 const renderTemplatePreview = (card: DisplayCard, face: 'front' | 'back', targetWidthPx: number, highlightedElementId?: string) => (
   <CardPreview card={card} face={face} targetWidthPx={targetWidthPx} highlightedElementId={highlightedElementId} />
@@ -186,6 +189,10 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   sharedTrashContext.current = sharedTrashSessionKey;
   useEffect(() => { sharedTrashRequestEpoch.current += 1; }, [sharedTrashSessionKey]);
   const [editingSubmission, setEditingSubmission] = useState<PipelineSubmission | null>(null);
+  const revisionHandoffContext = useRef('');
+  const revisionHandoffMounted = useRef(false);
+  revisionHandoffContext.current = JSON.stringify([sharedTrashSessionKey, editingSubmission?.id ?? null, experience.contributor.active]);
+  useEffect(() => { revisionHandoffMounted.current = true; return () => { revisionHandoffMounted.current = false; }; }, []);
   const [requestedSubmissionId, setRequestedSubmissionId] = useState<string | null>(null);
   const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
   const [votingId, setVotingId] = useState<string | null>(null);
@@ -898,6 +905,22 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           <PipelineSubmissionEditPanel
             onDirtyChange={setToolDirty}
             submission={editingSubmission}
+            savedTemplates={templates}
+            onContinueRevision={isSignedIn && experience.contributor.canSubmit ? async (template, base) => {
+              const context = revisionHandoffContext.current;
+              if (base.parentSubmissionId !== editingSubmission.id) throw new Error('The exact reviewed revision changed. Refresh before continuing.');
+              const { attempt, created } = await retainReviewedTemplateAttempt(template, base);
+              if (!revisionHandoffMounted.current || revisionHandoffContext.current !== context) throw new Error('The saved attempt is available in Design.');
+              const destination = await resolveTemplatePipelineAttempt(attempt, created);
+              if (!destination) throw new Error('No committed draft was found. Check the saved attempt below before retrying its original snapshot.');
+              if (revisionHandoffMounted.current && revisionHandoffContext.current === context) window.location.assign(destination);
+            } : undefined}
+            renderRevisionRecovery={(templateId, busy) => {
+              const context = revisionHandoffContext.current;
+              return <TemplatePipelineAttemptRecovery templateId={templateId} busy={busy}
+                onAttemptsChange={ignoreAttemptState} onReadyChange={ignoreAttemptState}
+                onOpenDestination={url => { if (revisionHandoffMounted.current && revisionHandoffContext.current === context) window.location.assign(url); }} />;
+            }}
             onCancel={() => runAction(actions[0]!)}
             onUpdated={async () => {
               setToolDirty(false);
