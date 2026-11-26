@@ -2,7 +2,7 @@ import { z } from 'zod/v4';
 
 export const contributorDraftExactInput = z.object({ submissionId: z.uuid() }).strict();
 export const contributorTemplateRevisionBase = z.object({ parentSubmissionId: z.uuid(), assetId: z.string().min(1).max(200),
-  reviewedAt: z.string().min(1), parentContentVersion: z.string().regex(/^[a-f0-9]{32}$/u) }).strict();
+  reviewedAt: z.iso.datetime({ offset: true }), parentContentVersion: z.string().regex(/^[a-f0-9]{32}$/u) }).strict();
 export const contributorReviewFeedback = z.object({ submissionId: z.uuid(), lineageId: z.uuid().nullable(),
   revisionNumber: z.number().int().nullable(), reviewStatus: z.enum(['pending', 'approved', 'revise', 'quarantine', 'retire']),
   authorNote: z.string().nullable(), reviewedAt: z.string().nullable(), revisionBase: contributorTemplateRevisionBase.nullable() }).strict();

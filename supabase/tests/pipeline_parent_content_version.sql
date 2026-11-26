@@ -30,7 +30,7 @@ begin
   original_hash := pins->>'parentContentVersion';
   -- Reproduce the historical row shape before the two October25 additive columns.
   -- The remaining exclusion list is the unchanged October17 canonical contract.
-  select md5(((to_jsonb(s)-array['owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256','revision_recovery_version','revision_trash_actor_id','revision_trash_actor_role','revision_publication_retained','revision_trash_previous_status','revision_vote_trash_fingerprint','author_review_note','author_resubmission_parent_id','author_resubmission_fingerprint'])-array[
+  select md5(((to_jsonb(s)-array['owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256','revision_recovery_version','revision_trash_actor_id','revision_trash_actor_role','revision_publication_retained','revision_trash_previous_status','revision_vote_trash_fingerprint','author_review_note','author_resubmission_parent_id','author_resubmission_fingerprint','author_resubmission_parent_reviewed_at','author_resubmission_parent_version'])-array[
     'updated_at','positive_votes','negative_votes','quality_score','status','contributor_lifecycle_state',
     'automated_status','owner_status_override','calculated_access_tier','automated_access_tier','owner_access_tier_override',
     'tier_decision_reason','owner_note','decision_reason','editorial_review_status','editorial_review_note',
@@ -153,6 +153,20 @@ begin
     perform public.cardforge_create_template_author_revision_draft(parent_id,reviewed,version,actor,'','Changed',payload,'revision-history-fixture',repeat('a',64));
     raise exception 'author_review_history_accepted_changed_attempt';
   exception when raise_exception then if sqlerrm<>'template_author_revision_conflict' then raise; end if; end;
+  -- An Owner decision made after draft creation must hold at submission.
+  begin
+    update public.cardforge_contributor_asset_submissions s set editorial_review_status='approved' where s.id=parent_id;
+    begin
+      perform public.cardforge_submit_template_pipeline_draft_checked(next_id,actor,'Updated Template','Ready candidate',
+        'https://example.invalid/template-preview','Fixture rights',array['games'],array['tcg'],'template.front');
+      raise exception 'author_review_history_accepted_changed_parent';
+    exception when raise_exception then if sqlerrm<>'template_author_revision_conflict' then raise; end if; end;
+    raise exception 'rollback_changed_parent_fixture';
+  exception when raise_exception then if sqlerrm<>'rollback_changed_parent_fixture' then raise; end if; end;
+  perform public.cardforge_submit_template_pipeline_draft_checked(next_id,actor,'Updated Template','Ready candidate',
+    'https://example.invalid/template-preview','Fixture rights',array['games'],array['tcg'],'template.front');
+  if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=next_id and s.status='submitted')
+    then raise exception 'author_review_history_draft_not_submitted'; end if;
   raise notice 'PASS exact author resubmission preserves History and allocates one same-lineage draft';
 end $$;
 rollback;

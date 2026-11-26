@@ -38,6 +38,7 @@ it('Studio handoff uses the same exact base and a stable attempt for the same do
  const validate=(pipelineInputSchema as unknown as {'~standard':{validate:(v:unknown)=>Promise<{issues?:unknown}>}})['~standard'].validate;
  expect((await validate({documentId:document.id,revisionBase:base})).issues).toBeUndefined();
  expect((await validate({documentId:document.id,revisionBase:{...base,actorId:'spoof'}})).issues).toBeDefined();
+ expect((await validate({documentId:document.id,revisionBase:{...base,reviewedAt:'not-a-date'}})).issues).toBeDefined();
 });
 it('browser recovery reads the exact attempt without creating a draft',async()=>{
  f.receipt.mockResolvedValue('new-draft');

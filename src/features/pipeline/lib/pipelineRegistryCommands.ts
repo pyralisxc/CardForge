@@ -439,7 +439,7 @@ export const commitTemplatePipelineDraft = async ({
   requestedStudioDestination: string;
 }): Promise<string> => {
   const supabase = requireSupabase();
-  const { data: resultId, error } = await supabase.rpc('cardforge_submit_template_pipeline_draft', {
+  const { data: resultId, error } = await supabase.rpc('cardforge_submit_template_pipeline_draft_checked', {
     p_submission_id: submissionId,
     p_contributor_id: contributorId,
     p_name: name,

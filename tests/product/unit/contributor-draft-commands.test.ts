@@ -65,7 +65,7 @@ it('confirms native submission once and retains submitted after unavailable read
   f.readErrorAfterWrite = true;
   const result = await finalizeContributorTemplateSubmission('author', { submissionId: id, metadata });
   expect(result.receipt).toMatchObject({ outcome: 'submitted', metadataCommitted: true, submitted: true, nextAction: 'read' });
-  expect(result.snapshot).toBeNull(); expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_submit_template_pipeline_draft', expect.objectContaining({ p_submission_id: id, p_contributor_id: 'author' }));
+  expect(result.snapshot).toBeNull(); expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_submit_template_pipeline_draft_checked', expect.objectContaining({ p_submission_id: id, p_contributor_id: 'author' }));
   expect(f.writes).toHaveLength(1); expect(f.writes[0].filters).toContainEqual(['status', 'draft']);
 });
 it('reports only retained classification when the subsequent submission is definitively rejected', async () => {
