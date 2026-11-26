@@ -80,7 +80,7 @@ describe('own Contributor pending history entry', () => {
   const item = (ownership: string) => ({ scope: 'pipeline', pipeline: { submission: published, currentPublishedSubmission: published,
     revisions: [published, candidate], editableSubmission: candidate, ownership, reviewSubmission: null } }) as unknown as LibraryViewItem;
   const markup = (ownership: string) => renderToStaticMarkup(createElement(PipelineDetailContent, { item: item(ownership) as never,
-    canReview: false, votingId: null, isSelfVoteBlocked: () => false, onVoteRevision: () => {}, onEditRevision: () => {} }));
+    canReview: false, voteMetrics: {}, isVoteBlocked: () => false, isSelfVoteBlocked: () => false, onVoteRevision: () => {}, onEditRevision: () => {} }));
   it('keeps the displayed published identity and explicitly names the owned pending revision for editing', () => {
     expect(getSharedLibraryActions(item('mine') as never).some(a => a.id === 'library.edit-pipeline')).toBe(false);
     expect(markup('mine')).toContain('Edit Revision 2');

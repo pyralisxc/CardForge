@@ -21,3 +21,12 @@ export interface PipelineDesignSource {
   localTemplateId: string;
   submissionId: string;
 }
+
+/** A heart belongs to a lineage; never infer success from a partial RPC reply. */
+export const pipelineHeartMetricSchema = z.object({
+  lineageId: z.string().uuid(), count: z.number().int().nonnegative(), hearted: z.boolean(),
+}).strict();
+export const pipelineHeartReceiptSchema = z.object({
+  lineageId: z.string().uuid(), outcome: z.enum(['committed', 'uncertain']),
+  metric: pipelineHeartMetricSchema.nullable(), warnings: z.array(z.string()),
+}).strict();

@@ -22,15 +22,16 @@ export const isPipelineLineageId = (value: unknown): value is string => (
   typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)
 );
 
+const uniqueLineageIds = (values: string[]): string[] => [...new Map(values.map(value => [value.toLowerCase(), value])).values()];
 const cleanLineageIds = (values: unknown): string[] => Array.isArray(values)
-  ? [...new Set(values.flatMap((value) => isPipelineLineageId(value) ? [value] : []))].slice(0, 250)
+  ? uniqueLineageIds(values.filter(isPipelineLineageId)).slice(0, 250)
   : [];
 
 export const parsePipelineLineageIds = (values: unknown): { lineageIds: string[]; valid: boolean } => {
   if (!Array.isArray(values) || values.length > 250 || values.some((value) => !isPipelineLineageId(value))) {
     return { lineageIds: [], valid: false };
   }
-  return { lineageIds: [...new Set(values)], valid: true };
+  return { lineageIds: uniqueLineageIds(values), valid: true };
 };
 
 export const getPipelineHeartMetrics = async (lineageIdsInput: unknown, accountId: string | null): Promise<PipelineHeartMetric[]> => {
@@ -43,15 +44,17 @@ export const getPipelineHeartMetrics = async (lineageIdsInput: unknown, accountI
     p_account_id: accountId,
   });
   if (error) throw new Error('Pipeline reactions are unavailable.');
-  const rows = (data ?? []) as Array<{ lineage_id: string; heart_count: number; viewer_hearted: boolean }>;
-  const metrics = new Map<string, PipelineHeartMetric>(rows.map((metric) => {
-    return [String(metric.lineage_id), {
-      lineageId: String(metric.lineage_id),
-      count: Number(metric.heart_count),
-      hearted: Boolean(metric.viewer_hearted),
-    } satisfies PipelineHeartMetric] as const;
-  }));
-  return lineageIds.map((lineageId) => metrics.get(lineageId) ?? { lineageId, count: 0, hearted: false });
+  const rows = (data ?? []) as Array<{ lineage_id: unknown; heart_count: unknown; viewer_hearted: unknown }>;
+  const metrics = new Map<string, PipelineHeartMetric>();
+  const requested = new Map(lineageIds.map(id => [id.toLowerCase(), id]));
+  for (const row of rows) {
+    if (typeof row.lineage_id !== 'string' || !requested.has(row.lineage_id.toLowerCase()) || metrics.has(row.lineage_id.toLowerCase())
+      || typeof row.heart_count !== 'number' || !Number.isSafeInteger(row.heart_count) || row.heart_count < 0
+      || typeof row.viewer_hearted !== 'boolean') throw new Error('Pipeline reactions are unavailable.');
+    metrics.set(row.lineage_id.toLowerCase(), { lineageId: requested.get(row.lineage_id.toLowerCase())!, count: row.heart_count, hearted: row.viewer_hearted });
+  }
+  if (metrics.size !== lineageIds.length) throw new Error('Pipeline reactions are unavailable.');
+  return lineageIds.map((lineageId) => metrics.get(lineageId.toLowerCase())!);
 };
 
 export const getViewerVisiblePipelineLineageIds = async ({
@@ -103,15 +106,15 @@ export const getViewerVisiblePipelineLineageIds = async ({
         viewerId,
         contributor,
         owner,
-      }) ? [row.lineage_id] : [];
+      }) ? [row.lineage_id.toLowerCase()] : [];
   }));
   (lineages ?? []).forEach((entry) => {
     const row = entry as { id?: unknown; registry_asset_id?: unknown };
     if (typeof row.id === 'string' && typeof row.registry_asset_id === 'string' && visibleRegistryAssets.has(row.registry_asset_id)) {
-      visibleLineages.add(row.id);
+      visibleLineages.add(row.id.toLowerCase());
     }
   });
-  return lineageIds.filter((lineageId) => visibleLineages.has(lineageId));
+  return lineageIds.filter((lineageId) => visibleLineages.has(lineageId.toLowerCase()));
 };
 
 export const setPipelineHeart = async ({
@@ -128,31 +131,33 @@ export const setPipelineHeart = async ({
   viewerAccess: RegistryViewerAccess;
   contributor: boolean;
   owner: boolean;
-}): Promise<PipelineHeartMetric> => {
+}): Promise<{ lineageId: string; outcome: 'committed' | 'uncertain'; metric: PipelineHeartMetric | null; warnings: string[] }> => {
   const database = getSupabaseServerClient();
   if (!database) throw new PipelineHeartMutationError('Pipeline reactions are unavailable.', 503);
-  const { data, error } = await database.rpc('cardforge_set_pipeline_heart', {
-    p_lineage_id: lineageId,
-    p_account_id: accountId,
-    p_hearted: hearted,
-    p_viewer_access: viewerAccess,
-    p_contributor: contributor,
-    p_owner: owner,
-  });
+  const uncertain = () => ({ lineageId, outcome: 'uncertain' as const, metric: null, warnings: ['heart_outcome_unconfirmed'] });
+  let response: Awaited<ReturnType<typeof database.rpc>>;
+  try {
+    response = await database.rpc('cardforge_set_pipeline_heart', {
+      p_lineage_id: lineageId,
+      p_account_id: accountId,
+      p_hearted: hearted,
+      p_viewer_access: viewerAccess,
+      p_contributor: contributor,
+      p_owner: owner,
+    });
+  } catch { return uncertain(); }
+  const { data, error } = response;
   if (error?.message?.includes('pipeline_lineage_not_found')) {
     throw new PipelineHeartMutationError('This Pipeline object no longer exists.', 404);
   }
   if (error?.message?.includes('pipeline_reaction_not_permitted')) {
     throw new PipelineHeartMutationError('This Pipeline object is not available to your account.', 403);
   }
-  if (error) throw new PipelineHeartMutationError('Pipeline reaction could not be saved.', 503);
-  const row = (Array.isArray(data) ? data[0] : null) as { lineage_id?: unknown; heart_count?: unknown; viewer_hearted?: unknown } | null;
-  if (!row || typeof row.lineage_id !== 'string') {
-    throw new PipelineHeartMutationError('Pipeline reaction could not be confirmed.', 503);
-  }
-  return {
-    lineageId: row.lineage_id,
-    count: Number(row.heart_count),
-    hearted: Boolean(row.viewer_hearted),
-  };
+  if (error) return uncertain();
+  const row = (Array.isArray(data) && data.length === 1 ? data[0] : null) as { lineage_id?: unknown; heart_count?: unknown; viewer_hearted?: unknown } | null;
+  if (!row || typeof row.lineage_id !== 'string' || row.lineage_id.toLowerCase() !== lineageId.toLowerCase()
+    || typeof row.viewer_hearted !== 'boolean' || row.viewer_hearted !== hearted
+    || typeof row.heart_count !== 'number' || !Number.isSafeInteger(row.heart_count) || row.heart_count < 0) return uncertain();
+  return { lineageId, outcome: 'committed', metric: { lineageId, count: row.heart_count, hearted: row.viewer_hearted }, warnings: [] };
+
 };

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const f = vi.hoisted(() => ({ account: vi.fn(), capabilities: vi.fn(), rpc: vi.fn(), from: vi.fn(), recordVote: vi.fn(), heart: vi.fn(), read: vi.fn(), exact: vi.fn(), rate: vi.fn(), settings: vi.fn(), health: vi.fn(), catalog: vi.fn(), healthView: vi.fn(), invalidate: vi.fn() }));
+const f = vi.hoisted(() => ({ account: vi.fn(), capabilities: vi.fn(), rpc: vi.fn(), from: vi.fn(), commitVote: vi.fn(), heart: vi.fn(), read: vi.fn(), exact: vi.fn(), rate: vi.fn(), settings: vi.fn(), health: vi.fn(), catalog: vi.fn(), healthView: vi.fn(), invalidate: vi.fn() }));
 vi.mock('@/features/account/server', () => ({ getAccountToolAccessForUserId: f.account }));
 vi.mock('@/features/contributor-access/server', () => ({ readContributorCapabilities: f.capabilities, hasContributionScope: (scopes: string[], scope: string) => scopes.includes(scope) }));
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ rpc: f.rpc, from: f.from }) }));
-vi.mock('@/features/pipeline/lib/pipelineStore', () => ({ recordPipelineSubmissionVote: f.recordVote, fetchContributorSettings: f.settings, getPipelineProgramContext: f.health }));
+vi.mock('@/features/pipeline/lib/pipelineStore', () => ({ commitPipelineVote: f.commitVote, invalidatePipelineFeedbackCatalog: (invalidate: () => boolean) => { try { return invalidate() ? [] : ['catalog_invalidation_unavailable']; } catch { return ['catalog_invalidation_unavailable']; } }, fetchContributorSettings: f.settings, getPipelineProgramContext: f.health }));
 vi.mock('@/features/pipeline/lib/pipelineHearts', () => ({ setPipelineHeart: f.heart, PipelineHeartMutationError: class extends Error { constructor(message: string, public status: number) { super(message); } } }));
 vi.mock('@/features/pipeline/lib/pipelineLibraryStore', async importOriginal => ({ ...(await importOriginal<typeof import('@/features/pipeline/lib/pipelineLibraryStore')>()), getPipelineLibraryProgramView: f.healthView }));
 vi.mock('@/features/pipeline/server/pipelineEngagement', () => ({ readPipelineEngagementForViewer: f.read, readVisiblePipelineRevisionForViewer: f.exact }));
@@ -19,7 +19,8 @@ beforeEach(() => {
   f.rpc.mockResolvedValue({ data: [{ submission_id: id, total_count: 7, shared_metadata: metadata }], error: null });
   f.from.mockImplementation(() => { throw new Error('No authored payload or profile writes permitted'); });
   f.settings.mockResolvedValue({ settings: { allowContributorSelfVoting: false } }); f.read.mockResolvedValue(engagement); f.rate.mockResolvedValue({ allowed: true });
-  f.heart.mockResolvedValue({ lineageId, hearted: true, count: 1 });
+  f.commitVote.mockResolvedValue({ submissionId: id, outcome: 'committed', warnings: [], nextAction: 'Read exact engagement before any further write; never retry an uncertain mutation automatically.' });
+  f.heart.mockResolvedValue({ lineageId, outcome: 'committed', metric: { lineageId, hearted: true, count: 1 }, warnings: [] });
 });
 describe('canonical agent Pipeline actions', () => {
   it('uses actual native shared metadata paging/counts for Free without loading payloads or profiles', async () => {
@@ -50,30 +51,30 @@ describe('canonical agent Pipeline actions', () => {
   });
   it('preserves review policy and native rate limits before writing with only server actor', async () => {
     await expect(voteAgentPipelineRevision('oauth-actor', { submissionId: id, voteValue: 'positive' })).rejects.toMatchObject({ status: 403 });
-    expect(f.recordVote).not.toHaveBeenCalled();
+    expect(f.commitVote).not.toHaveBeenCalled();
     f.capabilities.mockResolvedValue({ active: true, scopes: ['assets.review'] });
     f.read.mockResolvedValueOnce({ ...engagement, voteIssue: 'Self voting disabled' });
     await expect(voteAgentPipelineRevision('oauth-actor', { submissionId: id, voteValue: 'positive' })).rejects.toMatchObject({ status: 403 });
-    expect(f.recordVote).not.toHaveBeenCalled();
+    expect(f.commitVote).not.toHaveBeenCalled();
     expect(await voteAgentPipelineRevision('oauth-actor', { submissionId: id, voteValue: 'negative' })).toMatchObject({ outcome: 'committed' });
-    expect(f.recordVote).toHaveBeenCalledExactlyOnceWith({ submissionId: id, voteValue: 'negative', contributorId: 'resolved-viewer', ownerContributorId: null });
+    expect(f.commitVote).toHaveBeenCalledExactlyOnceWith({ submissionId: id, voteValue: 'negative', contributorId: 'resolved-viewer', ownerContributorId: null });
     expect(f.rate).toHaveBeenCalledWith(expect.objectContaining({ action: 'contributor-vote', identity: 'resolved-viewer', limit: 120 }));
   });
   it('preserves committed vote when follow-up read fails and reconciles unknown writes without retry', async () => {
     f.capabilities.mockResolvedValue({ active: true, scopes: ['assets.review'] });
     f.read.mockResolvedValueOnce(engagement).mockRejectedValueOnce(new Error('read offline'));
     expect(await voteAgentPipelineRevision('oauth-actor', { submissionId: id, voteValue: 'positive' })).toMatchObject({ outcome: 'committed', engagement: null, warnings: ['engagement_refresh_unavailable'] });
-    f.recordVote.mockRejectedValueOnce(new Error('response lost'));
+    f.commitVote.mockResolvedValueOnce({ submissionId: id, outcome: 'uncertain', warnings: ['vote_outcome_unconfirmed'], nextAction: 'Read exact engagement before any further write; never retry an uncertain mutation automatically.' });
     expect(await voteAgentPipelineRevision('oauth-actor', { submissionId: id, voteValue: 'positive' })).toMatchObject({ outcome: 'uncertain', engagement: null });
-    expect(f.recordVote).toHaveBeenCalledTimes(2);
-    f.recordVote.mockRejectedValueOnce(new PipelineStoreError('native denied', 403));
+    expect(f.commitVote).toHaveBeenCalledTimes(2);
+    f.commitVote.mockRejectedValueOnce(new PipelineStoreError('native denied', 403));
     await expect(voteAgentPipelineRevision('oauth-actor', { submissionId: id, voteValue: 'positive' })).rejects.toMatchObject({ status: 403 });
   });
   it('keeps hearts explicit, matching exact lineage and normal-user native authority', async () => {
     await expect(heartAgentPipelineLineage('oauth-actor', { submissionId: id, lineageId: id, hearted: true })).rejects.toMatchObject({ status: 409 }); expect(f.heart).not.toHaveBeenCalled();
     expect(await heartAgentPipelineLineage('oauth-actor', { submissionId: id, lineageId, hearted: true })).toMatchObject({ outcome: 'committed' });
     expect(f.heart).toHaveBeenCalledExactlyOnceWith({ lineageId, hearted: true, accountId: 'resolved-viewer', viewerAccess: 'free', contributor: false, owner: false });
-    f.heart.mockRejectedValueOnce(new Error('lost response'));
+    f.heart.mockResolvedValueOnce({ lineageId, outcome: 'uncertain', metric: null, warnings: ['heart_outcome_unconfirmed'] });
     expect(await heartAgentPipelineLineage('oauth-actor', { submissionId: id, lineageId, hearted: false })).toMatchObject({ outcome: 'uncertain' }); expect(f.heart).toHaveBeenCalledTimes(2);
   });
   it('keeps technical Health separate from editorial/private findings through the existing builder', async () => {
@@ -96,4 +97,4 @@ describe('canonical agent Pipeline actions', () => {
 
 });
 
-it('agent retains commit with invalidation false warning',async()=>{f.capabilities.mockResolvedValue({active:true,scopes:['assets.review']});f.invalidate.mockReturnValue(false);expect(await voteAgentPipelineRevision('oauth-actor',{submissionId:id,voteValue:'positive'})).toMatchObject({outcome:'committed',warnings:['catalog_invalidation_unavailable']});expect(f.recordVote).toHaveBeenCalledOnce();});
+it('agent retains commit with invalidation false warning',async()=>{f.capabilities.mockResolvedValue({active:true,scopes:['assets.review']});f.invalidate.mockReturnValue(false);expect(await voteAgentPipelineRevision('oauth-actor',{submissionId:id,voteValue:'positive'})).toMatchObject({outcome:'committed',warnings:['catalog_invalidation_unavailable']});expect(f.commitVote).toHaveBeenCalledOnce();});
