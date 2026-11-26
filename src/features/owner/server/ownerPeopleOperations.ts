@@ -201,7 +201,7 @@ export const updateOwnerPerson = async (
       const normalizedAccount = action === 'revoke'
         ? { ok: true as const, value: { commercialPlan: currentAccount.commercialPlan, contributor: false, owner: targetOwnerAccess.isOwner, note: currentAccount.note } }
         : accountUnchanged
-          ? { ok: true as const, value: { commercialPlan: currentAccount.commercialPlan, contributor: currentAccount.contributorAuthority, owner: targetOwnerAccess.isOwner, note: currentAccount.note } }
+          ? { ok: true as const, value: { commercialPlan: currentAccount.commercialPlan, contributor: effectiveContributor, owner: targetOwnerAccess.isOwner, note: currentAccount.note } }
         : normalizeOwnerAccountRoleInput(input.account ?? {});
       if (!normalizedAccount.ok) {
         throw new OwnerPeopleOperationError(

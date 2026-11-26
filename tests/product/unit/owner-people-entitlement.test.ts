@@ -112,6 +112,17 @@ describe('owner grants share the Stripe projection lock', () => {
     expect(result.warnings.join(' ')).toContain('deployment-managed Contributor grant remains');
   });
 
+  it('uses effective deployment authority when saving an unchanged account and profile', async () => {
+    state.metadata.cardforgeAccess = 'free';
+    state.emails = [{ emailAddress: 'person@example.test' }];
+    process.env.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS = 'person@example.test';
+    state.profile = { clerk_user_id: 'user_one', status: 'suspended' };
+    await updateOwnerPerson({ userId: 'user_one', account: { commercialPlan: 'designer', contributor: true, owner: false, note: '' },
+      contributor: { status: 'active' } });
+    expect(state.updates).not.toHaveBeenCalled();
+    expect(state.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ status: 'active' }));
+  });
+
   it('pauses a profile without rewriting an ambiguous legacy account grant', async () => {
     state.metadata = { cardforgeAccess: 'contributor', cardforgeCommercialPlan: 'designer',
       cardforgeAuthorityRoles: ['contributor'], cardforgeAccessExpiresAt: '2030-01-01' };
