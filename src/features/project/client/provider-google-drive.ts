@@ -1,5 +1,5 @@
 import { getCachedGoogleDriveProjectPreview } from '../client/googleDriveProjectPreviewCache';
-import { loadGoogleDriveProjectLibrary as loadNativeGoogleDriveProjectLibrary } from '../client/googleDriveProjectTransfer';
+import { attachGoogleDriveWorkBindings, loadGoogleDriveProjectLibraryFromProvider } from '../client/googleDriveProjectTransfer';
 import type { GoogleDriveProjectListResult } from '../model/googleDriveProject';
 import { getProjectPersistenceScope } from '../persistence/projectPersistenceScope';
 
@@ -81,7 +81,7 @@ const readNativeGoogleDriveProjectLibrary = (): Promise<GoogleDriveProjectListRe
   const scope = getProjectPersistenceScope();
   if (inFlightLibraryRead?.scope === scope) return inFlightLibraryRead.request;
 
-  const request = loadNativeGoogleDriveProjectLibrary();
+  const request = loadGoogleDriveProjectLibraryFromProvider();
   const entry: InFlightLibraryRead = { scope, request };
   inFlightLibraryRead = entry;
   const clearIfCurrent = () => {
@@ -113,6 +113,9 @@ export const applyCachedGoogleDriveProjectPreviews = (
  * after settlement so a later refresh still reaches Drive. Account changes
  * never reuse an older owner's in-flight request.
  */
-export const loadGoogleDriveProjectLibrary = async (): Promise<GoogleDriveProjectListResult> => (
-  applyCachedGoogleDriveProjectPreviews(await readNativeGoogleDriveProjectLibrary())
-);
+export const loadGoogleDriveProjectLibrary = async (): Promise<GoogleDriveProjectListResult> => {
+  const scope = getProjectPersistenceScope();
+  const library = await readNativeGoogleDriveProjectLibrary();
+  if (getProjectPersistenceScope() !== scope) throw new Error('The browser account changed while loading Google Drive.');
+  return applyCachedGoogleDriveProjectPreviews(await attachGoogleDriveWorkBindings(library));
+};

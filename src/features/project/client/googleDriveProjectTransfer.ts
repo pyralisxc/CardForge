@@ -284,7 +284,7 @@ export const getGoogleDriveProjectSourceDescriptor = async (): Promise<ProjectSo
   };
 };
 
-export const loadGoogleDriveProjectLibrary = async (): Promise<GoogleDriveProjectListResult> => {
+export const loadGoogleDriveProjectLibraryFromProvider = async (): Promise<GoogleDriveProjectListResult> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   let cursor: string | null = null;
   let connection: GoogleDriveProjectListResult['connection'] | null = null;
@@ -308,14 +308,28 @@ export const loadGoogleDriveProjectLibrary = async (): Promise<GoogleDriveProjec
     }
   } while (cursor);
   if (!connection) throw new ProjectPackageError('Google Drive did not return a project-library connection state.');
+  assertBindingScope(namespace);
+  return { connection, projects, nextPageToken: null };
+};
+
+/** Re-read device bindings after a shared provider read; the workspace may have changed while it was in flight. */
+export const attachGoogleDriveWorkBindings = async (library: GoogleDriveProjectListResult): Promise<GoogleDriveProjectListResult> => {
+  const namespace = getScopedProjectStorageNamespace('project-assets');
   const bindings = await Promise.all(useProjectStore.getState().cardSets.map((set) => getGoogleDriveWorkBinding(set.id)));
   assertBindingScope(namespace);
-  return { connection, projects: projects.map((project) => ({
+  return { ...library, projects: library.projects.map((project) => ({
     ...project,
     thumbnailLink: project.thumbnailLink ? `/api/project-sources/google-drive/${encodeURIComponent(project.fileId)}/thumbnail` : null,
     localWorkId: bindings.find((binding) => binding?.fileId === project.fileId
       && binding.accountId === project.accountId)?.workId ?? undefined,
-  })), nextPageToken: null };
+  })) };
+};
+
+export const loadGoogleDriveProjectLibrary = async (): Promise<GoogleDriveProjectListResult> => {
+  const namespace = getScopedProjectStorageNamespace('project-assets');
+  const library = await loadGoogleDriveProjectLibraryFromProvider();
+  assertBindingScope(namespace);
+  return attachGoogleDriveWorkBindings(library);
 };
 
 

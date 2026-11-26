@@ -17,6 +17,7 @@ import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
 import {
   retainLastKnownLibrarySource,
   retainScopedLastKnownLibrarySource,
+  withConfirmedDriveWorkBinding,
 } from '@/features/storage-management/hooks/useAccountLibraryProjection';
 import { describeLibraryBoundaryFailure } from '@/features/storage-management/components/LibraryCollection';
 
@@ -77,6 +78,22 @@ const writableProjectCapabilities = {
 };
 
 describe('Google Drive provider boundaries', () => {
+  it('projects a confirmed working binding only onto the matching file and account', () => {
+    const library = { connection: { status: 'active' }, projects: [
+      { fileId: 'same', accountId: 'account-a' },
+      { fileId: 'same', accountId: 'account-b' },
+      { fileId: 'other', accountId: 'account-a' },
+    ] } as Parameters<typeof withConfirmedDriveWorkBinding>[0];
+    const binding = { fileId: 'same', accountId: 'account-a', workId: 'local-set' } as Parameters<typeof withConfirmedDriveWorkBinding>[1];
+    expect(withConfirmedDriveWorkBinding(library, binding).projects).toEqual([
+      { fileId: 'same', accountId: 'account-a', localWorkId: 'local-set' },
+      { fileId: 'same', accountId: 'account-b' },
+      { fileId: 'other', accountId: 'account-a' },
+    ]);
+    expect(library.projects[0]).not.toHaveProperty('localWorkId');
+    expect(withConfirmedDriveWorkBinding(library, { ...binding, accountId: undefined })).toBe(library);
+  });
+
   beforeEach(() => {
     mockedGetSupabaseServerClient.mockReset();
     vi.stubEnv('CARDFORGE_GOOGLE_STORAGE_CLIENT_ID', 'google-client');
