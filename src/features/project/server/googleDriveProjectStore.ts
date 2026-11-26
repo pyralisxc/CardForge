@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
@@ -62,14 +63,16 @@ export class ProjectStorageProviderError extends Error {
   kind?: BoundaryFailureKind;
   nextAction?: string;
   retryable?: boolean;
+  code?: 'google_drive_disconnect_unconfirmed';
 
-  constructor(message: string, status = 500, options: { kind?: BoundaryFailureKind; nextAction?: string; retryable?: boolean } = {}) {
+  constructor(message: string, status = 500, options: { kind?: BoundaryFailureKind; nextAction?: string; retryable?: boolean; code?: 'google_drive_disconnect_unconfirmed' } = {}) {
     super(message);
     this.name = 'ProjectStorageProviderError';
     this.status = status;
     this.kind = options.kind;
     this.nextAction = options.nextAction;
     this.retryable = options.retryable;
+    this.code = options.code;
   }
 }
 
@@ -1139,9 +1142,57 @@ export const deleteGoogleDriveProject = async ({
   return summary;
 };
 
-export const disconnectGoogleDriveProjectStorage = async (ownerUserId: string): Promise<void> => {
+const disconnectMac = (purpose: string, parts: string[]): string => {
+  const key = Buffer.from(process.env.CARDFORGE_STORAGE_TOKEN_ENCRYPTION_KEY ?? '', 'base64');
+  if (key.length !== 32) throw new ProjectStorageProviderError('Google Drive connection recovery is unavailable.', 503, { kind: 'unavailable' });
+  return createHmac('sha256', key).update(JSON.stringify([purpose, ...parts])).digest('hex');
+};
+const disconnectGeneration = (ownerUserId: string, row: GoogleDriveConnectionRow) => disconnectMac('drive-disconnect-generation-v1', [ownerUserId, row.id, row.refresh_token_ciphertext, row.refresh_token_iv, row.refresh_token_auth_tag]);
+const disconnectReceipt = (ownerUserId: string, generation: string) => disconnectMac('drive-disconnect-confirmed-v1', [ownerUserId, generation]);
+const validDisconnectValue = (value: string) => /^[a-f0-9]{64}$/u.test(value);
+const sameDisconnectValue = (left: string, right: string) => validDisconnectValue(left) && validDisconnectValue(right) && timingSafeEqual(Buffer.from(left, 'hex'), Buffer.from(right, 'hex'));
+
+export const getGoogleDriveDisconnectGeneration = async (ownerUserId: string): Promise<{ generation: string | null }> => {
   const row = await getConnectionRow(ownerUserId);
-  if (!row) return;
+  return { generation: row ? disconnectGeneration(ownerUserId, row) : null };
+};
+
+export const inspectGoogleDriveDisconnect = async (ownerUserId: string, generation: string, receipt: string | null) => {
+  if (!validDisconnectValue(generation)) throw new ProjectStorageProviderError('The original connection identity is unavailable. Review Google access before continuing.', 400, { kind: 'invalid' });
+  if (receipt !== null && !sameDisconnectValue(receipt, disconnectReceipt(ownerUserId, generation))) throw new ProjectStorageProviderError('The disconnect receipt could not be verified.', 400, { kind: 'invalid' });
+  const row = await getConnectionRow(ownerUserId);
+  return { record: !row ? 'absent' as const : sameDisconnectValue(generation, disconnectGeneration(ownerUserId, row)) ? 'same' as const : 'changed' as const, google: receipt ? 'confirmed' as const : 'unknown' as const };
+};
+
+export const removeGoogleDriveConnectionOnly = async (ownerUserId: string, generation: string) => {
+  if (!validDisconnectValue(generation)) throw new ProjectStorageProviderError('The original connection identity is unavailable.', 400, { kind: 'invalid' });
+  const row = await getConnectionRow(ownerUserId);
+  if (!row) return { record: 'absent' as const };
+  if (!sameDisconnectValue(generation, disconnectGeneration(ownerUserId, row))) return { record: 'changed' as const };
+  const { data, error } = await requireStore().from('cardforge_project_storage_connections').delete()
+    .eq('id', row.id).eq('owner_user_id', ownerUserId).eq('refresh_token_ciphertext', row.refresh_token_ciphertext)
+    .eq('refresh_token_iv', row.refresh_token_iv).eq('refresh_token_auth_tag', row.refresh_token_auth_tag).select('id');
+  if (error || !Array.isArray(data)) throw new ProjectStorageProviderError('CardForge could not confirm removal of the saved connection. Check the record again.', 503, { kind: 'unavailable', retryable: false });
+  if (data.length) { invalidateGoogleDriveAccessTokenCache(row.id); return { record: 'absent' as const }; }
+  const current = await getConnectionRow(ownerUserId);
+  return { record: !current ? 'absent' as const : sameDisconnectValue(generation, disconnectGeneration(ownerUserId, current)) ? 'same' as const : 'changed' as const };
+};
+
+export const disconnectGoogleDriveProjectStorage = async (ownerUserId: string, generation: string): Promise<{ receipt: string } | void> => {
+  const row = await getConnectionRow(ownerUserId);
+  const unconfirmed = (message: string) => new ProjectStorageProviderError(message, 503, {
+    code: 'google_drive_disconnect_unconfirmed', kind: 'unavailable', retryable: false,
+    nextAction: 'Check Google Account third-party access, then review the saved CardForge connection. Do not disconnect again while the outcome is unknown.',
+  });
+  const recordReadback = async () => {
+    try { return await getConnectionRow(ownerUserId) ? 'present' : 'absent'; }
+    catch { return 'unavailable'; }
+  };
+  const describeRecord = (record: Awaited<ReturnType<typeof recordReadback>>) => record === 'present'
+    ? 'CardForge still has a saved connection.' : record === 'absent'
+      ? 'CardForge has no saved connection.' : 'CardForge could not check its saved connection.';
+  if (!row) throw unconfirmed('CardForge has no saved connection. Google access was not checked. Your Drive files are unchanged.');
+  if (!validDisconnectValue(generation) || !sameDisconnectValue(generation, disconnectGeneration(ownerUserId, row))) throw new ProjectStorageProviderError('The saved connection changed or its identity was not supplied. Google access was not changed. Refresh before disconnecting.', 409, { kind: 'conflict', retryable: false });
   let refreshToken: string;
   try {
     refreshToken = decryptProjectStorageToken({
@@ -1151,10 +1202,7 @@ export const disconnectGoogleDriveProjectStorage = async (ownerUserId: string): 
     });
   } catch (error) {
     console.error('Unable to decrypt Google Drive project token for revocation:', error);
-    throw new ProjectStorageProviderError('CardForge could not safely revoke Google Drive access. The connection was kept so you can retry.', 503, {
-      kind: 'unavailable',
-      nextAction: 'Retry disconnecting Google Drive. If this continues, contact CardForge support.',
-    });
+    throw unconfirmed('CardForge could not read the saved credential, so Google access was not checked. CardForge still has a saved connection. Your Drive files are unchanged.');
   }
   let response: Response;
   try {
@@ -1166,32 +1214,38 @@ export const disconnectGoogleDriveProjectStorage = async (ownerUserId: string): 
       signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
-    console.error('Unable to revoke Google Drive project token before disconnecting:', error);
-    throw new ProjectStorageProviderError('Google Drive could not be reached to revoke access. The connection was kept so you can retry.', 503, {
-      kind: 'unavailable',
-      nextAction: 'Retry disconnecting Google Drive later.',
-    });
+    invalidateGoogleDriveAccessTokenCache(row.id);
+    console.error('Unable to confirm Google Drive project token revocation:', error);
+    throw unconfirmed(`Google did not confirm whether access was revoked. ${describeRecord(await recordReadback())} Your Drive files are unchanged.`);
   }
-  if (!response.ok) {
+  if (response.status !== 200) {
     const payload = await response.json().catch(() => ({})) as { error?: string };
-    if (payload.error !== 'invalid_token') {
-      throw new ProjectStorageProviderError('Google Drive did not confirm access revocation. The connection was kept so you can retry.', 503, {
-        kind: 'unavailable',
-        nextAction: 'Retry disconnecting Google Drive later.',
-      });
-    }
+    invalidateGoogleDriveAccessTokenCache(row.id);
+    const googleResult = payload.error === 'invalid_token'
+      ? 'Google reported that the saved token is invalid; it did not confirm access was revoked.'
+      : 'Google did not confirm whether access was revoked.';
+    throw unconfirmed(`${googleResult} ${describeRecord(await recordReadback())} Your Drive files are unchanged.`);
   }
   // Provider revocation is authoritative even if local cleanup fails. Drop any
   // cached access immediately so a retained database row cannot keep operating
   // on a token minted before revocation.
   invalidateGoogleDriveAccessTokenCache(row.id);
-  const { error } = await requireStore()
-    .from('cardforge_project_storage_connections')
-    .delete()
-    .eq('id', row.id)
-    .eq('owner_user_id', ownerUserId);
-  if (error) {
-    console.error('Unable to delete Google Drive project connection:', error);
-    throw new ProjectStorageProviderError('CardForge could not disconnect Google Drive.', 503, { kind: 'unavailable' });
+  try {
+    const { data, error } = await requireStore()
+      .from('cardforge_project_storage_connections')
+      .delete()
+      .eq('id', row.id)
+      .eq('owner_user_id', ownerUserId)
+      .eq('refresh_token_ciphertext', row.refresh_token_ciphertext)
+      .eq('refresh_token_iv', row.refresh_token_iv)
+      .eq('refresh_token_auth_tag', row.refresh_token_auth_tag)
+      .select('id');
+    if (error || !Array.isArray(data)) throw error ?? new Error('Connection removal returned no receipt');
+    if (data.length > 0) return;
+  } catch (error) {
+    console.error('Unable to confirm Google Drive project connection removal:', error);
   }
+  const record = await recordReadback();
+  if (record === 'absent') return;
+  return { receipt: disconnectReceipt(ownerUserId, generation) };
 };

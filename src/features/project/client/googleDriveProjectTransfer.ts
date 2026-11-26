@@ -1,6 +1,6 @@
 "use client";
 
-import { readApiError } from '@/infrastructure/http/clientResponses';
+import { ApiClientError, readApiError } from '@/infrastructure/http/clientResponses';
 import { observeProviderBoundaryResponse } from '@/features/analytics/client/tracking';
 import {
   createCardForgeProjectPackageBlob,
@@ -39,6 +39,7 @@ import { primeProjectBinaryAssetUrls } from './useProjectBinaryAssetUrl';
 
 const GOOGLE_DRIVE_BINDING_KEY = 'google-drive-project-binding';
 const GOOGLE_DRIVE_WORK_BINDING_KEY = 'google-drive-work-binding';
+const GOOGLE_DRIVE_DISCONNECT_REVIEW_KEY = 'google-drive-disconnect-review';
 export const GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT = 'cardforge:google-drive-working-copy-refreshed';
 
 const assertBindingScope = (namespace: string) => {
@@ -958,14 +959,80 @@ export const deleteGoogleDriveProjectCopy = async ({
   await deleteGoogleDriveProjectRevision({ fileId, providerRevision, projectRevision, accountId, fallback: 'Unable to remove the Google Drive copy.' });
 };
 
-export const disconnectGoogleDriveStorage = async (): Promise<{ attachmentCleanup: 'complete' | 'incomplete' }> => {
+export interface GoogleDriveDisconnectReview { generation: string | null; receipt: string | null }
+const validDisconnectValue = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value);
+
+export const getGoogleDriveDisconnectReview = async (): Promise<GoogleDriveDisconnectReview | null> => {
+  const namespace = getScopedProjectStorageNamespace('project-assets');
+  const value = await readStructuredBrowserValue<unknown>(`${namespace}:${GOOGLE_DRIVE_DISCONNECT_REVIEW_KEY}`);
+  assertBindingScope(namespace);
+  if (value === null) return null;
+  if (!value || typeof value !== 'object' || !('generation' in value) || !validDisconnectValue(value.generation)) return { generation: null, receipt: null };
+  return { generation: value.generation, receipt: 'receipt' in value && validDisconnectValue(value.receipt) ? value.receipt : null };
+};
+
+export const getGoogleDriveDisconnectReviewRequired = async (): Promise<boolean> => (await getGoogleDriveDisconnectReview()) !== null;
+
+export const inspectGoogleDriveDisconnectReview = async (review: GoogleDriveDisconnectReview): Promise<{ record: 'same' | 'changed' | 'absent'; google: 'confirmed' | 'unknown' }> => {
+  if (!review.generation) throw new ProjectPackageError('The original connection identity is unavailable. Review Google access before continuing.');
+  const response = await fetch('/api/project-sources/google-drive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'inspect_disconnect', generation: review.generation, receipt: review.receipt }) });
+  if (!response.ok) throw await readApiError(response, 'CardForge could not check the saved connection.');
+  const value: unknown = await response.json();
+  if (!value || typeof value !== 'object' || !('record' in value) || !('google' in value) || !['same', 'changed', 'absent'].includes(String(value.record)) || !['confirmed', 'unknown'].includes(String(value.google))) throw new ProjectPackageError('CardForge could not check the saved connection.');
+  return value as { record: 'same' | 'changed' | 'absent'; google: 'confirmed' | 'unknown' };
+};
+
+export const removeGoogleDriveDisconnectRecord = async (review: GoogleDriveDisconnectReview): Promise<'same' | 'changed' | 'absent'> => {
+  if (!review.generation) throw new ProjectPackageError('The original connection identity is unavailable. No saved connection was removed.');
+  const response = await fetch('/api/project-sources/google-drive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'remove_connection_only', generation: review.generation, acknowledged: true }) });
+  if (!response.ok) throw await readApiError(response, 'CardForge could not confirm removal of the saved connection. Check the record again.');
+  const value: unknown = await response.json();
+  if (!value || typeof value !== 'object' || !('record' in value) || !['same', 'changed', 'absent'].includes(String(value.record))) throw new ProjectPackageError('CardForge could not confirm removal of the saved connection. Check the record again.');
+  return value.record as 'same' | 'changed' | 'absent';
+};
+
+export const clearGoogleDriveDisconnectReview = async (): Promise<void> => {
+  const namespace = getScopedProjectStorageNamespace('project-assets');
+  assertBindingScope(namespace);
+  await removeStructuredBrowserValue(`${namespace}:${GOOGLE_DRIVE_DISCONNECT_REVIEW_KEY}`);
+  assertBindingScope(namespace);
+};
+
+export const disconnectGoogleDriveStorage = async (): Promise<{ attachmentCleanup: 'complete' | 'incomplete'; recoveryPending?: boolean }> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const attached = await getGoogleDriveProjectBinding();
   assertBindingScope(namespace);
-  const response = await observeProviderBoundaryResponse('google_drive', 'disconnect', () => (
-    fetch('/api/project-sources/google-drive', { method: 'DELETE' })
-  ));
-  if (!response.ok) throw await readApiError(response, 'Unable to disconnect Google Drive.');
+  const unconfirmed = () => new ApiClientError('The Google Drive disconnect needs review. Your Drive files are unchanged.', 503, 'google_drive_disconnect_unconfirmed', 'unavailable', false, null, 'Check Google Account third-party access, then review the saved CardForge connection. Do not disconnect again while the outcome is unknown.');
+  const reviewKey = `${namespace}:${GOOGLE_DRIVE_DISCONNECT_REVIEW_KEY}`;
+  if (await getGoogleDriveDisconnectReviewRequired()) throw unconfirmed();
+  const snapshot = await fetch('/api/project-sources/google-drive?disconnect=1', { cache: 'no-store' });
+  if (!snapshot.ok) throw await readApiError(snapshot, 'CardForge could not check the saved connection. Google access was not changed.');
+  const original: unknown = await snapshot.json();
+  if (!original || typeof original !== 'object' || !('generation' in original) || !validDisconnectValue(original.generation)) throw new ProjectPackageError('CardForge could not identify the saved connection. Google access was not changed.');
+  const generation = original.generation;
+  assertBindingScope(namespace);
+  await writeStructuredBrowserValue(reviewKey, { version: 2, generation });
+  assertBindingScope(namespace);
+  let response: Response;
+  try {
+    response = await observeProviderBoundaryResponse('google_drive', 'disconnect', () => (
+      fetch('/api/project-sources/google-drive', { method: 'DELETE', headers: { 'x-cardforge-disconnect-generation': generation } })
+    ));
+  } catch { throw unconfirmed(); }
+  if (!response.ok) {
+    const error = await readApiError(response, 'Unable to disconnect Google Drive.');
+    if (error.code === 'google_drive_disconnect_unconfirmed') throw error;
+    throw unconfirmed();
+  }
+  if (response.status === 202) {
+    const pending: unknown = await response.json().catch(() => null);
+    if (!pending || typeof pending !== 'object' || !('receipt' in pending) || !validDisconnectValue(pending.receipt)) throw unconfirmed();
+    try { assertBindingScope(namespace); await writeStructuredBrowserValue(reviewKey, { version: 2, generation, receipt: pending.receipt }); }
+    catch { throw unconfirmed(); }
+    throw unconfirmed();
+  }
+  if (response.status !== 204) throw unconfirmed();
+  let attachmentCleanup: 'complete' | 'incomplete' = 'complete';
   try {
     assertBindingScope(namespace);
     if (attached) await serializeGoogleDriveWorkCommitment(namespace, attached.workId ?? 'workspace', async () => {
@@ -976,10 +1043,14 @@ export const disconnectGoogleDriveStorage = async (): Promise<{ attachmentCleanu
       }
       await removeDriveAttachment(namespace, value => attachmentMatches(value, attached));
     });
-    return { attachmentCleanup: 'complete' };
   } catch {
     // The server has already confirmed disconnect. Never report that as a
     // provider failure merely because the browser attachment could not clear.
-    return { attachmentCleanup: 'incomplete' };
+    attachmentCleanup = 'incomplete';
   }
+  try {
+    assertBindingScope(namespace);
+    await removeStructuredBrowserValue(reviewKey);
+  } catch { return { attachmentCleanup, recoveryPending: true }; }
+  return { attachmentCleanup };
 };

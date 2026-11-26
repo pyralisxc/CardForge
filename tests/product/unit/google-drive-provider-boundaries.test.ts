@@ -3,8 +3,13 @@ const headToken = (version: string) => 'head:' + createHash('sha256').update('na
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
+import { toGoogleDriveProjectErrorResponse } from '@/app/api/project-sources/google-drive/_helpers';
+import { readApiError } from '@/infrastructure/http/clientResponses';
 import {
   disconnectGoogleDriveProjectStorage,
+  getGoogleDriveDisconnectGeneration,
+  inspectGoogleDriveDisconnect,
+  removeGoogleDriveConnectionOnly,
   listGoogleDriveProjects,
   getGoogleDriveProjectThumbnail,
   getGoogleDriveProject,
@@ -314,35 +319,53 @@ describe('Google Drive provider boundaries', () => {
     });
   });
 
-  it('keeps the local connection when Google does not confirm revocation', async () => {
-    const from = vi.fn().mockReturnValue(selectConnectionQuery());
-    mockedGetSupabaseServerClient.mockReturnValue({ from } as never);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
-
-    await expect(disconnectGoogleDriveProjectStorage('user-1')).rejects.toMatchObject({
-      status: 503,
-      kind: 'unavailable',
-    });
-    expect(from).toHaveBeenCalledTimes(1);
+  it('requires the exact generation before contacting Google', async () => {
+    const row = connectionRow(); const select = selectConnectionQuery(); select.maybeSingle.mockResolvedValue({ data: row, error: null });
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(select) } as never);
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    const { generation } = await getGoogleDriveDisconnectGeneration('user-1');
+    await expect(disconnectGoogleDriveProjectStorage('user-1', '')).rejects.toMatchObject({ status: 409 });
+    await expect(disconnectGoogleDriveProjectStorage('user-1', 'a'.repeat(64))).rejects.toMatchObject({ status: 409 });
+    expect(generation).toHaveLength(64); expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('removes an already-revoked connection after Google confirms invalid_token', async () => {
-    const selectQuery = selectConnectionQuery();
-    const deleteQuery = { delete: vi.fn(), eq: vi.fn() };
-    deleteQuery.delete.mockReturnValue(deleteQuery);
-    deleteQuery.eq
-      .mockReturnValueOnce(deleteQuery)
-      .mockResolvedValueOnce({ error: null });
-    const from = vi.fn()
-      .mockReturnValueOnce(selectQuery)
-      .mockReturnValueOnce(deleteQuery);
-    mockedGetSupabaseServerClient.mockReturnValue({ from } as never);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      error: 'invalid_token',
-    }), { status: 400 })));
+  it.each([400, 503, 204])('does not treat Google status %s as confirmed', async (status) => {
+    const row = connectionRow(); const select = selectConnectionQuery(); select.maybeSingle.mockResolvedValue({ data: row, error: null });
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(select) } as never);
+    const { generation } = await getGoogleDriveDisconnectGeneration('user-1');
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status })); vi.stubGlobal('fetch', fetch);
+    const failure = await disconnectGoogleDriveProjectStorage('user-1', generation!).catch((error: unknown) => error);
+    expect(failure).toMatchObject({ code: 'google_drive_disconnect_unconfirmed', retryable: false });
+    await expect(readApiError(toGoogleDriveProjectErrorResponse(failure, 'Unable to disconnect.'), 'Unable to disconnect.')).resolves.toMatchObject({ code: 'google_drive_disconnect_unconfirmed' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
 
-    await expect(disconnectGoogleDriveProjectStorage('user-1')).resolves.toBeUndefined();
-    expect(deleteQuery.delete).toHaveBeenCalledOnce();
+  it('issues a bound receipt after confirmed Google revocation and safely removes only the original record', async () => {
+    const row = connectionRow(); const select = selectConnectionQuery(); select.maybeSingle.mockResolvedValue({ data: row, error: null });
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(select) } as never);
+    const { generation } = await getGoogleDriveDisconnectGeneration('user-1');
+    const deletion = { delete: vi.fn(), eq: vi.fn(), select: vi.fn().mockResolvedValue({ data: null, error: { message: 'unavailable' } }) };
+    deletion.delete.mockReturnValue(deletion); deletion.eq.mockReturnValue(deletion);
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValueOnce(select).mockReturnValueOnce(deletion).mockReturnValueOnce(select) } as never);
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 200 })); vi.stubGlobal('fetch', fetch);
+    const result = await disconnectGoogleDriveProjectStorage('user-1', generation!);
+    expect(result?.receipt).toHaveLength(64);
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(select) } as never);
+    await expect(inspectGoogleDriveDisconnect('user-1', generation!, result!.receipt)).resolves.toEqual({ record: 'same', google: 'confirmed' });
+    await expect(inspectGoogleDriveDisconnect('user-2', generation!, result!.receipt)).rejects.toThrow();
+    await expect(inspectGoogleDriveDisconnect('user-1', generation!, 'a'.repeat(64))).rejects.toThrow();
+    const newer = selectConnectionQuery(); newer.maybeSingle.mockResolvedValue({ data: connectionRow(), error: null });
+    const from = vi.fn().mockReturnValue(newer); mockedGetSupabaseServerClient.mockReturnValue({ from } as never);
+    await expect(removeGoogleDriveConnectionOnly('user-1', generation!)).resolves.toEqual({ record: 'changed' });
+    expect(from).toHaveBeenCalledTimes(1); expect(fetch).toHaveBeenCalledTimes(1);
+    const removed = { delete: vi.fn(), eq: vi.fn(), select: vi.fn().mockResolvedValue({ data: [{ id: row.id }], error: null }) };
+    removed.delete.mockReturnValue(removed); removed.eq.mockReturnValue(removed);
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValueOnce(select).mockReturnValueOnce(removed) } as never);
+    await expect(removeGoogleDriveConnectionOnly('user-1', generation!)).resolves.toEqual({ record: 'absent' });
+    expect(removed.eq).toHaveBeenCalledWith('refresh_token_ciphertext', row.refresh_token_ciphertext);
+    expect(removed.eq).toHaveBeenCalledWith('refresh_token_iv', row.refresh_token_iv);
+    expect(removed.eq).toHaveBeenCalledWith('refresh_token_auth_tag', row.refresh_token_auth_tag);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it.each([

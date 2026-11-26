@@ -26,7 +26,9 @@ export const parseGoogleDriveProjectJson = async (request: Request) => {
 
 export const toGoogleDriveProjectErrorResponse = (error: unknown, fallback: string) => {
   if (error instanceof ProjectStorageProviderError) {
-    const code = error.status === 401
+    const code = error.code === 'google_drive_disconnect_unconfirmed'
+      ? error.code
+      : error.status === 401
       ? 'google_drive_auth_required'
       : error.status === 403
         ? error.kind === 'limit' ? 'google_drive_limit' : 'google_drive_not_permitted'
