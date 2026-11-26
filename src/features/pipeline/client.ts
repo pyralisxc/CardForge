@@ -5,6 +5,7 @@ export * from './lib/pipelineActions';
 export * from './lib/pipelineContentHealth';
 export { formatContentTaxonomyTag, getSemanticRoleLabel } from './lib/contentTaxonomy';
 export { PipelineContentHealthPanel } from './components/PipelineContentHealthPanel';
+export { ContributorReviewHistoryDisclosure } from './components/ContributorReviewFeedback';
 export { isRepositoryStyle, isRepositoryTemplate } from './lib/registryContentValidation';
 export type {
   PipelineProgramView,

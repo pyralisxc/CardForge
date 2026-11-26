@@ -45,6 +45,7 @@ export function PipelineSubmissionEditPanel({
   const [compatibilityTags, setCompatibilityTags] = useState(submission.compatibilityTags.join(','));
   const [requestedStudioDestination, setRequestedStudioDestination] = useState(submission.requestedStudioDestination ?? '');
   const [isSaving, setIsSaving] = useState(false);
+  const governedDraft = submission.assetType === 'templates' && submission.status === 'draft' && (submission.baseRevisionNumber ?? 0) > 0;
 
   const destinationOptions = getPipelineStudioDestinationOptions(submission.assetType).map((value) => ({
     value,
@@ -58,7 +59,7 @@ export function PipelineSubmissionEditPanel({
       const response = await fetch(`/api/pipeline/${submission.id}`, {
         method: submitDraft ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(governedDraft ? { name } : {
           name,
           description,
           previewUrl,
@@ -106,7 +107,7 @@ export function PipelineSubmissionEditPanel({
     <p>This reviewed revision is preserved. Continue changes in a new revision of your saved work.</p>
   </>;
 
-  if (submission.assetType === 'templates' && submission.status === 'draft' && (submission.baseRevisionNumber ?? 0) > 0) return <section className="space-y-3">
+  if (governedDraft) return <section className="space-y-3">
     <h3>Review your correction</h3>
     <p>This revision keeps the published Template’s source, rights and classification. Continue design changes in your saved Template before submitting.</p>
     <p>{name}</p>

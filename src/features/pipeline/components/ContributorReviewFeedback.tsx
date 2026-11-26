@@ -34,3 +34,12 @@ export function ContributorReviewFeedback({ submissionId }: { submissionId: stri
           {feedback.reviewStatus === 'approved' ? <p>Editorial approval is recorded. Check this revision’s Pipeline status to see whether it has been published.</p> : null}</>}
   </section>;
 }
+
+/** Load a retained review only when its author explicitly opens the revision. */
+export function ContributorReviewHistoryDisclosure({ submissionId }: { submissionId: string }) {
+  const [open, setOpen] = useState(false);
+  return <details onToggle={(event) => setOpen(event.currentTarget.open)}>
+    <summary>Read feedback for this revision</summary>
+    {open ? <ContributorReviewFeedback submissionId={submissionId} /> : null}
+  </details>;
+}

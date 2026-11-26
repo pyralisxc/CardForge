@@ -177,6 +177,15 @@ begin
     raise exception 'rollback_changed_parent_fixture';
   exception when raise_exception then if sqlerrm<>'rollback_changed_parent_fixture' then raise; end if; end;
   begin
+    update public.cardforge_contributor_asset_submissions s set owner_status_override='rejected' where s.id=parent_id;
+    begin
+      perform public.cardforge_submit_template_pipeline_draft_checked(next_id,actor,'Updated Template','Ready candidate',
+        'https://example.invalid/template-preview','Fixture rights',array['games'],array['tcg'],'template.front');
+      raise exception 'author_review_history_accepted_owner_override';
+    exception when raise_exception then if sqlerrm<>'template_author_revision_conflict' then raise; end if; end;
+    raise exception 'rollback_owner_override_fixture';
+  exception when raise_exception then if sqlerrm<>'rollback_owner_override_fixture' then raise; end if; end;
+  begin
     update public.cardforge_contributor_asset_submissions s set author_review_history='{}'::jsonb where s.id=parent_id;
     raise exception 'author_review_history_mutation_accepted';
   exception when raise_exception then if sqlerrm<>'author_review_history_immutable' then raise; end if; end;

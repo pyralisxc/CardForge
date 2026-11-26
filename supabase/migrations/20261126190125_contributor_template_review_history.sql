@@ -197,6 +197,8 @@ begin
     if not found or parent.contributor_id is distinct from p_contributor_id or parent.lineage_id is distinct from locked_lineage_id
       or parent.target_registry_asset_id is distinct from locked_asset_id or parent.status<>'archived'
       or parent.decision_reason<>'superseded_revision' or parent.trashed_at is not null or parent.purge_state is not null
+      or parent.published_at is not null or parent.owner_status_override is not null or parent.contributor_lifecycle_state is not null
+      or parent.purge_claim_token is not null or parent.purge_claimed_at is not null or parent.owner_purge_requested_at is not null
       or parent.editorial_review_status<>'revise' or parent.editorial_reviewed_at is distinct from child.author_resubmission_parent_reviewed_at
       or public.cardforge_media_parent_content_version(parent.id) is distinct from child.author_resubmission_parent_version
       then raise exception 'template_author_revision_conflict'; end if;

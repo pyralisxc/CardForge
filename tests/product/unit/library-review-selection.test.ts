@@ -89,6 +89,22 @@ describe('own Contributor pending history entry', () => {
   it('does not offer editing another Contributor history', () => expect(markup('other')).not.toContain('Edit Revision 2'));
 });
 
+describe('reviewed Contributor History', () => {
+  const history = { ...row, id: 'reviewed', contributorId: 'author', name: 'Reviewed Template',
+    specialtyTags: [], useCaseTags: [], sourceNotes: '', status: 'archived' as const, publishedAt: null,
+    decisionReason: 'superseded_revision' };
+  const item = { scope: 'pipeline', pipeline: { submission: history, currentPublishedSubmission: null,
+    revisions: [history], editableSubmission: null, ownership: 'mine', reviewSubmission: null } } as unknown as LibraryViewItem;
+  const markup = (ids: string[]) => renderToStaticMarkup(createElement(PipelineDetailContent, { item: item as never,
+    currentContributorIds: ids, canReview: false, voteMetrics: {}, isVoteBlocked: () => false,
+    isSelfVoteBlocked: () => false, onVoteRevision: () => {} }));
+  it('labels the retained reviewed revision History and offers its author an explicit feedback disclosure', () => {
+    expect(markup(['author'])).toContain('History');
+    expect(markup(['author'])).toContain('Read feedback for this revision');
+    expect(markup(['other'])).not.toContain('Read feedback for this revision');
+  });
+});
+
 
 describe('unpublished upload exact review', () => {
   const upload = { ...row, id: 'upload', registryAssetId: null, targetRegistryAssetId: null,

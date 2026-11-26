@@ -177,6 +177,7 @@ const throwTemplateRevisionError = (errorMessage?: string): never => {
   }
   if (errorMessage?.includes('template_author_revision_not_found')) throw new PipelineRegistryCommandError('The exact author revision was not found.', 404);
   if (errorMessage?.includes('template_author_revision_conflict')) throw new PipelineRegistryCommandError('The reviewed revision or this attempt changed. Read the exact review again; your saved work is unchanged.', 409);
+  if (errorMessage?.includes('template_review_conflict')) throw new PipelineRegistryCommandError('The published Template changed. Review its current revision before continuing; your saved work is unchanged.', 409);
   if (errorMessage?.includes('template_author_revision_invalid')) throw new PipelineRegistryCommandError('Provide the exact reviewed Template revision and a valid attempt.', 400);
   if (errorMessage?.includes('reviewed_revision_immutable')) {
     throw new PipelineRegistryCommandError('This revision has been reviewed. Continue your changes as a new revision.', 409);
