@@ -1495,6 +1495,13 @@ test('@golden Pipeline notice refuses an unavailable exact revision', async ({pa
   await expect(page.locator('[aria-current="true"][id^="pipeline-review-revision-"]')).toHaveCount(0);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
+test('@golden Pipeline notice reports an unavailable Library without claiming the revision was removed', async ({page}) => {
+  const evidence = await mount(page, '?queueActual=1&noticeProof=1&noticeUnavailable=1');
+  await page.getByRole('button',{name:/Notifications/}).click();
+  await page.getByRole('button',{name:/Compare Shared material/}).click();
+  await expect(page.getByText('The exact Pipeline revision could not be confirmed. Try the notice again.',{exact:true})).toBeVisible();
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
 test('@golden Desk notice hands the exact revision to Pipeline Library', async ({page}) => {
   const evidence = await mount(page, '?deskActual=1&deskMenu=1&noticeProof=1');
   await page.getByRole('button',{name:/Notifications/}).click();

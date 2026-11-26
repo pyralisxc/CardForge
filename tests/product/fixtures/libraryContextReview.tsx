@@ -451,7 +451,7 @@ window.fetch = async (input, init) => {
       if (params.has('catalogMissing') || params.has('catalogLoading')) return new Promise<Response>(() => {});
       return Response.json(queueCatalog);
     }
-    if (url === '/api/pipeline/library') return Response.json({ program: { ...program, submissions: params.has('noticeTrash') || params.has('noticeCatalogTrash') ? queueRows.filter(candidate => !candidate.trashedAt && !candidate.catalogTrashedAt) : queueRows } });
+    if (url === '/api/pipeline/library') return params.has('noticeUnavailable') ? Response.json({error:{message:'Synthetic Pipeline unavailable'}},{status:503}) : Response.json({ program: { ...program, submissions: params.has('noticeTrash') || params.has('noticeCatalogTrash') ? queueRows.filter(candidate => !candidate.trashedAt && !candidate.catalogTrashedAt) : queueRows } });
     if (url.startsWith('/api/pipeline/hearts?')) return Response.json({ metrics: [] });
     if (!url.startsWith('/api/pipeline?')) return Response.json({ error: { code: 'fixture_unavailable', kind: 'unavailable', message: 'Provider excluded from isolated Library proof', retryable: false } }, { status: 503 });
   }
