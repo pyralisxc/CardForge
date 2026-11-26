@@ -46,7 +46,7 @@ test.describe('mobile Library location tools', () => {
     await page.getByRole('button', { name: 'Add from Library', exact: true }).first().click();
     const picker = page.getByRole('dialog', { name: 'Add from Library' });
     await picker.getByText(name, { exact: true }).locator('../..').getByRole('button', { name: 'Add to Desk' }).click();
-    await expect(picker.getByText(name, { exact: true }).locator('../..').getByRole('button', { name: 'On Desk' })).toBeDisabled();
+    await expect(picker.getByText(name, { exact: true }).locator('../..').getByRole('button', { name: `Remove ${name} from Desk` })).toBeEnabled();
     await picker.getByRole('button', { name: 'Done', exact: true }).click();
     await expect(page.locator(target)).toBeVisible();
     if (surface === 'Library') await page.goto('/account?section=library&scope=personal', { waitUntil: 'domcontentloaded' });
@@ -94,9 +94,16 @@ test.describe('mobile Library location tools', () => {
     for (const index of [1, 2]) {
       const row = picker.getByText(`Touch Companion Set ${index}`, { exact: true }).locator('../..');
       await row.getByRole('button', { name: 'Add to Desk' }).click();
-      await expect(row.getByRole('button', { name: 'On Desk' })).toBeDisabled();
+      await expect(row.getByRole('button', { name: `Remove Touch Companion Set ${index} from Desk` })).toBeEnabled();
     }
+    const secondRow = picker.getByText('Touch Companion Set 2', { exact: true }).locator('../..');
+    await secondRow.getByRole('button', { name: 'Remove Touch Companion Set 2 from Desk' }).click();
+    await expect(secondRow.getByRole('button', { name: 'Add to Desk' })).toBeEnabled();
+    await expect(picker.getByText('Touch Companion Set 1', { exact: true }).locator('../..').getByRole('button', { name: 'Remove Touch Companion Set 1 from Desk' })).toBeEnabled();
+    await secondRow.getByRole('button', { name: 'Add to Desk' }).click();
+    await expect(secondRow.getByRole('button', { name: 'Remove Touch Companion Set 2 from Desk' })).toBeEnabled();
     await picker.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Touch Companion Set 2” is ready on Desk' })).toBeVisible();
     for (const index of [1, 2]) await expect(page.locator(`[data-desk-set-object-id="set:touch-companion-${index}"]`)).toBeVisible();
     await page.reload({ waitUntil: 'domcontentloaded' });
     for (const index of [1, 2]) await expect(page.locator(`[data-desk-set-object-id="set:touch-companion-${index}"]`)).toBeVisible();
@@ -107,6 +114,80 @@ test.describe('mobile Library location tools', () => {
     await page.getByRole('menuitem', { name: 'Open Set', exact: true }).click();
     await expect(page.locator('[data-desk="focused"]').first()).toBeVisible();
     expect(downloads).toBe(0);
+    await page.goto('/account?section=library&scope=personal', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Actions for Touch Companion Set 2', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Open on Desk', exact: true }).click();
+    await expect(page.locator('[data-desk="focused"]').first()).toBeVisible();
+    await expect(page.locator('[data-desk-context-rail]')).toContainText('Touch Companion Set 2');
+    expect(downloads).toBe(0);
+  });
+
+  test('keeps preparation visible after the picker closes until placement finishes', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100, { additionalSets: 1, cardLimit: 0 });
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+    await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+    const name = 'Touch Companion Set 1';
+    const tile = page.locator('[data-desk-set-object-id="set:touch-companion-1"]');
+    await tile.getByRole('button', { name: `Actions for ${name}` }).click();
+    await page.getByRole('menuitem', { name: 'Remove from Desk' }).click();
+    await expect(tile).toHaveCount(0);
+    await page.getByRole('button', { name: 'Add from Library', exact: true }).first().click();
+    const picker = page.getByRole('dialog', { name: 'Add from Library' });
+    const blocker = await page.context().newPage();
+    await blocker.goto('/robots.txt');
+    const holdPlacement = () => blocker.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('cardforge-browser-storage');
+        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      });
+      const transaction = db.transaction('key-value', 'readwrite');
+      const store = transaction.objectStore('key-value');
+      let holding = true;
+      (window as typeof window & { releaseDeskPlacement?: () => void }).releaseDeskPlacement = () => { holding = false; };
+      await new Promise<void>((resolve, reject) => {
+        let first = true;
+        const keepOpen = () => {
+          const request = store.get('__desk_test_hold__');
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => { if (first) { first = false; resolve(); } if (holding) keepOpen(); };
+        };
+        keepOpen();
+      });
+    });
+    try {
+      await holdPlacement();
+      await picker.getByText(name, { exact: true }).locator('../..').getByRole('button', { name: 'Add to Desk' }).click();
+      await expect(picker.getByRole('progressbar', { name: `Preparing ${name}` })).toBeVisible();
+      await picker.getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(page.getByRole('region', { name: 'Open work on Desk' }).getByRole('progressbar', { name: `Preparing ${name}` })).toBeVisible();
+      await blocker.evaluate(() => (window as typeof window & { releaseDeskPlacement: () => void }).releaseDeskPlacement());
+      await expect(page.getByRole('status').filter({ hasText: `${name}” is ready on Desk` })).toBeVisible();
+      await expect(tile).toBeVisible();
+      await page.getByRole('button', { name: 'Add from Library', exact: true }).first().click();
+      await holdPlacement();
+      await page.evaluate(() => {
+        const original = IDBObjectStore.prototype.put;
+        (window as typeof window & { restoreDeskPut?: () => void }).restoreDeskPut = () => { IDBObjectStore.prototype.put = original; };
+        IDBObjectStore.prototype.put = function (value, key) {
+          if (typeof key === 'string' && key.startsWith('project-preferences:desk-membership:v1:')) throw new DOMException('Simulated storage failure', 'QuotaExceededError');
+          return original.call(this, value, key);
+        };
+      });
+      await picker.getByRole('button', { name: `Remove ${name} from Desk` }).click();
+      await expect(picker.getByRole('progressbar', { name: `Removing ${name}` })).toBeVisible();
+      await picker.getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(page.getByRole('region', { name: 'Open work on Desk' }).getByRole('progressbar', { name: `Removing ${name}` })).toBeVisible();
+      await blocker.evaluate(() => (window as typeof window & { releaseDeskPlacement: () => void }).releaseDeskPlacement());
+      await expect(page.getByRole('region', { name: 'Open work on Desk' }).getByRole('alert').filter({ hasText: `Could not remove “${name}”` })).toBeVisible();
+      await expect(tile).toBeVisible();
+      await page.evaluate(() => (window as typeof window & { restoreDeskPut?: () => void }).restoreDeskPut?.());
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(tile).toBeVisible();
+    } finally {
+      await page.evaluate(() => (window as typeof window & { restoreDeskPut?: () => void }).restoreDeskPut?.()).catch(() => undefined);
+      await blocker.evaluate(() => (window as typeof window & { releaseDeskPlacement?: () => void }).releaseDeskPlacement?.()).catch(() => undefined);
+      await blocker.close();
+    }
   });
 
   test('@golden gives Locations the compact Task viewport while keeping its controls scrollable', async ({ page }) => {

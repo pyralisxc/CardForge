@@ -424,8 +424,9 @@ test('@golden Library Drive-only Trash identifies the file and can be canceled',
  await expect(confirmation).toContainText('Google Drive file');
  await confirmation.getByRole('button',{name:'Cancel',exact:true}).click();
  await menu.click();
- await page.getByRole('menuitem',{name:'Manage locations',exact:true}).click();
- await expect(page.getByRole('region',{name:'Locations & connections'})).toBeVisible();
+ await expect(page.getByRole('menuitem',{name:'Manage locations',exact:true})).toHaveCount(0);
+ await page.getByRole('menuitem',{name:'Save & move',exact:true}).click();
+ await expect(page.getByRole('dialog')).toContainText('Synthetic Drive Set.cardforge');
  await expect(page.getByText('Action could not be completed',{exact:true})).toHaveCount(0);
  expect(evidence.mutations).toEqual([]);expect(evidence.errors).toEqual([]);
 });

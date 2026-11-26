@@ -23,14 +23,12 @@ import type { AccountExperienceProjection } from '@/features/account/client/expe
 import { DEFAULT_EXPERIENCE_SETTINGS, type StudioAutosaveDelaySeconds } from '@/features/experience-settings/client';
 import { getEditorPreferences, useEditorPreferences } from '@/features/editor-preferences/client';
 import {
-  openGoogleDriveProject,
   shouldOfferGoogleDriveReconciliation,
   useGoogleDriveWorkingSession,
   type GoogleDriveWorkingSessionPhase,
 } from '@/features/project/client/provider-google-drive';
-import { openRememberedLocalProject } from '@/features/project/client/provider-local-folder';
-import { useSpatialWorkspacePreferences } from '@/features/project/client/workspace';
-import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { prepareSelectedSet, useSpatialWorkspacePreferences, type PreparedSelectedSet } from '@/features/project/client/workspace';
+import { getProjectPersistenceScope, type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { createPublishedSetCopy } from '@/features/project/client/published-sets';
 import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
 import { useWorkspaceUpdates } from '@/features/project/client/ui';
@@ -147,7 +145,10 @@ export function useDeskController({
   const [reviewWork, setReviewWork] = useState<AccountLibraryItem | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
-  const [preparingWorkId, setPreparingWorkId] = useState<string | null>(null);
+  const [preparationState, setPreparationStatus] = useState<{ scope: ProjectPersistenceScope; id: string; name: string; operation: 'add' | 'remove' | 'open'; phase: 'preparing' | 'ready' | 'error'; setId?: string; message?: string } | null>(null);
+  const preparationStatus = preparationState?.scope === persistenceScope ? preparationState : null;
+  const preparingWorkId = preparationStatus?.phase === 'preparing' ? preparationStatus.id : null;
+  useEffect(() => { setPreparationStatus(null); }, [persistenceScope]);
   const preparingWorkRef = useRef<string | null>(null);
   const {
     navigationReady,
@@ -171,6 +172,10 @@ export function useDeskController({
     setInspectorWorkId,
     setInteractionSession,
   } = useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId, transitionToDesk, toolLayerOwnsHistory: Boolean(reviewWork) });
+  const deskMounted = useRef(false);
+  useEffect(() => { deskMounted.current = true; return () => { deskMounted.current = false; }; }, []);
+  const openContext = useRef({ scope: persistenceScope, session: interactionSession });
+  openContext.current = { scope: persistenceScope, session: interactionSession };
   const [pendingTool, setPendingTool] = useState<{
     setId: string;
     tool: Parameters<typeof navigateToTool>[1];
@@ -634,88 +639,95 @@ export function useDeskController({
       throw new Error('Another work source is still opening. Let it finish before opening a different source.');
     }
     preparingWorkRef.current = item.id;
-    setPreparingWorkId(item.id);
+    setPreparationStatus({ scope: persistenceScope, id: item.id, name: item.name, operation: 'open', phase: 'preparing' });
+    const captured = openContext.current;
+    const ensureCurrent = () => {
+      if (!deskMounted.current || getProjectPersistenceScope() !== captured.scope || openContext.current.scope !== captured.scope || openContext.current.session !== captured.session) {
+        throw new Error('Your Desk context changed while the Set was opening. Check Library before trying again.');
+      }
+    };
     try {
       if (item.references.campaignId || item.references.pipelineLineageId) {
         focusWorkContext(item.id, null);
         setRemoteWorkspaceId(item.id);
         return { kind: 'tool-opened', toolId: item.references.campaignId ? 'campaign' : 'published-work' };
       }
-      if (item.references.driveFileId) {
-        if (!item.references.driveAccountId) throw new Error('The selected Google Drive account is unavailable. Refresh Drive before opening this Set.');
-        const binding = await openGoogleDriveProject({
-          fileId: item.references.driveFileId,
-          name: item.name,
-          accountId: item.references.driveAccountId,
-        });
-        const workId = binding.workId;
-        if (!workId) throw new Error('This Drive document has no Set that CardForge can focus.');
-        projection.recordDriveWorkBinding(binding);
-        await placePreparedSet(workId);
-        setActiveCardSetId(workId);
+      if (item.kind === 'set' && (item.references.driveFileId || item.references.localFolderWorkId)) {
+        const prepared = await prepareSelectedSet(item, { assertCurrent: ensureCurrent });
+        if (prepared.driveBinding) projection.recordDriveWorkBinding(prepared.driveBinding);
+        ensureCurrent();
+        await placePreparedSet(prepared.setId);
+        ensureCurrent();
+        setActiveCardSetId(prepared.setId);
         projection.refresh();
-        focusWorkContext(`set:${workId}`, workId);
-        return { kind: 'navigation', href: createDeskReturnHref(`set:${workId}`) };
-      }
-      if (item.references.localFolderWorkId) {
-        const opened = await openRememberedLocalProject(item.references.localFolderWorkId);
-        await placePreparedSet(opened.setId);
-        setActiveCardSetId(opened.setId);
-        projection.refresh();
-        focusWorkContext(`set:${opened.setId}`, opened.setId);
-        return { kind: 'navigation', href: createDeskReturnHref(`set:${opened.setId}`) };
+        focusWorkContext(`set:${prepared.setId}`, prepared.setId);
+        return { kind: 'navigation', href: createDeskReturnHref(`set:${prepared.setId}`) };
       }
       const href = await projection.openItem(item, createDeskStudioReturnTo(item.id));
       return { kind: 'navigation', href };
     } finally {
       preparingWorkRef.current = null;
-      setPreparingWorkId((current) => current === item.id ? null : current);
+      setPreparationStatus((current) => current?.id === item.id ? null : current);
     }
   };
 
   const addLibrarySetToDesk = async (item: AccountLibraryItem) => {
     if (preparingWorkRef.current) throw new Error('Another Set is still being prepared. Let it finish before adding the next one.');
     preparingWorkRef.current = item.id;
-    setPreparingWorkId(item.id);
+    setPreparationStatus({ scope: persistenceScope, id: item.id, name: item.name, operation: 'add', phase: 'preparing' });
+    const scope = persistenceScope;
     try {
-      let setId = item.references.localSetId;
-      if (!setId && item.references.driveFileId) {
-        if (!item.references.driveAccountId) throw new Error('The selected Google Drive account is unavailable. Refresh Drive before adding this Set.');
-        const binding = await openGoogleDriveProject({
-          fileId: item.references.driveFileId,
-          name: item.name,
-          accountId: item.references.driveAccountId,
-        }, { requireSingleSet: true });
-        setId = binding.workId ?? undefined;
-        projection.recordDriveWorkBinding(binding);
-      } else if (!setId && item.references.localFolderWorkId) {
-        setId = (await openRememberedLocalProject(item.references.localFolderWorkId)).setId;
-      }
-      if (!setId) throw new Error('This Library item cannot be prepared as a Set on this device.');
-      await placePreparedSet(setId);
+      const prepared = await prepareSelectedSet(item, { requireSingleSet: true, preserveCurrent: true });
+      if (getProjectPersistenceScope() !== scope) throw new Error('The active account changed while preparing this Set. Reopen it in the intended account.');
+      if (prepared.driveBinding) projection.recordDriveWorkBinding(prepared.driveBinding);
+      await placePreparedSet(prepared.setId);
+      if (getProjectPersistenceScope() !== scope) throw new Error('The active account changed while placing this Set. Reopen the intended account to check Desk.');
       projection.refresh();
+      if (deskMounted.current) setPreparationStatus({ scope, id: item.id, name: item.name, operation: 'add', phase: 'ready', setId: prepared.setId });
+    } catch (error) {
+      if (deskMounted.current && getProjectPersistenceScope() === scope) setPreparationStatus({ scope, id: item.id, name: item.name, operation: 'add', phase: 'error', message: error instanceof Error ? error.message : 'This Set could not be prepared. Existing work is unchanged.' });
+      throw error;
     } finally {
       preparingWorkRef.current = null;
-      setPreparingWorkId(null);
     }
   };
 
   const removeSetFromDesk = async (item: AccountLibraryItem) => {
     if (!item.references.localSetId) return;
-    await deskMembership.remove(item.references.localSetId);
-    setInteractionSession((current) => selectCreatorDeskSets(current, [], null));
+    if (preparingWorkRef.current) throw new Error('Another Set is still being prepared. Let it finish before changing Desk placement.');
+    const scope = persistenceScope;
+    preparingWorkRef.current = item.id;
+    setPreparationStatus({ scope, id: item.id, name: item.name, operation: 'remove', phase: 'preparing' });
+    try {
+      await deskMembership.remove(item.references.localSetId);
+      if (getProjectPersistenceScope() !== scope) throw new Error('The active account changed. Reopen the intended account to check Desk placement.');
+      setInteractionSession((current) => selectCreatorDeskSets(current, current.deskSelection.filter((id) => id !== item.id), current.deskSelectionAnchorId));
+      if (deskMounted.current) setPreparationStatus({ scope, id: item.id, name: item.name, operation: 'remove', phase: 'ready', setId: item.references.localSetId });
+    } catch (error) {
+      if (deskMounted.current && getProjectPersistenceScope() === scope) setPreparationStatus({ scope, id: item.id, name: item.name, operation: 'remove', phase: 'error', message: error instanceof Error ? error.message : 'Desk placement could not be saved. Your work is unchanged.' });
+      throw error;
+    } finally {
+      preparingWorkRef.current = null;
+    }
   };
 
   const focusWork = (item: AccountLibraryItem): ActionOperationResult => {
     trackCardForgeEvent('set_opened', { object_kind: 'set', input_method: 'direct' });
-    if (!selectedDeskIds.includes(item.id)) {
-      setInteractionSession((current) => selectCreatorDeskSets(current, [item.id], item.id));
-    }
     setRenaming(false);
     if (item.references.localSetId) {
-      if (!deskMembership.ids.includes(item.references.localSetId)) placeCreatedSet(item.references.localSetId);
-      setActiveCardSetId(item.references.localSetId);
-      focusWorkContext(item.id, item.references.localSetId);
+      let prepared: PreparedSelectedSet;
+      try {
+        prepared = prepareSelectedSet({ ...item, references: { ...item.references, localSetId: item.references.localSetId } });
+      } catch (error) {
+        toast({ title: 'Set could not be opened', description: error instanceof Error ? error.message : 'The selected Set is unavailable.', variant: 'destructive' });
+        return { kind: 'cancelled' };
+      }
+      if (!selectedDeskIds.includes(item.id)) {
+        setInteractionSession((current) => selectCreatorDeskSets(current, [item.id], item.id));
+      }
+      if (!deskMembership.ids.includes(prepared.setId)) placeCreatedSet(prepared.setId);
+      setActiveCardSetId(prepared.setId);
+      focusWorkContext(item.id, prepared.setId);
       return { kind: 'navigation', href: createDeskReturnHref(item.id) };
     }
     void openRemoteWork(item).catch((error: unknown) => {
@@ -845,8 +857,7 @@ export function useDeskController({
       openLocation: setLocationItem,
       openPipeline: openPipelineSubmission,
       renameWork: (item) => {
-        focusWork(item);
-        setRenaming(true);
+        if (focusWork(item).kind !== 'cancelled') setRenaming(true);
       },
       duplicateWork,
       deleteWork: setPendingDeleteWork,
@@ -989,6 +1000,8 @@ export function useDeskController({
     closeReviewWork: () => { const restore=reviewReturnRef.current; setReviewWork(null); requestAnimationFrame(()=>{ const focus=restore?.focus?.isConnected ? restore.focus : document.getElementById(`set-info-${restore?.itemId}`) ?? document.getElementById(`set-${restore?.itemId}`); focus?.focus({preventScroll:true}); }); },
     pipelineSubmitSetId,
     preparingWorkId,
+    preparationStatus,
+    dismissPreparationStatus: () => setPreparationStatus(null),
     projection: deskProjection,
     refreshDeskSources,
     query,

@@ -54,6 +54,7 @@ import { loadGoogleDriveProjectLibrary } from '@/features/project/client/provide
 import * as localFolder from '@/features/project/client/localProjectFolder';
 import { disconnectLocalProjectFolder, getLocalProjectFolderStatus, saveCardSetToAttachedFolder, saveProjectToAttachedFolder } from '@/features/project/client/localProjectFolder';
 import { openRememberedLocalProject, LOCAL_PROJECT_FOLDER_CHANGE_EVENT, reconnectAttachedProjectFolder } from '@/features/project/client/localProjectFolder';
+import { prepareSelectedSet } from '@/features/project/client/prepareSelectedSet';
 
 const driveBinding = { fileId: 'drive-file-12345', name: 'C', providerRevision: '1', projectRevision: 'a'.repeat(64), workId: 'set-c' };
 const folder = (name: string) => {
@@ -85,6 +86,54 @@ beforeEach(() => {
 });
 
 describe('one authoritative Set location across save entry points', () => {
+  it('prepares an already-loaded Set without downloading or importing it again', () => {
+    mock.localSets = [{ id: 'set-c' }];
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    expect(prepareSelectedSet({ name: 'C', references: { localSetId: 'set-c', driveFileId: driveBinding.fileId, driveAccountId: 'account-a' } })).toEqual({ setId: 'set-c' });
+    expect(fetch).not.toHaveBeenCalled(); expect(mock.apply).not.toHaveBeenCalled();
+  });
+
+  it('prepares the existing exact Drive account and file without a second download', async () => {
+    const binding = { ...driveBinding, accountId: 'account-a', packageScope: 'set' };
+    mock.localSets = [{ id: 'set-c' }];
+    mock.values.set('test:google-drive-work-binding:set-c', binding);
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    await expect(prepareSelectedSet({ name: 'C', references: { driveFileId: driveBinding.fileId, driveAccountId: 'account-a' } })).resolves.toEqual({ setId: 'set-c', driveBinding: binding });
+    expect(fetch).not.toHaveBeenCalled(); expect(mock.apply).not.toHaveBeenCalled();
+  });
+
+  it('refuses absent or changed Drive account identity before applying a Set', async () => {
+    const fetch = vi.fn(async () => new Response('package', { headers: {
+      'X-CardForge-Provider-Revision': headToken('1'), 'X-CardForge-Project-Revision': 'b'.repeat(64), 'X-CardForge-Provider-Account': 'different-account',
+    } }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(prepareSelectedSet({ name: 'C', references: { driveFileId: driveBinding.fileId } })).rejects.toThrow('selected Google Drive account');
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(prepareSelectedSet({ name: 'C', references: { driveFileId: driveBinding.fileId, driveAccountId: 'account-a' } })).rejects.toThrow('account changed');
+    expect(mock.apply).not.toHaveBeenCalled();
+  });
+
+  it('leaves workspace backups untouched when preparing a selected Set', async () => {
+    const binding = { ...driveBinding, accountId: 'account-a', packageScope: 'workspace' };
+    mock.localSets = [{ id: 'set-c' }];
+    mock.values.set('test:google-drive-work-binding:set-c', binding);
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    await expect(prepareSelectedSet({ name: 'Backup', references: { driveFileId: driveBinding.fileId, driveAccountId: 'account-a' } }, { requireSingleSet: true })).rejects.toThrow('workspace backup');
+    expect(fetch).not.toHaveBeenCalled(); expect(mock.apply).not.toHaveBeenCalled();
+    await expect(prepareSelectedSet({ name: 'Backup', references: { driveFileId: driveBinding.fileId, driveAccountId: 'account-a' } })).resolves.toEqual({ setId: 'set-c', driveBinding: binding });
+  });
+
+  it.each([1, 2])('prepares a %i-Set Drive package with the correct Output preference policy', async (count) => {
+    const document = { cardSets: Array.from({ length: count }, (_, index) => ({ id: `old-${index}` })), userTemplates: [], storedCards: [], appearanceStyles: [], customAssets: {} };
+    mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
+      'X-CardForge-Provider-Revision': headToken('1'), 'X-CardForge-Project-Revision': 'b'.repeat(64), 'X-CardForge-Provider-Account': 'account-a',
+    } })));
+    await prepareSelectedSet({ name: 'C', references: { driveFileId: driveBinding.fileId, driveAccountId: 'account-a' } }, { preserveCurrent: true });
+    expect(mock.apply).toHaveBeenCalledWith(expect.any(Object), 'merge', expect.objectContaining({ expectedState: expect.any(Object), preserveActiveSet: true, ...(count === 1 ? { preserveOutputPreferences: true } : {}) }));
+    if (count === 2) expect((mock.apply.mock.calls as unknown as Array<[unknown, unknown, Record<string, unknown>]>).at(-1)?.[2]).not.toHaveProperty('preserveOutputPreferences');
+  });
+
   it('keeps a single device-binding pass for direct Drive library consumers', async () => {
     mock.localSets = [{ id: 'set-c' }];
     mock.values.set('test:google-drive-work-binding:set-c', { ...driveBinding, accountId: 'account-a' });

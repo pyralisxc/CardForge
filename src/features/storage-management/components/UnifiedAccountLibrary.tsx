@@ -163,6 +163,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [cardEditSession, setCardEditSession] = useState<LibraryCardEditSession | null>(null);
   const [cardQuery, setCardQuery] = useState('');
   const cardEditContext = useRef({ scope: persistenceScope, itemId: '' });
+  const libraryMounted = useRef(false);
+  const setOpenContext = useRef('');
+  useEffect(() => { libraryMounted.current = true; return () => { libraryMounted.current = false; }; }, []);
   const [designSourceState, setDesignSourceState] = useState<{ scope: string; source: PipelineDesignSource } | null>(null);
   const designSourceScope = persistenceScope;
   const designSource = designSourceState?.scope === designSourceScope ? designSourceState.source : null;
@@ -294,6 +297,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   }, [activeTool, revisionsEnabled, revisionNavigationKey]);
   const currentItem = selection.objectId ? itemMap.get(selection.objectId) ?? null : null;
   cardEditContext.current = { scope: persistenceScope, itemId: selection.objectId ?? '' };
+  setOpenContext.current = JSON.stringify([persistenceScope, activeScope, activeTool, selection.objectId]);
   const contentHealth = useMemo(() => buildPipelineContentHealth({ catalog: shared.catalog, program: shared.program }), [shared.catalog, shared.program]);
   const publishedRevisionByLineage = useMemo(() => new Map(
     shared.pipelineItems.flatMap((item) => item.currentPublishedSubmission?.lineageId
@@ -317,10 +321,10 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     setToolStack((current) => current.at(-1)?.toolId === 'card-edit' ? [] : current);
   }, [persistenceScope]);
   const prepareSelectedSetHere = async (item: AccountLibraryItem) => {
-    const captured = { ...cardEditContext.current };
+    const captured = setOpenContext.current;
     try {
-      const setId = await projection.prepareSetInLibrary(item);
-      if (cardEditContext.current.scope !== captured.scope || cardEditContext.current.itemId !== captured.itemId) return;
+      const setId = await projection.prepareSetInLibrary(item, () => libraryMounted.current && setOpenContext.current === captured);
+      if (!libraryMounted.current || setOpenContext.current !== captured) return;
       setSelection((current) => openEnvironmentDetail(current, { objectId: `set:${setId}`, listOffset: current.listOffset, focusReturnId: `library-object-set:${setId}` }));
     } catch (error) {
       toast({ title: 'Set was not opened', description: error instanceof Error ? error.message : 'Refresh the location and try again.', variant: 'destructive' });

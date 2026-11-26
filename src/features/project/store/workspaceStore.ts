@@ -191,7 +191,7 @@ export const createProjectWorkspaceDraft = (expectedState: ProjectState = usePro
     commit: async (
       relatedWrites: readonly { key: string; value: string; expectedValue: string | null }[],
       signal?: AbortSignal,
-      commitOptions: { replaceWholeWorkspace?: boolean } = {},
+      commitOptions: { replaceWholeWorkspace?: boolean; assertCurrent?: () => void } = {},
     ) => {
       signal?.throwIfAborted();
       const options = useProjectStore.persist.getOptions();
@@ -208,6 +208,7 @@ export const createProjectWorkspaceDraft = (expectedState: ProjectState = usePro
         signal: controller.signal,
         beforeCommit: () => {
           if (useProjectStore.getState() !== expectedState) throw new Error('The workspace changed while the project was opening. Your edits were left unchanged; retry.');
+          commitOptions.assertCurrent?.();
         },
       }); } finally { unsubscribe(); signal?.removeEventListener('abort', abort); }
       useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
