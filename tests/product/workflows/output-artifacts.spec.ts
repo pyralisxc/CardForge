@@ -453,9 +453,31 @@ test('keeps a prepared print PDF available after reloading the same browser work
   await page.evaluate(() => (window as unknown as { __releasePreparedStorage: () => void }).__releasePreparedStorage());
   const saveAgain = page.getByRole('button', { name: 'Save again', exact: true });
   await expect(saveAgain).toBeVisible();
+  await page.evaluate(() => {
+    const original = FileSystemFileHandle.prototype.getFile;
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    Object.defineProperty(window, '__releaseOutputFileRead', { value: () => release() });
+    FileSystemFileHandle.prototype.getFile = async function () {
+      if (this.name.endsWith('.bin')) await gate;
+      return original.call(this);
+    };
+  });
+  let repeatDownloads = 0;
+  page.on('download', () => { repeatDownloads += 1; });
+  await saveAgain.click();
+  await expect(page.getByRole('status').filter({ hasText: /checking the prepared file/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Checking…', exact: true })).toBeDisabled();
+  const outputRegion = page.getByRole('region', { name: 'Output Set', exact: true });
+  if (!await outputRegion.isVisible()) await page.getByRole('button', { name: 'Output', exact: true }).click();
+  await expect(outputRegion.getByRole('button', { name: /^Download PNG set/ })).toBeDisabled();
+  await expect(page.getByRole('status').filter({ hasText: /checking the prepared file took too long/i })).toBeVisible({ timeout: 20_000 });
+  await page.evaluate(() => (window as unknown as { __releaseOutputFileRead: () => void }).__releaseOutputFileRead());
+  expect(repeatDownloads).toBe(0);
   const repeated = page.waitForEvent('download');
   await saveAgain.click();
   const second = await repeated;
+  expect(repeatDownloads).toBe(1);
   const secondPath = testInfo.outputPath('second-print.pdf');
   await second.saveAs(secondPath);
   expect(await second.failure()).toBeNull();

@@ -150,7 +150,7 @@ export function ExportControlsPanel({
   const isPngSetExporting = isZipExporting && zipExportKind === 'png-set';
   const isPrintPngSetExporting = isZipExporting && zipExportKind === 'print-png-set';
   const isTabletopExporting = isZipExporting && zipExportKind === 'tabletop-simulator';
-  const exportsDisabled = isEntitlementPending || generatedDisplayCards.length === 0 || isZipExporting || outputActivity?.activity?.phase === 'running';
+  const exportsDisabled = isEntitlementPending || generatedDisplayCards.length === 0 || isZipExporting || (outputActivity?.activity?.phase === 'running' || outputActivity?.activity?.phase === 'checking' || outputActivity?.activity?.phase === 'removing');
 
   const exportProgress = isZipExporting && zipProgress ? (
     <div
