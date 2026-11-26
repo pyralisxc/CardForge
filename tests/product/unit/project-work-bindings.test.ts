@@ -14,6 +14,7 @@ const mock = vi.hoisted(() => ({
   captureSet: vi.fn(async (id: string) => ({ cardSets: [{ id, name: 'C' }], userTemplates: [], storedCards: [], appearanceStyles: [], customAssets: {} })),
   captureWorkspace: vi.fn(async () => ({ cardSets: [{ id: 'unrelated' }, { id: 'set-c' }] })),
   decode: vi.fn(),
+  materialize: vi.fn(async (snapshot: { document: unknown }) => snapshot.document),
   apply: vi.fn(async () => ({ activeSetId: 'set-c' })),
   build: vi.fn(async ({ document, name }: { document: unknown; name: string }) => ({ document, manifest: { name, projectRevision: 'b'.repeat(64), savedAt: '2026-09-05' } })),
   prime: vi.fn(async () => 1),
@@ -35,13 +36,19 @@ vi.mock('@/features/project/client/projectWorkspaceDocument', () => ({
   applyProjectDocumentToWorkspace: mock.apply,
   hasProjectDocumentStateChanged: () => false,
 }));
-vi.mock('@/features/project/client/browserProjectPackage', () => ({ buildBrowserCardForgeProjectSnapshot: mock.build, decodeBrowserProjectFile: mock.decode }));
+vi.mock('@/features/project/client/browserProjectPackage', () => ({ buildBrowserCardForgeProjectSnapshot: mock.build, decodeBrowserProjectFile: mock.decode, materializeBrowserProjectSnapshot: mock.materialize }));
+vi.mock('@/features/project/lib/projectPackageAssetReferences', () => ({ referenceCardForgeProjectSnapshotAssets: (snapshot: { document: unknown }) => snapshot.document }));
 vi.mock('@/features/project/client/useProjectBinaryAssetUrl', () => ({ primeProjectBinaryAssetUrls: mock.prime }));
 vi.mock('@/features/project/lib/projectPackageCodec', () => ({
   ProjectPackageError: class extends Error {},
   createCardForgeProjectPackageBlob: async () => new Blob(['package']),
   writeCardForgeProjectPackage: async () => {},
   decodeProjectFile: mock.decode,
+  decodeCardForgeProjectPackage: async (file: File) => {
+    const decoded = await mock.decode(file);
+    if (decoded.format !== 'cardforge-package' || !decoded.sourceRevision) throw new Error('This remembered folder no longer contains one current CardForge Set. Browser and folder work were left unchanged.');
+    return { manifest: { projectRevision: decoded.sourceRevision }, document: decoded.document };
+  },
 }));
 vi.mock('@/features/analytics/client/tracking', () => ({ observeProviderBoundaryResponse: (_provider: string, _action: string, run: () => unknown) => run() }));
 vi.mock('@/features/project/store/workspaceStore', () => {
@@ -353,6 +360,8 @@ describe('one authoritative Set location across save entry points', () => {
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [{ id: 'set-c' }] } });
     await expect(openRememberedLocalProject('set-c')).rejects.toThrow(/changed.*Back up both copies.*do not save over the folder/);
     expect(mock.apply).not.toHaveBeenCalled();
+    expect(mock.materialize).not.toHaveBeenCalled();
+    expect(mock.decode).toHaveBeenCalledTimes(1);
     expect(mock.values.get('test:local-work-folder-binding:set-c')).toBe(binding);
   });
 
@@ -371,6 +380,8 @@ describe('one authoritative Set location across save entry points', () => {
     expect(mock.localSets).toEqual([{ id: 'other-set' }]);
     expect(mock.values.get('test:local-work-folder-binding:set-c')).toBe(binding);
     expect(handle.getFileHandle).toHaveBeenCalledWith('project.cardforge');
+    expect(mock.decode).toHaveBeenCalledTimes(1);
+    expect(mock.materialize).toHaveBeenCalledTimes(1);
   });
 
   it('uses native directory identity to resume the same Set from the picker without importing again', async () => {

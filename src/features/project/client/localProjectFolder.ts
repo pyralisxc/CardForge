@@ -2,10 +2,13 @@
 
 import {
   decodeProjectFile,
+  decodeCardForgeProjectPackage,
   ProjectPackageError,
   writeCardForgeProjectPackage,
 } from '../lib/projectPackageCodec';
-import { buildBrowserCardForgeProjectSnapshot, decodeBrowserProjectFile } from './browserProjectPackage';
+import { buildBrowserCardForgeProjectSnapshot, decodeBrowserProjectFile, materializeBrowserProjectSnapshot } from './browserProjectPackage';
+import { referenceCardForgeProjectSnapshotAssets } from '../lib/projectPackageAssetReferences';
+import { getBrowserProjectAssetReference } from '../persistence/contentAddressedBrowserAssets';
 import { CARDFORGE_PROJECT_FILE_EXTENSION, type ProjectSourceDescriptor } from '../model/projectPackage';
 import { getProjectSourceConflict } from '../model/projectSourceConflict';
 import { getScopedProjectStorageNamespace } from '../persistence/projectPersistenceScope';
@@ -350,32 +353,36 @@ const openProjectDirectory = async (
   }
   const file = await fileHandle.getFile();
   assertFolderScope(namespace);
-  const inspected = await decodeProjectFile(file);
-  assertFolderScope(namespace);
-  if (inspected.format !== 'cardforge-package' || !inspected.sourceRevision) {
-    if (remembered) throw new ProjectPackageError('This remembered folder no longer contains one current CardForge Set. Browser and folder work were left unchanged.');
-    throw new ProjectPackageError('The selected folder does not contain a current .cardforge project package.');
-  }
   if (remembered) {
-    if (inspected.document.cardSets.length !== 1) {
+    // Decode and verify the archive once, then inspect its exact source revision
+    // before materializing any assets into this account's browser workspace.
+    const snapshot = await decodeCardForgeProjectPackage(file);
+    assertFolderScope(namespace);
+    const inspected = referenceCardForgeProjectSnapshotAssets(snapshot, (asset) => getBrowserProjectAssetReference(asset.id));
+    if (inspected.cardSets.length !== 1) {
       throw new ProjectPackageError('This remembered folder no longer contains one current CardForge Set. Browser and folder work were left unchanged.');
     }
-    if (!remembered.sourceRevision || inspected.sourceRevision !== remembered.sourceRevision) {
+    if (!remembered.sourceRevision || snapshot.manifest.projectRevision !== remembered.sourceRevision) {
       throw new ProjectPackageError('The folder has changed or its saved revision is unavailable. Browser and folder work were left unchanged. Back up both copies before comparing them; do not save over the folder.');
     }
     if (useProjectStore.getState().cardSets.some((set) => set.id === remembered.workId)) return remembered;
-  }
-  const decoded = await decodeBrowserProjectFile(file);
-  assertFolderScope(namespace);
-  if (remembered) {
+    const importedDocument = await materializeBrowserProjectSnapshot(snapshot);
+    assertFolderScope(namespace);
     // Restore the saved Set identity, but isolate its resources from other work.
-    const document = mapProjectDocumentIdentity(decoded.document, {
-      set: { [decoded.document.cardSets[0]!.id]: remembered.workId },
+    const document = mapProjectDocumentIdentity(importedDocument, {
+      set: { [importedDocument.cardSets[0]!.id]: remembered.workId },
     }, 'open');
     await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, preserveOutputPreferences: true, ...(preserveActiveSet ? { preserveActiveSet: true } : {}), ...(assertCurrent ? { assertCurrent } : {}) });
     assertFolderScope(namespace);
     return remembered;
   }
+  const inspected = await decodeProjectFile(file);
+  assertFolderScope(namespace);
+  if (inspected.format !== 'cardforge-package' || !inspected.sourceRevision) {
+    throw new ProjectPackageError('The selected folder does not contain a current .cardforge project package.');
+  }
+  const decoded = await decodeBrowserProjectFile(file);
+  assertFolderScope(namespace);
   const imported = await applyProjectDocumentToWorkspace(decoded.document, 'copy', { expectedState });
   assertFolderScope(namespace);
   const binding: LocalProjectFolderBinding = {
