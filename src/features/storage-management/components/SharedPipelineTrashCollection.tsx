@@ -53,7 +53,8 @@ export function SharedPipelineTrashCollection({ onOpenAuthorizedRevision, actorS
     setResult(null); setError(''); setLoading(true);
     void (async () => {
       const exact = await loadPipelineEngagement(target.submissionId, { lineageId: target.lineageId });
-      if (!exact.trashedAt || exact.voteIssue) throw new Error('This exact revision is no longer available for review in Trash.');
+      // The shared Trash projection determines effective Trash, including catalog Trash.
+      if (exact.voteIssue) throw new Error('This exact revision is no longer available for review in Trash.');
       for (let targetPage = 1; ; targetPage++) {
         const params = new URLSearchParams({ scope: 'shared', trash: 'trashed', query: exact.name, page: String(targetPage), pageSize: '50' });
         const response = await fetch(`/api/pipeline/library?${params}`, { cache: 'no-store', signal: controller.signal });

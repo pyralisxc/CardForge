@@ -106,6 +106,7 @@ const queueRows = Array.from({ length: 15 }, (_, index) => ({ ...row,
   sourcePayload: { id: row.registryAssetId, name: row.name, kind: 'material', targets: ['shape'], appearance: { material: { baseColor: index === 1 ? '#00cc88' : '#d5ad54' } } },
 } as PipelineSubmission));
 if (params.has('noticeTrash')) Object.assign(queueRows[1], {trashedAt:'2026-11-26T12:30:00Z', purgeAfter:'2026-12-26T12:30:00Z', trashActorRole:'voting',trashPreviousStatus:'voting'});
+if (params.has('noticeCatalogTrash')) Object.assign(queueRows[1], {catalogTrashedAt:'2026-11-26T12:30:00Z', catalogPurgeAfter:'2026-12-26T12:30:00Z', catalogSubmissionId:queueRows[1].id});
 if (params.has('historyTemplate')) {
   const current = { ...identityTemplate('synthetic-material', '#0000ff'), name: 'Current blue Template', templateRevision: 2 };
   const historical = { ...identityTemplate('synthetic-material', '#00ff00'), name: 'Historical green Template', templateRevision: 1 };
@@ -427,7 +428,7 @@ window.fetch = async (input, init) => {
   }
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   if (params.has('noticeProof') && url.endsWith('/vote') && init?.method === 'POST') { const id=url.split('/').at(-2)!; fixtureVote={id,value:JSON.parse(String(init.body)).voteValue}; proof.libraryRequests.push({url,method:'POST'}); return Response.json({receipt:{submissionId:id,outcome:'committed',warnings:[]}}); }
-  if (params.has('noticeTrash') && url.startsWith('/api/pipeline/library?scope=shared')) { const item=queueRows[1]; return Response.json({sharedTrash:{total:1,page:1,pageSize:50,items:[{...item,ownedByViewer:false,publicationRetained:false}]}}); }
+  if ((params.has('noticeTrash') || params.has('noticeCatalogTrash')) && url.startsWith('/api/pipeline/library?scope=shared')) { const item=queueRows[1]; return Response.json({sharedTrash:{total:1,page:1,pageSize:50,items:[{...item,ownedByViewer:false,publicationRetained:false}]}}); }
   if (params.has('noticeProof') && url === '/api/pipeline/review-notices') { const entry = queueRows[params.has('noticeHistory') ? 0 : 1]; return Response.json({items:[{submissionId:entry.id,lineageId:entry.lineageId,name:entry.name,revisionNumber:entry.revisionNumber,submittedAt:entry.submittedAt}]}); }
   if (params.has('noticeProof') && url.startsWith('/api/pipeline/engagement?')) {
     if (params.has('noticeRevoked')) return Response.json({}, {status:403});
@@ -450,7 +451,7 @@ window.fetch = async (input, init) => {
       if (params.has('catalogMissing') || params.has('catalogLoading')) return new Promise<Response>(() => {});
       return Response.json(queueCatalog);
     }
-    if (url === '/api/pipeline/library') return Response.json({ program: { ...program, submissions: params.has('noticeTrash') ? queueRows.filter(candidate => !candidate.trashedAt) : queueRows } });
+    if (url === '/api/pipeline/library') return Response.json({ program: { ...program, submissions: params.has('noticeTrash') || params.has('noticeCatalogTrash') ? queueRows.filter(candidate => !candidate.trashedAt && !candidate.catalogTrashedAt) : queueRows } });
     if (url.startsWith('/api/pipeline/hearts?')) return Response.json({ metrics: [] });
     if (!url.startsWith('/api/pipeline?')) return Response.json({ error: { code: 'fixture_unavailable', kind: 'unavailable', message: 'Provider excluded from isolated Library proof', retryable: false } }, { status: 503 });
   }

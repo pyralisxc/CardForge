@@ -1477,8 +1477,8 @@ test('@golden Pipeline notice selects the exact revision and stays read after mo
   await expect(notice.locator('[aria-label="Unread"]')).toHaveCount(0);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
-test('@golden Pipeline notice opens the exact eligible revision in shared Trash', async ({page}) => {
-  const evidence = await mount(page, '?queueActual=1&noticeProof=1&noticeTrash=1');
+for (const trashKind of ['noticeTrash', 'noticeCatalogTrash']) test(`@golden Pipeline notice opens the exact eligible revision in ${trashKind}`, async ({page}) => {
+  const evidence = await mount(page, `?queueActual=1&noticeProof=1&${trashKind}=1`);
   await page.getByRole('button',{name:/Notifications/}).click();
   await page.getByRole('button',{name:/Compare Shared material/}).click();
   await expect(page.locator('#shared-trash-10000000-0000-4000-8000-000000000002')).toHaveAttribute('aria-current','true');

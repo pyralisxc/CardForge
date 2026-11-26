@@ -363,10 +363,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       if (!current || persistenceScope !== getProjectPersistenceScope()) return;
       if (setOpenContext.current !== context) { setRequestedReviewNotice(null); return; }
       if (engagement.voteIssue) throw new Error(engagement.voteIssue);
-      if (engagement.trashedAt) {
+      // Catalog Trash is separate from revision Trash; the active projection omits both.
+      if (engagement.trashedAt || !item) {
         setTrashReviewNotice(target); setSharedTrashMode(true); setRequestedReviewNotice(null); return;
       }
-      if (activeFailure || !item) throw new Error('Exact revision is not present in the active Library.');
+      if (activeFailure) throw new Error('Exact revision is not present in the active Library.');
       setSelection(previous => openEnvironmentDetail(previous, { objectId: item.id, listOffset: surfaceRef.current?.scrollTop ?? 0, focusReturnId: `library-object-${item.id}` }));
       setFocusedReviewRevision(target.submissionId); setRequestedReviewNotice(null);
       if (!await acknowledgePipelineNotice(target.submissionId)) toast({ title: 'Review opened', description: 'The notice could not be marked read in this browser.' });
