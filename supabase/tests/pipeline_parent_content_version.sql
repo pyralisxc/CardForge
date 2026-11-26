@@ -30,7 +30,7 @@ begin
   original_hash := pins->>'parentContentVersion';
   -- Reproduce the historical row shape before the two October25 additive columns.
   -- The remaining exclusion list is the unchanged October17 canonical contract.
-  select md5(((to_jsonb(s)-array['owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256','revision_recovery_version','revision_trash_actor_id','revision_trash_actor_role','revision_publication_retained','revision_trash_previous_status','revision_vote_trash_fingerprint','author_review_note','author_resubmission_parent_id','author_resubmission_fingerprint','author_resubmission_parent_reviewed_at','author_resubmission_parent_version'])-array[
+  select md5(((to_jsonb(s)-array['owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256','revision_recovery_version','revision_trash_actor_id','revision_trash_actor_role','revision_publication_retained','revision_trash_previous_status','revision_vote_trash_fingerprint','author_review_note','author_review_history','author_resubmission_parent_id','author_resubmission_fingerprint','author_resubmission_parent_reviewed_at','author_resubmission_parent_version'])-array[
     'updated_at','positive_votes','negative_votes','quality_score','status','contributor_lifecycle_state',
     'automated_status','owner_status_override','calculated_access_tier','automated_access_tier','owner_access_tier_override',
     'tier_decision_reason','owner_note','decision_reason','editorial_review_status','editorial_review_note',
@@ -139,7 +139,9 @@ begin
   next_id:=public.cardforge_create_template_author_revision_draft(parent_id,reviewed,version,actor,'','Updated Template',payload,'revision-history-fixture',repeat('a',64));
   if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=parent_id and s.lineage_id=parent_lineage
       and s.status='archived' and s.decision_reason='superseded_revision' and s.trashed_at is null and s.purge_after is null
-      and s.editorial_review_status='revise' and s.author_review_note='Please improve the title')
+      and s.editorial_review_status='revise' and s.author_review_note='Please improve the title'
+      and s.author_review_history->>'reviewStatus'='revise'
+      and s.author_review_history->>'authorNote'='Please improve the title')
     or not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=next_id and s.lineage_id=parent_lineage
       and s.status='draft' and s.revision_number=2 and s.author_resubmission_parent_id=parent_id
       and s.description='First authored candidate' and s.source_notes='Fixture rights'
@@ -164,6 +166,9 @@ begin
   -- An Owner decision made after draft creation must hold at submission.
   begin
     update public.cardforge_contributor_asset_submissions s set editorial_review_status='approved' where s.id=parent_id;
+    if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=parent_id
+      and s.author_review_note='' and s.author_review_history->>'authorNote'='Please improve the title')
+      then raise exception 'original_author_feedback_not_retained'; end if;
     begin
       perform public.cardforge_submit_template_pipeline_draft_checked(next_id,actor,'Updated Template','Ready candidate',
         'https://example.invalid/template-preview','Fixture rights',array['games'],array['tcg'],'template.front');
@@ -171,6 +176,10 @@ begin
     exception when raise_exception then if sqlerrm<>'template_author_revision_conflict' then raise; end if; end;
     raise exception 'rollback_changed_parent_fixture';
   exception when raise_exception then if sqlerrm<>'rollback_changed_parent_fixture' then raise; end if; end;
+  begin
+    update public.cardforge_contributor_asset_submissions s set author_review_history='{}'::jsonb where s.id=parent_id;
+    raise exception 'author_review_history_mutation_accepted';
+  exception when raise_exception then if sqlerrm<>'author_review_history_immutable' then raise; end if; end;
   perform public.cardforge_submit_template_pipeline_draft_checked(next_id,actor,'Updated Template','Ready candidate',
     'https://example.invalid/template-preview','Fixture rights',array['games'],array['tcg'],'template.front');
   if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=next_id and s.status='submitted')

@@ -62,3 +62,12 @@ it('does not present a retained message as feedback for a pending decision', asy
   const response = await GET(new Request('https://example.test/api/pipeline/feedback'), params);
   expect(await response.json()).toMatchObject({ reviewStatus: 'pending', authorNote: null });
 });
+it('retains the author-facing review in History after a later Owner decision', async () => {
+  Object.assign(f.row, { status: 'archived', editorial_review_status: 'approved', author_review_note: '',
+    editorial_reviewed_at: '2026-11-26T13:00:00Z', author_review_history: {
+      reviewStatus: 'revise', authorNote: 'Please improve contrast.', reviewedAt: '2026-11-26T12:00:00Z',
+    } });
+  const response = await GET(new Request('https://example.test/api/pipeline/feedback'), params);
+  expect(await response.json()).toMatchObject({ reviewStatus: 'revise', authorNote: 'Please improve contrast.',
+    reviewedAt: '2026-11-26T12:00:00Z', revisionBase: null });
+});

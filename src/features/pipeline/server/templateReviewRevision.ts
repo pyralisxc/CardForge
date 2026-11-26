@@ -102,6 +102,18 @@ function restoreOwnedReferences(template: TCGCardTemplate, parent: TCGCardTempla
   return output as unknown as TCGCardTemplate;
 }
 
+// Shared preparation for a governed correction. The caller still owns the
+// native transaction and must recheck this lease under the database locks.
+export async function prepareGovernedTemplateReviewPayload(
+  template: TCGCardTemplate,
+  expectedBase: z.infer<typeof templateReviewBaseSchema>,
+): Promise<TCGCardTemplate> {
+  if (template.id !== expectedBase.assetId) fail('The Template and published base do not match.', 400);
+  const base = await rawBase(expectedBase.assetId);
+  if (JSON.stringify(base.expectedBase) !== JSON.stringify(expectedBase)) fail('The published review base changed. Your browser draft is preserved.', 409);
+  return restoreOwnedReferences(templateReviewPayload(template), base.template);
+}
+
 export async function createTemplateReviewRevision(input: unknown, actorId: string) {
   const parsed = z.object({ template: templatePayloadSchema, expectedBase: templateReviewBaseSchema,
     submissionKey: keySchema }).strict().safeParse(input);
@@ -116,9 +128,7 @@ export async function createTemplateReviewRevision(input: unknown, actorId: stri
     if (prior.requestFingerprint !== requestFingerprint) fail('This attempt key belongs to a different saved snapshot.', 409);
     return prior;
   }
-  const base = await rawBase(expectedBase.assetId);
-  if (JSON.stringify(base.expectedBase) !== JSON.stringify(expectedBase)) fail('The published review base changed. Your browser draft is preserved.', 409);
-  const payload = restoreOwnedReferences(templateReviewPayload(template), base.template);
+  const payload = await prepareGovernedTemplateReviewPayload(template, expectedBase);
   const { data, error } = await client().rpc('cardforge_create_template_review_revision', {
     p_asset_id: expectedBase.assetId, p_expected_base: expectedBase, p_template_payload: payload,
     p_actor_id: actorId, p_submission_key: submissionKey, p_request_fingerprint: requestFingerprint,

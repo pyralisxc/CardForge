@@ -7,7 +7,22 @@ alter table public.cardforge_contributor_asset_submissions
   add column author_resubmission_parent_id uuid,
   add column author_resubmission_fingerprint text check (author_resubmission_fingerprint ~ '^[a-f0-9]{64}$'),
   add column author_resubmission_parent_reviewed_at timestamptz,
-  add column author_resubmission_parent_version text check (author_resubmission_parent_version ~ '^[a-f0-9]{32}$');
+  add column author_resubmission_parent_version text check (author_resubmission_parent_version ~ '^[a-f0-9]{32}$'),
+  add column author_review_history jsonb;
+
+-- The Owner may make a later decision, but the author must retain the message
+-- that accompanied the exact review which led to this resubmission.
+create function public.cardforge_guard_author_review_history()
+returns trigger language plpgsql security invoker set search_path = '' as $$
+begin
+  if old.author_review_history is not null and new.author_review_history is distinct from old.author_review_history
+    then raise exception 'author_review_history_immutable'; end if;
+  return new;
+end;
+$$;
+create trigger cardforge_guard_author_review_history before update on public.cardforge_contributor_asset_submissions
+  for each row execute function public.cardforge_guard_author_review_history();
+revoke all on function public.cardforge_guard_author_review_history() from public,anon,authenticated;
 
 create or replace function public.cardforge_media_parent_content_version(p_submission_id uuid)
 returns text language sql stable security invoker set search_path = '' as $$
@@ -15,7 +30,7 @@ returns text language sql stable security invoker set search_path = '' as $$
     'updated_at','positive_votes','negative_votes','quality_score','status','contributor_lifecycle_state',
     'automated_status','owner_status_override','calculated_access_tier','automated_access_tier','owner_access_tier_override',
     'tier_decision_reason','owner_note','decision_reason','editorial_review_status','editorial_review_note',
-    'editorial_reviewed_by','editorial_reviewed_at','author_review_note','author_resubmission_parent_id','author_resubmission_fingerprint','author_resubmission_parent_reviewed_at','author_resubmission_parent_version','published_at','purge_state','trashed_at','purge_after',
+    'editorial_reviewed_by','editorial_reviewed_at','author_review_note','author_review_history','author_resubmission_parent_id','author_resubmission_fingerprint','author_resubmission_parent_reviewed_at','author_resubmission_parent_version','published_at','purge_state','trashed_at','purge_after',
     'trash_reason','retention_hold','purge_claimed_at','template_review_context','source_review_evidence','owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256','revision_recovery_version','revision_trash_actor_id','revision_trash_actor_role','revision_publication_retained','revision_trash_previous_status','revision_vote_trash_fingerprint'])::text)
   from public.cardforge_contributor_asset_submissions as submission where id=p_submission_id;
 $$;
@@ -84,7 +99,9 @@ begin
   then raise exception 'template_author_revision_live_lineage_unsupported'; end if;
   update public.cardforge_contributor_asset_submissions set status='archived',automated_status='archived',
     calculated_access_tier='hidden',automated_access_tier='hidden',decision_reason='superseded_revision',
-    tier_decision_reason='superseded_revision' where id=parent.id;
+    tier_decision_reason='superseded_revision', author_review_history=pg_catalog.jsonb_build_object(
+      'reviewStatus',parent.editorial_review_status,'authorNote',nullif(parent.author_review_note,''),
+      'reviewedAt',parent.editorial_reviewed_at) where id=parent.id;
   created_id:=public.cardforge_create_template_pipeline_draft(parent.target_registry_asset_id,p_name,p_actor_id,
     coalesce(p_actor_email,''),p_template_payload,p_submission_key);
   update public.cardforge_contributor_asset_submissions set author_resubmission_parent_id=parent.id,
