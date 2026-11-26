@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { createTemplatePipelineDraft } from '@/features/pipeline/lib/pipelineRegistryCommands';
+import { createTemplatePipelineDraft, readAuthorRevisionAttemptKind } from '@/features/pipeline/lib/pipelineRegistryCommands';
 
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: vi.fn() }));
 const externalize = vi.fn();
@@ -45,4 +45,8 @@ it('rejects replaced artwork before the native candidate write', async () => {
   await expect(draft({ ...parent, templatePreviewData: { Artwork: '/new-art.png' } })).rejects.toMatchObject({ status: 400 });
   expect(rpc).not.toHaveBeenCalledWith('cardforge_create_template_author_revision_draft', expect.anything());
   expect(externalize).not.toHaveBeenCalled();
+});
+it('does not treat an unavailable attempt-kind lookup as an absent receipt', async () => {
+  rpc.mockResolvedValueOnce({ data: null, error: { message: 'provider unavailable' } });
+  await expect(readAuthorRevisionAttemptKind(revisionBase.parentSubmissionId, 'author', 'author_live_attempt_123')).rejects.toMatchObject({ status: 500 });
 });

@@ -369,6 +369,15 @@ export async function readAuthorRevisionPublishedBase(assetId: string): Promise<
   return registry.data ? (await readTemplateReviewBase(assetId)).expectedBase : null;
 }
 
+export async function readAuthorRevisionAttemptKind(parentSubmissionId: string, contributorId: string, submissionKey: string): Promise<'ordinary' | 'governed' | null> {
+  const { data, error } = await requireSupabase().rpc('cardforge_read_template_author_revision_attempt_kind', {
+    p_parent_submission_id: parentSubmissionId, p_actor_id: contributorId, p_submission_key: submissionKey,
+  });
+  if (error) throwTemplateRevisionError(error.message);
+  if (data === null || data === 'ordinary' || data === 'governed') return data;
+  throw new PipelineRegistryCommandError('The exact attempt could not be verified. Read it again before any further write.', 503);
+}
+
 export const createTemplatePipelineDraft = async ({
   template,
   contributorId,

@@ -1,12 +1,13 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { createMcpHandler } from 'mcp-handler';
-const f=vi.hoisted(()=>({create:vi.fn(),receipt:vi.fn(),read:vi.fn(),downloads:vi.fn(),published:vi.fn(),access:vi.fn(),require:vi.fn()}));
+const f=vi.hoisted(()=>({create:vi.fn(),receipt:vi.fn(),read:vi.fn(),downloads:vi.fn(),published:vi.fn(),kind:vi.fn(),access:vi.fn(),require:vi.fn()}));
 vi.mock('@/features/pipeline/server',async()=>({
   contributorTemplateRevisionBase:(await import('@/features/pipeline/lib/contributorDraftContract')).contributorTemplateRevisionBase,
   assertTemplatePipelineDraftContext:(await import('@/features/pipeline/lib/pipelineRegistryCommands')).assertTemplatePipelineDraftContext,
   createNewSharedTemplateId:()=> 'fresh-shared-id', createTemplatePipelineDraft:f.create, readTemplatePipelineDraftAttempt:f.receipt,
   readAuthorRevisionPublishedBase:f.published,
+  readAuthorRevisionAttemptKind:f.kind,
   isRepositoryTemplate:(value:TCGCardTemplate)=>Boolean(value.id && value.freeformCanvas),
   PipelineRegistryCommandError:(await import('@/features/pipeline/lib/pipelineRegistryCommandsError')).PipelineRegistryCommandError,
 }));
@@ -25,7 +26,7 @@ const template:TCGCardTemplate={id:'personal-renamed',name:'Renamed personal Tem
 const base={parentSubmissionId:'11111111-1111-4111-8111-111111111111',assetId:'original-shared-id',reviewedAt:'2026-11-26T12:00:00Z',parentContentVersion:'a'.repeat(32)};
 const access={user:{id:'actor'},email:'actor@example.invalid',entitlement:{}} as Parameters<typeof submitTemplateWorkingDocumentToPipeline>[0]['access'];
 const document={id:'22222222-2222-4222-8222-222222222222',revision:3,document:{userTemplates:[template]}};
-beforeEach(()=>{vi.clearAllMocks();f.access.mockResolvedValue(access);f.read.mockResolvedValue(document);f.downloads.mockResolvedValue([]);f.published.mockResolvedValue(null);f.create.mockResolvedValue({id:'new-draft'});});
+beforeEach(()=>{vi.clearAllMocks();f.access.mockResolvedValue(access);f.read.mockResolvedValue(document);f.downloads.mockResolvedValue([]);f.published.mockResolvedValue(null);f.kind.mockResolvedValue(null);f.create.mockResolvedValue({id:'new-draft'});});
 it('browser handoff carries exact reviewed base without changing the private Template',async()=>{
  const before=structuredClone(template);
  const response=await POST(new Request('https://example.invalid/api/templates/submissions',{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':'exact-attempt'},body:JSON.stringify({...template,revisionBase:base})}));
@@ -46,6 +47,23 @@ it('Studio leaves private assets untouched before the governed live-source check
  await submitTemplateWorkingDocumentToPipeline({access,documentId:document.id,revisionBase:base});
  expect(f.downloads).not.toHaveBeenCalled();
  expect(f.create).toHaveBeenCalledWith(expect.objectContaining({revisionBase:base,template:expect.objectContaining({id:base.assetId})}));
+});
+it('Studio recovers a governed attempt before consulting a changed published base',async()=>{
+ f.kind.mockResolvedValue('governed'); f.published.mockRejectedValue(new Error('published base changed'));
+ await submitTemplateWorkingDocumentToPipeline({access,documentId:document.id,revisionBase:base});
+ expect(f.published).not.toHaveBeenCalled(); expect(f.downloads).not.toHaveBeenCalled();
+ expect(f.create).toHaveBeenCalledWith(expect.objectContaining({revisionBase:base}));
+});
+it('Studio preserves ordinary attempt recovery without first requiring the current published base',async()=>{
+ f.kind.mockResolvedValue('ordinary'); f.published.mockRejectedValue(new Error('published base changed'));
+ await submitTemplateWorkingDocumentToPipeline({access,documentId:document.id,revisionBase:base});
+ expect(f.published).not.toHaveBeenCalled(); expect(f.downloads).toHaveBeenCalledOnce();
+ expect(f.create).toHaveBeenCalledWith(expect.objectContaining({revisionBase:base}));
+});
+it('Studio stops before asset work when the exact attempt lookup is unavailable',async()=>{
+ f.kind.mockRejectedValue(new Error('lookup unavailable'));
+ await expect(submitTemplateWorkingDocumentToPipeline({access,documentId:document.id,revisionBase:base})).rejects.toThrow('lookup unavailable');
+ expect(f.published).not.toHaveBeenCalled(); expect(f.downloads).not.toHaveBeenCalled(); expect(f.create).not.toHaveBeenCalled();
 });
 it('browser recovery reads the exact attempt without creating a draft',async()=>{
  f.receipt.mockResolvedValue('new-draft');

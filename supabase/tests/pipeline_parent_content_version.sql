@@ -151,6 +151,12 @@ begin
   if duplicate_id is distinct from next_id then raise exception 'author_review_history_retry_created_sibling'; end if;
   if public.cardforge_read_template_author_revision_attempt(parent_id,actor,'revision-history-fixture',repeat('a',64)) is distinct from next_id
     then raise exception 'author_review_history_receipt_unavailable'; end if;
+  if public.cardforge_read_template_author_revision_attempt_kind(parent_id,actor,'revision-history-fixture') is distinct from 'ordinary'
+    then raise exception 'author_review_history_receipt_kind_unavailable'; end if;
+  begin
+    perform public.cardforge_read_template_author_revision_attempt_kind(parent_id,'another-author','revision-history-fixture');
+    raise exception 'author_review_history_receipt_kind_leaked';
+  exception when raise_exception then if sqlerrm<>'template_author_revision_not_found' then raise; end if; end;
   begin
     perform public.cardforge_read_template_author_revision_attempt(parent_id,actor,'revision-history-fixture',repeat('b',64));
     raise exception 'author_review_history_accepted_different_receipt';
@@ -195,6 +201,10 @@ begin
     then raise exception 'author_review_history_draft_not_submitted'; end if;
   delete from public.cardforge_contributor_asset_submissions s where s.id=next_id;
   begin
+    perform public.cardforge_read_template_author_revision_attempt_kind(parent_id,actor,'revision-history-fixture');
+    raise exception 'author_review_history_falsely_reported_absent_kind';
+  exception when raise_exception then if sqlerrm<>'template_author_revision_conflict' then raise; end if; end;
+  begin
     perform public.cardforge_read_template_author_revision_attempt(parent_id,actor,'revision-history-fixture',repeat('a',64));
     raise exception 'author_review_history_falsely_reported_absent_receipt';
   exception when raise_exception then if sqlerrm<>'template_author_revision_conflict' then raise; end if; end;
@@ -229,6 +239,8 @@ begin
       and s.status='archived' and s.author_review_history->>'authorNote'='Please correct the title')
     or not exists(select 1 from public.cardforge_asset_registry r where r.asset_id=asset and r.contributor_submission_id=live_id and r.status='published')
     then raise exception 'governed_author_draft_not_isolated'; end if;
+  if public.cardforge_read_template_author_revision_attempt_kind(reviewed_id,actor,child.submission_key) is distinct from 'governed'
+    then raise exception 'governed_author_receipt_kind_unavailable'; end if;
   perform public.cardforge_submit_template_pipeline_draft_checked(next_id,actor,child.name,child.description,child.preview_url,
     child.source_notes,child.specialty_tags,child.use_case_tags,child.requested_studio_destination);
   if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=next_id and s.status='submitted'

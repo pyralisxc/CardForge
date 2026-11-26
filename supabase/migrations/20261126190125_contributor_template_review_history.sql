@@ -170,6 +170,36 @@ $$;
 revoke all on function public.cardforge_read_template_author_revision_attempt(uuid,text,text,text) from public,anon,authenticated;
 grant execute on function public.cardforge_read_template_author_revision_attempt(uuid,text,text,text) to service_role;
 
+-- Studio must know whether to preserve governed source references before it
+-- prepares a retry. This actor-bound read does not assert a matching snapshot;
+-- the exact attempt reader still verifies the fingerprint before returning it.
+create function public.cardforge_read_template_author_revision_attempt_kind(
+  p_parent_submission_id uuid, p_actor_id text, p_submission_key text
+) returns text language plpgsql stable security invoker set search_path = '' as $$
+declare parent public.cardforge_contributor_asset_submissions%rowtype;
+  prior public.cardforge_contributor_asset_submissions%rowtype;
+begin
+  if nullif(pg_catalog.btrim(p_submission_key),'') is null or pg_catalog.length(p_submission_key)>160
+    then raise exception 'template_author_revision_invalid'; end if;
+  select * into parent from public.cardforge_contributor_asset_submissions where id=p_parent_submission_id;
+  if not found or parent.contributor_id is distinct from p_actor_id or parent.asset_type<>'templates'
+    then raise exception 'template_author_revision_not_found'; end if;
+  select * into prior from public.cardforge_contributor_asset_submissions s
+    where s.contributor_id=p_actor_id and s.target_registry_asset_id=parent.target_registry_asset_id
+      and s.submission_key=p_submission_key limit 1;
+  if found then
+    if prior.author_resubmission_parent_id is distinct from parent.id or prior.author_resubmission_fingerprint is null
+      then raise exception 'template_author_revision_conflict'; end if;
+    return case when prior.template_review_context is null then 'ordinary' else 'governed' end;
+  end if;
+  if parent.status='archived' and parent.decision_reason='superseded_revision'
+    then raise exception 'template_author_revision_conflict'; end if;
+  return null;
+end;
+$$;
+revoke all on function public.cardforge_read_template_author_revision_attempt_kind(uuid,text,text) from public,anon,authenticated;
+grant execute on function public.cardforge_read_template_author_revision_attempt_kind(uuid,text,text) to service_role;
+
 -- Recheck the same reviewed parent and publication state immediately before
 -- submission. Ordinary drafts continue through the unchanged native command.
 create function public.cardforge_submit_template_pipeline_draft_checked(

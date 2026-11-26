@@ -7,6 +7,7 @@ import {
   createTemplatePipelineDraft,
   assertTemplatePipelineDraftContext,
   readAuthorRevisionPublishedBase,
+  readAuthorRevisionAttemptKind,
   PipelineRegistryCommandError,
   isRepositoryTemplate,
   storePipelineTemplateAsset,
@@ -304,13 +305,6 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
     );
   }
   assertTemplatePipelineDraftContext(localTemplate, Boolean(revisionBase));
-  const publishedBase = revisionBase ? await readAuthorRevisionPublishedBase(revisionBase.assetId) : null;
-  const reviewTemplate = publishedBase ? localTemplate : await materializeTemplateForPipelineReview({
-    ownerUserId: access.user.id,
-    documentId: document.id,
-    template: localTemplate,
-  });
-
   const sharedTemplateId = revisionBase?.assetId ?? createNewSharedTemplateId({
     contributorId: access.user.id,
     localTemplateId: localTemplate.id!,
@@ -319,6 +313,13 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
   const submissionKey = createHash('sha256')
     .update(`mcp:${access.user.id}:${document.id}:${document.revision}:${localTemplate.id}${managedRasterSelection ? `:${JSON.stringify([managedRasterSelection.registryAssetId, managedRasterSelection.publishedSubmissionId, managedRasterSelection.elementId])}` : ''}${revisionBase ? `:${JSON.stringify(revisionBase)}` : ''}`)
     .digest('hex');
+  const priorKind = revisionBase ? await readAuthorRevisionAttemptKind(revisionBase.parentSubmissionId, access.user.id, submissionKey) : null;
+  const governed = priorKind === 'governed' || (priorKind === null && revisionBase ? Boolean(await readAuthorRevisionPublishedBase(revisionBase.assetId)) : false);
+  const reviewTemplate = governed ? localTemplate : await materializeTemplateForPipelineReview({
+    ownerUserId: access.user.id,
+    documentId: document.id,
+    template: localTemplate,
+  });
   const draft = await createTemplatePipelineDraft({
     template: {
       ...reviewTemplate,
