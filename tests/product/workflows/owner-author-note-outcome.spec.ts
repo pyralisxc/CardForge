@@ -7,7 +7,7 @@ const fixture = buildSync({ entryPoints: ['tests/product/fixtures/ownerRevisionR
   platform: 'browser', format: 'iife', write: false, outfile: join(tmpdir(), 'cardforge-owner-author-note-proof.js'),
   define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' } });
 
-test('changing the review outcome does not carry the previous author note and retains unsaved outcome drafts', async ({ page }) => {
+test('@golden changing the review outcome does not carry the previous author note and retains unsaved outcome drafts', async ({ page }) => {
   await page.route('**/__owner-author-note-proof', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' }));
   await page.route('**/api/pipeline/*?view=editorial', route => route.fulfill({ json: {
     submissionId: '00000000-0000-4000-8000-000000000001', authorNote: 'Please revise the title.',
