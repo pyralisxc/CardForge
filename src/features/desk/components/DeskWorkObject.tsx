@@ -81,7 +81,12 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     window.setTimeout(action, 0);
   };
 
+  const selectMenuTarget = (open: boolean) => {
+    if (open && !props.selected) props.onSelect(props.item);
+  };
+
   const renderMenuItems = (Item: typeof DropdownMenuItem, Separator: typeof DropdownMenuSeparator) => <>
+    <div className="max-w-60 whitespace-normal break-words px-2 py-1.5 text-xs font-medium text-muted-foreground" role="presentation">{props.item.name}</div>
     {props.item.references.localSetId
       ? <Item className={menuItemClassName} onSelect={selectMenuAction(openSet)}><Pencil aria-hidden="true" />Open Set</Item>
       : <Item className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'open'))}><Pencil aria-hidden="true" />Open in Studio</Item>}
@@ -95,7 +100,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     {props.item.references.localSetId ? <><Separator /><Item className={menuItemClassName} onSelect={selectMenuAction(() => props.onRemoveFromDesk(props.item))}>Remove from Desk</Item><Item className={`${menuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(() => props.onDelete(props.item))}><Trash2 aria-hidden="true" />Delete device copy</Item></> : null}
   </>;
 
-  return <ContextMenu><article
+  return <ContextMenu onOpenChange={selectMenuTarget}><article
     className={styles.workTile}
     style={positionStyle}
     data-positioned={Boolean(props.position) && !props.focused}
@@ -164,9 +169,9 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     {props.focused ? props.focusedSurface : <>
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => props.artifactIds.forEach((id) => setFace(id, face === 'front' ? 'back' : 'front'))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}
       <div className={styles.tileActions}>
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={selectMenuTarget}>
           <DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={`${styles.iconButton} ${tileActionClassName}`} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" aria-label={`Actions for ${props.item.name}`}>
             {renderMenuItems(DropdownMenuItem, DropdownMenuSeparator)}
           </DropdownMenuContent>
         </DropdownMenu>
