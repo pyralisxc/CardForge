@@ -184,13 +184,19 @@ export const projectPipelineProgramForViewer = (
   if (isOwner) return program;
   const projectedById = new Map([...program.submissions, ...program.votingQueue].map((submission) => [
     submission.id,
-    submission.contributorId === currentUserId ? submission : {
+    {
       ...submission,
-      contributorEmail: null,
-      trashActorId: null,
-      sourceUrl: null,
-      sourceStorageBucket: null,
-      sourceStoragePath: null,
+      editorialReviewNote: '',
+      editorialReviewedBy: null,
+      sourceReviewEvidenceVersion: null,
+      ownerNote: null,
+      ...(submission.contributorId === currentUserId ? {} : {
+        contributorEmail: null,
+        trashActorId: null,
+        sourceUrl: null,
+        sourceStorageBucket: null,
+        sourceStoragePath: null,
+      }),
     },
   ] as const));
   return {
