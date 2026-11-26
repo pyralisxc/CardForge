@@ -519,7 +519,8 @@ for (const width of [320, 390, 1440]) test(`@golden Desk second rail keeps contr
   if (width < 768) {
     const filters = toolbar.getByLabel('Open Desk filters', { exact: true });
     const view = toolbar.getByRole('button', { name: 'Desk view controls', exact: true });
-    const boxes = await Promise.all([filters, select, view].map(async control => {
+    const add = toolbar.getByRole('button', { name: 'Add from Library', exact: true });
+    const boxes = await Promise.all([filters, select, add, view].map(async control => {
       await expect(control).toBeInViewport({ ratio: 1 });
       return (await control.boundingBox())!;
     }));
@@ -595,7 +596,7 @@ test('@golden Desk enlarged text keeps labels and selected-work controls reachab
   await page.keyboard.press('Escape'); await expect(view).toBeFocused();
   await filters.focus(); await page.keyboard.press('Enter');
   await expect(panel).toBeInViewport({ ratio: 1 });
-  await expect(panel.getByRole('button', { name: 'Organize 2 Sets', exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(panel.getByRole('button', { name: 'Organize 2 published resources', exact: true })).toBeInViewport({ ratio: 1 });
   await page.keyboard.press('Escape');
   await toolbar.getByRole('button', { name: 'Done selecting', exact: true }).click();
   await expect(toolbar.getByRole('button', { name: 'Select multiple', exact: true })).toHaveAttribute('aria-pressed', 'false');
