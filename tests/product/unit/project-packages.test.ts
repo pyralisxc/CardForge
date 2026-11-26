@@ -20,6 +20,7 @@ import {
 import type { CardForgeProjectManifestV4, CardForgeProjectPackageSnapshot } from '@/features/project/model/projectPackage';
 import { materializeProjectTemplateOwnership, type ProjectDocumentV1 } from '@/features/project/model/projectDocument';
 import { saveCardForgeProjectPackageToDevice } from '@/features/project/client/projectPackageDeviceSave';
+import { verifyProjectPackageSnapshot } from '@/features/project/lib/projectPackageWriter';
 
 const onePixelPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZxQAAAAASUVORK5CYII=';
 const tinyFontData = 'data:font/woff2;base64,AAECAwQ=';
@@ -236,6 +237,7 @@ describe('portable CardForge project packages', () => {
 
   it('rechecks a lazy asset hash while writing instead of trusting its prepared manifest', async () => {
     const snapshot = await buildCardForgeProjectSnapshot({ document: createProject(), name: 'Lazy Integrity' });
+    await expect(verifyProjectPackageSnapshot(snapshot)).resolves.toBeUndefined();
     const descriptor = snapshot.manifest.assets[0]!;
     const assets = new Map(snapshot.assets);
     assets.set(descriptor.id, {
@@ -243,6 +245,8 @@ describe('portable CardForge project packages', () => {
       size: descriptor.size,
       load: async () => new Uint8Array(descriptor.size).fill(7),
     });
+
+    await expect(verifyProjectPackageSnapshot({ ...snapshot, assets })).rejects.toThrow(/integrity/u);
 
     await expect(writeCardForgeProjectPackage(
       { ...snapshot, assets },
