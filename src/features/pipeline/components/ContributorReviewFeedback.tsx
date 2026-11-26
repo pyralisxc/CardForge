@@ -30,6 +30,7 @@ export function ContributorReviewFeedback({ submissionId }: { submissionId: stri
       : !feedback ? <p role="status">Loading this revision’s feedback…</p>
         : <><p>Review: {feedback.reviewStatus === 'revise' ? 'Needs revision' : feedback.reviewStatus}</p>
           <p>{feedback.authorNote ?? 'No note to the author has been recorded for this revision.'}</p>
-          {feedback.reviewStatus === 'revise' ? <p>Use the note to continue from your saved work.</p> : null}</>}
+          {feedback.reviewStatus === 'revise' ? <p>Use the note to continue from your saved work.</p> : null}
+          {feedback.reviewStatus === 'approved' ? <p>Editorial approval is recorded. Check this revision’s Pipeline status to see whether it has been published.</p> : null}</>}
   </section>;
 }
