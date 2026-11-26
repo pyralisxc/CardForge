@@ -7,6 +7,7 @@ const mock = vi.hoisted(() => ({
   beforeWrite: undefined as ((key: string) => Promise<void>) | undefined,
   onWrite: undefined as (() => void) | undefined,
   failWriteKey: null as string | null,
+  failRemoveKey: null as string | null,
   values: new Map<string, unknown>(),
   localSets: [] as { id: string }[],
   read: vi.fn(),
@@ -25,7 +26,7 @@ vi.mock('@/features/project/persistence/structuredBrowserStorage', () => ({
     mock.values.set(key, value);
     mock.onWrite?.();
   },
-  removeStructuredBrowserValue: async (key: string) => { mock.values.delete(key); },
+  removeStructuredBrowserValue: async (key: string) => { if (key === mock.failRemoveKey) throw new Error('Browser storage rejected removal'); mock.values.delete(key); },
 }));
 vi.mock('@/features/project/persistence/projectPersistenceScope', () => ({ getScopedProjectStorageNamespace: () => mock.namespace, getProjectPersistenceScope: () => mock.namespace }));
 vi.mock('@/features/project/client/projectWorkspaceDocument', () => ({
@@ -78,6 +79,7 @@ beforeEach(() => {
   mock.onWrite = undefined;
   mock.beforeWrite = undefined;
   mock.failWriteKey = null;
+  mock.failRemoveKey = null;
   mock.localSets = [];
   mock.read.mockImplementation(async (key: string) => mock.values.get(key) ?? null);
   mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64) });
@@ -1030,6 +1032,28 @@ it.each(['same Set', 'another Set'] as const)('keeps the new %s binding when del
   expect(mock.apply).not.toHaveBeenCalled();
 });
 
+
+it('reports a confirmed disconnect separately when browser attachment cleanup fails', async () => {
+  mock.localSets = [{ id: 'set-c' }];
+  mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
+  mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
+  mock.failRemoveKey = 'test:google-drive-project-binding';
+  const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+  vi.stubGlobal('fetch', fetch);
+  await expect(disconnectGoogleDriveStorage()).resolves.toEqual({ attachmentCleanup: 'incomplete' });
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(mock.values.get('test:google-drive-project-binding')).toEqual({ workId: 'set-c' });
+  expect(mock.values.get('test:google-drive-work-binding:set-c')).toEqual(driveBinding);
+});
+
+it('still rejects a provider disconnect failure before attempting browser cleanup', async () => {
+  mock.localSets = [{ id: 'set-c' }];
+  mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
+  mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('unavailable', { status: 503 })));
+  await expect(disconnectGoogleDriveStorage()).rejects.toThrow();
+  expect(mock.values.get('test:google-drive-project-binding')).toEqual({ workId: 'set-c' });
+});
 
 it.each(['same Set', 'another Set'] as const)('keeps a new %s attachment when an earlier provider disconnect completes', async (target) => {
   mock.localSets = [{ id: 'set-c' }, { id: 'set-other' }];
