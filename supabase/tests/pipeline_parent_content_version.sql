@@ -30,7 +30,7 @@ begin
   original_hash := pins->>'parentContentVersion';
   -- Reproduce the historical row shape before the two October25 additive columns.
   -- The remaining exclusion list is the unchanged October17 canonical contract.
-  select md5(((to_jsonb(s)-array['owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256','revision_recovery_version','revision_trash_actor_id','revision_trash_actor_role','revision_publication_retained','revision_trash_previous_status','revision_vote_trash_fingerprint'])-array[
+  select md5(((to_jsonb(s)-array['owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256','revision_recovery_version','revision_trash_actor_id','revision_trash_actor_role','revision_publication_retained','revision_trash_previous_status','revision_vote_trash_fingerprint','author_review_note'])-array[
     'updated_at','positive_votes','negative_votes','quality_score','status','contributor_lifecycle_state',
     'automated_status','owner_status_override','calculated_access_tier','automated_access_tier','owner_access_tier_override',
     'tier_decision_reason','owner_note','decision_reason','editorial_review_status','editorial_review_note',
@@ -38,6 +38,10 @@ begin
     'trash_reason','retention_hold','purge_claimed_at','template_review_context','source_review_evidence'])::text), s.description
     into historical_hash, original_description from public.cardforge_contributor_asset_submissions s where id=parent_id;
   if original_hash is distinct from historical_hash then raise exception 'historical_hash_not_preserved'; end if;
+  update public.cardforge_contributor_asset_submissions set author_review_note='Fixture author feedback' where id=parent_id;
+  if public.cardforge_media_parent_content_version(parent_id) is distinct from original_hash
+    then raise exception 'author_feedback_changed_content_version'; end if;
+  update public.cardforge_contributor_asset_submissions set author_review_note='' where id=parent_id;
   candidate_id := public.cardforge_create_template_review_revision(asset,pins,
     jsonb_build_object('id',asset,'name','Isolated pending correction'),actor,
     'review-' || replace(gen_random_uuid()::text,'-',''),repeat('a',64));

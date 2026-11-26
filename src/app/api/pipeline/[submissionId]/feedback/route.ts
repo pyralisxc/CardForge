@@ -10,7 +10,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sub
   } catch (error) {
     const status = error instanceof PipelineStoreError ? error.status : 503;
     return createApiErrorResponse(status, status === 401 ? 'sign_in_required' : status === 403 ? 'contributor_access_required'
-      : status === 404 ? 'pipeline_revision_not_found' : 'pipeline_unavailable',
+      : status >= 500 ? 'pipeline_unavailable' : 'pipeline_request_invalid',
     error instanceof PipelineStoreError ? error.message : 'Exact review feedback is unavailable.');
   }
 }
