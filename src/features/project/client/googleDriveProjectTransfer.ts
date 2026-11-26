@@ -957,7 +957,7 @@ export const deleteGoogleDriveProjectCopy = async ({
   await deleteGoogleDriveProjectRevision({ fileId, providerRevision, projectRevision, accountId, fallback: 'Unable to remove the Google Drive copy.' });
 };
 
-export const disconnectGoogleDriveStorage = async (): Promise<void> => {
+export const disconnectGoogleDriveStorage = async (): Promise<{ attachmentCleanup: 'complete' | 'incomplete' }> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const attached = await getGoogleDriveProjectBinding();
   assertBindingScope(namespace);
@@ -965,14 +965,20 @@ export const disconnectGoogleDriveStorage = async (): Promise<void> => {
     fetch('/api/project-sources/google-drive', { method: 'DELETE' })
   ));
   if (!response.ok) throw await readApiError(response, 'Unable to disconnect Google Drive.');
-  assertBindingScope(namespace);
-  if (!attached) return;
-  await serializeGoogleDriveWorkCommitment(namespace, attached.workId ?? 'workspace', async () => {
-    if (attached.workId) {
-      const current = await getGoogleDriveWorkBinding(attached.workId, namespace);
-      assertBindingScope(namespace);
-      if (!isSameGoogleDriveTarget(current, attached)) return;
-    }
-    await removeDriveAttachment(namespace, value => attachmentMatches(value, attached));
-  });
+  try {
+    assertBindingScope(namespace);
+    if (attached) await serializeGoogleDriveWorkCommitment(namespace, attached.workId ?? 'workspace', async () => {
+      if (attached.workId) {
+        const current = await getGoogleDriveWorkBinding(attached.workId, namespace);
+        assertBindingScope(namespace);
+        if (!isSameGoogleDriveTarget(current, attached)) return;
+      }
+      await removeDriveAttachment(namespace, value => attachmentMatches(value, attached));
+    });
+    return { attachmentCleanup: 'complete' };
+  } catch {
+    // The server has already confirmed disconnect. Never report that as a
+    // provider failure merely because the browser attachment could not clear.
+    return { attachmentCleanup: 'incomplete' };
+  }
 };
