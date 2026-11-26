@@ -413,14 +413,19 @@ test('@golden Desk uncertain revision survives Back and recovers its exact attem
 });
 
 
-test('@golden Desk remote ellipsis exposes exact location actions without deleting a copy',async({page})=>{
- const evidence=await mount(page,'?deskActual=1&deskMenu=1&deskDrive=1');
+test('@golden Library Drive-only Trash identifies the file and can be canceled',async({page})=>{
+ const evidence=await mount(page,'?queueActual=1&deskDrive=1');
  const menu=page.getByRole('button',{name:'Actions for Synthetic Drive Set.cardforge',exact:true});
  await menu.click();
  await expect(page.getByRole('menuitem',{name:'View source',exact:true})).toBeVisible();
- await expect(page.getByRole('menuitem',{name:'Trash',exact:true})).toBeVisible();
+ await page.getByRole('menuitem',{name:'Trash',exact:true}).click();
+ const confirmation=page.getByRole('alertdialog');
+ await expect(confirmation).toContainText('Synthetic Drive Set.cardforge');
+ await expect(confirmation).toContainText('Google Drive file');
+ await confirmation.getByRole('button',{name:'Cancel',exact:true}).click();
+ await menu.click();
  await page.getByRole('menuitem',{name:'Manage locations',exact:true}).click();
- await expect(page.getByRole('dialog')).toContainText('Synthetic Drive Set');
+ await expect(page.getByRole('region',{name:'Locations & connections'})).toBeVisible();
  await expect(page.getByText('Action could not be completed',{exact:true})).toHaveCount(0);
  expect(evidence.mutations).toEqual([]);expect(evidence.errors).toEqual([]);
 });
