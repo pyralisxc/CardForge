@@ -49,7 +49,7 @@ If question 2 has no concrete answer, do not add a wrapper, cache, reconciliatio
 
 - **Git:** default to orientation, pre-commit, and pre-PR. Repeat only after state changed or to diagnose a specific failure.
 - **Remote Git writes:** one branch update per coherent milestone. Batch multi-file changes into one tree/commit whenever the available GitHub tooling supports it.
-- **Focused verification:** one intentional RED and one GREEN run per behavior. Rerun only after relevant code changes or a failure that needs diagnosis.
+- **Focused verification:** follow the verification and regression-test lifecycle in `docs/testing.md`.
 - **Full verification:** the required GitHub `verify` job runs `npm run verify:full` once on the coherent candidate and is authoritative. Run the full gate locally only for high-risk work, a local/CI discrepancy, or diagnosis that cannot be isolated; otherwise keep local verification focused.
 - **Review:** self-review every PR diff. Add one independent review only for high-risk changes or material cross-owner changes; re-review only blocking fixes.
 - **CI:** inspect the final run summary once. Open full logs only to diagnose a failure, and reinspect only after a new push or changed check state.

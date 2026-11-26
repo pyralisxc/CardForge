@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { expect, it, vi } from 'vitest';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
@@ -34,7 +34,7 @@ it.each(['image/png', 'image/gif', 'image/svg+xml'])('stores original %s bytes a
   expect(await getStudioDocumentAssetDownloads({ ownerUserId: 'owner', documentId: 'doc', value: result.document, requireVerifiedSize: true })).toMatchObject([{ id: digest, size: bytes.length, mimeType }]);
 });
 it('keeps an original PNG larger than the former Studio attachment limit', async () => {
-  const bytes = await sharp(randomBytes(1024 * 1024 * 3), { raw: { width: 1024, height: 1024, channels: 3 } }).png().toBuffer();
+  const bytes = await sharp({ create: { width: 1024, height: 1024, channels: 3, background: '#8c5b2d' } }).png({ compressionLevel: 0 }).toBuffer();
   expect(bytes.length).toBeGreaterThan(2_400_000);
   const document = createProjectScaleFixture(100);
   document.customAssets['cardforge-maker-custom-images'].push({ id: 'large-fixture', name: 'fixture', kind: 'image', url: `data:image/png;base64,${bytes.toString('base64')}`, tileMode: 'contain', seamless: false, allowedTargets: ['image'] });
@@ -43,7 +43,11 @@ it('keeps an original PNG larger than the former Studio attachment limit', async
   mocks.upload.mockResolvedValue({ error: null });
   const result = await externalizeStudioDocumentAssets({ ownerUserId: 'owner', documentId: 'doc', document });
   expect(result.uploadedAssetIds).toContain(createHash('sha256').update(bytes).digest('hex'));
-  expect(mocks.upload).toHaveBeenCalledWith(expect.any(String), bytes, expect.objectContaining({ contentType: 'image/png' }));
+  expect(mocks.upload).toHaveBeenCalledOnce();
+  const [path, uploadedBytes, options] = mocks.upload.mock.calls[0];
+  expect(path).toEqual(expect.any(String));
+  expect(Buffer.isBuffer(uploadedBytes) && uploadedBytes.equals(bytes)).toBe(true);
+  expect(options).toEqual(expect.objectContaining({ contentType: 'image/png' }));
 });
 it('does not save a reference that only the browser can resolve', async () => {
   const document = createProjectScaleFixture(100);
