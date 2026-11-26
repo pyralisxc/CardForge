@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { beginProjectCardEdit, saveProjectCardEdit } from '@/features/project/client/cardEditSession';
+import { beginProjectCardEdit, removeProjectCard, saveProjectCardEdit } from '@/features/project/client/cardEditSession';
 import { setProjectPersistenceScope } from '@/features/project/persistence/projectPersistenceScope';
 import { useProjectStore } from '@/features/project/store/workspaceStore';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
@@ -54,9 +54,52 @@ describe('Project card edit session', () => {
       if (change === 'scope') setProjectPersistenceScope('account:another');
       const before = structuredClone(useProjectStore.getState().storedCards);
       expect(saveProjectCardEdit(session, { ...session.card, data: { cardName: 'Draft' } })).toBe(false);
+      expect(removeProjectCard(session)).toBe(false);
       expect(useProjectStore.getState().storedCards).toEqual(before);
       expect(session.card.data).toEqual(session.original.data);
       expect(set.id).toBe(session.setId);
     },
   );
+
+  it('removes only the confirmed owned card and restores its front and back through Project recovery', () => {
+    const { session, card, set } = setup();
+    const sibling = { ...card, uniqueId: 'sibling', data: { cardName: 'Sibling' } };
+    useProjectStore.setState((state) => ({ storedCards: [...state.storedCards, sibling], cardRemovalRecoveries: [] }));
+    const templates = structuredClone(useProjectStore.getState().userTemplates);
+    expect(removeProjectCard(session)).toBe(true);
+    const state = useProjectStore.getState();
+    expect(state.storedCards).toEqual([sibling]);
+    expect(state.userTemplates).toEqual(templates);
+    const recovery = state.cardRemovalRecoveries.findLast((entry) => entry.setId === set.id)!;
+    expect(state.undoCardRemoval(recovery.id)).toEqual({ ok: true, count: 1 });
+    expect(useProjectStore.getState().storedCards).toEqual([card, sibling]);
+  });
+
+  it('does not remove a card moved to another Set after confirmation opened', () => {
+    const { session, card } = setup();
+    const moved = { ...card, setId: 'different-set' };
+    useProjectStore.setState((state) => ({
+      storedCards: [moved],
+      cardSets: [...state.cardSets, { id: 'different-set', name: 'Different Set' }],
+      cardRemovalRecoveries: [],
+    }));
+    expect(removeProjectCard(session)).toBe(false);
+    expect(useProjectStore.getState().storedCards).toEqual([moved]);
+    expect(useProjectStore.getState().cardRemovalRecoveries).toEqual([]);
+  });
+
+  it.each(['same', 'different'] as const)('refuses duplicate card IDs in the %s Set before saving or removing', (location) => {
+    const { session, card } = setup();
+    const duplicate = { ...card, setId: location === 'same' ? session.setId : 'different-set', data: { cardName: 'Other work' } };
+    useProjectStore.setState((state) => ({
+      storedCards: [card, duplicate],
+      cardSets: [...state.cardSets, { id: 'different-set', name: 'Different Set' }],
+      cardRemovalRecoveries: [],
+    }));
+    expect(saveProjectCardEdit(session, { ...session.card, data: { cardName: 'Edited' } })).toBe(false);
+    expect(useProjectStore.getState().storedCards).toEqual([card, duplicate]);
+    expect(removeProjectCard(session)).toBe(false);
+    expect(useProjectStore.getState().storedCards).toEqual([card, duplicate]);
+    expect(useProjectStore.getState().cardRemovalRecoveries).toEqual([]);
+  });
 });

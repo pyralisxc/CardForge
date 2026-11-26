@@ -7,6 +7,7 @@ export { WorkspaceUpdatesProvider } from '../components/WorkspaceUpdatesProvider
 export { WorkspaceUpdateNotices } from '../components/WorkspaceUpdateNotices';
 export { useWorkspaceUpdates } from '../hooks/useWorkspaceUpdates';
 export { SetDirection } from '../components/SetDirection';
+export { CardRemovalUndo } from '../components/CardRemovalUndo';
 export { SetTemplates, SetTemplateObject, getSetTemplateEntries, type SetTemplateEntry } from '../components/SetTemplates';
 export { useBrowserWorkspaceSaveStatus } from '../hooks/useBrowserWorkspaceSaveStatus';
 export { useBrowserStoragePersistence } from '../hooks/useBrowserStoragePersistence';

@@ -35,7 +35,7 @@ import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { NewSetDialog, usePublishedSetStarters } from '@/features/project/client/new-set';
 import { useProjectLibraryWorkspace, type LibraryCardEditSession } from '@/features/project/client/libraryWorkspace';
 import { FocusedArtifactWorkspace } from '@/features/artifact-edit/client';
-import { SetDirection, SetTemplates, SetUpdates, WorkspaceUpdateNotices, useWorkspaceUpdates, useProjectDownload } from '@/features/project/client/ui';
+import { CardRemovalUndo, SetDirection, SetTemplates, SetUpdates, WorkspaceUpdateNotices, useWorkspaceUpdates, useProjectDownload } from '@/features/project/client/ui';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import { CardPreview, getTemplateAccent } from '@/features/card-rendering/client';
 
@@ -161,6 +161,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const sharedTrashSessionKey = JSON.stringify([activeScope, isSignedIn, experience.owner, persistenceScope, sharedTrashMode, activeTool]);
   const toolDirty = activeToolSession?.dirty ?? false;
   const [cardEditSession, setCardEditSession] = useState<LibraryCardEditSession | null>(null);
+  const [pendingCardRemoval, setPendingCardRemoval] = useState<{ session: LibraryCardEditSession; itemId: string; name: string } | null>(null);
+  const cardsSectionRef = useRef<HTMLElement | null>(null);
+  const removedCardFocusRef = useRef(false);
   const [cardQuery, setCardQuery] = useState('');
   const cardEditContext = useRef({ scope: persistenceScope, itemId: '' });
   const libraryMounted = useRef(false);
@@ -345,6 +348,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   useEffect(() => { setCardQuery(''); }, [selectedLocalSet?.id]);
   useEffect(() => {
     setCardEditSession(null);
+    setPendingCardRemoval(null);
     setToolStack((current) => current.at(-1)?.toolId === 'card-edit' ? [] : current);
   }, [persistenceScope]);
   const prepareSelectedSetHere = async (item: AccountLibraryItem) => {
@@ -650,15 +654,20 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       const returnFocusId = document.activeElement instanceof HTMLElement ? document.activeElement.id : null;
       openTemplateDesign(id); setDesignReturnFocusId(returnFocusId || selection.focusReturnId || null); openTool('design', [id]);
     }} renderPreview={renderTemplatePreview} getTemplateAccent={getTemplateAccent} />
-    <section className="space-y-2 pt-4" aria-label="Cards in this Set">
+    <section ref={cardsSectionRef} tabIndex={-1} className="space-y-2 pt-4" aria-label="Cards in this Set">
       <h3 className="font-semibold">Cards · {selectedSetCards.length}</h3>
-      <p className="text-xs text-muted-foreground">Edit an existing card here. Changes update the local working copy; use Save &amp; move for another location.</p>
+      <p className="text-xs text-muted-foreground">Edit or remove a card here. Changes update the local working copy; use Save &amp; move for another location.</p>
+      <CardRemovalUndo key={selectedLocalSet.id} setId={selectedLocalSet.id} setName={selectedLocalSet.name} returnFocusRef={cardsSectionRef} />
       {selectedSetCards.length > 0 ? <>
         <label className="sr-only" htmlFor="library-card-search">Search cards in this Set</label>
         <input id="library-card-search" className="w-full rounded border bg-background px-3 py-2 text-sm" value={cardQuery} onChange={(event) => setCardQuery(event.target.value)} placeholder="Search cards" />
         <ul className="grid gap-2">{visibleSetCards.map((card) => {
           const name = cardTitle(card);
-          return <li key={card.uniqueId}><Button id={`library-edit-card-${card.uniqueId}`} type="button" variant="outline" className="w-full justify-start" onClick={() => startCardEdit(selectedLocalSet.id, card.uniqueId)}>Edit {name}</Button></li>;
+          return <li key={card.uniqueId} className="flex flex-wrap gap-2"><Button id={`library-edit-card-${card.uniqueId}`} type="button" variant="outline" className="min-w-0 flex-1 justify-start" onClick={() => startCardEdit(selectedLocalSet.id, card.uniqueId)}>Edit {name}</Button><Button type="button" variant="ghost" aria-label={`Remove ${name}`} onClick={() => {
+            const session = projectWorkspace.actions.beginCardEdit(selectedLocalSet.id, card.uniqueId);
+            if (!session || session.scope !== persistenceScope) { toast({ title: 'Card unavailable', description: 'Refresh this Set before removing a card. No work was changed.', variant: 'destructive' }); return; }
+            setPendingCardRemoval({ session, itemId: currentItem!.id, name });
+          }}>Remove</Button></li>;
         })}</ul>
         {!visibleSetCards.length ? <p className="text-sm text-muted-foreground">No matching cards.</p> : null}
       </> : <p className="text-sm text-muted-foreground">No editable cards in this Set.</p>}
@@ -959,6 +968,25 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       ) : null}
     </div>
   </EnvironmentShell>
+  <AlertDialog open={Boolean(pendingCardRemoval)} onOpenChange={(open) => { if (!open) setPendingCardRemoval(null); }}>
+    <AlertDialogContent onCloseAutoFocus={(event) => { if (removedCardFocusRef.current) { event.preventDefault(); removedCardFocusRef.current = false; cardsSectionRef.current?.focus(); } }}>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Remove {pendingCardRemoval?.name ?? 'this card'} from the Set?</AlertDialogTitle>
+        <AlertDialogDescription>The card and its data will be removed from this local Set. Reusable Templates and other cards remain available.</AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => {
+          const pending = pendingCardRemoval;
+          if (!pending || cardEditContext.current.itemId !== pending.itemId || cardEditContext.current.scope !== pending.session.scope || !projectWorkspace.actions.removeCard(pending.session)) {
+            toast({ title: 'Card was not removed', description: 'The card, Template, Set or account changed. Refresh the Set and choose the card again.', variant: 'destructive' });
+            return;
+          }
+          removedCardFocusRef.current = true;
+        }}>Remove card</AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
   <AlertDialog open={discardToolRequested} onOpenChange={setDiscardToolRequested}>
     <AlertDialogContent>
       <AlertDialogHeader>

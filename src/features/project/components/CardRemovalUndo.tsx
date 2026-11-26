@@ -1,8 +1,8 @@
 import { useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useProjectStore } from '@/features/project/client/workspace';
-import { getCardTitle } from '../model/desk';
+import { getCardTitle } from '@/domain/cards';
+import { useProjectStore } from '../store/workspaceStore';
 
 const refusalMessages = {
   'not-found': 'This recovery is no longer available in the current workspace. Current work was kept.',
