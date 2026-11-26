@@ -128,6 +128,14 @@ begin
   exception when raise_exception then if sqlerrm<>'template_author_revision_conflict' then raise; end if; end;
   if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=parent_id and s.status='submitted' and s.trashed_at is null)
     then raise exception 'author_review_history_stale_attempt_mutated_parent'; end if;
+  begin
+    update public.cardforge_pipeline_asset_lineages set revision_high_water=revision_high_water+1 where id=parent_lineage;
+    begin
+      perform public.cardforge_create_template_author_revision_draft(parent_id,reviewed,version,actor,'','Updated Template',payload,'old-parent-fixture',repeat('a',64));
+      raise exception 'author_review_history_accepted_old_highwater';
+    exception when raise_exception then if sqlerrm<>'template_author_revision_conflict' then raise; end if; end;
+    raise exception 'rollback_old_highwater_fixture';
+  exception when raise_exception then if sqlerrm<>'rollback_old_highwater_fixture' then raise; end if; end;
   next_id:=public.cardforge_create_template_author_revision_draft(parent_id,reviewed,version,actor,'','Updated Template',payload,'revision-history-fixture',repeat('a',64));
   if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=parent_id and s.lineage_id=parent_lineage
       and s.status='archived' and s.decision_reason='superseded_revision' and s.trashed_at is null and s.purge_after is null
@@ -167,6 +175,11 @@ begin
     'https://example.invalid/template-preview','Fixture rights',array['games'],array['tcg'],'template.front');
   if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=next_id and s.status='submitted')
     then raise exception 'author_review_history_draft_not_submitted'; end if;
+  delete from public.cardforge_contributor_asset_submissions s where s.id=next_id;
+  begin
+    perform public.cardforge_read_template_author_revision_attempt(parent_id,actor,'revision-history-fixture',repeat('a',64));
+    raise exception 'author_review_history_falsely_reported_absent_receipt';
+  exception when raise_exception then if sqlerrm<>'template_author_revision_conflict' then raise; end if; end;
   raise notice 'PASS exact author resubmission preserves History and allocates one same-lineage draft';
 end $$;
 rollback;

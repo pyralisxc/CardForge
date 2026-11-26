@@ -71,8 +71,13 @@ begin
     or parent.editorial_review_status<>'revise' or parent.editorial_reviewed_at is distinct from p_expected_reviewed_at
     or public.cardforge_media_parent_content_version(parent.id) is distinct from p_expected_parent_version
     or p_template_payload->>'id' is distinct from parent.target_registry_asset_id
+    or not exists(select 1 from public.cardforge_pipeline_asset_lineages l where l.id=parent.lineage_id
+      and l.revision_high_water=parent.revision_number)
     or exists(select 1 from public.cardforge_contributor_asset_submissions s where s.lineage_id=parent.lineage_id
       and s.revision_number>parent.revision_number)
+    or exists(select 1 from public.cardforge_contributor_asset_submissions s where s.lineage_id=parent.lineage_id
+      and s.id<>parent.id and s.published_at is null and s.trashed_at is null and s.purge_state is null
+      and s.status in ('draft','submitted','voting','publish_candidate'))
   then raise exception 'template_author_revision_conflict'; end if;
   if parent.template_review_context is not null
     or exists(select 1 from public.cardforge_asset_registry r where r.asset_id=parent.target_registry_asset_id)
