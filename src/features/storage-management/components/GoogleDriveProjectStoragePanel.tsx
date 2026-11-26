@@ -317,8 +317,10 @@ export function GoogleDriveProjectStoragePanel({
                   onClick={() => {
                     if (!window.confirm('Disconnect Google Drive from CardForge? Your files will remain in Google Drive.')) return;
                     void run('disconnect', async () => {
-                      await disconnectGoogleDriveStorage();
-                      toast({ title: 'Google Drive disconnected', description: 'Your Google Drive project files were left untouched.' });
+                      const result = await disconnectGoogleDriveStorage();
+                      toast({ title: 'Google Drive disconnected', description: result.attachmentCleanup === 'complete'
+                        ? 'Your Google Drive project files were left untouched.'
+                        : 'Your Drive files are untouched, but this browser could not clear its saved attachment. Reload before reconnecting or saving.' });
                     });
                   }}
                 >
