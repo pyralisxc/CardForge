@@ -10,7 +10,7 @@ const READY_TIMEOUT = 120_000;
 test.describe('Desk desktop spatial interaction', () => {
   test.describe.configure({ timeout: READY_TIMEOUT });
 
-  test('a tile Details action keeps the invoking Set when another Set is selected', async ({ page }) => {
+  test('overlapping tile actions keep the invoking Set for Details and Trash', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100, { additionalSets: 2, cardLimit: 0 });
     await page.evaluate(async () => {
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -33,14 +33,42 @@ test.describe('Desk desktop spatial interaction', () => {
     });
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
     await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+    const secondActions = page.getByRole('button', { name: 'Actions for Touch Companion Set 2' });
+    const firstTile = page.locator('[data-desk-set-object-id="set:touch-companion-1"]');
+    const secondTile = page.locator('[data-desk-set-object-id="set:touch-companion-2"]');
+    const [firstBox, secondBox] = await Promise.all([firstTile.boundingBox(), secondTile.boundingBox()]);
+    expect(firstBox!.x).toBeLessThan(secondBox!.x + secondBox!.width);
+    expect(secondBox!.x).toBeLessThan(firstBox!.x + firstBox!.width);
+    expect(firstBox!.y).toBeLessThan(secondBox!.y + secondBox!.height);
+    expect(secondBox!.y).toBeLessThan(firstBox!.y + firstBox!.height);
+    await page.mouse.move(1, 1);
+    const hiddenActionHit = await secondActions.evaluate((button) => {
+      const rect = button.getBoundingClientRect();
+      return Boolean(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('[id^="set-info-"]'));
+    });
+    expect(hiddenActionHit).toBe(false);
     const first = page.getByRole('button', { name: /^(Select|Selected) Touch Companion Set 1/ });
     await first.focus();
     await first.press('Space');
     await expect(first).toHaveAttribute('aria-pressed', 'true');
-    await page.getByRole('button', { name: 'Actions for Touch Companion Set 2' }).click();
+    await secondTile.hover();
+    await secondActions.hover();
+    const hitIsSecondAction = await secondActions.evaluate((button) => {
+      const rect = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      return hit === button || button.contains(hit);
+    });
+    expect(hitIsSecondAction).toBe(true);
+    const actionBox = await secondActions.boundingBox();
+    await page.mouse.click(actionBox!.x + actionBox!.width / 2, actionBox!.y + actionBox!.height / 2);
     await expect(page.getByRole('menu', { name: 'Actions for Touch Companion Set 2' }).getByText('Touch Companion Set 2', { exact: true })).toBeVisible();
     await expect(page.locator('[data-desk-set-object-id="set:touch-companion-1"] button[aria-pressed]')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.locator('[data-desk-set-object-id="set:touch-companion-2"] button[aria-pressed]')).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('menuitem', { name: 'Trash', exact: true }).click();
+    const trash = page.getByRole('alertdialog');
+    await expect(trash).toContainText('Trash “Touch Companion Set 2”?');
+    await trash.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await secondActions.click();
     await page.getByRole('menuitem', { name: 'Details', exact: true }).click();
     await expect(page.getByRole('complementary', { name: 'Details for Touch Companion Set 2' })).toBeVisible();
     await page.getByRole('button', { name: 'Close details for Touch Companion Set 2' }).click();
@@ -50,8 +78,9 @@ test.describe('Desk desktop spatial interaction', () => {
     const secondPressed = page.locator('[data-desk-set-object-id="set:touch-companion-2"] button[aria-pressed]');
     await expect(firstPressed).toHaveAttribute('aria-pressed', 'true');
     await expect(secondPressed).toHaveAttribute('aria-pressed', 'true');
-    const secondActions = page.getByRole('button', { name: 'Actions for Touch Companion Set 2' });
-    await secondActions.focus();
+    await secondTile.getByRole('button', { name: /^(Select|Selected) Touch Companion Set 2/ }).focus();
+    await page.keyboard.press('Tab');
+    await expect(secondActions).toBeFocused();
     await secondActions.press('Enter');
     await expect(page.getByRole('menu', { name: 'Actions for Touch Companion Set 2' })).toBeVisible();
     await expect(firstPressed).toHaveAttribute('aria-pressed', 'true');
@@ -240,6 +269,7 @@ test.describe('Desk desktop spatial interaction', () => {
     const actionsTrigger = page.getByRole('button', { name: 'Actions for 100 Card Scale Set' });
     await expect(setObject).toBeVisible();
 
+    await setObject.hover();
     await actionsTrigger.click();
     const menu = page.getByRole('menu');
     await expect(menu).toBeVisible();
@@ -265,6 +295,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.getByRole('complementary', { name: 'Details for 100 Card Scale Set' })).toBeVisible();
     await page.getByRole('button', { name: 'Close details for 100 Card Scale Set' }).click();
 
+    await setObject.hover();
     await actionsTrigger.click();
     await page.getByRole('menuitem', { name: 'Trash' }).click();
     await expect(page.getByRole('menu')).toBeHidden();
