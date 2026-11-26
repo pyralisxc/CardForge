@@ -769,6 +769,7 @@
   display: flex;
   gap: 0.15rem;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 150ms ease;
 }
 
@@ -798,6 +799,7 @@
 .workTile:hover .tileActions,
 .workTile:focus-within .tileActions {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .iconButton {
@@ -1859,6 +1861,7 @@
 
   .tileActions {
     opacity: 1;
+    pointer-events: auto;
   }
 
   .utilityStrip {
