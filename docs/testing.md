@@ -68,7 +68,9 @@ Do keep tests for:
 
 Locate the canonical parent that owns the guarantee before adding or retaining a test. Exercise that owner at the strongest stable boundary, then verify through current source or revision-bound DI evidence that callers actually delegate to it. Do not repeat the parent's tests for every caller, component, selector, or incident, and do not replace them with assertions about import paths or function spellings. Keep a separate test only for an independent product, trust, concurrency, compatibility, or data-safety guarantee.
 
-A bug reproduction is temporary by default. Promote it only when it protects a durable guarantee not already covered at the parent boundary. If a generic guard subsumes an existing regression, retire the narrower test instead of keeping both forever.
+Choose focused verification for the uncertainty and risk. An early failing check can clarify a defect or demonstrate that a surviving check catches it, but a RED then GREEN run is not required for every behavior and does not by itself justify keeping a new test. Run the relevant entry point after changes; rerun when the code or evidence changes, or to diagnose a failure.
+
+A bug reproduction is temporary by default. Promote it only when it protects a distinct durable guarantee not already covered at the shared parent boundary. If a generic guard subsumes an existing regression, retire the narrower test instead of keeping both forever. Synthetic browser or mocked provider checks do not replace real browser and provider acceptance where those boundaries matter.
 
 A PR-specific development probe is temporary by default. Before merge, either:
 
