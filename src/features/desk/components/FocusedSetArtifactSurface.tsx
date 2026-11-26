@@ -56,7 +56,7 @@ interface FocusedSetArtifactSurfaceProps {
   editingArtifactId: string | null;
   onCancelArtifactEdit: () => void;
   onArtifactEditDirtyChange: (dirty: boolean) => void;
-  onSaveArtifact: (card: DisplayCard) => void;
+  onSaveArtifact: (card: DisplayCard) => boolean;
   onDesignArtifact: (card: DisplayCard, face: CardFace) => void;
   onMoveArtifacts: (positions: Record<string, ArtifactPosition>) => void;
   onMoveTemplates: (positions: Record<string, ArtifactPosition>) => void;

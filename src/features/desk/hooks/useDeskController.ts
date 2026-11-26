@@ -64,6 +64,7 @@ const driveWorkingNeedsAttention = (phase: GoogleDriveWorkingSessionPhase) => (
 );
 
 interface DeskControllerOptions {
+  protectedEditWorkId?: string | null;
   defaultAutosaveDelaySeconds?: StudioAutosaveDelaySeconds;
   transitionToDesk?: (commit: () => void) => void;
   persistenceScope: ProjectPersistenceScope;
@@ -77,6 +78,7 @@ interface DeskControllerOptions {
 }
 
 export function useDeskController({
+  protectedEditWorkId,
   defaultAutosaveDelaySeconds = DEFAULT_EXPERIENCE_SETTINGS.studioAutosaveDelaySeconds,
   transitionToDesk,
   persistenceScope,
@@ -362,7 +364,7 @@ export function useDeskController({
   const {
     addGeneratedCards, closeEditDialog, commitTemplateChange, createCardSet, deleteCardSet, duplicateCardSet, removeGeneratedCards, renameCardSet, reviseGeneratedCards,
     setActiveCardSetId, setCardPositions, setCardsTag, setGeneratorSelectedBackingTemplateId,
-    setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, undoLastBulkRevision, unreferenceTemplateFromCardSet, updateGeneratedCard,
+    setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, undoLastBulkRevision, unreferenceTemplateFromCardSet,
     updateCardSetMetadata,
   } = projectActions;
   const {
@@ -436,9 +438,9 @@ export function useDeskController({
     });
   }, [requestDeskReturn, toast]);
   useEffect(() => {
-    if (!navigationReady || !returnContextResolved || !missingFocus) return;
+    if (!navigationReady || !returnContextResolved || !missingFocus || (protectedEditWorkId && focusedWorkId === protectedEditWorkId)) return;
     recoverMissingWork(missingFocus);
-  }, [missingFocus, navigationReady, recoverMissingWork, returnContextResolved]);
+  }, [focusedWorkId, missingFocus, navigationReady, protectedEditWorkId, recoverMissingWork, returnContextResolved]);
 
   const openContextTool = useCallback((setId: string, tool: Parameters<typeof navigateToTool>[1], context?: { designTemplateId?: string; generationCard?: DisplayCard }) => {
     const setCards = storedCards.filter((card) => card.setId === setId || (!card.setId && cardSets[0]?.id === setId));
@@ -1057,7 +1059,6 @@ export function useDeskController({
     tagDraft,
     tagFilter,
     templates,
-    updateGeneratedCard,
     updateSelectedWorkOrganization,
     viewGeneratedCards,
     viewer,

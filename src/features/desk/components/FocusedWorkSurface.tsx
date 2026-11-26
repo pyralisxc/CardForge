@@ -74,9 +74,10 @@ export interface FocusedWorkSurfaceProps {
   onMoveSelected: () => void;
   onEditSelected: (artifactId?: string) => void;
   editingArtifactId: string | null;
+  editingCard: DisplayCard | null;
   onCancelArtifactEdit: () => void;
   onArtifactEditDirtyChange: (dirty: boolean) => void;
-  onSaveArtifact: (card: DisplayCard) => void;
+  onSaveArtifact: (card: DisplayCard) => boolean;
   onDesignArtifact: (card: DisplayCard, face: CardFace) => void;
   onDuplicateSelected: () => void;
   onReviseSelected: () => void;
@@ -93,6 +94,27 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
   const currentSet = props.currentSet;
   const templates = props.templates;
   const templateEntries = useMemo(() => currentSet ? getSetTemplateEntries(currentSet, props.focusedCards, templates) : [], [currentSet, props.focusedCards, templates]);
+  // Keep the captured card mounted while editing, even if the current card or
+  // its Template disappears. Project will reject the stale commit; the draft
+  // stays available to copy or cancel instead of being silently discarded.
+  const sceneCards = useMemo(() => {
+    const draft = props.editingCard;
+    if (!draft) return props.focusedCards;
+    return props.focusedCards.some((card) => card.uniqueId === draft.uniqueId)
+      ? props.focusedCards.map((card) => card.uniqueId === draft.uniqueId ? draft : card)
+      : [...props.focusedCards, draft];
+  }, [props.editingCard, props.focusedCards]);
+  const sceneGroups = useMemo(() => {
+    const draft = props.editingCard;
+    if (!draft) return props.groups;
+    let found = false;
+    const groups = props.groups.map(([label, cards]): [string, DisplayCard[]] => [label, cards.map((card) => {
+      if (card.uniqueId !== draft.uniqueId) return card;
+      found = true;
+      return draft;
+    })]);
+    return found ? groups : [...groups, ['Editing', [draft]] as [string, DisplayCard[]]];
+  }, [props.editingCard, props.groups]);
   const artifactFocused = Boolean(props.session.focusPath.artifactId);
   const groupFields = props.availableFields.filter((field) => field.groupable && !field.semanticGrouping);
   const sortFields = props.availableFields.filter((field) => field.sortable);
@@ -159,11 +181,11 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
           {props.latestGeneratedIds.length ? <div className={styles.resultFilter} role="status"><Sparkles size={15} aria-hidden="true" /><span>Showing {props.visibleCards.length} newly generated card{props.visibleCards.length === 1 ? '' : 's'}</span><Button type="button" size="sm" variant="ghost" onClick={props.onClearGenerated}>Clear all</Button></div> : null}
         </> : null}
         {!props.sortedCards.length && templateEntries.length > 0 ? <div className={styles.resultFilter} role="status"><span>{props.focusedCards.length ? 'No cards match this view. Your Templates remain available.' : 'Your designs are ready for the first card.'}</span>{!props.focusedCards.length ? <Button type="button" size="sm" variant="outline" onClick={props.onOpenGenerate}>Generate cards</Button> : null}</div> : null}
-        {props.sortedCards.length || templateEntries.length ? <FocusedSetArtifactSurface
+        {props.sortedCards.length || templateEntries.length || props.editingCard ? <FocusedSetArtifactSurface
           canExportClean={props.canExportClean} canUseProjectFiles={props.canUseProjectFiles}
-          setId={props.localSetId} setName={props.item.name} allCards={props.focusedCards}
+          setId={props.localSetId} setName={props.item.name} allCards={sceneCards}
           templateEntries={templateEntries} onDesignTemplate={props.onDesignTemplate}
-          groups={props.groups} organization={props.organization} session={props.session} setSession={props.setSession}
+          groups={sceneGroups} organization={props.organization} session={props.session} setSession={props.setSession}
           snapToGrid={props.snapToGrid} touchMultiSelect={props.touchMultiSelect} showGrid={props.showGrid}
           stageRef={props.stageRef} onFocusArtifact={props.onFocusArtifact} onReturnToSet={props.onReturnToSet}
           onEditArtifact={props.onEditSelected} editingArtifactId={props.editingArtifactId}

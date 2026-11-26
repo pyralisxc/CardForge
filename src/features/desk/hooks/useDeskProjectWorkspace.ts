@@ -50,7 +50,6 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const reorderGeneratedCard = useProjectStore((state) => state.reorderGeneratedCard);
   const addGeneratedCards = useProjectStore((state) => state.addGeneratedCards);
   const removeGeneratedCards = useProjectStore((state) => state.removeGeneratedCards);
-  const updateGeneratedCard = useProjectStore((state) => state.updateGeneratedCard);
   const reviseGeneratedCards = useProjectStore((state) => state.reviseGeneratedCards);
   const undoLastBulkRevision = useProjectStore((state) => state.undoLastBulkRevision);
   const generatorSelectedTemplateId = useProjectStore((state) => state.generatorSelectedTemplateId);
@@ -162,7 +161,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
       addCardSetTag, addGeneratedCards, closeEditDialog, commitTemplateChange, createCardSet, deleteCardSet, duplicateCardSet, moveGeneratedCardsToSet,
       removeGeneratedCards, renameCardSet, reorderGeneratedCard, reviseGeneratedCards, setActiveCardSetId, setCardPositions,
       setCardsTag, setGeneratorSelectedBackingTemplateId, setGeneratorSelectedTemplateId,
-      setTemplateEditorSelectedTemplateId, undoLastBulkRevision, unreferenceTemplateFromCardSet, updateGeneratedCard, updateCardSetMetadata, updateCardSetOrganization,
+      setTemplateEditorSelectedTemplateId, undoLastBulkRevision, unreferenceTemplateFromCardSet, updateCardSetMetadata, updateCardSetOrganization,
     },
     state: {
       activeCardSet, activeCardSetId, allArtifactsSelected: focusedCards.length > 0 && focusedCards.every((card) => options.selectedCardIds.includes(card.uniqueId)),
