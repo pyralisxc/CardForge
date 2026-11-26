@@ -12,6 +12,8 @@ import { buildCardForgeProjectSnapshot } from '@/features/project/lib/projectPac
 import { CUSTOM_IMAGE_ASSETS_STORAGE_KEY } from '@/features/project/model/projectDocument';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
 import { removeDeviceWorkAfterVerifiedCopy } from '@/features/project/client/workLocationTransfer';
+import { executeSetTrash } from '@/features/storage-management/lib/setTrashLifecycle';
+import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
 
 let counter = 0;
 let scope: `account:${string}`;
@@ -645,6 +647,24 @@ describe('atomic project apply', () => {
     await removeDeviceWorkAfterVerifiedCopy({ setId, expectedState, scope });
     expect(useProjectStore.getState().cardSets.some((set) => set.id === setId)).toBe(false);
     expect(await raw.getItem('__recovery__:workspace')).toBe(source);
+  });
+
+  it('retains the device Set when committing Trash fails', async () => {
+    await applyProjectDocumentToWorkspace(fixture(), 'replace');
+    await persistProjectWorkspaceNow();
+    const beforeState = useProjectStore.getState();
+    const setId = beforeState.cardSets[0]!.id;
+    const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
+    const beforeBytes = await raw.getItem('workspace');
+    const put = IDBObjectStore.prototype.put;
+    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
+      if (key === `project-workspace:${scope}:workspace`) throw new DOMException('Disk full', 'QuotaExceededError');
+      return put.call(this, value, key);
+    });
+    const item = { references: { localSetId: setId } } as AccountLibraryItem;
+    await expect(executeSetTrash({ item, target: 'device', canUseDrive: false, scope })).resolves.toEqual({ kind: 'needs-attention', message: 'Disk full' });
+    expect(useProjectStore.getState()).toBe(beforeState);
+    expect(await raw.getItem('workspace')).toBe(beforeBytes);
   });
 });
 

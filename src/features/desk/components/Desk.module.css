@@ -307,6 +307,10 @@
   display: none;
 }
 
+.deskAddFromLibrary > svg {
+  display: none;
+}
+
 .deskRestrictionLabel {
   max-width: 12rem;
   overflow: hidden;
@@ -1772,7 +1776,7 @@
     left: 0.5rem;
     display: flex;
     width: auto;
-    max-height: min(60dvh, 30rem);
+    max-height: min(45dvh, 24rem);
     min-width: 0;
     flex-wrap: wrap;
     gap: 0.3rem;
@@ -2014,7 +2018,21 @@
   .mobileDeskFilterSummary {
     display: none;
   }
+}
 
+@media (max-width: 340px) {
+  .deskAddFromLibrary {
+    min-width: 2.75rem;
+    justify-content: center;
+  }
+
+  .deskAddFromLibrary > svg {
+    display: block;
+  }
+
+  .deskAddFromLibrary > span {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

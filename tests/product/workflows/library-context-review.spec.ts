@@ -413,14 +413,19 @@ test('@golden Desk uncertain revision survives Back and recovers its exact attem
 });
 
 
-test('@golden Desk remote ellipsis exposes exact location actions without deleting a copy',async({page})=>{
- const evidence=await mount(page,'?deskActual=1&deskMenu=1&deskDrive=1');
+test('@golden Library Drive-only Trash identifies the file and can be canceled',async({page})=>{
+ const evidence=await mount(page,'?queueActual=1&deskDrive=1');
  const menu=page.getByRole('button',{name:'Actions for Synthetic Drive Set.cardforge',exact:true});
  await menu.click();
  await expect(page.getByRole('menuitem',{name:'View source',exact:true})).toBeVisible();
- await expect(page.getByRole('menuitem',{name:'Move Drive copy to Trash',exact:true})).toBeVisible();
+ await page.getByRole('menuitem',{name:'Trash',exact:true}).click();
+ const confirmation=page.getByRole('alertdialog');
+ await expect(confirmation).toContainText('Synthetic Drive Set.cardforge');
+ await expect(confirmation).toContainText('Google Drive file');
+ await confirmation.getByRole('button',{name:'Cancel',exact:true}).click();
+ await menu.click();
  await page.getByRole('menuitem',{name:'Manage locations',exact:true}).click();
- await expect(page.getByRole('dialog')).toContainText('Synthetic Drive Set');
+ await expect(page.getByRole('region',{name:'Locations & connections'})).toBeVisible();
  await expect(page.getByText('Action could not be completed',{exact:true})).toHaveCount(0);
  expect(evidence.mutations).toEqual([]);expect(evidence.errors).toEqual([]);
 });
@@ -514,7 +519,8 @@ for (const width of [320, 390, 1440]) test(`@golden Desk second rail keeps contr
   if (width < 768) {
     const filters = toolbar.getByLabel('Open Desk filters', { exact: true });
     const view = toolbar.getByRole('button', { name: 'Desk view controls', exact: true });
-    const boxes = await Promise.all([filters, select, view].map(async control => {
+    const add = toolbar.getByRole('button', { name: 'Add from Library', exact: true });
+    const boxes = await Promise.all([filters, select, add, view].map(async control => {
       await expect(control).toBeInViewport({ ratio: 1 });
       return (await control.boundingBox())!;
     }));
@@ -590,7 +596,7 @@ test('@golden Desk enlarged text keeps labels and selected-work controls reachab
   await page.keyboard.press('Escape'); await expect(view).toBeFocused();
   await filters.focus(); await page.keyboard.press('Enter');
   await expect(panel).toBeInViewport({ ratio: 1 });
-  await expect(panel.getByRole('button', { name: 'Organize 2 Sets', exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(panel.getByRole('button', { name: 'Organize 2 published resources', exact: true })).toBeInViewport({ ratio: 1 });
   await page.keyboard.press('Escape');
   await toolbar.getByRole('button', { name: 'Done selecting', exact: true }).click();
   await expect(toolbar.getByRole('button', { name: 'Select multiple', exact: true })).toHaveAttribute('aria-pressed', 'false');
