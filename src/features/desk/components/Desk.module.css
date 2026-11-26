@@ -307,6 +307,10 @@
   display: none;
 }
 
+.deskAddFromLibrary > svg {
+  display: none;
+}
+
 .deskRestrictionLabel {
   max-width: 12rem;
   overflow: hidden;
@@ -2014,16 +2018,21 @@
   .mobileDeskFilterSummary {
     display: none;
   }
+}
 
+@media (max-width: 340px) {
   .deskAddFromLibrary {
     min-width: 2.75rem;
     justify-content: center;
   }
 
+  .deskAddFromLibrary > svg {
+    display: block;
+  }
+
   .deskAddFromLibrary > span {
     display: none;
   }
-
 }
 
 @media (prefers-reduced-motion: reduce) {
