@@ -367,6 +367,21 @@ for (const width of [390,1440]) test(`@golden Desk exact governance preserves di
  await page.keyboard.press('Escape');
  if(width<900) await page.getByLabel('Open Desk filters',{exact:true}).click();
  const launcher=page.getByRole('button',{name:'Actions for Synthetic material revision one',exact:true});
+ if (width >= 900) {
+  const tile = page.getByRole('button', { name: /^(Select|Selected) Synthetic material revision one\./ });
+  // Actions are available through focus or hover; an unhovered invisible action
+  // intentionally does not intercept the tile beneath it.
+  await page.mouse.move(0, 0);
+  await tile.focus();
+  await page.keyboard.press('Tab');
+  await expect(launcher).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('menuitem', { name: 'Review & manage', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Tab');
+  await page.mouse.move(0, 0);
+  await tile.hover();
+ }
  await launcher.click();
  await page.getByRole('menuitem',{name:'Review & manage',exact:true}).click();
  await expect(page.getByLabel('Exact revision governance')).toBeVisible();
