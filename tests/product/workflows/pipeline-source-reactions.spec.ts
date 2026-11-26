@@ -7,7 +7,7 @@ const bundle = buildSync({ entryPoints: ['tests/product/fixtures/pipelineSourceR
 const first = '10000000-0000-4000-8000-000000000001';
 const second = '10000000-0000-4000-8000-000000000002';
 const lineageId = '20000000-0000-4000-8000-000000000001';
-async function mount(page: Page, options: { blocked?: boolean; failure?: boolean; delayed?: boolean; legacyProjection?: boolean; voteOutcome?: 'committed' | 'uncertain'; heartOutcome?: 'committed' | 'uncertain'; readbackFault?: 'partial' | 'malformed' | 'wrong-id' | 'wrong-lineage' | 'unavailable' | 'valid' } = {}) {
+async function mount(page: Page, options: { blocked?: boolean; failure?: boolean; delayed?: boolean; legacyProjection?: boolean; mutationStatus?: 408 | 403; mutationCode?: string; voteOutcome?: 'committed' | 'uncertain'; heartOutcome?: 'committed' | 'uncertain'; readbackFault?: 'partial' | 'malformed' | 'wrong-id' | 'wrong-lineage' | 'unavailable' | 'valid' } = {}) {
   page.on('pageerror', error => console.error('SOURCE_FIXTURE_ERROR', error.message));
   const rawFonts = [
     { asset_id: 'Heading / Regular', name: 'Governed Heading', url: 'https://example.invalid/heading.woff2', metadata: {} },
@@ -26,6 +26,7 @@ async function mount(page: Page, options: { blocked?: boolean; failure?: boolean
       const body = route.request().postDataJSON(); mutations.push({ path: url.pathname, body });
       if (url.pathname.endsWith('/vote')) { values.vote = body.voteValue; values.positive += body.voteValue === 'positive' ? 1 : 0; values.negative += body.voteValue === 'negative' ? 1 : 0; }
       else { values.hearted = body.hearted; values.heart += body.hearted ? 1 : -1; }
+      if (options.mutationStatus) return route.fulfill({ status: options.mutationStatus, json: options.mutationCode ? { error: { code: options.mutationCode, message: 'Rejected by Pipeline' } } : { message: 'Intermediary response' } });
       return route.fulfill({ json: url.pathname.endsWith('/vote') ? { receipt: { submissionId: url.pathname.split('/').at(-2), outcome: options.voteOutcome ?? 'committed', warnings: options.voteOutcome ? ['program_refresh_unavailable'] : [] } } : { receipt: { lineageId: body.lineageId, outcome: options.heartOutcome ?? 'committed', metric: options.heartOutcome === 'uncertain' ? null : { lineageId: body.lineageId, count: values.heart, hearted: values.hearted }, warnings: options.heartOutcome === 'uncertain' ? ['heart_outcome_unconfirmed'] : [] } } });
     }
     if (url.pathname === '/api/personal-library') return route.fulfill({ json: { items: [] } });
@@ -37,7 +38,7 @@ async function mount(page: Page, options: { blocked?: boolean; failure?: boolean
     if (url.pathname === '/api/catalog/studio-bootstrap') return route.fulfill({ json: { templates: { defaults: [{ id: 'bootstrap-original', templateRevision: 1, templateRevisionId: 'published-r1' }] }, styles: { styles: [material] }, fonts: { fonts: governedFonts }, ...(options.legacyProjection ? {} : { pipeline: [{ assetId: 'bootstrap-original', submissionId: first }, { assetId: material.id, submissionId: first }, ...rawFonts.map((row, index) => ({ assetId: row.asset_id, submissionId: index === 0 ? second : first, fontValue: governedFonts[index].value }))] }) } });
     if (url.pathname === '/api/pipeline/engagement') {
       const id = url.searchParams.get('submissionId')!; reads.push(id);
-      if (options.failure || ((options.voteOutcome || options.heartOutcome) && mutations.length && (!options.readbackFault || options.readbackFault==='unavailable'))) return route.fulfill({ status: 503, json: { error: { message: 'Source service unavailable', code: 'pipeline_reaction_unavailable', kind: 'unavailable' } } });
+      if (options.failure || ((options.voteOutcome || options.heartOutcome || options.mutationStatus) && mutations.length && (!options.readbackFault || options.readbackFault==='unavailable'))) return route.fulfill({ status: 503, json: { error: { message: 'Source service unavailable', code: 'pipeline_reaction_unavailable', kind: 'unavailable' } } });
       if(mutations.length && options.readbackFault==='partial')return route.fulfill({json:{submissionId:id}});
       if(mutations.length && options.readbackFault==='malformed')return route.fulfill({json:{submissionId:id,status:'invented'}});
       if (options.delayed && id === first) await new Promise(resolve => setTimeout(resolve, 500));
@@ -171,5 +172,26 @@ for (const fault of ['partial', 'malformed', 'wrong-id', 'wrong-lineage', 'unava
   await expect(source.getByRole('alert').filter({ hasText: 'Heart outcome is unconfirmed' })).toBeVisible();
   if (fault === 'valid') await expect(source.getByRole('button', { name: 'Heart 5', exact: true })).toBeEnabled();
   else { await expect(heart).toBeDisabled(); await source.getByRole('button', { name: 'Refresh source reactions' }).click(); await expect(heart).toBeDisabled(); }
+  expect(evidence.mutations).toHaveLength(1);
+});
+
+for (const kind of ['vote', 'heart'] as const) for (const status of [408, 403] as const) test(`@golden ${kind} ambiguous HTTP ${status} requires exact readback`, async ({ page }) => {
+  const evidence = await mount(page, { mutationStatus: status, readbackFault: 'unavailable' });
+  const source = page.getByLabel('Studio original');
+  const action = source.getByRole('button', { name: kind === 'vote' ? 'Like 2' : 'Heart 4', exact: true });
+  await action.click();
+  await expect(source.getByRole('alert').filter({ hasText: kind === 'vote' ? 'Vote outcome is unconfirmed' : 'Heart outcome is unconfirmed' })).toBeVisible();
+  await expect(action).toBeDisabled();
+  await source.getByRole('button', { name: 'Refresh source reactions' }).click();
+  await expect(action).toBeDisabled();
+  expect(evidence.mutations).toHaveLength(1);
+});
+for (const kind of ['vote', 'heart'] as const) test(`@golden ${kind} explicit Pipeline rejection remains rejected`, async ({ page }) => {
+  const evidence = await mount(page, { mutationStatus: 403, mutationCode: kind === 'vote' ? 'pipeline_not_permitted' : 'pipeline_reaction_not_permitted', readbackFault: 'unavailable' });
+  const source = page.getByLabel('Studio original');
+  const action = source.getByRole('button', { name: kind === 'vote' ? 'Like 2' : 'Heart 4', exact: true });
+  await action.click();
+  await expect(source.getByRole('alert').filter({ hasText: 'Rejected by Pipeline' })).toBeVisible();
+  await expect(action).toBeEnabled();
   expect(evidence.mutations).toHaveLength(1);
 });

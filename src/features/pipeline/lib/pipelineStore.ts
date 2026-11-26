@@ -413,6 +413,10 @@ export const recordPipelineSubmissionVote = async ({
     ownerContributorId,
   }));
 };
+export const invalidatePipelineFeedbackCatalog = (invalidate: () => boolean): string[] => {
+  try { return invalidate() ? [] : ['catalog_invalidation_unavailable']; }
+  catch { return ['catalog_invalidation_unavailable']; }
+};
 /** The native vote acknowledgement is authoritative for every caller. */
 export const commitPipelineVote = async (input: Parameters<typeof recordPipelineSubmissionVote>[0]) => {
   const nextAction = 'Read exact engagement before any further write; never retry an uncertain mutation automatically.';
@@ -441,8 +445,7 @@ export const voteOnPipelineSubmission = async ({
 }) => {
   const receipt = await commitPipelineVote({ submissionId, contributorId, voteValue, ownerContributorId });
   if (receipt.outcome === 'uncertain') return { program: null, receipt };
-  const warnings: string[] = [];
-  try { if (!invalidateCatalog()) warnings.push('catalog_invalidation_unavailable'); } catch { warnings.push('catalog_invalidation_unavailable'); }
+  const warnings = invalidatePipelineFeedbackCatalog(invalidateCatalog);
   let program: PipelineProgramView | null = null;
   try { program = await getPipelineProgramView(contributorId, currentContributorIds, { includeRegistryRecipePayloads: Boolean(ownerContributorId) }); }
   catch { warnings.push('program_refresh_unavailable'); }

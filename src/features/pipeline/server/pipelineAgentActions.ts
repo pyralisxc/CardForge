@@ -6,7 +6,7 @@ import { pipelineAgentExactInput, pipelineAgentListInput, pipelineAgentVoteInput
 import { fetchPipelineSubmissionPage } from '../lib/pipelineProjections';
 import { fetchContributorSettings } from '../lib/pipelineStore';
 import { getSharedPipelineTrashPage, getPipelineLibraryProgramView } from '../lib/pipelineLibraryStore';
-import { commitPipelineVote } from '../lib/pipelineStore';
+import { commitPipelineVote, invalidatePipelineFeedbackCatalog } from '../lib/pipelineStore';
 import { getPipelineTrashState } from '../lib/pipelineTrash';
 import { setPipelineHeart, PipelineHeartMutationError } from '../lib/pipelineHearts';
 import { PipelineStoreError } from '../lib/pipelineStoreError';
@@ -69,8 +69,7 @@ async function limit(action: 'contributor-vote' | 'pipeline-heart', userId: stri
   if (!result.allowed) throw new RateLimitExceededError('Too many Pipeline reactions.', result.retryAfterSeconds, { resource: 'pipeline_reactions', maximum, unit: 'attempts_per_hour' });
 }
 async function afterCommit(submissionId: string, lineageId: string | null, viewer: PipelineEngagementViewer) {
-  const warnings: string[] = []; let engagement = null;
-  try { if (!revalidateCardForgeCatalog()) warnings.push('catalog_invalidation_unavailable'); } catch { warnings.push('catalog_invalidation_unavailable'); }
+  const warnings = invalidatePipelineFeedbackCatalog(revalidateCardForgeCatalog); let engagement = null;
   try { engagement = await readPipelineEngagementForViewer(submissionId, viewer); } catch { warnings.push('engagement_refresh_unavailable'); }
   return { submissionId, lineageId, outcome: 'committed' as const, engagement, warnings, nextAction };
 }

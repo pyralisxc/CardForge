@@ -3,7 +3,7 @@ const f = vi.hoisted(() => ({ account: vi.fn(), capabilities: vi.fn(), rpc: vi.f
 vi.mock('@/features/account/server', () => ({ getAccountToolAccessForUserId: f.account }));
 vi.mock('@/features/contributor-access/server', () => ({ readContributorCapabilities: f.capabilities, hasContributionScope: (scopes: string[], scope: string) => scopes.includes(scope) }));
 vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerClient: () => ({ rpc: f.rpc, from: f.from }) }));
-vi.mock('@/features/pipeline/lib/pipelineStore', () => ({ commitPipelineVote: f.commitVote, fetchContributorSettings: f.settings, getPipelineProgramContext: f.health }));
+vi.mock('@/features/pipeline/lib/pipelineStore', () => ({ commitPipelineVote: f.commitVote, invalidatePipelineFeedbackCatalog: (invalidate: () => boolean) => { try { return invalidate() ? [] : ['catalog_invalidation_unavailable']; } catch { return ['catalog_invalidation_unavailable']; } }, fetchContributorSettings: f.settings, getPipelineProgramContext: f.health }));
 vi.mock('@/features/pipeline/lib/pipelineHearts', () => ({ setPipelineHeart: f.heart, PipelineHeartMutationError: class extends Error { constructor(message: string, public status: number) { super(message); } } }));
 vi.mock('@/features/pipeline/lib/pipelineLibraryStore', async importOriginal => ({ ...(await importOriginal<typeof import('@/features/pipeline/lib/pipelineLibraryStore')>()), getPipelineLibraryProgramView: f.healthView }));
 vi.mock('@/features/pipeline/server/pipelineEngagement', () => ({ readPipelineEngagementForViewer: f.read, readVisiblePipelineRevisionForViewer: f.exact }));

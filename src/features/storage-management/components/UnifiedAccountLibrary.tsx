@@ -1,7 +1,7 @@
 "use client";
 import { getPipelineTrashState } from '@/features/pipeline/client';
 
-import { PIPELINE_ENGAGEMENT_CHANGED, notifyPipelineEngagementChanged, loadPipelineEngagement, parsePipelineVoteReceipt, parsePipelineHeartReceipt, loadPipelineHeartMetric, PipelineSourceDisclosure, type PipelineDesignSource } from '@/features/pipeline/client/engagement';
+import { PIPELINE_ENGAGEMENT_CHANGED, notifyPipelineEngagementChanged, loadPipelineEngagement, loadPipelineHeartMetric, submitPipelineVote, submitPipelineHeart, PipelineSourceDisclosure, type PipelineDesignSource } from '@/features/pipeline/client/engagement';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { HardDrive } from 'lucide-react';
@@ -186,6 +186,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [voteAttempt, setVoteAttempt] = useState<{ submissionId: string; message: string; readConfirmed?: boolean } | null>(null);
   const [heartingId, setHeartingId] = useState<string | null>(null);
   const heartInFlight = useRef(false);
+  const heartReadEpoch = useRef(0);
   const [heartAttempt, setHeartAttempt] = useState<{ lineageId: string; message: string; readConfirmed?: boolean } | null>(null);
   const [heartMetrics, setHeartMetrics] = useState<Record<string, { count: number; hearted: boolean }>>({});
   const [heartMetricsLoading, setHeartMetricsLoading] = useState(false);
@@ -440,9 +441,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   };
   const refresh = () => { setSharedTrashRefreshEpoch(value => value + 1); projection.refresh(); void shared.refresh(); if (revisionsEnabled) revisionQueue.refresh(); };
 
+  useEffect(() => { ++heartReadEpoch.current; setHeartMetrics({}); }, [persistenceScope, isSignedIn]);
+
   useEffect(() => {
+    const epoch = ++heartReadEpoch.current;
     const lineageIds = [...new Set(scopeItems.flatMap((item) => pipelineLineageFor(item) ? [pipelineLineageFor(item)!] : []))];
-    if (!lineageIds.length) { setHeartMetrics({}); setHeartMetricsLoading(false); setHeartMetricsFailed(false); return; }
+    if (!lineageIds.length) { setHeartMetricsLoading(false); setHeartMetricsFailed(false); return; }
     const query = new URLSearchParams();
     lineageIds.forEach((lineageId) => query.append('lineageId', lineageId));
     let cancelled = false;
@@ -454,10 +458,10 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         return response.json() as Promise<{ metrics: Array<{ lineageId: string; count: number; hearted: boolean }> }>;
       })
       .then(({ metrics }) => {
-        if (!cancelled) setHeartMetrics(Object.fromEntries(metrics.map((metric) => [metric.lineageId, { count: metric.count, hearted: metric.hearted }])));
+        if (!cancelled && epoch === heartReadEpoch.current) setHeartMetrics(Object.fromEntries(metrics.map((metric) => [metric.lineageId, { count: metric.count, hearted: metric.hearted }])));
       })
-      .catch(() => { if (!cancelled) setHeartMetricsFailed(true); })
-      .finally(() => { if (!cancelled) setHeartMetricsLoading(false); });
+      .catch(() => { if (!cancelled && epoch === heartReadEpoch.current) setHeartMetricsFailed(true); })
+      .finally(() => { if (!cancelled && epoch === heartReadEpoch.current) setHeartMetricsLoading(false); });
     return () => { cancelled = true; };
   }, [scopeItems]);
 
@@ -478,22 +482,18 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     const current = heartMetrics[lineageId];
     if (!current) { toast({ title: 'Heart status unavailable', description: 'Refresh the exact heart status before acting.', variant: 'destructive' }); return; }
     heartInFlight.current = true;
+    ++heartReadEpoch.current;
+    setHeartMetricsLoading(false);
     setHeartingId(lineageId);
     let committed = false;
     try {
-      const response = await fetch('/api/pipeline/hearts', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lineageId, hearted: !current.hearted }),
-      });
-      if (!response.ok) {
-        if (response.status < 500) { toast({ title: 'Heart rejected', description: await readApiErrorMessage(response, 'Unable to save this heart.'), variant: 'destructive' }); return; }
-        throw new Error('Heart acknowledgement is unavailable.');
-      }
-      const payload = await response.json() as { receipt?: unknown };
-      const receipt = parsePipelineHeartReceipt(payload.receipt, lineageId, !current.hearted);
-      if (receipt.outcome !== 'committed' || !receipt.metric) throw new Error('Heart outcome is unconfirmed.');
+      const result = await submitPipelineHeart(lineageId, !current.hearted);
+      if (result.outcome === 'rejected') { toast({ title: 'Heart rejected', description: result.message, variant: 'destructive' }); return; }
+      if (result.outcome === 'uncertain') throw new Error('Heart outcome is unconfirmed.');
       committed = true;
-      setHeartMetrics((metrics) => ({ ...metrics, [lineageId]: { count: receipt.metric!.count, hearted: receipt.metric!.hearted } }));
+      ++heartReadEpoch.current;
+      setHeartMetricsLoading(false);
+      setHeartMetrics((metrics) => ({ ...metrics, [lineageId]: { count: result.metric.count, hearted: result.metric.hearted } }));
       notifyPipelineEngagementChanged();
     } catch {
       if (committed) { toast({ title: 'Heart saved', description: 'The heart committed; local refresh is incomplete.' }); return; }
@@ -507,14 +507,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     setVotingId(submissionId);
     let committed = false;
     try {
-      const response = await fetch(`/api/pipeline/${submissionId}/vote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voteValue: value }) });
-      if (!response.ok) {
-        if (response.status < 500) { toast({ title: 'Vote rejected', description: await readApiErrorMessage(response, 'Unable to record this vote.'), variant: 'destructive' }); return; }
-        throw new Error('Vote acknowledgement is unavailable.');
-      }
-      const { program, receipt: rawReceipt } = await response.json() as { program: Parameters<typeof shared.acceptProgram>[0] | null; receipt?: { submissionId: string; outcome: string; warnings: string[] } };
-      const receipt = parsePipelineVoteReceipt(rawReceipt, submissionId);
-      if (receipt.outcome !== 'committed') throw new Error('Vote outcome is unconfirmed.');
+      const result = await submitPipelineVote(submissionId, value);
+      if (result.outcome === 'rejected') { toast({ title: 'Vote rejected', description: result.message, variant: 'destructive' }); return; }
+      if (result.outcome === 'uncertain') throw new Error('Vote outcome is unconfirmed.');
+      const { receipt } = result;
+      const program = result.program as Parameters<typeof shared.acceptProgram>[0] | null;
       committed = true;
       notifyPipelineEngagementChanged();
       if (program) shared.acceptProgram(program);
@@ -703,6 +700,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         setHeartingId(heartAttempt.lineageId);
         try {
           const metric = await loadPipelineHeartMetric(heartAttempt.lineageId);
+          ++heartReadEpoch.current;
+          setHeartMetricsLoading(false);
+          setHeartMetricsFailed(false);
           setHeartMetrics(current => ({ ...current, [metric.lineageId]: { count: metric.count, hearted: metric.hearted } }));
           setHeartAttempt({ ...heartAttempt, readConfirmed: true, message: 'Exact heart status was read. Current state does not prove the earlier operation outcome. You may choose a new heart action explicitly.' });
         } catch { setHeartAttempt({ lineageId: heartAttempt.lineageId, message: 'Exact heart status is unavailable. The heart remains unconfirmed; do not repeat it.' }); }

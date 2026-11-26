@@ -1302,7 +1302,7 @@ for (const mode of ['success','activity','readback','uncertain','unstructured','
   expect(evidence.errors).toEqual([]); expect(evidence.mutations).toEqual([]);
 });
 
-for(const mode of ['healthy','refresh','invalidation','unknown','unknownPartial','unknownMalformed','unknownWrongId','unknownUnavailable','rejected'])test(`@golden actual Library vote receipt ${mode} preserves exact outcome`,async({page})=>{
+for(const mode of ['healthy','refresh','invalidation','unknown','unknownPartial','unknownMalformed','unknownWrongId','unknownUnavailable','unknownTimeout','unknownOpaque','rejected'])test(`@golden actual Library vote receipt ${mode} preserves exact outcome`,async({page})=>{
  await mount(page,`?queueActual=1&scope=pipeline&voteReceipt=${mode}`);
  await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
  await page.getByLabel('pipeline Library objects').locator('article').first().click();
@@ -1317,4 +1317,30 @@ for(const mode of ['healthy','refresh','invalidation','unknown','unknownPartial'
  if(mode==='refresh'||mode==='invalidation')await expect(page.getByRole('region',{name:'Notifications (F8)'}).getByText(/vote committed; refresh is incomplete/)).toBeVisible();
  const writes=await page.evaluate(()=>(window as unknown as {libraryRequests:{url:string;method:string}[]}).libraryRequests.filter(r=>r.method==='POST'&&r.url.endsWith('/vote')));expect(writes).toHaveLength(1);
  await expect(page.getByLabel('pipeline Library objects').locator('article').first()).toBeVisible();
+});
+
+
+for (const oldResult of ['success', 'failure'] as const) test(`@golden Library exact heart read wins over older collection ${oldResult}`, async ({ page }) => {
+  await mount(page, `?queueActual=1&scope=pipeline&heartRace=${oldResult}`);
+  await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
+  await page.getByLabel('pipeline Library objects').locator('article').first().click();
+  const heart = page.getByRole('button', { name: /^Heart / }).first();
+  await expect(heart).toBeEnabled();
+  await heart.click();
+  await expect(page.getByText('Heart not confirmed', { exact: true })).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event('cardforge:pipeline-engagement-changed')));
+  await expect.poll(() => page.evaluate(() => Boolean((window as typeof window & { releaseHeartRead?: () => void }).releaseHeartRead))).toBe(true);
+  await page.getByRole('button', { name: 'Read exact heart status' }).click();
+  await page.getByRole('button', { name: 'Allow a new explicit heart action' }).click();
+  await page.evaluate(() => window.dispatchEvent(new Event('cardforge:pipeline-engagement-changed')));
+  await expect.poll(() => page.evaluate(() => Boolean((window as typeof window & { releaseNewHeartRead?: () => void }).releaseNewHeartRead))).toBe(true);
+  await page.evaluate(() => (window as typeof window & { releaseHeartRead: () => void }).releaseHeartRead());
+  await expect(page.getByRole('button', { name: /^Remove heart from / }).first()).toBeDisabled();
+  await page.evaluate(() => (window as typeof window & { releaseNewHeartRead: () => void }).releaseNewHeartRead());
+  await expect(page.getByRole('button', { name: /^Remove heart from / }).first()).toBeEnabled();
+  await page.getByRole('button', { name: /^Remove heart from / }).first().click();
+  const writes = await page.evaluate(() => (window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[] }).libraryRequests.filter(entry => entry.url === '/api/pipeline/hearts' && entry.method === 'POST'));
+  expect(writes).toHaveLength(2);
+  expect(JSON.parse(writes[0].body!).hearted).toBe(true);
+  expect(JSON.parse(writes[1].body!).hearted).toBe(false);
 });

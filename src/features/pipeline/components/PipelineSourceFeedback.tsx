@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Heart, ThumbsDown, ThumbsUp } from 'lucide-react';
-import { readApiError } from '@/infrastructure/http/clientResponses';
-import { loadPipelineEngagement, parsePipelineVoteReceipt, parsePipelineHeartReceipt, notifyPipelineEngagementChanged, PIPELINE_ENGAGEMENT_CHANGED } from '../client/engagementRequests';
+import { loadPipelineEngagement, submitPipelineVote, submitPipelineHeart, notifyPipelineEngagementChanged, PIPELINE_ENGAGEMENT_CHANGED } from '../client/engagementRequests';
 import { loadCardForgeStudioAssets, loadCardForgeStudioBootstrap } from '../client/catalog';
 import { PROJECT_PERSISTENCE_SCOPE_CHANGE_EVENT } from '@/features/project/client/persistence-workspace';
 import type { TCGCardTemplate, AppearanceStylePreset, CardAssetOption } from '@/domain/templates';
@@ -25,8 +24,7 @@ export function PipelineSourceFeedback({ submissionId }: { submissionId: string 
     let cancelled = false;
     const epoch = ++readEpoch.current;
     setRead(previous => previous?.id === submissionId ? { ...previous, error: undefined } : null);
-    void loadPipelineEngagement(submissionId).then(value => {
-      if (uncertainLineage.current && (value.lineageId !== uncertainLineage.current || (uncertainHeart.current && !value.heart))) throw new Error('Exact source reactions are unavailable.');
+    void loadPipelineEngagement(submissionId, uncertainLineage.current ? { lineageId: uncertainLineage.current, requireHeart: uncertainHeart.current } : undefined).then(value => {
       if (!cancelled && epoch === readEpoch.current) { uncertainLineage.current = null; uncertainHeart.current = false; setRead({ id: submissionId, value }); setUnconfirmedVote(null); setUnconfirmedHeart(previous => previous === value.lineageId ? null : previous); }
     })
       .catch(error => { if (!cancelled && epoch === readEpoch.current) setRead(previous => ({ id: submissionId,
@@ -53,14 +51,10 @@ export function PipelineSourceFeedback({ submissionId }: { submissionId: string 
     let rejected = false;
     let committed = false;
     try {
-      const response = await fetch(voteValue ? `/api/pipeline/${encodeURIComponent(submissionId)}/vote` : '/api/pipeline/hearts', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(voteValue ? { voteValue } : { lineageId, hearted: desiredHeart }),
-      });
-      if (!response.ok) { rejected = response.status < 500; throw await readApiError(response, 'The reaction could not be confirmed. Read exact reactions before a new action.'); }
-      const payload = await response.json();
-      const receipt = voteValue ? parsePipelineVoteReceipt(payload.receipt, submissionId) : parsePipelineHeartReceipt(payload.receipt, lineageId!, desiredHeart);
-      if (receipt.outcome !== 'committed') throw new Error(`${voteValue ? 'Vote' : 'Heart'} outcome is unconfirmed. Read exact reactions before a new explicit action; no request was replayed.`);
+      const result = voteValue ? await submitPipelineVote(submissionId, voteValue) : await submitPipelineHeart(lineageId!, desiredHeart);
+      if (result.outcome === 'rejected') { rejected = true; throw new Error(result.message); }
+      if (result.outcome === 'uncertain') throw new Error('The reaction outcome is unconfirmed.');
+      const receipt = result.receipt;
       committed = true;
       notifyPipelineEngagementChanged();
       if (receipt.warnings.length) setMutationIssue(`${voteValue ? 'Vote' : 'Heart'} committed; refresh is incomplete. Read current source reactions before further action.`);
@@ -69,7 +63,7 @@ export function PipelineSourceFeedback({ submissionId }: { submissionId: string 
       if (!rejected && !committed && lineageId) { uncertainLineage.current = lineageId; if (!voteValue) uncertainHeart.current = true; }
       if (voteValue && !rejected && !committed) setUnconfirmedVote(submissionId);
       if (!voteValue && !rejected && !committed && lineageId) setUnconfirmedHeart(lineageId);
-      setMutationIssue(committed ? `${voteValue ? 'Vote' : 'Heart'} committed; local refresh is incomplete.` : error instanceof Error ? error.message : 'The reaction could not be confirmed. Read exact reactions before a new action.');
+      setMutationIssue(committed ? `${voteValue ? 'Vote' : 'Heart'} committed; local refresh is incomplete.` : rejected && error instanceof Error ? error.message : `${voteValue ? 'Vote' : 'Heart'} outcome is unconfirmed. Read exact reactions before a new explicit action; no request was replayed.`);
       // Native rejection/uncertainty may reflect changed lifecycle or account access.
       setRefresh(current => current + 1);
     } finally { setBusy(false); }
