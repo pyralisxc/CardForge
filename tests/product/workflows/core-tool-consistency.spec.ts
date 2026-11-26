@@ -291,3 +291,59 @@ for (const width of [1440, 390]) test(`Library edits the same card and retains t
   expect(saved.storedCards[0]).toMatchObject({ uniqueId: 'scale-card-1', setId: 'scale-set-100', templateId: before[scope].storedCards[0].templateId, data: { cardName: 'Revised in Library', artwork: `cardforge-browser-asset://${'1'.padStart(64, '0')}` } });
   expect(saved.storedCards[1]).toMatchObject({ uniqueId: 'scale-card-2', setId: 'scale-set-100', templateId: before[scope].storedCards[1].templateId, data: { cardName: 'Scale Card 0002', artwork: `cardforge-browser-asset://${'2'.padStart(64, '0')}` } });
 });
+
+test('Library opens an already-local Set on Desk while an unrelated source is still loading', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
+  let releaseCatalog!: () => void;
+  let catalogStarted!: () => void;
+  const catalogRequested = new Promise<void>((resolve) => { catalogStarted = resolve; });
+  const catalogHeld = new Promise<void>((resolve) => { releaseCatalog = resolve; });
+  await page.route('**/api/catalog/studio-bootstrap', async (route) => {
+    catalogStarted();
+    await catalogHeld;
+    await route.continue();
+  });
+  try {
+    await page.goto('/account?section=library', { waitUntil: 'domcontentloaded' });
+    await page.locator('[id^="library-object-set:"]').filter({ hasText: '100 Card Scale Set' }).click();
+    await catalogRequested;
+    await page.getByRole('button', { name: 'Open on Desk', exact: true }).click();
+    await expect(page.getByRole('searchbox', { name: 'Search cards in this Set', exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true }).click();
+    await page.getByRole('button', { name: 'Edit selected', exact: true }).click();
+    const artwork = page.getByRole('textbox', { name: 'Artwork (Image URL or Upload)', exact: true });
+    await expect(artwork).toBeEditable();
+    await artwork.fill('');
+    await expect(artwork).toHaveValue('');
+  } finally {
+    releaseCatalog();
+  }
+});
+
+
+test('a local Set waits for its required published Template before becoming ready', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, publicTemplate: true });
+  let releaseCatalog!: () => void;
+  let catalogStarted!: () => void;
+  const catalogRequested = new Promise<void>((resolve) => { catalogStarted = resolve; });
+  const catalogHeld = new Promise<void>((resolve) => { releaseCatalog = resolve; });
+  await page.route('**/api/catalog/studio-bootstrap', async (route) => {
+    catalogStarted();
+    await catalogHeld;
+    await route.fallback();
+  });
+  try {
+    await page.goto('/account?section=library', { waitUntil: 'domcontentloaded' });
+    await page.locator('[id^="library-object-set:"]').filter({ hasText: '100 Card Scale Set' }).click();
+    await catalogRequested;
+    await page.getByRole('button', { name: 'Open on Desk', exact: true }).click();
+    await expect(page.getByRole('status', { name: 'Preparing CardForge Desk' })).toBeVisible();
+    await expect(page.locator('[data-desk-arrival-phase="ready"]')).toHaveCount(0);
+    releaseCatalog();
+    await expect(page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true })).toBeVisible({ timeout: 30_000 });
+  } finally {
+    releaseCatalog();
+  }
+});
