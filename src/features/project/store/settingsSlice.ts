@@ -88,6 +88,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
   },
   setActiveCardSetId: (id) => set((state) => {
     const requested = state.cardSets.find((candidate) => candidate.id === id);
+    if (requested && state.activeCardSet === requested) return state;
     return requested ? activateCardSet(state, requested) : state;
   }),
   renameCardSet: (id, name) => {

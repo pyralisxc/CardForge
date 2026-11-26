@@ -11,6 +11,8 @@ import { createIndexedDbStorage } from '@/features/project/persistence/indexedDb
 import { setProjectPersistenceScope } from '@/features/project/persistence/projectPersistenceScope';
 import { getProjectAssetStorage, mergeProjectAssetListToStorage } from '@/features/project/persistence/projectAssets';
 import { parseBrowserWorkspaceRecord } from '@/features/project/persistence/workspaceRevision';
+import { reconstructMinimalTemplateObject } from '@/domain/templates';
+import { selectGeneratedDisplayCards } from '@/features/project/store/selectors';
 
 describe('project import durability', () => {
   beforeEach(() => {
@@ -18,6 +20,44 @@ describe('project import durability', () => {
     useProjectStore.setState({ cardSets: [], activeCardSet: null, storedCards: [], userTemplates: [], appearanceStyles: [] });
   });
   afterEach(() => vi.restoreAllMocks());
+
+  it('does not signal a project change when activating the already-active Set', () => {
+    const active = { id: 'set-a', name: 'A' };
+    useProjectStore.setState({ cardSets: [active], activeCardSet: active });
+    const before = useProjectStore.getState();
+    const listener = vi.fn();
+    const unsubscribe = useProjectStore.subscribe(listener);
+    before.setActiveCardSetId(active.id);
+    expect(useProjectStore.getState()).toBe(before);
+    expect(hasProjectDocumentStateChanged(before, useProjectStore.getState())).toBe(false);
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it('preserves Set switching, stale active-object repair, and real card and Template changes', () => {
+    const first = { id: 'set-a', name: 'A', templateIds: ['template-a'] };
+    const second = { id: 'set-b', name: 'B' };
+    const template = reconstructMinimalTemplateObject({ id: 'template-a', name: 'Design', templateSource: 'user' });
+    useProjectStore.setState({ cardSets: [first, second], activeCardSet: first, userTemplates: [template], storedCards: [
+      { uniqueId: 'card-a', templateId: 'template-a', setId: 'set-a', data: { cardName: 'Before' } },
+    ] });
+    let before = useProjectStore.getState();
+    before.setActiveCardSetId(second.id);
+    expect(useProjectStore.getState().activeCardSet).toBe(second);
+    expect(hasProjectDocumentStateChanged(before, useProjectStore.getState())).toBe(true);
+    useProjectStore.setState({ activeCardSet: { ...first, name: 'Stale A' } });
+    useProjectStore.getState().setActiveCardSetId(first.id);
+    expect(useProjectStore.getState().activeCardSet).toBe(first);
+    before = useProjectStore.getState();
+    const card = selectGeneratedDisplayCards(before)[0]!;
+    before.updateGeneratedCard({ ...card, data: { ...card.data, cardName: 'After' } });
+    expect(hasProjectDocumentStateChanged(before, useProjectStore.getState())).toBe(true);
+    expect(useProjectStore.getState().storedCards[0]?.data.cardName).toBe('After');
+    before = useProjectStore.getState();
+    const savedTemplateId = before.commitTemplateChange({ template: { ...template, name: 'Revised design' }, source: 'user', setId: first.id });
+    expect(hasProjectDocumentStateChanged(before, useProjectStore.getState())).toBe(true);
+    expect(useProjectStore.getState().userTemplates.find((item) => item.id === savedTemplateId)?.name).toBe('Revised design');
+  });
 
   it('distinguishes UI-only store changes from project document changes', () => {
     const expected = useProjectStore.getState();
