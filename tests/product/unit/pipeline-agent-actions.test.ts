@@ -60,6 +60,15 @@ describe('canonical agent Pipeline actions', () => {
     expect(f.commitVote).toHaveBeenCalledExactlyOnceWith({ submissionId: id, voteValue: 'negative', contributorId: 'resolved-viewer', ownerContributorId: null });
     expect(f.rate).toHaveBeenCalledWith(expect.objectContaining({ action: 'contributor-vote', identity: 'resolved-viewer', limit: 120 }));
   });
+  it('MCP keeps the same server-resolved voter when moving between exact revisions', async () => {
+    const other='10000000-0000-4000-8000-000000000002';
+    f.capabilities.mockResolvedValue({ active: true, scopes: ['assets.review'] });
+    f.read.mockImplementation(async (submissionId:string) => ({ ...engagement, submissionId }));
+    await voteAgentPipelineRevision('oauth-actor', { submissionId: id, voteValue: 'positive' });
+    await voteAgentPipelineRevision('oauth-actor', { submissionId: other, voteValue: 'negative' });
+    expect(f.commitVote).toHaveBeenNthCalledWith(1, { submissionId: id, voteValue: 'positive', contributorId: 'resolved-viewer', ownerContributorId: null });
+    expect(f.commitVote).toHaveBeenNthCalledWith(2, { submissionId: other, voteValue: 'negative', contributorId: 'resolved-viewer', ownerContributorId: null });
+  });
   it('preserves committed vote when follow-up read fails and reconciles unknown writes without retry', async () => {
     f.capabilities.mockResolvedValue({ active: true, scopes: ['assets.review'] });
     f.read.mockResolvedValueOnce(engagement).mockRejectedValueOnce(new Error('read offline'));

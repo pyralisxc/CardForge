@@ -18,3 +18,12 @@ vi.mock('@/infrastructure/security/abuseProtection',()=>({consumeRateLimit:async
 vi.mock('@/features/pipeline/server/catalogCache',()=>({revalidateCardForgeCatalog:()=>f.invalidate()}));
 import { POST } from '@/app/api/pipeline/[submissionId]/vote/route';
 for(const mode of ['healthy','settings','summary','page','invalidate','unknown','rejected'])it(`actual vote HTTP preserves ${mode} outcome`,async()=>{if(mode==='settings')f.settings.mockResolvedValue({data:null,error:{message:'offline'}});if(mode==='summary')f.aggregate.mockRejectedValue(new Error('offline'));if(mode==='page')f.page.mockRejectedValue(new Error('offline'));if(mode==='invalidate')f.invalidate.mockReturnValue(false);if(mode==='unknown')f.write.mockRejectedValue(new Error('lost'));if(mode==='rejected')f.write.mockRejectedValue(new PipelineStoreError('denied',403));const r=await POST(new Request('http://localhost/api/pipeline/'+input.submissionId+'/vote',{method:'POST',body:JSON.stringify({voteValue:'positive'})}),{params:Promise.resolve({submissionId:input.submissionId})});expect(r.status).toBe(mode==='rejected'?403:200);const body=await r.json();if(mode!=='rejected')expect(body.receipt).toMatchObject({submissionId:input.submissionId,outcome:mode==='unknown'?'uncertain':'committed'});if(['settings','summary','page','unknown'].includes(mode))expect(body.program).toBeNull();expect(f.write).toHaveBeenCalledOnce();expect(f.invalidate).toHaveBeenCalledTimes(mode==='unknown'||mode==='rejected'?0:1);});
+it('site vote requests retain each exact revision and the server-resolved voter across a transfer',async()=>{
+ const other='10000000-0000-4000-8000-000000000002';
+ for(const [submissionId,voteValue] of [[input.submissionId,'positive'],[other,'negative']]) {
+  const response=await POST(new Request('http://localhost/api/pipeline/'+submissionId+'/vote',{method:'POST',body:JSON.stringify({voteValue})}),{params:Promise.resolve({submissionId})});
+  expect(response.status).toBe(200);
+ }
+ expect(f.write).toHaveBeenNthCalledWith(1,expect.objectContaining({submissionId:input.submissionId,contributorId:'actor',voteValue:'positive'}));
+ expect(f.write).toHaveBeenNthCalledWith(2,expect.objectContaining({submissionId:other,contributorId:'actor',voteValue:'negative'}));
+});
