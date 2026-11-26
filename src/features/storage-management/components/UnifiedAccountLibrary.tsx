@@ -588,6 +588,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     closeDetail,
     createCompatibilityReturnTo: createLibraryCompatibilityReturnTo,
     currentItem,
+    selectionIdentity: selection,
     designReturnFocusId,
     editingSubmission,
     experience,

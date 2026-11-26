@@ -102,6 +102,13 @@ for (const surface of ['desk', 'library', 'library-edit'] as const) {
     } else {
       await detail.getByRole('button', { name: 'Open saved Set', exact: true }).click();
       await expect(page.locator('[data-set-spatial-stage] button[data-artifact-id]')).toHaveCount(2);
+      if (surface === 'library') {
+        // The first handoff must leave the loaded Set ready to edit, not just
+        // add a new row that needs another trip through Library.
+        await page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true }).click();
+        await page.getByRole('button', { name: 'Edit selected', exact: true }).click();
+        await expect(page.getByRole('textbox', { name: 'Artwork (Image URL or Upload)', exact: true })).toBeEditable();
+      }
     }
     await expect(page.getByRole('region', { name: 'Locations & connections', exact: true })).toHaveCount(0);
     await page.goto('/account', { waitUntil: 'domcontentloaded' });

@@ -47,6 +47,7 @@ interface UseAccountLibraryActionsOptions {
   closeDetail: () => void;
   createCompatibilityReturnTo: () => string;
   currentItem: LibraryViewItem | null;
+  selectionIdentity: object;
   designReturnFocusId: string | null;
   editingSubmission: PipelineSubmission | null;
   experience: AccountExperienceProjection;
@@ -72,6 +73,7 @@ export function useAccountLibraryActions({
   closeDetail,
   createCompatibilityReturnTo,
   currentItem,
+  selectionIdentity,
   designReturnFocusId,
   editingSubmission,
   experience,
@@ -91,8 +93,14 @@ export function useAccountLibraryActions({
   const { toast } = useToast();
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const openContext = useRef('');
-  openContext.current = JSON.stringify([getProjectPersistenceScope(), activeScope, activeTool, currentItem?.id ?? null]);
+  const openContext = useRef<{ key: string; selection: object }>({ key: '', selection: selectionIdentity });
+  // Projection changes can replace a source row after import without changing
+  // the creator's selection. Keep that operation alive, but invalidate it on
+  // each real selection/surface transition, even if the creator later returns.
+  const openContextKey = JSON.stringify([getProjectPersistenceScope(), activeScope, activeTool]);
+  if (openContext.current.key !== openContextKey || openContext.current.selection !== selectionIdentity) {
+    openContext.current = { key: openContextKey, selection: selectionIdentity };
+  }
   const [failure, setFailure] = useState<{ itemId: string; message: string } | null>(null);
   const projectWorkspace = useProjectLibraryWorkspace();
   const {
@@ -303,6 +311,9 @@ export function useAccountLibraryActions({
   };
 
   const executeAction = (action: ActionDescriptor, target: CommandTarget, descriptors: readonly ActionDescriptor[]) => {
+    // A later explicit action supersedes a pending open, including row-menu
+    // actions that do not change the detail selection.
+    openContext.current = { ...openContext.current };
     setFailure(null);
     const runtime = createActionRuntime(createAccountLibraryActionDefinitions(descriptors, commandsFor(target)));
     const targetId = target?.scope === 'personal' ? target.personal.id : target?.id;
