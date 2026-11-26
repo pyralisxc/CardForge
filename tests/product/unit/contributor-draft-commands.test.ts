@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
-const f = vi.hoisted(() => ({ account: vi.fn(), contribution: vi.fn(), cache: vi.fn(), rpc: vi.fn(), row: {} as Record<string, unknown>, writes: [] as Array<{ payload: Record<string, unknown>; filters: Array<[string, unknown]> }>, zero: false, writeError: false, readErrorAfterWrite: false }));
+const f = vi.hoisted(() => ({ account: vi.fn(), contribution: vi.fn(), cache: vi.fn(), rpc: vi.fn(), row: {} as Record<string, unknown>, writes: [] as Array<{ payload: Record<string, unknown>; filters: Array<[string, unknown]> }>, zero: false, writeError: false, reviewBeforeWrite: false, readErrorAfterWrite: false }));
 vi.mock('@/features/account/server', async importOriginal => ({ ...await importOriginal<object>(), getAccountToolAccessForUserId: f.account }));
 vi.mock('@/features/studio-documents/server/mcpStudioAccess', () => ({ getMcpStudioReadAccess: async () => ({ user: { id: 'oauth-author' } }), getMcpStudioAccess: async () => ({ user: { id: 'oauth-author' } }) }));
 vi.mock('@/features/mcp-usage/server', async importOriginal => ({ ...await importOriginal<object>(), observeMcpToolExecution: ({ execute }: { execute: () => unknown }) => execute() }));
@@ -11,6 +11,7 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerCo
   const matches = () => filters.every(([key, value]) => f.row[key] === value);
   const result = () => {
     if (payload) {
+      if (f.reviewBeforeWrite) { f.row.editorial_review_status = 'revise'; f.row.editorial_reviewed_at = '2026-11-26T12:00:00Z'; }
       f.writes.push({ payload, filters: [...filters] });
       if (f.writeError) return { data: null, error: { message: 'response lost' } };
       if (f.zero || !matches()) return { data: null, error: null };
@@ -30,10 +31,10 @@ import { cardForgeMcpHandler } from '@/features/studio-documents/server/mcpServe
 const id = '10000000-0000-4000-8000-000000000001';
 const metadata = { name: 'Saved Template', description: 'Creates editable cards', sourceNotes: 'Original source and rights observed', specialtyTags: ['games'], useCaseTags: ['tcg'], semanticRole: 'template-front', visualFamily: 'Test family', variantKind: 'base', compatibilityTags: [], requestedStudioDestination: 'template.front' };
 beforeEach(() => {
-  vi.resetAllMocks(); f.writes = []; f.zero = false; f.writeError = false; f.readErrorAfterWrite = false;
+  vi.resetAllMocks(); f.writes = []; f.zero = false; f.writeError = false; f.reviewBeforeWrite = false; f.readErrorAfterWrite = false;
   f.account.mockResolvedValue({ user: { id: 'author' }, isOwner: false, entitlement: { accessMode: 'contributor' } });
   f.contribution.mockResolvedValue({ active: true, scopes: ['assets.submit', 'library.submit'] }); f.cache.mockReturnValue(true);
-  f.row = { id, contributor_id: 'author', lineage_id: null, revision_number: 1, asset_type: 'templates', status: 'draft', name: 'Existing Template', description: '', source_notes: 'Private authored note', source_payload: { secret: 'Private document' }, specialty_tags: ['games'], use_case_tags: ['tcg'], semantic_role: 'template-front', variant_kind: 'base', media_presentation: null };
+  f.row = { id, contributor_id: 'author', lineage_id: null, revision_number: 1, asset_type: 'templates', status: 'draft', name: 'Existing Template', description: '', source_notes: 'Private authored note', source_payload: { secret: 'Private document' }, specialty_tags: ['games'], use_case_tags: ['tcg'], semantic_role: 'template-front', variant_kind: 'base', media_presentation: null, editorial_review_status: 'pending', editorial_reviewed_at: null };
   f.rpc.mockImplementation(async () => { f.row.status = 'submitted'; f.row.name = metadata.name; return { data: id, error: null }; });
 });
 it('reads exact editable metadata without source payloads, enrollment or sibling substitution', async () => {
@@ -54,12 +55,31 @@ it('never infers an affected-row commit from error-null with zero selected rows'
   await expect(saveContributorPipelineMetadata('author', { submissionId: id, metadata })).rejects.toMatchObject({ status: 409 });
   expect(f.row.name).toBe('Existing Template'); expect(f.rpc).not.toHaveBeenCalled();
 });
+it('refuses a metadata save when review completes between the read and write', async () => {
+  f.reviewBeforeWrite = true;
+  await expect(saveContributorPipelineMetadata('author', { submissionId: id, metadata })).rejects.toMatchObject({ status: 409 });
+  expect(f.row.name).toBe('Existing Template');
+  expect(f.writes[0].filters).toContainEqual(['editorial_review_status', 'pending']);
+});
 it('confirms native submission once and retains submitted after unavailable readback', async () => {
   f.readErrorAfterWrite = true;
   const result = await finalizeContributorTemplateSubmission('author', { submissionId: id, metadata });
   expect(result.receipt).toMatchObject({ outcome: 'submitted', metadataCommitted: true, submitted: true, nextAction: 'read' });
-  expect(result.snapshot).toBeNull(); expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_submit_template_pipeline_draft', expect.objectContaining({ p_submission_id: id, p_contributor_id: 'author' }));
+  expect(result.snapshot).toBeNull(); expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_submit_template_pipeline_draft_checked', expect.objectContaining({ p_submission_id: id, p_contributor_id: 'author' }));
   expect(f.writes).toHaveLength(1); expect(f.writes[0].filters).toContainEqual(['status', 'draft']);
+});
+it('submits governed correction metadata unchanged through the shared Contributor handler', async () => {
+  Object.assign(f.row, { name: metadata.name, description: metadata.description, source_notes: metadata.sourceNotes,
+    specialty_tags: metadata.specialtyTags, use_case_tags: metadata.useCaseTags, semantic_role: metadata.semanticRole,
+    visual_family: metadata.visualFamily, variant_kind: metadata.variantKind, compatibility_tags: [],
+    requested_studio_destination: metadata.requestedStudioDestination, author_resubmission_parent_id: id,
+    template_review_context: { schemaVersion: 1 } });
+  expect(await getContributorPipelineDraft('author', { submissionId: id })).toMatchObject({ canSaveMetadata: false, canFinalize: true });
+  await expect(finalizeContributorTemplateSubmission('author', { submissionId: id, metadata: { ...metadata, description: 'Changed' } })).rejects.toMatchObject({ status: 409 });
+  expect(f.rpc).not.toHaveBeenCalled(); expect(f.writes).toEqual([]);
+  const result = await finalizeContributorTemplateSubmission('author', { submissionId: id, metadata });
+  expect(result.receipt).toMatchObject({ outcome: 'submitted', metadataCommitted: false, submitted: true });
+  expect(f.writes).toEqual([]); expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_submit_template_pipeline_draft_checked', expect.objectContaining({ p_submission_id: id }));
 });
 it('reports only retained classification when the subsequent submission is definitively rejected', async () => {
   f.rpc.mockResolvedValue({ data: null, error: { message: 'template_draft_not_editable' } });
@@ -79,12 +99,13 @@ it('does not infer metadata commit after an unconfirmed update', async () => {
   const result = await saveContributorPipelineMetadata('author', { submissionId: id, metadata });
   expect(result.receipt).toMatchObject({ outcome: 'uncertain', metadataCommitted: null, submitted: null }); expect(f.writes).toHaveLength(1);
 });
-for (const condition of ['inactive', 'scope', 'other', 'published', 'presentation', 'forged'] as const) it(`denies ${condition} metadata access before any write`, async () => {
+for (const condition of ['inactive', 'scope', 'other', 'published', 'presentation', 'reviewed', 'forged'] as const) it(`denies ${condition} metadata access before any write`, async () => {
   if (condition === 'inactive') f.contribution.mockResolvedValue({ active: false, scopes: ['assets.submit'] });
   if (condition === 'scope') f.contribution.mockResolvedValue({ active: true, scopes: ['library.submit'] });
   if (condition === 'other') f.row.contributor_id = 'someone-else';
   if (condition === 'published') f.row.status = 'published';
   if (condition === 'presentation') f.row.media_presentation = { inherited: true };
+  if (condition === 'reviewed') { f.row.editorial_review_status = 'revise'; f.row.editorial_reviewed_at = '2026-11-26T12:00:00Z'; }
   await expect(saveContributorPipelineMetadata('author', { submissionId: id, metadata, ...(condition === 'forged' ? { actorId: 'other' } : {}) })).rejects.toThrow();
   expect(f.writes).toEqual([]); expect(f.rpc).not.toHaveBeenCalled();
 });
@@ -111,10 +132,20 @@ const readHttp = async (response: Response) => {
 const http = async (id: number, method: string, params: object) => {
   return readHttp(await cardForgeMcpHandler(new Request('https://cardforge.test/mcp', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) })));
 };
+it('finalizes a governed correction through the Studio MCP entry point without a metadata write', async () => {
+  Object.assign(f.row, { name: metadata.name, description: metadata.description, source_notes: metadata.sourceNotes,
+    specialty_tags: metadata.specialtyTags, use_case_tags: metadata.useCaseTags, semantic_role: metadata.semanticRole,
+    visual_family: metadata.visualFamily, variant_kind: metadata.variantKind, compatibility_tags: [],
+    requested_studio_destination: metadata.requestedStudioDestination, author_resubmission_parent_id: id,
+    template_review_context: { schemaVersion: 1 } });
+  const result = await http(1, 'tools/call', { name: 'finalize_contributor_template_submission', arguments: { submissionId: id, metadata } });
+  expect(result.result.structuredContent.receipt).toMatchObject({ outcome: 'submitted', metadataCommitted: false, submitted: true });
+  expect(f.writes).toEqual([]); expect(f.rpc).toHaveBeenCalledOnce();
+});
 it('lists all three explicit schemas and calls read/save/finalize through real HTTP and canonical native commands', async () => {
   await http(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'contributor-proof', version: '1' } });
   const listed = await http(2, 'tools/list', {});
-  expect(listed.result.tools).toHaveLength(58);
+  expect(listed.result.tools).toHaveLength(59);
   for (const name of ['get_contributor_pipeline_draft', 'save_contributor_pipeline_metadata', 'finalize_contributor_template_submission']) {
     expect(listed.result.tools.find((tool: { name: string }) => tool.name === name)).toMatchObject({ inputSchema: { type: 'object' }, outputSchema: { type: 'object' }, annotations: { readOnlyHint: false } });
   }
@@ -125,6 +156,26 @@ it('lists all three explicit schemas and calls read/save/finalize through real H
   const submitted = await http(5, 'tools/call', { name: 'finalize_contributor_template_submission', arguments: { submissionId: id, metadata } });
   expect(submitted.result.structuredContent.receipt).toMatchObject({ outcome: 'submitted', submitted: true });
   expect(f.account).toHaveBeenCalledWith('oauth-author'); expect(f.rpc).toHaveBeenCalledOnce();
+});
+it('reads only explicit exact-author feedback through the real Studio MCP endpoint', async () => {
+  Object.assign(f.row, { editorial_review_status: 'revise', author_review_note: 'Please improve contrast.',
+    editorial_reviewed_at: '2026-11-26T12:00:00Z', purge_state: null, editorial_review_note: 'private observation' });
+  const result = await http(1, 'tools/call', { name: 'get_contributor_review_feedback', arguments: { submissionId: id } });
+  expect(result.result.structuredContent).toMatchObject({ submissionId: id, reviewStatus: 'revise', authorNote: 'Please improve contrast.' });
+  expect(JSON.stringify(result)).not.toContain('private observation');
+  f.row.contributor_id = 'another-author';
+  const denied = await http(2, 'tools/call', { name: 'get_contributor_review_feedback', arguments: { submissionId: id } });
+  expect(denied.result.isError).toBe(true);
+});
+it('reads the original author-facing History feedback through Studio MCP after a later decision', async () => {
+  Object.assign(f.row, { status: 'archived', editorial_review_status: 'approved', author_review_note: '',
+    editorial_reviewed_at: '2026-11-26T13:00:00Z', purge_state: null,
+    author_review_history: { reviewStatus: 'revise', authorNote: 'Please improve contrast.', reviewedAt: '2026-11-26T12:00:00Z' },
+    editorial_review_note: 'private observation' });
+  const result = await http(1, 'tools/call', { name: 'get_contributor_review_feedback', arguments: { submissionId: id } });
+  expect(result.result.structuredContent).toMatchObject({ submissionId: id, reviewStatus: 'revise',
+    authorNote: 'Please improve contrast.', reviewedAt: '2026-11-26T12:00:00Z', revisionBase: null });
+  expect(JSON.stringify(result)).not.toContain('private observation');
 });
 it('preserves a partial receipt through real HTTP without a second native submission', async () => {
   f.rpc.mockResolvedValue({ data: null, error: { message: 'template_draft_not_editable' } });

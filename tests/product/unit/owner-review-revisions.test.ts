@@ -95,7 +95,7 @@ const http = async (id: number, method: string, params: object) => {
   const text = await response.text(); return { status: response.status, body: JSON.parse(text.startsWith('event:') ? text.split('data: ')[1].split('\n')[0] : text) };
 };
 it('actual initialized HTTP lists 57 Owner tools with explicit schemas and calls all six adapters', async () => {
-  expect((await http(1, 'initialize', { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'test', version: '1' } })).body.result.serverInfo).toEqual({ name: 'cardforge-owner', version: '1.17.0' });
+  expect((await http(1, 'initialize', { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'test', version: '1' } })).body.result.serverInfo).toEqual({ name: 'cardforge-owner', version: '1.18.0' });
   const tools = (await http(2, 'tools/list', {})).body.result.tools; expect(tools).toHaveLength(57);
   for (const kind of ['template', 'style'] as const) {
     const name = `create_pipeline_${kind}_review_revision`, tool = tools.find((item: { name: string }) => item.name === name);

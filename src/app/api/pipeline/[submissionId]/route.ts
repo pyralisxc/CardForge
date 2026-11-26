@@ -12,7 +12,7 @@ import {
   permanentlyDeletePipelineSubmission,
   requirePipelineRequestScope,
 } from '@/features/pipeline/server';
-import { getCurrentOwnerAccess, recordOwnerActivity, recordOwnerPipelineSourceReviewEvidence, saveOwnerPipelineEditorialReview, saveOwnerPipelinePublicationOverride } from '@/features/owner/server';
+import { getCurrentOwnerAccess, recordOwnerActivity, recordOwnerPipelineSourceReviewEvidence, getOwnerPipelineEditorialReview, saveOwnerPipelineEditorialReview, saveOwnerPipelinePublicationOverride } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,12 +29,16 @@ const getPipelineErrorCode = (status: number) => status === 401
 const sourceEvidenceErrorCode = (status: number) => status === 409 ? 'pipeline_source_evidence_conflict'
   : status === 404 ? 'pipeline_source_evidence_not_found' : status >= 500 ? 'pipeline_source_evidence_unavailable' : 'pipeline_source_evidence_invalid';
 
-export async function GET(_request: Request, { params }: { params: Promise<{ submissionId: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ submissionId: string }> }) {
   try {
     const owner = await getCurrentOwnerAccess();
     if (!owner.userId) return createApiErrorResponse(401, 'sign_in_required', 'Sign in to inspect correction evidence.');
     if (!owner.isOwner) return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required.');
-    return createNoStoreJsonResponse(await readSourceReviewEvidence((await params).submissionId));
+    const submissionId = (await params).submissionId;
+    if (new URL(request.url).searchParams.get('view') === 'editorial') {
+      return createNoStoreJsonResponse(await getOwnerPipelineEditorialReview(owner.userId, { submissionId }));
+    }
+    return createNoStoreJsonResponse(await readSourceReviewEvidence(submissionId));
   } catch (error) {
     return createApiErrorResponse(error instanceof PipelineRegistryCommandError ? error.status : 503, sourceEvidenceErrorCode(error instanceof PipelineRegistryCommandError ? error.status : 503),
       error instanceof PipelineRegistryCommandError ? error.message : 'Source evidence is unavailable. Existing observations are unchanged.');
@@ -166,6 +170,7 @@ export async function PUT(
       ownerAccessTierOverride?: unknown;
       editorialReviewStatus?: unknown;
       editorialReviewNote?: unknown;
+      authorReviewNote?: unknown;
     };
     const respondDecision = async (result: { snapshot: unknown; program: unknown; receipt: Awaited<ReturnType<typeof saveOwnerPipelineEditorialReview>>['receipt'] }) => {
       if (result.receipt.outcome === 'uncertain') {
@@ -181,8 +186,8 @@ export async function PUT(
       return respondDecision(await recordOwnerPipelineSourceReviewEvidence(owner.userId, { ...evidence, submissionId }));
     }
     if (Object.prototype.hasOwnProperty.call(body, 'editorialReviewStatus')) {
-      if (Object.keys(body).some(key => !['editorialReviewStatus', 'editorialReviewNote', 'expectedEvidenceVersion'].includes(key))) return createApiErrorResponse(400, 'pipeline_request_invalid', 'Record one editorial decision separately from publication controls.');
-      return respondDecision(await saveOwnerPipelineEditorialReview(owner.userId, { submissionId, reviewStatus: body.editorialReviewStatus, reviewNote: body.editorialReviewNote, expectedEvidenceVersion: body.expectedEvidenceVersion ?? null }, { includeProgram: true }));
+      if (Object.keys(body).some(key => !['editorialReviewStatus', 'editorialReviewNote', 'authorReviewNote', 'expectedEvidenceVersion'].includes(key))) return createApiErrorResponse(400, 'pipeline_request_invalid', 'Record one editorial decision separately from publication controls.');
+      return respondDecision(await saveOwnerPipelineEditorialReview(owner.userId, { submissionId, reviewStatus: body.editorialReviewStatus, reviewNote: body.editorialReviewNote, authorNote: body.authorReviewNote, expectedEvidenceVersion: body.expectedEvidenceVersion ?? null }, { includeProgram: true }));
     }
     if (Object.keys(body).some(key => !['ownerStatusOverride', 'status', 'ownerNote', 'ownerAccessTierOverride'].includes(key))) return createApiErrorResponse(400, 'pipeline_request_invalid', 'Provide supported publication controls only; no general CAS or operation ID is available.');
     const ownerStatusOverride = Object.prototype.hasOwnProperty.call(body, 'ownerStatusOverride') ? body.ownerStatusOverride : body.status;

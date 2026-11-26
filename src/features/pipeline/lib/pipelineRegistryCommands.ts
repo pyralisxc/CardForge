@@ -14,7 +14,8 @@ import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServe
 import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 import { externalizePipelineTemplateAssets } from './pipelineTemplateAssets';
 import { prepareManagedRasterTemplateRevision, readManagedRasterAttempt, type ManagedRasterSelection } from './managedRasterAdoption';
-import { templateReviewPayload } from './templateReview';
+import { templateReviewPayload, templateReviewRequestText } from './templateReview';
+import { prepareGovernedTemplateReviewPayload, readTemplateReviewBase } from '../server/templateReviewRevision';
 
 export { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 
@@ -30,6 +31,7 @@ export interface SetPipelineEditorialReviewInput {
   submissionId: string;
   reviewStatus: PipelineEditorialReviewStatus;
   reviewNote: string;
+  authorNote: string | null;
   reviewerContributorId: string;
   expectedEvidenceVersion?: number | null;
 }
@@ -98,6 +100,7 @@ interface TemplatePipelineDraftInput {
   contributorEmail: string | null;
   submissionKey: string;
   managedRasterSelection?: ManagedRasterSelection;
+  revisionBase?: { parentSubmissionId: string; assetId: string; reviewedAt: string; parentContentVersion: string };
 }
 
 export interface PurgePipelineSubmissionInput {
@@ -166,6 +169,19 @@ const throwRegistryCommandError = (message: string, errorMessage?: string): neve
 
 const throwTemplateRevisionError = (errorMessage?: string): never => {
   throwIfPublicationBusy(errorMessage);
+  if (errorMessage?.includes('template_review_unavailable') || errorMessage?.includes('could not obtain lock')) {
+    throw new PipelineRegistryCommandError('The reviewed revision is busy. Read this exact attempt before retrying.', 503);
+  }
+  if (errorMessage?.includes('template_author_revision_live_lineage_unsupported')) {
+    throw new PipelineRegistryCommandError('This live-lineage review requires its existing governed revision path.', 409);
+  }
+  if (errorMessage?.includes('template_author_revision_not_found')) throw new PipelineRegistryCommandError('The exact author revision was not found.', 404);
+  if (errorMessage?.includes('template_author_revision_conflict')) throw new PipelineRegistryCommandError('The reviewed revision or this attempt changed. Read the exact review again; your saved work is unchanged.', 409);
+  if (errorMessage?.includes('template_review_conflict')) throw new PipelineRegistryCommandError('The published Template changed. Review its current revision before continuing; your saved work is unchanged.', 409);
+  if (errorMessage?.includes('template_author_revision_invalid')) throw new PipelineRegistryCommandError('Provide the exact reviewed Template revision and a valid attempt.', 400);
+  if (errorMessage?.includes('reviewed_revision_immutable')) {
+    throw new PipelineRegistryCommandError('This revision has been reviewed. Continue your changes as a new revision.', 409);
+  }
   if (errorMessage?.includes('contributor_asset_not_found')) {
     throw new PipelineRegistryCommandError('The Template Pipeline draft was not found.', 404);
   }
@@ -219,6 +235,9 @@ const throwEditorialReviewError = (errorMessage?: string, errorCode?: string): n
   }
   if (errorMessage?.includes('editorial_review_reason_required')) {
     throw new PipelineRegistryCommandError('Add an editorial review reason before recording this decision.', 400);
+  }
+  if (errorMessage?.includes('author_review_note_too_long')) {
+    throw new PipelineRegistryCommandError('The note to the author must be at most 600 characters.', 400);
   }
   if (errorMessage?.includes('editorial_review_live_requires_quarantine')) {
     throw new PipelineRegistryCommandError('Live content must be quarantined or retired when it needs correction; “needs revision” is for unpublished candidates.', 409);
@@ -313,8 +332,8 @@ const loadTemplatePipelineResult = async (
 };
 
 /** Exact-base Review drafts must retain their own reviewed-base command path. */
-export function assertTemplatePipelineDraftContext(template: TCGCardTemplate): void {
-  if (template.templatePipelineContext) throw new PipelineRegistryCommandError(
+export function assertTemplatePipelineDraftContext(template: TCGCardTemplate, hasAuthorRevision = false): void {
+  if (template.templatePipelineContext && !hasAuthorRevision) throw new PipelineRegistryCommandError(
     'This is an exact-base Review draft. Continue through its existing Review submission; managed adoption and new-draft handoff are unsupported for this draft.',
     409, 'managed_raster_review_unsupported',
   );
@@ -322,10 +341,41 @@ export function assertTemplatePipelineDraftContext(template: TCGCardTemplate): v
 
 /** Read-only recovery of the original managed request; never revalidates current artwork. */
 export async function readTemplatePipelineDraftAttempt(input: TemplatePipelineDraftInput): Promise<string | null> {
-  assertTemplatePipelineDraftContext(input.template);
+  assertTemplatePipelineDraftContext(input.template, Boolean(input.revisionBase));
+  if (input.revisionBase) {
+    const { data, error } = await requireSupabase().rpc('cardforge_read_template_author_revision_attempt', {
+      p_parent_submission_id: input.revisionBase.parentSubmissionId, p_actor_id: input.contributorId,
+      p_submission_key: input.submissionKey, p_request_fingerprint: authorRevisionFingerprint(input),
+    });
+    if (error) throwTemplateRevisionError(error.message);
+    return data == null ? null : String(data);
+  }
   if (!input.managedRasterSelection) throw new PipelineRegistryCommandError('An exact managed adoption attempt is required.', 400);
   return (await readManagedRasterAttempt(templateReviewPayload(input.template), input.managedRasterSelection,
     input.contributorId, input.contributorEmail, input.submissionKey, 'draft', 0)).submissionId;
+}
+
+function authorRevisionFingerprint(input: TemplatePipelineDraftInput): string {
+  const base = input.revisionBase;
+  if (!base || input.template.id !== base.assetId || input.managedRasterSelection) throw new PipelineRegistryCommandError('Choose one exact reviewed Template revision.', 400);
+  return createHash('sha256').update(JSON.stringify([input.contributorId, templateReviewRequestText(input.template),
+    base.parentSubmissionId, base.assetId, base.reviewedAt, base.parentContentVersion])).digest('hex');
+}
+
+/** A live correction preserves its existing sources; a failed lookup is not absence. */
+export async function readAuthorRevisionPublishedBase(assetId: string): Promise<Awaited<ReturnType<typeof readTemplateReviewBase>>['expectedBase'] | null> {
+  const registry = await requireSupabase().from('cardforge_asset_registry').select('asset_id').eq('asset_id', assetId).maybeSingle();
+  if (registry.error) throw new PipelineRegistryCommandError('The published Template could not be verified. Your saved work is unchanged.', 503);
+  return registry.data ? (await readTemplateReviewBase(assetId)).expectedBase : null;
+}
+
+export async function readAuthorRevisionAttemptKind(parentSubmissionId: string, contributorId: string, submissionKey: string): Promise<'ordinary' | 'governed' | null> {
+  const { data, error } = await requireSupabase().rpc('cardforge_read_template_author_revision_attempt_kind', {
+    p_parent_submission_id: parentSubmissionId, p_actor_id: contributorId, p_submission_key: submissionKey,
+  });
+  if (error) throwTemplateRevisionError(error.message);
+  if (data === null || data === 'ordinary' || data === 'governed') return data;
+  throw new PipelineRegistryCommandError('The exact attempt could not be verified. Read it again before any further write.', 503);
 }
 
 export const createTemplatePipelineDraft = async ({
@@ -334,10 +384,17 @@ export const createTemplatePipelineDraft = async ({
   contributorEmail,
   submissionKey,
   managedRasterSelection,
+  revisionBase,
 }: TemplatePipelineDraftInput): Promise<TemplatePipelineDraftResult> => {
-  assertTemplatePipelineDraftContext(template);
+  assertTemplatePipelineDraftContext(template, Boolean(revisionBase));
   const supabase = requireSupabase();
   const source = templateReviewPayload(template);
+  if (revisionBase && managedRasterSelection) throw new PipelineRegistryCommandError('This revision cannot adopt a new managed raster through this handoff.', 409);
+  const revisionInput = { template, contributorId, contributorEmail, submissionKey, managedRasterSelection, revisionBase };
+  if (revisionBase) {
+    const existing = await readTemplatePipelineDraftAttempt(revisionInput);
+    if (existing) return loadTemplatePipelineResult(existing, 'draft');
+  }
   const attempt = managedRasterSelection
     ? await readManagedRasterAttempt(source, managedRasterSelection, contributorId, contributorEmail, submissionKey, 'draft', 0)
     : null;
@@ -345,7 +402,27 @@ export const createTemplatePipelineDraft = async ({
   const prepared = managedRasterSelection
     ? await prepareManagedRasterTemplateRevision(source as TCGCardTemplate & { id: string }, managedRasterSelection)
     : null;
-  const storedTemplate = await externalizePipelineTemplateAssets(prepared?.template ?? source);
+  let publishedBase: Awaited<ReturnType<typeof readTemplateReviewBase>>['expectedBase'] | null = null;
+  let storedTemplate: TCGCardTemplate;
+  if (revisionBase) {
+    publishedBase = await readAuthorRevisionPublishedBase(revisionBase.assetId);
+    if (publishedBase) {
+      storedTemplate = await prepareGovernedTemplateReviewPayload(template, publishedBase);
+    } else storedTemplate = await externalizePipelineTemplateAssets(source);
+  } else storedTemplate = await externalizePipelineTemplateAssets(prepared?.template ?? source);
+  if (revisionBase) {
+    if (storedTemplate.id !== revisionBase.assetId) throw new PipelineRegistryCommandError('The exact reviewed Template does not match this handoff.', 409);
+    const { data, error } = await supabase.rpc('cardforge_create_template_author_revision_draft', {
+      p_parent_submission_id: revisionBase.parentSubmissionId, p_expected_reviewed_at: revisionBase.reviewedAt,
+      p_expected_parent_version: revisionBase.parentContentVersion, p_actor_id: contributorId,
+      p_actor_email: contributorEmail ?? '', p_name: storedTemplate.name, p_template_payload: publishedBase ? storedTemplate : {
+        ...storedTemplate, templateSource: 'default', templateLibrarySource: 'pipeline', templateRegistryStatus: 'draft',
+      }, p_submission_key: submissionKey, p_published_base: publishedBase,
+      p_request_fingerprint: authorRevisionFingerprint(revisionInput),
+    });
+    if (error || !data) throwTemplateRevisionError(error?.message);
+    return loadTemplatePipelineResult(String(data), 'draft');
+  }
   const { data: submissionId, error } = await supabase.rpc(
     prepared ? 'cardforge_author_template_managed_raster' : 'cardforge_create_template_pipeline_draft', {
     ...(prepared ? { p_kind: 'draft', p_description: '' , p_expected_revision: 0, p_adoption: { ...prepared.adoption, requestFingerprint: attempt!.requestFingerprint } } : {}),
@@ -387,7 +464,7 @@ export const commitTemplatePipelineDraft = async ({
   requestedStudioDestination: string;
 }): Promise<string> => {
   const supabase = requireSupabase();
-  const { data: resultId, error } = await supabase.rpc('cardforge_submit_template_pipeline_draft', {
+  const { data: resultId, error } = await supabase.rpc('cardforge_submit_template_pipeline_draft_checked', {
     p_submission_id: submissionId,
     p_contributor_id: contributorId,
     p_name: name,
@@ -606,14 +683,16 @@ export const setPipelineEditorialReview = async ({
   submissionId,
   reviewStatus,
   reviewNote,
+  authorNote,
   reviewerContributorId,
   expectedEvidenceVersion,
 }: SetPipelineEditorialReviewInput): Promise<void> => {
   const supabase = requireSupabase();
-  const { error } = await supabase.rpc('cardforge_set_contributor_asset_editorial_review', {
+  const { error } = await supabase.rpc('cardforge_review_with_author_note', {
     p_submission_id: submissionId,
     p_review_status: reviewStatus,
     p_review_note: reviewNote,
+    p_author_note: authorNote,
     p_reviewer_contributor_id: reviewerContributorId,
     p_expected_evidence_version: expectedEvidenceVersion ?? null,
   });

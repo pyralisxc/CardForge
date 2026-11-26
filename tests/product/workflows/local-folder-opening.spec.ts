@@ -55,11 +55,50 @@ for (const surface of ['desk', 'library', 'library-edit'] as const) {
       // reconnect/detach; this fixture exercises the already-mounted consumer.
       window.dispatchEvent(new Event('cardforge:local-folder-changed'));
     }, { bytes, workId });
+    const restoreExpectedRevision = async () => {
+      await page.evaluate(async ({ workId, revision }) => {
+        const database = await new Promise<IDBDatabase>((resolve) => {
+          const request = indexedDB.open('cardforge-browser-storage');
+          request.onsuccess = () => resolve(request.result);
+        });
+        await new Promise<void>((resolve, reject) => {
+          const transaction = database.transaction('key-value', 'readwrite');
+          const store = transaction.objectStore('key-value');
+          for (const scope of ['guest', 'local']) {
+            const key = `project-assets:${scope}:local-work-folder-binding:${workId}`;
+            const request = store.get(key);
+            request.onsuccess = () => store.put({ ...request.result, sourceRevision: revision }, key);
+          }
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error);
+        });
+        database.close();
+      }, { workId, revision: snapshot.manifest.projectRevision });
+    };
+    if (surface === 'desk') {
+      // Folder-only work is discoverable in the picker, not yet a Desk tile.
+      await page.getByRole('button', { name: 'Add from Library', exact: true }).first().click();
+      const picker = page.getByRole('dialog', { name: 'Add from Library' });
+      const addSavedSet = () => picker.getByText('Saved folder Set', { exact: true }).locator('../..').getByRole('button', { name: 'Add to Desk', exact: true });
+      await addSavedSet().click();
+      await expect(picker.getByRole('alert')).toContainText('folder has changed');
+      await restoreExpectedRevision();
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.getByRole('button', { name: 'Add from Library', exact: true }).first().click();
+      await addSavedSet().click();
+      await expect(picker.getByRole('button', { name: 'Remove Saved folder Set from Desk', exact: true })).toBeEnabled();
+      await picker.getByRole('button', { name: 'Done', exact: true }).click();
+      const savedSet = page.getByRole('button', { name: /^(Select|Selected) Saved folder Set\./ });
+      await savedSet.click();
+      await savedSet.press('Enter');
+      await expect(page.locator('[data-set-spatial-stage] button[data-artifact-id]')).toHaveCount(2);
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('button', { name: /^Select 100 Card Scale Set\./ })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Select Saved folder Set\./ })).toHaveCount(1);
+      return;
+    }
     const inspect = async () => {
-      if (surface === 'desk') {
-        await page.getByRole('button', { name: 'Actions for Saved folder Set', exact: true }).click();
-        await page.getByRole('menuitem', { name: 'Details', exact: true }).click();
-      } else await page.locator('[id^="library-object-"]').filter({ hasText: 'Saved folder Set' }).click();
+      await page.locator('[id^="library-object-"]').filter({ hasText: 'Saved folder Set' }).click();
       await expect(page.getByRole('dialog')).toBeVisible();
     };
     await inspect();
@@ -69,26 +108,9 @@ for (const surface of ['desk', 'library', 'library-edit'] as const) {
     await detail.getByRole('button', { name: 'Open saved Set', exact: true }).click();
     await expect(detail.getByRole('alert')).toContainText('folder has changed');
     await expect(detail).toBeVisible();
-    await page.evaluate(async ({ workId, revision }) => {
-      const database = await new Promise<IDBDatabase>((resolve) => {
-        const request = indexedDB.open('cardforge-browser-storage');
-        request.onsuccess = () => resolve(request.result);
-      });
-      await new Promise<void>((resolve, reject) => {
-        const transaction = database.transaction('key-value', 'readwrite');
-        const store = transaction.objectStore('key-value');
-        for (const scope of ['guest', 'local']) {
-          const key = `project-assets:${scope}:local-work-folder-binding:${workId}`;
-          const request = store.get(key);
-          request.onsuccess = () => store.put({ ...request.result, sourceRevision: revision }, key);
-        }
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
-      });
-      database.close();
-    }, { workId, revision: snapshot.manifest.projectRevision });
+    await restoreExpectedRevision();
     await page.reload({ waitUntil: 'domcontentloaded' });
-    if (surface !== 'desk') await inspect();
+    await inspect();
     await expect(detail).toBeVisible();
     await expect(detail.getByRole('heading', { name: 'Saved folder Set', exact: true })).toBeVisible();
     if (surface === 'library-edit') {

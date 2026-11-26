@@ -1,11 +1,13 @@
 import { fromJsonSchema, type JsonSchemaType } from '@modelcontextprotocol/server';
 import { z } from 'zod/v4';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
-import { getContributorPipelineDraft, saveContributorPipelineMetadata, finalizeContributorTemplateSubmission, contributorDraftExactInput, contributorDraftWriteInput, contributorDraftSnapshot, contributorDraftMutationResult } from '@/features/pipeline/server';
+import { getContributorPipelineDraft, getContributorReviewFeedback, saveContributorPipelineMetadata, finalizeContributorTemplateSubmission, contributorDraftExactInput, contributorDraftWriteInput, contributorDraftSnapshot, contributorDraftMutationResult, contributorReviewFeedback } from '@/features/pipeline/server';
 import type { registerPipelineTools } from './mcpPipelineTools';
 
 export function registerContributorDraftTools({ server, getReadAccess, toolError }: Parameters<typeof registerPipelineTools>[0]) {
   const tools = [
+    { name: 'get_contributor_review_feedback', title: 'Read feedback for your exact Pipeline revision', input: contributorDraftExactInput, output: contributorReviewFeedback, write: false, action: getContributorReviewFeedback,
+      description: 'Read the explicit author-facing decision and note for one exact authorized revision. Historical private reviewer notes and source evidence are never returned. A missing author note does not imply approval. No sibling or latest revision is substituted.' },
     { name: 'get_contributor_pipeline_draft', title: 'Read an exact authorized Contributor draft', input: contributorDraftExactInput, output: contributorDraftSnapshot, write: false, action: getContributorPipelineDraft,
       description: 'Read your exact Pipeline metadata and native editing/finalization eligibility before any write or retry. Active Contributor submission scope is required. Owner metadata visibility retains existing policy; finalization still requires the original draft owner. No sibling/latest substitution, source payloads or private local document changes.' },
     { name: 'save_contributor_pipeline_metadata', title: 'Save exact Contributor Pipeline metadata', input: contributorDraftWriteInput, output: contributorDraftMutationResult, write: true, action: saveContributorPipelineMetadata,

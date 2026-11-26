@@ -274,10 +274,12 @@ describe('contributor asset registry commands', () => {
       submissionId: 'asset-1',
       reviewStatus: 'approved',
       reviewNote: 'Original first-party artwork and rights reviewed at intended size.',
+      authorNote: 'Ready for review.',
       reviewerContributorId: 'owner-1',
     });
 
-    expect(rpc).toHaveBeenCalledWith('cardforge_set_contributor_asset_editorial_review', {
+    expect(rpc).toHaveBeenCalledWith('cardforge_review_with_author_note', {
+      p_author_note: 'Ready for review.',
       p_submission_id: 'asset-1',
       p_review_status: 'approved',
       p_review_note: 'Original first-party artwork and rights reviewed at intended size.',
@@ -298,6 +300,7 @@ describe('contributor asset registry commands', () => {
       submissionId: 'asset-1',
       reviewStatus: 'approved',
       reviewNote: 'Looks ready.',
+      authorNote: 'Ready for review.',
       reviewerContributorId: 'owner-1',
     })).rejects.toMatchObject({
       status: 400,

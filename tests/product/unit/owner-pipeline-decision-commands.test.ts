@@ -16,7 +16,7 @@ beforeEach(() => {
   vi.resetAllMocks(); f.error = null;
   f.account.mockResolvedValue({ user: { id: 'server-owner' }, email: 'owner@example.invalid', isOwner: true }); f.activity.mockResolvedValue(true); f.cache.mockReturnValue(true); f.program.mockResolvedValue({ submissions: [] });
   f.sourceRead.mockResolvedValue(evidence); f.sourceRecord.mockResolvedValue({ ...evidence, evidence: { schemaVersion: 1, version: 1, facts, recordedBy: 'server-owner', recordedAt: 'now' } });
-  f.row = { id, lineage_id: lineageId, name: 'Exact original', asset_type: 'icons', semantic_role: 'symbol', requested_studio_destination: 'element.icon', revision_number: 1, status: 'voting', updated_at: '2026-11-02T00:00:00Z', editorial_review_status: 'pending', editorial_review_note: '', editorial_reviewed_by: null, editorial_reviewed_at: null, source_review_evidence: null, catalog_submission_id: null, published_at: null, owner_status_override: null, owner_access_tier_override: null, owner_note: null, calculated_access_tier: 'hidden' };
+  f.row = { id, lineage_id: lineageId, name: 'Exact original', asset_type: 'icons', semantic_role: 'symbol', requested_studio_destination: 'element.icon', revision_number: 1, status: 'voting', updated_at: '2026-11-02T00:00:00Z', editorial_review_status: 'pending', editorial_review_note: '', author_review_note: '', editorial_reviewed_by: null, editorial_reviewed_at: null, source_review_evidence: null, catalog_submission_id: null, published_at: null, owner_status_override: null, owner_access_tier_override: null, owner_note: null, calculated_access_tier: 'hidden' };
   f.from.mockImplementation(() => { const q = { select: vi.fn(() => q), eq: vi.fn(() => q), maybeSingle: () => Promise.resolve({ data: f.row, error: f.error }) }; return q; });
 });
 it('re-resolves Owner authority for every read/write without trusting request flags', async () => {
@@ -44,7 +44,7 @@ it('forwards supported evidence versions and explicit unknown facts to the same 
 });
 it('preserves native conflict/authorization errors before commit and never invokes post-commit observers', async () => {
   f.editorial.mockRejectedValue(new PipelineRegistryCommandError('stale evidence', 409));
-  await expect(saveOwnerPipelineEditorialReview('oauth-actor', { submissionId: id, reviewStatus: 'approved', reviewNote: 'Reviewed actual output', expectedEvidenceVersion: 4 })).rejects.toMatchObject({ status: 409 });
+  await expect(saveOwnerPipelineEditorialReview('oauth-actor', { submissionId: id, reviewStatus: 'approved', reviewNote: 'Reviewed actual output', authorNote: 'Reviewed.', expectedEvidenceVersion: 4 })).rejects.toMatchObject({ status: 409 });
   expect(f.activity).not.toHaveBeenCalled(); expect(f.cache).not.toHaveBeenCalled(); expect(f.from).not.toHaveBeenCalled();
 });
 it('keeps a confirmed decision committed despite activity, cache, exact readback and program failures', async () => {
@@ -55,7 +55,7 @@ it('keeps a confirmed decision committed despite activity, cache, exact readback
 });
 it('returns explicit uncertain write outcomes without replay or false committed state', async () => {
   f.editorial.mockRejectedValue(new Error('lost native response'));
-  const result = await saveOwnerPipelineEditorialReview('oauth-actor', { submissionId: id, reviewStatus: 'revise', reviewNote: 'Repair observed clipping', expectedEvidenceVersion: null });
+  const result = await saveOwnerPipelineEditorialReview('oauth-actor', { submissionId: id, reviewStatus: 'revise', reviewNote: 'Repair observed clipping', authorNote: 'Please fix clipping.', expectedEvidenceVersion: null });
   expect(result).toMatchObject({ snapshot: null, receipt: { outcome: 'uncertain', committed: null, nextAction: 'read', retryable: false } });
   expect(f.editorial).toHaveBeenCalledOnce(); expect(f.activity).not.toHaveBeenCalled();
   await expect(saveOwnerPipelinePublicationOverride('oauth-actor', { submissionId: id, ownerNote: 'Explicit', expectedUpdatedAt: 'invented' })).rejects.toMatchObject({ status: 400 });
