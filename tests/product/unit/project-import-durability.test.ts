@@ -34,6 +34,40 @@ describe('project import durability', () => {
     unsubscribe();
   });
 
+  it('does not signal a project change for an equivalent active Set object', () => {
+    const active = { id: 'set-a', name: 'A' };
+    useProjectStore.setState({ cardSets: [active], activeCardSet: structuredClone(active) });
+    const before = useProjectStore.getState();
+    before.setActiveCardSetId(active.id);
+    expect(hasProjectDocumentStateChanged(before, useProjectStore.getState())).toBe(false);
+  });
+
+  it('does not signal edits for an unchanged Studio library bootstrap, while retaining real library changes', () => {
+    const template = reconstructMinimalTemplateObject({ id: 'default-a', name: 'Default', templateSource: 'default' });
+    const personal = reconstructMinimalTemplateObject({ id: 'personal-a', name: 'Personal', templateSource: 'user' });
+    const style = { id: 'style-a', name: 'Style', kind: 'material' as const, targets: [], appearance: {} };
+    useProjectStore.getState().setDefaultTemplatesFromFiles([template]);
+    useProjectStore.getState().mergeUserTemplatesFromFiles([personal]);
+    useProjectStore.getState().setAppearanceStylesFromFiles([style]);
+    let before = useProjectStore.getState();
+    before.setDefaultTemplatesFromFiles([structuredClone(template)]);
+    before.mergeUserTemplatesFromFiles([structuredClone(personal)]);
+    before.setAppearanceStylesFromFiles([structuredClone(style)]);
+    expect(hasProjectDocumentStateChanged(before, useProjectStore.getState())).toBe(false);
+    before = useProjectStore.getState();
+    before.setAppearanceStylesFromFiles([{ ...style, name: 'Changed style' }]);
+    expect(hasProjectDocumentStateChanged(before, useProjectStore.getState())).toBe(true);
+    expect(useProjectStore.getState().appearanceStyles[0]?.name).toBe('Changed style');
+    before = useProjectStore.getState();
+    before.setDefaultTemplatesFromFiles([{ ...template, name: 'Changed default' }]);
+    expect(hasProjectDocumentStateChanged(before, useProjectStore.getState())).toBe(true);
+    expect(useProjectStore.getState().defaultTemplates.find((item) => item.id === template.id)?.name).toBe('Changed default');
+    before = useProjectStore.getState();
+    before.mergeUserTemplatesFromFiles([{ ...personal, name: 'Changed personal' }]);
+    expect(hasProjectDocumentStateChanged(before, useProjectStore.getState())).toBe(true);
+    expect(useProjectStore.getState().userTemplates.find((item) => item.id === personal.id)?.name).toBe('Changed personal');
+  });
+
   it('preserves Set switching, stale active-object repair, and real card and Template changes', () => {
     const first = { id: 'set-a', name: 'A', templateIds: ['template-a'] };
     const second = { id: 'set-b', name: 'B' };

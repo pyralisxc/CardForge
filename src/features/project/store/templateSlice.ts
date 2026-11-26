@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
-import { authoredPlanInputSurvives, ensureCardSetTemplateReferences } from '@/domain/cards';
+import { authoredPlanInputSurvives, authoredPlanValuesEqual, ensureCardSetTemplateReferences } from '@/domain/cards';
 import { createPersonalTemplateFork, createPersonalTemplateRevision, getAuthoredTemplatePayload, reconstructMinimalTemplateObject, withIndependentTemplateIdentity, type TCGCardTemplate } from '@/domain/templates';
 
 import { getCardSetTemplateIds, getTemplateOwnerSetId, getTemplateReferenceSetIds, inheritCompletedSetUpdateReviews, prepareSetTemplateAcquisition, preserveReferencedTemplateIdentities, SetTemplateOwnershipError } from '../model/setTemplateOwnership';
@@ -193,7 +193,10 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
     set((state) => {
       const allTemplates = selectAllTemplates({ defaultTemplates: reconstructed, userTemplates: state.userTemplates });
       const selectedId = selectFallbackTemplateId(allTemplates, state.generatorSelectedTemplateId, preferredTemplateId);
-      return { defaultTemplates: reconstructed, generatorSelectedTemplateId: selectedId, templateEditorSelectedTemplateId: selectFallbackEditorTemplateId(allTemplates, state.templateEditorSelectedTemplateId, selectedId) };
+      const editorId = selectFallbackEditorTemplateId(allTemplates, state.templateEditorSelectedTemplateId, selectedId);
+      const defaultTemplates = authoredPlanValuesEqual(state.defaultTemplates, reconstructed) ? state.defaultTemplates : reconstructed;
+      return defaultTemplates === state.defaultTemplates && selectedId === state.generatorSelectedTemplateId && editorId === state.templateEditorSelectedTemplateId
+        ? state : { defaultTemplates, generatorSelectedTemplateId: selectedId, templateEditorSelectedTemplateId: editorId };
     });
     return reconstructed.length;
   },
@@ -214,10 +217,13 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
     set((state) => {
       const byId = new Map<string, TCGCardTemplate>();
       [...state.userTemplates, ...reconstructed].forEach((template) => { if (template.id) byId.set(template.id, template); });
-      const userTemplates = Array.from(byId.values());
+      const mergedTemplates = Array.from(byId.values());
+      const userTemplates = authoredPlanValuesEqual(state.userTemplates, mergedTemplates) ? state.userTemplates : mergedTemplates;
       const allTemplates = selectAllTemplates({ defaultTemplates: state.defaultTemplates, userTemplates });
       const selectedId = selectFallbackTemplateId(allTemplates, state.generatorSelectedTemplateId);
-      return { userTemplates, generatorSelectedTemplateId: selectedId, templateEditorSelectedTemplateId: selectFallbackEditorTemplateId(allTemplates, state.templateEditorSelectedTemplateId, selectedId) };
+      const editorId = selectFallbackEditorTemplateId(allTemplates, state.templateEditorSelectedTemplateId, selectedId);
+      return userTemplates === state.userTemplates && selectedId === state.generatorSelectedTemplateId && editorId === state.templateEditorSelectedTemplateId
+        ? state : { userTemplates, generatorSelectedTemplateId: selectedId, templateEditorSelectedTemplateId: editorId };
     });
     return reconstructed.length;
   },
