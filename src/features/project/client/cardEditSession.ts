@@ -29,21 +29,34 @@ export const beginProjectCardEdit = (setId: string, cardId: string): ProjectCard
   return { scope, setId, card: structuredClone(card), original: structuredClone(original) };
 };
 
+const isCurrentCard = (session: ProjectCardEditSession, state: ReturnType<typeof useProjectStore.getState>) => {
+  // Both the editor and removal owner update every matching ID; ambiguous
+  // identities must fail before either operation touches authored work.
+  if (state.storedCards.filter((card) => card.uniqueId === session.original.uniqueId).length !== 1) return false;
+  const current = state.storedCards.find((item) => item.uniqueId === session.original.uniqueId);
+  const resolved = selectAllGeneratedDisplayCards(state).find((item) => item.uniqueId === session.original.uniqueId);
+  return getProjectPersistenceScope() === session.scope && Boolean(current && resolved
+    && state.cardSets.some((set) => set.id === session.setId)
+    && (current.setId ?? state.cardSets[0]?.id) === session.setId
+    && sameSnapshot(current, session.original)
+    && sameSnapshot(resolved.template, session.card.template)
+    && sameSnapshot(resolved.backingTemplate, session.card.backingTemplate));
+};
+
 /** Commit only card content when the original owned work and scope still match. */
 export const saveProjectCardEdit = (session: ProjectCardEditSession, card: DisplayCard): boolean => {
   const state = useProjectStore.getState();
-  const current = state.storedCards.find((item) => item.uniqueId === session.original.uniqueId);
-  const resolved = selectAllGeneratedDisplayCards(state).find((item) => item.uniqueId === session.original.uniqueId);
-  if (getProjectPersistenceScope() !== session.scope || !current || !resolved
-    || !state.cardSets.some((set) => set.id === session.setId)
-    || (current.setId ?? state.cardSets[0]?.id) !== session.setId
+  if (!isCurrentCard(session, state)
     || card.uniqueId !== session.original.uniqueId || card.setId !== session.card.setId
     || card.backingTemplateId !== session.card.backingTemplateId
     || !sameSnapshot(card.template, session.card.template)
-    || !sameSnapshot(card.backingTemplate, session.card.backingTemplate)
-    || !sameSnapshot(current, session.original)
-    || !sameSnapshot(resolved.template, session.card.template)
-    || !sameSnapshot(resolved.backingTemplate, session.card.backingTemplate)) return false;
+    || !sameSnapshot(card.backingTemplate, session.card.backingTemplate)) return false;
   state.updateGeneratedCard({ ...session.card, data: card.data, backingData: card.backingData });
   return true;
+};
+
+/** Remove the confirmed exact card through the existing session recovery owner. */
+export const removeProjectCard = (session: ProjectCardEditSession): boolean => {
+  const state = useProjectStore.getState();
+  return isCurrentCard(session, state) && state.removeGeneratedCards([session.original.uniqueId]) === 1;
 };

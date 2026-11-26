@@ -14,7 +14,7 @@ import type { DisplayCard } from '@/domain/rendering';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { setCreatorLens, useEnvironmentToolLifecycle, type CreatorInteractionSession } from '@/features/app-shell/client/environment';
 import { getArtifactWorkState } from '@/features/card-generator/client';
-import { CardRemovalUndo } from './CardRemovalUndo';
+import { CardRemovalUndo } from '@/features/project/client/ui';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
 import type { ArtifactSelectionScope } from '../model/focusedArtifactLayout';
