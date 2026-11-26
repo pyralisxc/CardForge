@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { getCardTitle } from '@/domain/cards';
 import { reconstructMinimalTemplateObject } from '@/domain/templates';
 import { createProjectDocumentFromState } from '@/features/project/model/projectDocument';
 import { applyProjectDocumentToWorkspace } from '@/features/project/client/projectWorkspaceDocument';
@@ -38,6 +39,31 @@ describe('session-only Set removal recovery', () => {
       })),
     });
     await persistProjectWorkspaceNow();
+  });
+
+  it('keeps Set-relative fallback names while restoring the workspace-wide order', () => {
+    const original = current().storedCards;
+    const unnamed = { ...original[3]!, data: {} };
+    useProjectStore.setState({ storedCards: [original[0]!, unnamed, original[1]!, original[2]!] });
+    expect(current().removeGeneratedCards(['other'])).toBe(1);
+    const entry = latest('set-b');
+    expect(getCardTitle(entry.cards[0]!, entry.setOrder.indexOf('other'))).toBe('Card 1');
+    expect(entry.order.indexOf('other')).toBe(1);
+    expect(current().undoCardRemoval(entry.id)).toMatchObject({ ok: true });
+    expect(ids()).toEqual(['a', 'other', 'b', 'c']);
+  });
+
+  it('excludes cards with unavailable front Templates from the visible Set-relative label', () => {
+    const original = current().storedCards;
+    const hidden = { ...original[0]!, uniqueId: 'hidden', templateId: 'missing' };
+    const unnamed = { ...original[1]!, data: {} };
+    useProjectStore.setState({ storedCards: [hidden, unnamed, original[2]!, original[3]!] });
+    expect(current().removeGeneratedCards(['b'])).toBe(1);
+    const entry = latest();
+    expect(getCardTitle(entry.cards[0]!, entry.setOrder.indexOf('b'))).toBe('Card 1');
+    expect(entry.order).toEqual(['hidden', 'b', 'c', 'other']);
+    expect(current().undoCardRemoval(entry.id)).toMatchObject({ ok: true });
+    expect(ids()).toEqual(['hidden', 'b', 'c', 'other']);
   });
 
   it('restores only the removed snapshots once without changing unrelated work', () => {

@@ -4,6 +4,9 @@ const state = vi.hoisted(() => ({
   locked: false,
   failWrite: false,
   updates: vi.fn(),
+  updateProfile: vi.fn(),
+  profile: null as Record<string, unknown> | null,
+  emails: [] as Array<{ emailAddress: string }>,
   metadata: {} as Record<string, unknown>,
 }));
 
@@ -14,14 +17,14 @@ vi.mock('@clerk/nextjs/server', () => ({
         id,
         firstName: 'Fixture',
         lastName: null,
-        emailAddresses: [],
+        emailAddresses: state.emails,
         privateMetadata: state.metadata,
         publicMetadata: {},
       }),
       updateUserMetadata: async (_id: string, patch: { privateMetadata: Record<string, unknown> }) => {
         if (state.failWrite) throw new Error('Clerk unavailable');
         state.updates(patch);
-        state.metadata = patch.privateMetadata;
+        state.metadata = { ...state.metadata, ...patch.privateMetadata };
       },
     },
   }),
@@ -38,12 +41,17 @@ vi.mock('@/features/billing/server', () => ({
   },
 }));
 
-vi.mock('@/features/account/server', () => import('@/features/account/server/accountAdministration'));
+vi.mock('@/features/account/server', async () => ({
+  ...(await import('@/features/account/server/accountAdministration')),
+  ...(await import('@/features/account/lib/accountEntitlement')),
+}));
 
 vi.mock('@/features/contributor-access/server', async () => ({
   ...(await import('@/features/contributor-access/server/profileStore')),
   CONTRIBUTOR_PROFILE_STATUSES: ['active', 'inactive', 'suspended', 'invited'],
-  fetchContributorProfileRows: async () => [],
+  fetchContributorProfileRows: async () => state.profile ? [state.profile] : [],
+  updateContributorProfileControl: state.updateProfile,
+  upsertContributorProfile: vi.fn(),
 }));
 
 vi.mock('@/features/owner/lib/serverOwnerAccess', () => ({
@@ -61,6 +69,7 @@ vi.mock('@/features/owner/server/ownerActivityStore', () => ({
 import {
   updateOwnerPerson,
 } from '@/features/owner/server/ownerPeopleOperations';
+import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
 
 const input = () => ({
   userId: 'user_one',
@@ -75,6 +84,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.locked = false;
   state.failWrite = false;
+  state.profile = null;
+  state.emails = [];
+  delete process.env.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS;
   state.metadata = {
     cardforgeStripeSubscriptionId: 'sub_creator',
     cardforgePaidPlan: 'creator',
@@ -85,6 +97,73 @@ beforeEach(() => {
 });
 
 describe('owner grants share the Stripe projection lock', () => {
+  it('refuses to claim revocation of an environment grant with no profile to deactivate', async () => {
+    state.emails = [{ emailAddress: 'person@example.test' }];
+    process.env.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS = 'person@example.test';
+    await expect(updateOwnerPerson({ userId: 'user_one', action: 'revoke' })).rejects.toMatchObject({ status: 409 });
+    expect(state.updates).not.toHaveBeenCalled();
+  });
+
+  it('reports a retained environment grant when disabling its existing profile', async () => {
+    state.emails = [{ emailAddress: 'person@example.test' }];
+    process.env.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS = 'person@example.test';
+    state.profile = { clerk_user_id: 'user_one', status: 'active' };
+    const result = await updateOwnerPerson({ userId: 'user_one', action: 'revoke' });
+    expect(state.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ status: 'inactive' }));
+    expect(result.warnings.join(' ')).toContain('deployment-managed Contributor grant remains');
+  });
+
+  it('uses effective deployment authority when saving an unchanged account and profile', async () => {
+    state.metadata.cardforgeAccess = 'free';
+    state.emails = [{ emailAddress: 'person@example.test' }];
+    process.env.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS = 'person@example.test';
+    state.profile = { clerk_user_id: 'user_one', status: 'suspended' };
+    await updateOwnerPerson({ userId: 'user_one', account: { commercialPlan: 'designer', contributor: true, owner: false, note: '' },
+      contributor: { status: 'active' } });
+    expect(state.updates).not.toHaveBeenCalled();
+    expect(state.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ status: 'active' }));
+  });
+
+  it('pauses a profile without rewriting an ambiguous legacy account grant', async () => {
+    state.metadata = { cardforgeAccess: 'contributor', cardforgeCommercialPlan: 'designer',
+      cardforgeAuthorityRoles: ['contributor'], cardforgeAccessExpiresAt: '2030-01-01' };
+    state.profile = { clerk_user_id: 'user_one', status: 'active' };
+    await updateOwnerPerson({ userId: 'user_one', account: { commercialPlan: '', contributor: true, owner: false, note: '' },
+      contributor: { status: 'suspended' } });
+    expect(state.updates).not.toHaveBeenCalled();
+    expect(state.metadata.cardforgeAccessExpiresAt).toBe('2030-01-01');
+    expect(state.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ status: 'suspended' }));
+  });
+
+  it('revokes only Contributor authority and preserves independent grants and Owner access', async () => {
+    state.metadata = { ...state.metadata, cardforgeAccess: 'contributor', cardforgeRole: 'owner',
+      cardforgeAuthorityRoles: ['contributor', 'other'], cardforgeAccessExpiresAt: '2030-01-01',
+      cardforgeOwnerNote: 'keep', cardforgeFounderBetaClaimedAt: '2026-01-01' };
+    state.profile = { clerk_user_id: 'user_one', status: 'active' };
+    await updateOwnerPerson({ userId: 'user_one', action: 'revoke' });
+    expect(state.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ status: 'inactive' }));
+    expect(state.metadata).toMatchObject({ cardforgeAccess: 'paid', cardforgeRole: 'owner',
+      cardforgeAuthorityRoles: ['other'], cardforgeOwnerCommercialPlan: 'designer',
+      cardforgeCommercialPlan: 'designer', cardforgeStripeSubscriptionId: 'sub_creator',
+      cardforgeAccessExpiresAt: '2030-01-01', cardforgeOwnerNote: 'keep',
+      cardforgeFounderBetaClaimedAt: '2026-01-01' });
+  });
+
+  it('preserves a separate legacy paid grant and its clean-export entitlement when revoking Contributor', async () => {
+    state.metadata = { cardforgeAccess: 'paid', cardforgeAccessExpiresAt: '2030-01-01T00:00:00.000Z',
+      cardforgeAuthorityRoles: ['contributor'] };
+    state.profile = { clerk_user_id: 'user_one', status: 'active' };
+    await updateOwnerPerson({ userId: 'user_one', action: 'revoke' });
+    const entitlement = resolveAccountEntitlement({ authConfigured: true, isSignedIn: true,
+      privateMetadata: state.metadata, now: '2026-11-26T00:00:00.000Z' });
+    expect(state.metadata).toMatchObject({ cardforgeAccess: 'paid', cardforgeAuthorityRoles: [],
+      cardforgeAccessExpiresAt: '2030-01-01T00:00:00.000Z' });
+    expect(entitlement).toMatchObject({ accessMode: 'paid', authorities: { contributor: false },
+      commercialPlan: 'free', canExportClean: true, capabilities: { canExportClean: true } });
+    expect(resolveAccountEntitlement({ authConfigured: true, isSignedIn: true,
+      privateMetadata: state.metadata, now: '2031-01-01T00:00:00.000Z' }).capabilities.canExportClean).toBe(false);
+  });
+
   it('removes an extra grant without canceling paid access', async () => {
     await updateOwnerPerson(input());
 
