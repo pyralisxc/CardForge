@@ -353,13 +353,15 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   useEffect(() => {
     if (!requestedReviewNotice) return;
     if (!experience.contributor.canReview) { setRequestedReviewNotice(null); return; }
-    if (activeScope !== 'pipeline' || activeLoading || (!pipelineNoticeReady && !pipelineNoticeError)) return;
+    if (activeScope !== 'pipeline' || activeTool || activeLoading || (!pipelineNoticeReady && !pipelineNoticeError)) return;
     let current = true;
+    const context = setOpenContext.current;
     const target = requestedReviewNotice;
     const item = [...itemMap.values()].find(candidate => candidate.scope === 'pipeline'
       && candidate.pipeline.revisions.some(revision => revision.id === target.submissionId && revision.lineageId === target.lineageId));
     void loadPipelineEngagement(target.submissionId, { lineageId: target.lineageId }).then(async engagement => {
       if (!current || persistenceScope !== getProjectPersistenceScope()) return;
+      if (setOpenContext.current !== context) { setRequestedReviewNotice(null); return; }
       if (engagement.voteIssue) throw new Error(engagement.voteIssue);
       if (engagement.trashedAt) {
         setTrashReviewNotice(target); setSharedTrashMode(true); setRequestedReviewNotice(null); return;
@@ -370,12 +372,13 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       if (!await acknowledgePipelineNotice(target.submissionId)) toast({ title: 'Review opened', description: 'The notice could not be marked read in this browser.' });
     }).catch((error: unknown) => {
       if (!current || persistenceScope !== getProjectPersistenceScope()) return;
+      if (setOpenContext.current !== context) { setRequestedReviewNotice(null); return; }
       setRequestedReviewNotice(null);
       const denied = error instanceof ApiClientError && [403, 404].includes(error.status);
       toast({ title: 'Revision unavailable', description: denied ? 'This exact Pipeline revision is no longer available for review.' : 'The exact Pipeline revision could not be confirmed. Try the notice again.', variant: 'destructive' });
     });
     return () => { current = false; };
-  }, [requestedReviewNotice, activeScope, activeLoading, activeFailure, itemMap, experience.contributor.canReview, persistenceScope, pipelineNoticeReady, pipelineNoticeError, acknowledgePipelineNotice, toast]);
+  }, [requestedReviewNotice, activeScope, activeTool, activeLoading, activeFailure, itemMap, experience.contributor.canReview, persistenceScope, pipelineNoticeReady, pipelineNoticeError, acknowledgePipelineNotice, toast]);
   cardEditContext.current = { scope: persistenceScope, itemId: selection.objectId ?? '' };
   setOpenContext.current = JSON.stringify([persistenceScope, activeScope, activeTool, selection.objectId]);
   const contentHealth = useMemo(() => buildPipelineContentHealth({ catalog: shared.catalog, program: shared.program }), [shared.catalog, shared.program]);
