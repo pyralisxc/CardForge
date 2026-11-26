@@ -27,8 +27,17 @@ test.describe('mobile Library location tools', () => {
     const libraryTarget = '[id="library-object-set:touch-companion-1"]';
     const libraryNeighbor = '[id="library-object-set:touch-companion-2"]';
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+    await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
     await expect(page.locator(target)).toBeVisible();
-    await page.getByRole('button', { name: `Actions for ${name}`, exact: true }).click();
+    const actions = page.getByRole('button', { name: `Actions for ${name}`, exact: true });
+    await expect(actions).toBeVisible();
+    await actions.scrollIntoViewIfNeeded();
+    expect(await actions.evaluate((button) => {
+      const rect = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      return { matches: hit === button || button.contains(hit), hit: hit?.closest('[data-desk-set-object-id]')?.getAttribute('data-desk-set-object-id') ?? hit?.tagName ?? null, x: rect.x, y: rect.y };
+    })).toMatchObject({ matches: true });
+    await actions.click();
     await page.getByRole('menuitem', { name: 'Remove from Desk', exact: true }).click();
     await expect(page.locator(target)).toHaveCount(0);
     await page.goto('/account?section=library&scope=personal', { waitUntil: 'domcontentloaded' });
