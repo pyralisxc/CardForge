@@ -633,7 +633,9 @@ export function useAccountLibraryProjection({
     assertCurrent();
     if (prepared.driveBinding) recordDriveWorkBinding(prepared.driveBinding);
     activateSet(prepared.setId);
-    void refreshLibrarySources();
+    // Existing local work is already represented by the workspace store.
+    // A cold provider/folder import can add sources that still need a refresh.
+    if (!item.references.localSetId) void refreshLibrarySources();
     return prepared.setId;
   }, [activateSet, recordDriveWorkBinding, refreshLibrarySources]);
 
