@@ -265,6 +265,33 @@
   box-shadow: var(--cf-panel-shadow);
 }
 
+.preparationStatus {
+  position: absolute;
+  z-index: 15;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  display: flex;
+  width: min(24rem, calc(100% - 1.5rem));
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border: 1px solid var(--cf-border-strong);
+  background: var(--cf-surface);
+  color: var(--cf-text-strong);
+  box-shadow: var(--cf-panel-shadow);
+  font-size: 0.8rem;
+}
+
+.preparationStatus progress {
+  width: 100%;
+}
+
+.preparationStatus button {
+  min-height: 2.75rem;
+  padding-inline: 0.5rem;
+}
+
 .searchField {
   position: relative;
   width: min(15rem, 100%);

@@ -130,7 +130,7 @@ export const getAccountLibraryEnvironmentActions = (
       supportedObjectKinds: [item.kind],
       supportedSources: sources,
       revisionPolicy: 'none',
-      requiredPermission: item.references.localSetId ? 'guest' : 'member',
+      requiredPermission: item.references.localSetId || item.references.localFolderWorkId || item.references.localFolder ? 'guest' : 'member',
       scope: 'object',
       hierarchy: 'supporting',
       availability: projectFileAvailability,

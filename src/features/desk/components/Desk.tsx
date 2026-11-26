@@ -184,7 +184,6 @@ function DeskContent({
   const [designIntent, setDesignIntent] = useState<DesignToolIntent | null>(null);
   const [storageOpen, setStorageOpen] = useState(false);
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
-  const [libraryPickerError, setLibraryPickerError] = useState<string | null>(null);
   const [artifactEditSession, setArtifactEditSession] = useState<ProjectCardEditSession | null>(null);
   const [artifactEditItem, setArtifactEditItem] = useState<AccountLibraryItem | null>(null);
   const artifactEditId = artifactEditSession?.card.uniqueId ?? null;
@@ -271,6 +270,8 @@ function DeskContent({
     pendingDeleteCards,
     pendingDeleteWork,
     preparingWorkId,
+    preparationStatus,
+    dismissPreparationStatus,
     reviewWork,
     closeReviewWork,
     pipelineSubmitSetId,
@@ -625,6 +626,8 @@ function DeskContent({
           {deskMembership.status === 'unavailable' ? <p role="alert">Desk placement is unavailable. Your device Sets remain visible; check browser storage before adding or removing Sets.</p> : null}
           <DeskOverviewSurface
             workItemsCount={Math.max(workItems.length, presentedWork.length)}
+            preparationStatus={preparationStatus}
+            onDismissPreparationStatus={dismissPreparationStatus}
             visibleWork={presentedWork}
             focusedItemId={presentedFocusedItem?.id ?? null}
             activeWorkId={activeWorkId}
@@ -763,7 +766,7 @@ function DeskContent({
             onInspect={inspectItem}
             onDelete={setPendingDeleteWork}
             onRemoveFromDesk={(item) => { void removeSetFromDesk(item).catch(() => toast({ title: 'Desk placement could not be saved', description: 'Your device and provider work is unchanged.', variant: 'destructive' })); }}
-            onAddFromLibrary={() => { setLibraryPickerError(null); setLibraryPickerOpen(true); }}
+            onAddFromLibrary={() => setLibraryPickerOpen(true)}
             onCreate={openCreateMenu}
             onRetry={refreshDeskSources}
             onNavigate={projection.router.push}
@@ -771,11 +774,12 @@ function DeskContent({
           <Dialog open={libraryPickerOpen} onOpenChange={setLibraryPickerOpen}>
             <DialogContent><DialogHeader><DialogTitle>Add from Library</DialogTitle><DialogDescription>Choose a Set to prepare on this device. Once added, it is ready to open and edit. Removing it from Desk does not delete your work.</DialogDescription></DialogHeader>
               {deskMembership.status === 'unavailable' ? <p role="alert">Desk placement is unavailable. Your device work remains available; check browser storage before adding or removing Sets.</p> : null}
-              {libraryPickerError ? <p role="alert">{libraryPickerError}</p> : null}
+              {preparationStatus?.phase === 'error' ? <p role="alert">Could not {preparationStatus.operation === 'remove' ? 'remove' : 'prepare'} “{preparationStatus.name}”. {preparationStatus.message}</p> : null}
+              {preparationStatus?.phase === 'preparing' ? <div role="status" aria-live="polite"><p>{preparationStatus.operation === 'remove' ? 'Removing' : 'Preparing'} “{preparationStatus.name}” {preparationStatus.operation === 'remove' ? 'from' : 'for'} Desk…</p><progress aria-label={`${preparationStatus.operation === 'remove' ? 'Removing' : 'Preparing'} ${preparationStatus.name}`} className="w-full" /></div> : null}
               <div className="max-h-[55vh] space-y-2 overflow-y-auto">
                 {librarySetItems.map((item) => {
                   const added = Boolean(item.references.localSetId && deskMembership.ids.includes(item.references.localSetId));
-                  return <div key={item.id} className="flex items-center justify-between gap-3 rounded border p-3"><div><strong>{item.name}</strong><p className="text-sm">{item.locations.map((location) => location.label).join(' · ')}</p></div><Button type="button" variant="outline" disabled={added || Boolean(preparingWorkId) || deskMembership.status !== 'ready'} onClick={() => { setLibraryPickerError(null); void addLibrarySetToDesk(item).catch((error: unknown) => setLibraryPickerError(error instanceof Error ? error.message : 'This Set could not be prepared. Existing work is unchanged.')); }}>{added ? 'On Desk' : preparingWorkId === item.id ? 'Preparing…' : 'Add to Desk'}</Button></div>;
+                  return <div key={item.id} className="flex items-center justify-between gap-3 rounded border p-3"><div><strong>{item.name}</strong><p className="text-sm">{item.locations.map((location) => location.label).join(' · ')}</p>{added ? <p className="text-sm">On Desk</p> : null}</div>{added ? <Button type="button" variant="outline" aria-label={`Remove ${item.name} from Desk`} disabled={Boolean(preparingWorkId) || deskMembership.status !== 'ready'} onClick={() => { void removeSetFromDesk(item).catch(() => undefined); }}>Remove from Desk</Button> : <Button type="button" variant="outline" disabled={Boolean(preparingWorkId) || deskMembership.status !== 'ready'} onClick={() => { void addLibrarySetToDesk(item).catch(() => undefined); }}>{preparingWorkId === item.id ? 'Preparing…' : 'Add to Desk'}</Button>}</div>;
                 })}
                 {!projection.isLoading && librarySetItems.length === 0 ? <p>No Sets are available from connected sources.</p> : null}
                 {projection.isLoading ? <p role="status">Checking connected sources…</p> : null}

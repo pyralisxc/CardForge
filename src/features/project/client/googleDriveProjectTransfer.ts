@@ -713,7 +713,7 @@ const downloadedBinding = ({
 
 export const openGoogleDriveProject = async (
   summary: Pick<GoogleDriveProjectSummary, 'fileId' | 'name' | 'accountId'>,
-  options: { requireSingleSet?: boolean } = {},
+  options: { requireSingleSet?: boolean; preserveActiveSet?: boolean; preserveSetOutputPreferences?: boolean; assertCurrent?: () => void } = {},
 ): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   if (summary.accountId) {
@@ -756,13 +756,14 @@ export const openGoogleDriveProject = async (
     runtimeSetIds: document.cardSets.map((set) => set.id),
   });
   const publishOpenedWork = async () => {
+    options.assertCurrent?.();
     // Store the source identity before publishing the imported Set. If a later
     // binding update fails, reopening still finds the already materialized work.
     for (const set of document.cardSets) await persistWorkBinding(set.id, binding, namespace);
     assertBindingScope(namespace);
     await primeProjectBinaryAssetUrls(document);
     assertBindingScope(namespace);
-    await applyProjectDocumentToWorkspace(document, 'merge', { expectedState });
+    await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, ...(options.preserveActiveSet ? { preserveActiveSet: true } : {}), ...(options.preserveSetOutputPreferences && document.cardSets.length === 1 ? { preserveOutputPreferences: true } : {}), ...(options.assertCurrent ? { assertCurrent: options.assertCurrent } : {}) });
     assertBindingScope(namespace);
     if (binding.workId && document.cardSets.length === 1) {
       binding.localProjectRevision = (await createProjectPackage(binding.name, binding.workId)).localProjectRevision;

@@ -261,7 +261,7 @@ export const captureCardProjectDocument = async (cardId: string): Promise<Projec
 export const applyProjectDocumentToWorkspace = async (
   document: ProjectDocumentV1,
   mode: ProjectWorkspaceApplyMode,
-  options: { expectedState?: ProjectState; replaceSetIds?: readonly string[]; preserveOutputPreferences?: boolean; signal?: AbortSignal; validatePreparedDocument?: (prepared: ProjectDocumentV1) => void } = {},
+  options: { expectedState?: ProjectState; replaceSetIds?: readonly string[]; preserveOutputPreferences?: boolean; preserveActiveSet?: boolean; assertCurrent?: () => void; signal?: AbortSignal; validatePreparedDocument?: (prepared: ProjectDocumentV1) => void } = {},
 ): Promise<ProjectWorkspaceApplySummary> => {
   options.signal?.throwIfAborted();
   const draft = createProjectWorkspaceDraft(options.expectedState);
@@ -354,7 +354,7 @@ const applyPreparedProjectDocument = async (
   draft: ReturnType<typeof createProjectWorkspaceDraft>,
   cleanup: Awaited<ReturnType<typeof prepareCompletedDeletionCleanup>>,
   mode: ProjectWorkspaceApplyMode,
-  options: { replaceSetIds?: readonly string[]; preserveOutputPreferences?: boolean; signal?: AbortSignal; expectedCatalogValues?: Record<string, string | null> },
+  options: { replaceSetIds?: readonly string[]; preserveOutputPreferences?: boolean; preserveActiveSet?: boolean; assertCurrent?: () => void; signal?: AbortSignal; expectedCatalogValues?: Record<string, string | null> },
 ): Promise<ProjectWorkspaceApplySummary> => {
   const document = cleanup.document;
   const independent = mode === 'copy'
@@ -459,8 +459,9 @@ const applyPreparedProjectDocument = async (
   const importedTemplateCount = state.installProjectDocumentTemplates(importedTemplates, writeMode);
 
   const afterTemplates = draft.getState();
+  const preservedActiveSetId = options.preserveActiveSet ? afterTemplates.activeCardSet?.id : undefined;
   if (writeMode === 'merge') {
-    afterTemplates.mergeCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
+    afterTemplates.mergeCardSetsFromFiles(patch.cardSets, preservedActiveSetId ?? patch.activeCardSetId);
     afterTemplates.setAppearanceStylesFromFiles(patch.appearanceStyles);
   } else {
     afterTemplates.setCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
@@ -506,7 +507,7 @@ const applyPreparedProjectDocument = async (
       ?? patch.cardSets.find((set) => set.id === activeSetId)?.templateIds?.[0]
       ?? null
     : null;
-  if (activeTemplateId) {
+  if (activeTemplateId && !preservedActiveSetId) {
     draft.getState().setGeneratorSelectedTemplateId(activeTemplateId);
     draft.getState().setTemplateEditorSelectedTemplateId(activeTemplateId);
   }
@@ -514,6 +515,7 @@ const applyPreparedProjectDocument = async (
   options.signal?.throwIfAborted();
   await draft.commit(relatedWrites, options.signal, {
     replaceWholeWorkspace: writeMode === 'replace',
+    assertCurrent: options.assertCurrent,
   });
   if (cleanup.changed) notifyCompletedDeletionCleanup();
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(PROJECT_FONT_LIBRARY_CHANGE_EVENT));
