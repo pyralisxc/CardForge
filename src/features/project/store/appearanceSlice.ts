@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import { authoredPlanValuesEqual } from '@/domain/cards';
 
 import type { AppearanceSlice, ProjectState } from './types';
 import { dedupeAppearanceStyles } from './workspaceDefaults';
@@ -12,7 +13,8 @@ export const createAppearanceSlice: StateCreator<ProjectState, [], [], Appearanc
       if (index > -1) merged[index] = style;
       else merged.push(style);
     });
-    return { appearanceStyles: dedupeAppearanceStyles(merged) };
+    const appearanceStyles = dedupeAppearanceStyles(merged);
+    return authoredPlanValuesEqual(state.appearanceStyles, appearanceStyles) ? state : { appearanceStyles };
   }),
   replaceAppearanceStylesFromFiles: (styles) => set({
     appearanceStyles: dedupeAppearanceStyles(styles),
