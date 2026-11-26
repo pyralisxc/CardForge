@@ -176,6 +176,11 @@ export const updateOwnerPerson = async (
         publicMetadata: user.publicMetadata,
         privateMetadata: user.privateMetadata,
       });
+      const environmentContributors = new Set((process.env.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS ?? '')
+        .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
+      if (action === 'revoke' && !profile && user.emailAddresses.some((address) => environmentContributors.has(address.emailAddress.trim().toLowerCase()))) {
+        throw new OwnerPeopleOperationError('This account has an environment-managed Contributor grant but no profile to deactivate. Reconcile that grant before revoking access.', 409, 'owner_operations_conflict');
+      }
       if (userId === owner.userId && input.account?.owner !== true) {
         throw new OwnerPeopleOperationError(
           'Keep owner access enabled for the signed-in owner.',

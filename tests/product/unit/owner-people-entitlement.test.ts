@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   updates: vi.fn(),
   updateProfile: vi.fn(),
   profile: null as Record<string, unknown> | null,
+  emails: [] as Array<{ emailAddress: string }>,
   metadata: {} as Record<string, unknown>,
 }));
 
@@ -16,7 +17,7 @@ vi.mock('@clerk/nextjs/server', () => ({
         id,
         firstName: 'Fixture',
         lastName: null,
-        emailAddresses: [],
+        emailAddresses: state.emails,
         privateMetadata: state.metadata,
         publicMetadata: {},
       }),
@@ -80,6 +81,8 @@ beforeEach(() => {
   state.locked = false;
   state.failWrite = false;
   state.profile = null;
+  state.emails = [];
+  delete process.env.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS;
   state.metadata = {
     cardforgeStripeSubscriptionId: 'sub_creator',
     cardforgePaidPlan: 'creator',
@@ -90,6 +93,13 @@ beforeEach(() => {
 });
 
 describe('owner grants share the Stripe projection lock', () => {
+  it('refuses to claim revocation of an environment grant with no profile to deactivate', async () => {
+    state.emails = [{ emailAddress: 'person@example.test' }];
+    process.env.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS = 'person@example.test';
+    await expect(updateOwnerPerson({ userId: 'user_one', action: 'revoke' })).rejects.toMatchObject({ status: 409 });
+    expect(state.updates).not.toHaveBeenCalled();
+  });
+
   it('pauses a profile without rewriting an ambiguous legacy account grant', async () => {
     state.metadata = { cardforgeAccess: 'contributor', cardforgeCommercialPlan: 'designer',
       cardforgeAuthorityRoles: ['contributor'], cardforgeAccessExpiresAt: '2030-01-01' };
@@ -105,7 +115,9 @@ describe('owner grants share the Stripe projection lock', () => {
     state.metadata = { ...state.metadata, cardforgeAccess: 'contributor', cardforgeRole: 'owner',
       cardforgeAuthorityRoles: ['contributor', 'other'], cardforgeAccessExpiresAt: '2030-01-01',
       cardforgeOwnerNote: 'keep', cardforgeFounderBetaClaimedAt: '2026-01-01' };
+    state.profile = { clerk_user_id: 'user_one', status: 'active' };
     await updateOwnerPerson({ userId: 'user_one', action: 'revoke' });
+    expect(state.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ status: 'inactive' }));
     expect(state.metadata).toMatchObject({ cardforgeAccess: 'paid', cardforgeRole: 'owner',
       cardforgeAuthorityRoles: ['other'], cardforgeOwnerCommercialPlan: 'designer',
       cardforgeCommercialPlan: 'designer', cardforgeStripeSubscriptionId: 'sub_creator',
