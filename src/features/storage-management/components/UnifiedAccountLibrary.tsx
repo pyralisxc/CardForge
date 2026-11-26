@@ -190,8 +190,13 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   useEffect(() => { sharedTrashRequestEpoch.current += 1; }, [sharedTrashSessionKey]);
   const [editingSubmission, setEditingSubmission] = useState<PipelineSubmission | null>(null);
   const revisionHandoffContext = useRef('');
+  const revisionHandoffEpoch = useRef(0);
   const revisionHandoffMounted = useRef(false);
-  revisionHandoffContext.current = JSON.stringify([sharedTrashSessionKey, editingSubmission?.id ?? null, experience.contributor.active]);
+  const handoffContext = JSON.stringify([sharedTrashSessionKey, editingSubmission?.id ?? null, experience.contributor.active]);
+  if (revisionHandoffContext.current !== handoffContext) {
+    revisionHandoffContext.current = handoffContext;
+    revisionHandoffEpoch.current += 1;
+  }
   useEffect(() => { revisionHandoffMounted.current = true; return () => { revisionHandoffMounted.current = false; }; }, []);
   const [requestedSubmissionId, setRequestedSubmissionId] = useState<string | null>(null);
   const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
@@ -908,18 +913,20 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
             savedTemplates={templates}
             onContinueRevision={isSignedIn && experience.contributor.canSubmit ? async (template, base) => {
               const context = revisionHandoffContext.current;
+              const epoch = revisionHandoffEpoch.current;
               if (base.parentSubmissionId !== editingSubmission.id) throw new Error('The exact reviewed revision changed. Refresh before continuing.');
               const { attempt, created } = await retainReviewedTemplateAttempt(template, base);
-              if (!revisionHandoffMounted.current || revisionHandoffContext.current !== context) throw new Error('The saved attempt is available in Design.');
+              if (!revisionHandoffMounted.current || revisionHandoffContext.current !== context || revisionHandoffEpoch.current !== epoch) throw new Error('The saved attempt is available in Design.');
               const destination = await resolveTemplatePipelineAttempt(attempt, created);
               if (!destination) throw new Error('No committed draft was found. Check the saved attempt below before retrying its original snapshot.');
-              if (revisionHandoffMounted.current && revisionHandoffContext.current === context) window.location.assign(destination);
+              if (revisionHandoffMounted.current && revisionHandoffContext.current === context && revisionHandoffEpoch.current === epoch) window.location.assign(destination);
             } : undefined}
             renderRevisionRecovery={(templateId, busy) => {
               const context = revisionHandoffContext.current;
+              const epoch = revisionHandoffEpoch.current;
               return <TemplatePipelineAttemptRecovery templateId={templateId} busy={busy}
                 onAttemptsChange={ignoreAttemptState} onReadyChange={ignoreAttemptState}
-                onOpenDestination={url => { if (revisionHandoffMounted.current && revisionHandoffContext.current === context) window.location.assign(url); }} />;
+                onOpenDestination={url => { if (revisionHandoffMounted.current && revisionHandoffContext.current === context && revisionHandoffEpoch.current === epoch) window.location.assign(url); }} />;
             }}
             onCancel={() => runAction(actions[0]!)}
             onUpdated={async () => {
