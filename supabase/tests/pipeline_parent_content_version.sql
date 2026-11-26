@@ -148,6 +148,9 @@ begin
     exception when raise_exception then if sqlerrm<>'template_author_revision_conflict' then raise; end if; end;
     raise exception 'rollback_old_highwater_fixture';
   exception when raise_exception then if sqlerrm<>'rollback_old_highwater_fixture' then raise; end if; end;
+  -- Existing review preference must survive a real author draft and resubmission.
+  insert into public.cardforge_contributor_asset_votes(submission_id,lineage_id,contributor_id,vote_value,vote_weight)
+    values(parent_id,parent_lineage,'history-peer-'||actor,'negative',1);
   next_id:=public.cardforge_create_template_author_revision_draft(parent_id,reviewed,version,actor,'','Updated Template',payload,'revision-history-fixture',repeat('a',64));
   if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=parent_id and s.lineage_id=parent_lineage
       and s.status='archived' and s.decision_reason='superseded_revision' and s.trashed_at is null and s.purge_after is null
@@ -211,6 +214,9 @@ begin
     'https://example.invalid/template-preview','Fixture rights',array['games'],array['tcg'],'template.front');
   if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=next_id and s.status='submitted')
     then raise exception 'author_review_history_draft_not_submitted'; end if;
+  if not exists(select 1 from public.cardforge_contributor_asset_votes v where v.submission_id=parent_id and v.lineage_id=parent_lineage
+    and v.contributor_id='history-peer-'||actor and v.vote_value='negative')
+    then raise exception 'author_resubmission_cleared_existing_vote'; end if;
   delete from public.cardforge_contributor_asset_submissions s where s.id=next_id;
   begin
     perform public.cardforge_read_template_author_revision_attempt_kind(parent_id,actor,'revision-history-fixture');
