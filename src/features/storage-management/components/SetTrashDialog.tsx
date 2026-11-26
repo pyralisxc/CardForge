@@ -3,45 +3,31 @@
 import { useRef, useState } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { deleteGoogleDriveProjectCopy } from '@/features/project/client/provider-google-drive';
 import { getProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
-import { trashDeviceSet } from '@/features/project/client/workLocationTransfer';
 import type { AccountLibraryItem } from '../model/accountLibrary';
-
-type TrashTarget = 'device' | 'drive';
+import { executeSetTrash, getSetTrashTargets, type SetTrashTarget } from '../lib/setTrashLifecycle';
 
 /** One selected-Set lifecycle; the device and Drive owners perform their own operations. */
 export function SetTrashDialog({ item, canUseDrive, onClose, onCompleted }: {
   item: AccountLibraryItem;
   canUseDrive: boolean;
   onClose: () => void;
-  onCompleted: (target: TrashTarget) => void;
+  onCompleted: (target: SetTrashTarget) => void;
 }) {
   const { toast } = useToast();
   const scope = useRef(getProjectPersistenceScope());
   const busyRef = useRef(false);
   const [busy, setBusy] = useState(false);
-  const hasDevice = Boolean(item.references.localSetId);
-  const hasDrive = Boolean(item.references.driveFileId);
-  const driveReady = Boolean(canUseDrive && item.references.driveAccountId && item.references.driveProviderRevision && item.references.driveProjectRevision);
-  const [target, setTarget] = useState<TrashTarget | null>(hasDevice && hasDrive ? null : hasDevice ? 'device' : hasDrive ? 'drive' : null);
+  const { hasDevice, hasDrive, driveReady } = getSetTrashTargets(item, canUseDrive);
+  const [target, setTarget] = useState<SetTrashTarget | null>(hasDevice && hasDrive ? null : hasDevice ? 'device' : hasDrive ? 'drive' : null);
 
   const confirm = async () => {
     if (!target || busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
-    try {
-      if (getProjectPersistenceScope() !== scope.current) throw new Error('The active account changed. Reopen Trash for the intended Set.');
-      if (target === 'device') {
-        if (!item.references.localSetId) throw new Error('The device Set could not be found. Refresh before trying again.');
-        await trashDeviceSet(item.references.localSetId, scope.current);
-      } else {
-        const { driveFileId, driveAccountId, driveProviderRevision, driveProjectRevision } = item.references;
-        if (!driveReady || !driveFileId || !driveAccountId || !driveProviderRevision || !driveProjectRevision) throw new Error('Refresh this Set to confirm the Drive account and revisions.');
-        await deleteGoogleDriveProjectCopy({ fileId: driveFileId, accountId: driveAccountId, providerRevision: driveProviderRevision, projectRevision: driveProjectRevision });
-      }
-    } catch (error) {
-      toast({ title: 'Trash needs attention', description: error instanceof Error ? error.message : 'Check the selected location before trying again.', variant: 'destructive' });
+    const outcome = await executeSetTrash({ item, target, canUseDrive, scope: scope.current });
+    if (outcome.kind === 'needs-attention') {
+      toast({ title: 'Trash needs attention', description: outcome.message, variant: 'destructive' });
       busyRef.current = false;
       setBusy(false);
       onClose();

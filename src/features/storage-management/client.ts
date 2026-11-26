@@ -39,3 +39,4 @@ export type {
 } from './model/accountLibrary';
 
 export { LibraryRevisionEntry } from './components/LibraryRevisionEntry';
+export { executeSetTrash, getSetTrashTargets, type SetTrashOutcome, type SetTrashTarget } from './lib/setTrashLifecycle';

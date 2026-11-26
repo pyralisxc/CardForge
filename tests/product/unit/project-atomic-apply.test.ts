@@ -11,7 +11,9 @@ import { parseBrowserWorkspaceRecord } from '@/features/project/persistence/work
 import { buildCardForgeProjectSnapshot } from '@/features/project/lib/projectPackageCodec';
 import { CUSTOM_IMAGE_ASSETS_STORAGE_KEY } from '@/features/project/model/projectDocument';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
-import { removeDeviceWorkAfterVerifiedCopy, trashDeviceSet } from '@/features/project/client/workLocationTransfer';
+import { removeDeviceWorkAfterVerifiedCopy } from '@/features/project/client/workLocationTransfer';
+import { executeSetTrash } from '@/features/storage-management/lib/setTrashLifecycle';
+import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
 
 let counter = 0;
 let scope: `account:${string}`;
@@ -659,7 +661,8 @@ describe('atomic project apply', () => {
       if (key === `project-workspace:${scope}:workspace`) throw new DOMException('Disk full', 'QuotaExceededError');
       return put.call(this, value, key);
     });
-    await expect(trashDeviceSet(setId, scope)).rejects.toThrow('Disk full');
+    const item = { references: { localSetId: setId } } as AccountLibraryItem;
+    await expect(executeSetTrash({ item, target: 'device', canUseDrive: false, scope })).resolves.toEqual({ kind: 'needs-attention', message: 'Disk full' });
     expect(useProjectStore.getState()).toBe(beforeState);
     expect(await raw.getItem('workspace')).toBe(beforeBytes);
   });

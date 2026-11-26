@@ -188,10 +188,10 @@ export const getAccountLibraryEnvironmentActions = (
     actions.push({
       id: 'library.delete-copy',
       label: 'Trash',
-      ownerFeature: item.references.localTemplateId ? 'template-editor' : item.references.localSetId ? 'card-generator' : 'project',
+      ownerFeature: 'storage-management',
       supportedObjectKinds: [item.kind],
       supportedSources: sources,
-      revisionPolicy: item.references.driveFileId && !item.references.localSetId ? 'conflict-safe' : 'none',
+      revisionPolicy: item.references.driveFileId ? 'conflict-safe' : 'none',
       requiredPermission: item.references.localSetId || item.references.localTemplateId ? 'guest' : 'member',
       scope: 'object', hierarchy: 'overflow', availability: !disabledReason && !item.references.localSetId && !item.references.driveFileId ? { kind: 'disabled', reason: 'Manage local-folder files in your file manager.' } : availability, commitment: 'destructive', automation: human(item.references.driveFileId && !item.references.localSetId && !item.references.localTemplateId ? 'provider' : 'cardforge'), result: 'tool-opened',
     });
