@@ -23,6 +23,29 @@ async function mount(page: import('@playwright/test').Page, query = '') {
   await page.addScriptTag({ content: bundle.outputFiles.find(f => f.path.endsWith('.js'))!.text });
   return { mutations, errors };
 }
+test('Drive disconnect readback reports the CardForge record without another revocation', async ({ page }) => {
+  const evidence = await mount(page, '?disconnectProof=1');
+  page.on('dialog', dialog => void dialog.accept());
+  await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
+  const notice = page.getByRole('alert').filter({ hasText: 'Google confirmed access was revoked' });
+  await expect(notice).toContainText('CardForge still has a saved connection');
+  await notice.getByRole('button', { name: 'Check CardForge record', exact: true }).click();
+  await expect(notice.getByRole('status')).toContainText('CardForge has no saved connection. This check does not establish whether Google revoked access.');
+  await expect(page.getByRole('button', { name: 'Disconnect', exact: true })).toHaveCount(0);
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string; url: string }[] }).libraryRequests);
+  expect(requests.filter(request => request.method === 'DELETE')).toHaveLength(1);
+  expect(requests.some(request => request.method === 'GET' && request.url.endsWith('?connection=1'))).toBe(true);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+  await mount(page, '?disconnectProof=1');
+  const restored = page.getByRole('alert').filter({ hasText: 'An earlier disconnect needs review' });
+  await expect(restored).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Disconnect', exact: true })).toHaveCount(0);
+  await restored.getByRole('button', { name: 'Check CardForge record', exact: true }).click();
+  await restored.getByRole('button', { name: 'Support confirmed access', exact: true }).click();
+  await expect(restored).toHaveCount(0);
+  const reopenedRequests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests);
+  expect(reopenedRequests.filter(request => request.method === 'DELETE')).toHaveLength(0);
+});
 for (const width of [390, 1440]) test(`@golden @preview Library exact governance, revision entry and close at ${width}px`, async ({ page }, info) => {
   await page.setViewportSize({ width, height: 900 }); const evidence = await mount(page);
   await page.getByRole('button', { name: 'Review & manage', exact: true }).click();

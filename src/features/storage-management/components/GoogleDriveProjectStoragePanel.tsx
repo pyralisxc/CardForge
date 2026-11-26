@@ -2,11 +2,11 @@
 
 import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Cloud, FilePlus2, FolderCog, FolderPlus, HardDriveUpload, Link2, Link2Off, Loader2, LogIn, RefreshCw, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ApiClientError } from '@/infrastructure/http/clientResponses';
+import { ApiClientError, readApiError } from '@/infrastructure/http/clientResponses';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,6 +19,8 @@ import {
   chooseGoogleDriveProjectFolder,
   createGoogleDriveProjectFolder,
   disconnectGoogleDriveStorage,
+  getGoogleDriveDisconnectReviewRequired,
+  clearGoogleDriveDisconnectReview,
   getGoogleDriveProjectBinding,
   loadGoogleDriveProjectLibrary,
   saveCurrentProjectToGoogleDrive,
@@ -49,12 +51,25 @@ export function GoogleDriveProjectStoragePanel({
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [bindingError, setBindingError] = useState<string | null>(null);
+  const [disconnectNotice, setDisconnectNotice] = useState<string | null>(null);
+  const [recordReadback, setRecordReadback] = useState<string | null>(null);
+  const [recordAbsent, setRecordAbsent] = useState(false);
+  const [checkingRecord, setCheckingRecord] = useState(false);
+  const [disconnectCheckReady, setDisconnectCheckReady] = useState(false);
+  const currentScope = useRef({ scope: persistenceScope });
+  if (currentScope.current.scope !== persistenceScope) currentScope.current = { scope: persistenceScope };
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const [folderName, setFolderName] = useState('CardForge Projects');
 
   useEffect(() => {
     let cancelled = false;
     setReady(false);
+    setDisconnectNotice(null);
+    setRecordReadback(null);
+    setRecordAbsent(false);
+    setCheckingRecord(false);
+    setDisconnectCheckReady(false);
+    setBusyAction(null);
     void hydrateProjectLibraryWorkspaceForScope(persistenceScope)
       .then(() => { if (!cancelled) setReady(true); })
       .catch((error) => {
@@ -68,6 +83,23 @@ export function GoogleDriveProjectStoragePanel({
       });
     return () => { cancelled = true; };
   }, [persistenceScope, toast]);
+
+  useEffect(() => {
+    if (!ready || !isSignedIn) return;
+    let cancelled = false;
+    void getGoogleDriveDisconnectReviewRequired().then((required) => {
+      if (cancelled) return;
+      if (required) {
+        setDisconnectNotice('An earlier disconnect needs review. CardForge cannot establish whether Google revoked access or whether its saved connection was removed. Your Drive files are unchanged. Check Google Account third-party access and the CardForge record, and contact CardForge support before reconnecting or disconnecting again.');
+      }
+      setDisconnectCheckReady(true);
+    }).catch(() => {
+      if (cancelled) return;
+      setDisconnectNotice('CardForge could not check whether a previous disconnect needs review. Your Drive files are unchanged. Check Google Account third-party access and contact CardForge support before reconnecting or disconnecting again.');
+      setDisconnectCheckReady(true);
+    });
+    return () => { cancelled = true; };
+  }, [persistenceScope, ready, isSignedIn]);
 
   const refresh = useCallback(async () => {
     if (!ready || !isSignedIn) {
@@ -102,20 +134,61 @@ export function GoogleDriveProjectStoragePanel({
   }, [refresh]);
 
   const run = useCallback(async (action: string, execute: () => Promise<void>) => {
+    const scope = currentScope.current;
     setBusyAction(action);
     try {
       await execute();
+      if (currentScope.current !== scope) return;
       await refresh();
     } catch (error) {
+      if (currentScope.current !== scope) return;
+      const disconnectUnconfirmed = action === 'disconnect' && error instanceof ApiClientError
+        && error.code === 'google_drive_disconnect_unconfirmed';
+      if (disconnectUnconfirmed) setDisconnectNotice(`${error.message} ${error.nextAction ?? ''}`);
       toast({
-        title: 'Google Drive action failed',
-        description: error instanceof Error ? error.message : 'CardForge could not complete that Google Drive action.',
+        title: disconnectUnconfirmed ? 'Google Drive disconnect needs review' : 'Google Drive action failed',
+        description: disconnectUnconfirmed ? `${error.message} ${error.nextAction ?? ''}` : error instanceof Error ? error.message : 'CardForge could not complete that Google Drive action.',
         variant: 'destructive',
       });
     } finally {
-      setBusyAction(null);
+      if (currentScope.current === scope) setBusyAction(null);
     }
   }, [refresh, toast]);
+
+  const checkSavedConnection = useCallback(async () => {
+    const scope = currentScope.current;
+    setCheckingRecord(true);
+    setRecordAbsent(false);
+    try {
+      const response = await fetch('/api/project-sources/google-drive?connection=1', { cache: 'no-store' });
+      if (!response.ok) throw await readApiError(response, 'CardForge could not check its saved connection.');
+      const value: unknown = await response.json();
+      if (!value || typeof value !== 'object' || !('configured' in value) || !('connected' in value)
+        || typeof value.configured !== 'boolean' || typeof value.connected !== 'boolean' || !value.configured) throw new Error('CardForge could not check its saved connection.');
+      if (currentScope.current === scope) {
+        setRecordAbsent(!value.connected);
+        setRecordReadback(`${value.connected ? 'CardForge has a saved connection.' : 'CardForge has no saved connection.'} This check does not establish whether Google revoked access.`);
+      }
+    } catch {
+      if (currentScope.current === scope) setRecordReadback('CardForge could not check its saved connection. This does not establish whether Google revoked access.');
+    } finally { if (currentScope.current === scope) setCheckingRecord(false); }
+  }, []);
+
+  const acknowledgeDisconnectReview = useCallback(async () => {
+    if (!recordAbsent || !window.confirm('Has CardForge support verified the correct Google account and confirmed CardForge no longer has access? This only clears the browser review notice; it does not change Google access, the saved connection, or your files.')) return;
+    const scope = currentScope.current;
+    setCheckingRecord(true);
+    try {
+      await clearGoogleDriveDisconnectReview();
+      if (currentScope.current !== scope) return;
+      setDisconnectNotice(null);
+      setRecordReadback(null);
+      setRecordAbsent(false);
+      await refresh();
+    } catch {
+      if (currentScope.current === scope) setRecordReadback('CardForge could not clear the browser review notice. Contact CardForge support.');
+    } finally { if (currentScope.current === scope) setCheckingRecord(false); }
+  }, [recordAbsent, refresh]);
 
   const authorizeExistingProjects = useCallback(async (folderId: string) => {
     try {
@@ -201,6 +274,7 @@ export function GoogleDriveProjectStoragePanel({
           </Button>
         </div>
 
+        {disconnectNotice ? <div role="alert" className="mt-4 space-y-2 text-sm text-[var(--cf-warning)]"><p>{disconnectNotice}</p><p>Check <a className="underline" href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">Google Account third-party access</a> separately. Contact CardForge support to verify which Google account was connected.</p><Button type="button" size="sm" variant="outline" disabled={checkingRecord} onClick={() => void checkSavedConnection()}>Check CardForge record</Button>{recordReadback ? <p role="status">{recordReadback}</p> : null}{recordAbsent ? <Button type="button" size="sm" variant="outline" disabled={checkingRecord} onClick={() => void acknowledgeDisconnectReview()}>Support confirmed access</Button> : null}</div> : null}
         {!isSignedIn ? (
           <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
             <p className="text-sm text-[var(--cf-text-muted)]">Sign in to connect your Google Drive.</p>
@@ -214,16 +288,16 @@ export function GoogleDriveProjectStoragePanel({
           <div role="alert" className="mt-4 space-y-3 border border-[var(--cf-border)] p-3 text-sm">
             <p>{loadError.message}</p>
             {loadError instanceof ApiClientError && loadError.kind === 'authentication' ? (
-              <Button size="sm" disabled={!canUseProjectFiles} onClick={() => router.push(`/api/project-sources/google-drive/connect?returnTo=${encodeURIComponent(returnTo)}`)}>Reconnect Google Drive</Button>
+              <Button size="sm" disabled={!disconnectCheckReady || !canUseProjectFiles || Boolean(disconnectNotice)} onClick={() => router.push(`/api/project-sources/google-drive/connect?returnTo=${encodeURIComponent(returnTo)}`)}>Reconnect Google Drive</Button>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {canReplaceUnavailableFolder ? (
                   <>
-                    <Button type="button" size="sm" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={chooseProjectFolder}>
+                    <Button type="button" size="sm" disabled={Boolean(busyAction) || Boolean(disconnectNotice) || !canUseProjectFiles} onClick={chooseProjectFolder}>
                       {busyAction === 'choose-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderCog className="mr-2 h-4 w-4" />}
                       Choose project folder
                     </Button>
-                    <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={() => setCreateFolderOpen(true)}>
+                    <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || Boolean(disconnectNotice) || !canUseProjectFiles} onClick={() => setCreateFolderOpen(true)}>
                       <FolderPlus className="mr-2 h-4 w-4" /> Create project folder
                     </Button>
                   </>
@@ -245,7 +319,7 @@ export function GoogleDriveProjectStoragePanel({
               type="button"
               className="mt-3"
               size="sm"
-              disabled={!canUseProjectFiles}
+              disabled={!disconnectCheckReady || !canUseProjectFiles || Boolean(disconnectNotice)}
               onClick={() => router.push(`/api/project-sources/google-drive/connect?returnTo=${encodeURIComponent(returnTo)}`)}
             >
               <Link2 className="mr-2 h-4 w-4" /> Connect Google Drive
@@ -261,27 +335,27 @@ export function GoogleDriveProjectStoragePanel({
                   <p className="mt-1 text-sm font-semibold text-[var(--cf-warning)]">Choose an existing project folder or create a new one before saving to Drive.</p>
                 )}
                 <p className="mt-1 text-xs text-[var(--cf-text-muted)]">
-                  {connection.statusNote || (connection.status === 'active' ? 'This Drive location is ready for Set saves and opens. A writable linked Set saves after you pause editing.' : 'This connection needs attention.')}
+                  {disconnectNotice ? 'The saved connection needs review before using Google Drive.' : connection.statusNote || (connection.status === 'active' ? 'This Drive location is ready for Set saves and opens. A writable linked Set saves after you pause editing.' : 'This connection needs attention.')}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {bindingError ? <p role="alert" className="w-full text-sm text-[var(--cf-warning)]">{bindingError} Open a Set in Desk or Library to manage its file.</p> : null}
-                <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={chooseProjectFolder}>
+                <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || Boolean(disconnectNotice) || !canUseProjectFiles} onClick={chooseProjectFolder}>
                   {busyAction === 'choose-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderCog className="mr-2 h-4 w-4" />}
                   Choose project folder
                 </Button>
-                <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles || !hasProjectFolder} onClick={addExistingProjects}>
+                <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || Boolean(disconnectNotice) || !canUseProjectFiles || !hasProjectFolder} onClick={addExistingProjects}>
                   {busyAction === 'authorize-existing' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-2 h-4 w-4" />}
                   Add existing projects
                 </Button>
-                <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={() => setCreateFolderOpen(true)}>
+                <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || Boolean(disconnectNotice) || !canUseProjectFiles} onClick={() => setCreateFolderOpen(true)}>
                   <FolderPlus className="mr-2 h-4 w-4" /> Create project folder
                 </Button>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={Boolean(busyAction) || !canUseProjectFiles || !hasProjectFolder}
+                  disabled={Boolean(busyAction) || Boolean(disconnectNotice) || !canUseProjectFiles || !hasProjectFolder}
                   title={hasProjectFolder ? 'Creates a separate backup of every local Set in this browser. Use Save & move for a focused Set.' : 'Choose or create a Drive project folder first.'}
                   onClick={() => void run('save-new', async () => {
                     const saved = await saveCurrentProjectToGoogleDrive({ name: activeSetName || 'CardForge Project', asNew: true, renderThumbnail: createGoogleDriveProjectThumbnail });
@@ -298,7 +372,7 @@ export function GoogleDriveProjectStoragePanel({
                       type="button"
                       size="sm"
                       variant="outline"
-                      disabled={Boolean(busyAction) || !canUseProjectFiles || !hasProjectFolder || (!binding.workId && binding.packageScope !== 'workspace')}
+                      disabled={Boolean(busyAction) || Boolean(disconnectNotice) || !canUseProjectFiles || !hasProjectFolder || (!binding.workId && binding.packageScope !== 'workspace')}
                       onClick={() => void run('update', async () => {
                         const saved = await saveCurrentProjectToGoogleDrive({ name: binding.name, renderThumbnail: createGoogleDriveProjectThumbnail });
                         toast({ title: 'Google Drive project updated', description: `Saved ${saved.workId ? 'the attached Set' : 'the workspace backup'} to “${saved.name}”.` });
@@ -309,15 +383,18 @@ export function GoogleDriveProjectStoragePanel({
                     </Button>
                   </div>
                 ) : null}
-                <Button
+                {!disconnectNotice ? <Button
                   type="button"
                   size="sm"
                   variant="ghost"
-                  disabled={Boolean(busyAction)}
+                  disabled={Boolean(busyAction) || !disconnectCheckReady}
                   onClick={() => {
                     if (!window.confirm('Disconnect Google Drive from CardForge? Your files will remain in Google Drive.')) return;
                     void run('disconnect', async () => {
+                      const scope = currentScope.current;
                       const result = await disconnectGoogleDriveStorage();
+                      if (currentScope.current !== scope) return;
+                      if (result.recoveryPending) setDisconnectNotice('Google confirmed access was revoked and CardForge removed the saved connection, but this browser could not clear its recovery notice. Your Drive files are unchanged. Contact CardForge support before reconnecting or disconnecting again.');
                       toast({ title: 'Google Drive disconnected', description: result.attachmentCleanup === 'complete'
                         ? 'Your Google Drive project files were left untouched.'
                         : 'Your Drive files are untouched, but this browser could not clear its saved attachment. Reload before reconnecting or saving.' });
@@ -325,7 +402,7 @@ export function GoogleDriveProjectStoragePanel({
                   }}
                 >
                   <Link2Off className="mr-2 h-4 w-4" /> Disconnect
-                </Button>
+                </Button> : null}
               </div>
             </div>
 

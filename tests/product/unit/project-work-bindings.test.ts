@@ -1104,6 +1104,32 @@ it('still rejects a provider disconnect failure before attempting browser cleanu
   expect(mock.values.get('test:google-drive-project-binding')).toEqual({ workId: 'set-c' });
 });
 
+it.each(['lost response', 'unstructured server error', 'unexpected success response'] as const)('does not invite a revocation retry after %s', async (condition) => {
+  mock.localSets = [{ id: 'set-c' }];
+  mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
+  mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
+  const fetch = condition === 'lost response'
+    ? vi.fn().mockRejectedValue(new Error('response lost'))
+    : vi.fn().mockResolvedValue(new Response('unavailable', { status: condition === 'unexpected success response' ? 200 : 503 }));
+  vi.stubGlobal('fetch', fetch);
+  await expect(disconnectGoogleDriveStorage()).rejects.toMatchObject({
+    code: 'google_drive_disconnect_unconfirmed', retryable: false,
+    message: expect.stringContaining('could not confirm whether Google revoked access'),
+    nextAction: expect.stringContaining('before reconnecting or disconnecting again'),
+  });
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(mock.values.get('test:google-drive-project-binding')).toEqual({ workId: 'set-c' });
+  await expect(disconnectGoogleDriveStorage()).rejects.toMatchObject({ code: 'google_drive_disconnect_unconfirmed', retryable: false });
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it('does not contact Google when the browser cannot persist the disconnect review marker', async () => {
+  mock.failWriteKey = 'test:google-drive-disconnect-review';
+  const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+  await expect(disconnectGoogleDriveStorage()).rejects.toThrow('Browser storage rejected the binding');
+  expect(fetch).not.toHaveBeenCalled();
+});
+
 it.each(['same Set', 'another Set'] as const)('keeps a new %s attachment when an earlier provider disconnect completes', async (target) => {
   mock.localSets = [{ id: 'set-c' }, { id: 'set-other' }];
   mock.values.set('test:google-drive-work-binding:set-c', driveBinding);

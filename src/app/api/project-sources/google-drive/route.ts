@@ -1,6 +1,7 @@
 import {
   createGoogleDriveProjectFolder,
   disconnectGoogleDriveProjectStorage,
+  getGoogleDriveProjectConnection,
   getGoogleDriveSelectedProjectFolder,
   listGoogleDriveProjectsPage,
   selectGoogleDriveProjectFolder,
@@ -16,7 +17,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   try {
     const { ownerUserId } = await getGoogleDriveProjectAccount();
-    const cursor = new URL(request.url).searchParams.get('cursor');
+    const params = new URL(request.url).searchParams;
+    if (params.get('connection') === '1') return Response.json(await getGoogleDriveProjectConnection(ownerUserId));
+    const cursor = params.get('cursor');
     const library = await listGoogleDriveProjectsPage({ ownerUserId, pageToken: cursor });
     if (!library.connection.connected) return Response.json(library);
 

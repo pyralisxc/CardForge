@@ -41,6 +41,8 @@ export {
   deleteGoogleDriveProjectCopy,
   disconnectGoogleDriveProjectBinding,
   disconnectGoogleDriveStorage,
+  getGoogleDriveDisconnectReviewRequired,
+  clearGoogleDriveDisconnectReview,
   getGoogleDriveProjectBinding,
   getGoogleDriveProjectSourceDescriptor,
   openGoogleDriveProject,
