@@ -1315,10 +1315,10 @@ for(const mode of ['healthy','refresh','invalidation','unknown','unknownPartial'
  const vote=page.getByRole('button',{name:/Vote up on/}).first();await expect(vote).toBeEnabled();await vote.click();
  if(mode.startsWith('unknown')){
   await expect(page.getByText('Vote not confirmed',{exact:true})).toBeVisible();
-  await vote.click();
+  await expect(vote).toBeDisabled();
   await page.getByRole('button',{name:'Read exact vote engagement'}).click();
   if(mode==='unknown')await expect(page.getByRole('button',{name:'Allow a new explicit vote'})).toBeVisible();
-  else { await expect(page.getByText(/Exact engagement is unavailable/)).toBeVisible(); await expect(page.getByRole('button',{name:'Allow a new explicit vote'})).toHaveCount(0); await vote.click(); }
+  else { await expect(page.getByText(/Exact engagement is unavailable/)).toBeVisible(); await expect(page.getByRole('button',{name:'Allow a new explicit vote'})).toHaveCount(0); await expect(vote).toBeDisabled(); }
  }else await expect(page.getByText(mode==='rejected'?'Vote rejected':'Vote recorded',{exact:true})).toBeVisible();
  if(mode==='refresh'||mode==='invalidation')await expect(page.getByRole('region',{name:'Notifications (F8)'}).getByText(/vote committed; refresh is incomplete/)).toBeVisible();
  const writes=await page.evaluate(()=>(window as unknown as {libraryRequests:{url:string;method:string}[]}).libraryRequests.filter(r=>r.method==='POST'&&r.url.endsWith('/vote')));expect(writes).toHaveLength(1);
@@ -1349,4 +1349,53 @@ for (const oldResult of ['success', 'failure'] as const) test(`@golden Library e
   expect(writes).toHaveLength(2);
   expect(JSON.parse(writes[0].body!).hearted).toBe(true);
   expect(JSON.parse(writes[1].body!).hearted).toBe(false);
+});
+
+for (const state of ['Pending', 'Unavailable'] as const) test(`@golden Library committed vote retains exact state when refresh is ${state}`, async ({ page }) => {
+  await mount(page, `?queueActual=1&scope=pipeline&voteReceipt=committed${state}`);
+  await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
+  await page.getByLabel('pipeline Library objects').locator('article').first().click();
+  const vote = page.getByRole('button', { name: /Vote up on/ }).first();
+  await vote.click();
+  if (state === 'Pending') {
+    await expect.poll(() => page.evaluate(() => Boolean((window as typeof window & { releaseVoteRead?: () => void }).releaseVoteRead))).toBe(true);
+    await expect(vote).toBeDisabled();
+    for (const control of await page.getByRole('button', { name: /Vote (up|down) (on|for)/ }).all()) await expect(control).toBeDisabled();
+    await page.evaluate(() => (window as typeof window & { releaseVoteRead: () => void }).releaseVoteRead());
+  } else {
+    await expect(page.getByText('Vote recorded', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Vote committed. Exact engagement is unavailable/)).toBeVisible();
+    await expect(vote).toBeDisabled();
+    await page.evaluate(() => { (window as typeof window & { voteReadAvailable: boolean }).voteReadAvailable = true; });
+    await page.getByRole('button', { name: 'Read exact vote engagement' }).click();
+    await expect(vote).toHaveAttribute('data-active', 'true');
+    await expect(vote).toContainText('3');
+    await page.getByRole('button', { name: 'Allow a new explicit vote' }).click();
+  }
+  await expect(vote).toHaveAttribute('data-active', 'true');
+  await expect(vote).toContainText('3');
+  await expect(vote).toBeEnabled();
+  const writes = await page.evaluate(() => (window as typeof window & { libraryRequests: { url: string; method: string }[] }).libraryRequests.filter(entry => entry.method === 'POST' && entry.url.endsWith('/vote')));
+  expect(writes).toHaveLength(1);
+});
+
+test('@golden Library refreshes exact displayed vote after another feedback event', async ({ page }) => {
+  await mount(page, '?queueActual=1&scope=pipeline&voteReceipt=committedExternal');
+  await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
+  await page.getByLabel('pipeline Library objects').locator('article').first().click();
+  const up = page.getByRole('button', { name: /Vote up on/ }).first();
+  const down = page.getByRole('button', { name: /Vote down on/ }).first();
+  await up.click();
+  await expect(up).toHaveAttribute('data-active', 'true');
+  await expect(up).toContainText('3');
+  await page.evaluate(() => { const proof = window as typeof window & { voteReadUnavailable: boolean; voteExternalValue: string }; proof.voteReadUnavailable = true; proof.voteExternalValue = 'negative'; window.dispatchEvent(new Event('cardforge:pipeline-engagement-changed')); });
+  await expect(page.getByText('Exact vote engagement is unavailable. Read it before another vote.')).toBeVisible();
+  await expect(up).toBeDisabled();
+  await expect(down).toBeDisabled();
+  await page.evaluate(() => { (window as typeof window & { voteReadUnavailable: boolean }).voteReadUnavailable = false; });
+  await page.getByRole('button', { name: 'Retry exact vote engagement' }).click();
+  await expect(down).toHaveAttribute('data-active', 'true');
+  await expect(down).toContainText('2');
+  await expect(up).toHaveAttribute('data-active', 'false');
+  await expect(up).toBeEnabled();
 });

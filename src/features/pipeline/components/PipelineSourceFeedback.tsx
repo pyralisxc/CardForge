@@ -56,6 +56,19 @@ export function PipelineSourceFeedback({ submissionId }: { submissionId: string 
       if (result.outcome === 'uncertain') throw new Error('The reaction outcome is unconfirmed.');
       const receipt = result.receipt;
       committed = true;
+      if (currentId.current !== submissionId) return;
+      if (voteValue) {
+        // A vote receipt confirms the write but has no current vote/count projection.
+        // Keep vote actions blocked until an exact post-write read succeeds.
+        setUnconfirmedVote(submissionId);
+        if (lineageId) uncertainLineage.current = lineageId;
+      } else if ('metric' in result) {
+        // The validated native receipt is the current heart authority even when
+        // an optional engagement refresh is delayed or unavailable.
+        const { count, hearted } = result.metric;
+        setRead(previous => previous?.id === submissionId && previous.value?.lineageId === lineageId
+          ? { ...previous, value: { ...previous.value, heart: { count, hearted } } } : previous);
+      }
       notifyPipelineEngagementChanged();
       if (receipt.warnings.length) setMutationIssue(`${voteValue ? 'Vote' : 'Heart'} committed; refresh is incomplete. Read current source reactions before further action.`);
     } catch (error) {

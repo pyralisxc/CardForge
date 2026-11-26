@@ -184,7 +184,31 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
   const [votingId, setVotingId] = useState<string | null>(null);
   const voteInFlight = useRef(false);
-  const [voteAttempt, setVoteAttempt] = useState<{ submissionId: string; message: string; readConfirmed?: boolean } | null>(null);
+  const [voteAttempt, setVoteAttempt] = useState<{ submissionId: string; outcome: 'committed' | 'uncertain'; message: string; readConfirmed?: boolean } | null>(null);
+  const [voteMetrics, setVoteMetrics] = useState<Record<string, { positiveVotes: number; negativeVotes: number; currentUserVote: 'positive' | 'negative' | null; voteIssue: string | null }>>({});
+  const voteMetricsRef = useRef(voteMetrics);
+  voteMetricsRef.current = voteMetrics;
+  const voteReadEpoch = useRef<Record<string, number>>({});
+  const voteScopeEpoch = useRef(0);
+  const [voteReadStatus, setVoteReadStatus] = useState<Record<string, 'pending' | 'failed'>>({});
+  const readExactVote = useCallback(async (submissionId: string) => {
+    const epoch = (voteReadEpoch.current[submissionId] ?? 0) + 1;
+    voteReadEpoch.current[submissionId] = epoch;
+    const scopeEpoch = voteScopeEpoch.current;
+    setVoteReadStatus(current => ({ ...current, [submissionId]: 'pending' }));
+    const current = () => voteScopeEpoch.current === scopeEpoch && voteReadEpoch.current[submissionId] === epoch;
+    try {
+      const exact = await loadPipelineEngagement(submissionId);
+      if (!current()) return false;
+      setVoteMetrics(previous => ({ ...previous, [submissionId]: { positiveVotes: exact.positiveVotes, negativeVotes: exact.negativeVotes, currentUserVote: exact.currentUserVote, voteIssue: exact.voteIssue } }));
+      setVoteReadStatus(previous => { const next = { ...previous }; delete next[submissionId]; return next; });
+      return true;
+    } catch {
+      if (current()) setVoteReadStatus(previous => ({ ...previous, [submissionId]: 'failed' }));
+      return false;
+    }
+  }, []);
+  const isVoteBlocked = (submissionId: string) => Boolean(votingId || voteAttempt || voteReadStatus[submissionId]);
   const [heartingId, setHeartingId] = useState<string | null>(null);
   const heartInFlight = useRef(false);
   const heartReadEpoch = useRef(0);
@@ -442,7 +466,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   };
   const refresh = () => { setSharedTrashRefreshEpoch(value => value + 1); projection.refresh(); void shared.refresh(); if (revisionsEnabled) revisionQueue.refresh(); };
 
-  useEffect(() => { ++heartReadEpoch.current; setHeartMetrics({}); }, [persistenceScope, isSignedIn]);
+  useEffect(() => { ++heartReadEpoch.current; ++voteScopeEpoch.current; setHeartMetrics({}); setVoteMetrics({}); setVoteReadStatus({}); }, [persistenceScope, isSignedIn]);
 
   useEffect(() => {
     const epoch = ++heartReadEpoch.current;
@@ -468,10 +492,16 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
 
   const refreshShared = shared.refresh;
   useEffect(() => {
-    const reload = () => { void refreshShared(); };
+    const reload = () => { void refreshShared(); for (const id of Object.keys(voteMetricsRef.current)) void readExactVote(id); };
     window.addEventListener(PIPELINE_ENGAGEMENT_CHANGED, reload);
     return () => window.removeEventListener(PIPELINE_ENGAGEMENT_CHANGED, reload);
-  }, [refreshShared]);
+  }, [refreshShared, readExactVote]);
+
+  // A newer Library projection must not be hidden behind an old exact vote snapshot.
+  // Re-read affected revisions and keep their controls blocked if that read fails.
+  useEffect(() => {
+    for (const id of Object.keys(voteMetricsRef.current)) void readExactVote(id);
+  }, [shared.program, revisionQueue.items, readExactVote]);
 
   const toggleHeart = async (item: LibraryViewItem) => {
     const lineageId = pipelineLineageFor(item);
@@ -503,8 +533,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     } finally { heartInFlight.current = false; setHeartingId(null); }
   };
   const vote = async (submissionId: string, name: string, value: 'positive' | 'negative') => {
-    if (voteAttempt || voteInFlight.current) return;
+    if (voteAttempt || voteInFlight.current || voteReadStatus[submissionId]) return;
     voteInFlight.current = true;
+    voteReadEpoch.current[submissionId] = (voteReadEpoch.current[submissionId] ?? 0) + 1;
     setVotingId(submissionId);
     let committed = false;
     try {
@@ -514,13 +545,20 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       const { receipt } = result;
       const program = result.program as Parameters<typeof shared.acceptProgram>[0] | null;
       committed = true;
+      setVoteAttempt({ submissionId, outcome: 'committed', message: 'Vote committed. Reading exact engagement before another vote.' });
       notifyPipelineEngagementChanged();
       if (program) shared.acceptProgram(program);
       if (revisionsEnabled) revisionQueue.refresh();
+      try {
+        if (!await readExactVote(submissionId)) throw new Error('Exact engagement unavailable.');
+        setVoteAttempt(null);
+      } catch {
+        setVoteAttempt({ submissionId, outcome: 'committed', message: 'Vote committed. Exact engagement is unavailable; read it before another vote.' });
+      }
       toast({ title: 'Vote recorded', description: !program || receipt.warnings.length ? `${name}: vote committed; refresh is incomplete. Read current engagement before further action.` : `${name} has been updated in Forge Review.` });
     } catch {
-      if (committed) { toast({ title: 'Vote recorded', description: 'The vote committed; local refresh is incomplete. Read current engagement before further action.' }); return; }
-      setVoteAttempt({ submissionId, message: 'Vote outcome is unconfirmed. Read exact engagement; do not repeat the vote automatically.' });
+      if (committed) { setVoteAttempt({ submissionId, outcome: 'committed', message: 'Vote committed. Exact engagement is unavailable; read it before another vote.' }); toast({ title: 'Vote recorded', description: 'The vote committed; local refresh is incomplete. Read current engagement before further action.' }); return; }
+      setVoteAttempt({ submissionId, outcome: 'uncertain', message: 'Vote outcome is unconfirmed. Read exact engagement; do not repeat the vote automatically.' });
       toast({ title: 'Vote not confirmed', description: 'Read exact engagement before any further vote. No request was replayed.', variant: 'destructive' });
     } finally { voteInFlight.current = false; setVotingId(null); }
   };
@@ -622,6 +660,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       </> : <p className="text-sm text-muted-foreground">No editable cards in this Set.</p>}
     </section></div> : currentItem?.scope === 'personal' && currentItem.personal.kind === 'set' && (currentItem.personal.references.driveFileId || currentItem.personal.references.localFolderWorkId) ? <div className="space-y-2"><p className="text-sm text-muted-foreground">Open the current Set in this workspace to edit its cards in Library.</p><Button type="button" variant="outline" disabled={Boolean(projection.busyItemId) || !experience.capabilities.canUseProjectFiles} onClick={() => void prepareSelectedSetHere(currentItem.personal)}>Open Set in Library</Button></div> : currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
+      voteMetrics={voteMetrics}
       isOwner={experience.owner}
       currentContributorIds={shared.program?.currentContributorIds ?? []}
       onEditRevision={isSignedIn && experience.contributor.canSubmit ? revision => {
@@ -633,18 +672,18 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       onRevisionCreated={async () => { await shared.refresh(); }}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
       canReview={experience.contributor.canReview}
-      votingId={votingId}
+      isVoteBlocked={isVoteBlocked}
       isSelfVoteBlocked={(contributorId) => Boolean(
         shared.program
         && !shared.program.settings.allowContributorSelfVoting
         && shared.program.currentContributorIds.includes(contributorId)
       )}
     /> : currentItem?.scope === 'published' && currentItem.published.lineageId && publishedRevisionByLineage.get(currentItem.published.lineageId) ? <PublishedRevisionFeedback
-      revision={publishedRevisionByLineage.get(currentItem.published.lineageId)!}
+      revision={{ ...publishedRevisionByLineage.get(currentItem.published.lineageId)!, ...voteMetrics[publishedRevisionByLineage.get(currentItem.published.lineageId)!.id] }}
       name={currentItem.name}
       canReview={experience.contributor.canReview}
-      votingId={votingId}
-      selfVoteBlocked={Boolean(
+      isVoteBlocked={isVoteBlocked}
+      selfVoteBlocked={Boolean(voteMetrics[publishedRevisionByLineage.get(currentItem.published.lineageId)!.id]?.voteIssue) || Boolean(
         shared.program && !shared.program.settings.allowContributorSelfVoting
         && shared.program.currentContributorIds.includes(publishedRevisionByLineage.get(currentItem.published.lineageId)!.contributorId)
       )}
@@ -683,15 +722,16 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         } catch { setHeartAttempt({ lineageId: heartAttempt.lineageId, message: 'Exact heart status is unavailable. The heart remains unconfirmed; do not repeat it.' }); }
         finally { heartInFlight.current = false; setHeartingId(null); }
       }}>Read exact heart status</button>{heartAttempt.readConfirmed ? <button type="button" disabled={Boolean(heartingId)} onClick={() => setHeartAttempt(null)}>Allow a new explicit heart action</button> : null}</div> : null}
+      {!voteAttempt ? Object.entries(voteReadStatus).filter(([, status]) => status === 'failed').map(([id]) => <div role="status" key={id}><p>Exact vote engagement is unavailable. Read it before another vote.</p><button type="button" onClick={() => void readExactVote(id)}>Retry exact vote engagement</button></div>) : null}
       {voteAttempt ? <div role="status"><p>{voteAttempt.message}</p><button type="button" disabled={Boolean(votingId)} onClick={async () => {
         if (voteInFlight.current) return;
         voteInFlight.current = true;
         setVotingId(voteAttempt.submissionId);
-        setVoteAttempt({ submissionId: voteAttempt.submissionId, message: 'Exact engagement read is pending. Do not repeat the vote.' });
+        setVoteAttempt({ ...voteAttempt, readConfirmed: false, message: 'Exact engagement read is pending. Do not repeat the vote.' });
         try {
-          await loadPipelineEngagement(voteAttempt.submissionId);
-          setVoteAttempt({ ...voteAttempt, readConfirmed: true, message: 'Exact engagement was read. Current state does not prove the earlier operation outcome. You may choose a new vote explicitly.' });
-        } catch { setVoteAttempt({ submissionId: voteAttempt.submissionId, message: 'Exact engagement is unavailable. The vote remains unconfirmed; do not repeat it.' }); }
+          if (!await readExactVote(voteAttempt.submissionId)) throw new Error('Exact engagement unavailable.');
+          setVoteAttempt({ ...voteAttempt, readConfirmed: true, message: voteAttempt.outcome === 'committed' ? 'Vote committed and exact engagement was read. You may choose a new vote explicitly.' : 'Exact engagement was read. Current state does not prove the earlier operation outcome. You may choose a new vote explicitly.' });
+        } catch { setVoteAttempt({ ...voteAttempt, readConfirmed: false, message: voteAttempt.outcome === 'committed' ? 'Vote committed. Exact engagement is unavailable; read it before another vote.' : 'Exact engagement is unavailable. The vote remains unconfirmed; do not repeat it.' }); }
         finally { voteInFlight.current = false; setVotingId(null); }
       }}>Read exact vote engagement</button>{voteAttempt.readConfirmed ? <button type="button" disabled={Boolean(votingId)} onClick={() => setVoteAttempt(null)}>Allow a new explicit vote</button> : null}</div> : null}
       <nav className={styles.scopeTabs} aria-label="Library scopes">
@@ -749,6 +789,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         cardsFor={cardsFor}
         density={density}
         heartMetrics={heartMetrics}
+        voteMetrics={voteMetrics}
         heartBlocked={Boolean(heartAttempt)}
         heartMetricsFailed={heartMetricsFailed}
         heartMetricsLoading={heartMetricsLoading}
@@ -774,7 +815,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         templateFor={templateFor}
         unfilteredScopeItemCount={unfilteredScopeItemCount}
         viewItems={viewItems}
-        votingId={votingId}
+        isVoteBlocked={isVoteBlocked}
       />}
       {(activeTool === 'review-manage' || activeTool === 'pipeline-operations' || activeTool === 'revise-existing') ? (
         <EnvironmentToolLayer id="library-pipeline-context" eyebrow="Library Pipeline tool"

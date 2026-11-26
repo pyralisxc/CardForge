@@ -72,7 +72,7 @@ const program = { configured: true, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   managedStorageBytes: 0, managedFileCount: 0, totalSubmissionCount: rows.length, totalVoteableCount: 0, activeContributorCount: 0,
   assetTypeSummaries: [], contributions: [], currentContributorIds: [],
 } as unknown as PipelineProgramView;
-const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releasePeopleRefresh?: () => void; releaseHeartRead?: () => void; releaseNewHeartRead?: () => void; heartExactRead?: boolean; releasePersonalRead?: () => void; releasePersonalRemoval?: () => void; releaseCampaignDraftRefresh?: () => void; releaseCampaignDraftPost?: () => void; releaseContributorRefresh?: () => void; contributorRefreshes?: number; releaseInboxRefresh?: () => void; releaseConfigurationRefresh?: () => void; releaseMediaRefresh?: () => void; mediaRefreshes?: number; releaseClassificationRefresh?: () => void; classificationRefreshes?: number; classificationCloses?: number; releaseStylePost?: () => void; releaseEvidencePost?: () => void; libraryNavigations: string[] };
+const proof = window as typeof window & { libraryRequests: { url: string; method: string; body?: string }[]; releasePeopleRefresh?: () => void; releaseHeartRead?: () => void; releaseVoteRead?: () => void; voteReadAvailable?: boolean; voteReadUnavailable?: boolean; voteExternalValue?: 'negative'; releaseNewHeartRead?: () => void; heartExactRead?: boolean; releasePersonalRead?: () => void; releasePersonalRemoval?: () => void; releaseCampaignDraftRefresh?: () => void; releaseCampaignDraftPost?: () => void; releaseContributorRefresh?: () => void; contributorRefreshes?: number; releaseInboxRefresh?: () => void; releaseConfigurationRefresh?: () => void; releaseMediaRefresh?: () => void; mediaRefreshes?: number; releaseClassificationRefresh?: () => void; classificationRefreshes?: number; classificationCloses?: number; releaseStylePost?: () => void; releaseEvidencePost?: () => void; libraryNavigations: string[] };
 proof.libraryRequests = []; proof.libraryNavigations = [];
 const receipt = { id: '30000000-0000-4000-8000-000000000001', assetId: row.registryAssetId, revisionNumber: 2, status: 'submitted', editorialReviewStatus: 'pending', requestFingerprint: 'synthetic-fingerprint' };
 let stylePosts = 0;
@@ -176,9 +176,10 @@ window.fetch = async (input, init) => {
   }
   if(params.has('voteReceipt') && requestUrl.startsWith('/api/pipeline/engagement?')) {
     const submissionId=new URL(requestUrl,location.origin).searchParams.get('submissionId'); const mode=params.get('voteReceipt');
-    if(mode==='unknownUnavailable'||mode==='unknownTimeout'||mode==='unknownOpaque')return Response.json({error:{message:'read unavailable'}},{status:503});
+    if(mode==='committedPending' && !proof.voteReadAvailable) await new Promise<void>(resolve => { proof.releaseVoteRead = () => { proof.voteReadAvailable = true; resolve(); }; });
+    if(proof.voteReadUnavailable||mode==='unknownUnavailable'||mode==='unknownTimeout'||mode==='unknownOpaque'||(mode==='committedUnavailable' && !proof.voteReadAvailable))return Response.json({error:{message:'read unavailable'}},{status:503});
     if(mode==='unknownPartial')return Response.json({submissionId});
-    return Response.json({submissionId:mode==='unknownWrongId'?'99999999-9999-4999-8999-999999999999':submissionId,lineageId:row.lineageId,name:'Exact vote revision',revisionNumber:1,status:'published',trashedAt:null,purgeState:null,positiveVotes:mode==='unknownMalformed'?-1:2,negativeVotes:1,currentUserVote:null,voteIssue:null,heart:null,heartIssue:'Unavailable'});
+    return Response.json({submissionId:mode==='unknownWrongId'?'99999999-9999-4999-8999-999999999999':submissionId,lineageId:row.lineageId,name:'Exact vote revision',revisionNumber:1,status:'published',trashedAt:null,purgeState:null,positiveVotes:mode==='unknownMalformed'?-1:proof.voteExternalValue?2:mode?.startsWith('committed')?3:2,negativeVotes:proof.voteExternalValue?2:1,currentUserVote:proof.voteExternalValue??(mode?.startsWith('committed')?'positive':null),voteIssue:null,heart:null,heartIssue:'Unavailable'});
   }
   if(params.has('voteReceipt') && campaignDraftWritten && requestUrl.startsWith('/api/pipeline/library')) return Response.json({error:{message:'Optional Library read unavailable'}},{status:503});
   if (params.has('personalItemProof') && requestUrl.startsWith('/api/personal-library')) {
@@ -504,12 +505,12 @@ function QueueProof() {
     {owner ? <LibraryRevisionQueueControls revisions={revisions} queue={queue} onModeChange={setRevisions} /> : null}
     <input ref={searchRef} aria-label="Search Library" value={query} onChange={event => setQuery(event.target.value)} />
     <LibraryCollection {...view} serverFiltered={revisions} activeScope="pipeline" campaignTargetId={null} canReview={false} canSubmit={false}
-      cardsFor={() => []} density="gallery" heartMetrics={{}} heartMetricsFailed={true} heartBlocked={false} heartMetricsLoading={false} heartingId={null}
+      cardsFor={() => []} density="gallery" heartMetrics={{}} voteMetrics={{}} heartMetricsFailed={true} heartBlocked={false} heartMetricsLoading={false} heartingId={null}
       isSignedIn={!params.has('signedOut')} isOwner={owner} isSelfVoteBlocked={() => true} onDensityChange={() => {}}
       onOpenContribution={() => {}} onOpenDetail={item => { if (!owner) return; trigger.current = document.activeElement as HTMLElement; setTarget(libraryReviewSelection(item, queueRows) ?? undefined); }}
       onPersonalAction={() => {}} onPublishedAction={() => {}} onRefresh={queue.refresh} onToggleHeart={() => {}} onVote={() => {}}
       personalActions={() => []} publishedRevisionByLineage={new Map()} projection={projection as never} scopeDefinition={{ label: 'Pipeline', description: 'Synthetic Library revision queue' }}
-      selection={createSelectionSession()} sharedType="all" sharedTypes={[]} templateFor={() => null} votingId={null} onSharedTypeChange={() => {}} />
+      selection={createSelectionSession()} sharedType="all" sharedTypes={[]} templateFor={() => null} isVoteBlocked={() => false} onSharedTypeChange={() => {}} />
     {target ? <EnvironmentToolLayer id="queue-review" title="Review & manage" eyebrow="Library" summary="Exact selected revision" closeLabel="Close revision review" presentation="sheet" onClose={close} dirty={dirty} onDirtyCloseRequest={() => setConfirm(true)}>
       {confirm ? <div role="alertdialog"><button onClick={() => setConfirm(false)}>Keep editing</button><button onClick={close}>Discard changes</button></div> : null}
       <OwnerContributorProgramPanel target={target} onDirtyChange={setDirty} renderTemplateSpecimen={async () => { throw new Error('Not a Template fixture'); }} />

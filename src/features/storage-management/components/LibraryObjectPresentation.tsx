@@ -217,11 +217,12 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
   };
 };
 
-export function PipelineDetailContent({ item, onVoteRevision, canReview, votingId, isSelfVoteBlocked, isOwner = false, currentContributorIds = [], onRevisionCreated, onReviewRevision, onEditRevision }: {
+export function PipelineDetailContent({ item, voteMetrics, onVoteRevision, canReview, isVoteBlocked, isSelfVoteBlocked, isOwner = false, currentContributorIds = [], onRevisionCreated, onReviewRevision, onEditRevision }: {
   item: Extract<LibraryViewItem, { scope: 'pipeline' }>;
+  voteMetrics: Record<string, { positiveVotes: number; negativeVotes: number; currentUserVote: 'positive' | 'negative' | null; voteIssue: string | null }>;
   onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
   canReview: boolean;
-  votingId: string | null;
+  isVoteBlocked: (submissionId: string) => boolean;
   isSelfVoteBlocked: (contributorId: string) => boolean;
   isOwner?: boolean;
   currentContributorIds?: readonly string[];
@@ -236,7 +237,8 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
     {isOwner && assetId && published?.assetType === 'textures' && onRevisionCreated ? <MediaPresentationRevision key={assetId} assetId={assetId} onCreated={onRevisionCreated} /> : null}
     <div><h3>Classification &amp; rights</h3><p>{submission.sourceNotes || 'No source or rights notes were supplied.'}</p>{submission.publicAiDisclosure ? <p>AI-use disclosure: {submission.publicAiDisclosure}</p> : null}<p>{[...submission.specialtyTags, ...submission.useCaseTags].join(' · ') || 'No classification tags supplied.'}</p></div>
     {submission.tierDecisionReason || submission.decisionReason ? <div><h3>Placement</h3><p>{getPipelineDecisionReasonLabel(submission.tierDecisionReason ?? submission.decisionReason)}</p></div> : null}
-    <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((revision) => {
+    <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((originalRevision) => {
+      const revision = { ...originalRevision, ...voteMetrics[originalRevision.id] };
       const selfVoteBlocked = isSelfVoteBlocked(revision.contributorId);
       const trash = getPipelineTrashState(revision);
       const revisionRole = trash.trashed
@@ -260,19 +262,19 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
             ? <RevisionRecoveryControls submissionId={revision.id} actorScope={`${isOwner}:${currentContributorIds.join('|')}`} onChanged={onRevisionCreated} />
             : <details><summary>Trash &amp; recovery options</summary><RevisionRecoveryControls submissionId={revision.id} actorScope={`${isOwner}:${currentContributorIds.join('|')}`} onChanged={onRevisionCreated} /></details> : null}
         {canReview && isContributorPipelineVoteable(revision) ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`}>
-          <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
-          <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
+          <button type="button" disabled={isVoteBlocked(revision.id) || Boolean(voteMetrics[revision.id]?.voteIssue) || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
+          <button type="button" disabled={isVoteBlocked(revision.id) || Boolean(voteMetrics[revision.id]?.voteIssue) || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
         </div> : null}
       </li>;
     })}</ol></div>
   </section>;
 }
 
-export function PublishedRevisionFeedback({ revision, name, canReview, votingId, selfVoteBlocked, onVoteRevision }: {
+export function PublishedRevisionFeedback({ revision, name, canReview, isVoteBlocked, selfVoteBlocked, onVoteRevision }: {
   revision: PipelineSubmission;
   name: string;
   canReview: boolean;
-  votingId: string | null;
+  isVoteBlocked: (submissionId: string) => boolean;
   selfVoteBlocked: boolean;
   onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
 }) {
@@ -280,8 +282,8 @@ export function PublishedRevisionFeedback({ revision, name, canReview, votingId,
     <h3>Revision {revision.revisionNumber ?? 'unassigned'} feedback</h3>
     <p>Hearts appreciate the whole work. Thumbs review this exact published revision.</p>
     {canReview && isContributorPipelineVoteable(revision) ? <div className={styles.revisionVotes}>
-      <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, name, 'positive')} aria-label={`Vote up on ${name} revision ${revision.revisionNumber ?? 'unassigned'}`}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
-      <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, name, 'negative')} aria-label={`Vote down on ${name} revision ${revision.revisionNumber ?? 'unassigned'}`}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
+      <button type="button" disabled={isVoteBlocked(revision.id) || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, name, 'positive')} aria-label={`Vote up on ${name} revision ${revision.revisionNumber ?? 'unassigned'}`}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
+      <button type="button" disabled={isVoteBlocked(revision.id) || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, name, 'negative')} aria-label={`Vote down on ${name} revision ${revision.revisionNumber ?? 'unassigned'}`}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
     </div> : null}
   </section>;
 }
