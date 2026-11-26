@@ -10,6 +10,8 @@ export function TemplatePipelineAttemptRecovery({ templateId, busy, onAttemptsCh
   const [message, setMessage] = useState('');
   const [checking, setChecking] = useState(false);
   const [absent, setAbsent] = useState<string | null>(null);
+  const [readFailed, setReadFailed] = useState(false);
+  const [readRetry, setReadRetry] = useState(0);
   const currentTemplate = useRef(templateId);
   const templateEpoch = useRef(0);
   const mounted = useRef(false);
@@ -17,13 +19,14 @@ export function TemplatePipelineAttemptRecovery({ templateId, busy, onAttemptsCh
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
     let alive = true;
-    const refresh = () => { void listTemplatePipelineAttempts(templateId).then(items => {
-      if (alive) { setAttempts(items); onAttemptsChange(items.length > 0); onReadyChange(true); setMessage(''); }
-    }).catch(error => { if (alive) setMessage(error instanceof Error ? error.message : 'Saved attempts are unavailable.'); }); };
-    setAttempts([]); onReadyChange(false); onAttemptsChange(false); setAbsent(null); setChecking(false); refresh();
+    let refreshEpoch = 0;
+    const refresh = () => { const epoch = ++refreshEpoch; onReadyChange(false); void listTemplatePipelineAttempts(templateId).then(items => {
+      if (alive && epoch === refreshEpoch) { setAttempts(items); onAttemptsChange(items.length > 0); onReadyChange(true); setReadFailed(false); setMessage(''); }
+    }).catch(error => { if (alive && epoch === refreshEpoch) { onReadyChange(false); setReadFailed(true); setMessage(error instanceof Error ? error.message : 'Saved attempts are unavailable.'); } }); };
+    setAttempts([]); onReadyChange(false); onAttemptsChange(false); setAbsent(null); setChecking(false); setReadFailed(false); refresh();
     window.addEventListener(TEMPLATE_PIPELINE_ATTEMPTS_CHANGED, refresh);
     return () => { alive = false; window.removeEventListener(TEMPLATE_PIPELINE_ATTEMPTS_CHANGED, refresh); };
-  }, [templateId, onAttemptsChange, onReadyChange]);
+  }, [templateId, onAttemptsChange, onReadyChange, readRetry]);
   const resolve = async (attempt: TemplatePipelineAttempt, retry: boolean) => {
     const epoch = templateEpoch.current;
     setChecking(true); setAbsent(null);
@@ -44,5 +47,6 @@ export function TemplatePipelineAttemptRecovery({ templateId, busy, onAttemptsCh
       {absent === attempt.key && <Button type="button" variant="outline" size="sm" disabled={busy || checking} onClick={() => void resolve(attempt, true)}>Retry original snapshot</Button>}
     </div>)}
     {message && <p role="status">{message}</p>}
+    {readFailed ? <Button type="button" variant="outline" size="sm" disabled={busy || checking} onClick={() => setReadRetry(value => value + 1)}>Retry saved attempts</Button> : null}
   </section>;
 }

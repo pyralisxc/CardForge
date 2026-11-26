@@ -67,3 +67,48 @@ test('late receipt for one saved Template cannot navigate after selecting anothe
   await expect(page.getByLabel('Opened Pipeline destination')).toHaveText('');
   await expect(page.getByText('No committed draft was found.')).toHaveCount(0);
 });
+
+test('does not start another handoff before saved attempts are readable', async ({ page }) => {
+  let release: (() => void) | undefined; let writes = 0;
+  await page.route('**/*', async route => {
+    const request = route.request(); const url = new URL(request.url());
+    if (url.pathname === '/__contributor-handoff') return route.fulfill({ contentType: 'text/html', body: '<html><body></body></html>' });
+    if (url.pathname === '/api/templates/submissions' && request.method() === 'GET') {
+      await new Promise<void>(resolve => { release = resolve; });
+      return route.fulfill({ json: { contributorId: 'fixture-author' } });
+    }
+    if (request.method() === 'POST') writes++;
+    return route.abort();
+  });
+  await page.goto('http://localhost:9002/__contributor-handoff');
+  await page.addScriptTag({ content: bundle.outputFiles.find(file => file.path.endsWith('.js'))!.text });
+  await page.getByLabel('Saved Template').selectOption('saved-personal');
+  await expect.poll(() => Boolean(release)).toBe(true);
+  await expect(page.getByRole('button', { name: 'Continue saved Template' })).toBeDisabled();
+  expect(writes).toBe(0);
+  release!();
+  await expect(page.getByRole('button', { name: 'Continue saved Template' })).toBeEnabled();
+  expect(writes).toBe(0);
+});
+
+test('a failed saved-attempt read can be retried before continuing', async ({ page }) => {
+  let reads = 0; let writes = 0;
+  await page.route('**/*', async route => {
+    const request = route.request(); const url = new URL(request.url());
+    if (url.pathname === '/__contributor-handoff') return route.fulfill({ contentType: 'text/html', body: '<html><body></body></html>' });
+    if (url.pathname === '/api/templates/submissions' && request.method() === 'GET') {
+      reads++;
+      return reads === 1 ? route.fulfill({ status: 503, json: { error: 'Temporarily unavailable' } })
+        : route.fulfill({ json: { contributorId: 'fixture-author' } });
+    }
+    if (request.method() === 'POST') writes++;
+    return route.abort();
+  });
+  await page.goto('http://localhost:9002/__contributor-handoff');
+  await page.addScriptTag({ content: bundle.outputFiles.find(file => file.path.endsWith('.js'))!.text });
+  await page.getByLabel('Saved Template').selectOption('saved-personal');
+  await expect(page.getByRole('button', { name: 'Continue saved Template' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Retry saved attempts' }).click();
+  await expect(page.getByRole('button', { name: 'Continue saved Template' })).toBeEnabled();
+  expect(writes).toBe(0);
+});

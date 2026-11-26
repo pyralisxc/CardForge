@@ -14,8 +14,8 @@ function Fixture() {
     const result = await resolveTemplatePipelineAttempt(attempt, created);
     if (!result) throw new Error('No committed draft was found. Check the saved attempt below before retrying its original snapshot.');
     setDestination(result);
-  }} renderRecovery={(templateId, busy) => <TemplatePipelineAttemptRecovery templateId={templateId} busy={busy}
-    onAttemptsChange={ignore} onReadyChange={ignore} onOpenDestination={setDestination} />} />
+  }} renderRecovery={(templateId, busy, onReadyChange) => <TemplatePipelineAttemptRecovery templateId={templateId} busy={busy}
+    onAttemptsChange={ignore} onReadyChange={onReadyChange} onOpenDestination={setDestination} />} />
     <output aria-label="Opened Pipeline destination">{destination}</output></>;
 }
 createRoot(document.body).render(<Fixture />);

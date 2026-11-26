@@ -921,11 +921,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
               if (!destination) throw new Error('No committed draft was found. Check the saved attempt below before retrying its original snapshot.');
               if (revisionHandoffMounted.current && revisionHandoffContext.current === context && revisionHandoffEpoch.current === epoch) window.location.assign(destination);
             } : undefined}
-            renderRevisionRecovery={(templateId, busy) => {
+            renderRevisionRecovery={(templateId, busy, onReadyChange) => {
               const context = revisionHandoffContext.current;
               const epoch = revisionHandoffEpoch.current;
               return <TemplatePipelineAttemptRecovery templateId={templateId} busy={busy}
-                onAttemptsChange={ignoreAttemptState} onReadyChange={ignoreAttemptState}
+                onAttemptsChange={ignoreAttemptState} onReadyChange={onReadyChange}
                 onOpenDestination={url => { if (revisionHandoffMounted.current && revisionHandoffContext.current === context && revisionHandoffEpoch.current === epoch) window.location.assign(url); }} />;
             }}
             onCancel={() => runAction(actions[0]!)}

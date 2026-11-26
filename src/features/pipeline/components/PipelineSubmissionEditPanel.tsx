@@ -38,7 +38,7 @@ export function PipelineSubmissionEditPanel({
   onUpdated: () => Promise<void> | void;
   savedTemplates?: TCGCardTemplate[];
   onContinueRevision?: (template: TCGCardTemplate, revisionBase: z.infer<typeof contributorTemplateRevisionBase>) => Promise<void>;
-  renderRevisionRecovery?: (templateId: string, busy: boolean) => ReactNode;
+  renderRevisionRecovery?: (templateId: string, busy: boolean, onReadyChange: (ready: boolean) => void) => ReactNode;
 }) {
   const { toast } = useToast();
   const [name, setName] = useState(submission.name);
