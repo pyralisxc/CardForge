@@ -5,11 +5,12 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 
 import { createDeskReturnHref, createLibraryReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
 import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client';
-import { getGoogleDriveProjectBinding, loadGoogleDriveProjectLibrary, openGoogleDriveProject, type GoogleDriveProjectBinding, type GoogleDriveProjectListResult } from '@/features/project/client/provider-google-drive';
-import { getLocalProjectFolderStatus, listLocalProjectWorkBindings, openRememberedLocalProject, LOCAL_PROJECT_FOLDER_CHANGE_EVENT, type LocalProjectFolderStatus, type LocalProjectWorkBindingStatus } from '@/features/project/client/provider-local-folder';
+import { getGoogleDriveProjectBinding, loadGoogleDriveProjectLibrary, type GoogleDriveProjectBinding, type GoogleDriveProjectListResult } from '@/features/project/client/provider-google-drive';
+import { getLocalProjectFolderStatus, listLocalProjectWorkBindings, LOCAL_PROJECT_FOLDER_CHANGE_EVENT, type LocalProjectFolderStatus, type LocalProjectWorkBindingStatus } from '@/features/project/client/provider-local-folder';
+import { prepareSelectedSet } from '@/features/project/client/workspace';
 import { PROJECT_FONT_LIBRARY_CHANGE_EVENT } from '@/features/project/client/assets';
 import { hydrateProjectLibraryWorkspaceForScope, useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
-import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { getProjectPersistenceScope, type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import {
   getPersonalLibraryRoleLabel,
@@ -622,34 +623,39 @@ export function useAccountLibraryProjection({
     return true;
   }, [organizationPreferenceKey, privateOrganizationReady, updateSetMetadata]);
 
-  const prepareSetInLibrary = useCallback(async (item: AccountLibraryItem): Promise<string> => {
+  const prepareSet = useCallback(async (item: AccountLibraryItem, isCurrent: () => boolean): Promise<string> => {
+    const scope = getProjectPersistenceScope();
+    const assertCurrent = () => {
+      if (getProjectPersistenceScope() !== scope) throw new Error('The active account changed while opening this Set. Reopen it in the intended account.');
+      if (!isCurrent()) throw new Error('Your selection changed while the Set was opening. Its source was left unchanged.');
+    };
+    const prepared = await prepareSelectedSet(item, { assertCurrent });
+    assertCurrent();
+    if (prepared.driveBinding) recordDriveWorkBinding(prepared.driveBinding);
+    activateSet(prepared.setId);
+    void refreshLibrarySources();
+    return prepared.setId;
+  }, [activateSet, recordDriveWorkBinding, refreshLibrarySources]);
+
+  const prepareSetInLibrary = useCallback(async (item: AccountLibraryItem, isCurrent: () => boolean): Promise<string> => {
     setBusyItemId(item.id);
     try {
-      let setId = item.references.localSetId;
-      if (!setId && item.references.localFolderWorkId) {
-        setId = (await openRememberedLocalProject(item.references.localFolderWorkId)).setId;
-      } else if (!setId && item.references.driveFileId) {
-        setId = (await openGoogleDriveProject({ fileId: item.references.driveFileId, name: item.name })).workId ?? undefined;
-      }
-      if (!setId) throw new Error('This Set could not be opened in the current workspace. Its source was left unchanged.');
-      activateSet(setId);
-      void refreshLibrarySources();
-      return setId;
+      return await prepareSet(item, isCurrent);
     } finally {
       setBusyItemId(null);
     }
-  }, [activateSet, refreshLibrarySources]);
+  }, [prepareSet]);
 
-  const openItem = useCallback(async (item: AccountLibraryItem, returnTo: string = createLibraryReturnHref()) : Promise<string> => {
+  const openItem = useCallback(async (item: AccountLibraryItem, returnTo: string = createLibraryReturnHref(), isCurrent: () => boolean = () => true) : Promise<string> => {
     const navigate = (href: string) => { router.push(href); return href; };
     setBusyItemId(item.id);
     try {
       if (item.references.workingDraftId) {
         return navigate(createStudioHref({ documentId: item.references.workingDraftId, revision: item.revision, returnTo }));
       }
-      if (item.references.localSetId) {
-        activateSet(item.references.localSetId);
-        return navigate(createDeskReturnHref(`set:${item.references.localSetId}`));
+      if (item.kind === 'set' && (item.references.localSetId || item.references.localFolderWorkId || item.references.driveFileId)) {
+        const setId = await prepareSet(item, isCurrent);
+        return navigate(createDeskReturnHref(`set:${setId}`));
       }
       if (item.references.localTemplateId) {
         openTemplateDesign(item.references.localTemplateId);
@@ -662,21 +668,11 @@ export function useAccountLibraryProjection({
       if (item.references.pipelineLineageId) {
         return navigate(`/account?section=library&scope=published&lineage=${encodeURIComponent(item.references.pipelineLineageId)}`);
       }
-      if (item.references.localFolderWorkId) {
-        const opened = await openRememberedLocalProject(item.references.localFolderWorkId);
-        activateSet(opened.setId);
-        void refreshLibrarySources();
-        return navigate(createDeskReturnHref(`set:${opened.setId}`));
-      }
-      if (item.references.driveFileId) {
-        const binding = await openGoogleDriveProject({ fileId: item.references.driveFileId, name: item.name });
-        return navigate(binding.workId ? createDeskReturnHref(`set:${binding.workId}`) : '/account');
-      }
       throw new Error('This Library item has no available open action.');
     } finally {
       setBusyItemId(null);
     }
-  }, [activateSet, openTemplateDesign, refreshLibrarySources, router]);
+  }, [openTemplateDesign, prepareSet, router]);
 
   return {
     items,

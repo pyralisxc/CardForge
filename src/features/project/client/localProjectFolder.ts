@@ -335,6 +335,8 @@ const openProjectDirectory = async (
   namespace: string,
   expectedState: ReturnType<typeof useProjectStore.getState>,
   remembered?: LocalProjectFolderBinding & { workId: string },
+  preserveActiveSet = false,
+  assertCurrent?: () => void,
 ): Promise<LocalProjectFolderBinding> => {
   assertFolderScope(namespace);
   let fileHandle: FileSystemFileHandle;
@@ -370,7 +372,7 @@ const openProjectDirectory = async (
     const document = mapProjectDocumentIdentity(decoded.document, {
       set: { [decoded.document.cardSets[0]!.id]: remembered.workId },
     }, 'open');
-    await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, preserveOutputPreferences: true });
+    await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, preserveOutputPreferences: true, ...(preserveActiveSet ? { preserveActiveSet: true } : {}), ...(assertCurrent ? { assertCurrent } : {}) });
     assertFolderScope(namespace);
     return remembered;
   }
@@ -392,7 +394,7 @@ const openProjectDirectory = async (
   return binding;
 };
 
-export const openRememberedLocalProject = async (workId: string): Promise<{ setId: string; sourceRevision: string }> => {
+export const openRememberedLocalProject = async (workId: string, options: { preserveActiveSet?: boolean; assertCurrent?: () => void } = {}): Promise<{ setId: string; sourceRevision: string }> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const expectedState = useProjectStore.getState();
   const binding = await getLocalProjectWorkBinding(workId, namespace);
@@ -403,7 +405,7 @@ export const openRememberedLocalProject = async (workId: string): Promise<{ setI
   if (permission !== 'granted') {
     throw new ProjectPackageError('This folder needs read permission again. Choose Reconnect folder or Open project folder in Library → Locations; CardForge will not request access in the background.');
   }
-  const opened = await openProjectDirectory(binding.handle, namespace, expectedState, { ...binding, workId });
+  const opened = await openProjectDirectory(binding.handle, namespace, expectedState, { ...binding, workId }, options.preserveActiveSet, options.assertCurrent);
   return { setId: workId, sourceRevision: opened.sourceRevision! };
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import type { PipelineDesignSource } from '@/features/pipeline/client/engagement';
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 
 import { useToast } from '@/components/ui/use-toast';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
@@ -14,6 +14,8 @@ import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import { createSendToPipelineActionDescriptor, type PipelineSubmission } from '@/features/pipeline/client';
 import { createPublishedSetCopy } from '@/features/project/client/published-sets';
 import { useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
+import { prepareSelectedSet } from '@/features/project/client/workspace';
+import { getProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 
 import type { AccountLibraryItem } from '../model/accountLibrary';
 import { getAccountLibraryEnvironmentActions } from '../model/accountLibraryEnvironment';
@@ -87,6 +89,10 @@ export function useAccountLibraryActions({
   setPendingDeleteItem,
 }: UseAccountLibraryActionsOptions) {
   const { toast } = useToast();
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const openContext = useRef('');
+  openContext.current = JSON.stringify([getProjectPersistenceScope(), activeScope, activeTool, currentItem?.id ?? null]);
   const [failure, setFailure] = useState<{ itemId: string; message: string } | null>(null);
   const projectWorkspace = useProjectLibraryWorkspace();
   const {
@@ -133,13 +139,15 @@ export function useAccountLibraryActions({
 
   const openPersonalItem = async (item: AccountLibraryItem): Promise<ActionOperationResult> => {
     if (item.references.localSetId) {
-      const href = createDeskReturnHref(`set:${item.references.localSetId}`, null, createCompatibilityReturnTo());
+      const prepared = prepareSelectedSet({ ...item, references: { ...item.references, localSetId: item.references.localSetId } });
+      const href = createDeskReturnHref(`set:${prepared.setId}`, null, createCompatibilityReturnTo());
       projection.router.push(href);
       return { kind: 'navigation', href };
     }
     if (item.references.localTemplateId) return { kind: 'navigation', href: openDesignTool(item.references.localTemplateId, `library-object-${item.id}`) };
     const returnTo = createCompatibilityReturnTo();
-    return { kind: 'navigation', href: await projection.openItem(item, returnTo) };
+    const captured = openContext.current;
+    return { kind: 'navigation', href: await projection.openItem(item, returnTo, () => mounted.current && openContext.current === captured) };
   };
 
   const duplicatePersonalItem = (item: AccountLibraryItem) => {

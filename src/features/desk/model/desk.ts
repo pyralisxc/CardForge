@@ -250,7 +250,7 @@ export const getWorkActions = (
     },
     {
       id: 'desk.save-move-set', label: 'Save & move', ownerFeature: 'storage-management',
-      supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
+      supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet || item.references.localFolderWorkId || item.references.localFolder ? 'guest' : 'member',
       scope: 'object', hierarchy: 'supporting', availability: canUseProjectFiles
         ? { kind: 'available' }
         : { kind: 'disabled', reason: 'Portable Set files are temporarily unavailable for this account.' }, commitment: 'none',

@@ -49,6 +49,8 @@ export interface DeskOverviewSurfaceProps {
   marquee: { left: number; top: number; right: number; bottom: number } | null;
   sceneReady: boolean;
   isLoading: boolean;
+  preparationStatus: { name: string; operation: 'add' | 'remove' | 'open'; phase: 'preparing' | 'ready' | 'error'; message?: string } | null;
+  onDismissPreparationStatus: () => void;
   failure: { message: string; kind: BoundaryFailureKind; nextAction?: string; retryable: boolean } | null;
   sourceStatuses: readonly { id: string; label: string; phase: string; failure: { message: string } | null }[];
   showGrid: boolean;
@@ -264,6 +266,10 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
       onAction={props.failure.retryable ? props.onRetry : undefined}
     /> : null}
     <section className={styles.workSurface} data-desk-work-surface data-grid={props.showGrid} aria-label="Open work on Desk">
+      {props.preparationStatus ? <div className={styles.preparationStatus} role={props.preparationStatus.phase === 'error' ? 'alert' : 'status'} aria-live="polite">
+        <span>{props.preparationStatus.phase === 'preparing' ? props.preparationStatus.operation === 'remove' ? `Removing “${props.preparationStatus.name}” from Desk…` : `Preparing “${props.preparationStatus.name}” for Desk…` : props.preparationStatus.phase === 'ready' ? props.preparationStatus.operation === 'remove' ? `“${props.preparationStatus.name}” was removed from Desk. Your saved work stays in Library.` : `“${props.preparationStatus.name}” is ready on Desk.` : `Could not ${props.preparationStatus.operation === 'remove' ? 'remove' : 'prepare'} “${props.preparationStatus.name}”. ${props.preparationStatus.message ?? 'Your saved work is unchanged.'}`}</span>
+        {props.preparationStatus.phase === 'preparing' ? <progress aria-label={`${props.preparationStatus.operation === 'remove' ? 'Removing' : 'Preparing'} ${props.preparationStatus.name}`} /> : <button type="button" onClick={props.onDismissPreparationStatus} aria-label="Dismiss Desk status">Dismiss</button>}
+      </div> : null}
       <div className={styles.deskToolbar} data-desk-toolbar>
         <div className={styles.deskFilterRow} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         <details ref={mobileFiltersRef} className={styles.mobileDeskFilters} data-mobile-desk-filters>

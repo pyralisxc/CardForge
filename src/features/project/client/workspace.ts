@@ -25,3 +25,4 @@ export { normalizeStudioView } from '../store/workspaceDefaults';
 export type { StudioView } from '../store/workspaceDefaults';
 export { openSetTemplateUpdateReview, commitSetTemplateUpdateReview, type OpenTemplateUpdateReview } from './setTemplateUpdateReview';
 export { isTemplateUpdateSource } from '../model/templateUpdateReview';
+export { prepareSelectedSet, type PreparedSelectedSet, type SelectedSetSource } from './prepareSelectedSet';

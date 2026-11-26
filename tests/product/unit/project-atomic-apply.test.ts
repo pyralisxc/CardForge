@@ -70,6 +70,38 @@ describe('atomic project apply', () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
+  it('prepares another Set without changing the active Set or its selected designs', async () => {
+    await applyProjectDocumentToWorkspace(fixture(), 'replace');
+    useProjectStore.getState().setExportDpi(150);
+    const before = useProjectStore.getState();
+    const previousSet = before.activeCardSet?.id;
+    const previousGenerator = before.generatorSelectedTemplateId;
+    const previousEditor = before.templateEditorSelectedTemplateId;
+    const document = { ...fixture(), cardSets: [{ id: 'prepared-other', name: 'Prepared other Set' }], activeCardSetId: 'prepared-other', storedCards: [], userTemplates: [], appearanceStyles: [] };
+    await applyProjectDocumentToWorkspace(document, 'merge', { preserveActiveSet: true, preserveOutputPreferences: true });
+    const after = useProjectStore.getState();
+    expect(after.cardSets.some((set) => set.id === 'prepared-other')).toBe(true);
+    expect(after.activeCardSet?.id).toBe(previousSet);
+    expect(after.generatorSelectedTemplateId).toBe(previousGenerator);
+    expect(after.templateEditorSelectedTemplateId).toBe(previousEditor);
+    expect(after.exportDpi).toBe(150);
+  });
+
+  it('leaves the workspace unchanged when the opening context changes before commit', async () => {
+    await applyProjectDocumentToWorkspace(fixture(), 'replace');
+    await persistProjectWorkspaceNow();
+    const before = useProjectStore.getState();
+    const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
+    const bytes = await raw.getItem('workspace');
+    const document = { ...fixture(), cardSets: [{ id: 'prepared-other', name: 'Prepared other Set' }], activeCardSetId: 'prepared-other', storedCards: [], userTemplates: [], appearanceStyles: [] };
+    let current = true;
+    const opening = applyProjectDocumentToWorkspace(document, 'merge', { assertCurrent: () => { if (!current) throw new Error('Opening context changed'); } });
+    current = false;
+    await expect(opening).rejects.toThrow('Opening context changed');
+    expect(useProjectStore.getState()).toBe(before);
+    expect(await raw.getItem('workspace')).toBe(bytes);
+  });
+
   it('rejects a cancelled shared workspace draft before changing live or durable work', async () => {
     const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
     const before = await raw.getItem('workspace');

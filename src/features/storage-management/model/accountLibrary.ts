@@ -508,7 +508,7 @@ export const getAccountLibraryAvailableActions = (item: AccountLibraryItem): Acc
   if (item.references.localSetId || item.references.driveFileId || item.references.localFolderWorkId) actions.push('delete-copy');
 
   if (item.webViewLink) actions.push('view-source');
-  if (item.references.driveFileId || item.references.localFolder) actions.push('manage-storage');
+  if (item.kind !== 'set' && (item.references.driveFileId || item.references.localFolder)) actions.push('manage-storage');
 
   return actions;
 };

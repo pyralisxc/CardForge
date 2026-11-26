@@ -245,7 +245,7 @@ describe('account library model', () => {
     expect(getAccountLibraryAvailableActions(localSet!)).toEqual(['open', 'save-move', 'duplicate', 'delete-copy']);
     expect(getAccountLibraryMcpWorkflow(localSet!)).toEqual({ availability: 'browser-only', tools: [] });
 
-    expect(getAccountLibraryAvailableActions(connectedProject!)).toEqual(['open', 'save-move', 'delete-copy', 'view-source', 'manage-storage']);
+    expect(getAccountLibraryAvailableActions(connectedProject!)).toEqual(['open', 'save-move', 'delete-copy', 'view-source']);
     expect(getAccountLibraryMcpWorkflow(connectedProject!)).toMatchObject({
       availability: 'revision-safe',
       tools: ['list_connected_projects', 'checkout_project', 'commit_project'],
@@ -329,10 +329,6 @@ describe('account library model', () => {
       {
         id: 'library.view-source', hierarchy: 'supporting', revisionPolicy: 'none',
         automation: { kind: 'human-only', owner: 'provider' },
-      },
-      {
-        id: 'library.manage-location', hierarchy: 'overflow', revisionPolicy: 'none',
-        automation: { kind: 'human-only', owner: 'cardforge' },
       },
       {
         id: 'library.delete-copy', hierarchy: 'overflow', revisionPolicy: 'conflict-safe',
