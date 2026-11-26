@@ -184,8 +184,15 @@ export const updateOwnerPerson = async (
         );
       }
 
+      const accountUnchanged = action === 'update'
+        && input.account?.commercialPlan === (currentAccount.ownerCommercialPlan ?? '')
+        && input.account?.contributor === currentAccount.contributorAuthority
+        && input.account?.owner === targetOwnerAccess.isOwner
+        && input.account?.note === currentAccount.note;
       const normalizedAccount = action === 'revoke'
-        ? { ok: true as const, value: { commercialPlan: 'free' as const, contributor: false, owner: false, note: currentAccount.note } }
+        ? { ok: true as const, value: { commercialPlan: currentAccount.commercialPlan, contributor: false, owner: targetOwnerAccess.isOwner, note: currentAccount.note } }
+        : accountUnchanged
+          ? { ok: true as const, value: { commercialPlan: currentAccount.commercialPlan, contributor: currentAccount.contributorAuthority, owner: targetOwnerAccess.isOwner, note: currentAccount.note } }
         : normalizeOwnerAccountRoleInput(input.account ?? {});
       if (!normalizedAccount.ok) {
         throw new OwnerPeopleOperationError(
@@ -203,7 +210,13 @@ export const updateOwnerPerson = async (
         );
       }
 
-      const privateMetadata = buildOwnerAccountMetadataPatch({
+      const privateMetadata = action === 'revoke' ? {
+        // Revoke only the Contributor representations. Preserve legacy/ambiguous
+        // commercial grants, billing projection, Owner authority and expiry verbatim.
+        cardforgeAuthorityRoles: Array.isArray(user.privateMetadata?.cardforgeAuthorityRoles)
+          ? user.privateMetadata.cardforgeAuthorityRoles.filter((role: unknown) => role !== 'contributor') : [],
+        cardforgeAccess: currentAccount.commercialPlan === 'free' ? 'free' : 'paid',
+      } : buildOwnerAccountMetadataPatch({
         existingMetadata: user.privateMetadata ?? {},
         input: accountValue,
       });
@@ -214,10 +227,14 @@ export const updateOwnerPerson = async (
           'owner_people_unavailable',
         );
       }
-      await client.users.updateUserMetadata(userId, { privateMetadata });
-      account = mapOwnerAccountSummary(await client.users.getUser(userId));
+      if (!accountUnchanged) {
+        await client.users.updateUserMetadata(userId, { privateMetadata });
+        account = mapOwnerAccountSummary(await client.users.getUser(userId));
+      } else {
+        account = currentAccount;
+      }
 
-      if (profile || accountValue.contributor || accountValue.owner) {
+      if (profile || (action !== 'revoke' && (accountValue.contributor || accountValue.owner))) {
         const requestedStatus = input.contributor?.status;
         const status: ContributorProfileStatus = action === 'revoke' || (!accountValue.contributor && !accountValue.owner)
           ? 'inactive'
@@ -265,7 +282,7 @@ export const updateOwnerPerson = async (
       targetType: 'person',
       targetId: userId,
       summary: action === 'revoke'
-        ? 'Revoked CardForge contributor and owner authority while preserving contribution history.'
+        ? 'Revoked Contributor authority while preserving other account access and contribution history.'
         : action === 'deactivate_history'
           ? 'Deactivated a contributor profile whose Clerk account is no longer present.'
           : 'Updated account entitlement and contributor controls.',
