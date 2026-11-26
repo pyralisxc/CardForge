@@ -35,17 +35,17 @@ function requireScope(viewer: Viewer, scope?: 'assets.submit' | 'library.submit'
 }
 async function snapshot(submissionId: string, viewer: Viewer) {
   const db = getSupabaseServerClient(); if (!db) throw new PipelineStoreError('Pipeline is unavailable.', 503);
-  const query = db.from('cardforge_contributor_asset_submissions').select('id,contributor_id,lineage_id,revision_number,asset_type,status,name,description,preview_url,source_notes,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags,requested_studio_destination,media_presentation').eq('id', submissionId);
+  const query = db.from('cardforge_contributor_asset_submissions').select('id,contributor_id,lineage_id,revision_number,asset_type,status,name,description,preview_url,source_notes,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags,requested_studio_destination,media_presentation,editorial_review_status,editorial_reviewed_at').eq('id', submissionId);
   if (!viewer.isOwner) query.eq('contributor_id', viewer.userId);
   const { data: row, error } = await query.maybeSingle();
   if (error) throw new PipelineStoreError('Exact Contributor draft is unavailable.', 503);
   if (!row || row.id !== submissionId || (!viewer.isOwner && row.contributor_id !== viewer.userId)) throw new PipelineStoreError('This exact authorized draft was not found; no sibling was substituted.', 404);
-  const canSaveMetadata = hasContributionScope(viewer.contribution.scopes, 'assets.submit') && !['published', 'rejected'].includes(row.status) && row.media_presentation == null;
+  const canSaveMetadata = hasContributionScope(viewer.contribution.scopes, 'assets.submit') && !['published', 'rejected'].includes(row.status) && row.media_presentation == null && row.editorial_review_status === 'pending' && row.editorial_reviewed_at == null;
   const canFinalize = hasContributionScope(viewer.contribution.scopes, 'library.submit') && row.contributor_id === viewer.userId && row.status === 'draft' && row.asset_type === 'templates';
   const parsed = contributorDraftSnapshot.safeParse({ submissionId: row.id, contributorId: row.contributor_id, lineageId: row.lineage_id ?? null, revisionNumber: row.revision_number ?? null, assetType: row.asset_type, status: row.status,
     metadata: { name: row.name, description: row.description ?? '', previewUrl: row.preview_url ?? '', sourceNotes: row.source_notes ?? '', specialtyTags: row.specialty_tags ?? [], useCaseTags: row.use_case_tags ?? [],
       ...(row.semantic_role ? { semanticRole: row.semantic_role } : {}), ...(row.visual_family ? { visualFamily: row.visual_family } : {}), ...(row.variant_kind ? { variantKind: row.variant_kind } : {}), ...(row.variant_label ? { variantLabel: row.variant_label } : {}), compatibilityTags: row.compatibility_tags ?? [], ...(row.requested_studio_destination ? { requestedStudioDestination: row.requested_studio_destination } : {}) },
-    canSaveMetadata, canFinalize, unavailableReason: canSaveMetadata || canFinalize ? null : 'This exact revision is not eligible for these editing or finalization actions.' });
+    canSaveMetadata, canFinalize, unavailableReason: canSaveMetadata || canFinalize ? null : 'This exact revision cannot be edited here. Reviewed work must continue as a new revision.' });
   if (!parsed.success) throw new PipelineStoreError('Exact Contributor metadata could not be verified.', 503);
   return parsed.data;
 }

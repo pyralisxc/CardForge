@@ -481,7 +481,7 @@ export const updatePipelineSubmissionDetails = async ({
 
   const { data: rows, error: loadError } = await supabase
     .from('cardforge_contributor_asset_submissions')
-    .select('contributor_id,status,source_url,asset_type,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags,media_presentation')
+    .select('contributor_id,status,source_url,asset_type,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags,media_presentation,editorial_review_status,editorial_reviewed_at')
     .eq('id', submissionId)
     .limit(1);
 
@@ -492,6 +492,8 @@ export const updatePipelineSubmissionDetails = async ({
 
   const row = rows?.[0] as {
     media_presentation?: unknown;
+    editorial_review_status?: unknown;
+    editorial_reviewed_at?: unknown;
     contributor_id?: string;
     status?: unknown;
     source_url?: string | null;
@@ -513,6 +515,9 @@ export const updatePipelineSubmissionDetails = async ({
   }
   if (row.status === 'published' || row.status === 'rejected') {
     throw new PipelineStoreError('Published or rejected assets cannot be edited from the Pipeline.', 400);
+  }
+  if (row.editorial_review_status !== 'pending' || row.editorial_reviewed_at != null) {
+    throw new PipelineStoreError('This revision has been reviewed. Continue your changes as a new revision.', 409, { kind: 'conflict' });
   }
 
   const normalized = normalizePipelineSubmissionEditInput({ ...input, assetType: row.asset_type });
@@ -546,6 +551,8 @@ export const updatePipelineSubmissionDetails = async ({
     })
     .eq('id', submissionId)
     .not('status', 'in', '(published,rejected)')
+    .eq('editorial_review_status', 'pending')
+    .is('editorial_reviewed_at', null)
     .is('media_presentation', null);
   if (!allowOwnerEdit) write.eq('contributor_id', contributorId);
   const { data: affected, error } = await write.select('id').maybeSingle();

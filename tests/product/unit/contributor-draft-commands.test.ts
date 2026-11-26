@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
-const f = vi.hoisted(() => ({ account: vi.fn(), contribution: vi.fn(), cache: vi.fn(), rpc: vi.fn(), row: {} as Record<string, unknown>, writes: [] as Array<{ payload: Record<string, unknown>; filters: Array<[string, unknown]> }>, zero: false, writeError: false, readErrorAfterWrite: false }));
+const f = vi.hoisted(() => ({ account: vi.fn(), contribution: vi.fn(), cache: vi.fn(), rpc: vi.fn(), row: {} as Record<string, unknown>, writes: [] as Array<{ payload: Record<string, unknown>; filters: Array<[string, unknown]> }>, zero: false, writeError: false, reviewBeforeWrite: false, readErrorAfterWrite: false }));
 vi.mock('@/features/account/server', async importOriginal => ({ ...await importOriginal<object>(), getAccountToolAccessForUserId: f.account }));
 vi.mock('@/features/studio-documents/server/mcpStudioAccess', () => ({ getMcpStudioReadAccess: async () => ({ user: { id: 'oauth-author' } }), getMcpStudioAccess: async () => ({ user: { id: 'oauth-author' } }) }));
 vi.mock('@/features/mcp-usage/server', async importOriginal => ({ ...await importOriginal<object>(), observeMcpToolExecution: ({ execute }: { execute: () => unknown }) => execute() }));
@@ -11,6 +11,7 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({ getSupabaseServerCo
   const matches = () => filters.every(([key, value]) => f.row[key] === value);
   const result = () => {
     if (payload) {
+      if (f.reviewBeforeWrite) { f.row.editorial_review_status = 'revise'; f.row.editorial_reviewed_at = '2026-11-26T12:00:00Z'; }
       f.writes.push({ payload, filters: [...filters] });
       if (f.writeError) return { data: null, error: { message: 'response lost' } };
       if (f.zero || !matches()) return { data: null, error: null };
@@ -30,10 +31,10 @@ import { cardForgeMcpHandler } from '@/features/studio-documents/server/mcpServe
 const id = '10000000-0000-4000-8000-000000000001';
 const metadata = { name: 'Saved Template', description: 'Creates editable cards', sourceNotes: 'Original source and rights observed', specialtyTags: ['games'], useCaseTags: ['tcg'], semanticRole: 'template-front', visualFamily: 'Test family', variantKind: 'base', compatibilityTags: [], requestedStudioDestination: 'template.front' };
 beforeEach(() => {
-  vi.resetAllMocks(); f.writes = []; f.zero = false; f.writeError = false; f.readErrorAfterWrite = false;
+  vi.resetAllMocks(); f.writes = []; f.zero = false; f.writeError = false; f.reviewBeforeWrite = false; f.readErrorAfterWrite = false;
   f.account.mockResolvedValue({ user: { id: 'author' }, isOwner: false, entitlement: { accessMode: 'contributor' } });
   f.contribution.mockResolvedValue({ active: true, scopes: ['assets.submit', 'library.submit'] }); f.cache.mockReturnValue(true);
-  f.row = { id, contributor_id: 'author', lineage_id: null, revision_number: 1, asset_type: 'templates', status: 'draft', name: 'Existing Template', description: '', source_notes: 'Private authored note', source_payload: { secret: 'Private document' }, specialty_tags: ['games'], use_case_tags: ['tcg'], semantic_role: 'template-front', variant_kind: 'base', media_presentation: null };
+  f.row = { id, contributor_id: 'author', lineage_id: null, revision_number: 1, asset_type: 'templates', status: 'draft', name: 'Existing Template', description: '', source_notes: 'Private authored note', source_payload: { secret: 'Private document' }, specialty_tags: ['games'], use_case_tags: ['tcg'], semantic_role: 'template-front', variant_kind: 'base', media_presentation: null, editorial_review_status: 'pending', editorial_reviewed_at: null };
   f.rpc.mockImplementation(async () => { f.row.status = 'submitted'; f.row.name = metadata.name; return { data: id, error: null }; });
 });
 it('reads exact editable metadata without source payloads, enrollment or sibling substitution', async () => {
@@ -53,6 +54,12 @@ it('never infers an affected-row commit from error-null with zero selected rows'
   f.zero = true;
   await expect(saveContributorPipelineMetadata('author', { submissionId: id, metadata })).rejects.toMatchObject({ status: 409 });
   expect(f.row.name).toBe('Existing Template'); expect(f.rpc).not.toHaveBeenCalled();
+});
+it('refuses a metadata save when review completes between the read and write', async () => {
+  f.reviewBeforeWrite = true;
+  await expect(saveContributorPipelineMetadata('author', { submissionId: id, metadata })).rejects.toMatchObject({ status: 409 });
+  expect(f.row.name).toBe('Existing Template');
+  expect(f.writes[0].filters).toContainEqual(['editorial_review_status', 'pending']);
 });
 it('confirms native submission once and retains submitted after unavailable readback', async () => {
   f.readErrorAfterWrite = true;
@@ -79,12 +86,13 @@ it('does not infer metadata commit after an unconfirmed update', async () => {
   const result = await saveContributorPipelineMetadata('author', { submissionId: id, metadata });
   expect(result.receipt).toMatchObject({ outcome: 'uncertain', metadataCommitted: null, submitted: null }); expect(f.writes).toHaveLength(1);
 });
-for (const condition of ['inactive', 'scope', 'other', 'published', 'presentation', 'forged'] as const) it(`denies ${condition} metadata access before any write`, async () => {
+for (const condition of ['inactive', 'scope', 'other', 'published', 'presentation', 'reviewed', 'forged'] as const) it(`denies ${condition} metadata access before any write`, async () => {
   if (condition === 'inactive') f.contribution.mockResolvedValue({ active: false, scopes: ['assets.submit'] });
   if (condition === 'scope') f.contribution.mockResolvedValue({ active: true, scopes: ['library.submit'] });
   if (condition === 'other') f.row.contributor_id = 'someone-else';
   if (condition === 'published') f.row.status = 'published';
   if (condition === 'presentation') f.row.media_presentation = { inherited: true };
+  if (condition === 'reviewed') { f.row.editorial_review_status = 'revise'; f.row.editorial_reviewed_at = '2026-11-26T12:00:00Z'; }
   await expect(saveContributorPipelineMetadata('author', { submissionId: id, metadata, ...(condition === 'forged' ? { actorId: 'other' } : {}) })).rejects.toThrow();
   expect(f.writes).toEqual([]); expect(f.rpc).not.toHaveBeenCalled();
 });

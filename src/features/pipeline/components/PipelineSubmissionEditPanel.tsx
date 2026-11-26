@@ -101,6 +101,11 @@ export function PipelineSubmissionEditPanel({
     }
   };
 
+  if (submission.editorialReviewStatus && submission.editorialReviewStatus !== 'pending') return <>
+    <ContributorReviewFeedback submissionId={submission.id} />
+    <p>This reviewed revision is preserved. Continue changes in a new revision of your saved work.</p>
+  </>;
+
   return <>
     {submission.status !== 'draft' ? <ContributorReviewFeedback submissionId={submission.id} /> : null}
     <EditSubmissionForm
