@@ -4,7 +4,8 @@ set local lock_timeout = '5s';
 -- This link is review lineage metadata. It remains meaningful even if an
 -- Owner later removes a revision through the existing explicit deletion flow.
 alter table public.cardforge_contributor_asset_submissions
-  add column author_resubmission_parent_id uuid;
+  add column author_resubmission_parent_id uuid,
+  add column author_resubmission_fingerprint text check (author_resubmission_fingerprint ~ '^[a-f0-9]{64}$');
 
 create or replace function public.cardforge_media_parent_content_version(p_submission_id uuid)
 returns text language sql stable security invoker set search_path = '' as $$
@@ -12,7 +13,7 @@ returns text language sql stable security invoker set search_path = '' as $$
     'updated_at','positive_votes','negative_votes','quality_score','status','contributor_lifecycle_state',
     'automated_status','owner_status_override','calculated_access_tier','automated_access_tier','owner_access_tier_override',
     'tier_decision_reason','owner_note','decision_reason','editorial_review_status','editorial_review_note',
-    'editorial_reviewed_by','editorial_reviewed_at','author_review_note','author_resubmission_parent_id','published_at','purge_state','trashed_at','purge_after',
+    'editorial_reviewed_by','editorial_reviewed_at','author_review_note','author_resubmission_parent_id','author_resubmission_fingerprint','published_at','purge_state','trashed_at','purge_after',
     'trash_reason','retention_hold','purge_claimed_at','template_review_context','source_review_evidence','owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256','revision_recovery_version','revision_trash_actor_id','revision_trash_actor_role','revision_publication_retained','revision_trash_previous_status','revision_vote_trash_fingerprint'])::text)
   from public.cardforge_contributor_asset_submissions as submission where id=p_submission_id;
 $$;
@@ -23,7 +24,7 @@ $$;
 create function public.cardforge_create_template_author_revision_draft(
   p_parent_submission_id uuid, p_expected_reviewed_at timestamptz,
   p_expected_parent_version text, p_actor_id text, p_actor_email text,
-  p_name text, p_template_payload jsonb, p_submission_key text
+  p_name text, p_template_payload jsonb, p_submission_key text, p_request_fingerprint text
 ) returns uuid language plpgsql security invoker set search_path = '' as $$
 declare parent public.cardforge_contributor_asset_submissions%rowtype; locked_asset_id text; locked_lineage_id uuid;
   prior public.cardforge_contributor_asset_submissions%rowtype; created_id uuid;
@@ -33,6 +34,7 @@ begin
     or nullif(pg_catalog.btrim(p_actor_id),'') is null
     or nullif(pg_catalog.btrim(p_submission_key),'') is null
     or pg_catalog.length(p_submission_key)>160
+    or coalesce(p_request_fingerprint,'') !~ '^[a-f0-9]{64}$'
     or pg_catalog.jsonb_typeof(p_template_payload) is distinct from 'object'
   then raise exception 'template_author_revision_invalid'; end if;
   select * into parent from public.cardforge_contributor_asset_submissions where id=p_parent_submission_id;
@@ -55,6 +57,7 @@ begin
       and s.submission_key=p_submission_key limit 1;
   if found then
     if prior.author_resubmission_parent_id is distinct from p_parent_submission_id
+      or prior.author_resubmission_fingerprint is distinct from p_request_fingerprint
       or prior.source_payload is distinct from p_template_payload or prior.name is distinct from p_name
     then raise exception 'template_author_revision_conflict'; end if;
     return prior.id;
@@ -78,6 +81,7 @@ begin
   created_id:=public.cardforge_create_template_pipeline_draft(parent.target_registry_asset_id,p_name,p_actor_id,
     coalesce(p_actor_email,''),p_template_payload,p_submission_key);
   update public.cardforge_contributor_asset_submissions set author_resubmission_parent_id=parent.id,
+    author_resubmission_fingerprint=p_request_fingerprint,
     description=parent.description, preview_url=parent.preview_url, source_notes=parent.source_notes,
     specialty_tags=parent.specialty_tags, use_case_tags=parent.use_case_tags,
     semantic_role=parent.semantic_role, visual_family=parent.visual_family, variant_kind=parent.variant_kind,
@@ -86,6 +90,35 @@ begin
   return created_id;
 end;
 $$;
-revoke all on function public.cardforge_create_template_author_revision_draft(uuid,timestamptz,text,text,text,text,jsonb,text) from public,anon,authenticated;
-grant execute on function public.cardforge_create_template_author_revision_draft(uuid,timestamptz,text,text,text,text,jsonb,text) to service_role;
+revoke all on function public.cardforge_create_template_author_revision_draft(uuid,timestamptz,text,text,text,text,jsonb,text,text) from public,anon,authenticated;
+grant execute on function public.cardforge_create_template_author_revision_draft(uuid,timestamptz,text,text,text,text,jsonb,text,text) to service_role;
+
+-- Read an actor-bound exact attempt before any repeat or asset materialization.
+create function public.cardforge_read_template_author_revision_attempt(
+  p_parent_submission_id uuid, p_actor_id text, p_submission_key text, p_request_fingerprint text
+) returns uuid language plpgsql stable security invoker set search_path = '' as $$
+declare parent public.cardforge_contributor_asset_submissions%rowtype;
+  prior public.cardforge_contributor_asset_submissions%rowtype;
+begin
+  if coalesce(p_request_fingerprint,'') !~ '^[a-f0-9]{64}$' or nullif(pg_catalog.btrim(p_submission_key),'') is null
+    or pg_catalog.length(p_submission_key)>160 then raise exception 'template_author_revision_invalid'; end if;
+  select * into parent from public.cardforge_contributor_asset_submissions where id=p_parent_submission_id;
+  if not found or parent.contributor_id is distinct from p_actor_id or parent.asset_type<>'templates'
+    then raise exception 'template_author_revision_not_found'; end if;
+  select * into prior from public.cardforge_contributor_asset_submissions s
+    where s.contributor_id=p_actor_id and s.target_registry_asset_id=parent.target_registry_asset_id
+      and s.submission_key=p_submission_key limit 1;
+  if found then
+    if prior.author_resubmission_parent_id is distinct from p_parent_submission_id
+      or prior.author_resubmission_fingerprint is distinct from p_request_fingerprint
+      then raise exception 'template_author_revision_conflict'; end if;
+    return prior.id;
+  end if;
+  if parent.status='archived' and parent.decision_reason='superseded_revision'
+    then raise exception 'template_author_revision_conflict'; end if;
+  return null;
+end;
+$$;
+revoke all on function public.cardforge_read_template_author_revision_attempt(uuid,text,text,text) from public,anon,authenticated;
+grant execute on function public.cardforge_read_template_author_revision_attempt(uuid,text,text,text) to service_role;
 commit;

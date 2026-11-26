@@ -14,7 +14,7 @@ import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServe
 import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 import { externalizePipelineTemplateAssets } from './pipelineTemplateAssets';
 import { prepareManagedRasterTemplateRevision, readManagedRasterAttempt, type ManagedRasterSelection } from './managedRasterAdoption';
-import { templateReviewPayload } from './templateReview';
+import { templateReviewPayload, templateReviewRequestText } from './templateReview';
 
 export { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 
@@ -340,9 +340,24 @@ export function assertTemplatePipelineDraftContext(template: TCGCardTemplate): v
 /** Read-only recovery of the original managed request; never revalidates current artwork. */
 export async function readTemplatePipelineDraftAttempt(input: TemplatePipelineDraftInput): Promise<string | null> {
   assertTemplatePipelineDraftContext(input.template);
+  if (input.revisionBase) {
+    const { data, error } = await requireSupabase().rpc('cardforge_read_template_author_revision_attempt', {
+      p_parent_submission_id: input.revisionBase.parentSubmissionId, p_actor_id: input.contributorId,
+      p_submission_key: input.submissionKey, p_request_fingerprint: authorRevisionFingerprint(input),
+    });
+    if (error) throwTemplateRevisionError(error.message);
+    return data == null ? null : String(data);
+  }
   if (!input.managedRasterSelection) throw new PipelineRegistryCommandError('An exact managed adoption attempt is required.', 400);
   return (await readManagedRasterAttempt(templateReviewPayload(input.template), input.managedRasterSelection,
     input.contributorId, input.contributorEmail, input.submissionKey, 'draft', 0)).submissionId;
+}
+
+function authorRevisionFingerprint(input: TemplatePipelineDraftInput): string {
+  const base = input.revisionBase;
+  if (!base || input.template.id !== base.assetId || input.managedRasterSelection) throw new PipelineRegistryCommandError('Choose one exact reviewed Template revision.', 400);
+  return createHash('sha256').update(JSON.stringify([input.contributorId, templateReviewRequestText(input.template),
+    base.parentSubmissionId, base.assetId, base.reviewedAt, base.parentContentVersion])).digest('hex');
 }
 
 export const createTemplatePipelineDraft = async ({
@@ -357,6 +372,11 @@ export const createTemplatePipelineDraft = async ({
   const supabase = requireSupabase();
   const source = templateReviewPayload(template);
   if (revisionBase && managedRasterSelection) throw new PipelineRegistryCommandError('This revision cannot adopt a new managed raster through this handoff.', 409);
+  const revisionInput = { template, contributorId, contributorEmail, submissionKey, managedRasterSelection, revisionBase };
+  if (revisionBase) {
+    const existing = await readTemplatePipelineDraftAttempt(revisionInput);
+    if (existing) return loadTemplatePipelineResult(existing, 'draft');
+  }
   const attempt = managedRasterSelection
     ? await readManagedRasterAttempt(source, managedRasterSelection, contributorId, contributorEmail, submissionKey, 'draft', 0)
     : null;
@@ -373,6 +393,7 @@ export const createTemplatePipelineDraft = async ({
       p_actor_email: contributorEmail ?? '', p_name: storedTemplate.name, p_template_payload: {
         ...storedTemplate, templateSource: 'default', templateLibrarySource: 'pipeline', templateRegistryStatus: 'draft',
       }, p_submission_key: submissionKey,
+      p_request_fingerprint: authorRevisionFingerprint(revisionInput),
     });
     if (error || !data) throwTemplateRevisionError(error?.message);
     return loadTemplatePipelineResult(String(data), 'draft');

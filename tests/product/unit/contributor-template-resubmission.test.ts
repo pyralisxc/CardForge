@@ -1,11 +1,11 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { createMcpHandler } from 'mcp-handler';
-const f=vi.hoisted(()=>({create:vi.fn(),read:vi.fn(),downloads:vi.fn(),access:vi.fn(),require:vi.fn()}));
+const f=vi.hoisted(()=>({create:vi.fn(),receipt:vi.fn(),read:vi.fn(),downloads:vi.fn(),access:vi.fn(),require:vi.fn()}));
 vi.mock('@/features/pipeline/server',async()=>({
   contributorTemplateRevisionBase:(await import('@/features/pipeline/lib/contributorDraftContract')).contributorTemplateRevisionBase,
   assertTemplatePipelineDraftContext:(await import('@/features/pipeline/lib/pipelineRegistryCommands')).assertTemplatePipelineDraftContext,
-  createNewSharedTemplateId:()=> 'fresh-shared-id', createTemplatePipelineDraft:f.create, readTemplatePipelineDraftAttempt:vi.fn(),
+  createNewSharedTemplateId:()=> 'fresh-shared-id', createTemplatePipelineDraft:f.create, readTemplatePipelineDraftAttempt:f.receipt,
   isRepositoryTemplate:(value:TCGCardTemplate)=>Boolean(value.id && value.freeformCanvas),
   PipelineRegistryCommandError:(await import('@/features/pipeline/lib/pipelineRegistryCommandsError')).PipelineRegistryCommandError,
 }));
@@ -38,6 +38,12 @@ it('Studio handoff uses the same exact base and a stable attempt for the same do
  const validate=(pipelineInputSchema as unknown as {'~standard':{validate:(v:unknown)=>Promise<{issues?:unknown}>}})['~standard'].validate;
  expect((await validate({documentId:document.id,revisionBase:base})).issues).toBeUndefined();
  expect((await validate({documentId:document.id,revisionBase:{...base,actorId:'spoof'}})).issues).toBeDefined();
+});
+it('browser recovery reads the exact attempt without creating a draft',async()=>{
+ f.receipt.mockResolvedValue('new-draft');
+ const response=await POST(new Request('https://example.invalid/api/templates/submissions?lookup=1',{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':'exact-attempt','X-Pipeline-Contributor':'actor'},body:JSON.stringify({...template,revisionBase:base})}));
+ expect(response.status).toBe(200);expect((await response.json()).openInPipelineUrl).toContain('submission=new-draft');
+ expect(f.receipt).toHaveBeenCalledWith(expect.objectContaining({revisionBase:base,submissionKey:'exact-attempt',contributorId:'actor'}));expect(f.create).not.toHaveBeenCalled();
 });
 it('Studio MCP transport accepts the exact review base and invokes the shared author handoff',async()=>{
  const handler=createMcpHandler(server=>registerEditableTemplateTools({server,publicOrigin:'https://example.invalid',getAccess:async()=>access,toolError:error=>({isError:true,content:[{type:'text',text:String(error)}]})}),{serverInfo:{name:'isolated-test',version:'1.0.0'}});
