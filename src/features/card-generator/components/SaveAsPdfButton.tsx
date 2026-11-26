@@ -161,6 +161,17 @@ export function SaveAsPdfButton({
 
     const activity = outputActivity?.begin(`${isScreenPdf ? 'Digital PDF' : 'PDF'}${setName ? ` · ${setName}` : ''}`, { retained: true });
     if (outputActivity && !activity) { setIsLoadingPdf(false); return; }
+    const totalFaces = generatedDisplayCards.reduce((count, card) => count + 1 + (hasCardBacking(card) ? 1 : 0), 0);
+    let completedFaces = 0;
+    const reportFace = async () => {
+      activity?.progress(++completedFaces, totalFaces, 'faces');
+      await new Promise<void>((resolve) => { setTimeout(resolve, 0); });
+    };
+    const reportStage = async (detail: string) => {
+      activity?.stage(detail);
+      await new Promise<void>((resolve) => { setTimeout(resolve, 0); });
+    };
+    activity?.progress(0, totalFaces, 'faces');
     trackExportStarted('pdf', generatedDisplayCards.length);
     const baseName = `${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}`;
     const fileName = `${baseName}.${totalChunks > 1 ? 'zip' : 'pdf'}`;
@@ -232,6 +243,7 @@ export function SaveAsPdfButton({
                 screenPage.widthMm,
                 screenPage.heightMm,
               );
+              await reportFace();
             }
             pdf.setProperties({
               subject: 'CardForge RGB screen copy; one trimmed card face per page. Visual PDF, not an editable project or tagged accessible text.',
@@ -249,12 +261,12 @@ export function SaveAsPdfButton({
             });
             for (let pageIndex = 0; pageIndex < frontPages.length; pageIndex++) {
               if (pageIndex > 0) pdf.addPage();
-              await processPage(pdf, frontPages[pageIndex], renderer);
+              await processPage(pdf, frontPages[pageIndex], renderer, reportFace);
 
               const backPage = createPdfDuplexBackPage(frontPages[pageIndex], { widthMm: selectedPaperSize.widthMm, heightMm: selectedPaperSize.heightMm, flip: pdfDuplexLayout === 'separate-pages-short-edge' ? 'short-edge' : 'long-edge' });
               if (chunkCards.some(hasCardBacking)) {
                 pdf.addPage();
-                await processPage(pdf, backPage, renderer);
+                await processPage(pdf, backPage, renderer, reportFace);
               }
             }
           } else {
@@ -274,7 +286,7 @@ export function SaveAsPdfButton({
             });
             for (let pageIndex = 0; pageIndex < facePages.length; pageIndex++) {
               if (pageIndex > 0) pdf.addPage();
-              await processPage(pdf, facePages[pageIndex], renderer);
+              await processPage(pdf, facePages[pageIndex], renderer, reportFace);
             }
           }
           if (!isScreenPdf && exportMode === 'physical') {
@@ -287,18 +299,20 @@ export function SaveAsPdfButton({
           renderer.cleanup();
         }
 
+        await reportStage(totalChunks > 1 ? `Finishing PDF part ${chunkIndex + 1} of ${totalChunks}` : 'Finishing PDF');
         const blob = pdf.output('blob');
         if (zip && zipModule) {
+          await reportStage(`Packaging PDF part ${chunkIndex + 1} of ${totalChunks}`);
           const digits = Math.max(3, String(totalChunks).length);
           await zip.add(`${baseName}-part-${String(chunkIndex + 1).padStart(digits, '0')}-of-${String(totalChunks).padStart(digits, '0')}.pdf`, new zipModule.BlobReader(blob), { level: 0 });
         } else singleBlob = blob;
-        if (totalChunks > 1) activity?.progress(chunkIndex + 1, totalChunks);
         // Release each part before rendering the next one.
         await new Promise<void>((resolve) => { requestAnimationFrame(() => resolve()); });
       }
 
       let fallbackBlob: Blob | null = null;
       if (zip) {
+        await reportStage('Finishing PDF ZIP');
         const result = await zip.close();
         if (!stage) fallbackBlob = result as Blob;
       } else if (stage && singleBlob) {
@@ -311,6 +325,7 @@ export function SaveAsPdfButton({
         } finally { writer.releaseLock(); }
         if (retentionUnavailable) { await stage.abort(); stage = null; }
       } else fallbackBlob = singleBlob;
+      await reportStage('Preparing download');
       await beforeExport?.(); // Revalidate externally pinned specimens before delivery.
       if (stage && activity) {
         if (getProjectPersistenceScope() !== startScope || !activity.isCurrent()) throw new Error('The active workspace changed. Start the export again.');
@@ -356,6 +371,7 @@ export function SaveAsPdfButton({
     pdf: jsPDF,
     pageCards: PdfCardPlacement[],
     renderer: CardFaceExportRenderer,
+    reportFace: () => Promise<void>,
   ) {
     for (const placement of pageCards) {
       const canvas = exportMode === 'physical'
@@ -376,6 +392,7 @@ export function SaveAsPdfButton({
           pdf.line(segment.x1, segment.y1, segment.x2, segment.y2);
         });
       }
+      await reportFace();
     }
   }
 

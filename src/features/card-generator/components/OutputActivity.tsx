@@ -5,8 +5,8 @@ import { getProjectPersistenceScope, PROJECT_PERSISTENCE_SCOPE_CHANGE_EVENT } fr
 import { createReadyHandoffGuard, prepareReadyOutputHandoff } from '../lib/outputReadyHandoff';
 import { readReadyOutput, removeReadyOutput, ReadyOutputUnavailableError, type ReadyOutput } from '../lib/outputReadyStorage';
 
-type Activity = { name: string; phase: 'running' | 'checking' | 'removing' | 'ready' | 'requested' | 'failed'; done?: number; total?: number; detail?: string; persistence?: 'device' | 'session'; canSaveAgain?: boolean; unavailable?: boolean };
-type Handle = { isCurrent: () => boolean; progress: (done: number, total: number) => void; hold: (output: ReadyOutput, detail: string) => void; finish: (phase: 'requested' | 'failed', detail?: string) => void; complete: (output: ReadyOutput, validate?: () => Promise<void>) => boolean };
+type Activity = { name: string; phase: 'running' | 'checking' | 'removing' | 'ready' | 'requested' | 'failed'; done?: number; total?: number; unit?: 'faces'; detail?: string; persistence?: 'device' | 'session'; canSaveAgain?: boolean; unavailable?: boolean };
+type Handle = { isCurrent: () => boolean; progress: (done: number, total: number, unit?: 'faces') => void; stage: (detail: string) => void; hold: (output: ReadyOutput, detail: string) => void; finish: (phase: 'requested' | 'failed', detail?: string) => void; complete: (output: ReadyOutput, validate?: () => Promise<void>) => boolean };
 type OutputActivity = { activity: Activity | null; begin: (name: string, options?: { retained: boolean }) => Handle | null; dismiss: () => void; saveAgain: () => Promise<void>; remove: () => Promise<void>; saving: boolean };
 const Context = createContext<OutputActivity | null>(null);
 
@@ -62,7 +62,8 @@ export function OutputActivityProvider({ children }: { children: ReactNode }) {
     const current = () => lifetime.current && epoch === version.current && capturedScope === getProjectPersistenceScope();
     return {
       isCurrent: current,
-      progress: (done, total) => { if (current()) setActivity({ name, phase: 'running', done, total }); },
+      progress: (done, total, unit) => { if (current()) setActivity({ name, phase: 'running', done, total, unit }); },
+      stage: (detail) => { if (current()) setActivity({ name, phase: 'running', detail }); },
       finish: (phase, detail) => { if (current()) {
         active.current = false;
         const previous = ready.current;
@@ -139,7 +140,7 @@ export function OutputActivityStatus() {
     : activity.phase === 'checking'
     ? `${activity.name}: checking the prepared file. Keep this page open.`
     : activity.phase === 'running'
-    ? `${activity.name}: ${activity.detail ?? (activity.total ? activity.done === activity.total ? 'Finishing output' : `Rendering ${activity.done ?? 0} of ${activity.total}` : 'Building output')}. Keep this page open.`
+    ? `${activity.name}: ${activity.detail ?? (activity.total ? activity.done === activity.total ? 'Finishing output' : `Rendering ${activity.done ?? 0} of ${activity.total}${activity.unit ? ` ${activity.unit}` : ''}` : 'Building output')}. Keep this page open.`
     : activity.phase === 'ready'
       ? activity.unavailable ? `${activity.name}: the previously prepared output is unavailable on this device. You can remove its stored copy and record. ${activity.detail ?? ''}` : `${activity.name}: previously prepared output ready on this device${activity.persistence === 'session' ? ' for this tab session' : ' while browser storage remains available'}. Changes made since preparation are not included. ${activity.detail ?? (activity.canSaveAgain === false ? 'This copy needs its original source to be prepared again; you can remove it.' : 'Save again when needed.')}`
       : activity.phase === 'requested' ? `${activity.name}: download requested. ${activity.detail ?? 'Check your browser downloads.'}`
