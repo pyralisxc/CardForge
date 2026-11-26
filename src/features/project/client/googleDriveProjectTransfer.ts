@@ -7,6 +7,7 @@ import {
   ProjectPackageError,
 } from '../lib/projectPackageCodec';
 import { buildBrowserCardForgeProjectSnapshot, decodeBrowserProjectFile } from './browserProjectPackage';
+import { verifyProjectPackageSnapshot } from '../lib/projectPackageWriter';
 import { requireCompleteSingleSet } from './validateSingleSet';
 import {
   GOOGLE_DRIVE_PROJECT_MIME_TYPE,
@@ -365,6 +366,19 @@ const createProjectPackage = async (name: string, workId?: string, identities?: 
     throw new ProjectPackageError('The Set changed while preparing its Drive save. Retry with the current work.');
   }
   return { document, snapshot, blob, localProjectRevision: localSnapshot.manifest.projectRevision };
+};
+
+const getLocalProjectRevision = async (name: string, workId: string): Promise<string> => {
+  const namespace = getScopedProjectStorageNamespace('project-assets');
+  const expectedState = useProjectStore.getState();
+  const document = await captureCardSetProjectDocument(workId);
+  const snapshot = await buildBrowserCardForgeProjectSnapshot({ document, name });
+  await verifyProjectPackageSnapshot(snapshot);
+  assertBindingScope(namespace);
+  if (hasProjectDocumentStateChanged(expectedState, useProjectStore.getState())) {
+    throw new ProjectPackageError('The Set changed while preparing its Drive save. Retry with the current work.');
+  }
+  return snapshot.manifest.projectRevision;
 };
 
 const prepareUpload = async ({
@@ -767,7 +781,7 @@ export const openGoogleDriveProject = async (
     await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, ...(options.preserveActiveSet ? { preserveActiveSet: true } : {}), ...(options.preserveSetOutputPreferences && document.cardSets.length === 1 ? { preserveOutputPreferences: true } : {}), ...(options.assertCurrent ? { assertCurrent: options.assertCurrent } : {}) });
     assertBindingScope(namespace);
     if (binding.workId && document.cardSets.length === 1) {
-      binding.localProjectRevision = (await createProjectPackage(binding.name, binding.workId)).localProjectRevision;
+      binding.localProjectRevision = await getLocalProjectRevision(binding.name, binding.workId);
     }
     for (const set of document.cardSets) await persistWorkBinding(set.id, binding, namespace);
     await persistGoogleDriveProjectAttachment(binding, namespace);
@@ -782,7 +796,7 @@ export const openGoogleDriveProject = async (
 
 export const hasGoogleDriveWorkingChanges = async (binding: GoogleDriveProjectBinding): Promise<boolean> => {
   if (!binding.workId || !binding.localProjectRevision) return true;
-  return (await createProjectPackage(binding.name, binding.workId)).localProjectRevision !== binding.localProjectRevision;
+  return (await getLocalProjectRevision(binding.name, binding.workId)) !== binding.localProjectRevision;
 };
 
 /** Explicit refresh only; ordinary Open always resumes recoverable browser work. */
@@ -823,7 +837,7 @@ export const refreshGoogleDriveProject = async (binding: GoogleDriveProjectBindi
     assertBindingScope(namespace);
     await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, replaceSetIds: binding.runtimeSetIds ?? [workId] });
     const next = { ...binding, identities, providerRevision, projectRevision, lastSavedAt: modifiedAt,
-      localProjectRevision: (await createProjectPackage(binding.name, workId)).localProjectRevision };
+      localProjectRevision: await getLocalProjectRevision(binding.name, workId) };
     assertBindingScope(namespace);
     await persistWorkBinding(workId, next, namespace);
     await persistGoogleDriveProjectAttachment(next, namespace);
