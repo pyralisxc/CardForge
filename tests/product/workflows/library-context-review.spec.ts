@@ -23,28 +23,48 @@ async function mount(page: import('@playwright/test').Page, query = '') {
   await page.addScriptTag({ content: bundle.outputFiles.find(f => f.path.endsWith('.js'))!.text });
   return { mutations, errors };
 }
-test('Drive disconnect readback reports the CardForge record without another revocation', async ({ page }) => {
-  const evidence = await mount(page, '?disconnectProof=1');
+for (const mode of ['unknown', 'confirmed', 'changed'] as const) test(`Drive disconnect review ${mode} preserves provider boundary`, async ({ page }) => {
+  const evidence = await mount(page, `?disconnectProof=${mode}`);
   page.on('dialog', dialog => void dialog.accept());
   await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
-  const notice = page.getByRole('alert').filter({ hasText: 'Google confirmed access was revoked' });
-  await expect(notice).toContainText('CardForge still has a saved connection');
-  await notice.getByRole('button', { name: 'Check CardForge record', exact: true }).click();
-  await expect(notice.getByRole('status')).toContainText('CardForge has no saved connection. This check does not establish whether Google revoked access.');
-  await expect(page.getByRole('button', { name: 'Disconnect', exact: true })).toHaveCount(0);
-  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string; url: string }[] }).libraryRequests);
+  const notice = page.getByRole('alert').filter({ has: page.getByRole('link', { name: 'third-party access' }) });
+  await expect(notice).toBeVisible();
+  await notice.getByRole('button', { name: 'Check original connection' }).click();
+  if (mode === 'changed') {
+    await expect(notice.getByRole('status')).toContainText('newer CardForge connection');
+    await expect(notice.getByRole('button', { name: 'Remove CardForge connection only' })).toHaveCount(0);
+    await notice.getByRole('button', { name: 'Keep newer connection' }).click();
+  } else {
+    const remove = notice.getByRole('button', { name: 'Remove CardForge connection only' });
+    if (mode === 'unknown') {
+      await expect(notice.getByRole('status')).toContainText('cannot confirm whether Google revoked access');
+      await expect(remove).toBeDisabled();
+      await notice.getByRole('checkbox').check();
+    } else await expect(notice.getByRole('status')).toContainText('Google confirmed');
+    await remove.click();
+  }
+  await expect(notice).toHaveCount(0);
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string; body?: string }[] }).libraryRequests);
   expect(requests.filter(request => request.method === 'DELETE')).toHaveLength(1);
-  expect(requests.some(request => request.method === 'GET' && request.url.endsWith('?connection=1'))).toBe(true);
+  const removals = requests.filter(request => request.method === 'POST' && request.body?.includes('remove_connection_only'));
+  expect(removals).toHaveLength(mode === 'changed' ? 0 : 1);
+  if (removals.length) expect(JSON.parse(removals[0]!.body!).acknowledged).toBe(true);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
-  await mount(page, '?disconnectProof=1');
-  const restored = page.getByRole('alert').filter({ hasText: 'An earlier disconnect needs review' });
-  await expect(restored).toBeVisible();
+});
+test('Drive disconnect keep choice preserves the review and prevents another revoke', async ({ page }) => {
+  await mount(page, '?disconnectProof=unknown');
+  page.on('dialog', dialog => void dialog.accept());
+  await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
+  const notice = page.getByRole('alert').filter({ has: page.getByRole('link', { name: 'third-party access' }) });
+  await notice.getByRole('button', { name: 'Check original connection' }).click();
+  await notice.getByRole('button', { name: 'Keep connection', exact: true }).click();
+  await expect(page.getByText('You kept the connection.', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Disconnect', exact: true })).toHaveCount(0);
-  await restored.getByRole('button', { name: 'Check CardForge record', exact: true }).click();
-  await restored.getByRole('button', { name: 'Support confirmed access', exact: true }).click();
-  await expect(restored).toHaveCount(0);
-  const reopenedRequests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests);
-  expect(reopenedRequests.filter(request => request.method === 'DELETE')).toHaveLength(0);
+  await page.getByRole('button', { name: 'Review earlier disconnect' }).click();
+  await expect(notice).toBeVisible();
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string; body?: string }[] }).libraryRequests);
+  expect(requests.filter(request => request.method === 'DELETE')).toHaveLength(1);
+  expect(requests.filter(request => request.body?.includes('remove_connection_only'))).toHaveLength(0);
 });
 for (const width of [390, 1440]) test(`@golden @preview Library exact governance, revision entry and close at ${width}px`, async ({ page }, info) => {
   await page.setViewportSize({ width, height: 900 }); const evidence = await mount(page);

@@ -1070,7 +1070,7 @@ it.each(['same Set', 'another Set'] as const)('keeps the new %s binding when del
   });
   vi.stubGlobal('fetch', fetch);
   const deletion = deleteGoogleDriveProjectCopy(driveBinding);
-  await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  await vi.waitFor(() => expect(fetch.mock.calls.some(([, options]) => options?.method === 'DELETE')).toBe(true));
   const setId = target === 'same Set' ? 'set-c' : 'set-other';
   const saved = await saveCardSetToGoogleDrive({ setId, name: 'F2', asNew: true });
   release(new Response(null, { status: 204 }));
@@ -1087,10 +1087,10 @@ it('reports a confirmed disconnect separately when browser attachment cleanup fa
   mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
   mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
   mock.failRemoveKey = 'test:google-drive-project-binding';
-  const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+  const fetch = vi.fn().mockResolvedValueOnce(Response.json({ generation: 'a'.repeat(64) })).mockResolvedValueOnce(new Response(null, { status: 204 }));
   vi.stubGlobal('fetch', fetch);
   await expect(disconnectGoogleDriveStorage()).resolves.toEqual({ attachmentCleanup: 'incomplete' });
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledTimes(2);
   expect(mock.values.get('test:google-drive-project-binding')).toEqual({ workId: 'set-c' });
   expect(mock.values.get('test:google-drive-work-binding:set-c')).toEqual(driveBinding);
 });
@@ -1099,7 +1099,7 @@ it('still rejects a provider disconnect failure before attempting browser cleanu
   mock.localSets = [{ id: 'set-c' }];
   mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
   mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
-  vi.stubGlobal('fetch', vi.fn(async () => new Response('unavailable', { status: 503 })));
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ generation: 'a'.repeat(64) })).mockResolvedValueOnce(new Response('unavailable', { status: 503 })));
   await expect(disconnectGoogleDriveStorage()).rejects.toThrow();
   expect(mock.values.get('test:google-drive-project-binding')).toEqual({ workId: 'set-c' });
 });
@@ -1109,25 +1109,24 @@ it.each(['lost response', 'unstructured server error', 'unexpected success respo
   mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
   mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
   const fetch = condition === 'lost response'
-    ? vi.fn().mockRejectedValue(new Error('response lost'))
-    : vi.fn().mockResolvedValue(new Response('unavailable', { status: condition === 'unexpected success response' ? 200 : 503 }));
+    ? vi.fn().mockResolvedValueOnce(Response.json({ generation: 'a'.repeat(64) })).mockRejectedValueOnce(new Error('response lost'))
+    : vi.fn().mockResolvedValueOnce(Response.json({ generation: 'a'.repeat(64) })).mockResolvedValueOnce(new Response('unavailable', { status: condition === 'unexpected success response' ? 200 : 503 }));
   vi.stubGlobal('fetch', fetch);
   await expect(disconnectGoogleDriveStorage()).rejects.toMatchObject({
     code: 'google_drive_disconnect_unconfirmed', retryable: false,
-    message: expect.stringContaining('could not confirm whether Google revoked access'),
-    nextAction: expect.stringContaining('before reconnecting or disconnecting again'),
+    nextAction: expect.stringContaining('Do not'),
   });
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledTimes(2);
   expect(mock.values.get('test:google-drive-project-binding')).toEqual({ workId: 'set-c' });
   await expect(disconnectGoogleDriveStorage()).rejects.toMatchObject({ code: 'google_drive_disconnect_unconfirmed', retryable: false });
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledTimes(2);
 });
 
 it('does not contact Google when the browser cannot persist the disconnect review marker', async () => {
   mock.failWriteKey = 'test:google-drive-disconnect-review';
-  const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+  const fetch = vi.fn().mockResolvedValue(Response.json({ generation: 'a'.repeat(64) })); vi.stubGlobal('fetch', fetch);
   await expect(disconnectGoogleDriveStorage()).rejects.toThrow('Browser storage rejected the binding');
-  expect(fetch).not.toHaveBeenCalled();
+  expect(fetch).toHaveBeenCalledTimes(1);
 });
 
 it.each(['same Set', 'another Set'] as const)('keeps a new %s attachment when an earlier provider disconnect completes', async (target) => {
@@ -1137,13 +1136,14 @@ it.each(['same Set', 'another Set'] as const)('keeps a new %s attachment when an
   let release!: (response: Response) => void;
   const held = new Promise<Response>(resolve => { release = resolve; });
   const fetch = vi.fn(async (_url: string, options: RequestInit) => {
+    if (String(_url).includes('disconnect=1')) return Response.json({ generation: 'a'.repeat(64) });
     if (options.method === 'DELETE') return held;
     if (options.method === 'POST') return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'F2' });
     return Response.json({ id: 'drive-file-new-F2', headRevisionId: 'native-3', name: 'F2' });
   });
   vi.stubGlobal('fetch', fetch);
   const disconnect = disconnectGoogleDriveStorage();
-  await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  await vi.waitFor(() => expect(fetch.mock.calls.some(([, options]) => options?.method === 'DELETE')).toBe(true));
   const setId = target === 'same Set' ? 'set-c' : 'set-other';
   const saved = await saveCardSetToGoogleDrive({ setId, name: 'F2', asNew: true });
   release(new Response(null, { status: 204 }));

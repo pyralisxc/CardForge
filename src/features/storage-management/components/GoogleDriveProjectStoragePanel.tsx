@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Cloud, FilePlus2, FolderCog, FolderPlus, HardDriveUpload, Link2, Link2Off, Loader2, LogIn, RefreshCw, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ApiClientError, readApiError } from '@/infrastructure/http/clientResponses';
+import { ApiClientError } from '@/infrastructure/http/clientResponses';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,13 +19,16 @@ import {
   chooseGoogleDriveProjectFolder,
   createGoogleDriveProjectFolder,
   disconnectGoogleDriveStorage,
-  getGoogleDriveDisconnectReviewRequired,
+  getGoogleDriveDisconnectReview,
+  inspectGoogleDriveDisconnectReview,
+  removeGoogleDriveDisconnectRecord,
   clearGoogleDriveDisconnectReview,
   getGoogleDriveProjectBinding,
   loadGoogleDriveProjectLibrary,
   saveCurrentProjectToGoogleDrive,
   type GoogleDriveProjectBinding,
   type GoogleDriveProjectListResult,
+  type GoogleDriveDisconnectReview,
 } from '@/features/project/client/provider-google-drive';
 import { hydrateProjectLibraryWorkspaceForScope, useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
@@ -52,8 +55,11 @@ export function GoogleDriveProjectStoragePanel({
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [bindingError, setBindingError] = useState<string | null>(null);
   const [disconnectNotice, setDisconnectNotice] = useState<string | null>(null);
+  const [disconnectDeferred, setDisconnectDeferred] = useState(false);
   const [recordReadback, setRecordReadback] = useState<string | null>(null);
-  const [recordAbsent, setRecordAbsent] = useState(false);
+  const [disconnectReview, setDisconnectReview] = useState<GoogleDriveDisconnectReview | null>(null);
+  const [disconnectState, setDisconnectState] = useState<{ record: 'same' | 'changed' | 'absent'; google: 'confirmed' | 'unknown' } | null>(null);
+  const [googleChecked, setGoogleChecked] = useState(false);
   const [checkingRecord, setCheckingRecord] = useState(false);
   const [disconnectCheckReady, setDisconnectCheckReady] = useState(false);
   const currentScope = useRef({ scope: persistenceScope });
@@ -65,8 +71,11 @@ export function GoogleDriveProjectStoragePanel({
     let cancelled = false;
     setReady(false);
     setDisconnectNotice(null);
+    setDisconnectDeferred(false);
     setRecordReadback(null);
-    setRecordAbsent(false);
+    setDisconnectReview(null);
+    setDisconnectState(null);
+    setGoogleChecked(false);
     setCheckingRecord(false);
     setDisconnectCheckReady(false);
     setBusyAction(null);
@@ -87,15 +96,16 @@ export function GoogleDriveProjectStoragePanel({
   useEffect(() => {
     if (!ready || !isSignedIn) return;
     let cancelled = false;
-    void getGoogleDriveDisconnectReviewRequired().then((required) => {
+    void getGoogleDriveDisconnectReview().then((review) => {
       if (cancelled) return;
-      if (required) {
-        setDisconnectNotice('An earlier disconnect needs review. CardForge cannot establish whether Google revoked access or whether its saved connection was removed. Your Drive files are unchanged. Check Google Account third-party access and the CardForge record, and contact CardForge support before reconnecting or disconnecting again.');
+      if (review) {
+        setDisconnectReview(review);
+        setDisconnectNotice('An earlier disconnect needs review. Your Drive files are unchanged. Check Google Account third-party access, then review the saved CardForge connection.');
       }
       setDisconnectCheckReady(true);
     }).catch(() => {
       if (cancelled) return;
-      setDisconnectNotice('CardForge could not check whether a previous disconnect needs review. Your Drive files are unchanged. Check Google Account third-party access and contact CardForge support before reconnecting or disconnecting again.');
+      setDisconnectNotice('CardForge could not check whether a previous disconnect needs review. Your Drive files are unchanged. Check browser storage and Google Account third-party access before continuing.');
       setDisconnectCheckReady(true);
     });
     return () => { cancelled = true; };
@@ -144,7 +154,12 @@ export function GoogleDriveProjectStoragePanel({
       if (currentScope.current !== scope) return;
       const disconnectUnconfirmed = action === 'disconnect' && error instanceof ApiClientError
         && error.code === 'google_drive_disconnect_unconfirmed';
-      if (disconnectUnconfirmed) setDisconnectNotice(`${error.message} ${error.nextAction ?? ''}`);
+      if (disconnectUnconfirmed) {
+        const review = await getGoogleDriveDisconnectReview().catch(() => null);
+        if (currentScope.current !== scope) return;
+        setDisconnectReview(review);
+        setDisconnectNotice(`${error.message} ${error.nextAction ?? ''}`);
+      }
       toast({
         title: disconnectUnconfirmed ? 'Google Drive disconnect needs review' : 'Google Drive action failed',
         description: disconnectUnconfirmed ? `${error.message} ${error.nextAction ?? ''}` : error instanceof Error ? error.message : 'CardForge could not complete that Google Drive action.',
@@ -158,37 +173,58 @@ export function GoogleDriveProjectStoragePanel({
   const checkSavedConnection = useCallback(async () => {
     const scope = currentScope.current;
     setCheckingRecord(true);
-    setRecordAbsent(false);
     try {
-      const response = await fetch('/api/project-sources/google-drive?connection=1', { cache: 'no-store' });
-      if (!response.ok) throw await readApiError(response, 'CardForge could not check its saved connection.');
-      const value: unknown = await response.json();
-      if (!value || typeof value !== 'object' || !('configured' in value) || !('connected' in value)
-        || typeof value.configured !== 'boolean' || typeof value.connected !== 'boolean' || !value.configured) throw new Error('CardForge could not check its saved connection.');
+      if (!disconnectReview?.generation) throw new Error('The original connection identity is unavailable.');
+      const value = await inspectGoogleDriveDisconnectReview(disconnectReview);
       if (currentScope.current === scope) {
-        setRecordAbsent(!value.connected);
-        setRecordReadback(`${value.connected ? 'CardForge has a saved connection.' : 'CardForge has no saved connection.'} This check does not establish whether Google revoked access.`);
+        setDisconnectState(value);
+        setRecordReadback(`${value.google === 'confirmed' ? 'Google confirmed the earlier revocation.' : 'CardForge cannot confirm whether Google revoked access.'} ${value.record === 'same' ? 'The original saved CardForge connection remains.' : value.record === 'changed' ? 'A newer CardForge connection exists. The earlier revocation may have affected its authorization.' : 'The original saved CardForge connection is absent.'} This check makes no change to Google or your Drive files.`);
       }
     } catch {
-      if (currentScope.current === scope) setRecordReadback('CardForge could not check its saved connection. This does not establish whether Google revoked access.');
+      if (currentScope.current === scope) { setDisconnectState(null); setRecordReadback('CardForge could not check the original connection. Google access remains unconfirmed.'); }
     } finally { if (currentScope.current === scope) setCheckingRecord(false); }
-  }, []);
+  }, [disconnectReview]);
 
-  const acknowledgeDisconnectReview = useCallback(async () => {
-    if (!recordAbsent || !window.confirm('Has CardForge support verified the correct Google account and confirmed CardForge no longer has access? This only clears the browser review notice; it does not change Google access, the saved connection, or your files.')) return;
+  const finishDisconnectReview = useCallback(async (removeOriginal: boolean) => {
+    if (!disconnectReview) return;
+    if (removeOriginal && (!disconnectState || disconnectState.record !== 'same' || (disconnectState.google === 'unknown' && !googleChecked))) return;
+    const message = removeOriginal
+      ? disconnectState?.google === 'confirmed'
+        ? 'Remove only the original saved CardForge connection? Google already confirmed the earlier revocation. Your Drive files, device work, and device links remain unchanged.'
+        : 'Remove only the original saved CardForge connection? CardForge cannot confirm Google revoked access, and Google may still show access. Your Drive files, device work, and device links remain unchanged.'
+      : 'Keep the current connection and close this review? CardForge will not change Google access or your Drive files. The earlier revocation may have affected authorization.';
+    if (!window.confirm(message)) return;
+    if (!removeOriginal && disconnectState?.record !== 'changed' && disconnectState?.record !== 'absent') {
+      setDisconnectDeferred(true);
+      setDisconnectNotice(null);
+      return;
+    }
     const scope = currentScope.current;
     setCheckingRecord(true);
     try {
+      if (removeOriginal) {
+        const record = await removeGoogleDriveDisconnectRecord(disconnectReview);
+        if (currentScope.current !== scope) return;
+        if (record !== 'absent') {
+          setDisconnectState(null);
+          setRecordReadback(record === 'changed' ? 'A newer connection exists and was not removed. Check the record again and review its authorization.' : 'The original connection remains. Check the record again.');
+          return;
+        }
+      }
       await clearGoogleDriveDisconnectReview();
       if (currentScope.current !== scope) return;
       setDisconnectNotice(null);
+      setDisconnectDeferred(false);
       setRecordReadback(null);
-      setRecordAbsent(false);
+      setDisconnectReview(null);
+      setDisconnectState(null);
+      setGoogleChecked(false);
       await refresh();
+      if (removeOriginal && currentScope.current === scope) toast({ title: 'CardForge connection removed', description: 'Device links remain. Reconnect the matching Google account to use linked Drive files; your local work and Drive files were not changed.' });
     } catch {
-      if (currentScope.current === scope) setRecordReadback('CardForge could not clear the browser review notice. Contact CardForge support.');
+      if (currentScope.current === scope) { setDisconnectState(null); setRecordReadback('CardForge could not confirm the result. Check the original connection again; your Drive files are unchanged.'); }
     } finally { if (currentScope.current === scope) setCheckingRecord(false); }
-  }, [recordAbsent, refresh]);
+  }, [disconnectReview, disconnectState, googleChecked, refresh, toast]);
 
   const authorizeExistingProjects = useCallback(async (folderId: string) => {
     try {
@@ -274,7 +310,18 @@ export function GoogleDriveProjectStoragePanel({
           </Button>
         </div>
 
-        {disconnectNotice ? <div role="alert" className="mt-4 space-y-2 text-sm text-[var(--cf-warning)]"><p>{disconnectNotice}</p><p>Check <a className="underline" href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">Google Account third-party access</a> separately. <Link className="underline" href="/contact" target="_blank">Contact CardForge support</Link> to verify which Google account was connected.</p><Button type="button" size="sm" variant="outline" disabled={checkingRecord} onClick={() => void checkSavedConnection()}>Check CardForge record</Button>{recordReadback ? <p role="status">{recordReadback}</p> : null}{recordAbsent ? <Button type="button" size="sm" variant="outline" disabled={checkingRecord} onClick={() => void acknowledgeDisconnectReview()}>Support confirmed access</Button> : null}</div> : null}
+        {disconnectDeferred ? <p className="mt-4 text-sm">You kept the connection. The earlier Google revocation is still unresolved and may affect authorization. <Button type="button" size="sm" variant="outline" onClick={() => { setDisconnectDeferred(false); setDisconnectNotice('An earlier disconnect needs review. Your Drive files are unchanged.'); }}>Review earlier disconnect</Button></p> : null}
+        {disconnectNotice ? <div role="alert" className="mt-4 space-y-2 text-sm text-[var(--cf-warning)]">
+          <p>{disconnectNotice}</p>
+          <p>Check the correct Google account’s <a className="underline" href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">third-party access</a> separately. CardForge cannot verify this for you.</p>
+          {disconnectReview?.generation ? <Button type="button" size="sm" variant="outline" disabled={checkingRecord} onClick={() => void checkSavedConnection()}>Check original connection</Button> : <p>The original connection identity is unavailable; CardForge cannot safely remove it from this review.</p>}
+          {recordReadback ? <p role="status">{recordReadback}</p> : null}
+          {disconnectState?.record === 'same' && disconnectState.google === 'unknown' ? <label className="flex items-start gap-2"><input type="checkbox" checked={googleChecked} onChange={(event) => setGoogleChecked(event.target.checked)} />I checked Google access for the correct account. Google may still show CardForge access.</label> : null}
+          <div className="flex flex-wrap gap-2">
+            {disconnectState?.record === 'same' ? <Button type="button" size="sm" variant="outline" disabled={checkingRecord || (disconnectState.google === 'unknown' && !googleChecked)} onClick={() => void finishDisconnectReview(true)}>Remove CardForge connection only</Button> : null}
+            {disconnectReview ? <Button type="button" size="sm" variant="outline" disabled={checkingRecord} onClick={() => void finishDisconnectReview(false)}>{disconnectState?.record === 'changed' ? 'Keep newer connection' : disconnectState?.record === 'absent' ? 'Close review' : 'Keep connection'}</Button> : null}
+          </div>
+        </div> : null}
         {!isSignedIn ? (
           <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
             <p className="text-sm text-[var(--cf-text-muted)]">Sign in to connect your Google Drive.</p>
@@ -383,7 +430,7 @@ export function GoogleDriveProjectStoragePanel({
                     </Button>
                   </div>
                 ) : null}
-                {!disconnectNotice ? <Button
+                {!disconnectReview && !disconnectNotice ? <Button
                   type="button"
                   size="sm"
                   variant="ghost"

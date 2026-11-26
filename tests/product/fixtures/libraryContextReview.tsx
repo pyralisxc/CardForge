@@ -137,12 +137,18 @@ let disconnectAttempts = 0;
 window.fetch = async (input, init) => {
   if (params.has('disconnectProof') && String(input).startsWith('/api/project-sources/google-drive')) {
     const method = init?.method ?? 'GET';
-    proof.libraryRequests.push({ url: String(input), method });
+    proof.libraryRequests.push({ url: String(input), method, body: typeof init?.body === 'string' ? init.body : undefined });
     if (method === 'DELETE') {
       disconnectAttempts += 1;
-      return Response.json({ error: { code: 'google_drive_disconnect_unconfirmed', kind: 'unavailable', message: 'Google confirmed access was revoked. CardForge still has a saved connection. Your Drive files are unchanged.', nextAction: 'Check Google Account third-party access before reconnecting or disconnecting again.', retryable: false } }, { status: 503 });
+      if (params.get('disconnectProof') === 'confirmed') return Response.json({ receipt: 'b'.repeat(64) }, { status: 202 });
+      return Response.json({ error: { code: 'google_drive_disconnect_unconfirmed', kind: 'unavailable', message: 'CardForge cannot confirm whether Google revoked access.', retryable: false } }, { status: 503 });
     }
-    if (String(input).includes('connection=1')) return Response.json({ configured: true, connected: false });
+    if (String(input).includes('disconnect=1')) return Response.json({ generation: 'a'.repeat(64) });
+    if (method === 'POST') {
+      const body = JSON.parse(String(init?.body));
+      if (body.action === 'inspect_disconnect') return Response.json({ record: params.get('disconnectProof') === 'changed' ? 'changed' : 'same', google: body.receipt ? 'confirmed' : 'unknown' });
+      if (body.action === 'remove_connection_only') return Response.json({ record: 'absent' });
+    }
     return Response.json({ connection: { provider: 'google-drive', configured: true, connected: disconnectAttempts === 0, displayName: 'synthetic@example.invalid', rootFolderId: 'folder', status: disconnectAttempts === 0 ? 'active' : 'disconnected', statusNote: null }, projects: [], nextPageToken: null });
   }
   if (params.has('ownerPeople') && String(input).startsWith('/api/owner/people')) {
