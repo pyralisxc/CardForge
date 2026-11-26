@@ -69,6 +69,19 @@ const assertSnapshotAssetSources = (snapshot: CardForgeProjectPackageSnapshot) =
   }
 };
 
+/** Verify the same asset bytes used by the ZIP writer without constructing an archive. */
+export const verifyProjectPackageSnapshot = async (snapshot: CardForgeProjectPackageSnapshot): Promise<void> => {
+  assertProjectPackageBounds(snapshot.manifest);
+  assertSnapshotAssetSources(snapshot);
+  try {
+    for (const descriptor of snapshot.manifest.assets) {
+      await loadSnapshotAssetBytes(snapshot, descriptor.id, descriptor.size);
+    }
+  } catch (error) {
+    throw normalizeWriterError(error);
+  }
+};
+
 const normalizeWriterError = (error: unknown) => error instanceof ProjectPackageError
   ? error
   : new ProjectPackageError('The CardForge project package could not be written safely.');

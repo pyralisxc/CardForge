@@ -17,6 +17,8 @@ const mock = vi.hoisted(() => ({
   materialize: vi.fn(async (snapshot: { document: unknown }) => snapshot.document),
   apply: vi.fn(async () => ({ activeSetId: 'set-c' })),
   build: vi.fn(async ({ document, name }: { document: unknown; name: string }) => ({ document, manifest: { name, projectRevision: 'b'.repeat(64), savedAt: '2026-09-05' } })),
+  verifySnapshot: vi.fn(async () => undefined),
+  makeZip: vi.fn(async () => new Blob(['package'])),
   prime: vi.fn(async () => 1),
 }));
 vi.mock('@/features/project/persistence/structuredBrowserStorage', () => ({
@@ -41,7 +43,7 @@ vi.mock('@/features/project/lib/projectPackageAssetReferences', () => ({ referen
 vi.mock('@/features/project/client/useProjectBinaryAssetUrl', () => ({ primeProjectBinaryAssetUrls: mock.prime }));
 vi.mock('@/features/project/lib/projectPackageCodec', () => ({
   ProjectPackageError: class extends Error {},
-  createCardForgeProjectPackageBlob: async () => new Blob(['package']),
+  createCardForgeProjectPackageBlob: mock.makeZip,
   writeCardForgeProjectPackage: async () => {},
   decodeProjectFile: mock.decode,
   decodeCardForgeProjectPackage: async (file: File) => {
@@ -50,6 +52,7 @@ vi.mock('@/features/project/lib/projectPackageCodec', () => ({
     return { manifest: { projectRevision: decoded.sourceRevision }, document: decoded.document };
   },
 }));
+vi.mock('@/features/project/lib/projectPackageWriter', () => ({ verifyProjectPackageSnapshot: mock.verifySnapshot }));
 vi.mock('@/features/analytics/client/tracking', () => ({ observeProviderBoundaryResponse: (_provider: string, _action: string, run: () => unknown) => run() }));
 vi.mock('@/features/project/store/workspaceStore', () => {
   const state = { get cardSets() { return mock.localSets; }, storedCards: [] };
@@ -214,6 +217,21 @@ describe('one authoritative Set location across save entry points', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('does not publish a clean baseline if the account changes during verification', async () => {
+    mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: {
+      cardSets: [{ id: 'original' }], userTemplates: [], storedCards: [], appearanceStyles: [], customAssets: {},
+    } });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
+      'X-CardForge-Provider-Revision': headToken('1'), 'X-CardForge-Project-Revision': 'b'.repeat(64), 'X-CardForge-Provider-Account': 'account-a',
+    } })));
+    mock.verifySnapshot.mockImplementationOnce(async () => { mock.namespace = 'other-account'; });
+    await expect(openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'C', accountId: 'account-a' })).rejects.toThrow('account changed');
+    expect(mock.makeZip).not.toHaveBeenCalled();
+    for (const [key, value] of mock.values) {
+      if (key.includes('google-drive-work-binding:')) expect(value).not.toHaveProperty('localProjectRevision');
+    }
+  });
+
   it('makes intentional copies independent of their source save target', async () => {
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [{ id: 'original' }] } });
     vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
@@ -250,6 +268,11 @@ describe('one authoritative Set location across save entry points', () => {
       'X-CardForge-Provider-Account': 'google-account-1',
     } })));
     const binding = await openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'C' });
+    if (count === 1) {
+      expect(binding.localProjectRevision).toBe('b'.repeat(64));
+      expect(mock.verifySnapshot).toHaveBeenCalledOnce();
+      expect(mock.makeZip).not.toHaveBeenCalled();
+    }
     expect(mock.prime).toHaveBeenCalledWith(expect.objectContaining({ cardSets: expect.any(Array) }));
     expect(mock.apply).toHaveBeenCalledWith(expect.objectContaining({ cardSets: expect.any(Array) }), 'merge', expect.objectContaining({ expectedState: expect.any(Object) }));
     expect(mock.prime.mock.invocationCallOrder[0]).toBeLessThan(mock.apply.mock.invocationCallOrder[0]);
@@ -685,6 +708,8 @@ it.each([false, true])('initializes a newly saved Set for safe refresh (locally 
     .mockResolvedValueOnce(Response.json({ id: driveBinding.fileId, version: '1', headRevisionId: 'native-1', name: 'C' }));
   vi.stubGlobal('fetch', fetch);
   const saved = await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', asNew: true });
+  expect(mock.makeZip).toHaveBeenCalledOnce();
+  mock.makeZip.mockClear();
   expect(saved).toMatchObject({ accountId: 'account-a', workId: 'set-c', portableWorkId: 'set-c', runtimeSetIds: ['set-c'],
     localProjectRevision: 'b'.repeat(64), identities: { set: { 'set-c': 'set-c' } } });
   fetch.mockClear();
@@ -695,6 +720,7 @@ it.each([false, true])('initializes a newly saved Set for safe refresh (locally 
     expect(mock.apply).not.toHaveBeenCalled();
     expect(mock.values.get('test:google-drive-work-binding:set-c')).toEqual(saved);
     expect(window.dispatchEvent).not.toHaveBeenCalled();
+    expect(mock.makeZip).not.toHaveBeenCalled();
   } else {
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document });
     fetch.mockResolvedValueOnce(new Response('package', { headers: { 'X-CardForge-Provider-Revision': headToken('2'),
@@ -705,6 +731,7 @@ it.each([false, true])('initializes a newly saved Set for safe refresh (locally 
       return true;
     });
     const refreshed = await refreshGoogleDriveProject(saved);
+    expect(mock.makeZip).not.toHaveBeenCalled();
     expect(refreshed).toMatchObject({ workId: 'set-c', providerRevision: headToken('2'), identities: saved.identities });
     expect(window.dispatchEvent).toHaveBeenCalledOnce();
     expect(mock.apply).toHaveBeenCalledWith(expect.objectContaining({ cardSets: document.cardSets }), 'merge',
