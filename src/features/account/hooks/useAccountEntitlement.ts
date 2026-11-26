@@ -8,11 +8,11 @@ import {
 } from '@/features/account/lib/accountEntitlement';
 import { isClerkPublicConfigPresent } from '@/infrastructure/auth/clerk';
 
-type AccountEntitlementLoadResult =
+export type AccountEntitlementLoadResult =
   | { ok: true; entitlement: AccountEntitlement }
   | { ok: false; message: string };
 
-const loadAccountEntitlement = async (): Promise<AccountEntitlementLoadResult> => {
+export const loadAccountEntitlement = async (): Promise<AccountEntitlementLoadResult> => {
   try {
     const response = await fetch('/api/account/entitlement', {
       cache: 'no-store',
