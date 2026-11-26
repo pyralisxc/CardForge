@@ -95,6 +95,16 @@ begin
  if (select count(*) from public.cardforge_contributor_asset_votes where lineage_id=l and contributor_id='transfer-reviewer')<>1
  or not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=history_id and contributor_id='transfer-reviewer' and vote_value='negative')
  then raise exception 'history_vote_transfer_failed'; end if;
+ if exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id in (a,sibling,history_id)
+   and (s.positive_votes<>(select count(*) from public.cardforge_contributor_asset_votes v where v.submission_id=s.id and v.vote_value='positive')
+     or s.negative_votes<>(select count(*) from public.cardforge_contributor_asset_votes v where v.submission_id=s.id and v.vote_value='negative')))
+ then raise exception 'transfer_did_not_rebalance_both_exact_revisions'; end if;
+ begin
+   perform public.cardforge_cast_contributor_asset_vote(private_id,'transfer-reviewer','positive');
+   raise exception 'transfer_to_private_draft_accepted';
+ exception when raise_exception then if sqlerrm<>'contributor_asset_vote_not_permitted' then raise; end if; end;
+ if not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=history_id and contributor_id='transfer-reviewer' and vote_value='negative')
+ then raise exception 'rejected_transfer_lost_prior_vote'; end if;
  begin
  perform public.cardforge_read_revision_recovery(sibling,'trash-author',false); raise exception 'sibling_authorship_granted_recovery';
  exception when raise_exception then if sqlerrm<>'revision_recovery_not_permitted' then raise; end if; end;
