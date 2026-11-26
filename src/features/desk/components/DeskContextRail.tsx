@@ -184,7 +184,7 @@ export function DeskContextRail(props: DeskContextRailProps) {
             {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onToggleRenaming)}><Pencil aria-hidden="true" />Rename</DropdownMenuItem> : null}
             {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onDuplicateWork)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onInspect)}><Info aria-hidden="true" />Details</DropdownMenuItem>
-            {props.localSet ? <><DropdownMenuSeparator /><DropdownMenuItem className={`${compactMenuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(props.onDeleteWork)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+            {props.localSet ? <><DropdownMenuSeparator /><DropdownMenuItem className={`${compactMenuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(props.onDeleteWork)}><Trash2 aria-hidden="true" />Trash</DropdownMenuItem></> : null}
           </DropdownMenuContent></DropdownMenu>
           </>}
         </> : null}

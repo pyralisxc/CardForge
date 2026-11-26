@@ -3,7 +3,6 @@
 import { zoneAction, getWorkActions } from '../model/desk';
 
 import Link from 'next/link';
-import { deleteGoogleDriveProjectCopy } from '@/features/project/client/provider-google-drive';
 import { SelectedDriveFileActions } from '@/features/project/client/locations';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import dynamic from 'next/dynamic';
@@ -41,6 +40,7 @@ import type { CardFace } from '@/domain/cards';
 import { ArtifactScene, type ArtifactSceneHandle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { beginProjectCardEdit, saveProjectCardEdit, type ProjectCardEditSession } from '@/features/project/client/cardEditSession';
 import {
   requestBrowserWorkspaceRecovery,
   WorkspaceUpdateNotices,
@@ -50,6 +50,7 @@ import {
 } from '@/features/project/client/ui';
 import {
   getAccountLibraryWorkPreview,
+  SetTrashDialog,
   WorkLocationDialog,
   type AccountLibraryItem,
 } from '@/features/storage-management/client';
@@ -184,9 +185,9 @@ function DeskContent({
   const [storageOpen, setStorageOpen] = useState(false);
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
   const [libraryPickerError, setLibraryPickerError] = useState<string | null>(null);
-  const deletingCopyRef = useRef(false);
-  const [deletingCopy, setDeletingCopy] = useState(false);
-  const [artifactEditId, setArtifactEditId] = useState<string | null>(null);
+  const [artifactEditSession, setArtifactEditSession] = useState<ProjectCardEditSession | null>(null);
+  const [artifactEditItem, setArtifactEditItem] = useState<AccountLibraryItem | null>(null);
+  const artifactEditId = artifactEditSession?.card.uniqueId ?? null;
   const [artifactEditDirty, setArtifactEditDirty] = useState(false);
   const [artifactDiscardOpen, setArtifactDiscardOpen] = useState(false);
   const [touchMultiSelect, setTouchMultiSelect] = useState(false);
@@ -223,7 +224,6 @@ function DeskContent({
     createWork,
     focusOpenedSetFile,
     creatingPublishedSetId,
-    deleteCardSet,
     deskArrival,
     deskPositions,
     deskSceneReady,
@@ -345,7 +345,6 @@ function DeskContent({
     tagFilter,
     templates,
     updateOrganization,
-    updateGeneratedCard,
     updateSelectedWorkOrganization,
     viewGeneratedCards,
     viewer,
@@ -359,6 +358,7 @@ function DeskContent({
     workTemplate,
     zones,
   } = useDeskController({
+    protectedEditWorkId: artifactEditSession?.scope === persistenceScope ? artifactEditItem?.id : null,
     defaultAutosaveDelaySeconds,
     transitionToDesk,
     persistenceScope,
@@ -378,6 +378,12 @@ function DeskContent({
     ? focusedCards.find((card) => card.uniqueId === focusedArtifactId) ?? null
     : null;
   const artifactEditing = Boolean(focusedArtifactId && artifactEditId === focusedArtifactId);
+  // A removed Set must not unmount the editor before the creator can copy a
+  // rejected draft. Never carry this presentation across persistence scopes.
+  const retainedEditItem = artifactEditing && artifactEditSession?.scope === persistenceScope ? artifactEditItem : null;
+  const presentedFocusedItem = focusedItem ?? retainedEditItem;
+  const presentedWork = retainedEditItem && !visibleWork.some((item) => item.id === retainedEditItem.id)
+    ? [...visibleWork, retainedEditItem] : visibleWork;
   const primarySelectedSet = visibleWork.find((item) => selectedDeskIds.includes(item.id)) ?? null;
   const creatorSurface = deriveCreatorSurfaceContext({
     session: interactionSession,
@@ -424,17 +430,23 @@ function DeskContent({
     if (activeTool?.toolId !== 'design') openContextStudio(focusedLocalSetId, 'design', template.id);
   };
   useEffect(() => {
-    if (artifactEditId && artifactEditId !== focusedArtifactId) {
-      setArtifactEditId(null);
+    // An account/workspace switch closes the draft to prevent it crossing scopes.
+    if (artifactEditSession && (artifactEditId !== focusedArtifactId || artifactEditSession.scope !== persistenceScope)) {
+      setArtifactEditSession(null);
+      setArtifactEditItem(null);
       setArtifactEditDirty(false);
     }
-  }, [artifactEditId, focusedArtifactId]);
+  }, [artifactEditId, artifactEditSession, focusedArtifactId, persistenceScope]);
   const startArtifactEdit = (artifactId: string) => {
-    setArtifactEditId(artifactId);
+    const session = focusedLocalSetId ? beginProjectCardEdit(focusedLocalSetId, artifactId) : null;
+    if (!session || session.scope !== persistenceScope) { toast({ title: 'Card unavailable', description: 'Refresh this Set before editing. No work was changed.', variant: 'destructive' }); return; }
+    setArtifactEditSession(session);
+    setArtifactEditItem(focusedItem);
     setArtifactEditDirty(false);
   };
   const finishArtifactEdit = () => {
-    setArtifactEditId(null);
+    setArtifactEditSession(null);
+    setArtifactEditItem(null);
     setArtifactEditDirty(false);
   };
   const requestArtifactExit = (afterExit: () => void) => {
@@ -514,7 +526,7 @@ function DeskContent({
         viewportPolicy="desk"
         primaryScroll="contained"
         detail={detail}
-        detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{inspectorItem?.references.driveFileId ? <SelectedDriveFileActions key={inspectorItem.id} fileId={inspectorItem.references.driveFileId} accountId={inspectorItem.references.driveAccountId} name={inspectorItem.name} providerRevision={inspectorItem.references.driveProviderRevision} projectRevision={inspectorItem.references.driveProjectRevision} localSetId={inspectorItem.references.localSetId} disabled={!experience.signedIn || !experience.capabilities.canUseProjectFiles} onChanged={projection.refresh} onOpenCopy={(id) => projection.router.push(id ? createDeskReturnHref(`set:${id}`) : "/account")} /> : null}</>}
+        detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{inspectorItem?.references.driveFileId ? <SelectedDriveFileActions key={inspectorItem.id} fileId={inspectorItem.references.driveFileId} accountId={inspectorItem.references.driveAccountId} name={inspectorItem.name} localSetId={inspectorItem.references.localSetId} disabled={!experience.signedIn || !experience.capabilities.canUseProjectFiles} onChanged={projection.refresh} onOpenCopy={(id) => projection.router.push(id ? createDeskReturnHref(`set:${id}`) : "/account")} /> : null}</>}
         actionContext={focusedItem ? workDetailRecord(focusedItem) : null}
         actions={actions}
         accountControl={<><WorkspaceUpdateNotices /><PublicAuthControls /></>}
@@ -609,12 +621,12 @@ function DeskContent({
         onAction={runAction}
         onCloseDetail={() => setInspectorWorkId(null)}
       >
-        <div className={styles.spatialPlane} data-desk-plane data-studio-context={studioTool?.tool === 'design' ? 'true' : undefined} data-focused={Boolean(focusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
+        <div className={styles.spatialPlane} data-desk-plane data-studio-context={studioTool?.tool === 'design' ? 'true' : undefined} data-focused={Boolean(presentedFocusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
           {deskMembership.status === 'unavailable' ? <p role="alert">Desk placement is unavailable. Your device Sets remain visible; check browser storage before adding or removing Sets.</p> : null}
           <DeskOverviewSurface
-            workItemsCount={workItems.length}
-            visibleWork={visibleWork}
-            focusedItemId={focusedItem?.id ?? null}
+            workItemsCount={Math.max(workItems.length, presentedWork.length)}
+            visibleWork={presentedWork}
+            focusedItemId={presentedFocusedItem?.id ?? null}
             activeWorkId={activeWorkId}
             selectedIds={selectedDeskIds}
             positions={deskPositions}
@@ -652,7 +664,7 @@ function DeskContent({
             renderFocusedSurface={(item) => <FocusedWorkSurface canUseProjectFiles={experience.capabilities.canUseProjectFiles}
               canExportClean={experience.capabilities.canExportClean}
               item={item}
-              localSetId={focusedLocalSetId}
+              localSetId={focusedLocalSetId ?? (retainedEditItem ? artifactEditSession?.setId ?? null : null)}
               remoteIcon={<WorkSourceIcon item={item} />}
               focusedCards={focusedCards}
               currentSet={focusedSet}
@@ -698,9 +710,19 @@ function DeskContent({
               onMoveSelected={moveSelectedCards}
               onEditSelected={(artifactId) => { if (artifactId) startArtifactEdit(artifactId); }}
               editingArtifactId={artifactEditId}
+              editingCard={artifactEditSession?.scope === persistenceScope ? artifactEditSession.card : null}
               onCancelArtifactEdit={() => requestArtifactExit(() => undefined)}
               onArtifactEditDirtyChange={setArtifactEditDirty}
-              onSaveArtifact={(card) => { updateGeneratedCard(card); finishArtifactEdit(); }}
+              onSaveArtifact={(card) => {
+                try {
+                  if (!artifactEditSession || !saveProjectCardEdit(artifactEditSession, card)) throw new Error('This card, Template or account changed while you were editing. Your draft is still open; copy your changes and reopen the current card.');
+                  finishArtifactEdit();
+                  return true;
+                } catch (error) {
+                  toast({ title: 'Card was not updated', description: error instanceof Error ? error.message : 'The card could not be updated.', variant: 'destructive' });
+                  return false;
+                }
+              }}
               onDesignArtifact={(card, face) => { finishArtifactEdit(); designCard(card, face); }}
               onDuplicateSelected={duplicateSelectedCards}
               onReviseSelected={openSelectedRevision}
@@ -908,8 +930,6 @@ function DeskContent({
         publishedSetsLoading={publishedSetsLoading}
         publishedSetsFailure={publishedSetsFailure}
         creatingPublishedSetId={creatingPublishedSetId}
-        pendingDeleteWork={pendingDeleteWork}
-        deleteWorkBusy={deletingCopy}
         pendingDeleteCards={pendingDeleteCards}
         dirtyCloseRequested={dirtyCloseRequested}
         dirtyCloseToDesk={dirtyCloseToDesk}
@@ -922,32 +942,10 @@ function DeskContent({
         onSetFileOpened={focusOpenedSetFile}
         onCreatePublishedSet={(set) => { void createFromPublishedSet(set); }}
         onRetryPublishedSets={() => { setPublishedSets([]); setPublishedSetsFailure(null); setPublishedSetsLoading(false); openCreateMenu(); }}
-        onDeleteWorkOpenChange={(open) => { if (!open && !deletingCopyRef.current) setPendingDeleteWork(null); }}
-        onConfirmDeleteWork={() => {
-          const target = pendingDeleteWork;
-          if (!target || deletingCopyRef.current) return;
-          deletingCopyRef.current = true; setDeletingCopy(true);
-          void (async () => {
-            try {
-              const localId = target.references.localSetId;
-              if (localId) {
-                if (!deleteCardSet(localId)) throw new Error('The device Set could not be found. Reload the Desk.');
-                resetToDesk();
-              } else {
-                const { driveFileId, driveAccountId, driveProviderRevision, driveProjectRevision } = target.references;
-                if (!driveFileId || !driveAccountId || !driveProviderRevision || !driveProjectRevision) throw new Error('Reload this Drive copy to confirm its account and current revision before removal.');
-                await deleteGoogleDriveProjectCopy({fileId:driveFileId,accountId:driveAccountId,providerRevision:driveProviderRevision,projectRevision:driveProjectRevision});
-              }
-              projection.refresh();
-              toast({title:localId ? 'Device copy deleted' : 'Drive copy moved to Trash',description:`Only the selected copy of “${target.name}” was removed. Other locations remain unchanged.`});
-            } catch (error) {
-              toast({title:'Removal was not confirmed',description:error instanceof Error ? error.message : 'Inspect the exact source before any further action.',variant:'destructive'});
-            } finally { deletingCopyRef.current = false; setDeletingCopy(false); setPendingDeleteWork(null); }
-          })();
-        }}
         onDeleteCardsOpenChange={(open) => { if (!open) setPendingDeleteCards([]); }}
         onConfirmDeleteCards={() => { removeGeneratedCards(pendingDeleteCards.map((card) => card.uniqueId)); setPendingDeleteCards([]); setSelectedCardIds([]); }}
       />
+      {pendingDeleteWork ? <SetTrashDialog item={pendingDeleteWork} canUseDrive={isSignedIn && experience.capabilities.canUseProjectFiles} onClose={() => setPendingDeleteWork(null)} onCompleted={(target) => { if (target === 'device') resetToDesk(); projection.refresh(); }} /> : null}
       </ArtifactScene>
       {!deskArrival.ready ? <div className={styles.environmentArrival} data-desk-arrival={deskArrival.phase} role="status" aria-live="polite" aria-label="Preparing CardForge Desk">
         <div className={styles.environmentArrivalContent}>

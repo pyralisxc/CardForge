@@ -6,6 +6,7 @@ export { GoogleDrivePreviewWarmupBoundary } from './components/GoogleDrivePrevie
 export { GoogleDriveProjectStoragePanel } from './components/GoogleDriveProjectStoragePanel';
 export { LocalProjectFolderPanel } from './components/LocalProjectFolderPanel';
 export { UnifiedAccountLibrary } from './components/UnifiedAccountLibrary';
+export { SetTrashDialog } from './components/SetTrashDialog';
 export { DefaultWorkLocationControl, WorkLocationDialog } from './components/WorkLocationDialog';
 export { useAccountLibraryProjection } from './hooks/useAccountLibraryProjection';
 export {
@@ -38,3 +39,4 @@ export type {
 } from './model/accountLibrary';
 
 export { LibraryRevisionEntry } from './components/LibraryRevisionEntry';
+export { executeSetTrash, getSetTrashTargets, type SetTrashOutcome, type SetTrashTarget } from './lib/setTrashLifecycle';

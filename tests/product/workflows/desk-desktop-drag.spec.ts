@@ -253,7 +253,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(menu.getByRole('menuitem', { name: 'Details' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Review updates' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Remove from Desk' })).toBeVisible();
-    await expect(menu.getByRole('menuitem', { name: 'Delete device copy' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Trash' })).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(menu).toBeHidden();
@@ -266,10 +266,10 @@ test.describe('Desk desktop spatial interaction', () => {
     await page.getByRole('button', { name: 'Close details for 100 Card Scale Set' }).click();
 
     await actionsTrigger.click();
-    await page.getByRole('menuitem', { name: 'Delete device copy' }).click();
+    await page.getByRole('menuitem', { name: 'Trash' }).click();
     await expect(page.getByRole('menu')).toBeHidden();
-    await expect(page.getByRole('alertdialog')).toContainText('Delete this Set from this device?');
-    await page.getByRole('button', { name: 'Delete local Set' }).click();
+    await expect(page.getByRole('alertdialog')).toContainText('Trash “100 Card Scale Set”?');
+    await page.getByRole('button', { name: 'Permanently delete device copy' }).click();
     await expect(setObject).toHaveCount(0);
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });

@@ -28,7 +28,7 @@ import {
 import type { WorkbenchBusinessIdentity } from '@/features/creator-workbench/client';
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
 import { buildPipelineContentHealth, PipelineContentHealthPanel, type PipelineSubmission } from '@/features/pipeline/client';
-import { deleteGoogleDriveProjectCopy, shouldOfferGoogleDriveReconciliation, useGoogleDriveWorkingSession } from '@/features/project/client/provider-google-drive';
+import { shouldOfferGoogleDriveReconciliation, useGoogleDriveWorkingSession } from '@/features/project/client/provider-google-drive';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -53,6 +53,7 @@ import { useLibraryRevisionQueue } from '../hooks/useLibraryRevisionQueue';
 import { LibraryRevisionQueueControls } from './LibraryRevisionQueueControls';
 import { SharedPipelineTrashCollection } from './SharedPipelineTrashCollection';
 import { LibraryCollection } from './LibraryCollection';
+import { SetTrashDialog } from './SetTrashDialog';
 import {
   LibraryDetailVisual,
   PipelineDetailContent,
@@ -211,7 +212,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     focusCreatedSet(id, design);
   };
   const { displayCards, templates, cardSets } = projectWorkspace;
-  const { deleteSet, openTemplateDesign } = projectWorkspace.actions;
+  const { openTemplateDesign } = projectWorkspace.actions;
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
   const scopeDefinitions = getLibraryScopeDefinitions({ contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
   const visibleZones = getVisibleEnvironmentZones(viewer);
@@ -578,32 +579,6 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     closeOrExecute(action);
   };
 
-  const confirmDeleteCopy = async () => {
-    const item = pendingDeleteItem;
-    if (!item) return;
-    try {
-      if (item.references.localSetId) {
-        if (!deleteSet(item.references.localSetId)) throw new Error('The device copy could not be removed.');
-      } else if (item.references.driveFileId && item.references.driveAccountId && item.references.driveProviderRevision && item.references.driveProjectRevision) {
-        await deleteGoogleDriveProjectCopy({
-          fileId: item.references.driveFileId,
-          accountId: item.references.driveAccountId,
-          providerRevision: item.references.driveProviderRevision,
-          projectRevision: item.references.driveProjectRevision,
-        });
-      } else {
-        throw new Error('Reload this location to confirm its account and current revision before removal.');
-      }
-      toast({ title: 'Copy removed', description: `Only the named ${item.locations[0]?.label ?? 'location'} copy of ${item.name} was removed.` });
-      closeDetail();
-      projection.refresh();
-    } catch (error) {
-      toast({ title: 'Removal needs attention', description: error instanceof Error ? error.message : 'Check the source location before retrying.', variant: 'destructive' });
-    } finally {
-      setPendingDeleteItem(null);
-    }
-  };
-
   const scopeDefinition = scopeDefinitions.find((definition) => definition.id === activeScope)!;
   const presentation = deriveEnvironmentPresentation({
     focusDepth: activeTool ? 'tool' : currentRecord ? 'object' : 'zone',
@@ -615,7 +590,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     zones={zones} activeZone="library" viewportPolicy="desk" primaryScroll="contained" detail={activeTool ? null : currentRecord}
     presentation={presentation}
     detailVisual={currentItem ? <LibraryDetailVisual key={currentItem.id} item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} /> : undefined}
-    detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{currentItem?.scope === 'personal' && currentItem.personal.references.driveFileId ? <SelectedDriveFileActions key={currentItem.id} fileId={currentItem.personal.references.driveFileId} accountId={currentItem.personal.references.driveAccountId} name={currentItem.name} providerRevision={currentItem.personal.references.driveProviderRevision} projectRevision={currentItem.personal.references.driveProjectRevision} localSetId={currentItem.personal.references.localSetId} disabled={!isSignedIn || !experience.capabilities.canUseProjectFiles} onChanged={projection.refresh} onOpenCopy={(id) => projection.router.push(id ? createDeskReturnHref(`set:${id}`) : "/account")} /> : null}{selectedLocalSet ? <div className="min-w-0"><div className="flex flex-wrap gap-1 border-b pb-3" aria-label="Set tools">
+    detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{currentItem?.scope === 'personal' && currentItem.personal.references.driveFileId ? <SelectedDriveFileActions key={currentItem.id} fileId={currentItem.personal.references.driveFileId} accountId={currentItem.personal.references.driveAccountId} name={currentItem.name} localSetId={currentItem.personal.references.localSetId} disabled={!isSignedIn || !experience.capabilities.canUseProjectFiles} onChanged={projection.refresh} onOpenCopy={(id) => projection.router.push(id ? createDeskReturnHref(`set:${id}`) : "/account")} /> : null}{selectedLocalSet ? <div className="min-w-0"><div className="flex flex-wrap gap-1 border-b pb-3" aria-label="Set tools">
       <SetDirection key={`direction-${selectedLocalSet.id}`} set={selectedLocalSet} useLifecycle={useEnvironmentToolLifecycle} />
       <SetUpdates key={`updates-${selectedLocalSet.id}`} setId={selectedLocalSet.id} />
       <Button type="button" variant="outline" onClick={() => { void downloadSelectedSet(); }}>Download Set</Button>
@@ -961,18 +936,6 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     localFolderSupported={projection.localFolderSupported}
     onChanged={projection.refresh}
   />
-  <AlertDialog open={Boolean(pendingDeleteItem)} onOpenChange={(open) => { if (!open) setPendingDeleteItem(null); }}>
-    <AlertDialogContent className="border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
-      <AlertDialogHeader>
-        <AlertDialogTitle>{pendingDeleteItem?.references.localSetId ? 'Delete this device copy?' : 'Move this Drive copy to Trash?'}</AlertDialogTitle>
-        <AlertDialogDescription className="leading-6 text-[var(--cf-text-muted)]">
-          {pendingDeleteItem?.references.localSetId
-            ? `Only the device copy of ${pendingDeleteItem.name} will be removed. Other verified locations remain unchanged.`
-            : `The Google Drive copy of ${pendingDeleteItem?.name ?? 'this Set'} will be moved to Drive Trash after checking its last known revision. Device and local-folder copies remain unchanged.`}
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-      <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void confirmDeleteCopy()}>{pendingDeleteItem?.references.localSetId ? 'Delete device copy' : 'Move Drive copy to Trash'}</AlertDialogAction></AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
+      {pendingDeleteItem ? <SetTrashDialog item={pendingDeleteItem} canUseDrive={isSignedIn && experience.capabilities.canUseProjectFiles} onClose={() => setPendingDeleteItem(null)} onCompleted={() => { closeDetail(); projection.refresh(); }} /> : null}
   </>;
 }
