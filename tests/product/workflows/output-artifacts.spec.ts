@@ -404,16 +404,25 @@ test('keeps export progress and one download when leaving and reopening Output',
 
 test('keeps a PDF export visible after returning to the Set', async ({ page }) => {
   test.setTimeout(180_000);
-  await seedGuestScaleWorkspace(page, 100, { cardLimit: 12, exportSample: true });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 12, staleToolTemplate: true, exportSample: true });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
   const rail = page.locator('[data-desk-context-rail]');
   await rail.getByRole('button', { name: 'Output', exact: true }).click();
   let downloadCount = 0;
   page.on('download', () => { downloadCount += 1; });
+  await page.evaluate(() => {
+    const messages: string[] = [];
+    Object.defineProperty(window, '__pdfProgressMessages', { value: messages });
+    new MutationObserver(() => {
+      document.querySelectorAll('[role="status"]').forEach((node) => {
+        if (node.textContent?.includes('Digital PDF · 100 Card Scale Set:')) messages.push(node.textContent);
+      });
+    }).observe(document.body, { childList: true, characterData: true, subtree: true });
+  });
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download digital PDF', exact: true }).click();
-  const status = page.getByRole('status').filter({ hasText: 'Digital PDF · 100 Card Scale Set: Building output.' });
+  const status = page.getByRole('status').filter({ hasText: /Digital PDF · 100 Card Scale Set: Rendering \d+ of 24 faces/ });
   await expect(status).toBeVisible();
   await rail.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(page.getByRole('searchbox', { name: 'Search cards in this Set' })).toBeVisible();
@@ -421,15 +430,27 @@ test('keeps a PDF export visible after returning to the Set', async ({ page }) =
   const artifact = await download;
   expect(await artifact.failure()).toBeNull();
   await expect(page.getByRole('status').filter({ hasText: /Digital PDF · 100 Card Scale Set: previously prepared output ready on this device.*Download requested/ })).toBeVisible();
+  const messages = await page.evaluate(() => (window as unknown as { __pdfProgressMessages: string[] }).__pdfProgressMessages);
+  expect(messages.some((message) => /Rendering (?:[1-9]|1\d|2[0-3]) of 24 faces/.test(message))).toBe(true);
+  expect(messages.some((message) => message.includes('Finishing PDF'))).toBe(true);
   expect(downloadCount).toBe(1);
 });
 
 test('keeps a prepared print PDF available after reloading the same browser workspace', async ({ page }, testInfo) => {
   test.setTimeout(300_000);
-  await seedGuestScaleWorkspace(page, 100, { cardLimit: Number(process.env.CARDFORGE_E2E_OUTPUT_CARD_COUNT ?? '2'), exportSample: true });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: Number(process.env.CARDFORGE_E2E_OUTPUT_CARD_COUNT ?? '2'), staleToolTemplate: true, exportSample: true });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
   await openScaleSet(page, 100);
   await page.getByRole('button', { name: 'Output', exact: true }).click();
+  await page.evaluate(() => {
+    const messages: string[] = [];
+    Object.defineProperty(window, '__printProgressMessages', { value: messages });
+    new MutationObserver(() => {
+      document.querySelectorAll('[role="status"]').forEach((node) => {
+        if (node.textContent?.includes('PDF · 100 Card Scale Set:')) messages.push(node.textContent);
+      });
+    }).observe(document.body, { childList: true, characterData: true, subtree: true });
+  });
   const download = page.waitForEvent('download', { timeout: 240_000 });
   await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();
   const first = await download;
@@ -439,6 +460,10 @@ test('keeps a prepared print PDF available after reloading the same browser work
   const original = await readFile(firstPath);
   expect(original.subarray(0, 5).toString()).toBe('%PDF-');
   expect((await PDFDocument.load(original)).getPageCount()).toBeGreaterThan(0);
+  const messages = await page.evaluate(() => (window as unknown as { __printProgressMessages: string[] }).__printProgressMessages);
+  const expectedFaces = Number(process.env.CARDFORGE_E2E_OUTPUT_CARD_COUNT ?? '2') * 2;
+  expect(messages.some((message) => message.includes(` of ${expectedFaces} faces`) && /Rendering [1-9]/.test(message))).toBe(true);
+  expect(messages.some((message) => message.includes('Finishing PDF'))).toBe(true);
   await page.addInitScript(() => {
     const storage = navigator.storage;
     const getDirectory = storage.getDirectory.bind(storage);
