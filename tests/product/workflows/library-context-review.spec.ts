@@ -418,7 +418,7 @@ test('@golden Desk remote ellipsis exposes exact location actions without deleti
  const menu=page.getByRole('button',{name:'Actions for Synthetic Drive Set.cardforge',exact:true});
  await menu.click();
  await expect(page.getByRole('menuitem',{name:'View source',exact:true})).toBeVisible();
- await expect(page.getByRole('menuitem',{name:'Move Drive copy to Trash',exact:true})).toBeVisible();
+ await expect(page.getByRole('menuitem',{name:'Trash',exact:true})).toBeVisible();
  await page.getByRole('menuitem',{name:'Manage locations',exact:true}).click();
  await expect(page.getByRole('dialog')).toContainText('Synthetic Drive Set');
  await expect(page.getByText('Action could not be completed',{exact:true})).toHaveCount(0);

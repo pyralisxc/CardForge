@@ -275,7 +275,7 @@ export const getWorkActions = (
       scope: 'object' as const, hierarchy: 'overflow' as const, availability: { kind: 'available' as const }, commitment: 'none' as const,
       automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
     }, {
-      id: 'desk.delete-set' as const, label: 'Delete from this device', ownerFeature: 'project' as const,
+      id: 'desk.delete-set' as const, label: 'Trash', ownerFeature: 'project' as const,
       supportedObjectKinds: ['set'], supportedSources: ['browser-local'] as const, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,
       scope: 'object' as const, hierarchy: 'overflow' as const,
       availability: canDelete ? { kind: 'available' as const } : { kind: 'disabled' as const, reason: 'This Set cannot be deleted right now.' },

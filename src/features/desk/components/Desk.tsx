@@ -3,7 +3,6 @@
 import { zoneAction, getWorkActions } from '../model/desk';
 
 import Link from 'next/link';
-import { deleteGoogleDriveProjectCopy } from '@/features/project/client/provider-google-drive';
 import { SelectedDriveFileActions } from '@/features/project/client/locations';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import dynamic from 'next/dynamic';
@@ -50,6 +49,7 @@ import {
 } from '@/features/project/client/ui';
 import {
   getAccountLibraryWorkPreview,
+  SetTrashDialog,
   WorkLocationDialog,
   type AccountLibraryItem,
 } from '@/features/storage-management/client';
@@ -184,8 +184,6 @@ function DeskContent({
   const [storageOpen, setStorageOpen] = useState(false);
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
   const [libraryPickerError, setLibraryPickerError] = useState<string | null>(null);
-  const deletingCopyRef = useRef(false);
-  const [deletingCopy, setDeletingCopy] = useState(false);
   const [artifactEditId, setArtifactEditId] = useState<string | null>(null);
   const [artifactEditDirty, setArtifactEditDirty] = useState(false);
   const [artifactDiscardOpen, setArtifactDiscardOpen] = useState(false);
@@ -223,7 +221,6 @@ function DeskContent({
     createWork,
     focusOpenedSetFile,
     creatingPublishedSetId,
-    deleteCardSet,
     deskArrival,
     deskPositions,
     deskSceneReady,
@@ -514,7 +511,7 @@ function DeskContent({
         viewportPolicy="desk"
         primaryScroll="contained"
         detail={detail}
-        detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{inspectorItem?.references.driveFileId ? <SelectedDriveFileActions key={inspectorItem.id} fileId={inspectorItem.references.driveFileId} accountId={inspectorItem.references.driveAccountId} name={inspectorItem.name} providerRevision={inspectorItem.references.driveProviderRevision} projectRevision={inspectorItem.references.driveProjectRevision} localSetId={inspectorItem.references.localSetId} disabled={!experience.signedIn || !experience.capabilities.canUseProjectFiles} onChanged={projection.refresh} onOpenCopy={(id) => projection.router.push(id ? createDeskReturnHref(`set:${id}`) : "/account")} /> : null}</>}
+        detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{inspectorItem?.references.driveFileId ? <SelectedDriveFileActions key={inspectorItem.id} fileId={inspectorItem.references.driveFileId} accountId={inspectorItem.references.driveAccountId} name={inspectorItem.name} localSetId={inspectorItem.references.localSetId} disabled={!experience.signedIn || !experience.capabilities.canUseProjectFiles} onChanged={projection.refresh} onOpenCopy={(id) => projection.router.push(id ? createDeskReturnHref(`set:${id}`) : "/account")} /> : null}</>}
         actionContext={focusedItem ? workDetailRecord(focusedItem) : null}
         actions={actions}
         accountControl={<><WorkspaceUpdateNotices /><PublicAuthControls /></>}
@@ -908,8 +905,6 @@ function DeskContent({
         publishedSetsLoading={publishedSetsLoading}
         publishedSetsFailure={publishedSetsFailure}
         creatingPublishedSetId={creatingPublishedSetId}
-        pendingDeleteWork={pendingDeleteWork}
-        deleteWorkBusy={deletingCopy}
         pendingDeleteCards={pendingDeleteCards}
         dirtyCloseRequested={dirtyCloseRequested}
         dirtyCloseToDesk={dirtyCloseToDesk}
@@ -922,32 +917,10 @@ function DeskContent({
         onSetFileOpened={focusOpenedSetFile}
         onCreatePublishedSet={(set) => { void createFromPublishedSet(set); }}
         onRetryPublishedSets={() => { setPublishedSets([]); setPublishedSetsFailure(null); setPublishedSetsLoading(false); openCreateMenu(); }}
-        onDeleteWorkOpenChange={(open) => { if (!open && !deletingCopyRef.current) setPendingDeleteWork(null); }}
-        onConfirmDeleteWork={() => {
-          const target = pendingDeleteWork;
-          if (!target || deletingCopyRef.current) return;
-          deletingCopyRef.current = true; setDeletingCopy(true);
-          void (async () => {
-            try {
-              const localId = target.references.localSetId;
-              if (localId) {
-                if (!deleteCardSet(localId)) throw new Error('The device Set could not be found. Reload the Desk.');
-                resetToDesk();
-              } else {
-                const { driveFileId, driveAccountId, driveProviderRevision, driveProjectRevision } = target.references;
-                if (!driveFileId || !driveAccountId || !driveProviderRevision || !driveProjectRevision) throw new Error('Reload this Drive copy to confirm its account and current revision before removal.');
-                await deleteGoogleDriveProjectCopy({fileId:driveFileId,accountId:driveAccountId,providerRevision:driveProviderRevision,projectRevision:driveProjectRevision});
-              }
-              projection.refresh();
-              toast({title:localId ? 'Device copy deleted' : 'Drive copy moved to Trash',description:`Only the selected copy of “${target.name}” was removed. Other locations remain unchanged.`});
-            } catch (error) {
-              toast({title:'Removal was not confirmed',description:error instanceof Error ? error.message : 'Inspect the exact source before any further action.',variant:'destructive'});
-            } finally { deletingCopyRef.current = false; setDeletingCopy(false); setPendingDeleteWork(null); }
-          })();
-        }}
         onDeleteCardsOpenChange={(open) => { if (!open) setPendingDeleteCards([]); }}
         onConfirmDeleteCards={() => { removeGeneratedCards(pendingDeleteCards.map((card) => card.uniqueId)); setPendingDeleteCards([]); setSelectedCardIds([]); }}
       />
+      {pendingDeleteWork ? <SetTrashDialog item={pendingDeleteWork} canUseDrive={isSignedIn && experience.capabilities.canUseProjectFiles} onClose={() => setPendingDeleteWork(null)} onCompleted={(target) => { if (target === 'device') resetToDesk(); projection.refresh(); }} /> : null}
       </ArtifactScene>
       {!deskArrival.ready ? <div className={styles.environmentArrival} data-desk-arrival={deskArrival.phase} role="status" aria-live="polite" aria-label="Preparing CardForge Desk">
         <div className={styles.environmentArrivalContent}>

@@ -187,13 +187,13 @@ export const getAccountLibraryEnvironmentActions = (
   if (availableActions.includes('delete-copy')) {
     actions.push({
       id: 'library.delete-copy',
-      label: item.references.localSetId || item.references.localTemplateId ? 'Delete device copy' : 'Move Drive copy to Trash',
+      label: 'Trash',
       ownerFeature: item.references.localTemplateId ? 'template-editor' : item.references.localSetId ? 'card-generator' : 'project',
       supportedObjectKinds: [item.kind],
       supportedSources: sources,
       revisionPolicy: item.references.driveFileId && !item.references.localSetId ? 'conflict-safe' : 'none',
       requiredPermission: item.references.localSetId || item.references.localTemplateId ? 'guest' : 'member',
-      scope: 'object', hierarchy: 'overflow', availability, commitment: 'destructive', automation: human(item.references.driveFileId && !item.references.localSetId && !item.references.localTemplateId ? 'provider' : 'cardforge'), result: 'tool-opened',
+      scope: 'object', hierarchy: 'overflow', availability: !disabledReason && !item.references.localSetId && !item.references.driveFileId ? { kind: 'disabled', reason: 'Manage local-folder files in your file manager.' } : availability, commitment: 'destructive', automation: human(item.references.driveFileId && !item.references.localSetId && !item.references.localTemplateId ? 'provider' : 'cardforge'), result: 'tool-opened',
     });
   }
 

@@ -15,6 +15,50 @@ test.describe('mobile Library location tools', () => {
     expect(bounds?.height).toBeGreaterThanOrEqual(44);
   };
 
+  for (const surface of ['Desk', 'Library'] as const) test(`@golden ${surface} Trash removes only the chosen device Set across Desk and Library`, async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100, { additionalSets: 2, cardLimit: 0 });
+    const providerWrites: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/api/project-sources/google-drive') && !['GET', 'HEAD'].includes(request.method())) providerWrites.push(request.method());
+    });
+    const name = 'Touch Companion Set 1';
+    const target = '[data-desk-set-object-id="set:touch-companion-1"]';
+    const neighbor = '[data-desk-set-object-id="set:touch-companion-2"]';
+    const libraryTarget = '[id="library-object-set:touch-companion-1"]';
+    const libraryNeighbor = '[id="library-object-set:touch-companion-2"]';
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+    await expect(page.locator(target)).toBeVisible();
+    await page.getByRole('button', { name: `Actions for ${name}`, exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Remove from Desk', exact: true }).click();
+    await expect(page.locator(target)).toHaveCount(0);
+    await page.goto('/account?section=library&scope=personal', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator(libraryTarget)).toBeVisible();
+    await page.goto('/account', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Add from Library', exact: true }).first().click();
+    const picker = page.getByRole('dialog', { name: 'Add from Library' });
+    await picker.getByText(name, { exact: true }).locator('../..').getByRole('button', { name: 'Add to Desk' }).click();
+    await expect(picker.getByText(name, { exact: true }).locator('../..').getByRole('button', { name: 'On Desk' })).toBeDisabled();
+    await picker.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(page.locator(target)).toBeVisible();
+    if (surface === 'Library') await page.goto('/account?section=library&scope=personal', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: `Actions for ${name}`, exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Trash', exact: true }).click();
+    const confirmation = page.getByRole('alertdialog');
+    await expect(confirmation).toContainText(name);
+    await expect(confirmation).toContainText('permanently deleted');
+    await confirmation.getByRole('button', { name: 'Permanently delete device copy', exact: true }).click();
+    await expect(confirmation).toHaveCount(0);
+    await page.goto('/account?section=library&scope=personal', { waitUntil: 'domcontentloaded' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator(libraryTarget)).toHaveCount(0);
+    await expect(page.locator(libraryNeighbor)).toBeVisible();
+    await page.goto('/account', { waitUntil: 'domcontentloaded' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator(target)).toHaveCount(0);
+    await expect(page.locator(neighbor)).toBeVisible();
+    expect(providerWrites).toEqual([]);
+  });
+
   test('keeps multiple local Sets intact when removed from and added back to Desk', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100, { additionalSets: 2, cardLimit: 0 });
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });

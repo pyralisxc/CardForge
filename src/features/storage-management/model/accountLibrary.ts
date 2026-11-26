@@ -505,7 +505,7 @@ export const getAccountLibraryAvailableActions = (item: AccountLibraryItem): Acc
 
   if (item.kind === 'set') actions.push('save-move');
   if (item.references.localSetId || item.references.localTemplateId) actions.push('duplicate');
-  if (item.references.localSetId || item.references.driveFileId) actions.push('delete-copy');
+  if (item.references.localSetId || item.references.driveFileId || item.references.localFolderWorkId) actions.push('delete-copy');
 
   if (item.webViewLink) actions.push('view-source');
   if (item.references.driveFileId || item.references.localFolder) actions.push('manage-storage');
