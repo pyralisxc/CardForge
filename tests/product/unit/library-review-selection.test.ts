@@ -7,6 +7,7 @@ import { getPipelineRevisionLabel, PipelineDetailContent, createLibraryReviewAct
 import { isActionApplicable } from '@/features/app-shell/environment/model';
 import type { PipelineSubmission } from '@/features/pipeline/client';
 import type { LibraryViewItem } from '@/features/storage-management/components/LibraryObjectPresentation';
+import { ContributorRevisionContinue } from '@/features/pipeline/components/ContributorRevisionContinue';
 const row = { id: 'r1', registryAssetId: 'material', targetRegistryAssetId: null, lineageId: 'lineage', revisionNumber: 1,
   status: 'published', publishedAt: '2026-01-01', updatedAt: '2026-01-01' } as PipelineSubmission;
 const pipeline = (selected = row, own = true, editable = selected) => ({ scope: 'pipeline', pipeline: {
@@ -103,6 +104,18 @@ describe('reviewed Contributor History', () => {
     expect(markup(['author'])).toContain('Read feedback for this revision');
     expect(markup(['other'])).not.toContain('Read feedback for this revision');
   });
+});
+
+it('offers only a deliberate choice of saved personal Templates for the exact review', () => {
+  const html = renderToStaticMarkup(createElement(ContributorRevisionContinue, {
+    templates: [{ id: 'personal', name: 'My saved work', templateSource: 'user' },
+      { id: 'shipped', name: 'Shipped source', templateSource: 'default' }] as never,
+    revisionBase: { parentSubmissionId: '11111111-1111-4111-8111-111111111111', assetId: 'shared',
+      reviewedAt: '2026-11-26T12:00:00Z', parentContentVersion: 'a'.repeat(32) },
+    onContinue: async () => { throw new Error('Must not run on render'); },
+  }));
+  expect(html).toContain('My saved work'); expect(html).not.toContain('Shipped source');
+  expect(html).toContain('Choose your saved Template'); expect(html).toContain('disabled');
 });
 
 

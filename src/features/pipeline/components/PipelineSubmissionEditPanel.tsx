@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from 'react';
+import type { TCGCardTemplate } from '@/domain/templates';
+import type { z } from 'zod/v4';
 
 import { useToast } from '@/components/ui/use-toast';
 import { getStudioAssetDestinationDefinition } from '@/domain/templates';
@@ -16,20 +18,25 @@ import {
   getPipelineStudioDestinationOptions,
 } from '../lib/pipelineAssetTaxonomy';
 import type { PipelineSubmission } from '../lib/pipelineProgram';
-import { contributorDraftReceipt } from '../lib/contributorDraftContract';
+import { contributorDraftReceipt, contributorTemplateRevisionBase } from '../lib/contributorDraftContract';
 import { EditSubmissionForm } from './PipelineSubmissionRows';
 import { ContributorReviewFeedback } from './ContributorReviewFeedback';
+import { ContributorRevisionContinue } from './ContributorRevisionContinue';
 
 export function PipelineSubmissionEditPanel({
   submission,
   onCancel,
   onUpdated,
   onDirtyChange,
+  savedTemplates,
+  onContinueRevision,
 }: {
   submission: PipelineSubmission;
   onCancel: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onUpdated: () => Promise<void> | void;
+  savedTemplates?: TCGCardTemplate[];
+  onContinueRevision?: (template: TCGCardTemplate, revisionBase: z.infer<typeof contributorTemplateRevisionBase>) => Promise<void>;
 }) {
   const { toast } = useToast();
   const [name, setName] = useState(submission.name);
@@ -103,7 +110,8 @@ export function PipelineSubmissionEditPanel({
   };
 
   if (submission.editorialReviewStatus && submission.editorialReviewStatus !== 'pending') return <>
-    <ContributorReviewFeedback submissionId={submission.id} />
+    <ContributorReviewFeedback submissionId={submission.id} renderNext={(feedback) => feedback.revisionBase && savedTemplates && onContinueRevision
+      ? <ContributorRevisionContinue templates={savedTemplates} revisionBase={feedback.revisionBase} onContinue={onContinueRevision} /> : null} />
     <p>This reviewed revision is preserved. Continue changes in a new revision of your saved work.</p>
   </>;
 

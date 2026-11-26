@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { z } from 'zod/v4';
 import { contributorReviewFeedback } from '../lib/contributorDraftContract';
 
 type Feedback = z.infer<typeof contributorReviewFeedback>;
 
 /** Exact-revision author feedback; this never reads the Owner's private packet. */
-export function ContributorReviewFeedback({ submissionId }: { submissionId: string }) {
+export function ContributorReviewFeedback({ submissionId, renderNext }: { submissionId: string; renderNext?: (feedback: Feedback) => ReactNode }) {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -31,6 +31,7 @@ export function ContributorReviewFeedback({ submissionId }: { submissionId: stri
         : <><p>{feedback.revisionNumber !== null ? `Revision ${feedback.revisionNumber} · ` : ''}Review: {feedback.reviewStatus === 'revise' ? 'Needs revision' : feedback.reviewStatus}</p>
           <p>{feedback.authorNote ?? 'No note to the author has been recorded for this revision.'}</p>
           {feedback.reviewStatus === 'revise' ? <p>Use the note to continue from your saved work.</p> : null}
+          {renderNext?.(feedback)}
           {feedback.reviewStatus === 'approved' ? <p>Editorial approval is recorded. Check this revision’s Pipeline status to see whether it has been published.</p> : null}</>}
   </section>;
 }
