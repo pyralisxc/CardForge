@@ -204,10 +204,11 @@ begin
       snapshot:=public.cardforge_read_template_review_base(locked_asset_id);
       if ((child.template_review_context->'expectedBase')-'revisionHighWater') is distinct from
         ((snapshot->'expectedBase')-'revisionHighWater')
-        or child.name is distinct from p_name or child.description is distinct from p_description
-        or child.preview_url is distinct from p_preview_url or child.source_notes is distinct from p_source_notes
-        or child.specialty_tags is distinct from p_specialty_tags or child.use_case_tags is distinct from p_use_case_tags
-        or child.requested_studio_destination is distinct from p_requested_studio_destination
+        or child.name is distinct from p_name or coalesce(child.description,'') is distinct from p_description
+        or coalesce(child.preview_url,'') is distinct from p_preview_url or coalesce(child.source_notes,'') is distinct from p_source_notes
+        or coalesce(child.specialty_tags,'{}'::text[]) is distinct from p_specialty_tags
+        or coalesce(child.use_case_tags,'{}'::text[]) is distinct from p_use_case_tags
+        or coalesce(child.requested_studio_destination,'') is distinct from p_requested_studio_destination
         then raise exception 'template_author_revision_conflict'; end if;
       update public.cardforge_contributor_asset_submissions set status='submitted',automated_status='voting',
         decision_reason='template_submitted_for_owner_review',submitted_at=pg_catalog.now() where id=child.id;

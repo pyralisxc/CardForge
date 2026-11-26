@@ -68,6 +68,19 @@ it('confirms native submission once and retains submitted after unavailable read
   expect(result.snapshot).toBeNull(); expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_submit_template_pipeline_draft_checked', expect.objectContaining({ p_submission_id: id, p_contributor_id: 'author' }));
   expect(f.writes).toHaveLength(1); expect(f.writes[0].filters).toContainEqual(['status', 'draft']);
 });
+it('submits governed correction metadata unchanged through the shared Contributor handler', async () => {
+  Object.assign(f.row, { name: metadata.name, description: metadata.description, source_notes: metadata.sourceNotes,
+    specialty_tags: metadata.specialtyTags, use_case_tags: metadata.useCaseTags, semantic_role: metadata.semanticRole,
+    visual_family: metadata.visualFamily, variant_kind: metadata.variantKind, compatibility_tags: [],
+    requested_studio_destination: metadata.requestedStudioDestination, author_resubmission_parent_id: id,
+    template_review_context: { schemaVersion: 1 } });
+  expect(await getContributorPipelineDraft('author', { submissionId: id })).toMatchObject({ canSaveMetadata: false, canFinalize: true });
+  await expect(finalizeContributorTemplateSubmission('author', { submissionId: id, metadata: { ...metadata, description: 'Changed' } })).rejects.toMatchObject({ status: 409 });
+  expect(f.rpc).not.toHaveBeenCalled(); expect(f.writes).toEqual([]);
+  const result = await finalizeContributorTemplateSubmission('author', { submissionId: id, metadata });
+  expect(result.receipt).toMatchObject({ outcome: 'submitted', metadataCommitted: false, submitted: true });
+  expect(f.writes).toEqual([]); expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_submit_template_pipeline_draft_checked', expect.objectContaining({ p_submission_id: id }));
+});
 it('reports only retained classification when the subsequent submission is definitively rejected', async () => {
   f.rpc.mockResolvedValue({ data: null, error: { message: 'template_draft_not_editable' } });
   const result = await finalizeContributorTemplateSubmission('author', { submissionId: id, metadata });
@@ -119,6 +132,16 @@ const readHttp = async (response: Response) => {
 const http = async (id: number, method: string, params: object) => {
   return readHttp(await cardForgeMcpHandler(new Request('https://cardforge.test/mcp', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) })));
 };
+it('finalizes a governed correction through the Studio MCP entry point without a metadata write', async () => {
+  Object.assign(f.row, { name: metadata.name, description: metadata.description, source_notes: metadata.sourceNotes,
+    specialty_tags: metadata.specialtyTags, use_case_tags: metadata.useCaseTags, semantic_role: metadata.semanticRole,
+    visual_family: metadata.visualFamily, variant_kind: metadata.variantKind, compatibility_tags: [],
+    requested_studio_destination: metadata.requestedStudioDestination, author_resubmission_parent_id: id,
+    template_review_context: { schemaVersion: 1 } });
+  const result = await http(1, 'tools/call', { name: 'finalize_contributor_template_submission', arguments: { submissionId: id, metadata } });
+  expect(result.result.structuredContent.receipt).toMatchObject({ outcome: 'submitted', metadataCommitted: false, submitted: true });
+  expect(f.writes).toEqual([]); expect(f.rpc).toHaveBeenCalledOnce();
+});
 it('lists all three explicit schemas and calls read/save/finalize through real HTTP and canonical native commands', async () => {
   await http(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'contributor-proof', version: '1' } });
   const listed = await http(2, 'tools/list', {});

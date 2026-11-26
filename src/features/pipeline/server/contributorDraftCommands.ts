@@ -48,12 +48,13 @@ function requireScope(viewer: Viewer, scope?: 'assets.submit' | 'library.submit'
 }
 async function snapshot(submissionId: string, viewer: Viewer) {
   const db = getSupabaseServerClient(); if (!db) throw new PipelineStoreError('Pipeline is unavailable.', 503);
-  const query = db.from('cardforge_contributor_asset_submissions').select('id,contributor_id,lineage_id,revision_number,asset_type,status,name,description,preview_url,source_notes,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags,requested_studio_destination,media_presentation,editorial_review_status,editorial_reviewed_at').eq('id', submissionId);
+  const query = db.from('cardforge_contributor_asset_submissions').select('id,contributor_id,lineage_id,revision_number,asset_type,status,name,description,preview_url,source_notes,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags,requested_studio_destination,media_presentation,editorial_review_status,editorial_reviewed_at,author_resubmission_parent_id,template_review_context').eq('id', submissionId);
   if (!viewer.isOwner) query.eq('contributor_id', viewer.userId);
   const { data: row, error } = await query.maybeSingle();
   if (error) throw new PipelineStoreError('Exact Contributor draft is unavailable.', 503);
   if (!row || row.id !== submissionId || (!viewer.isOwner && row.contributor_id !== viewer.userId)) throw new PipelineStoreError('This exact authorized draft was not found; no sibling was substituted.', 404);
-  const canSaveMetadata = hasContributionScope(viewer.contribution.scopes, 'assets.submit') && !['published', 'rejected'].includes(row.status) && row.media_presentation == null && row.editorial_review_status === 'pending' && row.editorial_reviewed_at == null;
+  const governedDraft = row.author_resubmission_parent_id != null && row.template_review_context != null;
+  const canSaveMetadata = !governedDraft && hasContributionScope(viewer.contribution.scopes, 'assets.submit') && !['published', 'rejected'].includes(row.status) && row.media_presentation == null && row.editorial_review_status === 'pending' && row.editorial_reviewed_at == null;
   const canFinalize = hasContributionScope(viewer.contribution.scopes, 'library.submit') && row.contributor_id === viewer.userId && row.status === 'draft' && row.asset_type === 'templates';
   const parsed = contributorDraftSnapshot.safeParse({ submissionId: row.id, contributorId: row.contributor_id, lineageId: row.lineage_id ?? null, revisionNumber: row.revision_number ?? null, assetType: row.asset_type, status: row.status,
     metadata: { name: row.name, description: row.description ?? '', previewUrl: row.preview_url ?? '', sourceNotes: row.source_notes ?? '', specialtyTags: row.specialty_tags ?? [], useCaseTags: row.use_case_tags ?? [],
@@ -83,7 +84,7 @@ async function change(actorUserId: string, input: unknown, finalize: boolean) {
     receipt = { submissionId: before.submissionId, outcome: 'uncertain', metadataCommitted: null, submitted: null, committedMetadataFields: [], warnings: ['The exact write outcome is unconfirmed.'], retryable: false, nextAction: 'read' };
   }
   let value = null;
-  if (receipt.metadataCommitted === true) {
+  if (receipt.metadataCommitted === true || receipt.submitted === true) {
     try { if (!revalidateCardForgeCatalog()) receipt.warnings.push('Catalog refresh is incomplete.'); } catch { receipt.warnings.push('Catalog refresh is incomplete.'); }
   }
   try { value = await snapshot(before.submissionId, viewer); } catch { receipt.warnings.push('Exact metadata readback is unavailable.'); }

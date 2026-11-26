@@ -602,15 +602,43 @@ export const finalizeContributorTemplatePipelineDraft = async ({
   if (!supabase) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
   const { data: rows, error } = await supabase
     .from('cardforge_contributor_asset_submissions')
-    .select('contributor_id,status,asset_type')
+    .select('contributor_id,status,asset_type,author_resubmission_parent_id,template_review_context,name,description,preview_url,source_notes,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags,requested_studio_destination')
     .eq('id', submissionId)
     .limit(1);
   if (error) throw new PipelineStoreError('Unable to load the Template Pipeline draft.', 500);
-  const row = rows?.[0] as { contributor_id?: string; status?: unknown; asset_type?: unknown } | undefined;
+  const row = rows?.[0] as { contributor_id?: string; status?: unknown; asset_type?: unknown;
+    author_resubmission_parent_id?: string | null; template_review_context?: unknown;
+    name?: string; description?: string | null; preview_url?: string | null; source_notes?: string | null;
+    specialty_tags?: string[] | null; use_case_tags?: string[] | null; semantic_role?: string | null;
+    visual_family?: string | null; variant_kind?: string | null; variant_label?: string | null;
+    compatibility_tags?: string[] | null; requested_studio_destination?: string | null } | undefined;
   if (!row) throw new PipelineStoreError('Template Pipeline draft was not found.', 404);
   if (row.contributor_id !== contributorId) throw new PipelineStoreError('Only the draft owner can submit this Template.', 403);
   if (row.status !== 'draft' || row.asset_type !== 'templates') {
     throw new PipelineStoreError('Only a new Template Pipeline draft can be submitted through this action.', 409);
+  }
+  if (row.author_resubmission_parent_id && row.template_review_context) {
+    const preserved: Record<string, unknown> = { name: row.name, description: row.description ?? '', previewUrl: row.preview_url ?? '',
+      sourceNotes: row.source_notes ?? '', specialtyTags: row.specialty_tags ?? [], useCaseTags: row.use_case_tags ?? [],
+      semanticRole: row.semantic_role ?? '', visualFamily: row.visual_family ?? '', variantKind: row.variant_kind ?? 'base',
+      variantLabel: row.variant_label ?? '', compatibilityTags: row.compatibility_tags ?? [],
+      requestedStudioDestination: row.requested_studio_destination ?? '' };
+    for (const [key, value] of Object.entries(input)) {
+      if (value !== undefined && JSON.stringify(value ?? '') !== JSON.stringify(preserved[key])) {
+        throw new PipelineStoreError('This governed correction retains its published source and classification. Continue changes in the saved Template.', 409);
+      }
+    }
+    try {
+      await runRegistryCommand(() => commitTemplatePipelineDraft({ submissionId, contributorId,
+        name: row.name ?? '', description: row.description ?? '', previewUrl: row.preview_url ?? '', sourceNotes: row.source_notes ?? '',
+        specialtyTags: row.specialty_tags ?? [], useCaseTags: row.use_case_tags ?? [], requestedStudioDestination: row.requested_studio_destination ?? '' }));
+    } catch (error) {
+      if (error instanceof PipelineStoreError && error.status < 500) throw error;
+      return { submissionId, outcome: 'uncertain', metadataCommitted: false, submitted: null, committedMetadataFields: [],
+        warnings: ['The exact submission outcome is unconfirmed.'], retryable: false, nextAction: 'read' };
+    }
+    return { submissionId, outcome: 'submitted', metadataCommitted: false, submitted: true,
+      committedMetadataFields: [], warnings: [], retryable: false, nextAction: 'none' };
   }
   const normalized = normalizePipelineSubmissionEditInput({ ...input, assetType: row.asset_type });
   if (!normalized.ok) throw new PipelineStoreError(normalized.message, 400);

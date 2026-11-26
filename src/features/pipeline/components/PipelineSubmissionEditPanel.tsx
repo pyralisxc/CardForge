@@ -106,6 +106,15 @@ export function PipelineSubmissionEditPanel({
     <p>This reviewed revision is preserved. Continue changes in a new revision of your saved work.</p>
   </>;
 
+  if (submission.assetType === 'templates' && submission.status === 'draft' && (submission.baseRevisionNumber ?? 0) > 0) return <section className="space-y-3">
+    <h3>Review your correction</h3>
+    <p>This revision keeps the published Template’s source, rights and classification. Continue design changes in your saved Template before submitting.</p>
+    <p>{name}</p>
+    <p>{description || 'No description on the published Template.'}</p>
+    <button type="button" disabled={isSaving} onClick={() => void save(true)}>Submit correction for review</button>
+    <button type="button" disabled={isSaving} onClick={onCancel}>Cancel</button>
+  </section>;
+
   return <>
     {submission.status !== 'draft' ? <ContributorReviewFeedback submissionId={submission.id} /> : null}
     <EditSubmissionForm

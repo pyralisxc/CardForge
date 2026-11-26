@@ -361,6 +361,13 @@ function authorRevisionFingerprint(input: TemplatePipelineDraftInput): string {
     base.parentSubmissionId, base.assetId, base.reviewedAt, base.parentContentVersion])).digest('hex');
 }
 
+/** A live correction preserves its existing sources; a failed lookup is not absence. */
+export async function readAuthorRevisionPublishedBase(assetId: string): Promise<Awaited<ReturnType<typeof readTemplateReviewBase>>['expectedBase'] | null> {
+  const registry = await requireSupabase().from('cardforge_asset_registry').select('asset_id').eq('asset_id', assetId).maybeSingle();
+  if (registry.error) throw new PipelineRegistryCommandError('The published Template could not be verified. Your saved work is unchanged.', 503);
+  return registry.data ? (await readTemplateReviewBase(assetId)).expectedBase : null;
+}
+
 export const createTemplatePipelineDraft = async ({
   template,
   contributorId,
@@ -388,10 +395,8 @@ export const createTemplatePipelineDraft = async ({
   let publishedBase: Awaited<ReturnType<typeof readTemplateReviewBase>>['expectedBase'] | null = null;
   let storedTemplate: TCGCardTemplate;
   if (revisionBase) {
-    const registry = await supabase.from('cardforge_asset_registry').select('asset_id').eq('asset_id', revisionBase.assetId).maybeSingle();
-    if (registry.error) throw new PipelineRegistryCommandError('The published Template could not be verified. Your saved work is unchanged.', 503);
-    if (registry.data) {
-      publishedBase = (await readTemplateReviewBase(revisionBase.assetId)).expectedBase;
+    publishedBase = await readAuthorRevisionPublishedBase(revisionBase.assetId);
+    if (publishedBase) {
       storedTemplate = await prepareGovernedTemplateReviewPayload(template, publishedBase);
     } else storedTemplate = await externalizePipelineTemplateAssets(source);
   } else storedTemplate = await externalizePipelineTemplateAssets(prepared?.template ?? source);

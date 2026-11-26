@@ -6,6 +6,7 @@ import {
   createNewSharedTemplateId,
   createTemplatePipelineDraft,
   assertTemplatePipelineDraftContext,
+  readAuthorRevisionPublishedBase,
   PipelineRegistryCommandError,
   isRepositoryTemplate,
   storePipelineTemplateAsset,
@@ -303,7 +304,8 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
     );
   }
   assertTemplatePipelineDraftContext(localTemplate, Boolean(revisionBase));
-  const reviewTemplate = await materializeTemplateForPipelineReview({
+  const publishedBase = revisionBase ? await readAuthorRevisionPublishedBase(revisionBase.assetId) : null;
+  const reviewTemplate = publishedBase ? localTemplate : await materializeTemplateForPipelineReview({
     ownerUserId: access.user.id,
     documentId: document.id,
     template: localTemplate,

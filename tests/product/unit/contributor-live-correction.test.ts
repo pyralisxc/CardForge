@@ -33,7 +33,7 @@ beforeEach(() => {
       revision_number: 3, target_registry_asset_id: base.assetId }], error: null }) } }) }));
   vi.mocked(getSupabaseServerClient).mockReturnValue({ rpc, from } as never);
 });
-const draft = (template: TCGCardTemplate) => createTemplatePipelineDraft({ template, contributorId: 'author', contributorEmail: '',
+const draft = (template: TCGCardTemplate) => createTemplatePipelineDraft({ template: { ...template, id: base.assetId }, contributorId: 'author', contributorEmail: '',
   submissionKey: 'author_live_attempt_123', revisionBase });
 it('uses the governed published-base lease without externalizing existing sources', async () => {
   await expect(draft({ ...parent, name: 'Correction', templateContributorName: 'Forged' })).resolves.toMatchObject({ status: 'draft', assetId: base.assetId });
