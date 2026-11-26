@@ -167,6 +167,9 @@ const throwRegistryCommandError = (message: string, errorMessage?: string): neve
 
 const throwTemplateRevisionError = (errorMessage?: string): never => {
   throwIfPublicationBusy(errorMessage);
+  if (errorMessage?.includes('reviewed_revision_immutable')) {
+    throw new PipelineRegistryCommandError('This revision has been reviewed. Continue your changes as a new revision.', 409);
+  }
   if (errorMessage?.includes('contributor_asset_not_found')) {
     throw new PipelineRegistryCommandError('The Template Pipeline draft was not found.', 404);
   }

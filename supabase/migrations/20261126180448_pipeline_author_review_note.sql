@@ -28,6 +28,28 @@ create trigger cardforge_clear_stale_author_review_note
   for each row execute function public.cardforge_clear_stale_author_review_note();
 revoke all on function public.cardforge_clear_stale_author_review_note() from public,anon,authenticated;
 
+-- A reviewed unpublished revision is the snapshot the Owner assessed. All
+-- writers, including draft finalization, must preserve it; a new revision owns
+-- subsequent author changes. Publication and review metadata remain mutable.
+create function public.cardforge_guard_reviewed_author_snapshot()
+returns trigger language plpgsql security invoker set search_path = '' as $$
+begin
+  if old.published_at is null and old.editorial_review_status <> 'pending'
+    and row(new.source_payload,new.name,new.description,new.preview_url,new.source_url,
+      new.source_notes,new.specialty_tags,new.use_case_tags,new.semantic_role,new.visual_family,
+      new.variant_kind,new.variant_label,new.compatibility_tags,new.requested_studio_destination)
+      is distinct from row(old.source_payload,old.name,old.description,old.preview_url,old.source_url,
+      old.source_notes,old.specialty_tags,old.use_case_tags,old.semantic_role,old.visual_family,
+      old.variant_kind,old.variant_label,old.compatibility_tags,old.requested_studio_destination)
+  then raise exception 'reviewed_revision_immutable'; end if;
+  return new;
+end;
+$$;
+create trigger cardforge_guard_reviewed_author_snapshot
+  before update on public.cardforge_contributor_asset_submissions
+  for each row execute function public.cardforge_guard_reviewed_author_snapshot();
+revoke all on function public.cardforge_guard_reviewed_author_snapshot() from public,anon,authenticated;
+
 -- Author feedback is review metadata, not authored candidate content.
 create or replace function public.cardforge_media_parent_content_version(p_submission_id uuid)
 returns text language sql stable security invoker set search_path = '' as $$

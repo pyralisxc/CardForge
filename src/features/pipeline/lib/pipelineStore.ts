@@ -559,6 +559,9 @@ export const updatePipelineSubmissionDetails = async ({
 
   if (error) {
     console.error('Failed to edit Pipeline submission:', error);
+    if (error.message?.includes('reviewed_revision_immutable')) {
+      throw new PipelineStoreError('This revision has been reviewed. Continue your changes as a new revision.', 409, { kind: 'conflict' });
+    }
     if (error.message?.includes('pipeline_media_revision_immutable')) {
       throw new PipelineStoreError('This exact presentation revision cannot be edited.', 409, { kind: 'conflict' });
     }
@@ -633,6 +636,9 @@ export const finalizeContributorTemplatePipelineDraft = async ({
     .eq('asset_type', 'templates')
     .select('id').maybeSingle();
   if (semanticUpdateError) {
+    if (semanticUpdateError.message?.includes('reviewed_revision_immutable')) {
+      throw new PipelineStoreError('This revision has been reviewed. Continue your changes as a new revision.', 409, { kind: 'conflict' });
+    }
     throw new PipelineStoreError('Unable to save this Template’s semantic classification before submission.', 500);
   }
 
