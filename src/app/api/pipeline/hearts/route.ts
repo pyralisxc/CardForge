@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     if (!isPipelineLineageId(body.lineageId) || typeof body.hearted !== 'boolean') {
       return createApiErrorResponse(400, 'pipeline_reaction_invalid', 'Choose a visible Pipeline object to heart.');
     }
-    const metric = await setPipelineHeart({
+    const receipt = await setPipelineHeart({
       lineageId: body.lineageId,
       accountId: viewer.access.user.id,
       hearted: body.hearted,
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       contributor: viewer.contributor,
       owner: viewer.owner,
     });
-    return createNoStoreJsonResponse({ metric });
+    return createNoStoreJsonResponse({ receipt, metric: receipt.metric });
   } catch (error) {
     if (error instanceof SyntaxError) return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
     if (error instanceof RateLimitUnavailableError) {

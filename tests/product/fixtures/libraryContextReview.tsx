@@ -486,7 +486,7 @@ function QueueProof() {
     {owner ? <LibraryRevisionQueueControls revisions={revisions} queue={queue} onModeChange={setRevisions} /> : null}
     <input ref={searchRef} aria-label="Search Library" value={query} onChange={event => setQuery(event.target.value)} />
     <LibraryCollection {...view} serverFiltered={revisions} activeScope="pipeline" campaignTargetId={null} canReview={false} canSubmit={false}
-      cardsFor={() => []} density="gallery" heartMetrics={{}} heartMetricsFailed={true} heartMetricsLoading={false} heartingId={null}
+      cardsFor={() => []} density="gallery" heartMetrics={{}} heartMetricsFailed={true} heartBlocked={false} heartMetricsLoading={false} heartingId={null}
       isSignedIn={!params.has('signedOut')} isOwner={owner} isSelfVoteBlocked={() => true} onDensityChange={() => {}}
       onOpenContribution={() => {}} onOpenDetail={item => { if (!owner) return; trigger.current = document.activeElement as HTMLElement; setTarget(libraryReviewSelection(item, queueRows) ?? undefined); }}
       onPersonalAction={() => {}} onPublishedAction={() => {}} onRefresh={queue.refresh} onToggleHeart={() => {}} onVote={() => {}}

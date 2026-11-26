@@ -413,6 +413,17 @@ export const recordPipelineSubmissionVote = async ({
     ownerContributorId,
   }));
 };
+/** The native vote acknowledgement is authoritative for every caller. */
+export const commitPipelineVote = async (input: Parameters<typeof recordPipelineSubmissionVote>[0]) => {
+  const nextAction = 'Read exact engagement before any further write; never retry an uncertain mutation automatically.';
+  try {
+    await recordPipelineSubmissionVote(input);
+    return { submissionId: input.submissionId, outcome: 'committed' as const, warnings: [] as string[], nextAction };
+  } catch (error) {
+    if ((error instanceof PipelineStoreError || error instanceof PipelineRegistryCommandError) && error.status < 500) throw error;
+    return { submissionId: input.submissionId, outcome: 'uncertain' as const, warnings: ['vote_outcome_unconfirmed'], nextAction };
+  }
+};
 export const voteOnPipelineSubmission = async ({
   submissionId,
   contributorId,
@@ -428,18 +439,14 @@ export const voteOnPipelineSubmission = async ({
   ownerContributorId?: string | null;
   invalidateCatalog: () => boolean;
 }) => {
-  const nextAction = 'Read exact engagement before any further write; never retry an uncertain mutation automatically.';
-  try { await recordPipelineSubmissionVote({ submissionId, contributorId, voteValue, ownerContributorId }); }
-  catch (error) {
-    if ((error instanceof PipelineStoreError || error instanceof PipelineRegistryCommandError) && error.status < 500) throw error;
-    return { program: null, receipt: { submissionId, outcome: 'uncertain' as const, warnings: ['vote_outcome_unconfirmed'], nextAction } };
-  }
+  const receipt = await commitPipelineVote({ submissionId, contributorId, voteValue, ownerContributorId });
+  if (receipt.outcome === 'uncertain') return { program: null, receipt };
   const warnings: string[] = [];
   try { if (!invalidateCatalog()) warnings.push('catalog_invalidation_unavailable'); } catch { warnings.push('catalog_invalidation_unavailable'); }
   let program: PipelineProgramView | null = null;
   try { program = await getPipelineProgramView(contributorId, currentContributorIds, { includeRegistryRecipePayloads: Boolean(ownerContributorId) }); }
   catch { warnings.push('program_refresh_unavailable'); }
-  return { program, receipt: { submissionId, outcome: 'committed' as const, warnings, nextAction } };
+  return { program, receipt: { ...receipt, warnings } };
 };
 
 export const updatePipelineSubmissionDetails = async ({
