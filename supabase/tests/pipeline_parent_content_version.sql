@@ -191,4 +191,41 @@ begin
   exception when raise_exception then if sqlerrm<>'template_author_revision_conflict' then raise; end if; end;
   raise notice 'PASS exact author resubmission preserves History and allocates one same-lineage draft';
 end $$;
+-- A live correction retains its governed published-base lease and never moves
+-- the live pointer when the author begins or submits a replacement draft.
+do $$
+declare
+  asset text := 'author-live-review-' || replace(gen_random_uuid()::text,'-','');
+  actor text := 'author-live-fixture-' || gen_random_uuid()::text;
+  live_id uuid; reviewed_id uuid; next_id uuid; pins jsonb; current_pins jsonb;
+  reviewed timestamptz; version text; child public.cardforge_contributor_asset_submissions%rowtype;
+begin
+  live_id:=public.cardforge_submit_template_revision(asset,'Live Template','Live description',actor,'',
+    jsonb_build_object('id',asset,'name','Live Template'),0,'live-' || replace(gen_random_uuid()::text,'-',''));
+  update public.cardforge_contributor_asset_submissions set source_notes='Original rights',specialty_tags=array['games'],
+    use_case_tags=array['tcg'],requested_studio_destination='template.front' where id=live_id;
+  perform public.cardforge_set_contributor_asset_owner_override(live_id,true,'published',true,'free','Fixture',actor);
+  pins:=public.cardforge_read_template_review_base(asset)->'expectedBase';
+  reviewed_id:=public.cardforge_create_template_review_revision(asset,pins,
+    jsonb_build_object('id',asset,'name','Reviewed correction'),actor,'review-' || replace(gen_random_uuid()::text,'-',''),repeat('a',64));
+  perform public.cardforge_review_with_author_note(reviewed_id,'revise','Private review',actor,null,'Please correct the title');
+  select editorial_reviewed_at into reviewed from public.cardforge_contributor_asset_submissions where id=reviewed_id;
+  version:=public.cardforge_media_parent_content_version(reviewed_id);
+  current_pins:=public.cardforge_read_template_review_base(asset)->'expectedBase';
+  next_id:=public.cardforge_create_template_author_revision_draft(reviewed_id,reviewed,version,actor,'','Corrected title',
+    jsonb_build_object('id',asset,'name','Corrected title'),'author-' || replace(gen_random_uuid()::text,'-',''),repeat('b',64),current_pins);
+  select * into child from public.cardforge_contributor_asset_submissions where id=next_id;
+  if child.status<>'draft' or child.template_review_context is null or child.source_review_evidence is not null
+    or not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=reviewed_id
+      and s.status='archived' and s.author_review_history->>'authorNote'='Please correct the title')
+    or not exists(select 1 from public.cardforge_asset_registry r where r.asset_id=asset and r.contributor_submission_id=live_id and r.status='published')
+    then raise exception 'governed_author_draft_not_isolated'; end if;
+  perform public.cardforge_submit_template_pipeline_draft_checked(next_id,actor,child.name,child.description,child.preview_url,
+    child.source_notes,child.specialty_tags,child.use_case_tags,child.requested_studio_destination);
+  if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=next_id and s.status='submitted'
+      and s.template_review_context is not null and s.source_review_evidence is null)
+    or not exists(select 1 from public.cardforge_asset_registry r where r.asset_id=asset and r.contributor_submission_id=live_id and r.status='published')
+    then raise exception 'governed_author_submission_changed_live'; end if;
+  raise notice 'PASS governed author correction retains live revision and requires fresh evidence';
+end $$;
 rollback;

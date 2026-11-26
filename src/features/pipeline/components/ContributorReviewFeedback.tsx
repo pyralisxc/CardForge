@@ -28,7 +28,7 @@ export function ContributorReviewFeedback({ submissionId }: { submissionId: stri
     <h3>Review feedback</h3>
     {error ? <><p role="alert">{error}</p><button type="button" onClick={() => setAttempt((value) => value + 1)}>Retry</button></>
       : !feedback ? <p role="status">Loading this revision’s feedback…</p>
-        : <><p>Review: {feedback.reviewStatus === 'revise' ? 'Needs revision' : feedback.reviewStatus}</p>
+        : <><p>{feedback.revisionNumber !== null ? `Revision ${feedback.revisionNumber} · ` : ''}Review: {feedback.reviewStatus === 'revise' ? 'Needs revision' : feedback.reviewStatus}</p>
           <p>{feedback.authorNote ?? 'No note to the author has been recorded for this revision.'}</p>
           {feedback.reviewStatus === 'revise' ? <p>Use the note to continue from your saved work.</p> : null}
           {feedback.reviewStatus === 'approved' ? <p>Editorial approval is recorded. Check this revision’s Pipeline status to see whether it has been published.</p> : null}</>}

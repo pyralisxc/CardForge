@@ -302,7 +302,7 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
       409,
     );
   }
-  assertTemplatePipelineDraftContext(localTemplate);
+  assertTemplatePipelineDraftContext(localTemplate, Boolean(revisionBase));
   const reviewTemplate = await materializeTemplateForPipelineReview({
     ownerUserId: access.user.id,
     documentId: document.id,

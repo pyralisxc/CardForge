@@ -15,6 +15,7 @@ import { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 import { externalizePipelineTemplateAssets } from './pipelineTemplateAssets';
 import { prepareManagedRasterTemplateRevision, readManagedRasterAttempt, type ManagedRasterSelection } from './managedRasterAdoption';
 import { templateReviewPayload, templateReviewRequestText } from './templateReview';
+import { prepareGovernedTemplateReviewPayload, readTemplateReviewBase } from '../server/templateReviewRevision';
 
 export { PipelineRegistryCommandError } from './pipelineRegistryCommandsError';
 
@@ -330,8 +331,8 @@ const loadTemplatePipelineResult = async (
 };
 
 /** Exact-base Review drafts must retain their own reviewed-base command path. */
-export function assertTemplatePipelineDraftContext(template: TCGCardTemplate): void {
-  if (template.templatePipelineContext) throw new PipelineRegistryCommandError(
+export function assertTemplatePipelineDraftContext(template: TCGCardTemplate, hasAuthorRevision = false): void {
+  if (template.templatePipelineContext && !hasAuthorRevision) throw new PipelineRegistryCommandError(
     'This is an exact-base Review draft. Continue through its existing Review submission; managed adoption and new-draft handoff are unsupported for this draft.',
     409, 'managed_raster_review_unsupported',
   );
@@ -339,7 +340,7 @@ export function assertTemplatePipelineDraftContext(template: TCGCardTemplate): v
 
 /** Read-only recovery of the original managed request; never revalidates current artwork. */
 export async function readTemplatePipelineDraftAttempt(input: TemplatePipelineDraftInput): Promise<string | null> {
-  assertTemplatePipelineDraftContext(input.template);
+  assertTemplatePipelineDraftContext(input.template, Boolean(input.revisionBase));
   if (input.revisionBase) {
     const { data, error } = await requireSupabase().rpc('cardforge_read_template_author_revision_attempt', {
       p_parent_submission_id: input.revisionBase.parentSubmissionId, p_actor_id: input.contributorId,
@@ -368,7 +369,7 @@ export const createTemplatePipelineDraft = async ({
   managedRasterSelection,
   revisionBase,
 }: TemplatePipelineDraftInput): Promise<TemplatePipelineDraftResult> => {
-  assertTemplatePipelineDraftContext(template);
+  assertTemplatePipelineDraftContext(template, Boolean(revisionBase));
   const supabase = requireSupabase();
   const source = templateReviewPayload(template);
   if (revisionBase && managedRasterSelection) throw new PipelineRegistryCommandError('This revision cannot adopt a new managed raster through this handoff.', 409);
@@ -384,15 +385,24 @@ export const createTemplatePipelineDraft = async ({
   const prepared = managedRasterSelection
     ? await prepareManagedRasterTemplateRevision(source as TCGCardTemplate & { id: string }, managedRasterSelection)
     : null;
-  const storedTemplate = await externalizePipelineTemplateAssets(prepared?.template ?? source);
+  let publishedBase: Awaited<ReturnType<typeof readTemplateReviewBase>>['expectedBase'] | null = null;
+  let storedTemplate: TCGCardTemplate;
+  if (revisionBase) {
+    const registry = await supabase.from('cardforge_asset_registry').select('asset_id').eq('asset_id', revisionBase.assetId).maybeSingle();
+    if (registry.error) throw new PipelineRegistryCommandError('The published Template could not be verified. Your saved work is unchanged.', 503);
+    if (registry.data) {
+      publishedBase = (await readTemplateReviewBase(revisionBase.assetId)).expectedBase;
+      storedTemplate = await prepareGovernedTemplateReviewPayload(template, publishedBase);
+    } else storedTemplate = await externalizePipelineTemplateAssets(source);
+  } else storedTemplate = await externalizePipelineTemplateAssets(prepared?.template ?? source);
   if (revisionBase) {
     if (storedTemplate.id !== revisionBase.assetId) throw new PipelineRegistryCommandError('The exact reviewed Template does not match this handoff.', 409);
     const { data, error } = await supabase.rpc('cardforge_create_template_author_revision_draft', {
       p_parent_submission_id: revisionBase.parentSubmissionId, p_expected_reviewed_at: revisionBase.reviewedAt,
       p_expected_parent_version: revisionBase.parentContentVersion, p_actor_id: contributorId,
-      p_actor_email: contributorEmail ?? '', p_name: storedTemplate.name, p_template_payload: {
+      p_actor_email: contributorEmail ?? '', p_name: storedTemplate.name, p_template_payload: publishedBase ? storedTemplate : {
         ...storedTemplate, templateSource: 'default', templateLibrarySource: 'pipeline', templateRegistryStatus: 'draft',
-      }, p_submission_key: submissionKey,
+      }, p_submission_key: submissionKey, p_published_base: publishedBase,
       p_request_fingerprint: authorRevisionFingerprint(revisionInput),
     });
     if (error || !data) throwTemplateRevisionError(error?.message);

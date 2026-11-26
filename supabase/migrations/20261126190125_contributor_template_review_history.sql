@@ -41,10 +41,11 @@ $$;
 create function public.cardforge_create_template_author_revision_draft(
   p_parent_submission_id uuid, p_expected_reviewed_at timestamptz,
   p_expected_parent_version text, p_actor_id text, p_actor_email text,
-  p_name text, p_template_payload jsonb, p_submission_key text, p_request_fingerprint text
+  p_name text, p_template_payload jsonb, p_submission_key text, p_request_fingerprint text,
+  p_published_base jsonb default null
 ) returns uuid language plpgsql security invoker set search_path = '' as $$
 declare parent public.cardforge_contributor_asset_submissions%rowtype; locked_asset_id text; locked_lineage_id uuid;
-  prior public.cardforge_contributor_asset_submissions%rowtype; created_id uuid;
+  prior public.cardforge_contributor_asset_submissions%rowtype; created_id uuid; snapshot jsonb; published_actor text;
 begin
   if p_parent_submission_id is null or p_expected_reviewed_at is null
     or coalesce(p_expected_parent_version,'') !~ '^[a-f0-9]{32}$'
@@ -94,29 +95,51 @@ begin
       and s.id<>parent.id and s.published_at is null and s.trashed_at is null and s.purge_state is null
       and s.status in ('draft','submitted','voting','publish_candidate'))
   then raise exception 'template_author_revision_conflict'; end if;
-  if parent.template_review_context is not null
-    or exists(select 1 from public.cardforge_asset_registry r where r.asset_id=parent.target_registry_asset_id)
-  then raise exception 'template_author_revision_live_lineage_unsupported'; end if;
+  if exists(select 1 from public.cardforge_asset_registry r where r.asset_id=parent.target_registry_asset_id) then
+    snapshot:=public.cardforge_read_template_review_base(locked_asset_id);
+    if nullif(pg_catalog.btrim(p_name),'') is null or p_template_payload->>'name' is distinct from p_name
+      or snapshot->'expectedBase' is distinct from p_published_base
+      or parent.base_revision_number is distinct from (snapshot->'expectedBase'->>'baseRevisionNumber')::integer
+      or (parent.template_review_context is not null and
+        (parent.template_review_context->'expectedBase')-'revisionHighWater' is distinct from
+        (snapshot->'expectedBase')-'revisionHighWater')
+      then raise exception 'template_author_revision_conflict'; end if;
+    select s.contributor_id into published_actor from public.cardforge_asset_registry r
+      join public.cardforge_contributor_asset_submissions s on s.id=r.contributor_submission_id where r.asset_id=locked_asset_id;
+    -- Different submitter/creator identities need an explicit ownership contract.
+    if published_actor is distinct from p_actor_id then raise exception 'template_author_revision_live_lineage_unsupported'; end if;
+  elsif p_published_base is not null or parent.template_review_context is not null then
+    raise exception 'template_author_revision_conflict';
+  end if;
   update public.cardforge_contributor_asset_submissions set status='archived',automated_status='archived',
     calculated_access_tier='hidden',automated_access_tier='hidden',decision_reason='superseded_revision',
     tier_decision_reason='superseded_revision', author_review_history=pg_catalog.jsonb_build_object(
       'reviewStatus',parent.editorial_review_status,'authorNote',nullif(parent.author_review_note,''),
       'reviewedAt',parent.editorial_reviewed_at) where id=parent.id;
-  created_id:=public.cardforge_create_template_pipeline_draft(parent.target_registry_asset_id,p_name,p_actor_id,
-    coalesce(p_actor_email,''),p_template_payload,p_submission_key);
+  if snapshot is not null then
+    created_id:=public.cardforge_create_template_review_revision(locked_asset_id,p_published_base,p_template_payload,
+      p_actor_id,p_submission_key,p_request_fingerprint);
+    update public.cardforge_contributor_asset_submissions set status='draft' where id=created_id;
+  else
+    created_id:=public.cardforge_create_template_pipeline_draft(parent.target_registry_asset_id,p_name,p_actor_id,
+      coalesce(p_actor_email,''),p_template_payload,p_submission_key);
+  end if;
   update public.cardforge_contributor_asset_submissions set author_resubmission_parent_id=parent.id,
     author_resubmission_fingerprint=p_request_fingerprint, author_resubmission_parent_reviewed_at=p_expected_reviewed_at,
-    author_resubmission_parent_version=p_expected_parent_version,
-    description=parent.description, preview_url=parent.preview_url, source_notes=parent.source_notes,
-    specialty_tags=parent.specialty_tags, use_case_tags=parent.use_case_tags,
-    semantic_role=parent.semantic_role, visual_family=parent.visual_family, variant_kind=parent.variant_kind,
-    variant_label=parent.variant_label, compatibility_tags=parent.compatibility_tags,
-    requested_studio_destination=parent.requested_studio_destination where id=created_id;
+    author_resubmission_parent_version=p_expected_parent_version where id=created_id;
+  if snapshot is null then
+    update public.cardforge_contributor_asset_submissions set
+      description=parent.description, preview_url=parent.preview_url, source_notes=parent.source_notes,
+      specialty_tags=parent.specialty_tags, use_case_tags=parent.use_case_tags,
+      semantic_role=parent.semantic_role, visual_family=parent.visual_family, variant_kind=parent.variant_kind,
+      variant_label=parent.variant_label, compatibility_tags=parent.compatibility_tags,
+      requested_studio_destination=parent.requested_studio_destination where id=created_id;
+  end if;
   return created_id;
 end;
 $$;
-revoke all on function public.cardforge_create_template_author_revision_draft(uuid,timestamptz,text,text,text,text,jsonb,text,text) from public,anon,authenticated;
-grant execute on function public.cardforge_create_template_author_revision_draft(uuid,timestamptz,text,text,text,text,jsonb,text,text) to service_role;
+revoke all on function public.cardforge_create_template_author_revision_draft(uuid,timestamptz,text,text,text,text,jsonb,text,text,jsonb) from public,anon,authenticated;
+grant execute on function public.cardforge_create_template_author_revision_draft(uuid,timestamptz,text,text,text,text,jsonb,text,text,jsonb) to service_role;
 
 -- Read an actor-bound exact attempt before any repeat or asset materialization.
 create function public.cardforge_read_template_author_revision_attempt(
@@ -155,7 +178,7 @@ create function public.cardforge_submit_template_pipeline_draft_checked(
   p_requested_studio_destination text
 ) returns uuid language plpgsql security invoker set search_path = '' as $$
 declare child public.cardforge_contributor_asset_submissions%rowtype;
-  parent public.cardforge_contributor_asset_submissions%rowtype; locked_asset_id text; locked_lineage_id uuid;
+  parent public.cardforge_contributor_asset_submissions%rowtype; locked_asset_id text; locked_lineage_id uuid; snapshot jsonb;
 begin
   select * into child from public.cardforge_contributor_asset_submissions where id=p_submission_id;
   if found and child.author_resubmission_parent_id is not null then
@@ -176,8 +199,22 @@ begin
       or parent.decision_reason<>'superseded_revision' or parent.trashed_at is not null or parent.purge_state is not null
       or parent.editorial_review_status<>'revise' or parent.editorial_reviewed_at is distinct from child.author_resubmission_parent_reviewed_at
       or public.cardforge_media_parent_content_version(parent.id) is distinct from child.author_resubmission_parent_version
-      or exists(select 1 from public.cardforge_asset_registry r where r.asset_id=locked_asset_id)
       then raise exception 'template_author_revision_conflict'; end if;
+    if child.template_review_context is not null then
+      snapshot:=public.cardforge_read_template_review_base(locked_asset_id);
+      if ((child.template_review_context->'expectedBase')-'revisionHighWater') is distinct from
+        ((snapshot->'expectedBase')-'revisionHighWater')
+        or child.name is distinct from p_name or child.description is distinct from p_description
+        or child.preview_url is distinct from p_preview_url or child.source_notes is distinct from p_source_notes
+        or child.specialty_tags is distinct from p_specialty_tags or child.use_case_tags is distinct from p_use_case_tags
+        or child.requested_studio_destination is distinct from p_requested_studio_destination
+        then raise exception 'template_author_revision_conflict'; end if;
+      update public.cardforge_contributor_asset_submissions set status='submitted',automated_status='voting',
+        decision_reason='template_submitted_for_owner_review',submitted_at=pg_catalog.now() where id=child.id;
+      return child.id;
+    elsif exists(select 1 from public.cardforge_asset_registry r where r.asset_id=locked_asset_id) then
+      raise exception 'template_author_revision_conflict';
+    end if;
   end if;
   return public.cardforge_submit_template_pipeline_draft(p_submission_id,p_contributor_id,p_name,p_description,
     p_preview_url,p_source_notes,p_specialty_tags,p_use_case_tags,p_requested_studio_destination);

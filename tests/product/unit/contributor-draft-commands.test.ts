@@ -144,6 +144,16 @@ it('reads only explicit exact-author feedback through the real Studio MCP endpoi
   const denied = await http(2, 'tools/call', { name: 'get_contributor_review_feedback', arguments: { submissionId: id } });
   expect(denied.result.isError).toBe(true);
 });
+it('reads the original author-facing History feedback through Studio MCP after a later decision', async () => {
+  Object.assign(f.row, { status: 'archived', editorial_review_status: 'approved', author_review_note: '',
+    editorial_reviewed_at: '2026-11-26T13:00:00Z', purge_state: null,
+    author_review_history: { reviewStatus: 'revise', authorNote: 'Please improve contrast.', reviewedAt: '2026-11-26T12:00:00Z' },
+    editorial_review_note: 'private observation' });
+  const result = await http(1, 'tools/call', { name: 'get_contributor_review_feedback', arguments: { submissionId: id } });
+  expect(result.result.structuredContent).toMatchObject({ submissionId: id, reviewStatus: 'revise',
+    authorNote: 'Please improve contrast.', reviewedAt: '2026-11-26T12:00:00Z', revisionBase: null });
+  expect(JSON.stringify(result)).not.toContain('private observation');
+});
 it('preserves a partial receipt through real HTTP without a second native submission', async () => {
   f.rpc.mockResolvedValue({ data: null, error: { message: 'template_draft_not_editable' } });
   const partial = await http(1, 'tools/call', { name: 'finalize_contributor_template_submission', arguments: { submissionId: id, metadata } });

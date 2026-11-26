@@ -78,10 +78,10 @@ export async function POST(request: Request) {
     }
 
     const localTemplate = validation.data as TCGCardTemplate;
-    assertTemplatePipelineDraftContext(localTemplate);
     const suppliedRevisionBase = (parsedBody.data as Record<string, unknown>).revisionBase;
     const revisionBase = suppliedRevisionBase === undefined ? undefined : contributorTemplateRevisionBase.safeParse(suppliedRevisionBase);
     if (revisionBase && !revisionBase.success) return createApiErrorResponse(400, 'invalid_template_payload', 'Choose the exact reviewed Template revision.');
+    assertTemplatePipelineDraftContext(localTemplate, Boolean(revisionBase));
     delete (localTemplate as TCGCardTemplate & { revisionBase?: unknown }).revisionBase;
     const selected = (parsedBody.data as Record<string,unknown>).managedRasterSelection;
     const selection = selected === undefined ? undefined : z.object({
