@@ -195,6 +195,38 @@ for (const { entry, tool, fault } of [
  expect(state.cards.sort()).toEqual((entry === 'studio-existing' ? ['existing-local', 'scale-card-1', 'scale-card-2', 'scale-card-3'] : ['scale-card-1', 'scale-card-2', 'scale-card-3']).sort());
 });
 
+for (const removed of ['card', 'Set'] as const) test(`Desk keeps a card draft open when Project refuses a removed ${removed}`, async ({ page }) => {
+ await page.setViewportSize({ width: 1440, height: 1000 });
+ await mountDesk(page);
+ await expect(page.getByText('Prepared selection: 2 cards, in the requested order.')).toBeVisible();
+ await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true }).click();
+ await page.locator('button[data-artifact-id="scale-card-3"]').press('Enter');
+ await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();
+ const editor = page.locator('[data-artifact-edit-workspace]');
+ await editor.getByRole('button', { name: 'All fields', exact: true }).focus();
+ await editor.getByRole('button', { name: 'All fields', exact: true }).press('Enter');
+ const title = editor.getByRole('textbox', { name: /Card title|Card name/i }).first();
+ await title.fill('Unsaved draft stays here');
+ if (removed === 'card') await page.evaluate(() => (window as unknown as { removeFixtureCard: (id: string) => void }).removeFixtureCard('scale-card-3'));
+ else await page.evaluate(() => (window as unknown as { removeFixtureSet: (id: string) => void }).removeFixtureSet('scale-set-100'));
+ await expect(title).toHaveValue('Unsaved draft stays here');
+ await editor.getByRole('button', { name: 'Save & Done', exact: true }).focus();
+ await editor.getByRole('button', { name: 'Save & Done', exact: true }).press('Enter');
+ await expect(page.getByRole('region', { name: 'Notifications (F8)' }).getByText('Card was not updated', { exact: true })).toBeVisible();
+ await expect(title).toHaveValue('Unsaved draft stays here');
+ await title.fill('Draft is still editable');
+ await expect(title).toHaveValue('Draft is still editable');
+ const state = await page.evaluate(() => (window as unknown as { outputState: () => { cards: string[] } }).outputState());
+ expect(state.cards).not.toContain('scale-card-3');
+ if (removed === 'Set') {
+  await editor.getByRole('button', { name: 'Cancel', exact: true }).press('Enter');
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Discard changes' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Notifications (F8)' }).getByText('Requested work could not be opened', { exact: true })).toBeVisible();
+  expect((await page.evaluate(() => (window as unknown as { outputState: () => { cards: string[] } }).outputState())).cards).not.toContain('scale-card-3');
+ }
+});
+
 test('@golden @preview actual Desk bootstraps exact prepared Output before a local Set exists', async ({ page }) => {
  let downloads = 0; page.on('download', () => downloads++);
  const source = await mountDesk(page);
