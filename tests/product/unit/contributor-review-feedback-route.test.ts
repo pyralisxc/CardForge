@@ -33,6 +33,9 @@ it('returns a revision base only for the exact author Template and fails closed 
   f.row.asset_type='templates'; f.row.status='voting'; f.row.target_registry_asset_id='shared-template';
   let response=await GET(new Request('https://example.test/api/pipeline/feedback'),params);
   expect(await response.json()).toMatchObject({ revisionBase: {parentSubmissionId:id,assetId:'shared-template',reviewedAt:'2026-11-26T12:00:00Z',parentContentVersion:'a'.repeat(32)} });
+  f.row.status='archived'; response=await GET(new Request('https://example.test/api/pipeline/feedback'),params);
+  expect(await response.json()).toMatchObject({authorNote:'Please improve contrast.',revisionBase:null});
+  f.row.status='voting';
   f.versionError=true;response=await GET(new Request('https://example.test/api/pipeline/feedback'),params);expect(response.status).toBe(503);
 });
 it('distinguishes signed-out, unavailable and invalid revision requests', async () => {

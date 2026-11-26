@@ -168,6 +168,9 @@ const throwRegistryCommandError = (message: string, errorMessage?: string): neve
 
 const throwTemplateRevisionError = (errorMessage?: string): never => {
   throwIfPublicationBusy(errorMessage);
+  if (errorMessage?.includes('template_review_unavailable') || errorMessage?.includes('could not obtain lock')) {
+    throw new PipelineRegistryCommandError('The reviewed revision is busy. Read this exact attempt before retrying.', 503);
+  }
   if (errorMessage?.includes('template_author_revision_live_lineage_unsupported')) {
     throw new PipelineRegistryCommandError('This live-lineage review requires its existing governed revision path.', 409);
   }

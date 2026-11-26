@@ -25,7 +25,7 @@ create function public.cardforge_create_template_author_revision_draft(
   p_expected_parent_version text, p_actor_id text, p_actor_email text,
   p_name text, p_template_payload jsonb, p_submission_key text
 ) returns uuid language plpgsql security invoker set search_path = '' as $$
-declare parent public.cardforge_contributor_asset_submissions%rowtype; locked_asset_id text;
+declare parent public.cardforge_contributor_asset_submissions%rowtype; locked_asset_id text; locked_lineage_id uuid;
   prior public.cardforge_contributor_asset_submissions%rowtype; created_id uuid;
 begin
   if p_parent_submission_id is null or p_expected_reviewed_at is null
@@ -37,12 +37,19 @@ begin
   then raise exception 'template_author_revision_invalid'; end if;
   select * into parent from public.cardforge_contributor_asset_submissions where id=p_parent_submission_id;
   if not found or parent.contributor_id is distinct from p_actor_id or parent.asset_type<>'templates'
-    or parent.target_registry_asset_id is null then raise exception 'template_author_revision_not_found'; end if;
+    or parent.target_registry_asset_id is null or parent.lineage_id is null then raise exception 'template_author_revision_not_found'; end if;
   locked_asset_id:=parent.target_registry_asset_id;
-  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(locked_asset_id,0));
-  select * into parent from public.cardforge_contributor_asset_submissions where id=p_parent_submission_id for update;
+  locked_lineage_id:=parent.lineage_id;
+  if not pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended(locked_asset_id,0)) then
+    raise exception 'template_review_unavailable' using errcode='55P03'; end if;
+  -- Vote/recovery owners lock lineage before revision. Fail rather than wait
+  -- under an incompatible lock order; callers retain the same attempt.
+  perform 1 from public.cardforge_pipeline_asset_lineages where id=locked_lineage_id and purge_state is null for update nowait;
+  if not found then raise exception 'template_author_revision_conflict'; end if;
+  select * into parent from public.cardforge_contributor_asset_submissions where id=p_parent_submission_id for update nowait;
   if not found or parent.contributor_id is distinct from p_actor_id or parent.asset_type<>'templates'
-    or parent.target_registry_asset_id is distinct from locked_asset_id then raise exception 'template_author_revision_not_found'; end if;
+    or parent.target_registry_asset_id is distinct from locked_asset_id or parent.lineage_id is distinct from locked_lineage_id
+    then raise exception 'template_author_revision_not_found'; end if;
   select * into prior from public.cardforge_contributor_asset_submissions s
     where s.contributor_id=p_actor_id and s.target_registry_asset_id=parent.target_registry_asset_id
       and s.submission_key=p_submission_key limit 1;
@@ -69,7 +76,7 @@ begin
     calculated_access_tier='hidden',automated_access_tier='hidden',decision_reason='superseded_revision',
     tier_decision_reason='superseded_revision' where id=parent.id;
   created_id:=public.cardforge_create_template_pipeline_draft(parent.target_registry_asset_id,p_name,p_actor_id,
-    coalesce(p_actor_email,''),p_template_payload,p_submission_key,null::jsonb);
+    coalesce(p_actor_email,''),p_template_payload,p_submission_key);
   update public.cardforge_contributor_asset_submissions set author_resubmission_parent_id=parent.id,
     description=parent.description, preview_url=parent.preview_url, source_notes=parent.source_notes,
     specialty_tags=parent.specialty_tags, use_case_tags=parent.use_case_tags,
