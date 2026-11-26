@@ -6,7 +6,7 @@ set local statement_timeout='45s';
 savepoint feedback_recovery_fixture;
 do $$
 declare
- a uuid:=gen_random_uuid(); sibling uuid:=gen_random_uuid(); manual uuid:=gen_random_uuid(); private_id uuid:=gen_random_uuid();
+ a uuid:=gen_random_uuid(); sibling uuid:=gen_random_uuid(); history_id uuid:=gen_random_uuid(); manual uuid:=gen_random_uuid(); private_id uuid:=gen_random_uuid();
  l uuid:=gen_random_uuid(); ml uuid:=gen_random_uuid(); pl uuid:=gen_random_uuid();
  legacy_id uuid:=gen_random_uuid(); unknown_id uuid:=gen_random_uuid(); legacy_lineage uuid:=gen_random_uuid(); metadata jsonb;
  snap jsonb; epoch timestamptz; deadline timestamptz; content_version text; total bigint;
@@ -71,6 +71,30 @@ begin
  or not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=sibling and contributor_id='preference-mover' and vote_value='positive')
  or (select trashed_at from public.cardforge_contributor_asset_submissions where id=a) is distinct from epoch
  then raise exception 'positive_preference_or_retained_epoch_changed_incorrectly'; end if;
+ -- One preference moves for both directions and preserves other reviewers.
+ perform public.cardforge_cast_contributor_asset_vote(a,'transfer-reviewer','positive');
+ perform public.cardforge_cast_contributor_asset_vote(a,'independent-reviewer','negative');
+ insert into public.cardforge_contributor_asset_submissions(id,lineage_id,contributor_id,asset_type,name,status,revision_number,source_url,target_registry_asset_id)
+ values(history_id,l,'other-author','icons','Retained history proof','archived',3,'https://example.invalid/vote-history.svg',(select registry_asset_id from public.cardforge_pipeline_asset_lineages where id=l));
+ if not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=a and contributor_id='transfer-reviewer' and vote_value='positive')
+ then raise exception 'new_revision_cleared_existing_vote'; end if;
+ perform public.cardforge_cast_contributor_asset_vote(sibling,'transfer-reviewer','negative');
+ if (select count(*) from public.cardforge_contributor_asset_votes where lineage_id=l and contributor_id='transfer-reviewer')<>1
+ or not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=sibling and contributor_id='transfer-reviewer' and vote_value='negative')
+ or not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=a and contributor_id='independent-reviewer' and vote_value='negative')
+ then raise exception 'like_to_dislike_transfer_or_other_vote_failed'; end if;
+ perform public.cardforge_cast_contributor_asset_vote(a,'transfer-reviewer','negative');
+ if (select count(*) from public.cardforge_contributor_asset_votes where lineage_id=l and contributor_id='transfer-reviewer')<>1
+ or not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=a and contributor_id='transfer-reviewer' and vote_value='negative')
+ then raise exception 'dislike_to_dislike_transfer_failed'; end if;
+ perform public.cardforge_cast_contributor_asset_vote(sibling,'transfer-reviewer','positive');
+ if (select count(*) from public.cardforge_contributor_asset_votes where lineage_id=l and contributor_id='transfer-reviewer')<>1
+ or not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=sibling and contributor_id='transfer-reviewer' and vote_value='positive')
+ then raise exception 'dislike_to_like_transfer_failed'; end if;
+ perform public.cardforge_cast_contributor_asset_vote(history_id,'transfer-reviewer','negative');
+ if (select count(*) from public.cardforge_contributor_asset_votes where lineage_id=l and contributor_id='transfer-reviewer')<>1
+ or not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=history_id and contributor_id='transfer-reviewer' and vote_value='negative')
+ then raise exception 'history_vote_transfer_failed'; end if;
  begin
  perform public.cardforge_read_revision_recovery(sibling,'trash-author',false); raise exception 'sibling_authorship_granted_recovery';
  exception when raise_exception then if sqlerrm<>'revision_recovery_not_permitted' then raise; end if; end;
