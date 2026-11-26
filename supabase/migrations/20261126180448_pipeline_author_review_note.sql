@@ -73,9 +73,8 @@ declare
   author_note text := pg_catalog.btrim(coalesce(p_author_note, ''));
   result integer;
 begin
-  if pg_catalog.char_length(author_note) > 600
-    or (p_review_status <> 'pending' and author_note = '') then
-    raise exception 'author_review_note_required';
+  if pg_catalog.char_length(author_note) > 600 then
+    raise exception 'author_review_note_too_long';
   end if;
   result := public.cardforge_set_contributor_asset_editorial_review(
     p_submission_id, p_review_status, p_review_note, p_reviewer_contributor_id, p_expected_evidence_version);

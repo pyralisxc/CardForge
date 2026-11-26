@@ -186,8 +186,8 @@ export function OwnerAssetLibraryPanel({
       window.alert('Add a concise editorial reason before recording this decision.');
       return;
     }
-    if (authorReviewNote === null || (editorialReviewStatus !== 'pending' && !authorReviewNote.trim())) {
-      window.alert('Add a note for the author before recording this decision.');
+    if (authorReviewNote === null) {
+      window.alert('The author note is unavailable. Read the exact review before recording a decision.');
       return;
     }
     const saved = await onUpdateEditorialReview(submissionId, {
@@ -400,7 +400,7 @@ export function OwnerAssetLibraryPanel({
                   </label>
                   <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
                     Note to the author
-                    <span className="normal-case tracking-normal">Only the author and Owner can read this exact-revision note. Keep private reviewer observations in the editorial reason.</span>
+                    <span className="normal-case tracking-normal">Optional. Only the author and Owner can read this exact-revision note. Keep private reviewer observations in the editorial reason.</span>
                     <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
                       value={authorReviewNote ?? ''} disabled={authorReviewNote === null} maxLength={600}
                       onChange={(event) => setAuthorReviewNote(event.target.value)} />

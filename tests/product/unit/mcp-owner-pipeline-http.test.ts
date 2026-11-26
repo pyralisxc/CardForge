@@ -36,6 +36,13 @@ it('executes the existing native decision RPC once, retaining committed receipt 
   expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_review_with_author_note', expect.objectContaining({ p_submission_id: id, p_review_status: 'revise', p_expected_evidence_version: 0, p_reviewer_contributor_id: 'resolved-owner' }));
   expect(f.network).not.toHaveBeenCalled();
 });
+it('accepts the existing Owner tool input without exposing the private reason as an author note', async () => {
+  await initialize();
+  const result = await read(await request(2, 'tools/call', { name: 'save_pipeline_editorial_review', arguments: { submissionId: id, reviewStatus: 'revise', reviewNote: 'Private reviewer observation', expectedEvidenceVersion: 0 } }));
+  expect(result.result.isError).not.toBe(true);
+  expect(result.result.structuredContent.receipt).toMatchObject({ committed: true });
+  expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_review_with_author_note', expect.objectContaining({ p_review_status: 'revise', p_author_note: '' }));
+});
 it('denies non-Owner discovery and calls before any product mutation, and rejects fabricated actor/CAS fields', async () => {
   await initialize(); f.account.mockResolvedValue({ user: { id: 'ordinary' }, isOwner: false });
   for (const method of ['tools/list', 'tools/call']) {

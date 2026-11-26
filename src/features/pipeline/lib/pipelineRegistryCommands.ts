@@ -236,8 +236,8 @@ const throwEditorialReviewError = (errorMessage?: string, errorCode?: string): n
   if (errorMessage?.includes('editorial_review_reason_required')) {
     throw new PipelineRegistryCommandError('Add an editorial review reason before recording this decision.', 400);
   }
-  if (errorMessage?.includes('author_review_note_required')) {
-    throw new PipelineRegistryCommandError('Add a note to the author before recording this decision.', 400);
+  if (errorMessage?.includes('author_review_note_too_long')) {
+    throw new PipelineRegistryCommandError('The note to the author must be at most 600 characters.', 400);
   }
   if (errorMessage?.includes('editorial_review_live_requires_quarantine')) {
     throw new PipelineRegistryCommandError('Live content must be quarantined or retired when it needs correction; “needs revision” is for unpublished candidates.', 409);

@@ -12,6 +12,11 @@ it('returns shared committed receipt even when no follow-up program is available
   expect(response.status).toBe(200); expect(await response.json()).toMatchObject({ receipt: { outcome: 'committed', committed: true }, program: null });
   expect(f.editorial).toHaveBeenCalledExactlyOnceWith('browser-owner', { submissionId: id, reviewStatus: 'revise', reviewNote: 'Observed clipping', authorNote: 'Please fix clipping.', expectedEvidenceVersion: 3 }, { includeProgram: true });
 });
+it('passes an existing HTTP review without an author note to the same Owner command', async () => {
+  const response = await PUT(new Request('https://cardforge.test', { method: 'PUT', body: JSON.stringify({ editorialReviewStatus: 'revise', editorialReviewNote: 'Private reviewer observation', expectedEvidenceVersion: 3 }) }), params);
+  expect(response.status).toBe(200);
+  expect(f.editorial).toHaveBeenCalledExactlyOnceWith('browser-owner', { submissionId: id, reviewStatus: 'revise', reviewNote: 'Private reviewer observation', authorNote: undefined, expectedEvidenceVersion: 3 }, { includeProgram: true });
+});
 it('keeps unknown outcome explicitly uncertain and non-retryable in the existing API error contract', async () => {
   f.editorial.mockResolvedValue({ snapshot: null, program: null, receipt: { ...receipt, outcome: 'uncertain', committed: null } });
   const response = await PUT(new Request('https://cardforge.test', { method: 'PUT', body: JSON.stringify({ editorialReviewStatus: 'revise', editorialReviewNote: 'Observed' }) }), params);

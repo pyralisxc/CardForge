@@ -750,7 +750,7 @@ export const commitPipelineEditorialReview = async ({
   submissionId: string;
   reviewStatus: unknown;
   reviewNote: unknown;
-  authorNote: unknown;
+  authorNote?: unknown;
   expectedEvidenceVersion?: unknown;
   currentUserId: string;
   currentContributorIds?: string[];
@@ -769,9 +769,6 @@ export const commitPipelineEditorialReview = async ({
   const normalizedAuthorNote = normalizePipelineLongText(authorNote, 600);
   if (normalizedStatus !== 'pending' && !normalizedNote) {
     throw new PipelineStoreError('Add an editorial review reason before recording this decision.', 400);
-  }
-  if (normalizedStatus !== 'pending' && !normalizedAuthorNote) {
-    throw new PipelineStoreError('Add a note to the author before recording this decision.', 400);
   }
   const decision = normalizedStatus === 'pending'
     ? { ok: true as const, value: '' }
