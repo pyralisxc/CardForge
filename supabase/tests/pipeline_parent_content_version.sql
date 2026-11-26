@@ -77,4 +77,32 @@ begin
     then raise exception 'restored_authored_content_does_not_match_original_pin'; end if;
   raise notice 'PASS historical parent hash, operational stability, authored sensitivity, unchanged stored pins and stale-base rejection';
 end $$;
+-- Ordinary unpublished assets share this author-note and snapshot boundary,
+-- including writes from the browser and Studio command owners.
+do $$
+declare
+  fixture_id uuid := gen_random_uuid();
+  actor text := 'review-snapshot-fixture-' || gen_random_uuid()::text;
+  baseline text;
+begin
+  insert into public.cardforge_contributor_asset_submissions(id,contributor_id,asset_type,name,status,source_url)
+    values(fixture_id,actor,'icons','Exact review fixture','voting','https://example.invalid/review-fixture.svg');
+  baseline := public.cardforge_media_parent_content_version(fixture_id);
+  perform public.cardforge_review_with_author_note(fixture_id,'revise','Private reviewer reason',actor,null,'Author direction');
+  if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=fixture_id
+    and s.editorial_review_status='revise' and s.author_review_note='Author direction')
+    or public.cardforge_media_parent_content_version(fixture_id) is distinct from baseline
+  then raise exception 'author_feedback_not_exact_or_content_version_changed'; end if;
+  begin
+    update public.cardforge_contributor_asset_submissions s set name='Changed after review' where s.id=fixture_id;
+    raise exception 'reviewed_snapshot_mutation_accepted';
+  exception when raise_exception then
+    if sqlerrm <> 'reviewed_revision_immutable' then raise; end if;
+  end;
+  perform public.cardforge_review_with_author_note(fixture_id,'pending','',actor,null,'');
+  if exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=fixture_id and s.author_review_note<>'')
+    then raise exception 'stale_author_feedback_retained'; end if;
+  update public.cardforge_contributor_asset_submissions s set name='Changed after reset' where s.id=fixture_id;
+  raise notice 'PASS exact author feedback, review snapshot guard and stale feedback reset';
+end $$;
 rollback;
