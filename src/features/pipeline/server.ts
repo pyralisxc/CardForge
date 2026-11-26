@@ -51,7 +51,7 @@ export { listAgentPipelineSubmissions, inspectAgentPipelineRevision, readAgentPi
 export { pipelineAgentListInput, pipelineAgentExactInput, pipelineAgentVoteInput, pipelineAgentHeartInput, pipelineAgentPage, pipelineAgentRevision, pipelineAgentHealth, pipelineAgentEngagement, pipelineAgentMutationReceipt } from './lib/pipelineAgentContract';
 
 export { getContributorPipelineDraft, getContributorReviewFeedback, saveContributorPipelineMetadata, finalizeContributorTemplateSubmission } from './server/contributorDraftCommands';
-export { contributorDraftExactInput, contributorDraftWriteInput, contributorDraftSnapshot, contributorDraftMutationResult, contributorReviewFeedback } from './lib/contributorDraftContract';
+export { contributorDraftExactInput, contributorDraftWriteInput, contributorDraftSnapshot, contributorDraftMutationResult, contributorReviewFeedback, contributorTemplateRevisionBase } from './lib/contributorDraftContract';
 export { publishedClassificationReadInput, publishedClassificationInput, publishedClassificationSnapshot, publishedClassificationReceipt, publishedClassificationResult } from './lib/publishedClassificationContract';
 
 export { mediaRevisionBaseInput, mediaRevisionAttemptInput, mediaRevisionBaseOutput, mediaRevisionReceipt, mediaRevisionReceiptOutput, mediaRevisionCommandResult } from './lib/mediaRevisionCommand';

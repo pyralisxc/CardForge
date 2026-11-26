@@ -30,7 +30,7 @@ begin
   original_hash := pins->>'parentContentVersion';
   -- Reproduce the historical row shape before the two October25 additive columns.
   -- The remaining exclusion list is the unchanged October17 canonical contract.
-  select md5(((to_jsonb(s)-array['owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256','revision_recovery_version','revision_trash_actor_id','revision_trash_actor_role','revision_publication_retained','revision_trash_previous_status','revision_vote_trash_fingerprint','author_review_note'])-array[
+  select md5(((to_jsonb(s)-array['owner_purge_requested_at','purge_claim_token','catalog_dependencies','source_content_sha256','revision_recovery_version','revision_trash_actor_id','revision_trash_actor_role','revision_publication_retained','revision_trash_previous_status','revision_vote_trash_fingerprint','author_review_note','author_resubmission_parent_id'])-array[
     'updated_at','positive_votes','negative_votes','quality_score','status','contributor_lifecycle_state',
     'automated_status','owner_status_override','calculated_access_tier','automated_access_tier','owner_access_tier_override',
     'tier_decision_reason','owner_note','decision_reason','editorial_review_status','editorial_review_note',
@@ -104,5 +104,41 @@ begin
     then raise exception 'stale_author_feedback_retained'; end if;
   update public.cardforge_contributor_asset_submissions s set name='Changed after reset' where s.id=fixture_id;
   raise notice 'PASS exact author feedback, review snapshot guard and stale feedback reset';
+end $$;
+do $$
+declare
+  asset text := 'author-review-history-' || replace(gen_random_uuid()::text,'-','');
+  actor text := 'author-history-fixture-' || gen_random_uuid()::text;
+  parent_id uuid; next_id uuid; duplicate_id uuid; parent_lineage uuid;
+  version text; reviewed timestamptz; payload jsonb;
+begin
+  payload:=jsonb_build_object('id',asset,'name','Original Template','templateSource','default','templateLibrarySource','pipeline','templateRegistryStatus','draft');
+  parent_id:=public.cardforge_create_template_pipeline_draft(asset,'Original Template',actor,'',payload,'initial-history-fixture',null::jsonb);
+  perform public.cardforge_submit_template_pipeline_draft(parent_id,actor,'Original Template','First authored candidate',
+    'https://example.invalid/template-preview','Fixture rights',array['games'],array['tcg'],'template.front');
+  perform public.cardforge_review_with_author_note(parent_id,'revise','Private review',actor,null,'Please improve the title');
+  select s.lineage_id,s.editorial_reviewed_at into parent_lineage,reviewed from public.cardforge_contributor_asset_submissions s where s.id=parent_id;
+  version:=public.cardforge_media_parent_content_version(parent_id);
+  payload:=jsonb_set(payload,'{name}',to_jsonb('Updated Template'::text));
+  next_id:=public.cardforge_create_template_author_revision_draft(parent_id,reviewed,version,actor,'','Updated Template',payload,'revision-history-fixture');
+  if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=parent_id and s.lineage_id=parent_lineage
+      and s.status='archived' and s.decision_reason='superseded_revision' and s.trashed_at is null and s.purge_after is null
+      and s.editorial_review_status='revise' and s.author_review_note='Please improve the title')
+    or not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=next_id and s.lineage_id=parent_lineage
+      and s.status='draft' and s.revision_number=2 and s.author_resubmission_parent_id=parent_id
+      and s.description='First authored candidate' and s.source_notes='Fixture rights'
+      and s.specialty_tags=array['games'] and s.use_case_tags=array['tcg'])
+  then raise exception 'author_review_history_transition_failed'; end if;
+  duplicate_id:=public.cardforge_create_template_author_revision_draft(parent_id,reviewed,version,actor,'','Updated Template',payload,'revision-history-fixture');
+  if duplicate_id is distinct from next_id then raise exception 'author_review_history_retry_created_sibling'; end if;
+  begin
+    perform public.cardforge_create_template_author_revision_draft(parent_id,reviewed,version,'another-author','','Updated Template',payload,'forged-history-fixture');
+    raise exception 'author_review_history_accepted_peer';
+  exception when raise_exception then if sqlerrm<>'template_author_revision_not_found' then raise; end if; end;
+  begin
+    perform public.cardforge_create_template_author_revision_draft(parent_id,reviewed,version,actor,'','Changed',payload,'revision-history-fixture');
+    raise exception 'author_review_history_accepted_changed_attempt';
+  exception when raise_exception then if sqlerrm<>'template_author_revision_conflict' then raise; end if; end;
+  raise notice 'PASS exact author resubmission preserves History and allocates one same-lineage draft';
 end $$;
 rollback;

@@ -353,13 +353,17 @@ export const documentIdInputSchema = fromJsonSchema<{ documentId: string }>({
   },
 });
 
-export const pipelineInputSchema = fromJsonSchema<{ documentId: string; templateId?: string; managedRasterSelection?: ManagedRasterSelection }>({
+export const pipelineInputSchema = fromJsonSchema<{ documentId: string; templateId?: string; managedRasterSelection?: ManagedRasterSelection; revisionBase?: { parentSubmissionId: string; assetId: string; reviewedAt: string; parentContentVersion: string } }>({
   type: 'object',
   additionalProperties: false,
   required: ['documentId'],
   properties: {
     documentId: { type: 'string', format: 'uuid' },
     templateId: { type: 'string', minLength: 1 },
+    revisionBase: { type: 'object', additionalProperties: false,
+      required: ['parentSubmissionId', 'assetId', 'reviewedAt', 'parentContentVersion'],
+      description: 'Exact revisionBase returned by get_contributor_review_feedback for this author’s reviewed Template.',
+      properties: { parentSubmissionId: { type: 'string', format: 'uuid' }, assetId: { type: 'string', minLength: 1, maxLength: 200 }, reviewedAt: { type: 'string', minLength: 1 }, parentContentVersion: { type: 'string', pattern: '^[a-f0-9]{32}$' } } },
     managedRasterSelection: {
       type: 'object', additionalProperties: false, required: ['registryAssetId', 'publishedSubmissionId', 'elementId'],
       description: 'Optional explicit managed raster for a static image slot. No digest, URL or eligibility assertions. Server revalidates the exact publication.',

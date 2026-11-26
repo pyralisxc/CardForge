@@ -281,11 +281,13 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
   documentId,
   templateId,
   managedRasterSelection,
+  revisionBase,
 }: {
   access: StudioAgentAccess;
   documentId: string;
   templateId?: string;
   managedRasterSelection?: ManagedRasterSelection;
+  revisionBase?: { parentSubmissionId: string; assetId: string; reviewedAt: string; parentContentVersion: string };
 }) => {
   requireContributionScope(access, 'library.submit');
   const document = await getStudioDocument(
@@ -307,13 +309,13 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
     template: localTemplate,
   });
 
-  const sharedTemplateId = createNewSharedTemplateId({
+  const sharedTemplateId = revisionBase?.assetId ?? createNewSharedTemplateId({
     contributorId: access.user.id,
     localTemplateId: localTemplate.id!,
     name: localTemplate.name,
   });
   const submissionKey = createHash('sha256')
-    .update(`mcp:${access.user.id}:${document.id}:${document.revision}:${localTemplate.id}${managedRasterSelection ? `:${JSON.stringify([managedRasterSelection.registryAssetId, managedRasterSelection.publishedSubmissionId, managedRasterSelection.elementId])}` : ''}`)
+    .update(`mcp:${access.user.id}:${document.id}:${document.revision}:${localTemplate.id}${managedRasterSelection ? `:${JSON.stringify([managedRasterSelection.registryAssetId, managedRasterSelection.publishedSubmissionId, managedRasterSelection.elementId])}` : ''}${revisionBase ? `:${JSON.stringify(revisionBase)}` : ''}`)
     .digest('hex');
   const draft = await createTemplatePipelineDraft({
     template: {
@@ -330,6 +332,7 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
     contributorEmail: access.email,
     submissionKey,
     managedRasterSelection,
+    revisionBase,
   });
 
   return {

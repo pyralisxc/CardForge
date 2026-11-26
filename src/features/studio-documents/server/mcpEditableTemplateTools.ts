@@ -388,7 +388,7 @@ export const registerEditableTemplateTools = ({
     'continue_template_in_pipeline',
     {
       title: 'Continue a Template in Forge Review',
-      description: 'Create a Contributor Pipeline draft from a private Studio Template, then return Forge Review. This is separate from creative planning and does not publish the Template.',
+      description: 'Create a Contributor Pipeline draft from a private Studio Template. For a reviewed revision, pass the exact revisionBase from get_contributor_review_feedback to continue its lineage. This does not publish.',
       inputSchema: pipelineInputSchema,
       outputSchema: pipelineHandoffOutputSchema,
       annotations: {
@@ -397,9 +397,9 @@ export const registerEditableTemplateTools = ({
         openWorldHint: false,
       },
     },
-    async ({ documentId, templateId, managedRasterSelection }) => runObservedMcpTool({
+    async ({ documentId, templateId, managedRasterSelection, revisionBase }) => runObservedMcpTool({
       toolName: 'continue_template_in_pipeline',
-      input: { documentId, templateId, managedRasterSelection },
+      input: { documentId, templateId, managedRasterSelection, revisionBase },
       execute: async (access) => {
         const userId = access.user.id;
         const rateLimit = await consumeRateLimit({
@@ -413,7 +413,7 @@ export const registerEditableTemplateTools = ({
           rateLimit.retryAfterSeconds,
           { resource: 'template_pipeline_handoffs', maximum: 60, unit: 'attempts_per_hour' },
         );
-        const result = await submitTemplateWorkingDocumentToPipeline({ access, documentId, templateId, managedRasterSelection });
+        const result = await submitTemplateWorkingDocumentToPipeline({ access, documentId, templateId, managedRasterSelection, revisionBase });
         const structuredContent = {
           draftId: result.draft.id,
           openInPipelineUrl: absoluteUrl(result.openInPipelineUrl),

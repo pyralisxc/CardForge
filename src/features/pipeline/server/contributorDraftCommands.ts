@@ -14,17 +14,26 @@ export async function getContributorReviewFeedback(actorUserId: string, input: u
   requireScope(viewer);
   const db = getSupabaseServerClient(); if (!db) throw new PipelineStoreError('Review feedback is unavailable.', 503);
   const { data: row, error } = await db.from('cardforge_contributor_asset_submissions')
-    .select('id,lineage_id,revision_number,contributor_id,editorial_review_status,author_review_note,editorial_reviewed_at,purge_state')
+    .select('id,lineage_id,revision_number,contributor_id,asset_type,status,trashed_at,published_at,owner_status_override,target_registry_asset_id,editorial_review_status,author_review_note,editorial_reviewed_at,purge_state')
     .eq('id', parsed.data.submissionId).maybeSingle();
   if (error) throw new PipelineStoreError('Review feedback is unavailable.', 503);
   if (!row || row.id !== parsed.data.submissionId || row.purge_state || (!viewer.isOwner && row.contributor_id !== viewer.userId)) {
     throw new PipelineStoreError('This exact authorized revision was not found; no sibling was substituted.', 404);
   }
   const reviewStatus = row.editorial_review_status ?? 'pending';
+  let revisionBase = null;
+  if (row.asset_type === 'templates' && ['submitted', 'voting', 'publish_candidate'].includes(row.status)
+    && !row.trashed_at && !row.published_at && !row.owner_status_override
+    && reviewStatus === 'revise' && row.editorial_reviewed_at && row.target_registry_asset_id) {
+    const version = await db.rpc('cardforge_media_parent_content_version', { p_submission_id: row.id });
+    if (version.error || typeof version.data !== 'string') throw new PipelineStoreError('The exact reviewed revision is unavailable.', 503);
+    revisionBase = { parentSubmissionId: row.id, assetId: row.target_registry_asset_id,
+      reviewedAt: row.editorial_reviewed_at, parentContentVersion: version.data };
+  }
   const result = contributorReviewFeedback.safeParse({ submissionId: row.id, lineageId: row.lineage_id ?? null,
     revisionNumber: row.revision_number ?? null, reviewStatus,
     authorNote: reviewStatus === 'pending' ? null : row.author_review_note || null,
-    reviewedAt: row.editorial_reviewed_at ?? null });
+    reviewedAt: row.editorial_reviewed_at ?? null, revisionBase });
   if (!result.success) throw new PipelineStoreError('Exact review feedback could not be verified.', 503);
   return result.data;
 }

@@ -7,6 +7,7 @@ import {
   assertTemplatePipelineDraftContext,
   PipelineRegistryCommandError,
   isRepositoryTemplate,
+  contributorTemplateRevisionBase,
 } from '@/features/pipeline/server';
 import {
   ContributorAccessError,
@@ -78,6 +79,10 @@ export async function POST(request: Request) {
 
     const localTemplate = validation.data as TCGCardTemplate;
     assertTemplatePipelineDraftContext(localTemplate);
+    const suppliedRevisionBase = (parsedBody.data as Record<string, unknown>).revisionBase;
+    const revisionBase = suppliedRevisionBase === undefined ? undefined : contributorTemplateRevisionBase.safeParse(suppliedRevisionBase);
+    if (revisionBase && !revisionBase.success) return createApiErrorResponse(400, 'invalid_template_payload', 'Choose the exact reviewed Template revision.');
+    delete (localTemplate as TCGCardTemplate & { revisionBase?: unknown }).revisionBase;
     const selected = (parsedBody.data as Record<string,unknown>).managedRasterSelection;
     const selection = selected === undefined ? undefined : z.object({
       registryAssetId: z.string().min(1).max(200),
@@ -101,7 +106,7 @@ export async function POST(request: Request) {
       return createApiErrorResponse(400, 'invalid_idempotency_key', 'A valid Pipeline handoff key is required.');
     }
 
-    const sharedTemplateId = createNewSharedTemplateId({
+    const sharedTemplateId = revisionBase?.data?.assetId ?? createNewSharedTemplateId({
       contributorId: access.user.id,
       localTemplateId: localTemplate.id!,
       name: localTemplate.name,
@@ -121,6 +126,7 @@ export async function POST(request: Request) {
       contributorEmail: access.email,
       submissionKey,
       managedRasterSelection: selection ? selection.data : undefined,
+      revisionBase: revisionBase?.data,
     };
     if (new URL(request.url).searchParams.get('lookup') === '1') {
       const submissionId = await readTemplatePipelineDraftAttempt(draftInput);

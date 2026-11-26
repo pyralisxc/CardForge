@@ -99,6 +99,7 @@ interface TemplatePipelineDraftInput {
   contributorEmail: string | null;
   submissionKey: string;
   managedRasterSelection?: ManagedRasterSelection;
+  revisionBase?: { parentSubmissionId: string; assetId: string; reviewedAt: string; parentContentVersion: string };
 }
 
 export interface PurgePipelineSubmissionInput {
@@ -167,6 +168,12 @@ const throwRegistryCommandError = (message: string, errorMessage?: string): neve
 
 const throwTemplateRevisionError = (errorMessage?: string): never => {
   throwIfPublicationBusy(errorMessage);
+  if (errorMessage?.includes('template_author_revision_live_lineage_unsupported')) {
+    throw new PipelineRegistryCommandError('This live-lineage review requires its existing governed revision path.', 409);
+  }
+  if (errorMessage?.includes('template_author_revision_not_found')) throw new PipelineRegistryCommandError('The exact author revision was not found.', 404);
+  if (errorMessage?.includes('template_author_revision_conflict')) throw new PipelineRegistryCommandError('The reviewed revision or this attempt changed. Read the exact review again; your saved work is unchanged.', 409);
+  if (errorMessage?.includes('template_author_revision_invalid')) throw new PipelineRegistryCommandError('Provide the exact reviewed Template revision and a valid attempt.', 400);
   if (errorMessage?.includes('reviewed_revision_immutable')) {
     throw new PipelineRegistryCommandError('This revision has been reviewed. Continue your changes as a new revision.', 409);
   }
@@ -341,10 +348,12 @@ export const createTemplatePipelineDraft = async ({
   contributorEmail,
   submissionKey,
   managedRasterSelection,
+  revisionBase,
 }: TemplatePipelineDraftInput): Promise<TemplatePipelineDraftResult> => {
   assertTemplatePipelineDraftContext(template);
   const supabase = requireSupabase();
   const source = templateReviewPayload(template);
+  if (revisionBase && managedRasterSelection) throw new PipelineRegistryCommandError('This revision cannot adopt a new managed raster through this handoff.', 409);
   const attempt = managedRasterSelection
     ? await readManagedRasterAttempt(source, managedRasterSelection, contributorId, contributorEmail, submissionKey, 'draft', 0)
     : null;
@@ -353,6 +362,18 @@ export const createTemplatePipelineDraft = async ({
     ? await prepareManagedRasterTemplateRevision(source as TCGCardTemplate & { id: string }, managedRasterSelection)
     : null;
   const storedTemplate = await externalizePipelineTemplateAssets(prepared?.template ?? source);
+  if (revisionBase) {
+    if (storedTemplate.id !== revisionBase.assetId) throw new PipelineRegistryCommandError('The exact reviewed Template does not match this handoff.', 409);
+    const { data, error } = await supabase.rpc('cardforge_create_template_author_revision_draft', {
+      p_parent_submission_id: revisionBase.parentSubmissionId, p_expected_reviewed_at: revisionBase.reviewedAt,
+      p_expected_parent_version: revisionBase.parentContentVersion, p_actor_id: contributorId,
+      p_actor_email: contributorEmail ?? '', p_name: storedTemplate.name, p_template_payload: {
+        ...storedTemplate, templateSource: 'default', templateLibrarySource: 'pipeline', templateRegistryStatus: 'draft',
+      }, p_submission_key: submissionKey,
+    });
+    if (error || !data) throwTemplateRevisionError(error?.message);
+    return loadTemplatePipelineResult(String(data), 'draft');
+  }
   const { data: submissionId, error } = await supabase.rpc(
     prepared ? 'cardforge_author_template_managed_raster' : 'cardforge_create_template_pipeline_draft', {
     ...(prepared ? { p_kind: 'draft', p_description: '' , p_expected_revision: 0, p_adoption: { ...prepared.adoption, requestFingerprint: attempt!.requestFingerprint } } : {}),
