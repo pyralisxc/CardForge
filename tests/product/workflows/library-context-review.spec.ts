@@ -1460,3 +1460,45 @@ test('@golden Library refreshes exact displayed vote after another feedback even
   await expect(up).toHaveAttribute('data-active', 'false');
   await expect(up).toBeEnabled();
 });
+
+test('@golden Pipeline notice selects the exact revision and stays read after moving a vote', async ({page}) => {
+  const evidence = await mount(page, '?queueActual=1&noticeProof=1');
+  await page.getByRole('button',{name:/Notifications/}).click();
+  const notice = page.getByRole('button',{name:/Compare Shared material/});
+  await notice.click();
+  await expect(page.locator('#pipeline-review-revision-10000000-0000-4000-8000-000000000002')).toHaveAttribute('aria-current','true');
+  await page.getByRole('button',{name:/Vote up on Shared material revision 2/}).click();
+  await expect.poll(async () => page.evaluate(() => (window as typeof window & {libraryRequests:{method:string}[]}).libraryRequests.filter(x=>x.method==='POST').length)).toBe(1);
+  await page.getByRole('button',{name:/Vote down on Shared material revision 3/}).click();
+  await expect.poll(async () => page.evaluate(() => (window as typeof window & {libraryRequests:{method:string}[]}).libraryRequests.filter(x=>x.method==='POST').length)).toBe(2);
+  await page.getByRole('button',{name:/Notifications/}).click();
+  await expect(notice.locator('[aria-label="Unread"]')).toHaveCount(0);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(notice.locator('[aria-label="Unread"]')).toHaveCount(0);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+test('@golden Pipeline notice opens the exact eligible revision in shared Trash', async ({page}) => {
+  const evidence = await mount(page, '?queueActual=1&noticeProof=1&noticeTrash=1');
+  await page.getByRole('button',{name:/Notifications/}).click();
+  await page.getByRole('button',{name:/Compare Shared material/}).click();
+  await expect(page.locator('#shared-trash-10000000-0000-4000-8000-000000000002')).toHaveAttribute('aria-current','true');
+  await expect(page.getByLabel('Exact options for 10000000-0000-4000-8000-000000000002')).toBeVisible();
+  await page.getByRole('button',{name:/Notifications/}).click();
+  await expect(page.getByRole('button',{name:/Compare Shared material/}).locator('[aria-label="Unread"]')).toHaveCount(0);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+test('@golden Pipeline notice refuses an unavailable exact revision', async ({page}) => {
+  const evidence = await mount(page, '?queueActual=1&noticeProof=1&noticeRevoked=1');
+  await page.getByRole('button',{name:/Notifications/}).click();
+  await page.getByRole('button',{name:/Compare Shared material/}).click();
+  await expect(page.getByText('This exact Pipeline revision is no longer available for review.',{exact:true})).toBeVisible();
+  await expect(page.locator('[aria-current="true"][id^="pipeline-review-revision-"]')).toHaveCount(0);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+test('@golden Desk notice hands the exact revision to Pipeline Library', async ({page}) => {
+  const evidence = await mount(page, '?deskActual=1&deskMenu=1&noticeProof=1');
+  await page.getByRole('button',{name:/Notifications/}).click();
+  await page.getByRole('button',{name:/Compare Shared material/}).click();
+  await expect.poll(async () => page.evaluate(() => (window as typeof window & {libraryNavigations:string[]}).libraryNavigations)).toEqual(['/account?section=library&scope=pipeline&reviewSubmission=10000000-0000-4000-8000-000000000002&reviewLineage=20000000-0000-4000-8000-000000000001']);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});

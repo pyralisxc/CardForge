@@ -39,6 +39,7 @@ import { OutputActivityProvider, OutputActivityStatus } from '@/features/card-ge
 import type { CardFace } from '@/domain/cards';
 import { ArtifactScene, type ArtifactSceneHandle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
+import { usePipelineReviewNotices } from '@/features/pipeline/client/review-notices';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { beginProjectCardEdit, saveProjectCardEdit, type ProjectCardEditSession } from '@/features/project/client/cardEditSession';
 import {
@@ -178,6 +179,7 @@ function DeskContent({
     else commit();
   }, []);
   const { toast } = useToast();
+  const pipelineNotices = usePipelineReviewNotices(experience.signedIn && experience.contributor.canReview, persistenceScope);
   const browserSaveStatus = useBrowserWorkspaceSaveStatus();
   const browserStoragePersistence = useBrowserStoragePersistence();
   const [generationRevisionScopeIds, setGenerationRevisionScopeIds] = useState<string[]>([]);
@@ -530,7 +532,15 @@ function DeskContent({
         detailContent={<>{actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}{inspectorItem?.references.driveFileId ? <SelectedDriveFileActions key={inspectorItem.id} fileId={inspectorItem.references.driveFileId} accountId={inspectorItem.references.driveAccountId} name={inspectorItem.name} localSetId={inspectorItem.references.localSetId} disabled={!experience.signedIn || !experience.capabilities.canUseProjectFiles} onChanged={projection.refresh} onOpenCopy={(id) => projection.router.push(id ? createDeskReturnHref(`set:${id}`) : "/account")} /> : null}</>}
         actionContext={focusedItem ? workDetailRecord(focusedItem) : null}
         actions={actions}
-        accountControl={<><WorkspaceUpdateNotices /><PublicAuthControls /></>}
+        accountControl={<><WorkspaceUpdateNotices pipelineReview={experience.signedIn && experience.contributor.canReview ? {
+          ...pipelineNotices,
+          dismiss: id => pipelineNotices.acknowledge(id, 'dismissed'),
+          open: target => {
+            if (activeTool?.dirty) { toast({ title: 'Finish the current changes first', description: 'Save or close the open tool before reviewing a Pipeline revision.' }); return false; }
+            requestArtifactExit(() => projection.router.push(`/account?${new URLSearchParams({ section: 'library', scope: 'pipeline', reviewSubmission: target.submissionId, reviewLineage: target.lineageId })}`));
+            return true;
+          },
+        } : undefined} /><PublicAuthControls /></>}
         showPrimaryAction={!focusedItem}
         primaryAction={zoneAction('desk.create-set', 'New Set', 'tool-opened')}
         contextBand={contextDepth === 'desk' && (!focusedItem || focusedLocalSetId) ? undefined : <DeskContextRail

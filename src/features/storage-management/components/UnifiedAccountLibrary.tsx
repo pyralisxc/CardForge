@@ -2,6 +2,7 @@
 import { getPipelineTrashState } from '@/features/pipeline/client';
 
 import { PIPELINE_ENGAGEMENT_CHANGED, notifyPipelineEngagementChanged, loadPipelineEngagement, loadPipelineHeartMetric, submitPipelineVote, submitPipelineHeart, PipelineSourceDisclosure, type PipelineDesignSource } from '@/features/pipeline/client/engagement';
+import { usePipelineReviewNotices } from '@/features/pipeline/client/review-notices';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { HardDrive } from 'lucide-react';
@@ -29,8 +30,8 @@ import type { WorkbenchBusinessIdentity } from '@/features/creator-workbench/cli
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
 import { buildPipelineContentHealth, PipelineContentHealthPanel, type PipelineSubmission } from '@/features/pipeline/client';
 import { shouldOfferGoogleDriveReconciliation, useGoogleDriveWorkingSession } from '@/features/project/client/provider-google-drive';
-import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
-import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { getProjectPersistenceScope, type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { ApiClientError, readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import { NewSetDialog, usePublishedSetStarters } from '@/features/project/client/new-set';
 import { useProjectLibraryWorkspace, type LibraryCardEditSession } from '@/features/project/client/libraryWorkspace';
@@ -138,6 +139,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
   const { toast } = useToast();
   const workspaceUpdates = useWorkspaceUpdates();
+  const pipelineNotices = usePipelineReviewNotices(isSignedIn && experience.contributor.canReview, persistenceScope);
+  const acknowledgePipelineNotice = pipelineNotices.acknowledge;
+  const pipelineNoticeReady = pipelineNotices.ready; const pipelineNoticeError = pipelineNotices.error;
   const updateSetIds = useMemo(() => new Set(workspaceUpdates.sets.filter((set) => set.pending > 0).map((set) => set.set.id)), [workspaceUpdates.sets]);
   const [campaignDirty, setCampaignDirty] = useState(false);
   const [campaignCloseBlocked, setCampaignCloseBlocked] = useState<string | null>(null);
@@ -199,6 +203,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   }
   useEffect(() => { revisionHandoffMounted.current = true; return () => { revisionHandoffMounted.current = false; }; }, []);
   const [requestedSubmissionId, setRequestedSubmissionId] = useState<string | null>(null);
+  const [requestedReviewNotice, setRequestedReviewNotice] = useState<{ submissionId: string; lineageId: string } | null>(null);
+  const [trashReviewNotice, setTrashReviewNotice] = useState<{ submissionId: string; lineageId: string } | null>(null);
+  const [focusedReviewRevision, setFocusedReviewRevision] = useState<string | null>(null);
   const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
   const [votingId, setVotingId] = useState<string | null>(null);
   const voteInFlight = useRef(false);
@@ -281,6 +288,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     const requestedScope = params.get('scope');
     if (requestedScope === 'published' || requestedScope === 'pipeline' || requestedScope === 'campaigns') setScope(requestedScope);
     const tool = params.get('tool');
+    const reviewSubmission = params.get('reviewSubmission'); const reviewLineage = params.get('reviewLineage');
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (reviewSubmission && reviewLineage && uuid.test(reviewSubmission) && uuid.test(reviewLineage) && experience.contributor.canReview) {
+      setScope('pipeline'); setRevisionMode(false); setRequestedReviewNotice({ submissionId: reviewSubmission, lineageId: reviewLineage });
+    }
     if ((tool === 'edit-contribution' || tool === 'contribute') && params.get('submission') && experience.contributor.canSubmit) {
       setRequestedSubmissionId(params.get('submission'));
     } else if (tool === 'contribute' && experience.contributor.canSubmit) {
@@ -297,7 +309,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     if (status === 'google-drive-connected') setStorageCallback({ title: 'Google Drive connected', message: 'Choose an existing project folder or create a new one before saving projects to Drive.' });
     else if (status === 'google-drive-error') setStorageCallback({ title: 'Google Drive could not be connected', message: params.get('message') || 'Review Locations & connections and try again. Existing work remains unchanged.' });
     else setStorageCallback(null);
-  }, [experience.contributor.canSubmit, openTemplateDesign]);
+  }, [experience.contributor.canSubmit, experience.contributor.canReview, openTemplateDesign]);
   useEffect(() => {
     if (!requestedSubmissionId || !shared.program) return;
     const submission = shared.program.submissions.find((candidate) => candidate.id === requestedSubmissionId);
@@ -338,6 +350,32 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     if (!activeTool) priorRevisionNavigation.current = revisionNavigationKey;
   }, [activeTool, revisionsEnabled, revisionNavigationKey]);
   const currentItem = selection.objectId ? itemMap.get(selection.objectId) ?? null : null;
+  useEffect(() => {
+    if (!requestedReviewNotice) return;
+    if (!experience.contributor.canReview) { setRequestedReviewNotice(null); return; }
+    if (activeScope !== 'pipeline' || activeLoading || (!pipelineNoticeReady && !pipelineNoticeError)) return;
+    let current = true;
+    const target = requestedReviewNotice;
+    const item = [...itemMap.values()].find(candidate => candidate.scope === 'pipeline'
+      && candidate.pipeline.revisions.some(revision => revision.id === target.submissionId && revision.lineageId === target.lineageId));
+    void loadPipelineEngagement(target.submissionId, { lineageId: target.lineageId }).then(async engagement => {
+      if (!current || persistenceScope !== getProjectPersistenceScope()) return;
+      if (engagement.voteIssue) throw new Error(engagement.voteIssue);
+      if (engagement.trashedAt) {
+        setTrashReviewNotice(target); setSharedTrashMode(true); setRequestedReviewNotice(null); return;
+      }
+      if (activeFailure || !item) throw new Error('Exact revision is not present in the active Library.');
+      setSelection(previous => openEnvironmentDetail(previous, { objectId: item.id, listOffset: surfaceRef.current?.scrollTop ?? 0, focusReturnId: `library-object-${item.id}` }));
+      setFocusedReviewRevision(target.submissionId); setRequestedReviewNotice(null);
+      if (!await acknowledgePipelineNotice(target.submissionId)) toast({ title: 'Review opened', description: 'The notice could not be marked read in this browser.' });
+    }).catch((error: unknown) => {
+      if (!current || persistenceScope !== getProjectPersistenceScope()) return;
+      setRequestedReviewNotice(null);
+      const denied = error instanceof ApiClientError && [403, 404].includes(error.status);
+      toast({ title: 'Revision unavailable', description: denied ? 'This exact Pipeline revision is no longer available for review.' : 'The exact Pipeline revision could not be confirmed. Try the notice again.', variant: 'destructive' });
+    });
+    return () => { current = false; };
+  }, [requestedReviewNotice, activeScope, activeLoading, activeFailure, itemMap, experience.contributor.canReview, persistenceScope, pipelineNoticeReady, pipelineNoticeError, acknowledgePipelineNotice, toast]);
   cardEditContext.current = { scope: persistenceScope, itemId: selection.objectId ?? '' };
   setOpenContext.current = JSON.stringify([persistenceScope, activeScope, activeTool, selection.objectId]);
   const contentHealth = useMemo(() => buildPipelineContentHealth({ catalog: shared.catalog, program: shared.program }), [shared.catalog, shared.program]);
@@ -686,6 +724,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       </> : <p className="text-sm text-muted-foreground">No editable cards in this Set.</p>}
     </section></div> : currentItem?.scope === 'personal' && currentItem.personal.kind === 'set' && (currentItem.personal.references.driveFileId || currentItem.personal.references.localFolderWorkId) ? <div className="space-y-2"><p className="text-sm text-muted-foreground">Open the current Set in this workspace to edit its cards in Library.</p><Button type="button" variant="outline" disabled={Boolean(projection.busyItemId) || !experience.capabilities.canUseProjectFiles} onClick={() => void prepareSelectedSetHere(currentItem.personal)}>Open Set in Library</Button></div> : currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
+      focusRevisionId={focusedReviewRevision}
       voteMetrics={voteMetrics}
       isOwner={experience.owner}
       currentContributorIds={shared.program?.currentContributorIds ?? []}
@@ -719,7 +758,14 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     primaryAction={createLibraryZoneAction('library.create-set', 'New Set')}
     showPrimaryAction={!activeTool}
     actions={actions}
-    accountControl={<><WorkspaceUpdateNotices /><PublicAuthControls /></>}
+    accountControl={<><WorkspaceUpdateNotices pipelineReview={isSignedIn && experience.contributor.canReview ? {
+      ...pipelineNotices,
+      dismiss: id => pipelineNotices.acknowledge(id, 'dismissed'),
+      open: target => {
+        if (toolDirty || toolCloseBlocked || campaignExitReason) { toast({ title: 'Finish the current changes first', description: 'Save or close the open tool before reviewing a Pipeline revision.' }); return false; }
+        setToolStack([]); setTrashReviewNotice(null); setSharedTrashMode(false); setRevisionMode(false); setScope('pipeline'); setRequestedReviewNotice(target); return true;
+      },
+    } : undefined} /><PublicAuthControls /></>}
     search={<EnvironmentSearch id="library-global-search" label={`Search ${activeScope}`} value={projection.query} onChange={projection.setQuery} inputRef={searchRef} disabled={Boolean(activeTool)} />}
     focusReturnId={selection.focusReturnId ?? undefined}
     surfaceRef={surfaceRef}
@@ -773,11 +819,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       <NewSetDialog renderPublishedSetDetails={set => set.submissionId ? <PipelineSourceDisclosure submissionId={set.submissionId} /> : <p className="text-xs">Exact source reactions are unavailable for this starter.</p>} createOpen={setStarters.createOpen} onCreateOpenChange={setStarters.setCreateOpen} onCreateWork={createSet} onSetFileOpened={focusCreatedSet} onCreatePublishedSet={set => { void setStarters.createFromPublishedSet(set); }} onRetryPublishedSets={setStarters.openCreateMenu} publishedSets={setStarters.publishedSets} publishedSetsLoading={setStarters.publishedSetsLoading} publishedSetsFailure={setStarters.publishedSetsFailure} creatingPublishedSetId={setStarters.creatingPublishedSetId} />
       {campaignExitReason ? <p role="status" className="px-3 py-2 text-sm text-[var(--cf-warning)]">{campaignExitReason}</p> : null}
       {activeScope === 'pipeline' && isSignedIn ? <div className="flex flex-wrap items-center gap-2 px-3 py-2" aria-label="Shared Pipeline discovery">
-        <button type="button" disabled={Boolean(activeTool)} aria-pressed={sharedTrashMode} className="border border-[var(--cf-border)] px-3 py-2 text-sm" onClick={() => { setSharedTrashMode(value => !value); setSelection(closeEnvironmentDetail); }}>
+        <button type="button" disabled={Boolean(activeTool)} aria-pressed={sharedTrashMode} className="border border-[var(--cf-border)] px-3 py-2 text-sm" onClick={() => { setTrashReviewNotice(null); setSharedTrashMode(value => !value); setSelection(closeEnvironmentDetail); }}>
           {sharedTrashMode ? 'Return to Pipeline' : 'Browse shared Trash'}
         </button>
       </div> : null}
-      {activeScope === 'pipeline' && isSignedIn && sharedTrashMode ? <SharedPipelineTrashCollection refreshEpoch={sharedTrashRefreshEpoch} actorScope={JSON.stringify([persistenceScope, isSignedIn, experience.owner, experience.contributor.active])} onOpenAuthorizedRevision={experience.owner ? async item => {
+      {activeScope === 'pipeline' && isSignedIn && sharedTrashMode ? <SharedPipelineTrashCollection refreshEpoch={sharedTrashRefreshEpoch} noticeTarget={trashReviewNotice} onNoticeOpened={acknowledgePipelineNotice} onBrowseAll={() => setTrashReviewNotice(null)} actorScope={JSON.stringify([persistenceScope, isSignedIn, experience.owner, experience.contributor.active])} onOpenAuthorizedRevision={experience.owner ? async item => {
         if (activeTool || !sharedTrashMode || activeScope !== 'pipeline' || !experience.owner || !isSignedIn) return;
         const requestId = ++sharedTrashRequestEpoch.current;
         const context = sharedTrashSessionKey;

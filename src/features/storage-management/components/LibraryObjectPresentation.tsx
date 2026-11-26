@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Boxes, Cloud, FolderOpen, ImageIcon, RefreshCcw, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
 
 import type { CardFace } from '@/domain/cards';
@@ -217,7 +217,7 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
   };
 };
 
-export function PipelineDetailContent({ item, voteMetrics, onVoteRevision, canReview, isVoteBlocked, isSelfVoteBlocked, isOwner = false, currentContributorIds = [], onRevisionCreated, onReviewRevision, onEditRevision }: {
+export function PipelineDetailContent({ item, voteMetrics, onVoteRevision, canReview, isVoteBlocked, isSelfVoteBlocked, isOwner = false, currentContributorIds = [], onRevisionCreated, onReviewRevision, onEditRevision, focusRevisionId }: {
   item: Extract<LibraryViewItem, { scope: 'pipeline' }>;
   voteMetrics: Record<string, { positiveVotes: number; negativeVotes: number; currentUserVote: 'positive' | 'negative' | null; voteIssue: string | null }>;
   onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
@@ -229,7 +229,12 @@ export function PipelineDetailContent({ item, voteMetrics, onVoteRevision, canRe
   onRevisionCreated?: () => Promise<void> | void;
   onReviewRevision?: (submission: PipelineSubmission) => void;
   onEditRevision?: (submission: PipelineSubmission) => void;
+  focusRevisionId?: string | null;
 }) {
+  useEffect(() => {
+    if (!focusRevisionId) return;
+    document.getElementById(`pipeline-review-revision-${focusRevisionId}`)?.focus();
+  }, [focusRevisionId, item.id]);
   const submission = item.pipeline.submission;
   const published = item.pipeline.currentPublishedSubmission;
   const assetId = published?.registryAssetId ?? published?.targetRegistryAssetId;
@@ -250,7 +255,7 @@ export function PipelineDetailContent({ item, voteMetrics, onVoteRevision, canRe
             : revision.publishedAt || revision.decisionReason === 'superseded_revision'
               ? 'History'
               : getPipelineStatusLabel(revision.status);
-      return <li key={revision.id}>
+      return <li key={revision.id} id={`pipeline-review-revision-${revision.id}`} tabIndex={-1} aria-current={focusRevisionId === revision.id ? 'true' : undefined}>
         <div className={styles.revisionOpen}><span>{getPipelineRevisionLabel(revision)}</span><span>{revisionRole}</span>{isOwner && onReviewRevision ? <button type="button" onClick={() => onReviewRevision(revision)}>Review &amp; manage {getPipelineRevisionLabel(revision)}</button> : null}{item.pipeline.ownership === 'mine' && item.pipeline.editableSubmission?.id === revision.id && onEditRevision ? <button type="button" onClick={() => onEditRevision(revision)}>Edit {getPipelineRevisionLabel(revision)}</button> : null}</div>
         {revision.decisionReason === 'superseded_revision' && (isOwner || currentContributorIds.includes(revision.contributorId))
           ? <ContributorReviewHistoryDisclosure submissionId={revision.id} /> : null}
