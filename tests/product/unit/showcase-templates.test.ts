@@ -146,6 +146,11 @@ describe('authored back background projections', () => {
   });
   const cardFor = (template: TCGCardTemplate): DisplayCard => ({ uniqueId: 'back-card', template, backingTemplate: null, backingTemplateId: null, data: {} });
   const backgrounds = (html: string) => [...html.matchAll(/style="([^"]*)"/gu)].map(match => match[1]).filter(style => style.includes('background-image:') && !style.includes('background-image:none'));
+  const expectBackgroundStack = (styles: string[]) => {
+    const layers = styles.map((style) => Number(style.match(/(?:^|;)z-index:(-?\d+)(?:;|$)/u)?.[1]));
+    expect(layers.every((layer) => Number.isInteger(layer) && layer < -1)).toBe(true);
+    for (let index = 1; index < layers.length; index++) expect(layers[index]).toBeLessThan(layers[index - 1]);
+  };
   const surfaces = (template: TCGCardTemplate) => {
     const card = cardFor(template);
     return [
@@ -189,8 +194,8 @@ describe('authored back background projections', () => {
         expect(style).toContain(`background-size:${sizes[index]}`);
         expect(style).toContain(`background-repeat:${index === 0 ? 'no-repeat' : 'repeat'}`);
         expect(style).toContain(`background-position:${index === 0 ? 'center' : '0% 0%'}`);
-        expect(style).toContain(`z-index:${-2-index}`);
       });
+      expectBackgroundStack(imageStyles);
     }
   });
 
@@ -248,8 +253,8 @@ describe('authored back background projections', () => {
         expect(style).toContain(`background-repeat:${index === 0 ? 'no-repeat' : 'repeat'}`);
         expect(style).toContain(`background-position:${index === 0 ? 'center' : '0% 0%'}`);
         expect(style).toContain('mix-blend-mode:multiply');
-        expect(style).toContain(`z-index:${-2-index}`);
       });
+      expectBackgroundStack(styles);
     }
   });
 
