@@ -211,6 +211,9 @@ test('@golden @preview downloads actual card PNG, Set ZIP, PDF and Tabletop shee
   expect(digitalPdfText).toContain('/MediaBox');
   expect(digitalPdfText).toContain('/Width 744');
   expect(digitalPdfText).toContain('/Height 1040');
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Remove prepared copy', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Remove prepared copy', exact: true })).toHaveCount(0);
   await page.getByRole('combobox', { name: 'Raster quality', exact: true }).click();
   await page.getByRole('option', { name: 'High detail', exact: true }).click();
   expect(digitalPdf.length).toBeLessThan(5_000_000);
@@ -406,14 +409,129 @@ test('keeps a PDF export visible after returning to the Set', async ({ page }) =
   await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
   const rail = page.locator('[data-desk-context-rail]');
   await rail.getByRole('button', { name: 'Output', exact: true }).click();
+  let downloadCount = 0;
+  page.on('download', () => { downloadCount += 1; });
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download digital PDF', exact: true }).click();
-  const status = page.getByRole('status').filter({ hasText: 'Digital PDF · 100 Card Scale Set: Preparing download.' });
+  const status = page.getByRole('status').filter({ hasText: 'Digital PDF · 100 Card Scale Set: Building output.' });
   await expect(status).toBeVisible();
   await rail.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(page.getByRole('searchbox', { name: 'Search cards in this Set' })).toBeVisible();
   await expect(status).toBeVisible();
   const artifact = await download;
   expect(await artifact.failure()).toBeNull();
-  await expect(page.getByRole('status').filter({ hasText: 'Digital PDF · 100 Card Scale Set: download requested.' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: /Digital PDF · 100 Card Scale Set: previously prepared output ready on this device.*Download requested/ })).toBeVisible();
+  expect(downloadCount).toBe(1);
+});
+
+test('keeps a prepared print PDF available after reloading the same browser workspace', async ({ page }, testInfo) => {
+  test.setTimeout(300_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: Number(process.env.CARDFORGE_E2E_OUTPUT_CARD_COUNT ?? '2'), exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  const download = page.waitForEvent('download', { timeout: 240_000 });
+  await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();
+  const first = await download;
+  const firstPath = testInfo.outputPath('first-print.pdf');
+  await first.saveAs(firstPath);
+  expect(await first.failure()).toBeNull();
+  const original = await readFile(firstPath);
+  expect(original.subarray(0, 5).toString()).toBe('%PDF-');
+  expect((await PDFDocument.load(original)).getPageCount()).toBeGreaterThan(0);
+  await page.addInitScript(() => {
+    const storage = navigator.storage;
+    const getDirectory = storage.getDirectory.bind(storage);
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    Object.defineProperty(window, '__releasePreparedStorage', { value: () => release() });
+    Object.defineProperty(storage, 'getDirectory', { value: async () => { await gate; return getDirectory(); } });
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('status').filter({ hasText: 'Checking browser storage' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save again', exact: true })).toHaveCount(0);
+  await page.evaluate(() => (window as unknown as { __releasePreparedStorage: () => void }).__releasePreparedStorage());
+  const saveAgain = page.getByRole('button', { name: 'Save again', exact: true });
+  await expect(saveAgain).toBeVisible();
+  const repeated = page.waitForEvent('download');
+  await saveAgain.click();
+  const second = await repeated;
+  const secondPath = testInfo.outputPath('second-print.pdf');
+  await second.saveAs(secondPath);
+  expect(await second.failure()).toBeNull();
+  expect(createHash('sha256').update(await readFile(secondPath)).digest('hex')).toBe(createHash('sha256').update(original).digest('hex'));
+  await expect(page.getByRole('button', { name: 'Remove prepared copy', exact: true })).toBeVisible();
+  page.once('dialog', async dialog => {
+    expect(dialog.message()).toContain('Finish any active downloads first');
+    await dialog.accept();
+  });
+  await page.getByRole('button', { name: 'Remove prepared copy', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Save again', exact: true })).toHaveCount(0);
+  // The already downloaded file stays intact after the device copy is removed.
+  expect(createHash('sha256').update(await readFile(firstPath)).digest('hex')).toBe(createHash('sha256').update(original).digest('hex'));
+  console.log(`Retained print PDF: ${original.length} bytes`);
+});
+
+test('requests the completed PDF once if device publication fails', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => {
+    const original = FileSystemFileHandle.prototype.createWritable;
+    FileSystemFileHandle.prototype.createWritable = function (...args) {
+      if (this.name.endsWith('.json')) return Promise.reject(new DOMException('Simulated metadata failure', 'QuotaExceededError'));
+      return original.apply(this, args);
+    };
+  });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 1, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  const event = page.waitForEvent('download', { timeout: 90_000 });
+  await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();
+  const download = await event;
+  const path = testInfo.outputPath('fallback.pdf');
+  await download.saveAs(path);
+  expect(await download.failure()).toBeNull();
+  expect((await readFile(path)).subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByRole('status').filter({ hasText: /prepared copy could not be retained/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save again', exact: true })).toHaveCount(0);
+});
+
+test('rechecks clean output access before saving a prepared PDF again', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  let allowAccess = true;
+  await page.route('**/api/account/entitlement', async (route) => {
+    if (!allowAccess) { await route.fulfill({ status: 503, json: { error: 'simulated outage' } }); return; }
+    const response = await route.fetch();
+    const entitlement = await response.json();
+    await route.fulfill({ json: { ...entitlement, canExportClean: true, capabilities: { ...entitlement.capabilities, canExportClean: true } } });
+  });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 1, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  const firstDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();
+  const original = await firstDownload;
+  const firstPath = testInfo.outputPath('clean-first.pdf');
+  await original.saveAs(firstPath);
+  expect(await original.failure()).toBeNull();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const again = page.getByRole('button', { name: 'Save again', exact: true });
+  await expect(again).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Changes made since preparation are not included.' })).toBeVisible();
+  let count = 0;
+  page.on('download', () => { count += 1; });
+  allowAccess = false;
+  await again.click();
+  await expect(page.getByRole('status').filter({ hasText: /Clean download access could not be verified/ })).toBeVisible();
+  expect(count).toBe(0);
+  allowAccess = true;
+  const repeatDownload = page.waitForEvent('download');
+  await again.click();
+  const repeat = await repeatDownload;
+  const secondPath = testInfo.outputPath('clean-again.pdf');
+  await repeat.saveAs(secondPath);
+  expect(await repeat.failure()).toBeNull();
+  expect(createHash('sha256').update(await readFile(firstPath)).digest('hex')).toBe(createHash('sha256').update(await readFile(secondPath)).digest('hex'));
+  expect(count).toBe(1);
 });

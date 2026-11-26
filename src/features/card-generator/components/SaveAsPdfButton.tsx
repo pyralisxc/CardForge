@@ -32,7 +32,10 @@ import { hasCardBacking } from '@/domain/rendering';
 import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 import { useBrandPresentation } from '@/features/brand-presentation/client';
 import { MAX_PDF_CARDS_PER_FILE, MAX_TOTAL_PDF_EXPORT_CARDS } from '../lib/pdfExportLimits';
-import { useOutputActivity } from './OutputActivity';
+import { requestOutputDownload, useOutputActivity } from './OutputActivity';
+import { createOutputStage, type OutputStage } from '../lib/outputReadyStorage';
+import { publishReadyOutput } from '../lib/outputReadyHandoff';
+import { getProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 
 interface SaveAsPdfButtonProps {
   buttonLabel?: string;
@@ -152,16 +155,33 @@ export function SaveAsPdfButton({
       title: totalChunks > 1 ? 'Generating chunked PDFs...' : 'Generating PDF...',
       description:
         totalChunks > 1
-          ? `Using ${rasterQuality.label.toLowerCase()} raster quality${firstCardDimensions ? ` (${firstCardDimensions.widthPx} × ${firstCardDimensions.heightPx}px for the first template)` : ''}. This export will generate ${totalChunks} files.`
+          ? `Using ${rasterQuality.label.toLowerCase()} raster quality${firstCardDimensions ? ` (${firstCardDimensions.widthPx} × ${firstCardDimensions.heightPx}px for the first template)` : ''}. ${totalChunks} numbered PDFs will be packaged in one ZIP.`
           : `Using ${rasterQuality.label.toLowerCase()} raster quality${firstCardDimensions ? ` (${firstCardDimensions.widthPx} × ${firstCardDimensions.heightPx}px for the first template)` : ''}.`,
     });
 
-    const activity = outputActivity?.begin(`${isScreenPdf ? 'Digital PDF' : 'PDF'}${setName ? ` · ${setName}` : ''}`);
+    const activity = outputActivity?.begin(`${isScreenPdf ? 'Digital PDF' : 'PDF'}${setName ? ` · ${setName}` : ''}`, { retained: true });
     if (outputActivity && !activity) { setIsLoadingPdf(false); return; }
     trackExportStarted('pdf', generatedDisplayCards.length);
-    let requestedChunks = 0;
+    const baseName = `${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}`;
+    const fileName = `${baseName}.${totalChunks > 1 ? 'zip' : 'pdf'}`;
+    const startScope = getProjectPersistenceScope();
+    let stage: OutputStage | null = null;
+    let published = false;
+    let retentionUnavailable = false;
     try {
       await beforeExport?.();
+      if (activity && (getProjectPersistenceScope() !== startScope || !activity.isCurrent())) throw new Error('The active workspace changed. Start the export again.');
+      if (activity) {
+        try { stage = await createOutputStage(startScope, `${isScreenPdf ? 'Digital PDF' : 'PDF'}${setName ? ` · ${setName}` : ''}`, fileName, Boolean(beforeExport), activity.isCurrent, canExportClean); }
+        catch (error) {
+          if (!activity.isCurrent() || totalChunks > 1) throw error;
+          retentionUnavailable = true;
+        }
+      }
+      const zipModule = totalChunks > 1 ? await import('@zip.js/zip.js') : null;
+      const blobWriter = !stage && zipModule ? new zipModule.BlobWriter('application/zip') : null;
+      const zip = zipModule ? new zipModule.ZipWriter(stage ? stage.writable : blobWriter!) : null;
+      let singleBlob: Blob | null = null;
       for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
         const chunkStart = chunkIndex * MAX_PDF_CARDS_PER_FILE;
         const chunkEnd = Math.min(chunkStart + MAX_PDF_CARDS_PER_FILE, generatedDisplayCards.length);
@@ -267,46 +287,67 @@ export function SaveAsPdfButton({
           renderer.cleanup();
         }
 
-        const chunkSuffix = totalChunks > 1 ? `-part-${chunkIndex + 1}-of-${totalChunks}` : '';
-        await beforeExport?.(); // Revalidate externally pinned specimens after rendering, before delivery.
-        pdf.save(`${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}${chunkSuffix}.pdf`);
-        requestedChunks += 1;
-
-        // Yield to the browser between chunk downloads to reduce UI stalls.
-        await new Promise<void>((resolve) => {
-          requestAnimationFrame(() => resolve());
-        });
+        const blob = pdf.output('blob');
+        if (zip && zipModule) {
+          const digits = Math.max(3, String(totalChunks).length);
+          await zip.add(`${baseName}-part-${String(chunkIndex + 1).padStart(digits, '0')}-of-${String(totalChunks).padStart(digits, '0')}.pdf`, new zipModule.BlobReader(blob), { level: 0 });
+        } else singleBlob = blob;
+        if (totalChunks > 1) activity?.progress(chunkIndex + 1, totalChunks);
+        // Release each part before rendering the next one.
+        await new Promise<void>((resolve) => { requestAnimationFrame(() => resolve()); });
       }
 
+      let fallbackBlob: Blob | null = null;
+      if (zip) {
+        const result = await zip.close();
+        if (!stage) fallbackBlob = result as Blob;
+      } else if (stage && singleBlob) {
+        const writer = stage.writable.getWriter();
+        try { await singleBlob.stream().pipeTo(new WritableStream({ write: chunk => writer.write(chunk), close: () => writer.close(), abort: reason => writer.abort(reason) })); }
+        catch (error) {
+          if (!activity?.isCurrent()) throw error;
+          retentionUnavailable = true;
+          fallbackBlob = singleBlob;
+        } finally { writer.releaseLock(); }
+        if (retentionUnavailable) { await stage.abort(); stage = null; }
+      } else fallbackBlob = singleBlob;
+      await beforeExport?.(); // Revalidate externally pinned specimens before delivery.
+      if (stage && activity) {
+        if (getProjectPersistenceScope() !== startScope || !activity.isCurrent()) throw new Error('The active workspace changed. Start the export again.');
+        try {
+          const result = await publishReadyOutput(stage, activity.isCurrent, beforeExport); published = true;
+          if (!result.ok) {
+            activity.hold(result.output, 'The source could not be revalidated. Remove this prepared copy before trying again.');
+            throw result.error;
+          }
+          if (!activity.complete(result.output, beforeExport)) {
+            toast({ title: 'Download not requested', description: 'Try Save again from the export status.', variant: 'destructive' });
+            return;
+          }
+        } catch (error) {
+          if (published || !singleBlob || !activity.isCurrent()) throw error;
+          await stage.abort(); stage = null;
+          await beforeExport?.();
+          if (!activity.isCurrent()) throw new Error('The active workspace changed. Start the export again.');
+          requestOutputDownload(singleBlob, fileName);
+          retentionUnavailable = true;
+          activity.finish('requested', 'Check your browser downloads. A prepared copy could not be retained on this device.');
+        }
+      } else if (fallbackBlob) {
+        if (activity && !activity.isCurrent()) throw new Error('The active workspace changed. Start the export again.');
+        requestOutputDownload(fallbackBlob, fileName);
+        activity?.finish('requested', retentionUnavailable ? 'Check your browser downloads. A prepared copy could not be retained on this device.' : undefined);
+      }
+      else throw new Error('The PDF output was incomplete.');
       trackExportCompleted('pdf', generatedDisplayCards.length);
-      activity?.finish('requested');
-
-      if (totalChunks > 1) {
-        toast({
-          title: 'PDF downloads requested',
-          description: `CardForge requested ${totalChunks} downloads. Check your browser downloads to confirm each file.`,
-        });
-      } else {
-        toast({
-          title: 'PDF download requested',
-          description: `${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}.pdf requested${canExportClean ? '' : ' with the CardForge watermark'}. Check your browser downloads to confirm the file.${isScreenPdf ? ' Each card face is a separate trimmed page, without print bleed or crop marks. It is a visual copy, not an editable CardForge project.' : exportMode === 'physical' ? ' Physical faces include CardForge format bleed and trim crop marks when enabled; this remains RGB raster PDF output, not PDF/X or a printer-specific ICC contract.' : ''}`,
-        });
-      }
-
+      toast({ title: 'PDF download requested', description: `${fileName} requested. Check your browser downloads to confirm the file.${retentionUnavailable ? ' A prepared copy could not be retained on this device.' : ''}${isScreenPdf ? ' Each card face is a separate trimmed page, without print bleed or crop marks.' : exportMode === 'physical' ? ' This remains RGB raster PDF output, not PDF/X or a printer-specific ICC contract.' : ''}` });
     } catch (error) {
       trackExportFailed('pdf', 'render_or_download', generatedDisplayCards.length);
-      activity?.finish('failed', requestedChunks > 0
-        ? `${requestedChunks} of ${totalChunks} downloads were requested. Check browser downloads before retrying.`
-        : extractErrorMessage(error));
-      console.error("Error generating PDF:", error);
-      toast({
-        title: 'PDF export failed',
-        description: requestedChunks > 0
-          ? `${requestedChunks} of ${totalChunks} PDF downloads were requested before the export stopped. Check your browser downloads before retrying. ${extractErrorMessage(error)}`
-          : withNextStep(extractErrorMessage(error), 'Review the source and quality warnings before retrying.'),
-        variant: "destructive",
-      });
+      if (!published) activity?.finish('failed', extractErrorMessage(error));
+      console.error('Error generating PDF:', error);
+      toast({ title: 'PDF export failed', description: withNextStep(extractErrorMessage(error), 'Review the source and quality warnings before retrying.'), variant: 'destructive' });
     } finally {
+      if (stage && !published) await stage.abort();
       setIsLoadingPdf(false);
     }
   };
@@ -344,7 +385,7 @@ export function SaveAsPdfButton({
       {isLoadingPdf ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          {pdfProfile === 'screen' ? 'Preparing digital PDF...' : 'Saving PDF...'}
+          {pdfProfile === 'screen' ? 'Preparing digital PDF...' : 'Building PDF...'}
         </>
       ) : (
         <>
