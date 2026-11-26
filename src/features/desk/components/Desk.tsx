@@ -41,6 +41,7 @@ import type { CardFace } from '@/domain/cards';
 import { ArtifactScene, type ArtifactSceneHandle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { beginProjectCardEdit, saveProjectCardEdit, type ProjectCardEditSession } from '@/features/project/client/cardEditSession';
 import {
   requestBrowserWorkspaceRecovery,
   WorkspaceUpdateNotices,
@@ -186,7 +187,9 @@ function DeskContent({
   const [libraryPickerError, setLibraryPickerError] = useState<string | null>(null);
   const deletingCopyRef = useRef(false);
   const [deletingCopy, setDeletingCopy] = useState(false);
-  const [artifactEditId, setArtifactEditId] = useState<string | null>(null);
+  const [artifactEditSession, setArtifactEditSession] = useState<ProjectCardEditSession | null>(null);
+  const [artifactEditItem, setArtifactEditItem] = useState<AccountLibraryItem | null>(null);
+  const artifactEditId = artifactEditSession?.card.uniqueId ?? null;
   const [artifactEditDirty, setArtifactEditDirty] = useState(false);
   const [artifactDiscardOpen, setArtifactDiscardOpen] = useState(false);
   const [touchMultiSelect, setTouchMultiSelect] = useState(false);
@@ -345,7 +348,6 @@ function DeskContent({
     tagFilter,
     templates,
     updateOrganization,
-    updateGeneratedCard,
     updateSelectedWorkOrganization,
     viewGeneratedCards,
     viewer,
@@ -359,6 +361,7 @@ function DeskContent({
     workTemplate,
     zones,
   } = useDeskController({
+    protectedEditWorkId: artifactEditSession?.scope === persistenceScope ? artifactEditItem?.id : null,
     defaultAutosaveDelaySeconds,
     transitionToDesk,
     persistenceScope,
@@ -378,6 +381,12 @@ function DeskContent({
     ? focusedCards.find((card) => card.uniqueId === focusedArtifactId) ?? null
     : null;
   const artifactEditing = Boolean(focusedArtifactId && artifactEditId === focusedArtifactId);
+  // A removed Set must not unmount the editor before the creator can copy a
+  // rejected draft. Never carry this presentation across persistence scopes.
+  const retainedEditItem = artifactEditing && artifactEditSession?.scope === persistenceScope ? artifactEditItem : null;
+  const presentedFocusedItem = focusedItem ?? retainedEditItem;
+  const presentedWork = retainedEditItem && !visibleWork.some((item) => item.id === retainedEditItem.id)
+    ? [...visibleWork, retainedEditItem] : visibleWork;
   const primarySelectedSet = visibleWork.find((item) => selectedDeskIds.includes(item.id)) ?? null;
   const creatorSurface = deriveCreatorSurfaceContext({
     session: interactionSession,
@@ -424,17 +433,23 @@ function DeskContent({
     if (activeTool?.toolId !== 'design') openContextStudio(focusedLocalSetId, 'design', template.id);
   };
   useEffect(() => {
-    if (artifactEditId && artifactEditId !== focusedArtifactId) {
-      setArtifactEditId(null);
+    // An account/workspace switch closes the draft to prevent it crossing scopes.
+    if (artifactEditSession && (artifactEditId !== focusedArtifactId || artifactEditSession.scope !== persistenceScope)) {
+      setArtifactEditSession(null);
+      setArtifactEditItem(null);
       setArtifactEditDirty(false);
     }
-  }, [artifactEditId, focusedArtifactId]);
+  }, [artifactEditId, artifactEditSession, focusedArtifactId, persistenceScope]);
   const startArtifactEdit = (artifactId: string) => {
-    setArtifactEditId(artifactId);
+    const session = focusedLocalSetId ? beginProjectCardEdit(focusedLocalSetId, artifactId) : null;
+    if (!session || session.scope !== persistenceScope) { toast({ title: 'Card unavailable', description: 'Refresh this Set before editing. No work was changed.', variant: 'destructive' }); return; }
+    setArtifactEditSession(session);
+    setArtifactEditItem(focusedItem);
     setArtifactEditDirty(false);
   };
   const finishArtifactEdit = () => {
-    setArtifactEditId(null);
+    setArtifactEditSession(null);
+    setArtifactEditItem(null);
     setArtifactEditDirty(false);
   };
   const requestArtifactExit = (afterExit: () => void) => {
@@ -609,12 +624,12 @@ function DeskContent({
         onAction={runAction}
         onCloseDetail={() => setInspectorWorkId(null)}
       >
-        <div className={styles.spatialPlane} data-desk-plane data-studio-context={studioTool?.tool === 'design' ? 'true' : undefined} data-focused={Boolean(focusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
+        <div className={styles.spatialPlane} data-desk-plane data-studio-context={studioTool?.tool === 'design' ? 'true' : undefined} data-focused={Boolean(presentedFocusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
           {deskMembership.status === 'unavailable' ? <p role="alert">Desk placement is unavailable. Your device Sets remain visible; check browser storage before adding or removing Sets.</p> : null}
           <DeskOverviewSurface
-            workItemsCount={workItems.length}
-            visibleWork={visibleWork}
-            focusedItemId={focusedItem?.id ?? null}
+            workItemsCount={Math.max(workItems.length, presentedWork.length)}
+            visibleWork={presentedWork}
+            focusedItemId={presentedFocusedItem?.id ?? null}
             activeWorkId={activeWorkId}
             selectedIds={selectedDeskIds}
             positions={deskPositions}
@@ -652,7 +667,7 @@ function DeskContent({
             renderFocusedSurface={(item) => <FocusedWorkSurface canUseProjectFiles={experience.capabilities.canUseProjectFiles}
               canExportClean={experience.capabilities.canExportClean}
               item={item}
-              localSetId={focusedLocalSetId}
+              localSetId={focusedLocalSetId ?? (retainedEditItem ? artifactEditSession?.setId ?? null : null)}
               remoteIcon={<WorkSourceIcon item={item} />}
               focusedCards={focusedCards}
               currentSet={focusedSet}
@@ -698,9 +713,19 @@ function DeskContent({
               onMoveSelected={moveSelectedCards}
               onEditSelected={(artifactId) => { if (artifactId) startArtifactEdit(artifactId); }}
               editingArtifactId={artifactEditId}
+              editingCard={artifactEditSession?.scope === persistenceScope ? artifactEditSession.card : null}
               onCancelArtifactEdit={() => requestArtifactExit(() => undefined)}
               onArtifactEditDirtyChange={setArtifactEditDirty}
-              onSaveArtifact={(card) => { updateGeneratedCard(card); finishArtifactEdit(); }}
+              onSaveArtifact={(card) => {
+                try {
+                  if (!artifactEditSession || !saveProjectCardEdit(artifactEditSession, card)) throw new Error('This card, Template or account changed while you were editing. Your draft is still open; copy your changes and reopen the current card.');
+                  finishArtifactEdit();
+                  return true;
+                } catch (error) {
+                  toast({ title: 'Card was not updated', description: error instanceof Error ? error.message : 'The card could not be updated.', variant: 'destructive' });
+                  return false;
+                }
+              }}
               onDesignArtifact={(card, face) => { finishArtifactEdit(); designCard(card, face); }}
               onDuplicateSelected={duplicateSelectedCards}
               onReviseSelected={openSelectedRevision}
