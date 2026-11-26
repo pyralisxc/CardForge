@@ -6,11 +6,10 @@ import { pipelineAgentExactInput, pipelineAgentListInput, pipelineAgentVoteInput
 import { fetchPipelineSubmissionPage } from '../lib/pipelineProjections';
 import { fetchContributorSettings } from '../lib/pipelineStore';
 import { getSharedPipelineTrashPage, getPipelineLibraryProgramView } from '../lib/pipelineLibraryStore';
-import { recordPipelineSubmissionVote } from '../lib/pipelineStore';
+import { commitPipelineVote, invalidatePipelineFeedbackCatalog } from '../lib/pipelineStore';
 import { getPipelineTrashState } from '../lib/pipelineTrash';
 import { setPipelineHeart, PipelineHeartMutationError } from '../lib/pipelineHearts';
 import { PipelineStoreError } from '../lib/pipelineStoreError';
-import { PipelineRegistryCommandError } from '../lib/pipelineRegistryCommandsError';
 import { buildPipelineContentHealth } from '../lib/pipelineContentHealth';
 import { getCachedCardForgeCatalog, revalidateCardForgeCatalog } from './catalogCache';
 import { readPipelineEngagementForViewer, readVisiblePipelineRevisionForViewer, type PipelineEngagementViewer } from './pipelineEngagement';
@@ -70,8 +69,7 @@ async function limit(action: 'contributor-vote' | 'pipeline-heart', userId: stri
   if (!result.allowed) throw new RateLimitExceededError('Too many Pipeline reactions.', result.retryAfterSeconds, { resource: 'pipeline_reactions', maximum, unit: 'attempts_per_hour' });
 }
 async function afterCommit(submissionId: string, lineageId: string | null, viewer: PipelineEngagementViewer) {
-  const warnings: string[] = []; let engagement = null;
-  try { if (!revalidateCardForgeCatalog()) warnings.push('catalog_invalidation_unavailable'); } catch { warnings.push('catalog_invalidation_unavailable'); }
+  const warnings = invalidatePipelineFeedbackCatalog(revalidateCardForgeCatalog); let engagement = null;
   try { engagement = await readPipelineEngagementForViewer(submissionId, viewer); } catch { warnings.push('engagement_refresh_unavailable'); }
   return { submissionId, lineageId, outcome: 'committed' as const, engagement, warnings, nextAction };
 }
@@ -81,11 +79,8 @@ export async function voteAgentPipelineRevision(actorUserId: string, input: unkn
   const before = await readPipelineEngagementForViewer(parsed.data.submissionId, viewer);
   if (before.voteIssue) throw new PipelineStoreError(before.voteIssue, 403);
   await limit('contributor-vote', viewer.userId);
-  try { await recordPipelineSubmissionVote({ ...parsed.data, contributorId: viewer.userId, ownerContributorId: viewer.isOwner ? viewer.userId : null }); }
-  catch (error) {
-    if ((error instanceof PipelineRegistryCommandError || error instanceof PipelineStoreError) && error.status < 500) throw error;
-    return { submissionId: before.submissionId, lineageId: before.lineageId, outcome: 'uncertain' as const, engagement: null, warnings: ['vote_outcome_unconfirmed'], nextAction };
-  }
+  const receipt = await commitPipelineVote({ ...parsed.data, contributorId: viewer.userId, ownerContributorId: viewer.isOwner ? viewer.userId : null });
+  if (receipt.outcome === 'uncertain') return { ...receipt, lineageId: before.lineageId, engagement: null };
   return afterCommit(before.submissionId, before.lineageId, viewer);
 }
 export async function heartAgentPipelineLineage(actorUserId: string, input: unknown) {
@@ -94,13 +89,14 @@ export async function heartAgentPipelineLineage(actorUserId: string, input: unkn
   if (before.lineageId !== parsed.data.lineageId) throw new PipelineStoreError('The exact revision and lineage do not match.', 409);
   if (before.heartIssue) throw new PipelineStoreError(before.heartIssue, 403);
   await limit('pipeline-heart', viewer.userId);
+  let receipt;
   try {
-    const receipt = await setPipelineHeart({ lineageId: parsed.data.lineageId, hearted: parsed.data.hearted, accountId: viewer.userId,
+    receipt = await setPipelineHeart({ lineageId: parsed.data.lineageId, hearted: parsed.data.hearted, accountId: viewer.userId,
       viewerAccess: viewer.accessMode, contributor: viewer.contribution.active, owner: viewer.isOwner });
-    if (receipt.lineageId !== before.lineageId || receipt.hearted !== parsed.data.hearted) throw new Error('Unconfirmed heart receipt');
   } catch (error) {
-    if (error instanceof PipelineHeartMutationError && error.status < 500) throw new PipelineStoreError(error.message, error.status);
-    return { submissionId: before.submissionId, lineageId: before.lineageId, outcome: 'uncertain' as const, engagement: null, warnings: ['heart_outcome_unconfirmed'], nextAction };
+    if (error instanceof PipelineHeartMutationError) throw new PipelineStoreError(error.message, error.status);
+    throw error;
   }
+  if (receipt.outcome === 'uncertain') return { submissionId: before.submissionId, lineageId: before.lineageId, outcome: receipt.outcome, engagement: null, warnings: receipt.warnings, nextAction };
   return afterCommit(before.submissionId, before.lineageId, viewer);
 }
