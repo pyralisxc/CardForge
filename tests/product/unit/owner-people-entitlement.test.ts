@@ -41,7 +41,10 @@ vi.mock('@/features/billing/server', () => ({
   },
 }));
 
-vi.mock('@/features/account/server', () => import('@/features/account/server/accountAdministration'));
+vi.mock('@/features/account/server', async () => ({
+  ...(await import('@/features/account/server/accountAdministration')),
+  ...(await import('@/features/account/lib/accountEntitlement')),
+}));
 
 vi.mock('@/features/contributor-access/server', async () => ({
   ...(await import('@/features/contributor-access/server/profileStore')),
@@ -98,6 +101,15 @@ describe('owner grants share the Stripe projection lock', () => {
     process.env.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS = 'person@example.test';
     await expect(updateOwnerPerson({ userId: 'user_one', action: 'revoke' })).rejects.toMatchObject({ status: 409 });
     expect(state.updates).not.toHaveBeenCalled();
+  });
+
+  it('reports a retained environment grant when disabling its existing profile', async () => {
+    state.emails = [{ emailAddress: 'person@example.test' }];
+    process.env.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS = 'person@example.test';
+    state.profile = { clerk_user_id: 'user_one', status: 'active' };
+    const result = await updateOwnerPerson({ userId: 'user_one', action: 'revoke' });
+    expect(state.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ status: 'inactive' }));
+    expect(result.warnings.join(' ')).toContain('deployment-managed Contributor grant remains');
   });
 
   it('pauses a profile without rewriting an ambiguous legacy account grant', async () => {

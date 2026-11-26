@@ -98,6 +98,11 @@ const readMetadataPaidPlan = (metadata: AccountMetadata | undefined): PaidPlan =
   metadata?.cardforgeCommercialPlan === 'designer' || metadata?.cardforgePaidPlan === 'designer' ? 'designer' : 'creator'
 );
 
+export const hasEnvironmentContributorGrant = (emailAddresses: string[], env?: EntitlementEnvironment): boolean => {
+  const allowed = parseEmailList(readEnvironment(env).CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS);
+  return emailAddresses.some((email) => allowed.has(email.trim().toLowerCase()));
+};
+
 const readAuthorityRoles = (metadata: AccountMetadata | undefined): Set<string> => {
   const roles = Array.isArray(metadata?.cardforgeAuthorityRoles)
     ? metadata.cardforgeAuthorityRoles.filter((role): role is string => typeof role === 'string')
@@ -171,10 +176,9 @@ export const resolveAccountAccessMode = ({
 
   const source = readEnvironment(env);
   const normalizedEmails = emailAddresses.map((email) => email.trim().toLowerCase()).filter(Boolean);
-  const contributorEmails = parseEmailList(source.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS);
   const paidEmails = parseEmailList(source.CARDFORGE_PAID_ACCOUNT_EMAILS);
 
-  if (normalizedEmails.some((email) => contributorEmails.has(email))) return 'contributor';
+  if (hasEnvironmentContributorGrant(normalizedEmails, source)) return 'contributor';
   if (normalizedEmails.some((email) => paidEmails.has(email))) return 'paid';
   return 'free';
 };

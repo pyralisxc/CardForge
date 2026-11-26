@@ -4,7 +4,9 @@ import { resolveOwnerAccess } from '@/domain/entitlements';
 import {
   buildOwnerAccountMetadataPatch,
   mapOwnerAccountSummary,
+  hasEnvironmentContributorGrant,
   normalizeOwnerAccountRoleInput,
+  resolveAccountEntitlement,
   type OwnerAccountSummary,
 } from '@/features/account/server';
 import {
@@ -176,9 +178,11 @@ export const updateOwnerPerson = async (
         publicMetadata: user.publicMetadata,
         privateMetadata: user.privateMetadata,
       });
-      const environmentContributors = new Set((process.env.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS ?? '')
-        .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
-      if (action === 'revoke' && !profile && user.emailAddresses.some((address) => environmentContributors.has(address.emailAddress.trim().toLowerCase()))) {
+      const emailAddresses = user.emailAddresses.map((address) => address.emailAddress);
+      const environmentContributor = hasEnvironmentContributorGrant(emailAddresses);
+      const effectiveContributor = resolveAccountEntitlement({ authConfigured: true, isSignedIn: true,
+        emailAddresses, privateMetadata: user.privateMetadata, ownerAccess: targetOwnerAccess }).authorities.contributor;
+      if (action === 'revoke' && !profile && environmentContributor) {
         throw new OwnerPeopleOperationError('This account has an environment-managed Contributor grant but no profile to deactivate. Reconcile that grant before revoking access.', 409, 'owner_operations_conflict');
       }
       if (userId === owner.userId && input.account?.owner !== true) {
@@ -191,7 +195,7 @@ export const updateOwnerPerson = async (
 
       const accountUnchanged = action === 'update'
         && input.account?.commercialPlan === (currentAccount.ownerCommercialPlan ?? '')
-        && input.account?.contributor === currentAccount.contributorAuthority
+        && input.account?.contributor === effectiveContributor
         && input.account?.owner === targetOwnerAccess.isOwner
         && input.account?.note === currentAccount.note;
       const normalizedAccount = action === 'revoke'
@@ -278,6 +282,9 @@ export const updateOwnerPerson = async (
           console.error('Owner people update partially completed:', error);
         }
       }
+      if (action === 'revoke' && environmentContributor) {
+        warnings.push('The deployment-managed Contributor grant remains. Check the profile status before relying on disabled access; remove the grant at its provider owner if it should no longer exist.');
+      }
     }
 
     const activityRecorded = await recordOwnerActivity({
@@ -287,7 +294,7 @@ export const updateOwnerPerson = async (
       targetType: 'person',
       targetId: userId,
       summary: action === 'revoke'
-        ? 'Revoked Contributor authority while preserving other account access and contribution history.'
+        ? 'Disabled Contributor access while preserving other account access and contribution history.'
         : action === 'deactivate_history'
           ? 'Deactivated a contributor profile whose Clerk account is no longer present.'
           : 'Updated account entitlement and contributor controls.',

@@ -1,5 +1,6 @@
 export {
   isClerkAuthConfigured,
+  hasEnvironmentContributorGrant,
   resolveAccountEntitlement,
   type AccountEntitlement,
 } from './lib/accountEntitlement';
