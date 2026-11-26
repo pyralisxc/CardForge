@@ -43,6 +43,7 @@ export interface CardRemovalRecovery {
   setId: string;
   cards: StoredDisplayCard[];
   order: string[];
+  setOrder: string[];
   requiredTemplateIds: string[];
 }
 
