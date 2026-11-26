@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import type { TCGCardTemplate } from '@/domain/templates';
+import type { z } from 'zod/v4';
 
 import { useToast } from '@/components/ui/use-toast';
 import { getStudioAssetDestinationDefinition } from '@/domain/templates';
@@ -16,19 +18,27 @@ import {
   getPipelineStudioDestinationOptions,
 } from '../lib/pipelineAssetTaxonomy';
 import type { PipelineSubmission } from '../lib/pipelineProgram';
-import { contributorDraftReceipt } from '../lib/contributorDraftContract';
+import { contributorDraftReceipt, contributorTemplateRevisionBase } from '../lib/contributorDraftContract';
 import { EditSubmissionForm } from './PipelineSubmissionRows';
+import { ContributorReviewFeedback } from './ContributorReviewFeedback';
+import { ContributorRevisionContinue } from './ContributorRevisionContinue';
 
 export function PipelineSubmissionEditPanel({
   submission,
   onCancel,
   onUpdated,
   onDirtyChange,
+  savedTemplates,
+  onContinueRevision,
+  renderRevisionRecovery,
 }: {
   submission: PipelineSubmission;
   onCancel: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onUpdated: () => Promise<void> | void;
+  savedTemplates?: TCGCardTemplate[];
+  onContinueRevision?: (template: TCGCardTemplate, revisionBase: z.infer<typeof contributorTemplateRevisionBase>) => Promise<void>;
+  renderRevisionRecovery?: (templateId: string, busy: boolean, onReadyChange: (ready: boolean) => void) => ReactNode;
 }) {
   const { toast } = useToast();
   const [name, setName] = useState(submission.name);
@@ -44,6 +54,7 @@ export function PipelineSubmissionEditPanel({
   const [compatibilityTags, setCompatibilityTags] = useState(submission.compatibilityTags.join(','));
   const [requestedStudioDestination, setRequestedStudioDestination] = useState(submission.requestedStudioDestination ?? '');
   const [isSaving, setIsSaving] = useState(false);
+  const governedDraft = submission.assetType === 'templates' && submission.status === 'draft' && (submission.baseRevisionNumber ?? 0) > 0;
 
   const destinationOptions = getPipelineStudioDestinationOptions(submission.assetType).map((value) => ({
     value,
@@ -57,7 +68,7 @@ export function PipelineSubmissionEditPanel({
       const response = await fetch(`/api/pipeline/${submission.id}`, {
         method: submitDraft ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(governedDraft ? { name } : {
           name,
           description,
           previewUrl,
@@ -100,7 +111,24 @@ export function PipelineSubmissionEditPanel({
     }
   };
 
-  return <EditSubmissionForm
+  if (submission.editorialReviewStatus && submission.editorialReviewStatus !== 'pending') return <>
+    <ContributorReviewFeedback submissionId={submission.id} renderNext={(feedback) => feedback.revisionBase && savedTemplates && onContinueRevision
+      ? <ContributorRevisionContinue templates={savedTemplates} revisionBase={feedback.revisionBase} onContinue={onContinueRevision} renderRecovery={renderRevisionRecovery} /> : null} />
+    <p>This reviewed revision is preserved. Continue changes in a new revision of your saved work.</p>
+  </>;
+
+  if (governedDraft) return <section className="space-y-3">
+    <h3>Review your correction</h3>
+    <p>This revision keeps the published Template’s source, rights and classification. Continue design changes in your saved Template before submitting.</p>
+    <p>{name}</p>
+    <p>{description || 'No description on the published Template.'}</p>
+    <button type="button" disabled={isSaving} onClick={() => void save(true)}>Submit correction for review</button>
+    <button type="button" disabled={isSaving} onClick={onCancel}>Cancel</button>
+  </section>;
+
+  return <>
+    {submission.status !== 'draft' ? <ContributorReviewFeedback submissionId={submission.id} /> : null}
+    <EditSubmissionForm
     assetType={submission.assetType}
     name={name}
     description={description}
@@ -132,5 +160,6 @@ export function PipelineSubmissionEditPanel({
     onCancel={onCancel}
     onSave={() => void save(false)}
     onSubmit={() => void save(true)}
-  />;
+    />
+  </>;
 }

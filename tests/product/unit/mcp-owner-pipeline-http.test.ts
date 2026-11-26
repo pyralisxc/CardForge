@@ -12,14 +12,14 @@ const id = '10000000-0000-4000-8000-000000000001';
 beforeEach(() => {
   vi.clearAllMocks(); vi.stubGlobal('fetch', f.network);
   f.oauth.mockResolvedValue({ userId: 'oauth-owner' }); f.account.mockResolvedValue({ user: { id: 'resolved-owner' }, isOwner: true, email: 'owner@example.invalid' }); f.activity.mockResolvedValue(true); f.cache.mockReturnValue(true); f.rpc.mockResolvedValue({ data: 1, error: null });
-  f.row = { id, lineage_id: '20000000-0000-4000-8000-000000000001', name: 'Exact revision', asset_type: 'icons', semantic_role: 'symbol', requested_studio_destination: 'element.icon', revision_number: 2, status: 'voting', updated_at: '2026-11-02T00:00:00Z', editorial_review_status: 'pending', editorial_review_note: '', editorial_reviewed_by: null, editorial_reviewed_at: null, source_review_evidence: null, catalog_submission_id: null, published_at: null, owner_status_override: null, owner_access_tier_override: null, owner_note: null, calculated_access_tier: 'hidden' };
+  f.row = { id, lineage_id: '20000000-0000-4000-8000-000000000001', name: 'Exact revision', asset_type: 'icons', semantic_role: 'symbol', requested_studio_destination: 'element.icon', revision_number: 2, status: 'voting', updated_at: '2026-11-02T00:00:00Z', editorial_review_status: 'pending', editorial_review_note: '', author_review_note: '', editorial_reviewed_by: null, editorial_reviewed_at: null, source_review_evidence: null, catalog_submission_id: null, published_at: null, owner_status_override: null, owner_access_tier_override: null, owner_note: null, calculated_access_tier: 'hidden' };
 });
 const read = async (response: Response) => { const text = await response.text(); return JSON.parse(response.headers.get('content-type')?.includes('text/event-stream') ? text.split('\n').find(line => line.startsWith('data: '))!.slice(6) : text); };
 const request = (id: number, method: string, params: object) => cardForgeOwnerMcpHandler(new Request('https://cardforge.test/mcp/owner', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) }));
 const initialize = () => request(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'owner-pipeline-protocol', version: '1' } });
 it('serializes six explicit Owner tool contracts and calls the exact canonical read through real HTTP handler', async () => {
   const initialized = await read(await initialize());
-  expect(initialized.result.serverInfo).toEqual({ name: 'cardforge-owner', version: '1.17.0' });
+  expect(initialized.result.serverInfo).toEqual({ name: 'cardforge-owner', version: '1.18.0' });
   const listed = await read(await request(2, 'tools/list', {}));
   const names = ['get_pipeline_source_review_evidence','record_pipeline_source_review_evidence','get_pipeline_editorial_review','save_pipeline_editorial_review','get_pipeline_publication_decision','save_pipeline_publication_override'];
   expect(listed, JSON.stringify(listed)).toHaveProperty("result.tools");
@@ -30,11 +30,24 @@ it('serializes six explicit Owner tool contracts and calls the exact canonical r
 });
 it('executes the existing native decision RPC once, retaining committed receipt after activity failure', async () => {
   f.activity.mockRejectedValue(new Error('activity unavailable')); await initialize();
-  const result = await read(await request(2, 'tools/call', { name: 'save_pipeline_editorial_review', arguments: { submissionId: id, reviewStatus: 'revise', reviewNote: 'Observed clipped source output', expectedEvidenceVersion: 0 } }));
+  const result = await read(await request(2, 'tools/call', { name: 'save_pipeline_editorial_review', arguments: { submissionId: id, reviewStatus: 'revise', reviewNote: 'Observed clipped source output', authorNote: 'Please fix clipping.', expectedEvidenceVersion: 0 } }));
   expect(result.result.isError).not.toBe(true); expect(result.result.structuredContent.receipt).toMatchObject({ committed: true, outcome: 'committed', activityRecorded: false, retryable: false });
   expect(result.result.structuredContent).not.toHaveProperty('program');
-  expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_set_contributor_asset_editorial_review', expect.objectContaining({ p_submission_id: id, p_review_status: 'revise', p_expected_evidence_version: 0, p_reviewer_contributor_id: 'resolved-owner' }));
+  expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_review_with_author_note', expect.objectContaining({ p_submission_id: id, p_review_status: 'revise', p_expected_evidence_version: 0, p_reviewer_contributor_id: 'resolved-owner' }));
   expect(f.network).not.toHaveBeenCalled();
+});
+it('accepts the existing Owner tool input without exposing the private reason as an author note', async () => {
+  await initialize();
+  const result = await read(await request(2, 'tools/call', { name: 'save_pipeline_editorial_review', arguments: { submissionId: id, reviewStatus: 'revise', reviewNote: 'Private reviewer observation', expectedEvidenceVersion: 0 } }));
+  expect(result.result.isError).not.toBe(true);
+  expect(result.result.structuredContent.receipt).toMatchObject({ committed: true });
+  expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_review_with_author_note', expect.objectContaining({ p_review_status: 'revise', p_author_note: null }));
+});
+it('passes an explicit empty author note as a clear, distinct from omission', async () => {
+  await initialize();
+  const result = await read(await request(2, 'tools/call', { name: 'save_pipeline_editorial_review', arguments: { submissionId: id, reviewStatus: 'revise', reviewNote: 'Private reviewer observation', authorNote: '', expectedEvidenceVersion: 0 } }));
+  expect(result.result.isError).not.toBe(true);
+  expect(f.rpc).toHaveBeenCalledExactlyOnceWith('cardforge_review_with_author_note', expect.objectContaining({ p_author_note: '' }));
 });
 it('denies non-Owner discovery and calls before any product mutation, and rejects fabricated actor/CAS fields', async () => {
   await initialize(); f.account.mockResolvedValue({ user: { id: 'ordinary' }, isOwner: false });
@@ -55,7 +68,7 @@ it('requires a linked OAuth identity even to discover Owner tools', async () => 
 
 it('returns an uncertain structured receipt after unconfirmed native write without a second RPC', async () => {
   await initialize(); f.rpc.mockResolvedValue({ data: null, error: { message: 'transport lost' } });
-  const result = await read(await request(2, 'tools/call', { name: 'save_pipeline_editorial_review', arguments: { submissionId: id, reviewStatus: 'revise', reviewNote: 'Observed clipping', expectedEvidenceVersion: 0 } }));
+  const result = await read(await request(2, 'tools/call', { name: 'save_pipeline_editorial_review', arguments: { submissionId: id, reviewStatus: 'revise', reviewNote: 'Observed clipping', authorNote: 'Please fix clipping.', expectedEvidenceVersion: 0 } }));
   expect(result.result.isError).toBe(true); expect(result.result.structuredContent.receipt).toMatchObject({ outcome: 'uncertain', committed: null, retryable: false, nextAction: 'read' });
   expect(f.rpc).toHaveBeenCalledOnce(); expect(f.activity).not.toHaveBeenCalled();
 });

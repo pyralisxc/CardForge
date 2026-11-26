@@ -9,7 +9,7 @@ import { hasCardBacking } from '@/domain/rendering';
 import type { ActionDescriptor, EnvironmentDetailRecord, EnvironmentStatusTone } from '@/features/app-shell/client/environment';
 import { getStudioAssetDestinationDefinition } from '@/domain/templates';
 import { AppearanceSurface, appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
-import { formatContentTaxonomyTag, getSemanticRoleLabel, getPipelineDecisionReasonLabel, getPipelineStatusLabel, isContributorPipelineVoteable, getPipelineTrashState } from '@/features/pipeline/client';
+import { formatContentTaxonomyTag, getSemanticRoleLabel, getPipelineDecisionReasonLabel, getPipelineStatusLabel, isContributorPipelineVoteable, getPipelineTrashState, ContributorReviewHistoryDisclosure } from '@/features/pipeline/client';
 import { MediaPresentationRevision, MediaPresentationPreview } from '@/features/pipeline/client/media-revisions';
 import { RevisionRecoveryControls, CatalogTrashControls } from '@/features/pipeline/client/revision-recovery';
 import type { PipelineSubmission } from '@/features/pipeline/client';
@@ -247,11 +247,13 @@ export function PipelineDetailContent({ item, voteMetrics, onVoteRevision, canRe
           ? 'Live'
           : item.pipeline.reviewSubmission?.id === revision.id
             ? 'Reviewing'
-            : revision.publishedAt
+            : revision.publishedAt || revision.decisionReason === 'superseded_revision'
               ? 'History'
               : getPipelineStatusLabel(revision.status);
       return <li key={revision.id}>
         <div className={styles.revisionOpen}><span>{getPipelineRevisionLabel(revision)}</span><span>{revisionRole}</span>{isOwner && onReviewRevision ? <button type="button" onClick={() => onReviewRevision(revision)}>Review &amp; manage {getPipelineRevisionLabel(revision)}</button> : null}{item.pipeline.ownership === 'mine' && item.pipeline.editableSubmission?.id === revision.id && onEditRevision ? <button type="button" onClick={() => onEditRevision(revision)}>Edit {getPipelineRevisionLabel(revision)}</button> : null}</div>
+        {revision.decisionReason === 'superseded_revision' && (isOwner || currentContributorIds.includes(revision.contributorId))
+          ? <ContributorReviewHistoryDisclosure submissionId={revision.id} /> : null}
         {revision.mediaPresentation ? <details><summary>Inspect exact presentation revision</summary>{revision.sourceUrl
           ? <MediaPresentationPreview sourceUrl={revision.sourceUrl} presentation={revision.mediaPresentation} />
           : <p>Exact source preview requires Owner or original contributor access.</p>}</details> : null}

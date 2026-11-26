@@ -87,7 +87,7 @@ const http = async (id: number, method: string, params: object) => {
 };
 it('discovers 57 Owner tools and executes the exact pair through real local HTTP', async () => {
   const initialized = await http(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'classification-proof', version: '1' } });
-  expect(initialized.body.result.serverInfo).toEqual({ name: 'cardforge-owner', version: '1.17.0' });
+  expect(initialized.body.result.serverInfo).toEqual({ name: 'cardforge-owner', version: '1.18.0' });
   const listed = await http(2, 'tools/list', {});
   expect(listed.body.result.tools).toHaveLength(57);
   for (const name of ['get_pipeline_published_classification', 'save_pipeline_published_classification']) expect(listed.body.result.tools.find((tool: { name: string }) => tool.name === name)).toMatchObject({ inputSchema: { type: 'object' }, outputSchema: { type: 'object' }, annotations: { readOnlyHint: false } });

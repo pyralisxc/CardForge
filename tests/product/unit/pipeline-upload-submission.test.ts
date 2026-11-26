@@ -47,7 +47,7 @@ describe('Pipeline partial classification edits', () => {
     const write = { eq: vi.fn(), not: vi.fn(), is: vi.fn(), select: vi.fn(), maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'draft' }, error: null }) };
     write.eq.mockReturnValue(write); write.not.mockReturnValue(write); write.is.mockReturnValue(write); write.select.mockReturnValue(write);
     const update = vi.fn().mockReturnValue(write);
-    const query = { select: vi.fn(), eq: vi.fn(), limit: vi.fn().mockResolvedValue({ data: [{ contributor_id: 'owner', status: 'draft', asset_type: assetType, specialty_tags: specialtyTags, use_case_tags: useCaseTags }], error: null }), update };
+    const query = { select: vi.fn(), eq: vi.fn(), limit: vi.fn().mockResolvedValue({ data: [{ contributor_id: 'owner', status: 'draft', asset_type: assetType, specialty_tags: specialtyTags, use_case_tags: useCaseTags, editorial_review_status: 'pending', editorial_reviewed_at: null }], error: null }), update };
     query.select.mockReturnValue(query);
     query.eq.mockReturnValue(query);
     mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) } as never);

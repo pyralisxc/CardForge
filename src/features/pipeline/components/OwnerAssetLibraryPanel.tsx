@@ -5,7 +5,7 @@ import { CatalogTrashControls } from './CatalogTrashControls';
 import { RevisionRecoveryControls } from './RevisionRecoveryControls';
 import { SourceReviewEvidence } from './SourceReviewEvidence';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Archive, CheckCircle2, ChevronLeft, ChevronRight, Eye, Pencil, Search, Settings2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,7 @@ export interface OwnerAssetOverrideInput {
 export interface OwnerEditorialReviewInput {
   editorialReviewStatus: PipelineEditorialReviewStatus;
   editorialReviewNote: string;
+  authorReviewNote: string;
   expectedEvidenceVersion?: number | null;
 }
 
@@ -107,6 +108,9 @@ export function OwnerAssetLibraryPanel({
   const [ownerNote, setOwnerNote] = useState('');
   const [editorialReviewStatus, setEditorialReviewStatus] = useState<PipelineEditorialReviewStatus>('pending');
   const [editorialReviewNote, setEditorialReviewNote] = useState('');
+  const [authorReviewNote, setAuthorReviewNote] = useState<string | null>(null);
+  const authorNotesByOutcome = useRef<Partial<Record<PipelineEditorialReviewStatus, string>>>({});
+  const [authorNoteError, setAuthorNoteError] = useState('');
   const [editorialEvidenceVersion, setEditorialEvidenceVersion] = useState<number | null>(null);
   const [qualityCriteriaReviewed, setQualityCriteriaReviewed] = useState(false);
   const templatePreviews = usePipelineTemplatePreviews(program.submissions);
@@ -121,6 +125,29 @@ export function OwnerAssetLibraryPanel({
     100,
     (program.managedStorageBytes / PIPELINE_ASSET_STORAGE_BUDGET_BYTES) * 100,
   );
+
+  useEffect(() => {
+    if (!managingId) return;
+    let current = true;
+    setAuthorReviewNote(null); setAuthorNoteError(''); authorNotesByOutcome.current = {};
+    void fetch(`/api/pipeline/${encodeURIComponent(managingId)}?view=editorial`, { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('The exact author note is unavailable.');
+        const result = await response.json() as { submissionId?: unknown; authorNote?: unknown; reviewNote?: unknown; reviewStatus?: unknown; evidenceVersion?: unknown };
+        if (result.submissionId !== managingId || typeof result.authorNote !== 'string' || typeof result.reviewNote !== 'string'
+          || !['pending', 'approved', 'revise', 'quarantine', 'retire'].includes(String(result.reviewStatus))
+          || !Number.isInteger(result.evidenceVersion)) throw new Error('The exact review could not be verified.');
+        if (current) {
+          setEditorialReviewStatus(result.reviewStatus as PipelineEditorialReviewStatus);
+          setEditorialReviewNote(parseContentQualityReviewNote(result.reviewNote).reason);
+          setEditorialEvidenceVersion(result.evidenceVersion as number);
+          setAuthorReviewNote(result.authorNote);
+          authorNotesByOutcome.current = { [result.reviewStatus as PipelineEditorialReviewStatus]: result.authorNote };
+        }
+      })
+      .catch(() => { if (current) setAuthorNoteError('Review feedback could not be loaded. Close and reopen this exact revision to retry.'); });
+    return () => { current = false; };
+  }, [managingId]);
 
   const openManager = (submission: PipelineProgramView['submissions'][number]) => {
     setManagingId(submission.id);
@@ -161,9 +188,14 @@ export function OwnerAssetLibraryPanel({
       window.alert('Add a concise editorial reason before recording this decision.');
       return;
     }
+    if (authorReviewNote === null) {
+      window.alert('The author note is unavailable. Read the exact review before recording a decision.');
+      return;
+    }
     const saved = await onUpdateEditorialReview(submissionId, {
       editorialReviewStatus,
       editorialReviewNote,
+      authorReviewNote,
       expectedEvidenceVersion: editorialEvidenceVersion,
     });
     if (saved) setManagingId(null);
@@ -342,7 +374,13 @@ export function OwnerAssetLibraryPanel({
                       <select
                         className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
                         value={editorialReviewStatus}
-                        onChange={(event) => setEditorialReviewStatus(event.target.value as PipelineEditorialReviewStatus)}
+                        disabled={authorReviewNote === null}
+                        onChange={(event) => {
+                          const next = event.target.value as PipelineEditorialReviewStatus;
+                          if (authorReviewNote !== null) authorNotesByOutcome.current[editorialReviewStatus] = authorReviewNote;
+                          setAuthorReviewNote(authorNotesByOutcome.current[next] ?? '');
+                          setEditorialReviewStatus(next);
+                        }}
                       >
                         <option value="pending">Pending review</option>
                         <option value="approved">Approved</option>
@@ -362,15 +400,24 @@ export function OwnerAssetLibraryPanel({
                     <textarea
                       className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
                       value={editorialReviewNote}
+                      disabled={authorReviewNote === null}
                       maxLength={600 - CONTENT_QUALITY_STANDARD_VERSION.length - 3}
                       onChange={(event) => setEditorialReviewNote(event.target.value)}
                     />
+                  </label>
+                  <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+                    Note to the author
+                    <span className="normal-case tracking-normal">Optional. Notes are specific to the selected outcome. Only the author and Owner can read this exact-revision note. Keep private reviewer observations in the editorial reason.</span>
+                    <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+                      value={authorReviewNote ?? ''} disabled={authorReviewNote === null} maxLength={600}
+                      onChange={(event) => setAuthorReviewNote(event.target.value)} />
+                    {authorNoteError ? <span role="alert">{authorNoteError}</span> : null}
                   </label>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={updatingSubmissionId === submission.id || editorialReviewStatus === 'approved' && submission.isCorrectionRevision && editorialEvidenceVersion === null}
+                    disabled={authorReviewNote === null || updatingSubmissionId === submission.id || editorialReviewStatus === 'approved' && submission.isCorrectionRevision && editorialEvidenceVersion === null}
                     className="w-fit rounded-none"
                     onClick={() => void saveEditorialReview(submission.id)}
                   >
