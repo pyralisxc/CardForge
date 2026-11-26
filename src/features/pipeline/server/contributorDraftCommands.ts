@@ -1,6 +1,6 @@
 import { hasContributionScope } from '@/features/contributor-access/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { contributorDraftExactInput, contributorDraftWriteInput, contributorDraftSnapshot, type ContributorDraftReceipt } from '../lib/contributorDraftContract';
+import { contributorDraftExactInput, contributorDraftWriteInput, contributorDraftSnapshot, contributorReviewFeedback, type ContributorDraftReceipt } from '../lib/contributorDraftContract';
 import { updatePipelineSubmissionDetails, finalizeContributorTemplatePipelineDraft } from '../lib/pipelineStore';
 import { PipelineStoreError } from '../lib/pipelineStoreError';
 import { resolvePipelineAgentViewer } from './pipelineAgentActions';
@@ -8,6 +8,26 @@ import { revalidateCardForgeCatalog } from './catalogCache';
 
 type Viewer = Awaited<ReturnType<typeof resolvePipelineAgentViewer>>;
 const invalid = () => new PipelineStoreError('Provide one exact supported Contributor draft request.', 400);
+export async function getContributorReviewFeedback(actorUserId: string, input: unknown) {
+  const parsed = contributorDraftExactInput.safeParse(input); if (!parsed.success) throw invalid();
+  const viewer = await resolvePipelineAgentViewer(actorUserId);
+  requireScope(viewer);
+  const db = getSupabaseServerClient(); if (!db) throw new PipelineStoreError('Review feedback is unavailable.', 503);
+  const { data: row, error } = await db.from('cardforge_contributor_asset_submissions')
+    .select('id,lineage_id,revision_number,contributor_id,editorial_review_status,author_review_note,editorial_reviewed_at,purge_state')
+    .eq('id', parsed.data.submissionId).maybeSingle();
+  if (error) throw new PipelineStoreError('Review feedback is unavailable.', 503);
+  if (!row || row.id !== parsed.data.submissionId || row.purge_state || (!viewer.isOwner && row.contributor_id !== viewer.userId)) {
+    throw new PipelineStoreError('This exact authorized revision was not found; no sibling was substituted.', 404);
+  }
+  const reviewStatus = row.editorial_review_status ?? 'pending';
+  const result = contributorReviewFeedback.safeParse({ submissionId: row.id, lineageId: row.lineage_id ?? null,
+    revisionNumber: row.revision_number ?? null, reviewStatus,
+    authorNote: reviewStatus === 'pending' ? null : row.author_review_note || null,
+    reviewedAt: row.editorial_reviewed_at ?? null });
+  if (!result.success) throw new PipelineStoreError('Exact review feedback could not be verified.', 503);
+  return result.data;
+}
 function requireScope(viewer: Viewer, scope?: 'assets.submit' | 'library.submit') {
   if (!viewer.contribution.active || (scope ? !hasContributionScope(viewer.contribution.scopes, scope) : !hasContributionScope(viewer.contribution.scopes, 'assets.submit') && !hasContributionScope(viewer.contribution.scopes, 'library.submit'))) {
     throw new PipelineStoreError('Your active Contributor profile does not permit this draft action.', 403);

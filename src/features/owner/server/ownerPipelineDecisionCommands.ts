@@ -24,11 +24,20 @@ async function exactRow(submissionId: string) {
 }
 const identity = (row: z.infer<typeof rowSchema>) => ({ submissionId: row.id, lineageId: row.lineage_id, name: row.name, revisionNumber: row.revision_number, status: row.status, updatedAt: row.updated_at });
 async function editorialSnapshot(submissionId: string) {
-  const row = await exactRow(submissionId), evidenceVersion = getSourceReviewVersion(row.source_review_evidence);
+  const db = getSupabaseServerClient();
+  if (!db) throw new PipelineRegistryCommandError('Exact Pipeline review is unavailable.', 503);
+  const { data, error } = await db.from('cardforge_contributor_asset_submissions')
+    .select('id,lineage_id,name,asset_type,semantic_role,requested_studio_destination,revision_number,status,updated_at,editorial_review_status,editorial_review_note,author_review_note,editorial_reviewed_by,editorial_reviewed_at,source_review_evidence,published_at,owner_status_override,owner_access_tier_override,owner_note,calculated_access_tier')
+    .eq('id', submissionId).maybeSingle();
+  if (error) throw new PipelineRegistryCommandError('Exact Pipeline review is unavailable.', 503);
+  if (!data) throw new PipelineRegistryCommandError('This exact revision was not found; no sibling was substituted.', 404);
+  const parsed = rowSchema.extend({ author_review_note: z.string() }).safeParse({ ...data, catalog_submission_id: null });
+  if (!parsed.success || parsed.data.id !== submissionId) throw new PipelineRegistryCommandError('Exact Pipeline review could not be verified.', 503);
+  const row = parsed.data, evidenceVersion = getSourceReviewVersion(row.source_review_evidence);
   if (evidenceVersion === null) throw new PipelineRegistryCommandError('Source evidence is unavailable; no version was inferred.', 503);
   // Use the same semantic-role normalization and quality owner as the browser.
   const submission = mapPipelineSubmissionRow(row as unknown as PipelineSubmissionRow);
-  return ownerPipelineEditorialSnapshot.parse({ ...identity(row), reviewStatus: submission.editorialReviewStatus, reviewNote: submission.editorialReviewNote, reviewedBy: row.editorial_reviewed_by, reviewedAt: row.editorial_reviewed_at, evidenceVersion,
+  return ownerPipelineEditorialSnapshot.parse({ ...identity(row), reviewStatus: submission.editorialReviewStatus, reviewNote: submission.editorialReviewNote, authorNote: row.author_review_note, reviewedBy: row.editorial_reviewed_by, reviewedAt: row.editorial_reviewed_at, evidenceVersion,
     qualityStandard: { version: CONTENT_QUALITY_STANDARD_VERSION, role: submission.semanticRole, universal: [...CONTENT_QUALITY_UNIVERSAL], ai: [...CONTENT_QUALITY_AI], finish: [...CONTENT_QUALITY_FINISH], roleCriteria: CONTENT_QUALITY_BY_ROLE[submission.semanticRole] } });
 }
 async function publicationSnapshot(submissionId: string) {

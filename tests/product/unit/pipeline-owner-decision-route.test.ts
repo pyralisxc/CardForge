@@ -8,9 +8,9 @@ const params = { params: Promise.resolve({ submissionId: id }) };
 const receipt = { submissionId: id, outcome: 'committed', committed: true, refreshComplete: false, refreshFailures: ['program_refresh'], activityRecorded: false, retryable: false, nextAction: 'read', message: 'Decision committed; read state.' };
 beforeEach(() => { vi.resetAllMocks(); f.owner.mockResolvedValue({ userId: 'browser-owner', isOwner: true }); f.editorial.mockResolvedValue({ snapshot: null, program: null, receipt }); });
 it('returns shared committed receipt even when no follow-up program is available', async () => {
-  const response = await PUT(new Request('https://cardforge.test', { method: 'PUT', body: JSON.stringify({ editorialReviewStatus: 'revise', editorialReviewNote: 'Observed clipping', expectedEvidenceVersion: 3 }) }), params);
+  const response = await PUT(new Request('https://cardforge.test', { method: 'PUT', body: JSON.stringify({ editorialReviewStatus: 'revise', editorialReviewNote: 'Observed clipping', authorReviewNote: 'Please fix clipping.', expectedEvidenceVersion: 3 }) }), params);
   expect(response.status).toBe(200); expect(await response.json()).toMatchObject({ receipt: { outcome: 'committed', committed: true }, program: null });
-  expect(f.editorial).toHaveBeenCalledExactlyOnceWith('browser-owner', { submissionId: id, reviewStatus: 'revise', reviewNote: 'Observed clipping', expectedEvidenceVersion: 3 }, { includeProgram: true });
+  expect(f.editorial).toHaveBeenCalledExactlyOnceWith('browser-owner', { submissionId: id, reviewStatus: 'revise', reviewNote: 'Observed clipping', authorNote: 'Please fix clipping.', expectedEvidenceVersion: 3 }, { includeProgram: true });
 });
 it('keeps unknown outcome explicitly uncertain and non-retryable in the existing API error contract', async () => {
   f.editorial.mockResolvedValue({ snapshot: null, program: null, receipt: { ...receipt, outcome: 'uncertain', committed: null } });

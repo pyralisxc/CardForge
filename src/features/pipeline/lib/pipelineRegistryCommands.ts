@@ -30,6 +30,7 @@ export interface SetPipelineEditorialReviewInput {
   submissionId: string;
   reviewStatus: PipelineEditorialReviewStatus;
   reviewNote: string;
+  authorNote: string;
   reviewerContributorId: string;
   expectedEvidenceVersion?: number | null;
 }
@@ -219,6 +220,9 @@ const throwEditorialReviewError = (errorMessage?: string, errorCode?: string): n
   }
   if (errorMessage?.includes('editorial_review_reason_required')) {
     throw new PipelineRegistryCommandError('Add an editorial review reason before recording this decision.', 400);
+  }
+  if (errorMessage?.includes('author_review_note_required')) {
+    throw new PipelineRegistryCommandError('Add a note to the author before recording this decision.', 400);
   }
   if (errorMessage?.includes('editorial_review_live_requires_quarantine')) {
     throw new PipelineRegistryCommandError('Live content must be quarantined or retired when it needs correction; “needs revision” is for unpublished candidates.', 409);
@@ -606,14 +610,16 @@ export const setPipelineEditorialReview = async ({
   submissionId,
   reviewStatus,
   reviewNote,
+  authorNote,
   reviewerContributorId,
   expectedEvidenceVersion,
 }: SetPipelineEditorialReviewInput): Promise<void> => {
   const supabase = requireSupabase();
-  const { error } = await supabase.rpc('cardforge_set_contributor_asset_editorial_review', {
+  const { error } = await supabase.rpc('cardforge_review_with_author_note', {
     p_submission_id: submissionId,
     p_review_status: reviewStatus,
     p_review_note: reviewNote,
+    p_author_note: authorNote,
     p_reviewer_contributor_id: reviewerContributorId,
     p_expected_evidence_version: expectedEvidenceVersion ?? null,
   });

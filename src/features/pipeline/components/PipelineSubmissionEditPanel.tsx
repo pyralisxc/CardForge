@@ -18,6 +18,7 @@ import {
 import type { PipelineSubmission } from '../lib/pipelineProgram';
 import { contributorDraftReceipt } from '../lib/contributorDraftContract';
 import { EditSubmissionForm } from './PipelineSubmissionRows';
+import { ContributorReviewFeedback } from './ContributorReviewFeedback';
 
 export function PipelineSubmissionEditPanel({
   submission,
@@ -100,7 +101,9 @@ export function PipelineSubmissionEditPanel({
     }
   };
 
-  return <EditSubmissionForm
+  return <>
+    {submission.status !== 'draft' ? <ContributorReviewFeedback submissionId={submission.id} /> : null}
+    <EditSubmissionForm
     assetType={submission.assetType}
     name={name}
     description={description}
@@ -132,5 +135,6 @@ export function PipelineSubmissionEditPanel({
     onCancel={onCancel}
     onSave={() => void save(false)}
     onSubmit={() => void save(true)}
-  />;
+    />
+  </>;
 }

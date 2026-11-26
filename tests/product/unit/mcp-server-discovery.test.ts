@@ -63,6 +63,7 @@ describe('Studio MCP HTTP discovery', () => {
         "get_cardforge_capabilities",
         "get_catalog_trash",
         "get_contributor_pipeline_draft",
+        "get_contributor_review_feedback",
         "get_editable_template",
         "get_personal_library_item",
         "get_pipeline_content_health",

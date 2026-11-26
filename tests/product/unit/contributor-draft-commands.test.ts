@@ -114,7 +114,7 @@ const http = async (id: number, method: string, params: object) => {
 it('lists all three explicit schemas and calls read/save/finalize through real HTTP and canonical native commands', async () => {
   await http(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'contributor-proof', version: '1' } });
   const listed = await http(2, 'tools/list', {});
-  expect(listed.result.tools).toHaveLength(58);
+  expect(listed.result.tools).toHaveLength(59);
   for (const name of ['get_contributor_pipeline_draft', 'save_contributor_pipeline_metadata', 'finalize_contributor_template_submission']) {
     expect(listed.result.tools.find((tool: { name: string }) => tool.name === name)).toMatchObject({ inputSchema: { type: 'object' }, outputSchema: { type: 'object' }, annotations: { readOnlyHint: false } });
   }
@@ -125,6 +125,16 @@ it('lists all three explicit schemas and calls read/save/finalize through real H
   const submitted = await http(5, 'tools/call', { name: 'finalize_contributor_template_submission', arguments: { submissionId: id, metadata } });
   expect(submitted.result.structuredContent.receipt).toMatchObject({ outcome: 'submitted', submitted: true });
   expect(f.account).toHaveBeenCalledWith('oauth-author'); expect(f.rpc).toHaveBeenCalledOnce();
+});
+it('reads only explicit exact-author feedback through the real Studio MCP endpoint', async () => {
+  Object.assign(f.row, { editorial_review_status: 'revise', author_review_note: 'Please improve contrast.',
+    editorial_reviewed_at: '2026-11-26T12:00:00Z', purge_state: null, editorial_review_note: 'private observation' });
+  const result = await http(1, 'tools/call', { name: 'get_contributor_review_feedback', arguments: { submissionId: id } });
+  expect(result.result.structuredContent).toMatchObject({ submissionId: id, reviewStatus: 'revise', authorNote: 'Please improve contrast.' });
+  expect(JSON.stringify(result)).not.toContain('private observation');
+  f.row.contributor_id = 'another-author';
+  const denied = await http(2, 'tools/call', { name: 'get_contributor_review_feedback', arguments: { submissionId: id } });
+  expect(denied.result.isError).toBe(true);
 });
 it('preserves a partial receipt through real HTTP without a second native submission', async () => {
   f.rpc.mockResolvedValue({ data: null, error: { message: 'template_draft_not_editable' } });

@@ -702,12 +702,14 @@ export const commitPipelineEditorialReview = async ({
   submissionId,
   reviewStatus,
   reviewNote,
+  authorNote,
   expectedEvidenceVersion,
   currentUserId,
 }: {
   submissionId: string;
   reviewStatus: unknown;
   reviewNote: unknown;
+  authorNote: unknown;
   expectedEvidenceVersion?: unknown;
   currentUserId: string;
   currentContributorIds?: string[];
@@ -723,8 +725,12 @@ export const commitPipelineEditorialReview = async ({
   ) ? reviewStatus : null;
   if (!normalizedStatus) throw new PipelineStoreError('Choose a supported editorial review outcome.', 400);
   const normalizedNote = normalizePipelineLongText(reviewNote, 600);
+  const normalizedAuthorNote = normalizePipelineLongText(authorNote, 600);
   if (normalizedStatus !== 'pending' && !normalizedNote) {
     throw new PipelineStoreError('Add an editorial review reason before recording this decision.', 400);
+  }
+  if (normalizedStatus !== 'pending' && !normalizedAuthorNote) {
+    throw new PipelineStoreError('Add a note to the author before recording this decision.', 400);
   }
   const decision = normalizedStatus === 'pending'
     ? { ok: true as const, value: '' }
@@ -734,13 +740,14 @@ export const commitPipelineEditorialReview = async ({
     submissionId,
     reviewStatus: normalizedStatus,
     reviewNote: decision.value,
+    authorNote: normalizedAuthorNote,
     reviewerContributorId: currentUserId,
     expectedEvidenceVersion: typeof expectedEvidenceVersion === 'number' ? expectedEvidenceVersion : null,
   }));
 };
 
-export const updatePipelineEditorialReview = async ({ submissionId, reviewStatus, reviewNote, expectedEvidenceVersion, currentUserId, currentContributorIds = [currentUserId] }: Parameters<typeof commitPipelineEditorialReview>[0]): Promise<PipelineProgramView> => {
-  await commitPipelineEditorialReview({ submissionId, reviewStatus, reviewNote, expectedEvidenceVersion, currentUserId });
+export const updatePipelineEditorialReview = async ({ submissionId, reviewStatus, reviewNote, authorNote, expectedEvidenceVersion, currentUserId, currentContributorIds = [currentUserId] }: Parameters<typeof commitPipelineEditorialReview>[0]): Promise<PipelineProgramView> => {
+  await commitPipelineEditorialReview({ submissionId, reviewStatus, reviewNote, authorNote, expectedEvidenceVersion, currentUserId });
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 
