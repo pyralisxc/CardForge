@@ -224,7 +224,9 @@ export const updateOwnerPerson = async (
         // commercial grants, billing projection, Owner authority and expiry verbatim.
         cardforgeAuthorityRoles: Array.isArray(user.privateMetadata?.cardforgeAuthorityRoles)
           ? user.privateMetadata.cardforgeAuthorityRoles.filter((role: unknown) => role !== 'contributor') : [],
-        cardforgeAccess: currentAccount.commercialPlan === 'free' ? 'free' : 'paid',
+        ...(user.privateMetadata?.cardforgeAccess === 'contributor'
+          ? { cardforgeAccess: currentAccount.commercialPlan === 'free' ? 'free' : 'paid' }
+          : {}),
       } : buildOwnerAccountMetadataPatch({
         existingMetadata: user.privateMetadata ?? {},
         input: accountValue,

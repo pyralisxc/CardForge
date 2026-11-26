@@ -69,6 +69,7 @@ vi.mock('@/features/owner/server/ownerActivityStore', () => ({
 import {
   updateOwnerPerson,
 } from '@/features/owner/server/ownerPeopleOperations';
+import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
 
 const input = () => ({
   userId: 'user_one',
@@ -146,6 +147,21 @@ describe('owner grants share the Stripe projection lock', () => {
       cardforgeCommercialPlan: 'designer', cardforgeStripeSubscriptionId: 'sub_creator',
       cardforgeAccessExpiresAt: '2030-01-01', cardforgeOwnerNote: 'keep',
       cardforgeFounderBetaClaimedAt: '2026-01-01' });
+  });
+
+  it('preserves a separate legacy paid grant and its clean-export entitlement when revoking Contributor', async () => {
+    state.metadata = { cardforgeAccess: 'paid', cardforgeAccessExpiresAt: '2030-01-01T00:00:00.000Z',
+      cardforgeAuthorityRoles: ['contributor'] };
+    state.profile = { clerk_user_id: 'user_one', status: 'active' };
+    await updateOwnerPerson({ userId: 'user_one', action: 'revoke' });
+    const entitlement = resolveAccountEntitlement({ authConfigured: true, isSignedIn: true,
+      privateMetadata: state.metadata, now: '2026-11-26T00:00:00.000Z' });
+    expect(state.metadata).toMatchObject({ cardforgeAccess: 'paid', cardforgeAuthorityRoles: [],
+      cardforgeAccessExpiresAt: '2030-01-01T00:00:00.000Z' });
+    expect(entitlement).toMatchObject({ accessMode: 'paid', authorities: { contributor: false },
+      commercialPlan: 'free', canExportClean: true, capabilities: { canExportClean: true } });
+    expect(resolveAccountEntitlement({ authConfigured: true, isSignedIn: true,
+      privateMetadata: state.metadata, now: '2031-01-01T00:00:00.000Z' }).capabilities.canExportClean).toBe(false);
   });
 
   it('removes an extra grant without canceling paid access', async () => {
