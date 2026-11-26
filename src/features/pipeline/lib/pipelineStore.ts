@@ -766,7 +766,7 @@ export const commitPipelineEditorialReview = async ({
   ) ? reviewStatus : null;
   if (!normalizedStatus) throw new PipelineStoreError('Choose a supported editorial review outcome.', 400);
   const normalizedNote = normalizePipelineLongText(reviewNote, 600);
-  const normalizedAuthorNote = normalizePipelineLongText(authorNote, 600);
+  const normalizedAuthorNote = authorNote === undefined ? null : normalizePipelineLongText(authorNote, 600);
   if (normalizedStatus !== 'pending' && !normalizedNote) {
     throw new PipelineStoreError('Add an editorial review reason before recording this decision.', 400);
   }

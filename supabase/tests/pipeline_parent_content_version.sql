@@ -95,8 +95,16 @@ begin
   then raise exception 'author_feedback_not_exact_or_content_version_changed'; end if;
   perform public.cardforge_review_with_author_note(fixture_id,'revise','Updated private reason',actor,null,null);
   if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=fixture_id
-    and s.editorial_review_status='revise' and s.author_review_note='' and s.editorial_review_note='Updated private reason')
-    then raise exception 'legacy_review_without_author_note_failed_or_leaked'; end if;
+    and s.editorial_review_status='revise' and s.author_review_note='Author direction' and s.editorial_review_note='Updated private reason')
+    then raise exception 'legacy_same_decision_did_not_preserve_author_note'; end if;
+  perform public.cardforge_review_with_author_note(fixture_id,'quarantine','Different private reason',actor,null,null);
+  if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=fixture_id
+    and s.editorial_review_status='quarantine' and s.author_review_note='')
+    then raise exception 'old_author_feedback_carried_to_different_decision'; end if;
+  perform public.cardforge_review_with_author_note(fixture_id,'revise','Private reviewer reason',actor,null,'New author direction');
+  perform public.cardforge_review_with_author_note(fixture_id,'revise','Private reviewer reason',actor,null,'');
+  if not exists(select 1 from public.cardforge_contributor_asset_submissions s where s.id=fixture_id and s.author_review_note='')
+    then raise exception 'explicit_author_note_clear_failed'; end if;
   begin
     update public.cardforge_contributor_asset_submissions s set name='Changed after review' where s.id=fixture_id;
     raise exception 'reviewed_snapshot_mutation_accepted';

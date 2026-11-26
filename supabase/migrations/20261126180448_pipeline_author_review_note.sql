@@ -71,15 +71,24 @@ create function public.cardforge_review_with_author_note(
 ) returns integer language plpgsql security invoker set search_path = '' as $$
 declare
   author_note text := pg_catalog.btrim(coalesce(p_author_note, ''));
+  previous_status text;
+  previous_author_note text;
   result integer;
 begin
   if pg_catalog.char_length(author_note) > 600 then
     raise exception 'author_review_note_too_long';
   end if;
+  select editorial_review_status, author_review_note into previous_status, previous_author_note
+    from public.cardforge_contributor_asset_submissions where id = p_submission_id for update;
+  if not found then raise exception 'contributor_asset_not_found'; end if;
   result := public.cardforge_set_contributor_asset_editorial_review(
     p_submission_id, p_review_status, p_review_note, p_reviewer_contributor_id, p_expected_evidence_version);
   update public.cardforge_contributor_asset_submissions
-    set author_review_note = case when p_review_status = 'pending' then '' else author_note end
+    set author_review_note = case
+      when p_review_status = 'pending' then ''
+      when p_author_note is not null then author_note
+      when previous_status is not distinct from p_review_status then previous_author_note
+      else '' end
     where id = p_submission_id;
   if not found then raise exception 'contributor_asset_not_found'; end if;
   return result;

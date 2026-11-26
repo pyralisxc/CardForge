@@ -5,7 +5,7 @@ import { CatalogTrashControls } from './CatalogTrashControls';
 import { RevisionRecoveryControls } from './RevisionRecoveryControls';
 import { SourceReviewEvidence } from './SourceReviewEvidence';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Archive, CheckCircle2, ChevronLeft, ChevronRight, Eye, Pencil, Search, Settings2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -109,6 +109,7 @@ export function OwnerAssetLibraryPanel({
   const [editorialReviewStatus, setEditorialReviewStatus] = useState<PipelineEditorialReviewStatus>('pending');
   const [editorialReviewNote, setEditorialReviewNote] = useState('');
   const [authorReviewNote, setAuthorReviewNote] = useState<string | null>(null);
+  const authorNotesByOutcome = useRef<Partial<Record<PipelineEditorialReviewStatus, string>>>({});
   const [authorNoteError, setAuthorNoteError] = useState('');
   const [editorialEvidenceVersion, setEditorialEvidenceVersion] = useState<number | null>(null);
   const [qualityCriteriaReviewed, setQualityCriteriaReviewed] = useState(false);
@@ -128,7 +129,7 @@ export function OwnerAssetLibraryPanel({
   useEffect(() => {
     if (!managingId) return;
     let current = true;
-    setAuthorReviewNote(null); setAuthorNoteError('');
+    setAuthorReviewNote(null); setAuthorNoteError(''); authorNotesByOutcome.current = {};
     void fetch(`/api/pipeline/${encodeURIComponent(managingId)}?view=editorial`, { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw new Error('The exact author note is unavailable.');
@@ -141,6 +142,7 @@ export function OwnerAssetLibraryPanel({
           setEditorialReviewNote(parseContentQualityReviewNote(result.reviewNote).reason);
           setEditorialEvidenceVersion(result.evidenceVersion as number);
           setAuthorReviewNote(result.authorNote);
+          authorNotesByOutcome.current = { [result.reviewStatus as PipelineEditorialReviewStatus]: result.authorNote };
         }
       })
       .catch(() => { if (current) setAuthorNoteError('Review feedback could not be loaded. Close and reopen this exact revision to retry.'); });
@@ -373,7 +375,12 @@ export function OwnerAssetLibraryPanel({
                         className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
                         value={editorialReviewStatus}
                         disabled={authorReviewNote === null}
-                        onChange={(event) => setEditorialReviewStatus(event.target.value as PipelineEditorialReviewStatus)}
+                        onChange={(event) => {
+                          const next = event.target.value as PipelineEditorialReviewStatus;
+                          if (authorReviewNote !== null) authorNotesByOutcome.current[editorialReviewStatus] = authorReviewNote;
+                          setAuthorReviewNote(authorNotesByOutcome.current[next] ?? '');
+                          setEditorialReviewStatus(next);
+                        }}
                       >
                         <option value="pending">Pending review</option>
                         <option value="approved">Approved</option>
@@ -400,7 +407,7 @@ export function OwnerAssetLibraryPanel({
                   </label>
                   <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
                     Note to the author
-                    <span className="normal-case tracking-normal">Optional. Only the author and Owner can read this exact-revision note. Keep private reviewer observations in the editorial reason.</span>
+                    <span className="normal-case tracking-normal">Optional. Notes are specific to the selected outcome. Only the author and Owner can read this exact-revision note. Keep private reviewer observations in the editorial reason.</span>
                     <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
                       value={authorReviewNote ?? ''} disabled={authorReviewNote === null} maxLength={600}
                       onChange={(event) => setAuthorReviewNote(event.target.value)} />

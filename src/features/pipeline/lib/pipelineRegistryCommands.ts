@@ -31,7 +31,7 @@ export interface SetPipelineEditorialReviewInput {
   submissionId: string;
   reviewStatus: PipelineEditorialReviewStatus;
   reviewNote: string;
-  authorNote: string;
+  authorNote: string | null;
   reviewerContributorId: string;
   expectedEvidenceVersion?: number | null;
 }
