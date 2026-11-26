@@ -415,7 +415,22 @@ export function useDeskController({
     sources: deskProjection.sourceStatuses,
     sourceFailed: deskProjection.failures.length > 0,
   });
-  const arrivalAcquisitionReady = initialSourceSnapshotReady
+  // A focused Set already present in the hydrated workspace does not depend
+  // on unrelated provider discovery. Missing work still waits for all sources.
+  const focusedSetTemplatesReady = useMemo(() => {
+    if (!focusedLocalSetId || !focusedSet) return false;
+    const templateIds = new Set(templates.map((template) => template.id));
+    const backingIds = new Set(templates.filter((template) => template.templateUsage === 'back-preset').map((template) => template.id));
+    return (focusedSet.templateIds ?? []).every((id) => templateIds.has(id))
+      && storedCards.every((card) => {
+        const belongsToSet = card.setId ? card.setId === focusedLocalSetId : cardSets[0]?.id === focusedLocalSetId;
+        return !belongsToSet || (templateIds.has(card.templateId) && (!card.backingTemplateId || backingIds.has(card.backingTemplateId)));
+      });
+  }, [cardSets, focusedLocalSetId, focusedSet, storedCards, templates]);
+  const focusedLocalSetReady = deviceWorkspaceReady && focusedItem?.kind === 'set'
+    && focusedSetTemplatesReady && focusedDestinationReady
+    && !initialTool && !handoffReference && interactionSession.toolStack.length === 0;
+  const arrivalAcquisitionReady = (initialSourceSnapshotReady || focusedLocalSetReady)
     && (!deviceWorkspaceReady || deskMembership.status !== 'loading')
     && (!focusedPlacementIdentity || deskMembership.status !== 'ready' || focusedPlacementSettled === focusedPlacementIdentity)
     && (projection.privateOrganizationReady || projection.privateOrganizationUnavailable)

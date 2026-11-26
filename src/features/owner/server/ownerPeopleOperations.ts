@@ -4,7 +4,9 @@ import { resolveOwnerAccess } from '@/domain/entitlements';
 import {
   buildOwnerAccountMetadataPatch,
   mapOwnerAccountSummary,
+  hasEnvironmentContributorGrant,
   normalizeOwnerAccountRoleInput,
+  resolveAccountEntitlement,
   type OwnerAccountSummary,
 } from '@/features/account/server';
 import {
@@ -176,6 +178,13 @@ export const updateOwnerPerson = async (
         publicMetadata: user.publicMetadata,
         privateMetadata: user.privateMetadata,
       });
+      const emailAddresses = user.emailAddresses.map((address) => address.emailAddress);
+      const environmentContributor = hasEnvironmentContributorGrant(emailAddresses);
+      const effectiveContributor = resolveAccountEntitlement({ authConfigured: true, isSignedIn: true,
+        emailAddresses, privateMetadata: user.privateMetadata, ownerAccess: targetOwnerAccess }).authorities.contributor;
+      if (action === 'revoke' && !profile && environmentContributor) {
+        throw new OwnerPeopleOperationError('This account has an environment-managed Contributor grant but no profile to deactivate. Reconcile that grant before revoking access.', 409, 'owner_operations_conflict');
+      }
       if (userId === owner.userId && input.account?.owner !== true) {
         throw new OwnerPeopleOperationError(
           'Keep owner access enabled for the signed-in owner.',
@@ -184,8 +193,15 @@ export const updateOwnerPerson = async (
         );
       }
 
+      const accountUnchanged = action === 'update'
+        && input.account?.commercialPlan === (currentAccount.ownerCommercialPlan ?? '')
+        && input.account?.contributor === effectiveContributor
+        && input.account?.owner === targetOwnerAccess.isOwner
+        && input.account?.note === currentAccount.note;
       const normalizedAccount = action === 'revoke'
-        ? { ok: true as const, value: { commercialPlan: 'free' as const, contributor: false, owner: false, note: currentAccount.note } }
+        ? { ok: true as const, value: { commercialPlan: currentAccount.commercialPlan, contributor: false, owner: targetOwnerAccess.isOwner, note: currentAccount.note } }
+        : accountUnchanged
+          ? { ok: true as const, value: { commercialPlan: currentAccount.commercialPlan, contributor: effectiveContributor, owner: targetOwnerAccess.isOwner, note: currentAccount.note } }
         : normalizeOwnerAccountRoleInput(input.account ?? {});
       if (!normalizedAccount.ok) {
         throw new OwnerPeopleOperationError(
@@ -203,7 +219,15 @@ export const updateOwnerPerson = async (
         );
       }
 
-      const privateMetadata = buildOwnerAccountMetadataPatch({
+      const privateMetadata = action === 'revoke' ? {
+        // Revoke only the Contributor representations. Preserve legacy/ambiguous
+        // commercial grants, billing projection, Owner authority and expiry verbatim.
+        cardforgeAuthorityRoles: Array.isArray(user.privateMetadata?.cardforgeAuthorityRoles)
+          ? user.privateMetadata.cardforgeAuthorityRoles.filter((role: unknown) => role !== 'contributor') : [],
+        ...(user.privateMetadata?.cardforgeAccess === 'contributor'
+          ? { cardforgeAccess: currentAccount.commercialPlan === 'free' ? 'free' : 'paid' }
+          : {}),
+      } : buildOwnerAccountMetadataPatch({
         existingMetadata: user.privateMetadata ?? {},
         input: accountValue,
       });
@@ -214,10 +238,14 @@ export const updateOwnerPerson = async (
           'owner_people_unavailable',
         );
       }
-      await client.users.updateUserMetadata(userId, { privateMetadata });
-      account = mapOwnerAccountSummary(await client.users.getUser(userId));
+      if (!accountUnchanged) {
+        await client.users.updateUserMetadata(userId, { privateMetadata });
+        account = mapOwnerAccountSummary(await client.users.getUser(userId));
+      } else {
+        account = currentAccount;
+      }
 
-      if (profile || accountValue.contributor || accountValue.owner) {
+      if (profile || (action !== 'revoke' && (accountValue.contributor || accountValue.owner))) {
         const requestedStatus = input.contributor?.status;
         const status: ContributorProfileStatus = action === 'revoke' || (!accountValue.contributor && !accountValue.owner)
           ? 'inactive'
@@ -256,6 +284,9 @@ export const updateOwnerPerson = async (
           console.error('Owner people update partially completed:', error);
         }
       }
+      if (action === 'revoke' && environmentContributor) {
+        warnings.push('The deployment-managed Contributor grant remains. Check the profile status before relying on disabled access; remove the grant at its provider owner if it should no longer exist.');
+      }
     }
 
     const activityRecorded = await recordOwnerActivity({
@@ -265,7 +296,7 @@ export const updateOwnerPerson = async (
       targetType: 'person',
       targetId: userId,
       summary: action === 'revoke'
-        ? 'Revoked CardForge contributor and owner authority while preserving contribution history.'
+        ? 'Disabled Contributor access while preserving other account access and contribution history.'
         : action === 'deactivate_history'
           ? 'Deactivated a contributor profile whose Clerk account is no longer present.'
           : 'Updated account entitlement and contributor controls.',

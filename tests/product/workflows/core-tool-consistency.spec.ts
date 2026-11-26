@@ -174,6 +174,47 @@ for (const width of [1440, 390]) test(`Library removes and restores the same car
   await expect(recovery).toHaveCount(0);
 });
 
+test('Library recovery keeps an unnamed card’s Set-relative label', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, additionalSets: 1 });
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('cardforge-browser-storage', 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await Promise.all(['guest', 'local'].map((scope) => new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('key-value', 'readwrite');
+      const store = tx.objectStore('key-value');
+      const key = `project-workspace:${scope}:workspace`;
+      const request = store.get(key);
+      request.onsuccess = () => {
+        const record = JSON.parse(request.result);
+        const workspace = JSON.parse(record.value);
+        const card = workspace.state.storedCards[1];
+        card.setId = 'touch-companion-1';
+        card.setName = 'Touch Companion Set 1';
+        delete card.data.cardName;
+        workspace.state.storedCards.splice(1, 0, { ...card, uniqueId: 'missing-front-card', templateId: 'missing-front-template' });
+        record.value = JSON.stringify(workspace);
+        store.put(JSON.stringify(record), key);
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    })));
+    db.close();
+  });
+  await page.goto('/account?section=library');
+  await page.locator('[id^="library-object-set:"]').filter({ hasText: 'Touch Companion Set 1' }).click();
+  const cards = page.getByRole('region', { name: 'Cards in this Set' });
+  await cards.getByRole('button', { name: 'Remove Card 1', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Remove card', exact: true }).click();
+  const recovery = cards.getByRole('group', { name: 'Card removal recovery' });
+  await expect(recovery).toContainText('Removed 1 card from Touch Companion Set 1: Card 1.');
+  await recovery.getByRole('button', { name: /^Undo latest removal/ }).click();
+  await expect(cards.getByRole('button', { name: 'Edit Card 1', exact: true })).toBeVisible();
+});
+
 test('a Library removal can be undone from Desk in the same browser session', async ({ page }) => {
   test.setTimeout(120_000);
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
@@ -249,4 +290,60 @@ for (const width of [1440, 390]) test(`Library edits the same card and retains t
   expect(saved.storedCards).toHaveLength(2);
   expect(saved.storedCards[0]).toMatchObject({ uniqueId: 'scale-card-1', setId: 'scale-set-100', templateId: before[scope].storedCards[0].templateId, data: { cardName: 'Revised in Library', artwork: `cardforge-browser-asset://${'1'.padStart(64, '0')}` } });
   expect(saved.storedCards[1]).toMatchObject({ uniqueId: 'scale-card-2', setId: 'scale-set-100', templateId: before[scope].storedCards[1].templateId, data: { cardName: 'Scale Card 0002', artwork: `cardforge-browser-asset://${'2'.padStart(64, '0')}` } });
+});
+
+test('Library opens an already-local Set on Desk while an unrelated source is still loading', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
+  let releaseCatalog!: () => void;
+  let catalogStarted!: () => void;
+  const catalogRequested = new Promise<void>((resolve) => { catalogStarted = resolve; });
+  const catalogHeld = new Promise<void>((resolve) => { releaseCatalog = resolve; });
+  await page.route('**/api/catalog/studio-bootstrap', async (route) => {
+    catalogStarted();
+    await catalogHeld;
+    await route.continue();
+  });
+  try {
+    await page.goto('/account?section=library', { waitUntil: 'domcontentloaded' });
+    await page.locator('[id^="library-object-set:"]').filter({ hasText: '100 Card Scale Set' }).click();
+    await catalogRequested;
+    await page.getByRole('button', { name: 'Open on Desk', exact: true }).click();
+    await expect(page.getByRole('searchbox', { name: 'Search cards in this Set', exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true }).click();
+    await page.getByRole('button', { name: 'Edit selected', exact: true }).click();
+    const artwork = page.getByRole('textbox', { name: 'Artwork (Image URL or Upload)', exact: true });
+    await expect(artwork).toBeEditable();
+    await artwork.fill('');
+    await expect(artwork).toHaveValue('');
+  } finally {
+    releaseCatalog();
+  }
+});
+
+
+test('a local Set waits for its required published Template before becoming ready', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, publicTemplate: true });
+  let releaseCatalog!: () => void;
+  let catalogStarted!: () => void;
+  const catalogRequested = new Promise<void>((resolve) => { catalogStarted = resolve; });
+  const catalogHeld = new Promise<void>((resolve) => { releaseCatalog = resolve; });
+  await page.route('**/api/catalog/studio-bootstrap', async (route) => {
+    catalogStarted();
+    await catalogHeld;
+    await route.fallback();
+  });
+  try {
+    await page.goto('/account?section=library', { waitUntil: 'domcontentloaded' });
+    await page.locator('[id^="library-object-set:"]').filter({ hasText: '100 Card Scale Set' }).click();
+    await catalogRequested;
+    await page.getByRole('button', { name: 'Open on Desk', exact: true }).click();
+    await expect(page.getByRole('status', { name: 'Preparing CardForge Desk' })).toBeVisible();
+    await expect(page.locator('[data-desk-arrival-phase="ready"]')).toHaveCount(0);
+    releaseCatalog();
+    await expect(page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true })).toBeVisible({ timeout: 30_000 });
+  } finally {
+    releaseCatalog();
+  }
 });

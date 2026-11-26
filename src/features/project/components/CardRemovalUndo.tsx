@@ -38,7 +38,7 @@ export function CardRemovalUndo({ setId, setName, returnFocusRef }: {
     const next = useProjectStore.getState().cardRemovalRecoveries.findLast((item) => item.setId === setId);
     setFeedback({ forId: next?.id, message });
   };
-  const names = entry?.cards.slice(0, 3).map((card) => getCardTitle(card, entry.order.indexOf(card.uniqueId)).slice(0, 80)).join(', ');
+  const names = entry?.cards.slice(0, 3).map((card) => getCardTitle(card, Math.max(0, entry.setOrder.indexOf(card.uniqueId))).slice(0, 80)).join(', ');
   const summary = entry ? `Removed ${entry.cards.length} card${entry.cards.length === 1 ? '' : 's'} from ${setName}: ${names}${entry.cards.length > 3 ? ` and ${entry.cards.length - 3} more` : ''}.` : '';
   const message = feedback?.forId === entry?.id ? feedback?.message ?? '' : '';
 

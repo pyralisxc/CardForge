@@ -4,7 +4,7 @@ import type { StateCreator } from 'zustand';
 import { normalizeCardTagIds, type StoredDisplayCard } from '@/domain/cards';
 
 import { prepareCardSetTemplateBindings } from '../model/setTemplateOwnership';
-import { selectAllTemplates } from './selectors';
+import { selectAllGeneratedDisplayCards, selectAllTemplates } from './selectors';
 import type { OutputSlice, ProjectState } from './types';
 
 const toStoredCard = (updatedCard: import('@/domain/rendering').DisplayCard, previous?: StoredDisplayCard): StoredDisplayCard => ({
@@ -86,11 +86,13 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
     if (!removed.length) return 0;
     const templates = new Set(selectAllTemplates(state).map((template) => template.id));
     const order = state.storedCards.map((card) => card.uniqueId);
+    const visibleCards = selectAllGeneratedDisplayCards(state);
     const recoveries = state.cardSets.flatMap((owner) => {
       const cards = removed.filter((card) => (card.setId || state.cardSets[0]?.id) === owner.id);
       if (!cards.length) return [];
       return [{
         id: nanoid(), setId: owner.id, cards: structuredClone(cards), order,
+        setOrder: visibleCards.filter((card) => (card.setId ?? state.cardSets[0]?.id) === owner.id).map((card) => card.uniqueId),
         requiredTemplateIds: [...new Set(cards.flatMap((card) => [card.templateId, card.backingTemplateId])
           .filter((id): id is string => Boolean(id && templates.has(id))))],
       }];
