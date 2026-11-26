@@ -71,7 +71,8 @@ for (const mobile of [false, true]) {
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
       await removeShown(page, 1, mobile);
-      await expect(page.getByText('This Set is ready for its first card', { exact: true })).toBeVisible();
+      await expect(page.getByText('Your designs are ready for the first card.', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: /Select Template Scale Fixture Template, prepared for this Set/ })).toBeVisible();
       await expect(recovery(page)).toBeInViewport({ ratio: 1 });
       await recovery(page).getByRole('button', { name: /^Undo latest removal/ }).click();
       await expect(card(page, 1)).toBeVisible();
@@ -79,7 +80,8 @@ for (const mobile of [false, true]) {
       await expect(recovery(page)).toBeVisible();
       await page.reload({ waitUntil: 'domcontentloaded' });
       await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
-      await expect(page.getByText('This Set is ready for its first card', { exact: true })).toBeVisible();
+      await expect(page.getByText('Your designs are ready for the first card.', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: /Select Template Scale Fixture Template, prepared for this Set/ })).toBeVisible();
       await expect(recovery(page)).toHaveCount(0);
       await expect(card(page, 1)).toHaveCount(0);
     });

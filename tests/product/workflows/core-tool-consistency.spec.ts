@@ -134,6 +134,63 @@ test('Library finds cards by the same authored name field as Desk', async ({ pag
   await expect(page.getByRole('button', { name: 'Edit Scale Card 0001', exact: true })).toHaveCount(0);
 });
 
+for (const width of [1440, 390]) test(`Library removes and restores the same card in its Set at ${width}px`, async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width, height: 900 });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, staleToolTemplate: true });
+  await page.goto('/account?section=library');
+  const openSet = () => page.locator('[id^="library-object-set:"]').filter({ hasText: '100 Card Scale Set' }).click();
+  await openSet();
+  const cards = page.getByRole('region', { name: 'Cards in this Set' });
+  await cards.getByRole('button', { name: 'Remove Scale Card 0001', exact: true }).click();
+  const confirm = page.getByRole('alertdialog');
+  await expect(confirm).toContainText('Reusable Templates and other cards remain available');
+  await confirm.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(cards.getByRole('button', { name: 'Edit Scale Card 0001', exact: true })).toBeVisible();
+  await cards.getByRole('button', { name: 'Remove Scale Card 0001', exact: true }).click();
+  await confirm.getByRole('button', { name: 'Remove card', exact: true }).click();
+  await expect(cards).toBeFocused();
+  await expect(cards.getByRole('button', { name: 'Edit Scale Card 0001', exact: true })).toHaveCount(0);
+  await expect(cards.getByRole('button', { name: 'Edit Scale Card 0002', exact: true })).toBeVisible();
+  const recovery = cards.getByRole('group', { name: 'Card removal recovery' });
+  await expect(recovery).toContainText('Scale Card 0001');
+  await expect(recovery).toContainText('This session');
+  await recovery.getByRole('button', { name: /^Undo latest removal/ }).click();
+  await expect(cards.getByRole('button', { name: 'Edit Scale Card 0001', exact: true })).toBeVisible();
+  await expect(recovery).toHaveCount(0);
+  await expect(cards).toBeFocused();
+  await cards.getByRole('button', { name: 'Remove Scale Card 0001', exact: true }).click();
+  await confirm.getByRole('button', { name: 'Remove card', exact: true }).click();
+  await cards.getByRole('button', { name: 'Remove Scale Card 0002', exact: true }).click();
+  await confirm.getByRole('button', { name: 'Remove card', exact: true }).click();
+  await expect(cards.getByText('No editable cards in this Set.')).toBeVisible();
+  await expect(recovery).toContainText('latest of 2 removals');
+  await recovery.getByRole('button', { name: /^Undo latest removal/ }).click();
+  await expect(cards.getByRole('button', { name: 'Edit Scale Card 0002', exact: true })).toBeVisible();
+  await page.reload();
+  await openSet();
+  await expect(cards.getByRole('button', { name: 'Edit Scale Card 0001', exact: true })).toHaveCount(0);
+  await expect(cards.getByRole('button', { name: 'Edit Scale Card 0002', exact: true })).toBeVisible();
+  await expect(recovery).toHaveCount(0);
+});
+
+test('a Library removal can be undone from Desk in the same browser session', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
+  await page.goto('/account?section=library');
+  await page.locator('[id^="library-object-set:"]').filter({ hasText: '100 Card Scale Set' }).click();
+  await page.getByRole('button', { name: 'Remove Scale Card 0001', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Remove card', exact: true }).click();
+  await expect(page.getByRole('group', { name: 'Card removal recovery' })).toContainText('Scale Card 0001');
+  await page.getByRole('link', { name: 'Desk', exact: true }).first().click();
+  await openScaleSet(page, 100);
+  const recovery = page.getByRole('group', { name: 'Card removal recovery' });
+  await expect(recovery).toContainText('Scale Card 0001');
+  await recovery.getByRole('button', { name: /^Undo latest removal/ }).click();
+  await expect(page.locator('button[data-artifact-id="scale-card-1"]')).toBeVisible();
+  await expect(page.locator('button[data-artifact-id="scale-card-2"]')).toBeVisible();
+});
+
 for (const width of [1440, 390]) test(`Library edits the same card and retains the Set after reload at ${width}px`, async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width, height: 900 });
