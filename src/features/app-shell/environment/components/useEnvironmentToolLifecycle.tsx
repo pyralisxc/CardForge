@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { hasBlockingKeyboardLayer } from '../keyboard';
 
 const activeToolLayers: string[] = [];
 const isTopToolLayer = (id: string) => activeToolLayers.at(-1) === id;
@@ -102,6 +103,7 @@ export function useEnvironmentToolLifecycle({
       if (event.key === 'Escape') {
         if (
           event.defaultPrevented
+          || hasBlockingKeyboardLayer()
           || Array.from(document.querySelectorAll<HTMLElement>('[data-radix-popper-content-wrapper], [role="listbox"], [role="menu"], [role="alertdialog"]'))
             .some((element) => element.getClientRects().length > 0)
         ) return;

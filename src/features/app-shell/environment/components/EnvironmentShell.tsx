@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 
 import { isActionApplicable, type ActionDescriptor, type EnvironmentPresentation, type EnvironmentViewer, type ZoneDefinition, type ZoneId, type ZoneViewportPolicy } from '../model';
 import type { EnvironmentDetailRecord } from '../presentation';
 import { EnvironmentCommandBand } from './EnvironmentCommandBand';
 import { EnvironmentDesktopInspector, EnvironmentMobileSheet } from './EnvironmentDetail';
 import { EnvironmentNavigation } from './EnvironmentNavigation';
+import { EnvironmentQuickActions } from './EnvironmentQuickActions';
+import { QuickActionsContext, type QuickActionsContribution } from './quickActionsContext';
+import { hasBlockingKeyboardLayer, isEditableKeyboardTarget } from '../keyboard';
 import styles from './EnvironmentFoundation.module.css';
 
 interface EnvironmentShellProps {
@@ -30,7 +33,7 @@ interface EnvironmentShellProps {
   contextBand?: ReactNode;
   presentation: EnvironmentPresentation;
   statusContent: ReactNode;
-  persistentStatusContent?: ReactNode;
+  quickActionsContent?: ReactNode;
   footerContent: ReactNode;
   surfaceRef?: MutableRefObject<HTMLElement | null>;
   primaryScroll?: 'page' | 'contained';
@@ -41,8 +44,13 @@ interface EnvironmentShellProps {
   onActiveZoneNavigate?: () => void;
 }
 
-export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, actionContext = null, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, primaryAction: requestedPrimaryAction, showPrimaryAction = true, search, accountControl, contextBand, presentation, statusContent, persistentStatusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail, onActiveZoneNavigate }: EnvironmentShellProps) {
+export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, actionContext = null, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, primaryAction: requestedPrimaryAction, showPrimaryAction = true, search, accountControl, contextBand, presentation, statusContent, quickActionsContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail, onActiveZoneNavigate }: EnvironmentShellProps) {
   const [mobileDetail, setMobileDetail] = useState(false);
+  const [contribution, setContribution] = useState<{ ref: MutableRefObject<QuickActionsContribution> } | null>(null);
+  const registerQuickActions = useCallback((ref: MutableRefObject<QuickActionsContribution>) => {
+    setContribution({ ref });
+    return () => setContribution((current) => current?.ref === ref ? null : current);
+  }, []);
   const ownedSurfaceRef = useRef<HTMLElement | null>(null);
   const resolvedSurfaceRef = surfaceRef ?? ownedSurfaceRef;
   const mobileNavigationPersistent = presentation.mode === 'browse' && presentation.focusDepth === 'zone';
@@ -69,6 +77,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
   }, []);
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || presentation.focusDepth === 'tool' || isEditableKeyboardTarget(event.target) || hasBlockingKeyboardLayer()) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
         event.preventDefault();
         onCommand();
@@ -76,7 +85,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onCommand, visibleActions.length]);
+  }, [onCommand, presentation.focusDepth]);
   if (!activeDefinition) return null;
   const primaryAction = showPrimaryAction
     ? requestedPrimaryAction
@@ -84,14 +93,14 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
       : visibleActions.find((action) => action.hierarchy === 'primary' && action.availability.kind !== 'hidden') ?? null
     : null;
   return (
-    <section className={styles.lab} data-primary-scroll={primaryScroll} aria-label={ariaLabel}>
+    <QuickActionsContext.Provider value={registerQuickActions}><section className={styles.lab} data-primary-scroll={primaryScroll} aria-label={ariaLabel}>
       <div
         className={`${styles.shell} ${containedMobileNavigation ? 'max-md:!pb-[calc(4.25rem+env(safe-area-inset-bottom))]' : ''}`}
         data-detail-open={Boolean(detail)}
         data-viewport={viewportPolicy}
         data-focus-depth={presentation.focusDepth}
         data-presentation-mode={presentation.mode}
-        data-has-persistent-status={Boolean(persistentStatusContent)}
+        data-has-persistent-status
       >
         <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} onActiveZoneNavigate={onActiveZoneNavigate} mobilePersistent={mobileNavigationPersistent} />
         <div className={styles.commandStack}>
@@ -101,13 +110,17 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
         {detail && !mobileDetail ? <EnvironmentDesktopInspector record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
         <footer className={`${styles.statusBar} max-md:!flex max-md:!min-h-10 max-md:!gap-2 max-md:!overflow-hidden max-md:!px-2 max-md:!py-1`} aria-label="Environment status">
           <div data-environment-status-items className={`${styles.statusItems} max-md:!gap-3 max-md:flex-1 max-md:overflow-x-auto max-md:whitespace-nowrap`}>
+            <EnvironmentQuickActions contribution={presentation.focusDepth === 'tool' ? contribution?.ref.current ?? null : quickActionsContent ? null : {
+              title: `${activeDefinition.label} actions`,
+              actions: [...(search ? [{ id: 'search', label: 'Search', description: 'Search this surface (Ctrl/Cmd+K)', onSelect: onCommand }] : []), ...visibleActions.filter((action) => action.availability.kind === 'available').map((action) => ({ id: action.id, label: action.label, onSelect: () => onAction(action) }))],
+              shortcuts: search ? ['Ctrl/Cmd+K · Search'] : [],
+            }} fallback={presentation.focusDepth === 'tool' ? undefined : quickActionsContent} title={presentation.focusDepth === 'tool' ? 'Tool actions' : 'Spatial quick actions'} />
             {statusContent}
-            {persistentStatusContent}
           </div>
           <div className={`${styles.selectionDock} max-md:hidden`}>{footerContent}</div>
         </footer>
       </div>
       {detail && mobileDetail ? <EnvironmentMobileSheet open focusReturnId={focusReturnId} record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
-    </section>
+    </section></QuickActionsContext.Provider>
   );
 }

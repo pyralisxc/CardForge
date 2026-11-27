@@ -8,6 +8,8 @@ import {
   createCreatorInteractionSession,
   focusCreatorArtifact,
   focusCreatorSet,
+  hasBlockingKeyboardLayer,
+  isEditableKeyboardTarget,
   openCreatorTool,
   setCreatorToolDirty,
   selectCreatorDeskSets,
@@ -234,7 +236,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
       const session = currentRef.current.session;
       if (event.key !== 'Escape' || session.toolStack.length > 0 || !session.focusPath.setId) return;
       if (
-        event.defaultPrevented
+        event.defaultPrevented || isEditableKeyboardTarget(event.target) || hasBlockingKeyboardLayer()
         || Array.from(document.querySelectorAll<HTMLElement>('[data-radix-popper-content-wrapper], [role="listbox"], [role="menu"]'))
           .some((element) => element.getClientRects().length > 0)
       ) return;

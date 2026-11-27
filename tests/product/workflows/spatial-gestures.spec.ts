@@ -25,6 +25,10 @@ test.describe('spatial touch workspace', () => {
     await boardCard.press('Enter');
     const workspace = page.locator('[data-focused-artifact-workspace]');
     await expect(workspace).toBeVisible();
+    const actions = page.getByRole('button', { name: 'Quick actions', exact: true });
+    await actions.click();
+    await expect(page.getByRole('dialog', { name: 'Quick actions menu' })).toContainText('Arrow keys browse nearby Artifacts');
+    await actions.click();
     const controls = workspace.locator('[aria-label="Focused Artifact tools"]');
     await expect(controls).toBeVisible();
     await expect(controls.getByRole('button', { name: 'Browse this Set', exact: true })).toBeVisible();
@@ -43,6 +47,9 @@ test.describe('spatial touch workspace', () => {
       await done.click();
     }
     await page.setViewportSize(devices['Pixel 7'].viewport);
+    // The focused card suppresses edit gestures for 650 ms after initialization.
+    // Exercise a new double tap after that guard, not the preceding edit gesture.
+    await page.waitForTimeout(700);
     const focusedCard = workspace.locator('button[data-artifact-id]');
     await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-1');
     const stage = page.getByLabel('100 Card Scale Set focused Artifact viewport');
@@ -302,7 +309,7 @@ test.describe('spatial touch workspace', () => {
     // Camera navigation remains available while Select Multiple changes only tap semantics.
     const quickActionsTrigger = page.getByRole('button', { name: 'Quick actions', exact: true });
     await quickActionsTrigger.click();
-    const quickActions = page.getByRole('dialog', { name: 'Desk quick actions' });
+    const quickActions = page.getByRole('dialog', { name: 'Quick actions menu' });
     await quickActions.getByRole('button', { name: 'Select Multiple', exact: true }).click();
     await expect(quickActions.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await quickActionsTrigger.click();

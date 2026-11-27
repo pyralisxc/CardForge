@@ -40,6 +40,8 @@ export { EnvironmentDesktopInspector, EnvironmentMobileSheet } from '../environm
 export { CollectionLedgerRow, CompactSettingRow, EnvironmentBoundaryNotice, EnvironmentLedgerRow, EnvironmentSectionHeading, EnvironmentSurfaceHeader } from '../environment/components/EnvironmentLedger';
 export { EnvironmentNavigation } from '../environment/components/EnvironmentNavigation';
 export { EnvironmentShell } from '../environment/components/EnvironmentShell';
+export { useQuickActionsContribution } from '../environment/components/quickActionsContext';
+export { hasBlockingKeyboardLayer, isEditableKeyboardTarget } from '../environment/keyboard';
 export { EnvironmentStatus } from '../environment/components/EnvironmentStatus';
 export { EnvironmentToolLayer } from '../environment/components/EnvironmentToolLayer';
 export type {
