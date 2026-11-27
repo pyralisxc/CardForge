@@ -212,6 +212,7 @@ export function SaveAsPdfButton({
     const startScope = getProjectPersistenceScope();
     let stage: OutputStage | null = null;
     let directWriter: FileSystemWritableFileStream | null = null;
+    let directFileName = fileName;
     let published = false;
     let retentionUnavailable = false;
     try {
@@ -219,6 +220,7 @@ export function SaveAsPdfButton({
         const picker = (window as Window & { showSaveFilePicker?: (options: { suggestedName: string }) => Promise<FileSystemFileHandle> }).showSaveFilePicker;
         if (!picker) throw new Error('This browser cannot choose a file for direct saving. Use Save as PDF or browser print instead.');
         const handle = await picker.call(window, { suggestedName: fileName });
+        directFileName = handle.name || fileName;
         directWriter = await handle.createWritable();
       }
       await beforeExport?.();
@@ -313,9 +315,9 @@ export function SaveAsPdfButton({
         if (getProjectPersistenceScope() !== startScope || (activity && !activity.isCurrent())) throw new Error('The active workspace changed. Start the export again.');
         await directWriter.close();
         directWriter = null;
-        activity?.finish('saved', 'The file was saved to the selected location.');
+        activity?.finish('saved', `${directFileName} was saved to the selected location.`);
         trackExportCompleted('pdf', generatedDisplayCards.length);
-        toast({ title: 'PDF saved', description: `${fileName} was saved to the selected location.` });
+        toast({ title: 'PDF saved', description: `${directFileName} was saved to the selected location.` });
         return;
       } else if (stage && activity) {
         if (getProjectPersistenceScope() !== startScope || !activity.isCurrent()) throw new Error('The active workspace changed. Start the export again.');

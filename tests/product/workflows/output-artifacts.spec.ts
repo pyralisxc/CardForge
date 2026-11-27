@@ -615,7 +615,7 @@ test('writes numbered PDF parts to a selected file at the simulated picker bound
   await page.addInitScript(() => {
     Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: async () => {
       const chunks: ArrayBuffer[] = [];
-      return { createWritable: async () => ({
+      return { name: 'my-proof.zip', createWritable: async () => ({
         write: async (chunk: ArrayBuffer) => { chunks.push(chunk); },
         abort: async () => { chunks.length = 0; },
         close: async () => {
@@ -640,7 +640,7 @@ test('writes numbered PDF parts to a selected file at the simulated picker bound
   const names = Object.keys(zip.files).filter(name => name.endsWith('.pdf')).sort();
   expect(names).toHaveLength(2);
   expect(await Promise.all(names.map(async name => (await PDFDocument.load(await zip.file(name)!.async('uint8array'))).getPageCount()))).toEqual([10, 2]);
-  await expect(page.locator('span[role="status"][aria-live="polite"]').filter({ hasText: 'saved to the selected location' })).toBeVisible();
+  await expect(page.locator('span[role="status"][aria-live="polite"]').filter({ hasText: 'my-proof.zip was saved to the selected location' })).toBeVisible();
 });
 
 test('leaves ordinary PDF available when the selected-file picker is cancelled', async ({ page }) => {
