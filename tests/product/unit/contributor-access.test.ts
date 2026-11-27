@@ -26,6 +26,12 @@ import { assertDerivativeAccess } from '@/features/marketing-content/server/medi
 import { getVisibleCampaignDerivatives } from '@/features/marketing-content/server/storeShared';
 
 describe('Contributor access', () => {
+  it('resolves Roadmap editing only for an active explicitly granted Contributor or an Owner', () => {
+    expect(resolveContributorScopes({ isOwner: false, profileStatus: 'active', canDraftCampaigns: false })).not.toContain('roadmap.edit');
+    expect(resolveContributorScopes({ isOwner: false, profileStatus: 'active', canDraftCampaigns: false, canEditRoadmap: true })).toContain('roadmap.edit');
+    expect(resolveContributorScopes({ isOwner: false, profileStatus: 'suspended', canDraftCampaigns: false, canEditRoadmap: true })).not.toContain('roadmap.edit');
+    expect(resolveContributorScopes({ isOwner: true, profileStatus: null, canDraftCampaigns: false })).toContain('roadmap.edit');
+  });
   it('keeps new contribution powers least-privilege while owners retain every approval boundary', () => {
     expect(resolveContributorScopes({
       isOwner: false,

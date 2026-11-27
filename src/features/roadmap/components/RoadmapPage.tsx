@@ -7,6 +7,7 @@ import { History } from 'lucide-react';
 import { RoadmapPanel } from '@/features/roadmap/components/RoadmapPanel';
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { useSiteContent } from '@/features/public-site/client/context';
+import { hasContributionScope, useContributorAccess } from '@/features/contributor-access/client';
 
 export function RoadmapPage({
   initialAuthConfigured = false,
@@ -29,6 +30,11 @@ export function RoadmapPage({
   const isContributor = entitlement.authConfigured
     && effectiveSignedIn
     && entitlement.ownerAccess.isOwner;
+  const contribution = useContributorAccess({ eligible: entitlement.authorities.contributor || entitlement.ownerAccess.isOwner,
+    isOwner: entitlement.ownerAccess.isOwner, readOnly: true, sessionKey: entitlement.isSignedIn ? entitlement.accountUserId : null });
+  const accessError = entitlement.entitlementError
+    ?? ((entitlement.authorities.contributor || entitlement.ownerAccess.isOwner) && !entitlement.accountUserId ? 'Account identity is unavailable.' : null)
+    ?? contribution.error;
 
   return (
     <div className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
@@ -50,9 +56,11 @@ export function RoadmapPage({
         </div>
       </section>
 
+      {accessError ? <div role="alert" className="mx-auto max-w-7xl px-4 text-sm">{accessError} <button type="button" className="underline" onClick={() => { if (entitlement.entitlementError || !entitlement.accountUserId) void entitlement.refreshEntitlement(); else contribution.retry(); }}>Retry access</button></div> : null}
       <RoadmapPanel
         isContributor={isContributor}
         isOwner={entitlement.ownerAccess.isOwner}
+        canEditRoadmap={entitlement.ownerAccess.isOwner || hasContributionScope(contribution.scopes, 'roadmap.edit')}
         isSignedIn={effectiveSignedIn}
         accountEmail={accountEmail}
         supportEmail={supportEmail}

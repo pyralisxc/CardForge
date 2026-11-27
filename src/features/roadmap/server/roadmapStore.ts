@@ -33,6 +33,7 @@ type RoadmapItemRow = {
   expense_plan: string | null;
   expense_source_url: string | null;
   expense_verified_at: string | null;
+  expense_state: 'current' | 'planned' | null;
   shipped_at: string | null;
   release_version?: string | null;
   created_at: string;
@@ -186,6 +187,7 @@ const mapRoadmapPayload = ({
         expensePlan: hasAuditableExpense ? row.expense_plan ?? null : null,
         expenseSourceUrl: hasAuditableExpense ? row.expense_source_url ?? null : null,
         expenseVerifiedAt: hasAuditableExpense ? row.expense_verified_at ?? null : null,
+        expenseState: hasAuditableExpense ? row.expense_state ?? null : null,
         shippedAt: row.shipped_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -211,7 +213,7 @@ export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapP
 
   const { data: rows, error: rowsError } = await supabase
     .from('cardforge_roadmap_items')
-    .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,expense_provider,expense_plan,expense_source_url,expense_verified_at,shipped_at,release_version,created_at,updated_at,sort_order')
+    .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,expense_provider,expense_plan,expense_source_url,expense_verified_at,expense_state,shipped_at,release_version,created_at,updated_at,sort_order')
     .neq('status', 'archived_negative_signal')
     .order('visible_month', { ascending: true })
     .order('sort_order', { ascending: true })

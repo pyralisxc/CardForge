@@ -163,6 +163,7 @@ export const updateOwnerPerson = async (
         contributorId: userId,
         status: 'inactive',
         canDraftCampaigns: false,
+        canEditRoadmap: false,
         monthlySubmissionLimitOverride: profile.monthly_submission_limit_override ?? null,
         monthlyPublishedRequirementOverride: profile.monthly_published_requirement_override ?? null,
         ownerNote: profile.owner_note ?? '',
@@ -265,6 +266,9 @@ export const updateOwnerPerson = async (
             contributorId: userId,
             status,
             canDraftCampaigns: action !== 'revoke' && input.contributor?.canDraftCampaigns === true,
+            canEditRoadmap: action === 'revoke' ? false : typeof input.contributor?.canEditRoadmap === 'boolean' ? input.contributor.canEditRoadmap : undefined,
+            expectedCanEditRoadmap: typeof input.contributor?.expectedCanEditRoadmap === 'boolean' ? input.contributor.expectedCanEditRoadmap : undefined,
+            expectedProfileStatus: typeof input.contributor?.expectedProfileStatus === 'string' && CONTRIBUTOR_PROFILE_STATUSES.includes(input.contributor.expectedProfileStatus as ContributorProfileStatus) ? input.contributor.expectedProfileStatus as ContributorProfileStatus : undefined,
             monthlySubmissionLimitOverride: normalizeNullableOverride(
               input.contributor?.monthlySubmissionLimitOverride ?? profile?.monthly_submission_limit_override,
               1,
@@ -280,7 +284,7 @@ export const updateOwnerPerson = async (
               : profile?.owner_note ?? '',
           });
         } catch (error) {
-          warnings.push('Clerk access changed, but the retained contributor profile did not update. Retry this action to reconcile it.');
+          warnings.push('Account changes may have committed, but the retained contributor profile did not update. Reload this person before reconciling.');
           console.error('Owner people update partially completed:', error);
         }
       }
@@ -385,6 +389,7 @@ export const deleteOwnerPerson = async (
       contributorId: userId,
       status: 'inactive',
       canDraftCampaigns: false,
+      canEditRoadmap: false,
       monthlySubmissionLimitOverride: profile.monthly_submission_limit_override ?? null,
       monthlyPublishedRequirementOverride: profile.monthly_published_requirement_override ?? null,
       ownerNote: profile.owner_note ?? '',

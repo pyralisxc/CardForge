@@ -34,7 +34,7 @@ for (const failure of ['none', 'profile_read', 'profile_update', 'activity_false
   expect(f.activity).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ action: 'people.account.delete', targetId: input.userId }));
   if (failure === 'none') {
     expect(result.warnings).toEqual([]);
-    expect(f.update).toHaveBeenCalledExactlyOnceWith({ contributorId: input.userId, status: 'inactive', canDraftCampaigns: false, monthlySubmissionLimitOverride: 7, monthlyPublishedRequirementOverride: 2, ownerNote: 'Preserved' });
+    expect(f.update).toHaveBeenCalledExactlyOnceWith({ contributorId: input.userId, status: 'inactive', canDraftCampaigns: false, canEditRoadmap: false, monthlySubmissionLimitOverride: 7, monthlyPublishedRequirementOverride: 2, ownerNote: 'Preserved' });
   } else expect(result.warnings.length).toBeGreaterThan(0);
 });
 it('attempts history independently when both profile and history fail', async () => {

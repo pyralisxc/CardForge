@@ -34,7 +34,9 @@ import {
   findNextRoadmapIncomeCheckpoint,
   isChronicleTimelineItem,
   sortRoadmapFeatures,
+  summarizeRoadmapExpenses,
   type RoadmapPayload,
+  type RoadmapAdminItem,
   type RoadmapSortMode,
   type RoadmapStatus,
   type RoadmapVoteValue,
@@ -43,12 +45,13 @@ import {
 interface RoadmapPanelProps {
   isContributor: boolean;
   isOwner: boolean;
+  canEditRoadmap: boolean;
   isSignedIn: boolean;
   accountEmail: string | null;
   supportEmail?: string | null;
 }
 
-export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail, supportEmail }: RoadmapPanelProps) {
+export function RoadmapPanel({ isContributor, isOwner, canEditRoadmap, isSignedIn, accountEmail, supportEmail }: RoadmapPanelProps) {
   const { toast } = useToast();
   const [payload, setPayload] = useState<RoadmapPayload | null>(null);
   const [suggestion, setSuggestion] = useState('');
@@ -94,10 +97,14 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
     : null;
   const fullRoadmapMonthlyCostCents = latestFundingCheckpoint?.cumulativeMonthlyCostCents ?? 0;
   const fullRoadmapRequiredIncomeCents = latestFundingCheckpoint?.requiredRoadmapIncomeCents ?? 0;
+  const { currentCents: currentCostCents, plannedCents: plannedCostCents, unclassifiedCount: unclassifiedCosts } = summarizeRoadmapExpenses(sortedOfficialItems);
   const totalDeductionsCents = creatorPassIncome
     ? creatorPassIncome.estimatedTaxCents + creatorPassIncome.operatingReserveCents
     : 0;
   const maxSuggestionLength = payload?.maxSuggestionLength ?? 200;
+  const onDetailsSaved = (value: RoadmapAdminItem) => setPayload(current => current ? {
+    ...current, items: current.items.map(item => item.id === value.id ? { ...item, ...value } : item),
+  } : current);
   const activeUserSuggestionCount = payload?.activeUserSuggestionCount ?? 0;
   const maxActiveUserSuggestions = payload?.maxActiveUserSuggestions ?? 50;
   const boardHasSpace = activeUserSuggestionCount < maxActiveUserSuggestions;
@@ -426,8 +433,10 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
                   isSignedIn={isSignedIn}
                   isSaving={isSaving}
                   isOwner={isOwner}
+                  canEditDetails={canEditRoadmap}
                   onVote={saveVote}
                   onStatusChange={updateRoadmapStatus}
+                  onDetailsSaved={onDetailsSaved}
                 />
               ))}
               {!isLoading && featureItems.length === 0 ? (
@@ -445,9 +454,9 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
             <div className="flex items-start gap-3">
               <CalendarDays className="mt-1 h-5 w-5 text-[var(--cf-accent-strong)]" />
               <div>
-                <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">Planned service upgrades</h3>
+                <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">Service cost checkpoints</h3>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
-                  Verified service upgrades with their monthly cost, official pricing source, and the {ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× income buffer CardForge requires before taking on each increase.
+                  Recorded provider prices and a {ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× income planning target. An item’s progress status does not establish whether the expense is current or planned.
                 </p>
               </div>
             </div>
@@ -487,13 +496,16 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
                   ? formatMonthlyCurrency(nextFundingGapCents) ?? '$0/mo'
                   : 'No planning gap'}
               detail={roadmapAvailable
-                ? `Verified fixed upgrades total ${formatMonthlyCurrency(fullRoadmapMonthlyCostCents) ?? '$0/mo'}, requiring ${formatMonthlyCurrency(fullRoadmapRequiredIncomeCents) ?? '$0/mo'} of post-deduction roadmap income at the ${ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× rule.`
+                ? `Recorded checkpoints total ${formatMonthlyCurrency(fullRoadmapMonthlyCostCents) ?? '$0/mo'}, with a ${formatMonthlyCurrency(fullRoadmapRequiredIncomeCents) ?? '$0/mo'} post-deduction income planning target at the ${ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× rule.`
                 : 'Waiting for the verified expense roadmap.'}
               icon={<DollarSign className="h-3.5 w-3.5" />}
             />
           </div>
           <p className="mb-4 text-xs leading-5 text-[var(--cf-text-subtle)]">
-            Revenue figures are planning estimates from active Creator Pass subscriptions at their listed recurring prices. Upgrade checkpoints require that post-tax, post-reserve estimate to reach {ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× the running verified monthly cost. Figures do not deduct Stripe fees, discounts, credits, refunds, or prove that an invoice was paid.
+            {roadmapAvailable ? `Recorded current recurring costs: ${formatMonthlyCurrency(currentCostCents) ?? '$0/mo'}; planned costs: ${formatMonthlyCurrency(plannedCostCents) ?? '$0/mo'}. ${unclassifiedCosts} cost checkpoint${unclassifiedCosts === 1 ? ' is' : 's are'} not classified and excluded from both totals.` : 'Recorded cost classifications are temporarily unavailable.'}
+          </p>
+          <p className="mb-4 text-xs leading-5 text-[var(--cf-text-subtle)]">
+            Revenue figures are planning estimates from active Creator Pass subscriptions at their listed recurring prices. The target compares that estimate with {ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× recorded checkpoint costs; it does not establish actual expenses or that income paid for them. Figures do not deduct Stripe fees, discounts, credits, or refunds.
           </p>
           <div className="relative border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:p-5">
             <HorizontalTimeline
@@ -501,11 +513,13 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
               isLoading={isLoading}
               isContributor={isContributor}
               isOwner={isOwner}
+              canEditDetails={canEditRoadmap}
               isSignedIn={isSignedIn}
               isSaving={isSaving}
               onDelete={deleteItem}
               onVote={saveVote}
               onStatusChange={updateRoadmapStatus}
+              onDetailsSaved={onDetailsSaved}
             />
           </div>
         </div>

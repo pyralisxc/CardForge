@@ -35,7 +35,7 @@ describe('Contributor provider boundaries', () => {
   });
   it('still distinguishes an absent profile from provider failure', async () => {
     await expect(fetchContributorProfileRow('user_one')).resolves.toBeNull();
-    await expect(getContributorProfileCapabilities('user_one')).resolves.toEqual({ status: 'inactive', canDraftCampaigns: false });
+    await expect(getContributorProfileCapabilities('user_one')).resolves.toEqual({ status: 'inactive', canDraftCampaigns: false, canEditRoadmap: false });
     await expect(fetchContributorProfileRows()).resolves.toEqual([]);
   });
 });

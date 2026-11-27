@@ -11,7 +11,7 @@ it('exposes each vote count and the current user’s selected vote to assistive 
     expenseSourceUrl: null, expenseVerifiedAt: null, shippedAt: null, createdAt: '2026-11-01',
     upVotes: 12, downVotes: 3, userVote: 'up',
   };
-  const html = renderToStaticMarkup(createElement(FeatureCard, { item, rank: 1, isSignedIn: true, isSaving: false, isOwner: false, onVote: vi.fn(), onStatusChange: vi.fn() }));
+  const html = renderToStaticMarkup(createElement(FeatureCard, { item, rank: 1, isSignedIn: true, isSaving: false, isOwner: false, canEditDetails: false, onVote: vi.fn(), onStatusChange: vi.fn(), onDetailsSaved: vi.fn() }));
   expect(html).toContain('aria-pressed="true" aria-label="Withdraw thumbs up vote. 12 votes"');
   expect(html).toContain('aria-pressed="false" aria-label="Cast not for me vote. 3 votes"');
 });

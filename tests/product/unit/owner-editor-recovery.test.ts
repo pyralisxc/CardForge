@@ -39,6 +39,8 @@ import { OwnerExperienceControlsPanel } from '@/features/experience-settings/com
 import { DEFAULT_EXPERIENCE_SETTINGS } from '@/features/experience-settings/model/experienceSettings';
 import { combineEditorDraftStates, useEditorDraft } from '@/components/ui/use-editor-draft';
 import { DEFAULT_PUBLIC_SITE_CONFIGURATION } from '@/features/public-site/model/siteConfiguration';
+import { OwnerRoadmapItemEditor } from '@/features/roadmap/components/OwnerRoadmapItemEditor';
+import type { RoadmapItem } from '@/features/roadmap/model/roadmap';
 
 // Exercise the real component handlers with deterministic hook state; no simulated DOM or provider identity.
 function render<T>(component: (props: T) => ReactElement, props: T) {
@@ -67,6 +69,29 @@ async function click(node: Node) {
 }
 function input(node: Node, value: string) { (node.props.onChange as (event: unknown) => void)({ target: { value } }); }
 const configuration = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: '2026-10-13T00:00:00Z' };
+
+it.each(['title', 'description'] as const)('requires reconfirmation after changing the Roadmap %s', async (field) => {
+  const item = { id: 'item', itemType: 'feature', title: 'Original title', description: 'Original description', visibleMonth: '2026-11', monthlyCostCents: null } as RoadmapItem;
+  const props = { item, onSaved: vi.fn() };
+  let tree = render(OwnerRoadmapItemEditor, props);
+  await click(button(tree, 'Edit details'));
+  tree = render(OwnerRoadmapItemEditor, props);
+  const checkbox = () => nodes(tree).find((node) => node.type === 'input' && node.props.type === 'checkbox')!;
+  const save = () => nodes(tree).find((node) => node.type === 'button' && node.props.type === 'submit')!;
+  const confirm = () => (checkbox().props.onChange as (event: unknown) => void)({ target: { checked: true } });
+  expect(save().props.disabled).toBe(true);
+  confirm();
+  tree = render(OwnerRoadmapItemEditor, props);
+  expect(save().props.disabled).toBe(false);
+  const control = nodes(tree).find((node) => node.type === (field === 'title' ? 'input' : 'textarea') && node.props.value === (field === 'title' ? item.title : item.description))!;
+  input(control, 'Changed text');
+  tree = render(OwnerRoadmapItemEditor, props);
+  expect(checkbox().props.checked).toBe(false);
+  expect(save().props.disabled).toBe(true);
+  confirm();
+  tree = render(OwnerRoadmapItemEditor, props);
+  expect(save().props.disabled).toBe(false);
+});
 
 beforeEach(() => {
   hooks.cells = [];

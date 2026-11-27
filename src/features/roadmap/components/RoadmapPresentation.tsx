@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 import { ExternalLink, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react';
+import { OwnerRoadmapItemEditor } from './OwnerRoadmapItemEditor';
 
 import {
   ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER,
   type RoadmapItem,
+  type RoadmapAdminItem,
   type RoadmapItemType,
   type RoadmapSortMode,
   type RoadmapStatus,
@@ -43,7 +45,7 @@ const formatCurrency = (cents: number | null) => {
   return new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: 'USD',
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(cents / 100);
 };
 
@@ -139,16 +141,20 @@ export function FeatureCard({
   isSignedIn,
   isSaving,
   isOwner,
+  canEditDetails,
   onVote,
   onStatusChange,
+  onDetailsSaved,
 }: {
   item: RoadmapItem;
   rank: number;
   isSignedIn: boolean;
   isSaving: boolean;
   isOwner: boolean;
+  canEditDetails: boolean;
   onVote: (itemId: string, vote: RoadmapVoteValue | null) => void;
   onStatusChange: (itemId: string, status: RoadmapStatus) => void;
+  onDetailsSaved: (item: RoadmapAdminItem) => void;
 }) {
   return (
     <article className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 transition hover:border-[#8f6b39]">
@@ -185,6 +191,7 @@ export function FeatureCard({
         </div>
       </div>
       {isOwner ? <OwnerStatusControls item={item} isSaving={isSaving} onStatusChange={onStatusChange} /> : null}
+      {canEditDetails ? <OwnerRoadmapItemEditor item={item} onSaved={onDetailsSaved} /> : null}
     </article>
   );
 }
@@ -198,9 +205,11 @@ function TimelineNodeCard({
   isSaving,
   isContributor,
   isOwner,
+  canEditDetails,
   onVote,
   onDelete,
   onStatusChange,
+  onDetailsSaved,
 }: {
   item: RoadmapItem;
   index: number;
@@ -210,9 +219,11 @@ function TimelineNodeCard({
   isSaving: boolean;
   isContributor: boolean;
   isOwner: boolean;
+  canEditDetails: boolean;
   onVote: (itemId: string, vote: RoadmapVoteValue | null) => void;
   onDelete: (itemId: string) => void;
   onStatusChange: (itemId: string, status: RoadmapStatus) => void;
+  onDetailsSaved: (item: RoadmapAdminItem) => void;
 }) {
   const target = cumulativeMonthlyCostCents > 0
     ? formatMonthlyCurrency(requiredRoadmapIncomeCents)
@@ -238,6 +249,7 @@ function TimelineNodeCard({
             {item.expenseProvider} · {item.expensePlan}
           </p>
         ) : null}
+        {item.itemType === 'roi_checkpoint' ? <p className="mt-1 text-xs">Expense status: {item.expenseState === 'current' ? 'Current' : item.expenseState === 'planned' ? 'Planned' : 'Not classified'}</p> : null}
         {item.description ? (
           <p className="mt-2 line-clamp-3 text-xs leading-5 text-[var(--cf-text-muted)]">{item.description}</p>
         ) : null}
@@ -252,13 +264,13 @@ function TimelineNodeCard({
           ) : null}
           {newCost ? (
             <div className="flex items-center justify-between gap-2 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-2 py-1">
-              <span className="uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">New cost</span>
+              <span className="uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Recorded cost</span>
               <span className="text-[#d9c08c]">{newCost}</span>
             </div>
           ) : null}
           {runningCost ? (
             <div className="flex items-center justify-between gap-2 border border-[#6f522f] bg-[#17110b] px-2 py-1">
-              <span className="uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Running cost</span>
+              <span className="uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Checkpoint total</span>
               <span className="text-[var(--cf-accent-strong)]">{runningCost}</span>
             </div>
           ) : null}
@@ -311,6 +323,7 @@ function TimelineNodeCard({
           </div>
         </div>
         {isOwner ? <OwnerStatusControls item={item} isSaving={isSaving} onStatusChange={onStatusChange} /> : null}
+        {(isOwner || (canEditDetails && item.itemType !== 'roi_checkpoint')) ? <OwnerRoadmapItemEditor item={item} onSaved={onDetailsSaved} /> : null}
       </div>
     </article>
   );
@@ -321,21 +334,25 @@ export function HorizontalTimeline({
   isLoading,
   isContributor,
   isOwner,
+  canEditDetails,
   isSignedIn,
   isSaving,
   onDelete,
   onVote,
   onStatusChange,
+  onDetailsSaved,
 }: {
   items: Array<RoadmapTimelineCheckpoint<RoadmapItem>>;
   isLoading: boolean;
   isContributor: boolean;
   isOwner: boolean;
+  canEditDetails: boolean;
   isSignedIn: boolean;
   isSaving: boolean;
   onDelete: (itemId: string) => void;
   onVote: (itemId: string, vote: RoadmapVoteValue | null) => void;
   onStatusChange: (itemId: string, status: RoadmapStatus) => void;
+  onDetailsSaved: (item: RoadmapAdminItem) => void;
 }) {
   if (items.length === 0) {
     return (
@@ -379,11 +396,13 @@ export function HorizontalTimeline({
                 requiredRoadmapIncomeCents={checkpoint.requiredRoadmapIncomeCents}
                 isContributor={isContributor}
                 isOwner={isOwner}
+                canEditDetails={canEditDetails}
                 isSignedIn={isSignedIn}
                 isSaving={isSaving}
                 onDelete={onDelete}
                 onVote={onVote}
                 onStatusChange={onStatusChange}
+                onDetailsSaved={onDetailsSaved}
               />
             </div>
           ))}

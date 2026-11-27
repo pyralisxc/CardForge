@@ -14,9 +14,18 @@ import {
   normalizeRoadmapSuggestion,
   sortRoadmapFeatures,
   shouldArchiveUserRoadmapItem,
+  summarizeRoadmapExpenses,
 } from '@/features/roadmap/model/roadmap';
 
 describe('roadmap rules', () => {
+  it('keeps recorded current, planned and unclassified costs distinct', () => {
+    expect(summarizeRoadmapExpenses([
+      { itemType: 'roi_checkpoint', monthlyCostCents: 2000, expenseState: 'current' },
+      { itemType: 'roi_checkpoint', monthlyCostCents: 2500, expenseState: 'planned' },
+      { itemType: 'roi_checkpoint', monthlyCostCents: 3000, expenseState: null },
+      { itemType: 'feature', monthlyCostCents: null },
+    ])).toEqual({ currentCents: 2000, plannedCents: 2500, unclassifiedCount: 1 });
+  });
   it('normalizes compact roadmap suggestions for storage', () => {
     const result = normalizeRoadmapSuggestion('  Better   foil\nexport controls  ');
 
