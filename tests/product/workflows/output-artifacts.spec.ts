@@ -362,7 +362,7 @@ test('browser print fails closed if clean account access cannot be verified', as
   await expect(page.getByText('This output has no CardForge watermark.')).toBeVisible();
   allowAccess = false;
   await page.getByRole('button', { name: 'Print or save PDF', exact: true }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Clean download access could not be verified' })).toBeVisible();
+  await expect(page.locator('[role="status"][aria-live="polite"]').filter({ hasText: 'Clean download access could not be verified' })).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { printRequests?: number }).printRequests)).toBeUndefined();
 });
 
