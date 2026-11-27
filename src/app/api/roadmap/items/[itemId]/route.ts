@@ -19,9 +19,6 @@ export async function PATCH(request: Request, context: { params: Promise<{ itemI
     const body: unknown = await request.json();
     if (!body || typeof body !== 'object' || Array.isArray(body)) return createApiErrorResponse(400, 'roadmap_request_invalid', 'Provide Roadmap item details.');
     const fields = body as Record<string, unknown>;
-    if (!account.isOwner && (fields.itemType === 'roi_checkpoint' || ['monthlyCostCents', 'expenseProvider', 'expensePlan', 'expenseSourceUrl', 'expenseVerifiedAt', 'expenseState'].some(key => key in fields))) {
-      return createApiErrorResponse(403, 'owner_access_required', 'Only an Owner can edit expense checkpoints.');
-    }
     const { itemId } = await context.params;
     const publication = await publishOwnerRoadmapDetails({ actor: { userId: account.user.id, email: account.email }, input: { ...fields, itemId } });
     return createNoStoreJsonResponse({ publication });

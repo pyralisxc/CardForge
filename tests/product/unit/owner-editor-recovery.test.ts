@@ -70,27 +70,26 @@ async function click(node: Node) {
 function input(node: Node, value: string) { (node.props.onChange as (event: unknown) => void)({ target: { value } }); }
 const configuration = { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: '2026-10-13T00:00:00Z' };
 
-it.each(['title', 'description'] as const)('requires reconfirmation after changing the Roadmap %s', async (field) => {
-  const item = { id: 'item', itemType: 'feature', title: 'Original title', description: 'Original description', visibleMonth: '2026-11', monthlyCostCents: null } as RoadmapItem;
+it('saves changed Roadmap text directly through the existing form', async () => {
+  const item = { id: 'item', itemType: 'feature', title: 'Original title', description: 'Original description', visibleMonth: '2026-11', monthlyCostCents: null, updatedAt: '2026-11-27T00:00:00Z' } as RoadmapItem;
+  const saved = { ...item, title: 'Changed title', description: 'Changed meaning' };
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ publication: { value: saved, receipt: { committed: true, message: 'Saved' } } }) });
+  vi.stubGlobal('fetch', fetchMock);
   const props = { item, onSaved: vi.fn() };
   let tree = render(OwnerRoadmapItemEditor, props);
   await click(button(tree, 'Edit details'));
   tree = render(OwnerRoadmapItemEditor, props);
-  const checkbox = () => nodes(tree).find((node) => node.type === 'input' && node.props.type === 'checkbox')!;
-  const save = () => nodes(tree).find((node) => node.type === 'button' && node.props.type === 'submit')!;
-  const confirm = () => (checkbox().props.onChange as (event: unknown) => void)({ target: { checked: true } });
-  expect(save().props.disabled).toBe(true);
-  confirm();
+  input(nodes(tree).find((node) => node.type === 'input' && node.props.value === item.title)!, 'Changed title');
   tree = render(OwnerRoadmapItemEditor, props);
-  expect(save().props.disabled).toBe(false);
-  const control = nodes(tree).find((node) => node.type === (field === 'title' ? 'input' : 'textarea') && node.props.value === (field === 'title' ? item.title : item.description))!;
-  input(control, 'Changed text');
+  input(nodes(tree).find((node) => node.type === 'textarea')!, 'Changed meaning');
   tree = render(OwnerRoadmapItemEditor, props);
-  expect(checkbox().props.checked).toBe(false);
-  expect(save().props.disabled).toBe(true);
-  confirm();
-  tree = render(OwnerRoadmapItemEditor, props);
-  expect(save().props.disabled).toBe(false);
+  expect(nodes(tree).some((node) => node.type === 'input' && node.props.type === 'checkbox')).toBe(false);
+  expect(nodes(tree).find((node) => node.type === 'button' && node.props.type === 'submit')!.props.disabled).toBe(false);
+  await (tree.props.onSubmit as (event: unknown) => Promise<void>)({ preventDefault: () => {} });
+  const request = JSON.parse(fetchMock.mock.calls[0][1].body);
+  expect(request).toMatchObject({ title: 'Changed title', description: 'Changed meaning', expectedUpdatedAt: item.updatedAt });
+  expect(request).not.toHaveProperty('editKind');
+  expect(props.onSaved).toHaveBeenCalledWith(saved);
 });
 
 beforeEach(() => {

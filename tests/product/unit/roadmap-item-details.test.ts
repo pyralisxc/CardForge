@@ -20,7 +20,7 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
   } }),
 }));
 import { updateRoadmapItemDetails } from '@/features/roadmap/server/roadmapAdminStore';
-const common = { itemId: 'item', editKind: 'correction', expectedUpdatedAt: '2026-11-27T00:00:00Z', itemType: 'feature', title: 'Clearer wording', description: 'A correction', visibleMonth: '2026-11' };
+const common = { itemId: 'item', expectedUpdatedAt: '2026-11-27T00:00:00Z', itemType: 'feature', title: 'Clearer wording', description: 'A correction', visibleMonth: '2026-11' };
 beforeEach(() => { state.values = {}; state.filters = {}; state.match = true; });
 it('updates only details at the expected revision, leaving votes and release records untouched', async () => {
   const result = await updateRoadmapItemDetails(common);
@@ -30,7 +30,7 @@ it('updates only details at the expected revision, leaving votes and release rec
   state.match = false;
   await expect(updateRoadmapItemDetails(common)).rejects.toMatchObject({ status: 409 });
 });
-it('requires complete auditable fields before writing an expense correction', async () => {
+it('requires complete auditable fields before writing an expense edit', async () => {
   const expense = { ...common, itemType: 'roi_checkpoint', monthlyCostCents: 2000, expenseProvider: 'Vercel', expensePlan: 'Pro',
     expenseSourceUrl: 'https://vercel.com/pricing', expenseVerifiedAt: '2026-01-01', expenseState: 'current' };
   await updateRoadmapItemDetails(expense);

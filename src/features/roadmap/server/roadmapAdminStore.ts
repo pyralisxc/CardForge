@@ -43,12 +43,10 @@ export const normalizeRoadmapStatusInput = (value: unknown): RoadmapStatus | nul
 
 export const updateRoadmapItemDetails = async (input: {
   itemId?: unknown; expectedUpdatedAt?: unknown; itemType?: unknown; title?: unknown;
-  editKind?: unknown;
   description?: unknown; visibleMonth?: unknown; monthlyCostCents?: unknown;
   expenseProvider?: unknown; expensePlan?: unknown; expenseSourceUrl?: unknown; expenseVerifiedAt?: unknown; expenseState?: unknown;
 }): Promise<RoadmapAdminItem> => {
   if (typeof input.itemId !== 'string' || !input.itemId) throw new RoadmapStoreError('Roadmap item is required.', 400);
-  if (input.editKind !== 'correction') throw new RoadmapStoreError('Choose a correction that preserves this proposal’s meaning.', 400);
   if (typeof input.expectedUpdatedAt !== 'string' || !Number.isFinite(Date.parse(input.expectedUpdatedAt))) throw new RoadmapStoreError('Reload the current roadmap item before saving.', 409);
   if (input.itemType !== 'feature' && input.itemType !== 'shipped_update' && input.itemType !== 'roi_checkpoint') throw new RoadmapStoreError('Roadmap item type is required.', 400);
   const normalized = normalizeRoadmapSuggestion(input.title, await getRoadmapSettings());

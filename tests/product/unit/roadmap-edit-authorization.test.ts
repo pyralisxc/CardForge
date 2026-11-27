@@ -26,11 +26,13 @@ it('requires the specific active Contributor grant and takes item identity from 
   expect((await PATCH(request({ itemType: 'feature', itemId: 'forged' }), context)).status).toBe(200);
   expect(state.publish).toHaveBeenCalledWith(expect.objectContaining({ actor: { userId: 'editor', email: null }, input: expect.objectContaining({ itemId: 'real' }) }));
 });
-it('prevents scoped Contributors from editing expense records or injecting cost fields', async () => {
+it('allows the scoped Contributor to edit expense details but does not grant unscoped access', async () => {
+  const expense = { itemType: 'roi_checkpoint', monthlyCostCents: 2000 };
+  expect((await PATCH(request(expense), context)).status).toBe(403);
   state.scopes = ['roadmap.edit'];
-  expect((await PATCH(request({ itemType: 'roi_checkpoint' }), context)).status).toBe(403);
-  expect((await PATCH(request({ itemType: 'feature', monthlyCostCents: 1 }), context)).status).toBe(403);
-  expect(state.publish).not.toHaveBeenCalled();
+  expect((await PATCH(request(expense), context)).status).toBe(200);
+  expect(state.publish).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining(expense) }));
   state.owner = true;
-  expect((await PATCH(request({ itemType: 'roi_checkpoint' }), context)).status).toBe(200);
+  state.scopes = [];
+  expect((await PATCH(request(expense), context)).status).toBe(200);
 });

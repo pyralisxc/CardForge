@@ -517,7 +517,7 @@ Owner responsibilities include:
 - owner overrides and permanent purge;
 - contextual public-page editing and small site-wide settings controls;
 - Library → Campaigns strategy/approval/distribution;
-- contextual Roadmap rules/status controls;
+- contextual Roadmap rules/status controls and in-place item editing for the Owner or a Contributor with `roadmap.edit`, including displayed recurring-cost details; editing retains the entry, its status, and its votes and does not change provider billing;
 - legal/governance/history;
 - service/provider readiness;
 - billing/usage/analytics reconciliation.

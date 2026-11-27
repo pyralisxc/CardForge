@@ -323,7 +323,7 @@ function TimelineNodeCard({
           </div>
         </div>
         {isOwner ? <OwnerStatusControls item={item} isSaving={isSaving} onStatusChange={onStatusChange} /> : null}
-        {(isOwner || (canEditDetails && item.itemType !== 'roi_checkpoint')) ? <OwnerRoadmapItemEditor item={item} onSaved={onDetailsSaved} /> : null}
+        {(isOwner || canEditDetails) ? <OwnerRoadmapItemEditor item={item} onSaved={onDetailsSaved} /> : null}
       </div>
     </article>
   );
