@@ -476,8 +476,8 @@ export const voteRoadmapItem = async ({
   if (typeof itemId !== 'string' || !itemId) {
     throw new RoadmapStoreError('Roadmap item is required.', 400);
   }
-  if (vote !== 'up' && vote !== 'down') {
-    throw new RoadmapStoreError('Vote must be thumbs up or not for me.', 400);
+  if (vote !== 'up' && vote !== 'down' && vote !== null) {
+    throw new RoadmapStoreError('Vote must be thumbs up, not for me, or withdrawn.', 400);
   }
 
   const supabase = getSupabaseServerClient();
@@ -495,8 +495,18 @@ export const voteRoadmapItem = async ({
     console.error('Failed to load roadmap item for voting:', itemError);
     throw new RoadmapStoreError('Roadmap database is not ready yet.', 503);
   }
-  if (!item || item.status === 'archived_negative_signal') {
+  if (!item || (item.status === 'archived_negative_signal' && vote !== null)) {
     throw new RoadmapStoreError('Roadmap item is no longer available for voting.', 404);
+  }
+
+  if (vote === null) {
+    const { error } = await supabase.from('cardforge_roadmap_votes').delete()
+      .eq('item_id', itemId).eq('user_id', userId);
+    if (error) {
+      console.error('Failed to withdraw roadmap vote:', error);
+      throw new RoadmapStoreError('Unable to withdraw vote.', 500);
+    }
+    return refreshAfterMutation(userId);
   }
 
   const settings = await getRoadmapSettings();
