@@ -119,7 +119,7 @@ function VoteButton({
     <button
       type="button"
       aria-pressed={active}
-      aria-label={`${active ? "Withdraw" : "Cast"} ${voteLabel} vote`}
+      aria-label={`${active ? 'Withdraw' : 'Cast'} ${voteLabel} vote. ${label} votes`}
       className={`flex items-center border transition ${sizeClass} ${
         active
           ? 'border-[#e6b85c] bg-[#2b1d0e] text-[var(--cf-accent-text)]'
