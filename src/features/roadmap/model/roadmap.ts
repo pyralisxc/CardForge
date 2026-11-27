@@ -160,6 +160,7 @@ export interface RoadmapIncomeBreakdown {
 
 export interface RoadmapPayload {
   configured: boolean;
+  mutationWarning?: string;
   items: RoadmapItem[];
   activeUserSuggestionCount: number;
   maxActiveUserSuggestions: number;
