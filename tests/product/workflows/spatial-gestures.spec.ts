@@ -302,7 +302,7 @@ test.describe('spatial touch workspace', () => {
     // Camera navigation remains available while Select Multiple changes only tap semantics.
     const quickActionsTrigger = page.getByRole('button', { name: 'Quick actions', exact: true });
     await quickActionsTrigger.click();
-    const quickActions = page.getByRole('dialog', { name: 'Desk quick actions' });
+    const quickActions = page.getByRole('dialog', { name: 'Quick actions menu' });
     await quickActions.getByRole('button', { name: 'Select Multiple', exact: true }).click();
     await expect(quickActions.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await quickActionsTrigger.click();

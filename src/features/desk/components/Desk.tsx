@@ -590,7 +590,7 @@ function DeskContent({
         presentation={presentation}
         focusReturnId={inspectorItem ? `set-info-${inspectorItem.id}` : undefined}
         surfaceRef={surfaceRef}
-        persistentStatusContent={<DeskQuickActions
+        quickActionsContent={<DeskQuickActions
           depth={contextDepth}
           selectedCount={contextDepth === 'desk' ? selectedDeskIds.length : selectedCards.length}
           multiSelectActive={contextDepth === 'set' && touchMultiSelect}

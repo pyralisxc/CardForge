@@ -35,6 +35,7 @@ import {
   type NewCardDesignInput,
 } from '@/features/template-editor/lib/makerTemplateFactory';
 import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig';
+import { hasBlockingKeyboardLayer, isEditableKeyboardTarget } from '@/features/app-shell/client/environment';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { withNextStep } from '@/shared/userFacingErrors';
 import { trackCardForgeEvent } from '@/features/analytics/client';
@@ -206,14 +207,13 @@ export function useTemplateEditorCommands({
     if (!isActive) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
-      const target = event.target as HTMLElement | null;
-      const isTyping = Boolean(target && (
-        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
-        || target.isContentEditable
-        || target.closest('[contenteditable="true"], .ProseMirror, [role="textbox"]')
-      ));
+      if (hasBlockingKeyboardLayer()) return;
+      const isTyping = isEditableKeyboardTarget(event.target);
       const modifier = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
+      // Keep the text editor's own undo, redo and duplicate behavior. Save is
+      // an explicit editor command and remains available while typing.
+      if (isTyping && !(modifier && key === 's')) return;
       if (modifier && key === 's') {
         event.preventDefault();
         void saveTemplate();
@@ -240,7 +240,6 @@ export function useTemplateEditorCommands({
         duplicateSelected();
         return;
       }
-      if (isTyping) return;
       if (event.key === 'Escape') setSelectedElementId(null);
       if ((event.key === 'Delete' || event.key === 'Backspace') && selectedElementId) {
         event.preventDefault();
