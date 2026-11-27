@@ -25,17 +25,20 @@ import {
   createPdfPlacementPages,
   createScreenPdfPages,
   getPdfCropMarkSegments,
+  packPdfPageGroups,
+  type ScreenPdfPage,
   type PdfCardPlacement,
 } from '@/features/card-generator/lib/pdfProductionLayout';
 import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 import { hasCardBacking } from '@/domain/rendering';
 import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 import { useBrandPresentation } from '@/features/brand-presentation/client';
-import { MAX_PDF_CARDS_PER_FILE, MAX_TOTAL_PDF_EXPORT_CARDS } from '../lib/pdfExportLimits';
+import { MAX_PDF_PAGES_PER_FILE, MAX_TOTAL_PDF_EXPORT_CARDS } from '../lib/pdfExportLimits';
 import { requestOutputDownload, useOutputActivity } from './OutputActivity';
 import { createOutputStage, type OutputStage } from '../lib/outputReadyStorage';
 import { publishReadyOutput } from '../lib/outputReadyHandoff';
 import { getProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { validateCleanOutputAccess } from '../lib/outputCleanAccess';
 
 interface SaveAsPdfButtonProps {
   buttonLabel?: string;
@@ -79,7 +82,7 @@ export function SaveAsPdfButton({
   const { toast } = useToast();
   const brand = useBrandPresentation();
 
-  const handleSaveAsPdf = async () => {
+  const handleSaveAsPdf = async (direct = false) => {
     if (generatedDisplayCards.length === 0) {
       toast({
         title: ERROR_COPY.pdfNoCards.title,
@@ -138,7 +141,38 @@ export function SaveAsPdfButton({
       });
     }
 
-    const totalChunks = Math.ceil(generatedDisplayCards.length / MAX_PDF_CARDS_PER_FILE);
+    type PlannedPage = { kind: 'screen'; screen: ScreenPdfPage } | { kind: 'sheet'; placements: PdfCardPlacement[] };
+    let parts: PlannedPage[][];
+    try {
+      let groups: PlannedPage[][];
+      if (isScreenPdf) {
+        groups = generatedDisplayCards.map((card) => createScreenPdfPages([card]).map((screen) => ({ kind: 'screen' as const, screen })));
+      } else {
+        const printableWidthMm = selectedPaperSize.widthMm - 2 * pdfMarginMm;
+        const printableHeightMm = selectedPaperSize.heightMm - 2 * pdfMarginMm;
+        const duplex = exportMode === 'physical' && pdfDuplexLayout !== 'same-page';
+        const items = duplex ? generatedDisplayCards : generatedDisplayCards.flatMap((card) => hasCardBacking(card)
+          ? [{ card, face: 'front' as const }, { card, face: 'back' as const }]
+          : [{ card, face: 'front' as const }]);
+        const pages = createPdfPlacementPages({ items, forcedFace: duplex ? 'front' : undefined,
+          printableWidthMm, printableHeightMm, marginMm: pdfMarginMm, spacingMm: pdfCardSpacingMm,
+          physical: exportMode === 'physical', includeCutLines: exportMode === 'physical' && pdfIncludeCutLines });
+        const hasBacks = duplex && generatedDisplayCards.some(hasCardBacking);
+        groups = pages.map((placements) => {
+          const front: PlannedPage = { kind: 'sheet', placements };
+          if (!hasBacks) return [front];
+          const back = createPdfDuplexBackPage(placements, { widthMm: selectedPaperSize.widthMm, heightMm: selectedPaperSize.heightMm,
+            flip: pdfDuplexLayout === 'separate-pages-short-edge' ? 'short-edge' : 'long-edge' });
+          return [front, { kind: 'sheet', placements: back }];
+        });
+      }
+      parts = packPdfPageGroups(groups, MAX_PDF_PAGES_PER_FILE);
+    } catch (error) {
+      toast({ title: 'PDF layout could not be prepared', description: extractErrorMessage(error), variant: 'destructive' });
+      setIsLoadingPdf(false);
+      return;
+    }
+    const totalChunks = parts.length;
     const safeName = (templateName || generatedDisplayCards[0]?.template?.name || 'cardforge-cards')
       .replace(/[^a-zA-Z0-9_\- ]/g, '')
       .trim()
@@ -159,7 +193,7 @@ export function SaveAsPdfButton({
           : `Using ${rasterQuality.label.toLowerCase()} raster quality${firstCardDimensions ? ` (${firstCardDimensions.widthPx} × ${firstCardDimensions.heightPx}px for the first template)` : ''}.`,
     });
 
-    const activity = outputActivity?.begin(`${isScreenPdf ? 'Digital PDF' : 'PDF'}${setName ? ` · ${setName}` : ''}`, { retained: true });
+    const activity = outputActivity?.begin(`${isScreenPdf ? 'Digital PDF' : 'PDF'}${setName ? ` · ${setName}` : ''}`, { retained: !direct });
     if (outputActivity && !activity) { setIsLoadingPdf(false); return; }
     const totalFaces = generatedDisplayCards.reduce((count, card) => count + 1 + (hasCardBacking(card) ? 1 : 0), 0);
     let completedFaces = 0;
@@ -177,12 +211,21 @@ export function SaveAsPdfButton({
     const fileName = `${baseName}.${totalChunks > 1 ? 'zip' : 'pdf'}`;
     const startScope = getProjectPersistenceScope();
     let stage: OutputStage | null = null;
+    let directWriter: FileSystemWritableFileStream | null = null;
+    let directFileName = fileName;
     let published = false;
     let retentionUnavailable = false;
     try {
+      if (direct) {
+        const picker = (window as Window & { showSaveFilePicker?: (options: { suggestedName: string }) => Promise<FileSystemFileHandle> }).showSaveFilePicker;
+        if (!picker) throw new Error('This browser cannot choose a file for direct saving. Use Save as PDF or browser print instead.');
+        const handle = await picker.call(window, { suggestedName: fileName });
+        directFileName = handle.name || fileName;
+        directWriter = await handle.createWritable();
+      }
       await beforeExport?.();
       if (activity && (getProjectPersistenceScope() !== startScope || !activity.isCurrent())) throw new Error('The active workspace changed. Start the export again.');
-      if (activity) {
+      if (activity && !direct) {
         try { stage = await createOutputStage(startScope, `${isScreenPdf ? 'Digital PDF' : 'PDF'}${setName ? ` · ${setName}` : ''}`, fileName, Boolean(beforeExport), activity.isCurrent, canExportClean); }
         catch (error) {
           if (!activity.isCurrent() || totalChunks > 1) throw error;
@@ -190,33 +233,21 @@ export function SaveAsPdfButton({
         }
       }
       const zipModule = totalChunks > 1 ? await import('@zip.js/zip.js') : null;
-      const blobWriter = !stage && zipModule ? new zipModule.BlobWriter('application/zip') : null;
-      const zip = zipModule ? new zipModule.ZipWriter(stage ? stage.writable : blobWriter!) : null;
+      const blobWriter = !stage && !directWriter && zipModule ? new zipModule.BlobWriter('application/zip') : null;
+      const directSink = directWriter ? new WritableStream<Uint8Array>({ write: chunk => directWriter!.write(new Uint8Array(chunk).buffer), close: () => {}, abort: reason => directWriter!.abort(reason) }) : null;
+      const zip = zipModule ? new zipModule.ZipWriter(directSink ?? stage?.writable ?? blobWriter!) : null;
       let singleBlob: Blob | null = null;
       for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-        const chunkStart = chunkIndex * MAX_PDF_CARDS_PER_FILE;
-        const chunkEnd = Math.min(chunkStart + MAX_PDF_CARDS_PER_FILE, generatedDisplayCards.length);
-        const chunkCards = generatedDisplayCards.slice(chunkStart, chunkEnd);
-
+        const partPages = parts[chunkIndex];
+        const chunkCards = [...new Set(partPages.flatMap((page) => page.kind === 'screen' ? [page.screen.card] : page.placements.map((placement) => placement.card)))];
         if (totalChunks > 1) {
-          toast({
-            title: `Generating PDF chunk ${chunkIndex + 1}/${totalChunks}`,
-            description: `Cards ${chunkStart + 1}-${chunkEnd} of ${generatedDisplayCards.length}.`,
-          });
+          toast({ title: `Generating PDF part ${chunkIndex + 1}/${totalChunks}`, description: `${partPages.length} pages in this part.` });
         }
-
-        const screenPages = isScreenPdf ? createScreenPdfPages(chunkCards) : [];
-        const pageWidthMm = screenPages[0]?.widthMm ?? selectedPaperSize.widthMm;
-        const pageHeightMm = screenPages[0]?.heightMm ?? selectedPaperSize.heightMm;
-        const pdf = new jsPDF({
-          compress: true,
-          orientation: pageWidthMm <= pageHeightMm ? 'p' : 'l',
-          unit: 'mm',
-          format: [pageWidthMm, pageHeightMm],
-        });
-
-        const effectivePrintableWidthMm = selectedPaperSize.widthMm - 2 * pdfMarginMm;
-        const effectivePrintableHeightMm = selectedPaperSize.heightMm - 2 * pdfMarginMm;
+        const firstPage = partPages[0];
+        const pageWidthMm = firstPage.kind === 'screen' ? firstPage.screen.widthMm : selectedPaperSize.widthMm;
+        const pageHeightMm = firstPage.kind === 'screen' ? firstPage.screen.heightMm : selectedPaperSize.heightMm;
+        const pdf = new jsPDF({ compress: true, orientation: pageWidthMm <= pageHeightMm ? 'p' : 'l',
+          unit: 'mm', format: [pageWidthMm, pageHeightMm] });
 
         const renderer = createCardFaceExportRenderer(
           exportProfile,
@@ -224,71 +255,20 @@ export function SaveAsPdfButton({
           resolveCardExportWatermark(canExportClean, brand),
         );
         try {
-          if (isScreenPdf) {
-            // The page itself is the trimmed card face. Never inherit sheet margins,
-            // duplex imposition, bleed, crop marks, or press-only quality checks.
-            for (const [pageIndex, screenPage] of screenPages.entries()) {
-              if (pageIndex > 0) {
-                pdf.addPage(
-                  [screenPage.widthMm, screenPage.heightMm],
-                  screenPage.widthMm <= screenPage.heightMm ? 'p' : 'l',
-                );
-              }
-              const canvas = await renderer.renderToCanvas(screenPage.card, screenPage.face);
-              pdf.addImage(
-                canvas.toDataURL('image/png'),
-                'PNG',
-                0,
-                0,
-                screenPage.widthMm,
-                screenPage.heightMm,
-              );
+          for (const [pageIndex, page] of partPages.entries()) {
+            const widthMm = page.kind === 'screen' ? page.screen.widthMm : selectedPaperSize.widthMm;
+            const heightMm = page.kind === 'screen' ? page.screen.heightMm : selectedPaperSize.heightMm;
+            if (pageIndex > 0) pdf.addPage([widthMm, heightMm], widthMm <= heightMm ? 'p' : 'l');
+            if (page.kind === 'screen') {
+              const canvas = await renderer.renderToCanvas(page.screen.card, page.screen.face);
+              try { pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, widthMm, heightMm); }
+              finally { canvas.width = 0; canvas.height = 0; }
               await reportFace();
-            }
-            pdf.setProperties({
-              subject: 'CardForge RGB screen copy; one trimmed card face per page. Visual PDF, not an editable project or tagged accessible text.',
-            });
-          } else if (exportMode === 'physical' && pdfDuplexLayout !== 'same-page') {
-            const frontPages = createPdfPlacementPages({
-              items: chunkCards,
-              forcedFace: 'front',
-              printableWidthMm: effectivePrintableWidthMm,
-              printableHeightMm: effectivePrintableHeightMm,
-              marginMm: pdfMarginMm,
-              spacingMm: pdfCardSpacingMm,
-              physical: true,
-              includeCutLines: pdfIncludeCutLines,
-            });
-            for (let pageIndex = 0; pageIndex < frontPages.length; pageIndex++) {
-              if (pageIndex > 0) pdf.addPage();
-              await processPage(pdf, frontPages[pageIndex], renderer, reportFace);
-
-              const backPage = createPdfDuplexBackPage(frontPages[pageIndex], { widthMm: selectedPaperSize.widthMm, heightMm: selectedPaperSize.heightMm, flip: pdfDuplexLayout === 'separate-pages-short-edge' ? 'short-edge' : 'long-edge' });
-              if (chunkCards.some(hasCardBacking)) {
-                pdf.addPage();
-                await processPage(pdf, backPage, renderer, reportFace);
-              }
-            }
-          } else {
-            const faceItems = chunkCards.flatMap((cardItem) => (
-              hasCardBacking(cardItem)
-                ? [{ card: cardItem, face: 'front' as const }, { card: cardItem, face: 'back' as const }]
-                : [{ card: cardItem, face: 'front' as const }]
-            ));
-            const facePages = createPdfPlacementPages({
-              items: faceItems,
-              printableWidthMm: effectivePrintableWidthMm,
-              printableHeightMm: effectivePrintableHeightMm,
-              marginMm: pdfMarginMm,
-              spacingMm: pdfCardSpacingMm,
-              physical: exportMode === 'physical',
-              includeCutLines: exportMode === 'physical' && pdfIncludeCutLines,
-            });
-            for (let pageIndex = 0; pageIndex < facePages.length; pageIndex++) {
-              if (pageIndex > 0) pdf.addPage();
-              await processPage(pdf, facePages[pageIndex], renderer, reportFace);
+            } else {
+              await processPage(pdf, page.placements, renderer, reportFace);
             }
           }
+          if (isScreenPdf) pdf.setProperties({ subject: 'CardForge RGB screen copy; one trimmed card face per page. Visual PDF, not an editable project or tagged accessible text.' });
           if (!isScreenPdf && exportMode === 'physical') {
             const preflight = createPrintProductionPreflight(chunkCards, exportDpi, renderer.getSourceImageDetails());
             pdf.setProperties({ subject: 'CardForge RGB production preparation; not certified PDF/X. Duplex: ' + pdfDuplexLayout });
@@ -314,7 +294,9 @@ export function SaveAsPdfButton({
       if (zip) {
         await reportStage('Finishing PDF ZIP');
         const result = await zip.close();
-        if (!stage) fallbackBlob = result as Blob;
+        if (!stage && !directWriter) fallbackBlob = result as Blob;
+      } else if (directWriter && singleBlob) {
+        await singleBlob.stream().pipeTo(directSink!);
       } else if (stage && singleBlob) {
         const writer = stage.writable.getWriter();
         try { await singleBlob.stream().pipeTo(new WritableStream({ write: chunk => writer.write(chunk), close: () => writer.close(), abort: reason => writer.abort(reason) })); }
@@ -325,9 +307,19 @@ export function SaveAsPdfButton({
         } finally { writer.releaseLock(); }
         if (retentionUnavailable) { await stage.abort(); stage = null; }
       } else fallbackBlob = singleBlob;
-      await reportStage('Preparing download');
+      await reportStage(direct ? 'Finishing selected file' : 'Preparing download');
       await beforeExport?.(); // Revalidate externally pinned specimens before delivery.
-      if (stage && activity) {
+      if (directWriter) {
+        if (getProjectPersistenceScope() !== startScope || (activity && !activity.isCurrent())) throw new Error('The active workspace changed. Start the export again.');
+        if (canExportClean) await validateCleanOutputAccess(startScope);
+        if (getProjectPersistenceScope() !== startScope || (activity && !activity.isCurrent())) throw new Error('The active workspace changed. Start the export again.');
+        await directWriter.close();
+        directWriter = null;
+        activity?.finish('saved', `${directFileName} was saved to the selected location.`);
+        trackExportCompleted('pdf', generatedDisplayCards.length);
+        toast({ title: 'PDF saved', description: `${directFileName} was saved to the selected location.` });
+        return;
+      } else if (stage && activity) {
         if (getProjectPersistenceScope() !== startScope || !activity.isCurrent()) throw new Error('The active workspace changed. Start the export again.');
         try {
           const result = await publishReadyOutput(stage, activity.isCurrent, beforeExport); published = true;
@@ -357,11 +349,21 @@ export function SaveAsPdfButton({
       trackExportCompleted('pdf', generatedDisplayCards.length);
       toast({ title: 'PDF download requested', description: `${fileName} requested. Check your browser downloads to confirm the file.${retentionUnavailable ? ' A prepared copy could not be retained on this device.' : ''}${isScreenPdf ? ' Each card face is a separate trimmed page, without print bleed or crop marks.' : exportMode === 'physical' ? ' This remains RGB raster PDF output, not PDF/X or a printer-specific ICC contract.' : ''}` });
     } catch (error) {
+      if (direct && error instanceof DOMException && error.name === 'AbortError' && !directWriter) {
+        activity?.finish('cancelled');
+        return;
+      }
       trackExportFailed('pdf', 'render_or_download', generatedDisplayCards.length);
-      if (!published) activity?.finish('failed', extractErrorMessage(error));
+      const message = error instanceof DOMException && error.name === 'QuotaExceededError'
+        ? 'Browser storage is full or unavailable. Try saving to a chosen file or use browser print. Your Set is unchanged.'
+        : direct && error instanceof DOMException && error.name === 'NotAllowedError'
+          ? 'The browser did not allow access to that file. Use Save as PDF or browser print instead. Your Set is unchanged.'
+          : extractErrorMessage(error);
+      if (!published) activity?.finish('failed', message);
       console.error('Error generating PDF:', error);
-      toast({ title: 'PDF export failed', description: withNextStep(extractErrorMessage(error), 'Review the source and quality warnings before retrying.'), variant: 'destructive' });
+      toast({ title: 'PDF export failed', description: message, variant: 'destructive' });
     } finally {
+      if (directWriter) await directWriter.abort().catch(() => undefined);
       if (stage && !published) await stage.abort();
       setIsLoadingPdf(false);
     }
@@ -377,14 +379,9 @@ export function SaveAsPdfButton({
       const canvas = exportMode === 'physical'
         ? await renderer.renderProductionToCanvas(placement.card, placement.face)
         : await renderer.renderToCanvas(placement.card, placement.face);
-      pdf.addImage(
-        canvas.toDataURL('image/png'),
-        'PNG',
-        placement.imageX,
-        placement.imageY,
-        placement.imageWidth,
-        placement.imageHeight,
-      );
+      try {
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', placement.imageX, placement.imageY, placement.imageWidth, placement.imageHeight);
+      } finally { canvas.width = 0; canvas.height = 0; }
       if (exportMode === 'physical' && pdfIncludeCutLines) {
         pdf.setDrawColor(180, 180, 180);
         pdf.setLineWidth(0.1);
@@ -398,7 +395,7 @@ export function SaveAsPdfButton({
 
 
   return (
-    <Button onClick={handleSaveAsPdf} disabled={disabled || isLoadingPdf} variant={pdfProfile === 'screen' || exportMode === 'virtual' ? 'outline' : 'default'} className="w-full">
+    <div className="space-y-2"><Button onClick={() => void handleSaveAsPdf()} disabled={disabled || isLoadingPdf} variant={pdfProfile === 'screen' || exportMode === 'virtual' ? 'outline' : 'default'} className="w-full">
       {isLoadingPdf ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -411,5 +408,7 @@ export function SaveAsPdfButton({
         </>
       )}
     </Button>
+    <Button onClick={() => void handleSaveAsPdf(true)} disabled={disabled || isLoadingPdf} variant="outline" className="w-full">Save to chosen file</Button>
+    <p className="text-xs text-muted-foreground">Choose a file before building. Availability depends on your browser; this saves directly and does not retain a prepared copy for Save again.</p></div>
   );
 }

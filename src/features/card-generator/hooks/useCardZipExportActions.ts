@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useState } from 'react';
-import { useOutputActivity } from '../components/OutputActivity';
+import { requestOutputDownload, useOutputActivity } from '../components/OutputActivity';
+import { createOutputStage, type OutputStage } from '../lib/outputReadyStorage';
+import { publishReadyOutput } from '../lib/outputReadyHandoff';
+import { getProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 
 import {
   getExportProfile,
@@ -33,7 +36,8 @@ import { useBrandPresentation } from '@/features/brand-presentation/client';
 import { resolveCardExportWatermark } from '@/features/card-generator/lib/cardPreviewExport';
 import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 import { PRESS_COLOR_REFERENCE } from '../lib/pressColorProfile';
-import { MAX_PDF_CARDS_PER_FILE, MAX_TOTAL_PDF_EXPORT_CARDS } from '../lib/pdfExportLimits';
+import { MAX_PDF_PAGES_PER_FILE, MAX_TOTAL_PDF_EXPORT_CARDS } from '../lib/pdfExportLimits';
+import { packPdfPageGroups } from '../lib/pdfProductionLayout';
 import type { PressRasterFace } from '../lib/pressPdfCandidate';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
@@ -80,33 +84,45 @@ export function useCardZipExportActions({
       return;
     }
     const items = createCardZipExportItems(generatedDisplayCards);
-    const activity = outputActivity?.begin(`Press candidate${setName ? ` · ${setName}` : ''}`);
+    const activity = outputActivity?.begin(`Press candidate${setName ? ` · ${setName}` : ''}`, { retained: true });
     if (outputActivity && !activity) return;
     setZipExportKind('press-candidate'); setIsZipExporting(true); setZipProgress({ done: 0, total: items.length }); activity?.progress(0, items.length);
     trackExportStarted('pdf', generatedDisplayCards.length);
+    const scope = getProjectPersistenceScope();
+    const fileName = `cardforge-press-candidate${canExportClean ? '' : '-watermarked'}.zip`;
+    let stage: OutputStage | null = null;
+    let published = false;
     try {
       await beforeExport?.();
-      const [{ default: JSZip }, { createCardFaceExportRenderer }, { createPressPdfCandidate, compositeWhiteRgb }, { loadPressColorProfiles }] = await Promise.all([
-        import('jszip'), import('../lib/cardPreviewExport'), import('../lib/pressPdfCandidate'), import('../lib/pressColorProfile'),
+      if (activity && (!activity.isCurrent() || scope !== getProjectPersistenceScope())) throw new Error('The active workspace changed. Start the export again.');
+      const [zipModule, { createCardFaceExportRenderer }, { createPressPdfCandidate, compositeWhiteRgb }, { loadPressColorProfiles }] = await Promise.all([
+        import('@zip.js/zip.js'), import('../lib/cardPreviewExport'), import('../lib/pressPdfCandidate'), import('../lib/pressColorProfile'),
       ]);
+      if (activity) stage = await createOutputStage(scope, `Press candidate${setName ? ` · ${setName}` : ''}`, fileName, Boolean(beforeExport), activity.isCurrent, canExportClean);
+      const blobWriter = stage ? null : new zipModule.BlobWriter('application/zip');
+      const zip = new zipModule.ZipWriter(stage ? stage.writable : blobWriter!);
       const profiles = await loadPressColorProfiles();
-      const zip = new JSZip();
       const renderer = createCardFaceExportRenderer(getExportProfile('physical', pressDpi), richTextHighlightColor, exportWatermark);
       const createdAt = new Date().toISOString();
-      const partCount = Math.ceil(generatedDisplayCards.length / MAX_PDF_CARDS_PER_FILE);
+      const cardGroups = generatedDisplayCards.map((_, cardIndex) => items.filter((item) => item.cardIndex === cardIndex));
+      const parts = packPdfPageGroups(cardGroups, MAX_PDF_PAGES_PER_FILE);
+      const partCount = parts.length;
       let done = 0;
       try {
         for (let part = 0; part < partCount; part++) {
-          const partItems = items.filter((item) => item.cardIndex >= part * MAX_PDF_CARDS_PER_FILE && item.cardIndex < (part + 1) * MAX_PDF_CARDS_PER_FILE);
+          const partItems = parts[part];
           async function* renderedFaces(): AsyncGenerator<PressRasterFace> {
             for (const item of partItems) {
               const canvas = await renderer.renderProductionToCanvas(item.card, item.face);
               const context = canvas.getContext('2d', { colorSpace: 'srgb', willReadFrequently: true });
               if (!context) throw new Error('The browser cannot read the rendered production pixels. Retry in a supported browser.');
-              const rgb = compositeWhiteRgb(context.getImageData(0, 0, canvas.width, canvas.height).data);
+              const { width: widthPx, height: heightPx } = canvas;
+              let rgb: Uint8Array;
+              try { rgb = compositeWhiteRgb(context.getImageData(0, 0, widthPx, heightPx).data); }
+              finally { canvas.width = 0; canvas.height = 0; }
               setZipProgress({ done: ++done, total: items.length }); activity?.progress(done, items.length);
               yield { uniqueId: item.card.uniqueId, cardIndex: item.cardIndex, face: item.face,
-                widthPx: canvas.width, heightPx: canvas.height, rgb,
+                widthPx, heightPx, rgb,
                 geometry: getTemplateProductionGeometryMm(getCardFaceTemplate(item.card, item.face)) };
             }
           }
@@ -114,16 +130,17 @@ export function useCardZipExportActions({
             title: `CardForge press candidate${partCount > 1 ? ` · part ${part + 1}` : ''}`, createdAt,
           });
           const name = partCount > 1 ? `candidate-part-${String(part + 1).padStart(3, '0')}` : 'candidate';
-          zip.file(`${name}.pdf`, result.pdf);
-          zip.file(`${name}-report.json`, JSON.stringify({ ...result.report, watermarkApplied: !canExportClean }, null, 2));
+          await zip.add(`${name}.pdf`, new zipModule.Uint8ArrayReader(result.pdf), { level: 0 });
+          await zip.add(`${name}-report.json`, new zipModule.TextReader(JSON.stringify({ ...result.report, watermarkApplied: !canExportClean }, null, 2)), { level: 0 });
         }
         preflight = createPrintProductionPreflight(generatedDisplayCards, pressDpi, renderer.getSourceImageDetails(), PRESS_COLOR_REFERENCE.id);
       } finally { renderer.cleanup(); }
       if (!preflight.productionPrepared) throw new Error('The rendered production preflight failed. No candidate was exported.');
-      zip.file('cardforge-print-preflight.json', JSON.stringify(preflight, null, 2));
-      zip.file('profiles/sRGB.icc', profiles.source); zip.file('profiles/FOGRA39L_coated.icc', profiles.output);
-      zip.file('profiles/NOTICE.txt', profiles.notice);
-      zip.file('README.txt', [
+      await zip.add('cardforge-print-preflight.json', new zipModule.TextReader(JSON.stringify(preflight, null, 2)), { level: 0 });
+      await zip.add('profiles/sRGB.icc', new zipModule.Uint8ArrayReader(profiles.source), { level: 0 });
+      await zip.add('profiles/FOGRA39L_coated.icc', new zipModule.Uint8ArrayReader(profiles.output), { level: 0 });
+      await zip.add('profiles/NOTICE.txt', new zipModule.Uint8ArrayReader(profiles.notice), { level: 0 });
+      await zip.add('README.txt', new zipModule.TextReader([
         'CardForge color-managed press candidate — independent validation pending',
         'PDF/X-4 is a declared target, not a conformance certificate. Press ready: no.',
         'One available card face per bleed-bearing page, front followed by its available back. This is not an imposed duplex sheet.',
@@ -134,20 +151,24 @@ export function useCardZipExportActions({
         'Reports bind exact PDF/RGB/profile hashes, physical boxes and page order. Inspect the exact PDF with independent PDF/X prepress validation, then obtain representative professional-workflow acceptance.',
         'Complete profile redistribution notices are retained under profiles/.',
         ...(canExportClean ? [] : ['This Free export retains the CardForge watermark.']),
-      ].join('\n'));
-      const content = await zip.generateAsync({ type: 'blob' });
+      ].join('\n')), { level: 0 });
+      activity?.stage('Finishing press package');
+      const result = await zip.close();
       await beforeExport?.();
-      const url = URL.createObjectURL(content); const link = document.createElement('a');
-      link.href = url; link.download = `cardforge-press-candidate${canExportClean ? '' : '-watermarked'}.zip`;
-      document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+      if (activity && (!activity.isCurrent() || scope !== getProjectPersistenceScope())) throw new Error('The active workspace changed. Start the export again.');
+      if (stage && activity) {
+        const prepared = await publishReadyOutput(stage, activity.isCurrent, beforeExport); published = true;
+        if (!prepared.ok) { activity.hold(prepared.output, 'The source could not be revalidated. Remove this prepared copy before trying again.'); throw prepared.error; }
+        if (!activity.complete(prepared.output, beforeExport)) throw new Error('The active workspace changed. Start the export again.');
+      } else if (result instanceof Blob) { requestOutputDownload(result, fileName); activity?.finish('requested'); }
+      else throw new Error('The press package was incomplete.');
       trackExportCompleted('pdf', generatedDisplayCards.length);
-      activity?.finish('requested');
       toast({ title: 'Press candidate download requested', description: `${items.length} color-managed faces were generated with hashes, geometry and pending-validation reports. Check your browser downloads. Press ready: not yet.` });
     } catch (error) {
       trackExportFailed('pdf', 'press_candidate', generatedDisplayCards.length);
       activity?.finish('failed', error instanceof Error ? error.message : 'Retry from Output.');
       toast({ title: 'Press candidate export failed', description: error instanceof Error ? error.message : 'The candidate could not be built. Your Set is unchanged; retry after resolving the export failure.', variant: 'destructive' });
-    } finally { setIsZipExporting(false); setZipProgress(null); setZipExportKind(null); }
+    } finally { if (stage && !published) await stage.abort(); setIsZipExporting(false); setZipProgress(null); setZipExportKind(null); }
   }, [beforeExport, canExportClean, exportDpi, exportWatermark, generatedDisplayCards, outputActivity, richTextHighlightColor, setName, toast]);
 
   const handleExportAllAsZip = useCallback(async () => {

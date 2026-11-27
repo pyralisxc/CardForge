@@ -8,6 +8,7 @@ import {
   createPdfDuplexBackPage,
   createPdfPlacementPages,
   createScreenPdfPages,
+  packPdfPageGroups,
   getPdfCropMarkSegments,
 } from '@/features/card-generator/lib/pdfProductionLayout';
 
@@ -24,6 +25,23 @@ const makeCard = (overrides: Partial<DisplayCard> = {}): DisplayCard => ({
 });
 
 describe('PDF production layout', () => {
+  it('fits nine trim-only cards on Letter with tight margins and mirrors duplex backs', () => {
+    const cards = Array.from({ length: 9 }, (_, i) => makeCard({ uniqueId: `card-${i}`, backingTemplate: { id: 'back', name: 'Back', aspectRatio: '63:88', templateUsage: 'back-preset', freeformCanvas: { width: 630, height: 880, elements: [] } } }));
+    const pages = createPdfPlacementPages({ items: cards, forcedFace: 'front', printableWidthMm: 215.9 - 6, printableHeightMm: 279.4 - 6, marginMm: 3, spacingMm: 4, physical: true, includeCutLines: false, trimOnly: true });
+    expect(pages).toHaveLength(1);
+    expect(pages[0]).toHaveLength(9);
+    expect(pages[0][0]).toMatchObject({ trimWidth: 63, trimHeight: 88, bleedMm: 0 });
+    const back = createPdfDuplexBackPage(pages[0], { widthMm: 215.9, heightMm: 279.4, flip: 'long-edge' }, { trimOnly: true });
+    expect(back).toHaveLength(9);
+    expect(back[0].trimX).toBeCloseTo(215.9 - pages[0][0].trimX - 63);
+  });
+  it('keeps duplex sheets and card face pairs together in parts of at most ten pages', () => {
+    const groups = Array.from({ length: 12 }, (_, i) => [`${i}:front`, `${i}:back`]);
+    const parts = packPdfPageGroups(groups, 10);
+    expect(parts.map((part) => part.length)).toEqual([10, 10, 4]);
+    expect(parts.flat()).toEqual(groups.flat());
+    expect(packPdfPageGroups([['single'], ...groups.slice(0, 5)], 10).map((part) => part.length)).toEqual([9, 2]);
+  });
   it('makes ordered, trim-only digital pages without imposing paper or duplex backs', () => {
     const frontOnly = makeCard({ uniqueId: 'single' });
     const paired = makeCard({
