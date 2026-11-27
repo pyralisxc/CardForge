@@ -14,7 +14,7 @@ const stringifyJsonCell = (value: unknown, rowNumber: number, key: string): stri
   throw new Error(`JSON row ${rowNumber} field "${key}" must be a string, number, boolean, or empty value.`);
 };
 
-export const normalizeJsonObjectsToRows = (value: unknown): string[][] => {
+export const normalizeJsonObjectsToRows = (value: unknown, preserveMissing = false): string[][] => {
   if (!Array.isArray(value)) {
     throw new Error('JSON data source must be an array of objects.');
   }
@@ -38,8 +38,24 @@ export const normalizeJsonObjectsToRows = (value: unknown): string[][] => {
   }
 
   const dataRows = value.map((row, rowIndex) => {
-    const record = row as Record<string, unknown>;
-    return headers.map((header) => stringifyJsonCell(record[header], rowIndex + 1, header).trim());
+    let record = row as Record<string, unknown>;
+    if (preserveMissing) {
+      const normalized: Record<string, unknown> = Object.create(null);
+      Object.entries(record).forEach(([key, cell]) => {
+        const trimmed = key.trim();
+        if (!trimmed) return;
+        if (Object.hasOwn(normalized, trimmed)) {
+          throw new Error(`JSON row ${rowIndex + 1} contains duplicate field "${trimmed}" after trimming whitespace.`);
+        }
+        normalized[trimmed] = cell;
+      });
+      record = normalized;
+    }
+    const values = headers.map((header) => stringifyJsonCell(record[header], rowIndex + 1, header).trim());
+    // A sparse cell is absent in this record; an explicit null/empty value is
+    // present and may deliberately clear an optional field during revision.
+    if (preserveMissing) headers.forEach((header, index) => { if (!Object.hasOwn(record, header)) delete values[index]; });
+    return values;
   });
 
   return [headers, ...dataRows];
@@ -63,7 +79,7 @@ const pushStructuredRecord = (
   activeKeyRef.value = null;
 };
 
-export const parseStructuredTextToRows = (raw: string): string[][] => {
+export const parseStructuredTextToRows = (raw: string, preserveMissing = false): string[][] => {
   const lines = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
   const records: Array<Record<string, string>> = [];
   const currentRecord: Record<string, string> = {};
@@ -113,7 +129,7 @@ export const parseStructuredTextToRows = (raw: string): string[][] => {
     throw new Error('Structured text must include at least one Field: value pair.');
   }
 
-  return normalizeJsonObjectsToRows(records);
+  return normalizeJsonObjectsToRows(records, preserveMissing);
 };
 
 const looksLikeStructuredText = (raw: string): boolean => {
@@ -125,7 +141,8 @@ const looksLikeStructuredText = (raw: string): boolean => {
 
 export const parseBulkDataSource = (
   raw: string,
-  hint: BulkDataSourceHint = 'auto'
+  hint: BulkDataSourceHint = 'auto',
+  preserveMissing = false,
 ): string[][] => {
   const trimmed = raw.trim();
   if (!trimmed) return [];
@@ -135,10 +152,10 @@ export const parseBulkDataSource = (
 
   if (effectiveHint === 'json') {
     const parsed = JSON.parse(trimmed);
-    return normalizeJsonObjectsToRows(parsed);
+    return normalizeJsonObjectsToRows(parsed, preserveMissing);
   }
   if (effectiveHint === 'structured') {
-    return parseStructuredTextToRows(trimmed);
+    return parseStructuredTextToRows(trimmed, preserveMissing);
   }
   return parseCSV(trimmed);
 };

@@ -13,6 +13,7 @@ export interface BulkPreviewRow {
 export interface BulkPreviewResult {
   rows: BulkPreviewRow[];
   globalWarnings: string[];
+  rowWarnings: string[];
 }
 
 export interface CreateBulkExampleCsvOptions {
@@ -29,6 +30,7 @@ export interface CreateBulkPreviewOptions {
   fieldDefinitions: TemplateFieldDefinition[];
   previewOverrides?: Record<number, Record<string, string>>;
   maxPreviewRows?: number;
+  partialRevision?: boolean;
 }
 
 export interface CreateBulkImportContractOptions {
