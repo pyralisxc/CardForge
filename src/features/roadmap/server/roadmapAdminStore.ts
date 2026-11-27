@@ -55,13 +55,31 @@ export const updateRoadmapItemDetails = async (input: {
   if (typeof input.visibleMonth !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(input.visibleMonth)) throw new RoadmapStoreError('Choose a valid month.', 400);
   const values: Record<string, unknown> = { title: normalized.value, description: input.description.trim() || null, visible_month: input.visibleMonth };
   if (input.itemType === 'roi_checkpoint') {
-    const provider = typeof input.expenseProvider === 'string' ? input.expenseProvider.trim() : '';
-    const plan = typeof input.expensePlan === 'string' ? input.expensePlan.trim() : '';
-    const verified = normalizeRoadmapExpenseVerifiedAt(input.expenseVerifiedAt);
-    let source = '';
-    try { const url = new URL(String(input.expenseSourceUrl)); if (url.protocol === 'https:') source = url.toString(); } catch { /* invalid source */ }
-    if (!Number.isSafeInteger(input.monthlyCostCents) || (input.monthlyCostCents as number) <= 0 || !provider || provider.length > 80 || !plan || plan.length > 80 || !source || !verified || (input.expenseState !== null && input.expenseState !== 'current' && input.expenseState !== 'planned')) throw new RoadmapStoreError('Expense checkpoints require a positive monthly cost, provider, plan, official HTTPS source, verification date, and valid status.', 400);
-    Object.assign(values, { monthly_cost_cents: input.monthlyCostCents, expense_provider: provider, expense_plan: plan, expense_source_url: source, expense_verified_at: verified, expense_state: input.expenseState });
+    if (input.monthlyCostCents !== undefined) {
+      if (!Number.isSafeInteger(input.monthlyCostCents) || (input.monthlyCostCents as number) <= 0) throw new RoadmapStoreError('Enter a positive monthly cost in cents.', 400);
+      values.monthly_cost_cents = input.monthlyCostCents;
+    }
+    for (const [key, column] of [['expenseProvider', 'expense_provider'], ['expensePlan', 'expense_plan']] as const) {
+      if (input[key] === undefined) continue;
+      const text = typeof input[key] === 'string' ? input[key].trim() : '';
+      if (!text || text.length > 80) throw new RoadmapStoreError('Enter a valid provider and plan.', 400);
+      values[column] = text;
+    }
+    if (input.expenseSourceUrl !== undefined) {
+      let source = '';
+      try { const url = new URL(String(input.expenseSourceUrl)); if (url.protocol === 'https:') source = url.toString(); } catch { /* invalid source */ }
+      if (!source) throw new RoadmapStoreError('Enter an official HTTPS pricing URL.', 400);
+      values.expense_source_url = source;
+    }
+    if (input.expenseVerifiedAt !== undefined) {
+      const verified = normalizeRoadmapExpenseVerifiedAt(input.expenseVerifiedAt);
+      if (!verified) throw new RoadmapStoreError('Enter a valid verification date.', 400);
+      values.expense_verified_at = verified;
+    }
+    if (input.expenseState !== undefined) {
+      if (input.expenseState !== null && input.expenseState !== 'current' && input.expenseState !== 'planned') throw new RoadmapStoreError('Choose a valid expense status.', 400);
+      values.expense_state = input.expenseState;
+    }
   }
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new RoadmapStoreError('Roadmap database is not configured yet.', 503);

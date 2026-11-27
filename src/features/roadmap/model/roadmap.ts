@@ -129,6 +129,7 @@ export interface RoadmapItem {
   expenseSourceUrl: string | null;
   expenseVerifiedAt: string | null;
   expenseState?: RoadmapExpenseState | null;
+  expenseDetails?: { monthlyCostCents: number | null; expenseProvider: string | null; expensePlan: string | null; expenseSourceUrl: string | null; expenseVerifiedAt: string | null; expenseState: RoadmapExpenseState | null };
   shippedAt: string | null;
   createdAt: string;
   updatedAt?: string | null;

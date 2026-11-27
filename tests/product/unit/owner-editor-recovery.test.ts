@@ -92,6 +92,23 @@ it('saves changed Roadmap text directly through the existing form', async () => 
   expect(props.onSaved).toHaveBeenCalledWith(saved);
 });
 
+it('saves an incomplete checkpoint without submitting unchanged expense fields', async () => {
+  const item = { id: 'cost', itemType: 'roi_checkpoint', title: 'Original', description: '', visibleMonth: '2026-11', monthlyCostCents: null, updatedAt: '2026-11-27T00:00:00Z', expenseDetails: { monthlyCostCents: 2000, expenseProvider: 'Provider', expensePlan: 'Plan', expenseSourceUrl: null, expenseVerifiedAt: null, expenseState: null } } as RoadmapItem;
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ publication: { value: item, receipt: { committed: true, message: 'Saved' } } }) });
+  vi.stubGlobal('fetch', fetchMock);
+  const props = { item, onSaved: vi.fn() };
+  let tree = render(OwnerRoadmapItemEditor, props);
+  await click(button(tree, 'Edit cost details'));
+  tree = render(OwnerRoadmapItemEditor, props);
+  expect(nodes(tree).some(node => node.type === 'input' && node.props.value === '20.00')).toBe(true);
+  input(nodes(tree).find(node => node.type === 'input' && node.props.value === 'Original')!, 'Edited title');
+  tree = render(OwnerRoadmapItemEditor, props);
+  await (tree.props.onSubmit as (event: unknown) => Promise<void>)({ preventDefault: () => {} });
+  const request = JSON.parse(fetchMock.mock.calls[0][1].body);
+  expect(request.title).toBe('Edited title');
+  for (const key of ['monthlyCostCents', 'expenseProvider', 'expensePlan', 'expenseSourceUrl', 'expenseVerifiedAt', 'expenseState']) expect(request).not.toHaveProperty(key);
+});
+
 beforeEach(() => {
   hooks.cells = [];
   hooks.cursor = 0;

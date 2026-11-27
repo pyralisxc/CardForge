@@ -39,3 +39,11 @@ it('requires complete auditable fields before writing an expense edit', async ()
   await expect(updateRoadmapItemDetails({ ...expense, expenseSourceUrl: 'http://vercel.com' })).rejects.toMatchObject({ status: 400 });
   expect(state.values).toEqual({});
 });
+it('preserves untouched incomplete expense metadata while validating changed fields', async () => {
+  await updateRoadmapItemDetails({ ...common, itemType: 'roi_checkpoint' });
+  expect(state.values).toEqual({ title: 'Clearer wording', description: 'A correction', visible_month: '2026-11' });
+  await updateRoadmapItemDetails({ ...common, itemType: 'roi_checkpoint', monthlyCostCents: 2500 });
+  expect(state.values).toEqual({ title: 'Clearer wording', description: 'A correction', visible_month: '2026-11', monthly_cost_cents: 2500 });
+  await expect(updateRoadmapItemDetails({ ...common, itemType: 'roi_checkpoint', monthlyCostCents: 0 })).rejects.toMatchObject({ status: 400 });
+  await expect(updateRoadmapItemDetails({ ...common, itemType: 'roi_checkpoint', expenseSourceUrl: 'http://example.com' })).rejects.toMatchObject({ status: 400 });
+});
