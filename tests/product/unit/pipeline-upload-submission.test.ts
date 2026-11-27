@@ -95,8 +95,17 @@ const setupStorage = (storedSize = VALID_PNG_BYTES.byteLength, submittedUpload =
   };
   databaseQuery.select.mockReturnValue(databaseQuery);
   databaseQuery.eq.mockReturnValue(databaseQuery);
-  const databaseFrom = vi.fn().mockReturnValue(databaseQuery);
   let state = submittedUpload ? 'owned' : 'pending';
+  const conditions: Record<string, unknown> = {};
+  const lineageQuery = {
+    select: vi.fn(),
+    eq: vi.fn((key: string, value: unknown) => { conditions[key] = value; return lineageQuery; }),
+    maybeSingle: vi.fn(async () => ({ data: conditions.upload_contributor_id === 'contributor-1' && conditions.upload_source_path === ownedPath()
+      ? { upload_state: state, upload_operation_token: state === 'pending' ? null : TOKEN,
+        upload_descriptor: { assetType: 'dividers', fileName: 'gold-divider.png', fileSizeBytes: VALID_PNG_BYTES.byteLength, mimeType: 'image/png', transportExtension: 'png' } } : null, error: null })),
+  };
+  lineageQuery.select.mockReturnValue(lineageQuery);
+  const databaseFrom = vi.fn((table: string) => table === 'cardforge_pipeline_asset_lineages' ? lineageQuery : databaseQuery);
   const rpc = vi.fn().mockImplementation(async (command: string, args: Record<string, unknown>) => {
     if (command === 'cardforge_reserve_pipeline_upload') return { data: { storagePath: ownedPath((args.p_descriptor as { transportExtension: string }).transportExtension) }, error: null };
     if (command === 'cardforge_prepare_pipeline_upload_submission') {
@@ -113,7 +122,7 @@ const setupStorage = (storedSize = VALID_PNG_BYTES.byteLength, submittedUpload =
     throw new Error(`Unexpected native command: ${command}`);
   });
   mockedGetSupabaseServerClient.mockReturnValue({ storage: { from }, from: databaseFrom, rpc } as never);
-  return { createSignedUploadUrl, list, remove, download, update, rpc, setOwned: () => { state = 'owned'; }, state: () => state };
+  return { createSignedUploadUrl, list, remove, download, update, rpc, lineageQuery, setOwned: () => { state = 'owned'; }, state: () => state };
 };
 
 const uploadedFile = {
@@ -499,6 +508,40 @@ describe('contributor asset upload submission', () => {
     expect(storage.rpc).toHaveBeenCalledWith('cardforge_prepare_pipeline_upload_submission', expect.objectContaining({ p_actor: 'contributor-1', p_path: uploadedFile.storagePath, p_claim: false }));
     expect(storage.download).not.toHaveBeenCalled(); expect(storage.update).not.toHaveBeenCalled(); expect(storage.remove).not.toHaveBeenCalled();
     expect(mockedCreatePipelineSubmission).not.toHaveBeenCalled();
+  });
+
+  it('reads completed cleanup after the response was lost, without deleting again', async () => {
+    const storage = setupStorage();
+    await removePendingPipelineUpload(cleanupInput());
+    expect(storage.state()).toBe('cleanup_completed');
+    // Simulate losing the HTTP acknowledgement after the native cleanup finalized.
+    await expect(createUploadedPipelineSubmission({ ...submissionInput(), inspectOnly: true })).resolves.toEqual({ state: 'discarded', submissionId: null });
+    expect(storage.remove).toHaveBeenCalledOnce();
+    expect(storage.rpc).toHaveBeenCalledTimes(2);
+    expect(storage.lineageQuery.eq).toHaveBeenCalledWith('upload_contributor_id', 'contributor-1');
+    expect(storage.lineageQuery.eq).toHaveBeenCalledWith('upload_source_path', uploadedFile.storagePath);
+  });
+
+  it('never confirms cleanup for another actor or an incomplete cleanup', async () => {
+    const storage = setupStorage();
+    await removePendingPipelineUpload(cleanupInput());
+    await expect(createUploadedPipelineSubmission({ ...submissionInput(), contributorId: 'other', inspectOnly: true })).rejects.toMatchObject({ status: 503 });
+    storage.lineageQuery.maybeSingle.mockResolvedValueOnce({ data: { upload_state: 'cleanup_committed', upload_operation_token: TOKEN,
+      upload_descriptor: { assetType: 'dividers', fileName: 'gold-divider.png', fileSizeBytes: VALID_PNG_BYTES.byteLength, mimeType: 'image/png', transportExtension: 'png' } }, error: null });
+    await expect(createUploadedPipelineSubmission({ ...submissionInput(), inspectOnly: true })).rejects.toMatchObject({ status: 503 });
+    expect(storage.remove).toHaveBeenCalledOnce();
+  });
+
+  it('does not treat a failed cleanup receipt read or mismatched descriptor as completion', async () => {
+    const storage = setupStorage();
+    await removePendingPipelineUpload(cleanupInput());
+    storage.lineageQuery.maybeSingle.mockResolvedValueOnce({ data: null, error: { message: 'unavailable' } } as never);
+    await expect(createUploadedPipelineSubmission({ ...submissionInput(), inspectOnly: true })).rejects.toMatchObject({ status: 503 });
+    storage.lineageQuery.maybeSingle.mockResolvedValueOnce({ data: { upload_state: 'cleanup_completed', upload_operation_token: null,
+      upload_descriptor: { assetType: 'dividers', fileName: 'gold-divider.png', fileSizeBytes: VALID_PNG_BYTES.byteLength, mimeType: 'image/png', transportExtension: 'png' } }, error: null });
+    await expect(createUploadedPipelineSubmission({ ...submissionInput(), inspectOnly: true })).rejects.toMatchObject({ status: 503 });
+    await expect(createUploadedPipelineSubmission({ ...submissionInput(), uploadedFile: { ...uploadedFile, fileName: 'other.png' }, inspectOnly: true })).rejects.toMatchObject({ status: 503 });
+    expect(storage.remove).toHaveBeenCalledOnce();
   });
 
   it('preserves committed bytes after lost insert response and confirms retry without another transfer', async () => {

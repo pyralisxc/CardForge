@@ -46,7 +46,7 @@ import type { StudioAssetDestination } from '@/domain/templates';
 import { readApiError } from '@/infrastructure/http/clientResponses';
 import { observeProviderBoundaryResponse } from '@/features/analytics/client/tracking';
 import { ProjectBinaryAssetImage } from '@/features/project/client/binary-assets';
-import { createUploadAttempt, lookupUploadAttempt, readUploadAttempt, removeUploadAttempt, saveUploadAttempt, withUploadAttemptLock, type PipelineUploadAttempt } from '@/features/pipeline/client/uploadAttempts';
+import { assertUploadRecoverySupport, createUploadAttempt, lookupUploadAttempt, readUploadAttempt, removeUploadAttempt, saveUploadAttempt, withUploadAttemptLock, type PipelineUploadAttempt } from '@/features/pipeline/client/uploadAttempts';
 
 interface PipelineUploadPlanResponse {
   upload: PipelineUploadPlan;
@@ -112,7 +112,7 @@ export function PipelineSubmissionPanel({
   const refreshRecovery = useCallback(async () => {
     const request = ++recoveryRequest.current;
     setRecoveryReady(false);
-    try { const saved = await readUploadAttempt(contributorId); if (request === recoveryRequest.current) { setAttempt(saved); setReceipt(current => current?.storagePath === saved?.payload.uploadedFile.storagePath ? current : null); setRecoveryError(null); } }
+    try { assertUploadRecoverySupport(); const saved = await readUploadAttempt(contributorId); if (request === recoveryRequest.current) { setAttempt(saved); setReceipt(current => current?.storagePath === saved?.payload.uploadedFile.storagePath ? current : null); setRecoveryError(null); } }
     catch (error) { if (request === recoveryRequest.current) setRecoveryError(error instanceof Error ? error.message : 'Saved submission attempts are unavailable.'); }
     finally { if (request === recoveryRequest.current) setRecoveryReady(true); }
   }, [contributorId]);
@@ -132,7 +132,13 @@ export function PipelineSubmissionPanel({
           if (!response.ok || (await response.json()).submitted !== true) throw new Error('The submission outcome is still unconfirmed. Check the saved attempt again.');
           result = await lookupUploadAttempt(saved);
         }
-        setAttempt(saved); setReceipt({ ...result, storagePath: saved.payload.uploadedFile.storagePath });
+        if (result.state === 'discarded') {
+          await removeUploadAttempt(contributorId);
+          setAttempt(null); setReceipt(null);
+          toast({ title: 'Pending upload discarded', description: 'The completed cleanup was confirmed.' });
+          return;
+        }
+        setAttempt(saved); setReceipt({ state: result.state, submissionId: result.submissionId, storagePath: saved.payload.uploadedFile.storagePath });
       });
     } catch (error) { setReceipt(null); setRecoveryError(error instanceof Error ? error.message : 'The submission outcome is still unconfirmed.'); }
     finally { setIsSaving(false); }

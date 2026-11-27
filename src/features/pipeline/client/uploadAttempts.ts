@@ -16,6 +16,12 @@ const attemptSchema = z.object({ contributorId: z.string().min(1), payload: payl
 export type PipelineUploadAttempt = z.infer<typeof attemptSchema>;
 const keyFor = (actor: string) => `pipeline-upload-attempt-v1:${actor}`;
 
+export function assertUploadRecoverySupport(): void {
+  if (typeof indexedDB === 'undefined' || typeof navigator === 'undefined' || typeof navigator.locks?.request !== 'function') {
+    throw new Error('Safe submission recovery needs browser storage and cross-tab locking. Use an up-to-date supported browser.');
+  }
+}
+
 export async function readUploadAttempt(actor: string): Promise<PipelineUploadAttempt | null> {
   if (typeof indexedDB === 'undefined') throw new Error('Safe submission recovery storage is unavailable in this browser. Your work is unchanged.');
   const value = await readStructuredBrowserValue<unknown>(keyFor(actor));
@@ -48,11 +54,11 @@ export async function withUploadAttemptLock<T>(actor: string, run: () => Promise
   });
 }
 
-export async function lookupUploadAttempt(attempt: PipelineUploadAttempt): Promise<{ state: 'pending' | 'owned'; submissionId: string | null }> {
+export async function lookupUploadAttempt(attempt: PipelineUploadAttempt): Promise<{ state: 'pending' | 'owned' | 'discarded'; submissionId: string | null }> {
   const response = await fetch('/api/pipeline?lookup=1', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Pipeline-Contributor': attempt.contributorId }, body: JSON.stringify(attempt.payload) });
   if (!response.ok) throw new Error('The submission outcome is still unconfirmed. Keep the saved attempt and check again.');
   const value = await response.json();
-  const receipt = z.object({ state: z.enum(['pending', 'owned']), submissionId: z.uuid().nullable() }).safeParse(value?.receipt);
+  const receipt = z.object({ state: z.enum(['pending', 'owned', 'discarded']), submissionId: z.uuid().nullable() }).safeParse(value?.receipt);
   if (!receipt.success || (receipt.data.state === 'owned') !== Boolean(receipt.data.submissionId)) throw new Error('The exact submission receipt could not be verified. The saved attempt is preserved.');
   return receipt.data;
 }

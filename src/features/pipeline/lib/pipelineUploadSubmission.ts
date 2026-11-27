@@ -252,6 +252,29 @@ const assertReservedPath = (storagePath: string): void => {
   );
 };
 
+/** Read only the terminal cleanup proof bound to this actor, reservation and descriptor. */
+const readUploadCleanupReceipt = async (contributorId: string, storagePath: string, descriptor: ValidatedUploadDescriptor): Promise<'discarded' | 'other'> => {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.from('cardforge_pipeline_asset_lineages')
+    .select('upload_state,upload_operation_token,upload_descriptor')
+    .eq('upload_contributor_id', contributorId).eq('upload_source_path', storagePath).maybeSingle();
+  if (error || !data) throw new PipelineStoreError('The exact upload receipt is unavailable. The saved attempt is retained.', 503);
+  const expected = uploadIdentity(descriptor);
+  const actual = data.upload_descriptor;
+  if (!actual || typeof actual !== 'object' || Array.isArray(actual)
+    || Object.keys(actual).length !== Object.keys(expected).length
+    || Object.entries(expected).some(([key, value]) => (actual as Record<string, unknown>)[key] !== value)) {
+    throw new PipelineStoreError('The exact upload identity could not be verified. The saved attempt is retained.', 503);
+  }
+  if (data.upload_state === 'cleanup_completed') {
+    if (!isPipelineUploadToken(data.upload_operation_token)) throw new PipelineStoreError('The cleanup receipt is incomplete. The saved attempt is retained.', 503);
+    return 'discarded';
+  }
+  if (data.upload_state === 'cleanup_committed') throw new PipelineStoreError('Upload cleanup is still unconfirmed. The saved attempt is retained.', 503);
+  if (!['pending', 'submitting', 'owned'].includes(data.upload_state)) throw new PipelineStoreError('The upload receipt is unreadable. The saved attempt is retained.', 503);
+  return 'other';
+};
+
 const getStoredObjectSize = (value: unknown): number | null => {
   if (!value || typeof value !== 'object') return null;
   const metadata = (value as { metadata?: unknown }).metadata;
@@ -437,7 +460,7 @@ export const createUploadedPipelineSubmission = async ({
   previewUrl,
   uploadedFile,
   inspectOnly = false,
-}: CreateUploadedPipelineSubmissionInput): Promise<void | { state: 'pending' | 'owned'; submissionId: string | null }> => {
+}: CreateUploadedPipelineSubmissionInput): Promise<void | { state: 'pending' | 'owned' | 'discarded'; submissionId: string | null }> => {
   const descriptor = validatePipelineUploadDescriptor({
     assetType,
     studioDestination,
@@ -447,6 +470,9 @@ export const createUploadedPipelineSubmission = async ({
     maxFileSizeMb,
   });
   assertReservedPath(uploadedFile.storagePath);
+  if (inspectOnly && await readUploadCleanupReceipt(contributorId, uploadedFile.storagePath, descriptor) === 'discarded') {
+    return { state: 'discarded', submissionId: null };
+  }
   const storage = requireStorage();
 
   const { data } = storage.getPublicUrl(uploadedFile.storagePath);

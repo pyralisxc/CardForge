@@ -79,6 +79,9 @@ begin
 
  cleanup_path:=public.cardforge_reserve_pipeline_upload('upload-proof',descriptor)->>'storagePath';
  cleanup_token:=public.cardforge_claim_pipeline_upload_cleanup('upload-proof',cleanup_path);
+ if not exists(select 1 from public.cardforge_pipeline_asset_lineages where upload_source_path=cleanup_path
+   and upload_contributor_id='upload-proof' and upload_descriptor=descriptor
+   and upload_state='cleanup_committed' and upload_operation_token=cleanup_token) then raise exception 'cleanup_commit_receipt_missing'; end if;
  -- Deliberately omit finalization: response loss, Storage uncertainty and failed
  -- finalization all retain the same committed exclusion, regardless of age.
  update public.cardforge_pipeline_asset_lineages set created_at=now()-interval '1 year' where upload_source_path=cleanup_path;
@@ -89,6 +92,9 @@ begin
   perform public.cardforge_prepare_pipeline_upload_submission('upload-proof',cleanup_path,descriptor,pg_temp.upload_request('upload-proof',cleanup_path),true); raise exception 'cleanup_source_reused';
  exception when raise_exception then if sqlerrm<>'pipeline_upload_cleanup_committed' then raise; end if; end;
  perform public.cardforge_finalize_pipeline_upload_cleanup(cleanup_path,cleanup_token);
+ if not exists(select 1 from public.cardforge_pipeline_asset_lineages where upload_source_path=cleanup_path
+   and upload_contributor_id='upload-proof' and upload_descriptor=descriptor
+   and upload_state='cleanup_completed' and upload_operation_token=cleanup_token) then raise exception 'completed_cleanup_receipt_missing'; end if;
  begin
   perform public.cardforge_prepare_pipeline_upload_submission('upload-proof',cleanup_path,descriptor,pg_temp.upload_request('upload-proof',cleanup_path),true); raise exception 'late_signed_upload_recycled_path';
  exception when raise_exception then if sqlerrm<>'pipeline_upload_cleanup_committed' then raise; end if; end;
