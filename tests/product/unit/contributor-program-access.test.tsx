@@ -5,10 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({
   entitlement: {} as Record<string, unknown>,
   access: {} as Record<string, unknown>,
+  accessHook: vi.fn(),
 }));
 
 vi.mock('@/features/account/client/entitlement', () => ({ useAccountEntitlement: () => state.entitlement }));
-vi.mock('@/features/contributor-access/client', () => ({ useContributorAccess: () => state.access }));
+vi.mock('@/features/contributor-access/client', () => ({ useContributorAccess: (options: unknown) => { state.accessHook(options); return state.access; } }));
 vi.mock('@/features/public-site/client/context', () => ({ useSiteContent: () => new Proxy({}, { get: (_, key) => String(key) }) }));
 vi.mock('@clerk/nextjs', () => ({ useUser: () => ({ isLoaded: false, isSignedIn: true, user: null }) }));
 
@@ -24,11 +25,13 @@ describe('Contributor program access handoff', () => {
       entitlementError: null, refreshEntitlement: vi.fn(),
     };
     state.access = { active: true, scopes: ['assets.review'], isLoading: false, error: null, retry: vi.fn() };
+    state.accessHook.mockClear();
   });
 
   it('offers the Pipeline to an active Contributor', () => {
     const page = renderPage();
     expect(page).toContain('Open contributor Library');
+    expect(state.accessHook).toHaveBeenCalledWith(expect.objectContaining({ readOnly: true, sessionKey: 'contributor' }));
     expect(page).not.toContain('Your Contributor profile is not active');
   });
 

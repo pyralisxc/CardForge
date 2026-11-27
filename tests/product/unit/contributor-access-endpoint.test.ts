@@ -13,6 +13,8 @@ vi.mock('@/features/contributor-access/server', async () => import('@/features/c
 import { AccountToolAccessError } from '@/features/account/server';
 import { GET } from '@/app/api/contributor-access/route';
 
+const request = (readOnly = false) => new Request(`http://localhost/api/contributor-access${readOnly ? '?readOnly=1' : ''}`);
+
 describe('Contributor access endpoint', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -21,15 +23,31 @@ describe('Contributor access endpoint', () => {
     f.profile.mockResolvedValue({ status: 'inactive', canDraftCampaigns: false });
   });
 
-  it('returns an inactive projection only when the profile is actually inactive', async () => {
-    const response = await GET();
+  it.each(['inactive', 'suspended'])('reads a %s profile without changing it', async (status) => {
+    f.profile.mockResolvedValue({ status, canDraftCampaigns: false });
+    const response = await GET(request(true));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ active: false, scopes: [] });
+    expect(f.upsert).not.toHaveBeenCalled();
+  });
+
+  it('reads an active profile without enrolling or updating it', async () => {
+    f.profile.mockResolvedValue({ status: 'active', canDraftCampaigns: false });
+    const response = await GET(request(true));
+    expect(await response.json()).toMatchObject({ active: true, scopes: expect.arrayContaining(['assets.review']) });
+    expect(f.upsert).not.toHaveBeenCalled();
+  });
+
+  it('retains the existing enrollment path for ordinary access requests', async () => {
+    f.profile.mockResolvedValue({ status: 'active', canDraftCampaigns: false });
+    expect((await GET(request())).status).toBe(200);
+    expect(f.upsert).toHaveBeenCalledOnce();
+    expect(f.upsert).toHaveBeenCalledWith(expect.objectContaining({ contributorId: 'contributor' }));
   });
 
   it('preserves a signed-out response instead of reporting an inactive profile', async () => {
     f.account.mockRejectedValue(new AccountToolAccessError('Sign in again.', 401));
-    const response = await GET();
+    const response = await GET(request(true));
     expect(response.status).toBe(401);
     expect(await response.json()).toMatchObject({ error: { code: 'sign_in_required' } });
     expect(f.profile).not.toHaveBeenCalled();
@@ -38,6 +56,6 @@ describe('Contributor access endpoint', () => {
   it('reports an unavailable profile store as unavailable', async () => {
     f.profile.mockRejectedValue(new Error('unavailable'));
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-    try { expect((await GET()).status).toBe(503); } finally { log.mockRestore(); }
+    try { expect((await GET(request(true))).status).toBe(503); } finally { log.mockRestore(); }
   });
 });

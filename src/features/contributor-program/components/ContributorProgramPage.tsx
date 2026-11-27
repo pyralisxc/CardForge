@@ -53,6 +53,7 @@ export function ContributorProgramPage({
   const contributorAccess = useContributorAccess({
     eligible: hasContributorRole,
     isOwner: entitlement.ownerAccess.isOwner,
+    readOnly: true,
     sessionKey: entitlement.isSignedIn ? entitlement.accountUserId : null,
   });
   const accessLoading = entitlement.entitlementStatus === 'loading'
