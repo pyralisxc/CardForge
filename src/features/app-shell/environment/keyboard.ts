@@ -1,7 +1,7 @@
 /** Preserve native text editing and let an open dialog own its keys. */
 export const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || Boolean(target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]'));
+  return target.isContentEditable || Boolean(target.closest('input, textarea, select, [contenteditable="true"], .ProseMirror, [role="textbox"]'));
 };
 
 export const hasBlockingKeyboardLayer = (): boolean => (
