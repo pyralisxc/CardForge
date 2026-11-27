@@ -403,7 +403,7 @@ describe('Set context native lifecycle', () => {
     expect(await guest.getItem('workspace')).toBe(source);
   });
 
-  it('does not import when account work changes while the reviewed snapshot is fingerprinted', async () => {
+  it.each(['workspace', 'account'] as const)('does not import when %s changes while the reviewed snapshot is fingerprinted', async (change) => {
     const guest = createBrowserKeyValueStorage('project-workspace:guest');
     await guest.setItem('workspace', JSON.stringify({ version: 7, state: { cardSets: [{ id: 'guest-context', name: 'Signed-out work' }], storedCards: [], userTemplates: [] } }));
     const source = await guest.getItem('workspace');
@@ -416,10 +416,14 @@ describe('Set context native lifecycle', () => {
     vi.spyOn(crypto.subtle, 'digest').mockImplementation(async (...args) => { started(); await blocked; return digest(...args); });
     const pending = importRetainedGuestWorkspaceAsCopy({ scope, snapshotFingerprint: summary!.snapshotFingerprint });
     await hashing;
-    useProjectStore.setState((state) => ({ cardSets: [...state.cardSets, { id: 'newer', name: 'Newer account work' }] }));
+    if (change === 'workspace') {
+      useProjectStore.setState((state) => ({ cardSets: [...state.cardSets, { id: 'newer', name: 'Newer account work' }] }));
+    } else {
+      await hydrateProjectWorkspaceForScope(`account:switched-${ordinal}`);
+    }
     release();
     await expect(pending).rejects.toThrow(/workspace changed/i);
-    expect(useProjectStore.getState().cardSets.map((set) => set.id)).toContain('newer');
+    if (change === 'workspace') expect(useProjectStore.getState().cardSets.map((set) => set.id)).toContain('newer');
     expect(await guest.getItem('workspace')).toBe(source);
   });
 
