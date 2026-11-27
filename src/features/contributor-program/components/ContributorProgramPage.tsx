@@ -123,16 +123,19 @@ export function ContributorProgramPage({
                   </Button>
                 </>
               ) : (
-                <Button asChild variant="outline" className="border-[var(--cf-accent)]/70 bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
-                  <a href={requestMailto}>
-                    Email fallback <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                </Button>
+                <>
+                  {hasContributorRole ? <Button asChild variant="outline"><Link href="/account">Open your account</Link></Button> : null}
+                  <Button asChild variant="outline" className="border-[var(--cf-accent)]/70 bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
+                    <a href={requestMailto}>
+                      Email fallback <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                  </Button>
+                </>
               )}
             </div>
             {!accessLoading && !accessError && entitlement.authConfigured && signedIn && !isContributor ? (
               <>
-                {hasContributorRole ? <p className="mt-4 text-sm text-[var(--cf-text-muted)]">Your Contributor profile is not active. Contact us to ask about your access.</p> : null}
+                {hasContributorRole ? <p className="mt-4 text-sm text-[var(--cf-text-muted)]">Your Contributor profile is not active. Open your account to check your access, or contact us for help.</p> : null}
                 <ContactRequestForm
                   kind="contributor"
                   defaultEmail={accountEmail}

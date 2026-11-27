@@ -40,6 +40,7 @@ describe('Contributor program access handoff', () => {
     const page = renderPage();
     expect(page).not.toContain('Open contributor Library');
     expect(page).toContain('Your Contributor profile is not active');
+    expect(page).toContain('Open your account');
     expect(page).toContain('Request contributor access');
   });
 
