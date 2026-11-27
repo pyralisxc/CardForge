@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
+import { readProjectPreferenceSafely, updateProjectPreference } from '@/features/project/client/persistence-preferences';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import type { AccountLibrarySource } from '@/features/storage-management/client';
 
@@ -20,9 +20,11 @@ export interface DeskSavedView {
   sources: AccountLibrarySource[];
   tagMatch: DeskTagMatch;
   updatesOnly?: boolean;
+  query?: string;
 }
 
 export interface DeskViewPreferences {
+  query: string;
   views: DeskViewId[];
   types: string[];
   tags: string[];
@@ -33,7 +35,7 @@ export interface DeskViewPreferences {
 }
 
 export const DEFAULT_DESK_VIEW_PREFERENCES: DeskViewPreferences = {
-  views: ['my-work'], types: [], tags: [], sources: [], tagMatch: 'any', saved: [],
+  query: '', views: ['my-work'], types: [], tags: [], sources: [], tagMatch: 'any', saved: [],
 };
 
 const cleanText = (value: unknown, maximum: number): string | null => (
@@ -63,9 +65,11 @@ export const normalizeDeskViewPreferences = (value: unknown): DeskViewPreference
       sources: sources(item.sources),
       tagMatch: item.tagMatch === 'all' ? 'all' : 'any' as const,
       ...(item.updatesOnly === true ? { updatesOnly: true } : {}),
+      ...(typeof item.query === 'string' ? { query: item.query } : {}),
     } satisfies DeskSavedView];
-  }).slice(0, 20) : [];
+  }) : [];
   return {
+    query: typeof record.query === 'string' ? record.query : '',
     views: views(record.views).length ? views(record.views) : ['my-work'],
     types: strings(record.types, 80),
     tags: strings(record.tags, 60),
@@ -79,9 +83,15 @@ export const normalizeDeskViewPreferences = (value: unknown): DeskViewPreference
 /** Account-scoped filter state. A malformed/unreadable preference is never overwritten. */
 export function useDeskViewPreferences(persistenceScope: ProjectPersistenceScope) {
   const key = `${DESK_VIEW_PREFERENCES_KEY}:${persistenceScope}`;
+  const scopeEpoch = useRef({ scope: persistenceScope, epoch: 0 });
+  if (scopeEpoch.current.scope !== persistenceScope) scopeEpoch.current = { scope: persistenceScope, epoch: scopeEpoch.current.epoch + 1 };
+  const token = `${key}:${scopeEpoch.current.epoch}`;
   const [preferences, setPreferences] = useState<DeskViewPreferences>(DEFAULT_DESK_VIEW_PREFERENCES);
   const [ready, setReady] = useState(false);
+  const [readyKey, setReadyKey] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const activeToken = useRef(token);
+  activeToken.current = token;
 
   useEffect(() => {
     let cancelled = false;
@@ -95,43 +105,54 @@ export function useDeskViewPreferences(persistenceScope: ProjectPersistenceScope
         return;
       }
       setPreferences(normalizeDeskViewPreferences(result.kind === 'available' ? result.value : null));
+      setReadyKey(token);
       setReady(true);
     });
     return () => { cancelled = true; };
-  }, [key]);
+  }, [key, token]);
 
   const update = useCallback((next: DeskViewPreferences | ((current: DeskViewPreferences) => DeskViewPreferences)) => {
-    if (!ready) return;
+    if (!ready || readyKey !== token) return;
     setPreferences((current) => {
       const updated = normalizeDeskViewPreferences(typeof next === 'function' ? next(current) : next);
-      void writeProjectPreference(key, updated);
+      void updateProjectPreference(key, (stored) => ({ ...updated, saved: normalizeDeskViewPreferences(stored).saved })).catch(() => {});
       return updated;
     });
-  }, [key, ready]);
+  }, [key, ready, readyKey, token]);
 
   const reset = useCallback(() => update((current) => ({ ...DEFAULT_DESK_VIEW_PREFERENCES, saved: current.saved })), [update]);
-  const saveCurrent = useCallback((name: string) => {
+  const saveCurrent = useCallback(async (name: string, query?: string) => {
     const normalizedName = cleanText(name, 60);
-    if (!normalizedName) return false;
-    update((current) => ({
-      ...current,
-      saved: [...current.saved.filter((view) => view.name.toLocaleLowerCase() !== normalizedName.toLocaleLowerCase()), {
+    if (!normalizedName || activeToken.current !== token) return false;
+    if (!ready || readyKey !== token) {
+      const result = await readProjectPreferenceSafely<unknown>(key);
+      if (activeToken.current === token && result.kind !== 'unavailable') {
+        setPreferences(normalizeDeskViewPreferences(result.kind === 'available' ? result.value : null));
+        setReadyKey(token); setReady(true); setUnavailable(false);
+      }
+      return false;
+    }
+    const snapshot = preferences;
+    try {
+      const persisted = await updateProjectPreference(key, (stored) => {
+        const current = normalizeDeskViewPreferences(stored);
+        return { ...current, saved: [...current.saved.filter((view) => view.name.toLocaleLowerCase() !== normalizedName.toLocaleLowerCase()), {
         id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${normalizedName}`,
         name: normalizedName,
-        views: current.views,
-        types: current.types,
-        tags: current.tags,
-        sources: current.sources,
-        tagMatch: current.tagMatch,
-        updatesOnly: current.updatesOnly,
-      }].slice(-20),
-    }));
-    return true;
-  }, [update]);
+        views: snapshot.views, types: snapshot.types, tags: snapshot.tags,
+        sources: snapshot.sources, tagMatch: snapshot.tagMatch,
+        updatesOnly: snapshot.updatesOnly, ...(query !== undefined ? { query } : {}),
+      }] };
+      });
+      if (activeToken.current !== token) return false;
+      setPreferences((current) => ({ ...current, saved: normalizeDeskViewPreferences(persisted).saved }));
+      return true;
+    } catch { return false; }
+  }, [key, preferences, ready, readyKey, token]);
   const applySaved = useCallback((id: string) => update((current) => {
     const saved = current.saved.find((view) => view.id === id);
     return saved ? { ...current, ...saved, updatesOnly: saved.updatesOnly } : current;
   }), [update]);
 
-  return useMemo(() => ({ preferences, ready, unavailable, update, reset, saveCurrent, applySaved }), [applySaved, preferences, ready, reset, saveCurrent, unavailable, update]);
+  return useMemo(() => ({ preferences: readyKey === token ? preferences : DEFAULT_DESK_VIEW_PREFERENCES, ready: ready && readyKey === token, unavailable, update, reset, saveCurrent, applySaved }), [applySaved, token, preferences, ready, readyKey, reset, saveCurrent, unavailable, update]);
 }

@@ -985,3 +985,118 @@ test('@golden shared Actions follows Desk, Library, Design and Profile', async (
   await expect(menu).toContainText('Profile actions');
   await expect(menu.getByRole('region', { name: 'Touch quick actions' })).toHaveCount(0);
 });
+
+test('@golden Desk and Library save and reset their own search views', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
+  await page.goto('/account');
+  await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible({ timeout: 45_000 });
+  const deskSearch = page.getByRole('searchbox', { name: 'Search Desk work' });
+  await deskSearch.fill('100 Card Scale Set');
+  const deskUpdates = page.getByRole('button', { name: 'Filter by Update review' });
+  await deskUpdates.click();
+  await page.getByRole('button', { name: 'Save view', exact: true }).click();
+  await page.locator('input[aria-label="Name this Desk view"]:visible').fill('My Desk search');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('input[aria-label="Name this Desk view"]:visible')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Reset', exact: true }).click();
+  await expect(deskSearch).toHaveValue('');
+  await expect(deskUpdates).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: 'Apply a saved Desk view' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'My Desk search' }).click();
+  await expect(deskSearch).toHaveValue('100 Card Scale Set');
+  await expect(deskUpdates).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Save view', exact: true }).click();
+  await page.locator('input[aria-label="Name this Desk view"]:visible').fill('Desk filters only');
+  await page.locator('label:visible').filter({ hasText: 'Include search' }).locator('input').uncheck();
+  await page.evaluate(() => {
+    const original = IDBObjectStore.prototype.put;
+    (window as typeof window & { restoreViewPut?: () => void }).restoreViewPut = () => { IDBObjectStore.prototype.put = original; };
+    IDBObjectStore.prototype.put = function (value, key) {
+      if (typeof key === 'string' && key.startsWith('project-preferences:desk-view-preferences:')) throw new DOMException('Simulated write failure', 'QuotaExceededError');
+      return original.call(this, value, key);
+    };
+  });
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Could not save this view' })).toBeVisible();
+  await expect(page.locator('input[aria-label="Name this Desk view"]:visible')).toHaveValue('Desk filters only');
+  await page.evaluate(() => (window as typeof window & { restoreViewPut?: () => void }).restoreViewPut?.());
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('input[aria-label="Name this Desk view"]:visible')).toHaveCount(0);
+  await deskSearch.fill('Other search');
+  await page.getByRole('button', { name: 'Apply a saved Desk view' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Desk filters only' }).click();
+  await expect(deskSearch).toHaveValue('Other search');
+  await page.goto('/account?section=library&scope=personal', { waitUntil: 'networkidle' });
+  const librarySearch = page.getByRole('searchbox', { name: 'Search personal' });
+  await librarySearch.fill('100 Card Scale Set');
+  const libraryUpdates = page.getByRole('button', { name: 'Filter by Update review' });
+  await libraryUpdates.click();
+  await page.getByRole('button', { name: 'Save view', exact: true }).click();
+  await page.getByLabel('Name this Library view').fill('My Library search');
+  await page.evaluate(() => {
+    const original = IDBObjectStore.prototype.put;
+    (window as typeof window & { restoreViewPut?: () => void }).restoreViewPut = () => { IDBObjectStore.prototype.put = original; };
+    IDBObjectStore.prototype.put = function (value, key) {
+      if (typeof key === 'string' && key.startsWith('project-preferences:library-views:')) throw new DOMException('Simulated write failure', 'QuotaExceededError');
+      return original.call(this, value, key);
+    };
+  });
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Could not save this view' })).toBeVisible();
+  await expect(page.getByLabel('Name this Library view')).toHaveValue('My Library search');
+  await page.evaluate(() => (window as typeof window & { restoreViewPut?: () => void }).restoreViewPut?.());
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByLabel('Name this Library view')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Reset', exact: true }).click();
+  await expect(librarySearch).toHaveValue('');
+  await expect(libraryUpdates).toHaveAttribute('aria-pressed', 'false');
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Apply a saved Library view' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'My Library search' }).click();
+  await expect(librarySearch).toHaveValue('100 Card Scale Set');
+  await expect(libraryUpdates).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Save view', exact: true }).click();
+  await page.getByLabel('Name this Library view').fill('Library filters only');
+  await page.getByLabel('Include search').uncheck();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByLabel('Name this Library view')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Reset', exact: true }).click();
+  await librarySearch.fill('Another search');
+  await page.getByRole('button', { name: 'Apply a saved Library view' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Library filters only' }).click();
+  await expect(librarySearch).toHaveValue('Another search');
+  await expect(libraryUpdates).toHaveAttribute('aria-pressed', 'true');
+  await page.goto('/account', { waitUntil: 'networkidle' });
+  await expect(deskSearch).toHaveValue('Other search');
+  await page.getByRole('button', { name: 'Apply a saved Desk view' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'My Desk search' }).click();
+  await expect(deskSearch).toHaveValue('100 Card Scale Set');
+  await page.goto('/account?section=library&scope=personal', { waitUntil: 'networkidle' });
+  await expect(librarySearch).toHaveValue('Another search');
+  await expect(libraryUpdates).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Save view', exact: true }).click();
+  await page.getByLabel('Name this Library view').fill('My Library search');
+  await page.getByRole('button', { name: /^Pipeline\s/ }).click();
+  await expect(page.getByLabel('Name this Library view')).toHaveCount(0);
+  await page.getByRole('button', { name: /^Personal\s/ }).click();
+  await page.getByRole('button', { name: 'Apply a saved Library view' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'My Library search' }).click();
+  await expect(librarySearch).toHaveValue('100 Card Scale Set');
+});
+
+test('@golden Desk search remains usable when view preferences cannot be read', async ({ page }) => {
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
+  await page.addInitScript(() => {
+    const original = IDBObjectStore.prototype.get;
+    IDBObjectStore.prototype.get = function (key) {
+      if (typeof key === 'string' && key.startsWith('project-preferences:desk-view-preferences:')) throw new DOMException('Simulated read failure', 'UnknownError');
+      return original.call(this, key);
+    };
+  });
+  await page.goto('/account');
+  const search = page.getByRole('searchbox', { name: 'Search Desk work' });
+  await search.fill('100 Card Scale Set');
+  await expect(search).toHaveValue('100 Card Scale Set');
+  await expect(page.getByRole('button', { name: /^Select 100 Card Scale Set/ })).toBeVisible();
+});

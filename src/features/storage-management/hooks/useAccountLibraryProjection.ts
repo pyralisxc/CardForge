@@ -38,6 +38,7 @@ import {
   type AccountLibraryKind,
   type AccountLibrarySource,
 } from '../model/accountLibrary';
+import { useLibrarySavedViews, type LibrarySavedView, type LibraryViewState } from './useLibrarySavedViews';
 
 interface StudioDocumentSummary {
   id: string;
@@ -152,6 +153,7 @@ const normalizePrivateOrganization = (value: unknown): Record<string, AccountLib
 interface UseAccountLibraryProjectionOptions {
   persistenceScope: ProjectPersistenceScope;
   isSignedIn: boolean;
+  manageLibraryView?: boolean;
 }
 
 const sourceFailure = (
@@ -205,6 +207,7 @@ const sourceStatus = <Value,>(
 export function useAccountLibraryProjection({
   persistenceScope,
   isSignedIn,
+  manageLibraryView = false,
 }: UseAccountLibraryProjectionOptions) {
   const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
@@ -235,6 +238,53 @@ export function useAccountLibraryProjection({
   const [tagMatch, setTagMatch] = useState<'any' | 'all'>('any');
   const [sort, setSort] = useState<'recent' | 'name' | 'kind' | 'updates'>('recent');
   const [updatesOnly, setUpdatesOnly] = useState(false);
+  const savedViews = useLibrarySavedViews(persistenceScope, manageLibraryView);
+  const { active: savedActive, ready: savedViewsReady, saveActive } = savedViews;
+  const viewInteracted = useRef(false);
+  const viewScope = useRef({ scope: persistenceScope, epoch: 0 });
+  if (viewScope.current.scope !== persistenceScope) {
+    viewScope.current = { scope: persistenceScope, epoch: viewScope.current.epoch + 1 };
+    viewInteracted.current = false;
+  }
+  const viewEpoch = viewScope.current.epoch;
+  const [restoredViewEpoch, setRestoredViewEpoch] = useState<number | null>(null);
+  const activeView: LibraryViewState = { query, kinds: kindFilters, sources: sourceFilters, types: typeFilters, tags: tagFilters, tagMatch, sort, updatesOnly };
+  const activeViewRef = useRef(activeView); activeViewRef.current = activeView;
+  const activeViewSignature = JSON.stringify(activeView);
+  useEffect(() => {
+    setQuery(''); setKindFilters([]); setSourceFilters([]); setTypeFilters([]); setTagFilters([]);
+    setTagMatch('any'); setSort('recent'); setUpdatesOnly(false);
+  }, [persistenceScope]);
+  useEffect(() => {
+    if (!savedViewsReady || restoredViewEpoch === viewEpoch) return;
+    if (savedActive && !viewInteracted.current) {
+      const view = savedActive;
+      setQuery(view.query); setKindFilters(view.kinds); setSourceFilters(view.sources); setTypeFilters(view.types);
+      setTagFilters(view.tags); setTagMatch(view.tagMatch); setSort(view.sort); setUpdatesOnly(view.updatesOnly);
+    }
+    setRestoredViewEpoch(viewEpoch);
+  }, [restoredViewEpoch, savedActive, savedViewsReady, viewEpoch]);
+  useEffect(() => {
+    if (savedViewsReady && restoredViewEpoch === viewEpoch) saveActive(activeViewRef.current);
+  }, [activeViewSignature, restoredViewEpoch, savedViewsReady, saveActive, viewEpoch]);
+  const saveView = (name: string, includeSearch: boolean, scope: LibrarySavedView['scope'], sharedType: string) => savedViews.save({
+    name: name.trim(), scope, sharedType, ...(includeSearch ? { query } : {}), kinds: kindFilters, sources: sourceFilters,
+    types: typeFilters, tags: tagFilters, tagMatch, sort, updatesOnly,
+  });
+  const applySavedView = (view: LibrarySavedView) => {
+    viewInteracted.current = true;
+    if (view.query !== undefined) setQuery(view.query);
+    if (view.scope === 'personal') {
+      setKindFilters(view.kinds); setSourceFilters(view.sources); setTypeFilters(view.types);
+      setTagFilters(view.tags); setTagMatch(view.tagMatch); setUpdatesOnly(view.updatesOnly);
+    }
+    setSort(view.sort);
+  };
+  const resetView = () => {
+    viewInteracted.current = true;
+    setQuery(''); setKindFilters([]); setSourceFilters([]); setTypeFilters([]); setTagFilters([]);
+    setTagMatch('any'); setSort('recent'); setUpdatesOnly(false);
+  };
   const deferredQuery = useDeferredValue(query);
   const refreshGeneration = useRef(0);
   const folderRefreshGeneration = useRef(0);
@@ -560,7 +610,7 @@ export function useAccountLibraryProjection({
         if (tagMatch === 'any' && !tagFilters.some((tag) => itemTags.has(tag))) return false;
       }
       if (!normalizedQuery) return true;
-      return [item.name, ...item.details, ...item.locations.map((location) => location.label)]
+      return [item.name, ...item.details, ...item.locations.map((location) => location.label), item.organization.type ?? '', ...item.organization.tags]
         .join(' ')
         .toLocaleLowerCase()
         .includes(normalizedQuery);
@@ -695,6 +745,10 @@ export function useAccountLibraryProjection({
     templateCatalogReady,
     busyItemId,
     query,
+    savedViews: savedViews.views,
+    saveView,
+    applySavedView,
+    resetView,
     kind,
     source,
     kindFilters,
@@ -703,17 +757,17 @@ export function useAccountLibraryProjection({
     tagFilters,
     tagMatch,
     sort,
-    setQuery,
-    setKind: (next: AccountLibraryKind | 'all') => setKindFilters(next === 'all' ? [] : [next]),
-    setSource: (next: AccountLibrarySource | 'all') => setSourceFilters(next === 'all' ? [] : [next]),
-    setKindFilters,
-    setSourceFilters,
-    setTypeFilters,
-    setTagFilters,
-    setTagMatch,
-    setSort,
+    setQuery: (next: string) => { viewInteracted.current = true; setQuery(next); },
+    setKind: (next: AccountLibraryKind | 'all') => { viewInteracted.current = true; setKindFilters(next === 'all' ? [] : [next]); },
+    setSource: (next: AccountLibrarySource | 'all') => { viewInteracted.current = true; setSourceFilters(next === 'all' ? [] : [next]); },
+    setKindFilters: (next: AccountLibraryKind[]) => { viewInteracted.current = true; setKindFilters(next); },
+    setSourceFilters: (next: AccountLibrarySource[]) => { viewInteracted.current = true; setSourceFilters(next); },
+    setTypeFilters: (next: string[]) => { viewInteracted.current = true; setTypeFilters(next); },
+    setTagFilters: (next: string[]) => { viewInteracted.current = true; setTagFilters(next); },
+    setTagMatch: (next: 'any' | 'all') => { viewInteracted.current = true; setTagMatch(next); },
+    setSort: (next: 'recent' | 'name' | 'kind' | 'updates') => { viewInteracted.current = true; setSort(next); },
     updatesOnly,
-    setUpdatesOnly,
+    setUpdatesOnly: (next: boolean) => { viewInteracted.current = true; setUpdatesOnly(next); },
     openItem,
     recordDriveWorkBinding,
     refresh: () => { void refreshLibrarySources(); },

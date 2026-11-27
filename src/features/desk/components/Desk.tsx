@@ -762,9 +762,9 @@ function DeskContent({
             onTagFiltersChange={(tags) => deskViewPreferences.update((current) => ({ ...current, tags }))}
             onTagMatchChange={(tagMatch) => deskViewPreferences.update((current) => ({ ...current, tagMatch }))}
             onDeskViewsChange={(views) => deskViewPreferences.update((current) => ({ ...current, views: views.length ? views : ['my-work'] }))}
-            onApplySavedView={deskViewPreferences.applySaved}
-            onSaveView={deskViewPreferences.saveCurrent}
-            onResetViews={deskViewPreferences.reset}
+            onApplySavedView={(id) => { const saved = deskViewPreferences.preferences.saved.find((view) => view.id === id); deskViewPreferences.applySaved(id); if (saved?.query !== undefined) setQuery(saved.query); }}
+            onSaveView={(name, includeSearch) => deskViewPreferences.saveCurrent(name, includeSearch ? query : undefined)}
+            onResetViews={() => { setQuery(''); deskViewPreferences.reset(); }}
             onUpdateSelectedOrganization={updateSelectedWorkOrganization}
             onShowGridChange={() => setShowGrid((value) => !value)}
             onSnapToGridChange={() => setSnapToGrid((value) => !value)}

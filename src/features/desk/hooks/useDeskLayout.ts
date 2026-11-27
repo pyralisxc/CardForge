@@ -107,7 +107,7 @@ export function useDeskLayout({
       && matchesDeskSourceFilters(item, sourceFilters)
       && matchesDeskTypeFilters(item, typeFilters)
       && matchesDeskTagFilters(item, tagFilters, tagMatch)
-      && (!normalizedQuery || [item.name, ...item.details, workSourceLabel(item)].join(' ').toLocaleLowerCase().includes(normalizedQuery))
+      && (!normalizedQuery || [item.name, ...item.details, workSourceLabel(item), item.organization.type ?? '', ...item.organization.tags].join(' ').toLocaleLowerCase().includes(normalizedQuery))
     )).toSorted((left, right) => normalizedDeskOrder.indexOf(left.id) - normalizedDeskOrder.indexOf(right.id));
   }, [normalizedDeskOrder, query, sourceFilters, tagFilters, tagMatch, typeFilters, viewIds, workItems, updatesOnly, updateSetIds, focusedItemId]);
   const visibleItemIds = useMemo(() => visibleWork.map((item) => item.id), [visibleWork]);
