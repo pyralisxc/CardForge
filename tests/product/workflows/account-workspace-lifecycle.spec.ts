@@ -162,6 +162,9 @@ test('@golden retained signed-out work remains recoverable after dismissal', asy
   await mount('one');
   await expect(page.getByText('Signed-out work is still available')).toBeVisible();
   await page.getByRole('button',{name:'Keep separate'}).click();
+  await expect(page.getByText('Signed-out work is still available')).toHaveCount(0);
+  const dismissed = await page.evaluate(async()=>{const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('cardforge-browser-storage');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});const value=await new Promise<string | undefined>((resolve,reject)=>{const r=db.transaction('key-value').objectStore('key-value').get('project-preferences:retained-guest-work-dismissed-revision:account:one');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});db.close();return value;});
+  expect(dismissed).toMatch(/^"[a-f0-9]{64}"$/);
   await mount('one');
   await expect(page.getByText('Signed-out work is still available')).toHaveCount(0);
   expect(await readGuest()).toBe(originalGuest);
@@ -172,9 +175,11 @@ test('@golden retained signed-out work remains recoverable after dismissal', asy
   await expect(page.getByText('Signed-out work is still available')).toBeFocused();
   await expect(page.locator('[data-desk-tool-surface]').getByRole('button',{name:'Add to this account'})).toBeVisible();
   await page.getByRole('button',{name:'Keep separate'}).click();
+  await expect(page.getByText('Signed-out work is still available')).toHaveCount(0);
   await mount('two');
   await expect(page.getByText('Signed-out work is still available')).toBeVisible();
   await page.getByRole('button',{name:'Keep separate'}).click();
+  await expect(page.getByText('Signed-out work is still available')).toHaveCount(0);
   await page.evaluate(async()=>{const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('cardforge-browser-storage');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});await new Promise<void>((resolve,reject)=>{const tx=db.transaction('key-value','readwrite');const store=tx.objectStore('key-value');const request=store.get('project-workspace:guest:workspace');request.onsuccess=()=>{const payload=JSON.parse(request.result);payload.state.cardSets[0].name='A different signed-out snapshot';store.put(JSON.stringify(payload),'project-workspace:guest:workspace');};tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error);});db.close();});
   await mount('two');
   await expect(page.getByText('Signed-out work is still available')).toBeVisible();
