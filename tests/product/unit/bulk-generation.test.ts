@@ -21,6 +21,7 @@ import {
   updateColumnMapping,
 } from '@/features/card-generator/lib/bulkGeneration';
 import type { TCGCardTemplate } from '@/domain/templates';
+import { buildBulkRevisionPlan } from '@/features/card-generator/lib/bulkRevision';
 
 describe('bulk generation helpers', () => {
   it('builds initial column mapping with case-insensitive matching', () => {
@@ -30,7 +31,6 @@ describe('bulk generation helpers', () => {
     expect(buildInitialColumnMapping(headers, fieldKeys)).toEqual({
       RulesText: 'rulesText',
       TYPELINE: 'typeLine',
-      unknownCol: '',
     });
   });
 
@@ -466,7 +466,6 @@ Transitions[1].Position: 421
       columnMapping: {
         Name: 'name',
         Rules: 'rulesText',
-        Ignored: '',
       },
       fieldDefinitions: [
         {
@@ -510,6 +509,64 @@ Transitions[1].Position: 421
         },
       ],
     });
+  });
+
+  it('validates all rows while keeping the visible sample bounded and honors explicit Ignore', () => {
+    const field = { key: 'rank', label: 'Rank', control: 'input' as const, editor: 'text-editor' as const,
+      contentModel: 'text' as const, required: true, isImage: false, isMultiline: false, supportsRichText: false };
+    const rows = [['Rank', 'Production Notes'], ...Array.from({ length: 26 }, (_, index) => [index === 25 ? '' : 'A', 'unused'])];
+    const unresolved = createBulkPreview({ rows, columnMapping: { Rank: 'rank' }, fieldDefinitions: [field], maxPreviewRows: 25 });
+    expect(unresolved.rows).toHaveLength(25);
+    expect(unresolved.rowWarnings).toContain('Row 27: Missing value for rank');
+    expect(unresolved.globalWarnings).toContain('Unmapped CSV columns will be skipped: Production Notes');
+    rows[26][0] = 'K';
+    const ignored = createBulkPreview({ rows, columnMapping: { Rank: 'rank', 'Production Notes': '' }, fieldDefinitions: [field], maxPreviewRows: 25 });
+    expect(ignored.globalWarnings).toEqual([]);
+    expect(ignored.rowWarnings).toEqual([]);
+  });
+
+  it('keeps per-row omitted revision fields while honoring explicit blanks and new-card defaults', () => {
+    const template = { id: 'fixture', name: 'Fixture', aspectRatio: '63:88' } as TCGCardTemplate;
+    const text = { control: 'input' as const, editor: 'text-editor' as const, contentModel: 'text' as const,
+      isImage: false, isMultiline: false, supportsRichText: false };
+    const fields = [
+      { ...text, key: 'rank', label: 'Rank', required: true },
+      { ...text, key: 'title', label: 'Title', required: true, defaultValue: 'Default title' },
+      { ...text, key: 'notes', label: 'Notes', required: false, defaultValue: 'Default note' },
+    ];
+    const rows = parseBulkDataSource('[{"ID":"one","rank":"A","notes":""},{"ID":"two","rank":"K","title":"Changed"}]', 'json', true);
+    const columnMapping = { ID: '', rank: 'rank', title: 'title', notes: 'notes' };
+    const preview = createBulkPreview({ rows, columnMapping, fieldDefinitions: fields, partialRevision: true });
+    expect(preview.globalWarnings).toEqual([]);
+    expect(preview.rowWarnings).toEqual([]);
+    const incoming = createBulkDisplayCards({ template, fieldDefinitions: fields, rows, columnMapping,
+      partialRevision: true, createId: (row) => rows[row - 1][0] });
+    expect(incoming.map(card => card.data)).toEqual([{ rank: 'A', notes: '' }, { rank: 'K', title: 'Changed' }]);
+    const existing = [
+      { ...incoming[0], data: { rank: 'A', title: 'Keep title', notes: 'Old note', artwork: 'keep-art' } },
+      { ...incoming[1], data: { rank: 'K', title: 'Old title', notes: 'Keep note', artwork: 'keep-art-2' } },
+    ];
+    const plan = buildBulkRevisionPlan({ existing, incoming, match: { kind: 'unique-id' } });
+    expect(plan.revisions.map(card => card.data)).toEqual([
+      { rank: 'A', title: 'Keep title', notes: '', artwork: 'keep-art' },
+      { rank: 'K', title: 'Changed', notes: 'Keep note', artwork: 'keep-art-2' },
+    ]);
+    expect(plan.revisions.map(card => card.uniqueId)).toEqual(['one', 'two']);
+    const structured = parseBulkDataSource('ID: one\nnotes:\n---\nID: two\ntitle: Changed', 'structured', true);
+    expect(Object.hasOwn(structured[1], structured[0].indexOf('title'))).toBe(false);
+    expect(structured[1][structured[0].indexOf('notes')]).toBe('');
+    expect(parseBulkDataSource('[{" title ":"Updated"}]', 'json', true)).toEqual([['title'], ['Updated']]);
+    expect(() => parseBulkDataSource('[{"title":"One"," title ":"Two"}]', 'json', true)).toThrow('duplicate field "title"');
+    const frontOnly = createBulkDisplayCards({ template, backingTemplate: template, fieldDefinitions: fields, rows: [['rank'], ['A']], columnMapping: { rank: 'rank' }, partialRevision: true });
+    expect(frontOnly[0].backingData).toBeUndefined();
+    const backPlan = buildBulkRevisionPlan({ existing: [{ ...frontOnly[0], backingData: { motto: 'Old', art: 'Keep' } }], incoming: [{ ...frontOnly[0], backingData: { motto: 'New' } }], match: { kind: 'unique-id' } });
+    expect(backPlan.changedFields).toContain('back.motto');
+    expect(backPlan.preservedFields).toContain('back.art');
+    expect(backPlan.revisions[0].backingData).toEqual({ motto: 'New', art: 'Keep' });
+    const append = createBulkDisplayCards({ template, fieldDefinitions: fields, rows: [['rank'], ['A']], columnMapping: { rank: 'rank' } });
+    expect(append[0].data).toMatchObject({ rank: 'A', title: 'Default title', notes: 'Default note' });
+    const explicitRequiredBlank = createBulkPreview({ rows: [['rank'], ['']], columnMapping: { rank: 'rank' }, fieldDefinitions: fields, partialRevision: true });
+    expect(explicitRequiredBlank.rowWarnings).toContain('Row 2: Missing value for rank');
   });
 
   it('generates at least 1000 cards from mapped CSV rows without dropping row data', () => {
@@ -684,6 +741,12 @@ Transitions[1].Position: 421
       '__cardforgeFieldStyle.Stat.fontSizePx': '28',
     });
     expect(cards[0].data['__cardforgeFieldStyle.Ignored.textColor']).toBeUndefined();
+    const ignoredOverride = createBulkDisplayCards({
+      template, fieldDefinitions,
+      rows: [['Name', 'Name.textColor'], ['Avery', '#00ffaa']],
+      columnMapping: { Name: 'Name', 'Name.textColor': '' },
+    });
+    expect(ignoredOverride[0].data['__cardforgeFieldStyle.Name.textColor']).toBeUndefined();
   });
 
   it('generates independent front and back values from one list row', () => {

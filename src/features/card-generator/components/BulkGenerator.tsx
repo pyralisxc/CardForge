@@ -175,11 +175,11 @@ export function BulkGenerator({
       return { rows: [] as string[][], error: null as string | null };
     }
     try {
-      return { rows: parseBulkDataSource(bulkDataInput.trim(), selectedFileType), error: null as string | null };
+      return { rows: parseBulkDataSource(bulkDataInput.trim(), selectedFileType, operation === 'revise'), error: null as string | null };
     } catch (error) {
       return { rows: [] as string[][], error: extractErrorMessage(error) };
     }
-  }, [bulkDataInput, selectedFileType, selectedTemplate]);
+  }, [bulkDataInput, selectedFileType, selectedTemplate, operation]);
 
   const parsedRows = parsedCsv.rows;
 
@@ -218,8 +218,8 @@ export function BulkGenerator({
   );
 
   const unmappedRequiredFields = useMemo(
-    () => getUnmappedRequiredFieldKeys(bulkFieldDefinitions, columnMapping),
-    [bulkFieldDefinitions, columnMapping]
+    () => operation === 'revise' ? [] : getUnmappedRequiredFieldKeys(bulkFieldDefinitions, columnMapping),
+    [bulkFieldDefinitions, columnMapping, operation]
   );
 
   const blockingIssues = useMemo(() => {
@@ -229,21 +229,22 @@ export function BulkGenerator({
   }, [bulkDataInput, columnMapping, csvHeaders, parsedCsv.error, parsedRows, selectedTemplate]);
 
   const bulkPreview = useMemo(() => {
-    if (!selectedTemplate) return { rows: [], globalWarnings: [] };
+    if (!selectedTemplate) return { rows: [], globalWarnings: [], rowWarnings: [] };
     return createBulkPreview({
       rows: parsedRows,
       columnMapping,
       fieldDefinitions: bulkFieldDefinitions,
       previewOverrides: {},
       maxPreviewRows: Math.min(parsedRows.length, 25),
+      partialRevision: operation === 'revise',
     });
-  }, [bulkFieldDefinitions, columnMapping, parsedRows, selectedTemplate]);
+  }, [bulkFieldDefinitions, columnMapping, parsedRows, selectedTemplate, operation]);
 
   const reviewIssues = useMemo(() => Array.from(new Set([
     ...blockingIssues,
     ...bulkPreview.globalWarnings,
-    ...bulkPreview.rows.flatMap((row) => row.warnings.map((warning) => `Row ${row.rowNumber}: ${warning}`)),
-  ])), [blockingIssues, bulkPreview.globalWarnings, bulkPreview.rows]);
+    ...bulkPreview.rowWarnings,
+  ])), [blockingIssues, bulkPreview.globalWarnings, bulkPreview.rowWarnings]);
 
   const openDataReview = useCallback((issues = reviewIssues) => {
     setDataReviewIssues(issues.length > 0 ? issues : ['We could not read this data source. Check the file format and field names.']);
@@ -253,7 +254,7 @@ export function BulkGenerator({
   const visibleCsvHeaders = useMemo(() => {
     let headers = csvHeaders;
     if (showUnmappedOnly) {
-      headers = headers.filter((header) => !columnMapping[header]);
+      headers = headers.filter((header) => !Object.hasOwn(columnMapping, header));
     }
     if (conflictFocusField) {
       headers = headers.filter((header) => columnMapping[header] === conflictFocusField);
@@ -268,7 +269,7 @@ export function BulkGenerator({
       return;
     }
     try {
-      const rows = parseBulkDataSource(bulkDataInput.trim(), selectedFileType);
+      const rows = parseBulkDataSource(bulkDataInput.trim(), selectedFileType, operation === 'revise');
       if (rows.length < 1) return;
       const headers = normalizeCsvHeaders(rows[0]);
       setCsvHeaders(headers);
@@ -277,7 +278,7 @@ export function BulkGenerator({
       setCsvHeaders([]);
       setColumnMapping({});
     }
-  }, [bulkDataInput, selectedFileType, selectedTemplate, bulkFieldDefinitions]);
+  }, [bulkDataInput, selectedFileType, selectedTemplate, bulkFieldDefinitions, operation]);
 
   useEffect(() => {
     setShowAdvancedMapping(false);
@@ -361,7 +362,7 @@ export function BulkGenerator({
 
     setIsLoading(true);
     try {
-      const rows = parseBulkDataSource(bulkDataInput.trim(), selectedFileType);
+      const rows = parseBulkDataSource(bulkDataInput.trim(), selectedFileType, operation === 'revise');
       if (rows.length < 2) {
         toast({
           title: ERROR_COPY.csvFormatIncomplete.title,
@@ -381,6 +382,7 @@ export function BulkGenerator({
         rows,
         columnMapping,
         previewOverrides: {},
+        partialRevision: operation === 'revise',
         createId: operation === 'revise' && revisionMatchKey === 'unique-id'
           ? (rowNumber) => {
               const idColumn = normalizeCsvHeaders(rows[0]).findIndex((header) => /^(cardforge[ _-]?id|unique[ _-]?id)$/iu.test(header));
@@ -457,7 +459,7 @@ export function BulkGenerator({
         const text = loadEvent.target?.result as string;
         setBulkDataInput(text);
         try {
-          const rows = parseBulkDataSource(text.trim(), selectedFileType);
+          const rows = parseBulkDataSource(text.trim(), selectedFileType, operation === 'revise');
           const headers = normalizeCsvHeaders(rows[0] || []);
           const mapping = buildInitialColumnMapping(headers, bulkFieldDefinitions);
           const preview = createBulkPreview({
@@ -466,11 +468,12 @@ export function BulkGenerator({
             fieldDefinitions: bulkFieldDefinitions,
             previewOverrides: {},
             maxPreviewRows: Math.min(rows.length, 25),
+            partialRevision: operation === 'revise',
           });
           const issues = [
             ...getBulkGenerationBlockingIssues(headers, rows, mapping),
             ...preview.globalWarnings,
-            ...preview.rows.flatMap((row) => row.warnings.map((warning) => `Row ${row.rowNumber}: ${warning}`)),
+            ...preview.rowWarnings,
           ];
           if (issues.length > 0) {
             openDataReview(issues);
@@ -574,6 +577,7 @@ export function BulkGenerator({
               duplicateRequiredFields={duplicateRequiredFields}
               duplicateRequiredFieldCounts={duplicateRequiredFieldCounts}
               unmappedRequiredFields={unmappedRequiredFields}
+              partialRevision={operation === 'revise'}
               onToggleAdvancedMapping={() => setShowAdvancedMapping((prev) => !prev)}
               onAutoMapAgain={handleAutoMapAgain}
               onAutoMapRequiredFields={handleAutoMapRequiredFields}

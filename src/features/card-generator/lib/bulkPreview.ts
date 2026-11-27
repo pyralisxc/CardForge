@@ -29,15 +29,16 @@ export const createBulkPreview = ({
   fieldDefinitions,
   previewOverrides = {},
   maxPreviewRows = 5,
+  partialRevision = false,
 }: CreateBulkPreviewOptions): BulkPreviewResult => {
   if (parsedRows.length < 2) {
-    return { rows: [], globalWarnings: [] };
+    return { rows: [], globalWarnings: [], rowWarnings: [] };
   }
 
   const headers = normalizeCsvHeaders(parsedRows[0]);
   const fieldKeySet = new Set(fieldDefinitions.map((field) => field.key));
   const unmappedHeaders = headers.filter((header) => (
-    !columnMapping[header]
+    !Object.hasOwn(columnMapping, header)
     && !isRecognizedFieldStyleColumn(header, fieldKeySet)
     && !isRecognizedImageFieldOverrideColumn(header, fieldKeySet)
   ));
@@ -54,7 +55,7 @@ export const createBulkPreview = ({
       .filter((value): value is string => !!value)
   );
   const unmappedRequiredFields = requiredFieldKeys.filter((key) => !mappedFieldKeys.has(key));
-  if (unmappedRequiredFields.length > 0) {
+  if (!partialRevision && unmappedRequiredFields.length > 0) {
     globalWarnings.push(`Required template fields are not mapped: ${unmappedRequiredFields.join(', ')}`);
   }
 
@@ -67,9 +68,10 @@ export const createBulkPreview = ({
 
   const requiredFieldSet = new Set(requiredFieldKeys);
   const previewRows: BulkPreviewRow[] = [];
+  const rowWarnings: string[] = [];
   const previewCount = Math.min(parsedRows.length - 1, maxPreviewRows);
 
-  for (let i = 1; i <= previewCount; i += 1) {
+  for (let i = 1; i < parsedRows.length; i += 1) {
     const values = parsedRows[i] || [];
     const mappedData: Record<string, string> = {};
     const missingRequiredKeys: string[] = [];
@@ -80,6 +82,7 @@ export const createBulkPreview = ({
     headers.forEach((header, index) => {
       const mappedKey = columnMapping[header] || '';
       if (!mappedKey) return;
+      if (partialRevision && !Object.hasOwn(values, index) && !Object.hasOwn(rowOverrides, mappedKey)) return;
       const value = String(rowOverrides[mappedKey] ?? values[index] ?? '');
       mappedData[mappedKey] = value;
       if (requiredFieldSet.has(mappedKey) && value.trim() === '') {
@@ -90,15 +93,11 @@ export const createBulkPreview = ({
 
     warnings.push(...validateCardDataAgainstFieldContracts(fieldDefinitions, mappedData).warnings);
 
-    previewRows.push({
-      rowNumber,
-      mappedData,
-      missingRequiredKeys,
-      warnings,
-    });
+    rowWarnings.push(...warnings.map((warning) => `Row ${rowNumber}: ${warning}`));
+    if (i <= previewCount) previewRows.push({ rowNumber, mappedData, missingRequiredKeys, warnings });
   }
 
-  return { rows: previewRows, globalWarnings };
+  return { rows: previewRows, globalWarnings, rowWarnings };
 };
 
 export interface CreateBulkDisplayCardsOptions {
@@ -111,6 +110,7 @@ export interface CreateBulkDisplayCardsOptions {
   columnMapping: Record<string, string>;
   previewOverrides?: Record<number, Record<string, string>>;
   createId?: (rowNumber: number) => string;
+  partialRevision?: boolean;
 }
 
 export const createBulkDisplayCards = ({
@@ -123,6 +123,7 @@ export const createBulkDisplayCards = ({
   columnMapping,
   previewOverrides = {},
   createId = () => nanoid(),
+  partialRevision = false,
 }: CreateBulkDisplayCardsOptions): DisplayCard[] => {
   if (rows.length < 2) return [];
 
@@ -147,9 +148,13 @@ export const createBulkDisplayCards = ({
     headers.forEach((header: string, index: number) => {
       const mappedKey = columnMapping[header] || '';
       if (mappedKey) {
+        if (partialRevision && !Object.hasOwn(values, index)) return;
         assignMappedValue(mappedKey, values[index] ?? '');
         return;
       }
+
+      // Explicit Ignore also overrides the automatic style/image columns.
+      if (Object.hasOwn(columnMapping, header)) return;
 
       const styleColumn = parseFieldStyleColumnHeader(header, fieldKeySet);
       const imageColumn = styleColumn ? null : parseImageFieldOverrideColumnHeader(header, fieldKeySet);
@@ -181,9 +186,9 @@ export const createBulkDisplayCards = ({
       backingTemplateId: backingTemplate?.id ?? null,
       setId: activeCardSet?.id,
       setName: activeCardSet?.name,
-      data: completeCardDataWithTemplateDefaults(fieldDefinitions, cardData),
+      data: partialRevision ? cardData : completeCardDataWithTemplateDefaults(fieldDefinitions, cardData),
       backingData: backingTemplate
-        ? completeCardDataWithTemplateDefaults(backingFieldDefinitions, backingData)
+        ? partialRevision ? (Object.keys(backingData).length ? backingData : undefined) : completeCardDataWithTemplateDefaults(backingFieldDefinitions, backingData)
         : undefined,
       uniqueId: createId(rowNumber),
     });

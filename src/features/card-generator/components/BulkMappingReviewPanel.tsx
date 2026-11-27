@@ -21,6 +21,7 @@ interface BulkMappingReviewPanelProps {
   duplicateRequiredFields: string[];
   duplicateRequiredFieldCounts: Map<string, number>;
   unmappedRequiredFields: string[];
+  partialRevision: boolean;
   onToggleAdvancedMapping: () => void;
   onAutoMapAgain: () => void;
   onAutoMapRequiredFields: () => void;
@@ -42,6 +43,7 @@ export function BulkMappingReviewPanel({
   duplicateRequiredFields,
   duplicateRequiredFieldCounts,
   unmappedRequiredFields,
+  partialRevision,
   onToggleAdvancedMapping,
   onAutoMapAgain,
   onAutoMapRequiredFields,
@@ -51,7 +53,7 @@ export function BulkMappingReviewPanel({
   onColumnMappingChange,
 }: BulkMappingReviewPanelProps) {
   const fieldOptions = fieldDefinitions.map((field) => ({ value: field.key, label: field.label, required: field.required }));
-  const unmappedHeaders = headers.filter((header) => !columnMapping[header]);
+  const unmappedHeaders = headers.filter((header) => !Object.hasOwn(columnMapping, header));
 
   return (
     <Card>
@@ -115,7 +117,7 @@ export function BulkMappingReviewPanel({
         ) : headers.length > 0 ? (
           <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
             <CheckCircle2 className="h-4 w-4" />
-            Required card fields are matched.
+            {partialRevision ? 'Omitted fields stay unchanged.' : 'Required card fields are matched.'}
           </div>
         ) : null}
 
@@ -167,7 +169,7 @@ export function BulkMappingReviewPanel({
                     Card field
                   </Label>
                   <Select
-                    value={columnMapping[header] ?? '__ignore__'}
+                    value={Object.hasOwn(columnMapping, header) ? (columnMapping[header] || '__ignore__') : '__unmapped__'}
                     onValueChange={(value) => {
                       onColumnMappingChange({
                         ...columnMapping,
@@ -179,6 +181,7 @@ export function BulkMappingReviewPanel({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__unmapped__" disabled>Choose a field or ignore</SelectItem>
                       <SelectItem value="__ignore__">Ignore</SelectItem>
                       {fieldOptions.map((field) => (
                         <SelectItem key={field.value} value={field.value}>

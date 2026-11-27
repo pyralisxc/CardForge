@@ -22,7 +22,8 @@ export const buildInitialColumnMapping = (
       normalizeMappingToken(field.key) === normalized
       || normalizeMappingToken(field.label) === normalized
     ));
-    mapping[header] = matchingField?.key ?? '';
+    // An absent key needs a decision; an explicit empty value means Ignore.
+    if (matchingField) mapping[header] = matchingField.key;
   });
   return mapping;
 };

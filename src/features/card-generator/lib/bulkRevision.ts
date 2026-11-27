@@ -1,4 +1,5 @@
 import type { DisplayCard } from '@/domain/rendering';
+import { BACKING_BULK_FIELD_PREFIX } from '@/features/card-generator/lib/bulkContracts';
 
 export type BulkRevisionMatch = { kind: 'unique-id' } | { kind: 'field'; key: string; label: string };
 
@@ -59,6 +60,12 @@ export const buildBulkRevisionPlan = ({
     });
     Object.keys(candidate.data).forEach((key) => {
       if (candidate.data[key] !== current.data[key]) changedFields.add(key);
+    });
+    Object.keys(current.backingData ?? {}).forEach((key) => {
+      if (!Object.hasOwn(candidate.backingData ?? {}, key)) preservedFields.add(`${BACKING_BULK_FIELD_PREFIX}${key}`);
+    });
+    Object.keys(candidate.backingData ?? {}).forEach((key) => {
+      if (candidate.backingData?.[key] !== current.backingData?.[key]) changedFields.add(`${BACKING_BULK_FIELD_PREFIX}${key}`);
     });
     // Updating values from data never changes design authority. Template
     // retargeting is an explicit Design/Save operation, not a side effect of
