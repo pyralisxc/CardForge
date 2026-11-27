@@ -14,6 +14,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
+import { useContributorAccess } from '@/features/contributor-access/client';
 import { createContributorRequestMailto } from '@/features/contact/client/links';
 import { ContactRequestForm } from '@/features/contact/client/form';
 import { useSiteContent } from '@/features/public-site/client/context';
@@ -48,8 +49,18 @@ export function ContributorProgramPage({
     ? identity.isSignedIn || entitlement.isSignedIn
     : entitlement.isSignedIn;
   const accountEmail = identity.email ?? entitlement.accountEmail;
-  const isContributor = signedIn
-    && (entitlement.accessMode === 'contributor' || entitlement.ownerAccess.isOwner);
+  const hasContributorRole = signedIn && (entitlement.authorities.contributor || entitlement.ownerAccess.isOwner);
+  const contributorAccess = useContributorAccess({
+    eligible: hasContributorRole,
+    isOwner: entitlement.ownerAccess.isOwner,
+    sessionKey: entitlement.isSignedIn ? entitlement.accountUserId : null,
+  });
+  const accessLoading = entitlement.entitlementStatus === 'loading'
+    || (hasContributorRole && contributorAccess.isLoading);
+  const accessError = entitlement.entitlementError
+    ?? (hasContributorRole && !entitlement.accountUserId ? 'Account identity is unavailable.' : null)
+    ?? (hasContributorRole ? contributorAccess.error : null);
+  const isContributor = hasContributorRole && contributorAccess.active;
   const requestMailto = useMemo(
     () => createContributorRequestMailto({ accountEmail, supportEmail }),
     [accountEmail, supportEmail],
@@ -81,7 +92,17 @@ export function ContributorProgramPage({
               ))}
             </div>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              {isContributor ? (
+              {accessLoading ? (
+                <p role="status" className="text-sm text-[var(--cf-text-muted)]">Checking your account access…</p>
+              ) : accessError ? (
+                <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-[var(--cf-text-muted)]">
+                  <span>Unable to verify your Contributor access right now.</span>
+                  <Button type="button" variant="outline" onClick={() => {
+                    if (entitlement.entitlementError || !entitlement.accountUserId) void entitlement.refreshEntitlement();
+                    else contributorAccess.retry();
+                  }}>Retry access</Button>
+                </div>
+              ) : isContributor ? (
                 <Button asChild className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]">
                   <Link href="/account?section=library&scope=pipeline">
                     Open contributor Library <ArrowRight className="ml-2 h-4 w-4" />
@@ -108,13 +129,16 @@ export function ContributorProgramPage({
                 </Button>
               )}
             </div>
-            {entitlement.authConfigured && signedIn && !isContributor ? (
-              <ContactRequestForm
-                kind="contributor"
-                defaultEmail={accountEmail}
-                defaultName=""
-                defaultSubject="CardForge Contributor program request"
-              />
+            {!accessLoading && !accessError && entitlement.authConfigured && signedIn && !isContributor ? (
+              <>
+                {hasContributorRole ? <p className="mt-4 text-sm text-[var(--cf-text-muted)]">Your Contributor profile is not active. Contact us to ask about your access.</p> : null}
+                <ContactRequestForm
+                  kind="contributor"
+                  defaultEmail={accountEmail}
+                  defaultName=""
+                  defaultSubject="CardForge Contributor program request"
+                />
+              </>
             ) : null}
           </div>
 
