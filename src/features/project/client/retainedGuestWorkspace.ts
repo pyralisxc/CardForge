@@ -20,6 +20,7 @@ import { applyProjectDocumentToWorkspace } from './projectWorkspaceDocument';
 
 export interface RetainedGuestWorkSummary {
   guestRevision: number;
+  snapshotFingerprint: string;
   setCount: number;
   cardCount: number;
   templateCount: number;
@@ -30,12 +31,17 @@ const currentAccountScope = (): `account:${string}` | null => {
   return scope.startsWith('account:') ? scope as `account:${string}` : null;
 };
 
-const summarize = (retained: RetainedGuestWorkspace): RetainedGuestWorkSummary => ({
-  guestRevision: retained.guestRevision,
-  setCount: retained.setCount,
-  cardCount: retained.cardCount,
-  templateCount: retained.templateCount,
-});
+const summarize = async (retained: RetainedGuestWorkspace): Promise<RetainedGuestWorkSummary> => {
+  const snapshot = JSON.stringify([retained.guestRaw, Object.entries(retained.catalogs).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => [key, value?.raw])]);
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(snapshot));
+  return {
+    guestRevision: retained.guestRevision,
+    snapshotFingerprint: Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join(''),
+    setCount: retained.setCount,
+    cardCount: retained.cardCount,
+    templateCount: retained.templateCount,
+  };
+};
 
 export const getRetainedGuestWorkSummary = async (): Promise<RetainedGuestWorkSummary | null> => {
   const scope = currentAccountScope();
@@ -90,6 +96,7 @@ export const importRetainedGuestWorkspaceAsCopy = async (): Promise<{
   if (!scope) throw new Error('Sign in to an account before importing signed-out work.');
   const retained = await readRetainedGuestWorkspaceForAccount(scope);
   if (!retained) throw new Error('No retained signed-out work is available for this account.');
+  const summary = await summarize(retained);
   const expectedState = useProjectStore.getState();
   const document = buildDocument(retained);
   await prepareRetainedGuestWorkspaceAssetsForAccount(retained);
@@ -99,7 +106,7 @@ export const importRetainedGuestWorkspaceAsCopy = async (): Promise<{
   const imported = await applyProjectDocumentToWorkspace(document, 'copy', { expectedState });
   const consumed = await consumeRetainedGuestWorkspaceForAccount(retained).catch(() => false);
   return {
-    summary: summarize(retained),
+    summary,
     importedSetId: imported.activeSetId,
     consumed,
   };
