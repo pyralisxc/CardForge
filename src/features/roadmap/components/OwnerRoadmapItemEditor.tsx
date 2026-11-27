@@ -15,7 +15,10 @@ export function OwnerRoadmapItemEditor({ item, onSaved }: { item: RoadmapItem; o
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [outcomeUnknown, setOutcomeUnknown] = useState(false);
-  const update = (name: keyof typeof draft, value: string) => setDraft(current => ({ ...current, [name]: value }));
+  const update = (name: keyof typeof draft, value: string) => {
+    if (name === 'title' || name === 'description') setConfirmed(false);
+    setDraft(current => ({ ...current, [name]: value }));
+  };
   const save = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true); setMessage('');
