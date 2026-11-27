@@ -15,6 +15,7 @@ export const CONTRIBUTOR_SCOPES = [
   'campaigns.draft',
   'campaigns.approve',
   'campaigns.publish',
+  'roadmap.edit',
   'scopes.manage',
 ] as const;
 
@@ -28,6 +29,7 @@ export const CONTRIBUTOR_SCOPE_LABELS: Record<ContributorScope, string> = {
   'campaigns.draft': 'Draft campaign packages',
   'campaigns.approve': 'Approve campaign packages',
   'campaigns.publish': 'Publish approved campaigns',
+  'roadmap.edit': 'Correct Roadmap item details',
   'scopes.manage': 'Manage contributor access',
 };
 
@@ -100,10 +102,12 @@ export const resolveContributorScopes = ({
   isOwner,
   profileStatus,
   canDraftCampaigns,
+  canEditRoadmap = false,
 }: {
   isOwner: boolean;
   profileStatus: ContributorProfileStatus | null;
   canDraftCampaigns: boolean;
+  canEditRoadmap?: boolean;
 }): ContributorScope[] => {
   if (isOwner) return [...CONTRIBUTOR_SCOPES];
   if (profileStatus !== 'active') return [];
@@ -113,6 +117,7 @@ export const resolveContributorScopes = ({
     'assets.review',
     'library.submit',
     ...(canDraftCampaigns ? ['campaigns.draft' as const] : []),
+    ...(canEditRoadmap ? ['roadmap.edit' as const] : []),
   ];
 };
 

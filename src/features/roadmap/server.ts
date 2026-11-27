@@ -10,6 +10,7 @@ export {
   getRoadmapAdminItems,
   normalizeRoadmapStatusInput,
   updateRoadmapAdminItemStatus,
+  updateRoadmapItemDetails,
 } from './server/roadmapAdminStore';
 export {
   getRoadmapSettings,

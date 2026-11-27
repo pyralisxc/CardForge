@@ -58,6 +58,7 @@ export const readContributorCapabilities = async (
       isOwner: false,
       profileStatus: capabilities.status,
       canDraftCampaigns: capabilities.canDraftCampaigns && extendedContributionsEnabled,
+      canEditRoadmap: capabilities.canEditRoadmap,
     }),
   };
 };

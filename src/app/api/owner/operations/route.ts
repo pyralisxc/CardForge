@@ -20,7 +20,7 @@ import {
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
-import { publishOwnerSiteContentBlock, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus, publishOwnerWebsiteRelease } from '@/features/owner/server/ownerSiteCommands';
+import { publishOwnerSiteContentBlock, publishOwnerBusinessIdentity, publishOwnerFounderProfile, publishOwnerLegalDocument, publishOwnerRoadmapSettings, publishOwnerRoadmapStatus, publishOwnerRoadmapDetails, publishOwnerWebsiteRelease } from '@/features/owner/server/ownerSiteCommands';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,6 +97,7 @@ export async function PUT(request: Request) {
         expectedVersion?: unknown;
       };
       roadmapItem?: { itemId?: unknown; status?: unknown; expectedUpdatedAt?: unknown };
+      roadmapDetails?: Parameters<typeof publishOwnerRoadmapDetails>[0]['input'];
     };
     const respondPublication = async (publication: { value: unknown; receipt: import('@/features/owner/server/ownerSiteCommands').OwnerCommittedMutationReceipt }) => {
       try { return createNoStoreJsonResponse({ publication, operations: await getOwnerSiteOperationsPayload() }); }
@@ -138,6 +139,7 @@ export async function PUT(request: Request) {
     if (body.kind === 'legal') return respondPublication(await publishOwnerLegalDocument({ actor, input: body.legalDocument ?? {} }));
     if (body.kind === 'websiteRelease') return respondPublication(await publishOwnerWebsiteRelease({actor,input:body.websiteRelease}));
     if (body.kind === 'roadmapStatus') return respondPublication(await publishOwnerRoadmapStatus({ actor, input: body.roadmapItem ?? {} }));
+    if (body.kind === 'roadmapDetails') return respondPublication(await publishOwnerRoadmapDetails({ actor, input: body.roadmapDetails ?? {} }));
 
     return createApiErrorResponse(400, 'owner_request_invalid', 'Unknown owner operations update.');
   } catch (error) {

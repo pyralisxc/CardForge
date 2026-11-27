@@ -7,6 +7,7 @@ import { History } from 'lucide-react';
 import { RoadmapPanel } from '@/features/roadmap/components/RoadmapPanel';
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { useSiteContent } from '@/features/public-site/client/context';
+import { hasContributionScope, useContributorAccess } from '@/features/contributor-access/client';
 
 export function RoadmapPage({
   initialAuthConfigured = false,
@@ -29,6 +30,8 @@ export function RoadmapPage({
   const isContributor = entitlement.authConfigured
     && effectiveSignedIn
     && entitlement.ownerAccess.isOwner;
+  const contribution = useContributorAccess({ eligible: entitlement.accessMode === 'contributor' || entitlement.ownerAccess.isOwner,
+    isOwner: entitlement.ownerAccess.isOwner, sessionKey: entitlement.isSignedIn ? entitlement.accountUserId : null });
 
   return (
     <div className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
@@ -53,6 +56,7 @@ export function RoadmapPage({
       <RoadmapPanel
         isContributor={isContributor}
         isOwner={entitlement.ownerAccess.isOwner}
+        canEditRoadmap={entitlement.ownerAccess.isOwner || hasContributionScope(contribution.scopes, 'roadmap.edit')}
         isSignedIn={effectiveSignedIn}
         accountEmail={accountEmail}
         supportEmail={supportEmail}

@@ -15,6 +15,7 @@ export interface ContributorProfileRow {
   monthly_published_requirement_override?: number | null;
   owner_note?: string | null;
   can_draft_campaigns?: boolean | null;
+  can_edit_roadmap?: boolean | null;
 }
 
 export interface ContributorProfileIdentity {
@@ -31,6 +32,7 @@ export interface ContributorProfileReference {
 export interface ContributorProfileCapabilities {
   status: ContributorProfileStatus;
   canDraftCampaigns: boolean;
+  canEditRoadmap: boolean;
 }
 
 export class ContributorAccessStoreError extends Error {
@@ -40,7 +42,7 @@ export class ContributorAccessStoreError extends Error {
 }
 
 const PROFILE_COLUMNS =
-  'clerk_user_id,email,status,first_name,last_name,monthly_submission_limit_override,monthly_published_requirement_override,owner_note,can_draft_campaigns';
+  'clerk_user_id,email,status,first_name,last_name,monthly_submission_limit_override,monthly_published_requirement_override,owner_note,can_draft_campaigns,can_edit_roadmap';
 const normalizeShortText = (value: unknown, maxLength: number): string =>
   typeof value === 'string' ? value.trim().replace(/[ \t]+/g, ' ').slice(0, maxLength) : '';
 
@@ -165,6 +167,7 @@ export const getContributorProfileCapabilities = async (
   const failClosed: ContributorProfileCapabilities = {
     status: 'inactive',
     canDraftCampaigns: false,
+    canEditRoadmap: false,
   };
   if (!contributorId) return failClosed;
   if (!supabase) {
@@ -173,7 +176,7 @@ export const getContributorProfileCapabilities = async (
 
   const { data, error } = await supabase
     .from('cardforge_contributor_profiles')
-    .select('status,can_draft_campaigns')
+    .select('status,can_draft_campaigns,can_edit_roadmap')
     .eq('clerk_user_id', contributorId)
     .limit(1);
   if (error) {
@@ -184,6 +187,7 @@ export const getContributorProfileCapabilities = async (
   return {
     status: normalizeStatus(row?.status),
     canDraftCampaigns: Boolean(row?.can_draft_campaigns),
+    canEditRoadmap: Boolean(row?.can_edit_roadmap),
   };
 };
 
@@ -264,6 +268,9 @@ export const updateContributorProfileControl = async ({
   contributorId,
   status,
   canDraftCampaigns,
+  canEditRoadmap,
+  expectedCanEditRoadmap,
+  expectedProfileStatus,
   monthlySubmissionLimitOverride,
   monthlyPublishedRequirementOverride,
   ownerNote,
@@ -271,6 +278,9 @@ export const updateContributorProfileControl = async ({
   contributorId: string;
   status: ContributorProfileStatus;
   canDraftCampaigns: boolean;
+  canEditRoadmap?: boolean;
+  expectedCanEditRoadmap?: boolean;
+  expectedProfileStatus?: ContributorProfileStatus;
   monthlySubmissionLimitOverride: number | null;
   monthlyPublishedRequirementOverride: number | null;
   ownerNote: string;
@@ -282,21 +292,23 @@ export const updateContributorProfileControl = async ({
   const normalizeOverride = (value: number | null, minimum: number, maximum: number): number | null => (
     value === null ? null : Math.min(maximum, Math.max(minimum, Math.trunc(value)))
   );
-  const { data, error } = await supabase
+  if (status === 'active' && canEditRoadmap === true && (typeof expectedCanEditRoadmap !== 'boolean' || !expectedProfileStatus)) throw new ContributorAccessStoreError('Reload this Contributor before granting Roadmap editing.', 409);
+  let query = supabase
     .from('cardforge_contributor_profiles')
     .update({
       status,
       can_draft_campaigns: status === 'active' && canDraftCampaigns,
+      ...(status !== 'active' ? { can_edit_roadmap: false } : canEditRoadmap === undefined ? {} : { can_edit_roadmap: canEditRoadmap }),
       monthly_submission_limit_override: normalizeOverride(monthlySubmissionLimitOverride, 1, 250),
       monthly_published_requirement_override: normalizeOverride(monthlyPublishedRequirementOverride, 0, 100),
       owner_note: normalizeShortText(ownerNote, 500),
     })
-    .eq('clerk_user_id', normalizedId)
-    .select('clerk_user_id')
-    .limit(1);
+    .eq('clerk_user_id', normalizedId);
+  if (status === 'active' && canEditRoadmap === true) query = query.eq('can_edit_roadmap', expectedCanEditRoadmap).eq('status', expectedProfileStatus);
+  const { data, error } = await query.select('clerk_user_id').limit(1);
   if (error) {
     console.error('Failed to update consolidated Contributor control:', error);
     throw new ContributorAccessStoreError('Unable to update Contributor controls.');
   }
-  if (!data?.[0]) throw new ContributorAccessStoreError('Contributor profile not found.', 404);
+  if (!data?.[0]) throw new ContributorAccessStoreError('Contributor profile changed or was not found. Reload before saving.', 409);
 };

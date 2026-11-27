@@ -16,7 +16,7 @@ import {
   type SiteContentBlock,
 } from '@/features/public-site/server';
 import { publishLegalDocument, revalidateLegalDocumentCache } from '@/features/legal/server';
-import { updateRoadmapSettings, updateRoadmapAdminItemStatus, saveWebsiteRelease } from '@/features/roadmap/server';
+import { updateRoadmapSettings, updateRoadmapAdminItemStatus, updateRoadmapItemDetails, saveWebsiteRelease } from '@/features/roadmap/server';
 import { recordOwnerActivity } from './ownerActivityStore';
 import { updateBusinessIdentity, revalidatePublicIdentityCache } from '@/features/business-identity/server';
 import { updateFounderProfile, revalidateFounderProfile } from '@/features/public-site/server';
@@ -273,6 +273,10 @@ export const publishOwnerRoadmapSettings = async ({ actor, input }: { actor: Own
 export const publishOwnerRoadmapStatus = async ({ actor, input }: { actor: OwnerCommandActor; input: Parameters<typeof updateRoadmapAdminItemStatus>[0] }) => (
   finalizeOwnerPublication({ actor, value: await updateRoadmapAdminItemStatus(input), action: 'roadmap.item.status.update', targetType: 'roadmap_item', targetId: String(input.itemId),
     summary: 'Updated an official roadmap item status.', subject: 'Roadmap status', refreshSteps: [{ label: 'roadmap-page', run: () => revalidatePath('/roadmap') }] })
+);
+export const publishOwnerRoadmapDetails = async ({ actor, input }: { actor: OwnerCommandActor; input: Parameters<typeof updateRoadmapItemDetails>[0] }) => (
+  finalizeOwnerPublication({ actor, value: await updateRoadmapItemDetails(input), action: 'roadmap.item.details.update', targetType: 'roadmap_item', targetId: String(input.itemId),
+    summary: 'Updated roadmap item details.', subject: 'Roadmap item', refreshSteps: [{ label: 'roadmap-page', run: () => revalidatePath('/roadmap') }] })
 );
 
 export const publishOwnerWebsiteRelease = async ({actor,input}:{actor:OwnerCommandActor;input:unknown}) => {

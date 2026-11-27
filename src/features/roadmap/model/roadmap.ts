@@ -105,6 +105,14 @@ export type RoadmapStatus =
 export type RoadmapSource = 'official' | 'user';
 export type RoadmapVoteValue = 'up' | 'down';
 export type RoadmapItemType = 'roi_checkpoint' | 'feature' | 'shipped_update';
+export type RoadmapExpenseState = 'current' | 'planned';
+export const summarizeRoadmapExpenses = (items: Array<{ itemType: RoadmapItemType; monthlyCostCents: number | null; expenseState?: RoadmapExpenseState | null }>) => items.reduce((summary, item) => {
+  if (item.itemType !== 'roi_checkpoint') return summary;
+  if (item.expenseState === 'current') summary.currentCents += item.monthlyCostCents ?? 0;
+  else if (item.expenseState === 'planned') summary.plannedCents += item.monthlyCostCents ?? 0;
+  else summary.unclassifiedCount += 1;
+  return summary;
+}, { currentCents: 0, plannedCents: 0, unclassifiedCount: 0 });
 export type RoadmapSortMode = 'most_votes' | 'least_votes' | 'newest' | 'oldest';
 
 export interface RoadmapItem {
@@ -120,6 +128,7 @@ export interface RoadmapItem {
   expensePlan: string | null;
   expenseSourceUrl: string | null;
   expenseVerifiedAt: string | null;
+  expenseState?: RoadmapExpenseState | null;
   shippedAt: string | null;
   createdAt: string;
   updatedAt?: string | null;
@@ -142,6 +151,7 @@ export type RoadmapAdminItem = Pick<
   | 'expensePlan'
   | 'expenseSourceUrl'
   | 'expenseVerifiedAt'
+  | 'expenseState'
   | 'shippedAt'
   | 'updatedAt'
 >;

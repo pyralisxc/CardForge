@@ -68,6 +68,7 @@ export interface OwnerPerson {
   accountNote: string;
   profileStatus: 'invited' | 'active' | 'inactive' | 'suspended' | null;
   canDraftCampaigns: boolean;
+  canEditRoadmap: boolean;
   monthlySubmissionLimitOverride: number | null;
   monthlyPublishedRequirementOverride: number | null;
   contributorNote: string;
