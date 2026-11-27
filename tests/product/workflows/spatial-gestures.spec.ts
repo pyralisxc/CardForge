@@ -43,6 +43,9 @@ test.describe('spatial touch workspace', () => {
       await done.click();
     }
     await page.setViewportSize(devices['Pixel 7'].viewport);
+    // The focused card suppresses edit gestures for 650 ms after initialization.
+    // Exercise a new double tap after that guard, not the preceding edit gesture.
+    await page.waitForTimeout(700);
     const focusedCard = workspace.locator('button[data-artifact-id]');
     await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-1');
     const stage = page.getByLabel('100 Card Scale Set focused Artifact viewport');
