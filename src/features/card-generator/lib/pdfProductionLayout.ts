@@ -34,6 +34,21 @@ export interface ScreenPdfPage {
   heightMm: number;
 }
 
+/** Pack complete page groups without splitting a duplex sheet or card face pair. */
+export function packPdfPageGroups<T>(groups: readonly (readonly T[])[], maxPages: number): T[][] {
+  if (!Number.isInteger(maxPages) || maxPages < 1) throw new Error('The PDF page limit must be positive.');
+  const parts: T[][] = [];
+  let part: T[] = [];
+  for (const group of groups) {
+    if (!group.length) continue;
+    if (group.length > maxPages) throw new Error('A complete PDF page group exceeds the page limit.');
+    if (part.length && part.length + group.length > maxPages) { parts.push(part); part = []; }
+    part.push(...group);
+  }
+  if (part.length) parts.push(part);
+  return parts;
+}
+
 export const createScreenPdfPages = (cards: DisplayCard[]): ScreenPdfPage[] => cards.flatMap((card) => {
   const { widthMm, heightMm } = getCardPhysicalSizeMm(card);
   const front: ScreenPdfPage = { card, face: 'front', widthMm, heightMm };
@@ -75,6 +90,7 @@ const createPlacementGeometry = ({
   face,
   physical,
   includeCutLines,
+  trimOnly,
   printableWidthMm,
   printableHeightMm,
 }: {
@@ -82,6 +98,7 @@ const createPlacementGeometry = ({
   face: CardFace;
   physical: boolean;
   includeCutLines: boolean;
+  trimOnly: boolean;
   printableWidthMm: number;
   printableHeightMm: number;
 }) => {
@@ -102,13 +119,13 @@ const createPlacementGeometry = ({
   const geometry = getTemplateProductionGeometryMm(getCardFaceTemplate(card, face));
   const cropGutter = includeCutLines ? PDF_CROP_MARK_GAP_MM + PDF_CROP_MARK_LENGTH_MM : 0;
   return {
-    imageWidth: geometry.productionWidthMm,
-    imageHeight: geometry.productionHeightMm,
-    trimOffsetX: geometry.trimOffsetXmm,
-    trimOffsetY: geometry.trimOffsetYmm,
+    imageWidth: trimOnly ? geometry.trimWidthMm : geometry.productionWidthMm,
+    imageHeight: trimOnly ? geometry.trimHeightMm : geometry.productionHeightMm,
+    trimOffsetX: trimOnly ? 0 : geometry.trimOffsetXmm,
+    trimOffsetY: trimOnly ? 0 : geometry.trimOffsetYmm,
     trimWidth: geometry.trimWidthMm,
     trimHeight: geometry.trimHeightMm,
-    bleedMm: geometry.bleedMm,
+    bleedMm: trimOnly ? 0 : geometry.bleedMm,
     cropGutter,
   };
 };
@@ -122,6 +139,7 @@ export const createPdfPlacementPages = ({
   spacingMm,
   physical,
   includeCutLines,
+  trimOnly = false,
 }: {
   items: PdfLayoutItem[];
   forcedFace?: CardFace;
@@ -131,6 +149,7 @@ export const createPdfPlacementPages = ({
   spacingMm: number;
   physical: boolean;
   includeCutLines: boolean;
+  trimOnly?: boolean;
 }): PdfCardPlacement[][] => {
   const pages: PdfCardPlacement[][] = [];
   let currentPage: PdfCardPlacement[] = [];
@@ -145,6 +164,7 @@ export const createPdfPlacementPages = ({
       face,
       physical,
       includeCutLines,
+      trimOnly,
       printableWidthMm,
       printableHeightMm,
     });
@@ -207,13 +227,14 @@ export const createPdfPlacementPages = ({
 export const createPdfDuplexBackPage = (
   frontPage: PdfCardPlacement[],
   sheet: { widthMm: number; heightMm: number; flip: 'long-edge' | 'short-edge' },
+  options: { trimOnly?: boolean } = {},
 ): PdfCardPlacement[] => frontPage.flatMap((front) => {
   if (!hasCardBacking(front.card)) return [];
   const backGeometry = getTemplateProductionGeometryMm(getCardFaceTemplate(front.card, 'back'));
   if (
     !nearlyEqual(front.trimWidth, backGeometry.trimWidthMm)
     || !nearlyEqual(front.trimHeight, backGeometry.trimHeightMm)
-    || !nearlyEqual(front.bleedMm, backGeometry.bleedMm)
+    || (!options.trimOnly && !nearlyEqual(front.bleedMm, backGeometry.bleedMm))
   ) {
     throw new PdfProductionLayoutError(
       `${getCardLabel(front.card)} has front/back physical geometry that does not match. Duplex sheets require the same trim size and bleed on both faces.`,

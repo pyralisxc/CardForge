@@ -17,11 +17,11 @@ const RENDER_WAIT_TIMEOUT_MS = 1800;
 
 const waitForFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-const waitForImages = async (element: HTMLElement) => {
+const waitForImages = async (element: HTMLElement, timeoutMs = RENDER_WAIT_TIMEOUT_MS) => {
   const images = Array.from(element.querySelectorAll('img'));
   const started = performance.now();
   while (images.some((image) => !image.getAttribute('src'))) {
-    if (performance.now() - started > RENDER_WAIT_TIMEOUT_MS) {
+    if (performance.now() - started > timeoutMs) {
       throw new Error('A card image is unavailable. Restore its browser artwork before exporting or saving its preview.');
     }
     await waitForFrame();
@@ -89,7 +89,7 @@ const readBackgroundImages = async (element: HTMLElement) => {
   }));
 };
 
-const preparePreviewForExport = async (element: HTMLElement) => {
+export const preparePreviewForExport = async (element: HTMLElement, timeoutMs = RENDER_WAIT_TIMEOUT_MS) => {
   await waitForFrame();
   await waitForFrame();
   if ('fonts' in document) {
@@ -97,10 +97,10 @@ const preparePreviewForExport = async (element: HTMLElement) => {
   }
   const started = performance.now();
   while (element.querySelector('[data-export-assets-pending]')) {
-    if (performance.now() - started > RENDER_WAIT_TIMEOUT_MS) throw new Error('A card background or frame asset is unavailable. Restore its browser artwork before exporting.');
+    if (performance.now() - started > timeoutMs) throw new Error('A card background or frame asset is unavailable. Restore its browser artwork before exporting.');
     await waitForFrame();
   }
-  await waitForImages(element);
+  await waitForImages(element, timeoutMs);
   await preserveSvgStretchStyles(element);
   await waitForFrame();
 };
@@ -517,7 +517,14 @@ export function createCardFaceExportRenderer(
       pixelRatio: exportProfile.canvasPixelRatio, width: widthPx, height: heightPx,
       skipFonts: false, fetchRequestInit: { mode: 'cors' },
     });
-    return extendCardTrimCanvasToProductionBleed(card, face, trimCanvas, backgroundCanvas, maskCanvas);
+    try {
+      return extendCardTrimCanvasToProductionBleed(card, face, trimCanvas, backgroundCanvas, maskCanvas);
+    } finally {
+      for (const canvas of [trimCanvas, backgroundCanvas, maskCanvas]) {
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+    }
   };
 
   return {
