@@ -13,6 +13,7 @@ export async function GET() {
     const access = await getCurrentPipelineRequestAccess();
     requirePipelineRequestScope(access, 'assets.submit');
     return createNoStoreJsonResponse({
+      contributorId: access.user.id,
       summary: await getPipelineContributorSummary(access.user.id),
     });
   } catch (error) {

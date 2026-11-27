@@ -252,6 +252,29 @@ const assertReservedPath = (storagePath: string): void => {
   );
 };
 
+/** Read only the terminal cleanup proof bound to this actor, reservation and descriptor. */
+const readUploadCleanupReceipt = async (contributorId: string, storagePath: string, descriptor: ValidatedUploadDescriptor): Promise<'discarded' | 'other'> => {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.from('cardforge_pipeline_asset_lineages')
+    .select('upload_state,upload_operation_token,upload_descriptor')
+    .eq('upload_contributor_id', contributorId).eq('upload_source_path', storagePath).maybeSingle();
+  if (error || !data) throw new PipelineStoreError('The exact upload receipt is unavailable. The saved attempt is retained.', 503);
+  const expected = uploadIdentity(descriptor);
+  const actual = data.upload_descriptor;
+  if (!actual || typeof actual !== 'object' || Array.isArray(actual)
+    || Object.keys(actual).length !== Object.keys(expected).length
+    || Object.entries(expected).some(([key, value]) => (actual as Record<string, unknown>)[key] !== value)) {
+    throw new PipelineStoreError('The exact upload identity could not be verified. The saved attempt is retained.', 503);
+  }
+  if (data.upload_state === 'cleanup_completed') {
+    if (!isPipelineUploadToken(data.upload_operation_token)) throw new PipelineStoreError('The cleanup receipt is incomplete. The saved attempt is retained.', 503);
+    return 'discarded';
+  }
+  if (data.upload_state === 'cleanup_committed') throw new PipelineStoreError('Upload cleanup is still unconfirmed. The saved attempt is retained.', 503);
+  if (!['pending', 'submitting', 'owned'].includes(data.upload_state)) throw new PipelineStoreError('The upload receipt is unreadable. The saved attempt is retained.', 503);
+  return 'other';
+};
+
 const getStoredObjectSize = (value: unknown): number | null => {
   if (!value || typeof value !== 'object') return null;
   const metadata = (value as { metadata?: unknown }).metadata;
@@ -414,6 +437,8 @@ export interface CreateUploadedPipelineSubmissionInput {
   sourceNotes?: unknown;
   previewUrl: unknown;
   uploadedFile: PipelineUploadedFile;
+  /** Read the existing exact commitment without claiming submission or touching bytes. */
+  inspectOnly?: boolean;
 }
 
 export const createUploadedPipelineSubmission = async ({
@@ -434,7 +459,8 @@ export const createUploadedPipelineSubmission = async ({
   sourceNotes,
   previewUrl,
   uploadedFile,
-}: CreateUploadedPipelineSubmissionInput): Promise<void> => {
+  inspectOnly = false,
+}: CreateUploadedPipelineSubmissionInput): Promise<void | { state: 'pending' | 'owned' | 'discarded'; submissionId: string | null }> => {
   const descriptor = validatePipelineUploadDescriptor({
     assetType,
     studioDestination,
@@ -444,6 +470,9 @@ export const createUploadedPipelineSubmission = async ({
     maxFileSizeMb,
   });
   assertReservedPath(uploadedFile.storagePath);
+  if (inspectOnly && await readUploadCleanupReceipt(contributorId, uploadedFile.storagePath, descriptor) === 'discarded') {
+    return { state: 'discarded', submissionId: null };
+  }
   const storage = requireStorage();
 
   const { data } = storage.getPublicUrl(uploadedFile.storagePath);
@@ -472,14 +501,23 @@ export const createUploadedPipelineSubmission = async ({
   const prepare = async (claim: boolean, payload = request) => {
     const result = await runPipelineUploadCommand('cardforge_prepare_pipeline_upload_submission', {
       p_actor: contributorId, p_path: uploadedFile.storagePath, p_descriptor: descriptorIdentity, p_request: payload, p_claim: claim,
-    }) as { state?: unknown; token?: unknown };
+    }) as { state?: unknown; token?: unknown; submissionId?: unknown };
     if (result.state !== 'owned' && result.state !== 'pending' && !(result.state === 'submitting' && isPipelineUploadToken(result.token))) {
       throw new PipelineStoreError('The upload ownership receipt is unreadable. Its source is retained.', 503);
     }
     return result;
   };
   // An exact confirmed retry does not normalize or upload bytes again.
-  if ((await prepare(false)).state === 'owned') return;
+  const existing = await prepare(false);
+  if (existing.state === 'owned') {
+    if (inspectOnly) {
+      if (!isPipelineUploadToken(existing.submissionId)) throw new PipelineStoreError('The exact submission receipt could not be verified.', 503);
+      return { state: 'owned', submissionId: existing.submissionId };
+    }
+    return;
+  }
+  if (existing.state !== 'pending') throw new PipelineStoreError('Submission is still running or its outcome is uncertain. Keep this upload for reconciliation.', 503);
+  if (inspectOnly) return { state: 'pending', submissionId: null };
   await assertUploadedObjectComplete(uploadedFile.storagePath, descriptor.fileSizeBytes);
   const uploadedBytes = await downloadUploadedObject(uploadedFile.storagePath);
   if (uploadedBytes.size !== descriptor.fileSizeBytes) throw new PipelineStoreError('The uploaded file bytes changed during validation.', 409);

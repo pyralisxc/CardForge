@@ -9,6 +9,7 @@ import {
   requirePipelineRequestScope,
   updateContributorProfileOverrides,
   PipelineRegistryCommandError,
+  PIPELINE_UPLOAD_HARD_MAX_MB,
 } from '@/features/pipeline/server';
 import { getCurrentOwnerAccess, saveOwnerPipelineProgramSettings } from '@/features/owner/server';
 import { AccountToolAccessError } from '@/features/account/server';
@@ -104,13 +105,18 @@ export async function POST(request: Request) {
   try {
     const access = await getCurrentPipelineRequestAccess();
     requirePipelineRequestScope(access, 'assets.submit');
-    const rateLimit = await consumeRateLimit({
+    const expectedActor = request.headers.get('X-Pipeline-Contributor');
+    if (expectedActor && expectedActor !== access.user.id) {
+      return createApiErrorResponse(403, 'contributor_access_required', 'The saved submission belongs to a different account.');
+    }
+    const inspectOnly = new URL(request.url).searchParams.get('lookup') === '1';
+    const rateLimit = inspectOnly ? null : await consumeRateLimit({
       action: 'contributor-submission',
       identity: access.user.id,
       limit: 30,
       windowSeconds: 3600,
     });
-    if (!rateLimit.allowed) {
+    if (rateLimit && !rateLimit.allowed) {
       return createRateLimitErrorResponse('Too many Contributor submissions.', {
         retryAfterSeconds: rateLimit.retryAfterSeconds,
         nextAction: 'Wait for the submission window to reset, then retry the same upload.',
@@ -124,8 +130,8 @@ export async function POST(request: Request) {
     if (!uploadedFile || typeof uploadedFile !== 'object' || Array.isArray(uploadedFile)) {
       return createApiErrorResponse(400, 'pipeline_request_invalid', 'Upload a source file before submitting it to Forge Review.');
     }
-    const submissionContext = await getPipelineContributorSummary(access.user.id);
-    await createUploadedPipelineSubmission({
+    const submissionContext = inspectOnly ? { maxSubmissionFileSizeMb: PIPELINE_UPLOAD_HARD_MAX_MB } : await getPipelineContributorSummary(access.user.id);
+    const receipt = await createUploadedPipelineSubmission({
       contributorId: access.user.id,
       contributorEmail: access.email,
       maxFileSizeMb: submissionContext.maxSubmissionFileSizeMb,
@@ -148,7 +154,9 @@ export async function POST(request: Request) {
         fileSizeBytes: number;
         mimeType: string;
       },
+      inspectOnly,
     });
+    if (inspectOnly) return createNoStoreJsonResponse({ receipt });
     revalidateCardForgeCatalog();
     return createNoStoreJsonResponse({ submitted: true }, { status: 201 });
   } catch (error) {
