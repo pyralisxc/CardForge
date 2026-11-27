@@ -25,6 +25,7 @@ import { cn } from '@/shared/classNames';
 import { useEditorPreferences } from '@/features/editor-preferences/client';
 import { initializeCardDataFromTemplate } from '@/features/card-generator/client';
 import { useToast } from '@/components/ui/use-toast';
+import { useQuickActionsContribution } from '@/features/app-shell/client/environment';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 import { TemplateEditorTopBar } from '@/features/template-editor/components/TemplateEditorTopBar';
@@ -329,6 +330,22 @@ export function CardTemplateMaker({
     savePresentation,
   });
   const saveAction = editorActions.find((action) => action.id === 'save');
+  useQuickActionsContribution(isActive && draftPersistenceHydrated, {
+    title: 'Design actions',
+    actions: [
+      ...editorActions.map(({ id, label, description, disabled, active, onSelect }) => ({ id, label, description, disabled, active, onSelect })),
+      { id: 'duplicate-element', label: 'Duplicate selected element', disabled: !selectedElementId || Boolean(selectedElement?.locked), onSelect: duplicateSelected },
+      { id: 'delete-element', label: 'Remove selected element', disabled: !selectedElementId || Boolean(selectedElement?.locked), onSelect: deleteSelected },
+    ],
+    shortcuts: [
+      'Ctrl/Cmd+S · Save Template',
+      'Ctrl/Cmd+Z · Undo; Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y · Redo',
+      'Ctrl/Cmd+D · Duplicate selected element',
+      'Ctrl/Cmd+K · Command palette',
+      'G · Grid; P · Preview; + / − · Zoom',
+      'On the canvas: Arrow keys · Move; Shift+Arrow · Larger step; Delete · Remove',
+    ],
+  });
   const livePreviewData = useMemo(() => initializeCardDataFromTemplate(currentTemplate, currentTemplate.templatePreviewData ?? {})[1], [currentTemplate]);
   const renderEditableElement = useCallback((element: FreeformCardElement) => {
     const worldElement = resolveCanvasElementWorldGeometry(element, canvas.elements);
@@ -406,7 +423,7 @@ export function CardTemplateMaker({
             onSelect: (selection, name) => setPendingRaster({ selection, name, snapshot: rasterSnapshot }),
           } : undefined} availableFonts={availableFonts} canUploadCustomAssets={canUploadCustomAssets} commands={commands} controller={controller} elements={elements} onRichTextHighlightColorChange={setRichTextHighlightColorAction} richTextHighlightColor={richTextHighlightColor} variables={variables} onClose={() => setMobilePanel('canvas')} />
         </div>
-        <div id="maker-shortcuts-help" role="note" aria-label="Keyboard shortcuts" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--cf-editor-border)] bg-[#080b10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#757d8c]"><span className="text-[#d5ad54]">Shortcuts</span><span>Ctrl+S Save</span><span>Ctrl+Z Undo</span><span>Ctrl+D Duplicate</span><span>Del Remove</span><span>G Grid</span><span>P Preview</span><span>+/- Zoom</span><span>Esc Deselect</span></div>
+        <div id="maker-shortcuts-help" className="sr-only">Open Actions for Design shortcuts. On the focused canvas, Arrow keys move a selected element; Shift takes a larger step.</div>
         <MobileElementActions element={contextElement} onDelete={() => { deleteSelected(); setContextElement(null); }} onDuplicate={() => { duplicateSelected(); setContextElement(null); }} onEdit={() => { if (contextElement) openElementInspector(contextElement); setContextElement(null); }} onOpenChange={(open) => !open && setContextElement(null)} />
         <NewCardDesignDialog open={commands.newTemplateRequest !== null} usage={commands.newTemplateRequest?.usage ?? 'standard'} initialFormat={commands.newTemplateRequest?.formatSource ?? currentTemplate} canClone={Boolean(currentTemplate.id)} brandedBackFormatIds={defaultTemplates.filter((template) => template.templateUsage === 'back-preset' && template.templateRegistryStatus === 'published').map((template) => template.formatId).filter((formatId): formatId is NonNullable<typeof formatId> => Boolean(formatId))} onOpenChange={(open) => { if (!open) commands.setNewTemplateRequest(null); }} onCreate={commands.createNewTemplate} />
         <AlertDialog open={pendingTemplateChange !== null} onOpenChange={(open) => !open && setPendingTemplateChange(null)}>
