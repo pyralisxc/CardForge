@@ -6,7 +6,7 @@ const bundle = buildSync({ entryPoints: ['tests/product/fixtures/pipelineUploadR
 const path = 'pipeline-owned-v1/11111111-1111-4111-8111-111111111111/source.png';
 const submissionId = '22222222-2222-4222-8222-222222222222';
 
-for (const committed of [true, false, null, 'discard', 'discard-unconfirmed'] as const) test(`recovers the same upload after ${String(committed)} lost acknowledgement`, async ({ page }) => {
+for (const committed of [true, false, null, 'discard', 'discard-unconfirmed', 'corrupt'] as const) test(`recovers the same upload after ${String(committed)} lost acknowledgement`, async ({ page }) => {
   let planCount = 0; let uploadCount = 0; let posts = 0; let cleanups = 0; let owned = false;
   const payloads: unknown[] = [];
   await page.route('**/*', async route => {
@@ -46,6 +46,21 @@ for (const committed of [true, false, null, 'discard', 'discard-unconfirmed'] as
   expect(JSON.stringify(saved)).not.toContain('__signed-upload');
   expect(JSON.stringify(saved)).not.toContain('secret=fixture');
   expect(cleanups).toBe(0);
+  if (committed === 'corrupt') {
+    await page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('cardforge-browser-storage'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction('key-value', 'readwrite'); const store = transaction.objectStore('key-value');
+        const request = store.get('pipeline-upload-attempt-v1:fixture-author');
+        request.onsuccess = () => { const attempt = request.result; attempt.payload.name = 'Changed snapshot'; store.put(attempt, 'pipeline-upload-attempt-v1:fixture-author'); };
+        transaction.oncomplete = () => { db.close(); resolve(); }; transaction.onerror = () => reject(transaction.error);
+      });
+    });
+    await boot();
+    await expect(page.getByRole('alert')).toContainText('cannot be read safely');
+    await expect(page.getByRole('button', { name: 'Send to Forge Review' })).toBeDisabled();
+    expect(posts).toBe(1); expect(cleanups).toBe(0); return;
+  }
   await boot('another-actor');
   await expect(page.getByRole('region', { name: 'Saved submission attempt' })).toHaveCount(0);
   await boot();

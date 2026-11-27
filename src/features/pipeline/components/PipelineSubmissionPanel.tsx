@@ -46,7 +46,7 @@ import type { StudioAssetDestination } from '@/domain/templates';
 import { readApiError } from '@/infrastructure/http/clientResponses';
 import { observeProviderBoundaryResponse } from '@/features/analytics/client/tracking';
 import { ProjectBinaryAssetImage } from '@/features/project/client/binary-assets';
-import { lookupUploadAttempt, readUploadAttempt, removeUploadAttempt, saveUploadAttempt, withUploadAttemptLock, type PipelineUploadAttempt } from '@/features/pipeline/client/uploadAttempts';
+import { createUploadAttempt, lookupUploadAttempt, readUploadAttempt, removeUploadAttempt, saveUploadAttempt, withUploadAttemptLock, type PipelineUploadAttempt } from '@/features/pipeline/client/uploadAttempts';
 
 interface PipelineUploadPlanResponse {
   upload: PipelineUploadPlan;
@@ -271,7 +271,7 @@ export function PipelineSubmissionPanel({
           throw new Error('The source file could not be uploaded to Forge Review storage. Retry the same file.');
         }
 
-        const savedAttempt: PipelineUploadAttempt = { contributorId, payload: {
+        const savedAttempt = createUploadAttempt(contributorId, {
             assetType: submissionAssetType,
             studioDestination: submissionStudioDestination,
             specialtyTags,
@@ -291,7 +291,7 @@ export function PipelineSubmissionPanel({
               fileSizeBytes: uploadPlan.fileSizeBytes,
               mimeType: uploadPlan.mimeType,
             },
-          } };
+          });
         await saveUploadAttempt(savedAttempt);
         retained = true; setAttempt(savedAttempt); setReceipt(null);
         const response = await observeProviderBoundaryResponse('pipeline', 'pipeline_submit', () => fetch('/api/pipeline', {

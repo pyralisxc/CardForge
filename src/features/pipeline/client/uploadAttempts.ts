@@ -12,7 +12,7 @@ const payloadSchema = z.object({
     fileName: z.string().min(1), fileSizeBytes: z.number().int().positive(), mimeType: z.string().min(1),
   }).strict(),
 }).strict();
-const attemptSchema = z.object({ contributorId: z.string().min(1), payload: payloadSchema }).strict();
+const attemptSchema = z.object({ contributorId: z.string().min(1), payload: payloadSchema, fingerprint: z.string() }).strict();
 export type PipelineUploadAttempt = z.infer<typeof attemptSchema>;
 const keyFor = (actor: string) => `pipeline-upload-attempt-v1:${actor}`;
 
@@ -21,12 +21,18 @@ export async function readUploadAttempt(actor: string): Promise<PipelineUploadAt
   const value = await readStructuredBrowserValue<unknown>(keyFor(actor));
   if (value === null) return null;
   const parsed = attemptSchema.safeParse(value);
-  if (!parsed.success || parsed.data.contributorId !== actor) throw new Error('The saved submission attempt cannot be read safely. It has been preserved.');
+  if (!parsed.success || parsed.data.contributorId !== actor || parsed.data.fingerprint !== JSON.stringify(parsed.data.payload)) throw new Error('The saved submission attempt cannot be read safely. It has been preserved.');
   return parsed.data;
+}
+
+export function createUploadAttempt(contributorId: string, payload: PipelineUploadAttempt['payload']): PipelineUploadAttempt {
+  const snapshot = payloadSchema.parse(payload);
+  return { contributorId, payload: snapshot, fingerprint: JSON.stringify(snapshot) };
 }
 
 export async function saveUploadAttempt(attempt: PipelineUploadAttempt): Promise<void> {
   const parsed = attemptSchema.parse(attempt);
+  if (parsed.fingerprint !== JSON.stringify(parsed.payload)) throw new Error('The submission snapshot changed before it could be saved.');
   await writeStructuredBrowserValue(keyFor(parsed.contributorId), parsed);
 }
 
