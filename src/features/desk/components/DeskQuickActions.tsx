@@ -35,7 +35,7 @@ const DesktopGuide = ({ depth }: { depth: DeskQuickActionsDepth }) => (
       {depth !== 'artifact' ? <><dt className="font-medium">Pan</dt><dd className="text-[var(--cf-text-muted)]">Drag empty space</dd><dt className="font-medium">Zoom</dt><dd className="text-[var(--cf-text-muted)]">Mouse wheel around cursor</dd><dt className="font-medium">Select</dt><dd className="text-[var(--cf-text-muted)]">Click · Ctrl/Cmd-click adds</dd><dt className="font-medium">Area select</dt><dd className="text-[var(--cf-text-muted)]">Shift-drag empty space</dd></> : null}
       {depth === 'set' ? <><dt className="font-medium">Move</dt><dd className="text-[var(--cf-text-muted)]">Focus an Artifact, then use WASD or Arrow keys; hold Shift for a larger nudge</dd></> : null}
       {depth === 'set' ? <><dt className="font-medium">Open</dt><dd className="text-[var(--cf-text-muted)]">Enter opens the focused Artifact or Template</dd><dt className="font-medium">Undo move</dt><dd className="text-[var(--cf-text-muted)]">Ctrl/Cmd+Z; add Shift to redo while the Set canvas is focused</dd></> : null}
-      {depth === 'artifact' ? <><dt className="font-medium">Return</dt><dd className="text-[var(--cf-text-muted)]">Escape returns to the Set</dd></> : null}
+      {depth === 'artifact' ? <><dt className="font-medium">Browse</dt><dd className="text-[var(--cf-text-muted)]">Arrow keys browse nearby Artifacts while the card is focused</dd><dt className="font-medium">Return</dt><dd className="text-[var(--cf-text-muted)]">Escape returns to the Set</dd></> : null}
     </dl>
   </section>
 );

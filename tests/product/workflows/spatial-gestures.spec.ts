@@ -25,6 +25,10 @@ test.describe('spatial touch workspace', () => {
     await boardCard.press('Enter');
     const workspace = page.locator('[data-focused-artifact-workspace]');
     await expect(workspace).toBeVisible();
+    const actions = page.getByRole('button', { name: 'Quick actions', exact: true });
+    await actions.click();
+    await expect(page.getByRole('dialog', { name: 'Quick actions menu' })).toContainText('Arrow keys browse nearby Artifacts');
+    await actions.click();
     const controls = workspace.locator('[aria-label="Focused Artifact tools"]');
     await expect(controls).toBeVisible();
     await expect(controls.getByRole('button', { name: 'Browse this Set', exact: true })).toBeVisible();
