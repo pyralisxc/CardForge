@@ -37,9 +37,16 @@ test('starts new work at Standard and retains a chosen raster quality on reload'
   await page.getByRole('button', { name: 'Output', exact: true }).click();
   const quality = page.getByRole('combobox', { name: 'Raster quality', exact: true });
   await expect(quality).toHaveText('Standard');
+  await expect(page.getByText(/Approximately 300 PPI for the finished face at this template's intended size/)).toBeVisible();
   await quality.click();
   await page.getByRole('option', { name: 'High detail', exact: true }).click();
   await expect(quality).toHaveText('High detail');
+  await expect(page.getByText(/Approximately 900 PPI for the finished face at this template's intended size/)).toBeVisible();
+  await quality.click();
+  await page.getByRole('option', { name: 'Maximum', exact: true }).click();
+  await expect(page.getByText(/Approximately 1800 PPI for the finished face at this template's intended size/)).toBeVisible();
+  await quality.click();
+  await page.getByRole('option', { name: 'High detail', exact: true }).click();
   await expect.poll(() => page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('cardforge-browser-storage');
@@ -56,6 +63,12 @@ test('starts new work at Standard and retains a chosen raster quality on reload'
   })).toBe(true);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(quality).toHaveText('High detail');
+  await expect(page.getByText(/Approximately 900 PPI for the finished face at this template's intended size/)).toBeVisible();
+  await quality.click();
+  await page.getByRole('option', { name: 'Standard', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Individual image profile', exact: true }).click();
+  await page.getByRole('option', { name: 'Print images', exact: true }).click();
+  await expect(page.getByText(/This package uses High detail quality \(approximately 900 PPI/)).toBeVisible();
 });
 
 test('does not download a success artifact when authored artwork fails to load', async ({ page }) => {
