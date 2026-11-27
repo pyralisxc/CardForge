@@ -100,7 +100,7 @@ const setupStorage = (storedSize = VALID_PNG_BYTES.byteLength, submittedUpload =
   const rpc = vi.fn().mockImplementation(async (command: string, args: Record<string, unknown>) => {
     if (command === 'cardforge_reserve_pipeline_upload') return { data: { storagePath: ownedPath((args.p_descriptor as { transportExtension: string }).transportExtension) }, error: null };
     if (command === 'cardforge_prepare_pipeline_upload_submission') {
-      if (state === 'owned') return { data: { state }, error: null };
+      if (state === 'owned') return { data: { state, submissionId: SOURCE_ID }, error: null };
       if (state !== 'pending') return { data: null, error: { message: state === 'submitting' ? 'pipeline_upload_submission_uncertain' : 'pipeline_upload_cleanup_committed' } };
       if (args.p_claim) state = 'submitting';
       return { data: { state, token: args.p_claim ? TOKEN : undefined }, error: null };
@@ -490,6 +490,17 @@ describe('contributor asset upload submission', () => {
   });
   const cleanupInput = () => ({ contributorId: 'contributor-1', assetType: 'dividers', storagePath: uploadedFile.storagePath });
 
+  it('inspects pending and committed exact uploads without claiming or touching bytes', async () => {
+    const storage = setupStorage();
+    await expect(createUploadedPipelineSubmission({ ...submissionInput(), inspectOnly: true })).resolves.toEqual({ state: 'pending', submissionId: null });
+    storage.setOwned();
+    await expect(createUploadedPipelineSubmission({ ...submissionInput(), inspectOnly: true })).resolves.toEqual({ state: 'owned', submissionId: SOURCE_ID });
+    expect(storage.rpc).toHaveBeenCalledTimes(2);
+    expect(storage.rpc).toHaveBeenCalledWith('cardforge_prepare_pipeline_upload_submission', expect.objectContaining({ p_actor: 'contributor-1', p_path: uploadedFile.storagePath, p_claim: false }));
+    expect(storage.download).not.toHaveBeenCalled(); expect(storage.update).not.toHaveBeenCalled(); expect(storage.remove).not.toHaveBeenCalled();
+    expect(mockedCreatePipelineSubmission).not.toHaveBeenCalled();
+  });
+
   it('preserves committed bytes after lost insert response and confirms retry without another transfer', async () => {
     const storage = setupStorage();
     mockedCreatePipelineSubmission.mockImplementation(async () => { storage.setOwned(); throw new Error('response lost after commit'); });
@@ -523,6 +534,7 @@ describe('contributor asset upload submission', () => {
     await vi.waitFor(() => expect(mockedCreatePipelineSubmission).toHaveBeenCalledOnce());
     await expect(removePendingPipelineUpload(cleanupInput())).rejects.toMatchObject({ status: 409 });
     await expect(createUploadedPipelineSubmission(submissionInput())).rejects.toMatchObject({ status: 503 });
+    await expect(createUploadedPipelineSubmission({ ...submissionInput(), inspectOnly: true })).rejects.toMatchObject({ status: 503 });
     expect(storage.download).toHaveBeenCalledOnce();
     expect(storage.remove).not.toHaveBeenCalled();
     release(); await pending;

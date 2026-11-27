@@ -44,6 +44,8 @@ export async function POST(request: Request) {
   try {
     const access = await getCurrentPipelineRequestAccess();
     requirePipelineRequestScope(access, 'assets.submit');
+    const expectedActor = request.headers.get('X-Pipeline-Contributor');
+    if (expectedActor && expectedActor !== access.user.id) return createApiErrorResponse(403, 'contributor_access_required', 'The saved submission belongs to a different account.');
     const rateLimit = await consumeRateLimit({
       action: 'contributor-upload-plan',
       identity: access.user.id,
@@ -93,6 +95,8 @@ export async function DELETE(request: Request) {
   try {
     const access = await getCurrentPipelineRequestAccess();
     requirePipelineRequestScope(access, 'assets.submit');
+    const expectedActor = request.headers.get('X-Pipeline-Contributor');
+    if (expectedActor && expectedActor !== access.user.id) return createApiErrorResponse(403, 'contributor_access_required', 'The saved submission belongs to a different account.');
     const body = await request.json() as Record<string, unknown>;
     await removePendingPipelineUpload({
       contributorId: access.user.id,

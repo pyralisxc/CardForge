@@ -46,6 +46,7 @@ import type { StudioAssetDestination } from '@/domain/templates';
 import { readApiError } from '@/infrastructure/http/clientResponses';
 import { observeProviderBoundaryResponse } from '@/features/analytics/client/tracking';
 import { ProjectBinaryAssetImage } from '@/features/project/client/binary-assets';
+import { lookupUploadAttempt, readUploadAttempt, removeUploadAttempt, saveUploadAttempt, withUploadAttemptLock, type PipelineUploadAttempt } from '@/features/pipeline/client/uploadAttempts';
 
 interface PipelineUploadPlanResponse {
   upload: PipelineUploadPlan;
@@ -61,10 +62,12 @@ const formatBytes = (value: number): string => {
 
 export function PipelineSubmissionPanel({
   context,
+  contributorId,
   onSubmitted,
   initialSetId = null,
 }: {
   context: PipelineContributorSummary;
+  contributorId: string;
   onSubmitted: () => Promise<void>;
   initialSetId?: string | null;
 }) {
@@ -88,6 +91,11 @@ export function PipelineSubmissionPanel({
   const [fileInputKey, setFileInputKey] = useState(0);
   const [isDragActive, setIsDragActive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [recoveryReady, setRecoveryReady] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState<PipelineUploadAttempt | null>(null);
+  const [receipt, setReceipt] = useState<{ state: 'pending' | 'owned'; submissionId: string | null; storagePath: string } | null>(null);
+  const recoveryRequest = useRef(0);
   const initialSelectionRef = useRef(false);
   const {
     filter: personalLibraryFilter,
@@ -100,6 +108,66 @@ export function PipelineSubmissionPanel({
   const submissionGuidance = getPipelineSubmissionGuidance(assetType, studioDestination);
   const studioDestinationOptions = getPipelineStudioDestinationOptions(assetType);
   const expectedSourceSize = PIPELINE_STORAGE_ESTIMATE_BYTES[assetType];
+
+  const refreshRecovery = useCallback(async () => {
+    const request = ++recoveryRequest.current;
+    setRecoveryReady(false);
+    try { const saved = await readUploadAttempt(contributorId); if (request === recoveryRequest.current) { setAttempt(saved); setReceipt(current => current?.storagePath === saved?.payload.uploadedFile.storagePath ? current : null); setRecoveryError(null); } }
+    catch (error) { if (request === recoveryRequest.current) setRecoveryError(error instanceof Error ? error.message : 'Saved submission attempts are unavailable.'); }
+    finally { if (request === recoveryRequest.current) setRecoveryReady(true); }
+  }, [contributorId]);
+  useEffect(() => { setReceipt(null); void refreshRecovery(); const focus = () => { void refreshRecovery(); };
+    window.addEventListener('focus', focus); return () => { recoveryRequest.current += 1; window.removeEventListener('focus', focus); };
+  }, [refreshRecovery]);
+
+  const checkAttempt = async (retry = false) => {
+    setIsSaving(true); setRecoveryError(null);
+    try {
+      await withUploadAttemptLock(contributorId, async () => {
+        const saved = await readUploadAttempt(contributorId);
+        if (!saved) throw new Error('The saved submission attempt is no longer available.');
+        let result = await lookupUploadAttempt(saved);
+        if (retry && result.state === 'pending') {
+          const response = await fetch('/api/pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Pipeline-Contributor': contributorId }, body: JSON.stringify(saved.payload) });
+          if (!response.ok || (await response.json()).submitted !== true) throw new Error('The submission outcome is still unconfirmed. Check the saved attempt again.');
+          result = await lookupUploadAttempt(saved);
+        }
+        setAttempt(saved); setReceipt({ ...result, storagePath: saved.payload.uploadedFile.storagePath });
+      });
+    } catch (error) { setReceipt(null); setRecoveryError(error instanceof Error ? error.message : 'The submission outcome is still unconfirmed.'); }
+    finally { setIsSaving(false); }
+  };
+
+  const finishRecoveredAttempt = async () => {
+    setIsSaving(true);
+    try {
+      await withUploadAttemptLock(contributorId, async () => {
+        const saved = await readUploadAttempt(contributorId);
+        if (!saved || (await lookupUploadAttempt(saved)).state !== 'owned') throw new Error('The exact submission could not be confirmed.');
+        await removeUploadAttempt(contributorId);
+      });
+      setAttempt(null); setReceipt(null); setSelectedFile(null); setName(''); setDescription('');
+      setRightsAndSources(''); setAiAssistance(''); setAiProcess(''); setPreviewUrl(''); setSpecialtyTags([]); setUseCaseTags([]);
+      setSemanticRole(getDefaultSemanticRole(assetType, studioDestination)); setVisualFamily(''); setVariantKind('base'); setVariantLabel(''); setCompatibilityTags([]); setFileInputKey(key => key + 1);
+      await onSubmitted();
+    } catch (error) { setRecoveryError(error instanceof Error ? error.message : 'The saved submission could not be cleared.'); }
+    finally { setIsSaving(false); }
+  };
+
+  const discardPendingAttempt = async () => {
+    setIsSaving(true); setRecoveryError(null);
+    try {
+      await withUploadAttemptLock(contributorId, async () => {
+        const saved = await readUploadAttempt(contributorId);
+        if (!saved || (await lookupUploadAttempt(saved)).state !== 'pending') throw new Error('This upload is no longer confirmed pending. Check its outcome again.');
+        const response = await fetch('/api/pipeline/upload-plan', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'X-Pipeline-Contributor': contributorId }, body: JSON.stringify({ assetType: saved.payload.assetType, storagePath: saved.payload.uploadedFile.storagePath }) }).catch(() => { throw new Error('Upload cleanup could not be confirmed. The saved attempt has been preserved.'); });
+        if (!response.ok || (await response.json()).removed !== true) throw new Error('Upload cleanup could not be confirmed. The saved attempt has been preserved.');
+        await removeUploadAttempt(contributorId);
+      });
+      setAttempt(null); setReceipt(null);
+    } catch (error) { setReceipt(null); setRecoveryError(error instanceof Error ? error.message : 'Upload cleanup could not be confirmed.'); }
+    finally { setIsSaving(false); }
+  };
 
   const selectCandidateFile = useCallback((file: File | null) => {
     setSelectedFile(file);
@@ -163,100 +231,109 @@ export function PipelineSubmissionPanel({
     const submissionAssetType = assetType;
     const submissionStudioDestination = studioDestination;
     setIsSaving(true);
-    let pendingUpload: PipelineUploadPlan | null = null;
+    const pendingUpload: { plan: PipelineUploadPlan | null } = { plan: null };
     let submitted = false;
+    let retained = false;
     try {
-      if (!name.trim()) throw new Error('Name the asset before submitting.');
-      if (!specialtyTags.length) throw new Error('Choose at least one CardForge specialty.');
-      if (!hasRequiredPipelineClassification(assetType, specialtyTags, useCaseTags)) throw new Error('Choose at least one CardForge use case.');
-      if (!selectedFile) throw new Error('Choose a source file before submitting.');
-      const sourceEvidence = buildPipelineSourceEvidence({ rightsAndSources, aiAssistance, aiProcess });
-      if (!sourceEvidence.ok) throw new Error(sourceEvidence.message);
+      await withUploadAttemptLock(contributorId, async () => {
+        if (await readUploadAttempt(contributorId)) throw new Error('Check the saved submission attempt before starting another.');
+        if (!name.trim()) throw new Error('Name the asset before submitting.');
+        if (!specialtyTags.length) throw new Error('Choose at least one CardForge specialty.');
+        if (!hasRequiredPipelineClassification(assetType, specialtyTags, useCaseTags)) throw new Error('Choose at least one CardForge use case.');
+        if (!selectedFile) throw new Error('Choose a source file before submitting.');
+        const sourceEvidence = buildPipelineSourceEvidence({ rightsAndSources, aiAssistance, aiProcess });
+        if (!sourceEvidence.ok) throw new Error(sourceEvidence.message);
 
-      const planResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload_plan', () => fetch('/api/pipeline/upload-plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assetType: submissionAssetType,
-          studioDestination: submissionStudioDestination,
-          fileName: selectedFile.name,
-          fileSizeBytes: selectedFile.size,
-          mimeType: selectedFile.type || 'application/octet-stream',
-        }),
-      }));
-      if (!planResponse.ok) throw await readApiError(planResponse, 'Unable to prepare the source upload.');
-      const uploadPlan = (await planResponse.json() as PipelineUploadPlanResponse).upload;
-      pendingUpload = uploadPlan;
+        const planResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload_plan', () => fetch('/api/pipeline/upload-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Pipeline-Contributor': contributorId },
+          body: JSON.stringify({
+            assetType: submissionAssetType,
+            studioDestination: submissionStudioDestination,
+            fileName: selectedFile.name,
+            fileSizeBytes: selectedFile.size,
+            mimeType: selectedFile.type || 'application/octet-stream',
+          }),
+        }));
+        if (!planResponse.ok) throw await readApiError(planResponse, 'Unable to prepare the source upload.');
+        const uploadPlan = (await planResponse.json() as PipelineUploadPlanResponse).upload;
+        pendingUpload.plan = uploadPlan;
 
-      const uploadForm = new FormData();
-      uploadForm.append('cacheControl', '3600');
-      uploadForm.append('', getPipelineUploadTransportBlob(selectedFile), selectedFile.name);
-      const uploadResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload', () => fetch(uploadPlan.signedUrl, {
-        method: 'PUT',
-        headers: { 'x-upsert': 'false' },
-        body: uploadForm,
-      }));
-      if (!uploadResponse.ok) {
-        throw new Error('The source file could not be uploaded to Forge Review storage. Retry the same file.');
-      }
+        const uploadForm = new FormData();
+        uploadForm.append('cacheControl', '3600');
+        uploadForm.append('', getPipelineUploadTransportBlob(selectedFile), selectedFile.name);
+        const uploadResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload', () => fetch(uploadPlan.signedUrl, {
+          method: 'PUT',
+          headers: { 'x-upsert': 'false' },
+          body: uploadForm,
+        }));
+        if (!uploadResponse.ok) {
+          throw new Error('The source file could not be uploaded to Forge Review storage. Retry the same file.');
+        }
 
-      const response = await observeProviderBoundaryResponse('pipeline', 'pipeline_submit', () => fetch('/api/pipeline', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assetType: submissionAssetType,
-          studioDestination: submissionStudioDestination,
-          specialtyTags,
-          useCaseTags,
-          semanticRole,
-          visualFamily,
-          variantKind,
-          variantLabel,
-          compatibilityTags,
-          name,
-          description,
-          sourceNotes: sourceEvidence.value,
-          previewUrl,
-          uploadedFile: {
-            storagePath: uploadPlan.storagePath,
-            fileName: uploadPlan.fileName,
-            fileSizeBytes: uploadPlan.fileSizeBytes,
-            mimeType: uploadPlan.mimeType,
-          },
-        }),
-      }));
-      if (!response.ok) throw await readApiError(response, 'Unable to submit asset.');
-      await response.json();
-      submitted = true;
-      await onSubmitted();
-      setName('');
-      setDescription('');
-      setRightsAndSources('');
-      setAiAssistance('');
-      setAiProcess('');
-      setPreviewUrl('');
-      setSpecialtyTags([]);
-      setUseCaseTags([]);
-      setSemanticRole(getDefaultSemanticRole(assetType, studioDestination));
-      setVisualFamily('');
-      setVariantKind('base');
-      setVariantLabel('');
-      setCompatibilityTags([]);
-      setSelectedFile(null);
-      setFileInputKey((key) => key + 1);
-      toast({ title: 'Asset submitted', description: 'Your classified asset is now in Forge Review.' });
+        const savedAttempt: PipelineUploadAttempt = { contributorId, payload: {
+            assetType: submissionAssetType,
+            studioDestination: submissionStudioDestination,
+            specialtyTags,
+            useCaseTags,
+            semanticRole,
+            visualFamily,
+            variantKind,
+            variantLabel,
+            compatibilityTags,
+            name,
+            description,
+            sourceNotes: sourceEvidence.value,
+            previewUrl,
+            uploadedFile: {
+              storagePath: uploadPlan.storagePath,
+              fileName: uploadPlan.fileName,
+              fileSizeBytes: uploadPlan.fileSizeBytes,
+              mimeType: uploadPlan.mimeType,
+            },
+          } };
+        await saveUploadAttempt(savedAttempt);
+        retained = true; setAttempt(savedAttempt); setReceipt(null);
+        const response = await observeProviderBoundaryResponse('pipeline', 'pipeline_submit', () => fetch('/api/pipeline', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Pipeline-Contributor': contributorId },
+          body: JSON.stringify(savedAttempt.payload),
+        }));
+        if (!response.ok) throw await readApiError(response, 'Unable to submit asset.');
+        if ((await response.json()).submitted !== true) throw new Error('The submission receipt could not be verified.');
+        submitted = true;
+        try { await removeUploadAttempt(contributorId); setAttempt(null); }
+        catch { toast({ title: 'Asset submitted', description: 'Your submission was recorded. The saved recovery record remains; check it before another submission.' }); }
+        await onSubmitted();
+        setName('');
+        setDescription('');
+        setRightsAndSources('');
+        setAiAssistance('');
+        setAiProcess('');
+        setPreviewUrl('');
+        setSpecialtyTags([]);
+        setUseCaseTags([]);
+        setSemanticRole(getDefaultSemanticRole(assetType, studioDestination));
+        setVisualFamily('');
+        setVariantKind('base');
+        setVariantLabel('');
+        setCompatibilityTags([]);
+        setSelectedFile(null);
+        setFileInputKey((key) => key + 1);
+        toast({ title: 'Asset submitted', description: 'Your classified asset is now in Forge Review.' });
+      });
     } catch (error) {
       toast({
-        title: 'Asset not submitted',
-        description: error instanceof Error ? error.message : 'Unable to submit asset.',
-        variant: 'destructive',
+        title: submitted ? 'Asset submitted' : retained ? 'Submission outcome unconfirmed' : 'Asset not submitted',
+        description: submitted ? 'The submission was recorded, but its follow-up view could not be refreshed.' : error instanceof Error ? error.message : 'Unable to submit asset.',
+        variant: submitted ? 'default' : 'destructive',
       });
     } finally {
-      if (pendingUpload && !submitted) {
+      if (pendingUpload.plan && !submitted && !retained) {
         void fetch('/api/pipeline/upload-plan', {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ assetType: submissionAssetType, storagePath: pendingUpload.storagePath }),
+          headers: { 'Content-Type': 'application/json', 'X-Pipeline-Contributor': contributorId },
+          body: JSON.stringify({ assetType: submissionAssetType, storagePath: pendingUpload.plan.storagePath }),
         });
       }
       setIsSaving(false);
@@ -552,7 +629,15 @@ export function PipelineSubmissionPanel({
               <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-[var(--cf-accent-text)]" maxLength={400} placeholder="Tool/model and date if known; references, creation summary, edits and review." value={aiProcess} onChange={(event) => setAiProcess(event.target.value)} />
             </label> : null}
           </section>
-          <Button className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving || context.remainingSubmissions <= 0} onClick={submitAsset}>
+          {recoveryError ? <div><p role="alert">{recoveryError}</p>{!attempt ? <Button type="button" variant="outline" disabled={isSaving} onClick={() => void refreshRecovery()}>Retry recovery access</Button> : null}</div> : null}
+          {attempt?.contributorId === contributorId ? <section aria-label="Saved submission attempt" className="grid gap-2 border border-[var(--cf-border)] p-3 text-sm">
+            <strong>Saved submission: {attempt.payload.name}</strong>
+            <p>{receipt?.state === 'owned' ? `Submitted to Forge Review. Submission ID: ${receipt.submissionId}` : receipt?.state === 'pending' ? 'This exact upload has not been submitted. You may retry the saved request.' : 'The submission may have completed. Check its outcome before starting another.'}</p>
+            <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={isSaving} onClick={() => void checkAttempt()}>Check submission outcome</Button>
+              {receipt?.state === 'pending' ? <><Button type="button" variant="outline" disabled={isSaving} onClick={() => void checkAttempt(true)}>Retry original submission</Button><Button type="button" variant="outline" disabled={isSaving} onClick={() => void discardPendingAttempt()}>Discard pending upload</Button></> : null}
+              {receipt?.state === 'owned' ? <Button type="button" variant="outline" disabled={isSaving} onClick={() => void finishRecoveredAttempt()}>Done</Button> : null}</div>
+          </section> : null}
+          <Button className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving || !recoveryReady || Boolean(recoveryError) || Boolean(attempt) || context.remainingSubmissions <= 0} onClick={submitAsset}>
             {isSaving ? 'Uploading...' : context.remainingSubmissions > 0 ? 'Send to Forge Review' : 'Monthly submission limit reached'}
           </Button>
         </div>
