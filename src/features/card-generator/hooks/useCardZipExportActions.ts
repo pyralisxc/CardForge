@@ -5,6 +5,7 @@ import { requestOutputDownload, useOutputActivity } from '../components/OutputAc
 import { createOutputStage, type OutputStage } from '../lib/outputReadyStorage';
 import { publishReadyOutput } from '../lib/outputReadyHandoff';
 import { getProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { validateCleanOutputAccess } from '../lib/outputCleanAccess';
 
 import {
   getExportProfile,
@@ -17,6 +18,7 @@ import type { useToast } from '@/components/ui/use-toast';
 import {
   assertTabletopSimulatorRenderedFaceAspect,
   createCardZipExportItems,
+  createCardGridSheets,
   createPrintProductionManifest,
   createTabletopSimulatorManifest,
   createTabletopSimulatorSheets,
@@ -41,7 +43,7 @@ import { packPdfPageGroups } from '../lib/pdfProductionLayout';
 import type { PressRasterFace } from '../lib/pressPdfCandidate';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
-export type ZipExportKind = 'png-set' | 'print-png-set' | 'press-candidate' | 'tabletop-simulator';
+export type ZipExportKind = 'png-set' | 'print-png-set' | 'press-candidate' | 'tabletop-simulator' | 'spritesheet';
 
 interface UseCardZipExportActionsInput {
   setName?: string;
@@ -325,34 +327,38 @@ export function useCardZipExportActions({
   }, [beforeExport, canExportClean, exportDpi, exportWatermark, generatedDisplayCards, outputActivity, richTextHighlightColor, setName, toast]);
 
   const handleExportTabletopSimulatorSpritesheets = useCallback(async (
-    quality: TabletopSimulatorExportQuality = 'standard'
+    quality: TabletopSimulatorExportQuality = 'standard', grid?: { columns: number; rows: number },
   ) => {
     if (generatedDisplayCards.length === 0) return;
+    const generic = Boolean(grid);
     const preset = getTabletopSimulatorExportPreset(quality);
     // Reject incompatible authored fronts/backs before allocating a ZIP or
     // reporting a partial export. All creator-owned card data stays unchanged.
     let sheets: ReturnType<typeof createTabletopSimulatorSheets>;
     try {
-      sheets = createTabletopSimulatorSheets(generatedDisplayCards, quality);
+      sheets = grid ? createCardGridSheets(generatedDisplayCards, { ...grid, cardsPerSheet: grid.columns * grid.rows }, true) : createTabletopSimulatorSheets(generatedDisplayCards, quality);
     } catch (error) {
-      toast({ title: 'Tabletop Simulator export blocked', description: error instanceof Error ? error.message : 'Card geometry is incompatible.', variant: 'destructive' });
+      toast({ title: generic ? 'Spritesheet export blocked' : 'Tabletop Simulator export blocked', description: error instanceof Error ? error.message : 'Card geometry is incompatible.', variant: 'destructive' });
       return;
     }
     const totalRenderJobs = sheets.reduce((total, sheet) => total + 1 + (sheet.hasBacks ? 1 : 0), 0);
-    const activity = outputActivity?.begin(`Tabletop Simulator${setName ? ` · ${setName}` : ''}`);
+    const activity = outputActivity?.begin(`${generic ? 'PNG spritesheet' : 'Tabletop Simulator'}${setName ? ` · ${setName}` : ''}`);
     if (outputActivity && !activity) return;
-    setZipExportKind('tabletop-simulator');
+    const startScope = getProjectPersistenceScope();
+    setZipExportKind(generic ? 'spritesheet' : 'tabletop-simulator');
     setIsZipExporting(true);
     setZipProgress({ done: 0, total: totalRenderJobs }); activity?.progress(0, totalRenderJobs);
-    trackExportStarted('tabletop_simulator', generatedDisplayCards.length);
+    trackExportStarted(generic ? 'png_set' : 'tabletop_simulator', generatedDisplayCards.length);
 
     try {
       await beforeExport?.();
-      const exportProfile = getTabletopSimulatorExportProfile(quality);
+      if (generic && (startScope !== getProjectPersistenceScope() || (activity && !activity.isCurrent()))) throw new Error('The active workspace changed. Start the export again.');
+      const exportProfile = generic ? getExportProfile('virtual', exportDpi) : getTabletopSimulatorExportProfile(quality);
       const JSZip = (await import('jszip')).default;
       const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
       const zip = new JSZip();
-      const folder = zip.folder('tabletop-simulator-spritesheets')!;
+      const folder = zip.folder(generic ? 'spritesheets' : 'tabletop-simulator-spritesheets')!;
+      const sheetFile = (sheet: typeof sheets[number], face: 'front' | 'back') => generic ? `sheet-${String(sheet.sheetIndex + 1).padStart(3, '0')}-${face}.png` : getTabletopSimulatorSheetFileName(sheet, face);
       const renderer = createCardFaceExportRenderer(exportProfile, richTextHighlightColor, exportWatermark);
       let completed = 0;
       const renderedSheetSizes: Array<{ sheetIndex: number; cardWidthPx: number; cardHeightPx: number }> = [];
@@ -365,10 +371,11 @@ export function useCardZipExportActions({
         const firstFace = face === 'back' && hasCardBacking(sheet.cards[0].card) ? 'back' : 'front';
         const firstBlob = await renderer.renderToBlob(sheet.cards[0].card, firstFace);
         const firstBitmap = await createImageBitmap(firstBlob);
-        const cellSize = requestedCellSize
-          ?? getTabletopSimulatorCardCellSize(firstBitmap.width, firstBitmap.height, sheet.grid);
+        const cellSize = requestedCellSize ?? (generic
+          ? { cardWidthPx: firstBitmap.width, cardHeightPx: firstBitmap.height, sheetWidthPx: firstBitmap.width * sheet.grid.columns, sheetHeightPx: firstBitmap.height * sheet.grid.rows }
+          : getTabletopSimulatorCardCellSize(firstBitmap.width, firstBitmap.height, sheet.grid));
         try {
-          assertTabletopSimulatorRenderedFaceAspect(cellSize, firstBitmap, sheet.cards[0].sourceIndex, face);
+          if (!generic) assertTabletopSimulatorRenderedFaceAspect(cellSize, firstBitmap, sheet.cards[0].sourceIndex, face);
         } catch (error) {
           firstBitmap.close();
           throw error;
@@ -384,31 +391,37 @@ export function useCardZipExportActions({
             firstBitmap.close();
             throw new Error('Unable to create Tabletop Simulator spritesheet canvas.');
           }
-          context.fillStyle = '#ffffff';
-          context.fillRect(0, 0, sheetCanvas.width, sheetCanvas.height);
+          if (!generic) { context.fillStyle = '#ffffff'; context.fillRect(0, 0, sheetCanvas.width, sheetCanvas.height); }
           context.imageSmoothingEnabled = true;
           context.imageSmoothingQuality = 'high';
           try {
-            context.drawImage(firstBitmap, 0, 0, cellSize.cardWidthPx, cellSize.cardHeightPx);
+            if (!generic || face === 'front' || hasCardBacking(sheet.cards[0].card)) {
+              const scale = generic ? Math.min(cellSize.cardWidthPx / firstBitmap.width, cellSize.cardHeightPx / firstBitmap.height) : 1;
+              const width = generic ? firstBitmap.width * scale : cellSize.cardWidthPx, height = generic ? firstBitmap.height * scale : cellSize.cardHeightPx;
+              context.drawImage(firstBitmap, (cellSize.cardWidthPx - width) / 2, (cellSize.cardHeightPx - height) / 2, width, height);
+            }
           } finally {
             firstBitmap.close();
           }
 
           for (let i = 1; i < sheet.cards.length; i++) {
             const item = sheet.cards[i];
+            if (generic && face === 'back' && !hasCardBacking(item.card)) continue;
             const cardFace = face === 'back' && hasCardBacking(item.card) ? 'back' : 'front';
             const blob = await renderer.renderToBlob(item.card, cardFace);
             const bitmap = await createImageBitmap(blob);
             const column = item.sheetCardIndex % sheet.grid.columns;
             const row = Math.floor(item.sheetCardIndex / sheet.grid.columns);
             try {
-              assertTabletopSimulatorRenderedFaceAspect(cellSize, bitmap, item.sourceIndex, face);
+              if (!generic) assertTabletopSimulatorRenderedFaceAspect(cellSize, bitmap, item.sourceIndex, face);
+              const scale = generic ? Math.min(cellSize.cardWidthPx / bitmap.width, cellSize.cardHeightPx / bitmap.height) : 1;
+              const width = generic ? bitmap.width * scale : cellSize.cardWidthPx, height = generic ? bitmap.height * scale : cellSize.cardHeightPx;
               context.drawImage(
                 bitmap,
-                column * cellSize.cardWidthPx,
-                row * cellSize.cardHeightPx,
-                cellSize.cardWidthPx,
-                cellSize.cardHeightPx
+                column * cellSize.cardWidthPx + (cellSize.cardWidthPx - width) / 2,
+                row * cellSize.cardHeightPx + (cellSize.cardHeightPx - height) / 2,
+                width,
+                height
               );
             } finally {
               bitmap.close();
@@ -417,7 +430,7 @@ export function useCardZipExportActions({
 
           const sheetBlob = await new Promise<Blob | null>((resolve) => sheetCanvas.toBlob(resolve, 'image/png'));
           if (!sheetBlob) throw new Error('Tabletop Simulator spritesheet did not produce a PNG blob.');
-          folder.file(getTabletopSimulatorSheetFileName(sheet, face), sheetBlob);
+          folder.file(sheetFile(sheet, face), sheetBlob);
           completed += 1;
           setZipProgress({ done: completed, total: totalRenderJobs }); activity?.progress(completed, totalRenderJobs);
           return cellSize;
@@ -443,6 +456,11 @@ export function useCardZipExportActions({
         renderer.cleanup();
       }
 
+      if (generic) {
+        folder.file('manifest.json', JSON.stringify({ format: 'cardforge-spritesheets-v1', columns: grid!.columns, rows: grid!.rows,
+          sheets: sheets.map(sheet => ({ sheet: sheet.sheetIndex + 1, frontFile: sheetFile(sheet, 'front'), backFile: sheet.hasBacks ? sheetFile(sheet, 'back') : null,
+            ...renderedSheetSizes.find(size => size.sheetIndex === sheet.sheetIndex), cards: sheet.cards.map(item => ({ slot: item.sheetCardIndex + 1, sourceIndex: item.sourceIndex + 1, id: item.card.uniqueId, hasBack: hasCardBacking(item.card) })) })) }, null, 2));
+      } else {
       folder.file(
         'tabletop-simulator-manifest.json',
         JSON.stringify(createTabletopSimulatorManifest(sheets, renderedSheetSizes), null, 2)
@@ -462,33 +480,36 @@ export function useCardZipExportActions({
           ...(canExportClean ? [] : ['This free-tier proof export includes the CardForge watermark on every card face.']),
         ].join('\n')
       );
+      }
 
       const content = await zip.generateAsync({ type: 'blob' });
       await beforeExport?.();
+      if (generic && canExportClean) await validateCleanOutputAccess(startScope);
+      if (generic && (startScope !== getProjectPersistenceScope() || (activity && !activity.isCurrent()))) throw new Error('The active workspace changed. Start the export again.');
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `cardforge-tabletop-simulator-${quality}${canExportClean ? '' : '-watermarked'}-spritesheets.zip`;
+      link.download = generic ? `cardforge-spritesheets${canExportClean ? '' : '-watermarked'}.zip` : `cardforge-tabletop-simulator-${quality}${canExportClean ? '' : '-watermarked'}-spritesheets.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      trackExportCompleted('tabletop_simulator', generatedDisplayCards.length);
+      trackExportCompleted(generic ? 'png_set' : 'tabletop_simulator', generatedDisplayCards.length);
       activity?.finish('requested');
       toast({
-        title: 'Tabletop Simulator download requested',
-        description: `${sheets.length} ${preset.label.toLowerCase()} sheet${sheets.length === 1 ? '' : 's'} generated with a manifest. Check browser downloads${canExportClean ? '' : ' and the CardForge watermark'}. Create each custom deck with ${preset.grid.columns} columns and ${preset.grid.rows} rows.`,
+        title: generic ? 'Spritesheet download requested' : 'Tabletop Simulator download requested',
+        description: generic ? `${sheets.length} sheet${sheets.length === 1 ? '' : 's'} generated with a manifest. Check browser downloads.` : `${sheets.length} ${preset.label.toLowerCase()} sheet${sheets.length === 1 ? '' : 's'} generated with a manifest. Check browser downloads${canExportClean ? '' : ' and the CardForge watermark'}. Create each custom deck with ${preset.grid.columns} columns and ${preset.grid.rows} rows.`,
       });
     } catch (err) {
-      trackExportFailed('tabletop_simulator', 'render_or_archive', generatedDisplayCards.length);
+      trackExportFailed(generic ? 'png_set' : 'tabletop_simulator', 'render_or_archive', generatedDisplayCards.length);
       activity?.finish('failed', err instanceof Error ? err.message : 'Retry from Output.');
-      toast({ title: 'Tabletop Simulator export failed', description: (err as Error).message, variant: 'destructive' });
+      toast({ title: generic ? 'Spritesheet export failed' : 'Tabletop Simulator export failed', description: (err as Error).message, variant: 'destructive' });
     } finally {
       setIsZipExporting(false);
       setZipProgress(null);
       setZipExportKind(null);
     }
-  }, [beforeExport, canExportClean, exportWatermark, generatedDisplayCards, outputActivity, richTextHighlightColor, setName, toast]);
+  }, [beforeExport, canExportClean, exportDpi, exportWatermark, generatedDisplayCards, outputActivity, richTextHighlightColor, setName, toast]);
 
   return {
     handleExportPressCandidate,
