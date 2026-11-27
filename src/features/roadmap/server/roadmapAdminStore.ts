@@ -43,12 +43,10 @@ export const normalizeRoadmapStatusInput = (value: unknown): RoadmapStatus | nul
 
 export const updateRoadmapItemDetails = async (input: {
   itemId?: unknown; expectedUpdatedAt?: unknown; itemType?: unknown; title?: unknown;
-  editKind?: unknown;
   description?: unknown; visibleMonth?: unknown; monthlyCostCents?: unknown;
   expenseProvider?: unknown; expensePlan?: unknown; expenseSourceUrl?: unknown; expenseVerifiedAt?: unknown; expenseState?: unknown;
 }): Promise<RoadmapAdminItem> => {
   if (typeof input.itemId !== 'string' || !input.itemId) throw new RoadmapStoreError('Roadmap item is required.', 400);
-  if (input.editKind !== 'correction') throw new RoadmapStoreError('Choose a correction that preserves this proposal’s meaning.', 400);
   if (typeof input.expectedUpdatedAt !== 'string' || !Number.isFinite(Date.parse(input.expectedUpdatedAt))) throw new RoadmapStoreError('Reload the current roadmap item before saving.', 409);
   if (input.itemType !== 'feature' && input.itemType !== 'shipped_update' && input.itemType !== 'roi_checkpoint') throw new RoadmapStoreError('Roadmap item type is required.', 400);
   const normalized = normalizeRoadmapSuggestion(input.title, await getRoadmapSettings());
@@ -57,13 +55,31 @@ export const updateRoadmapItemDetails = async (input: {
   if (typeof input.visibleMonth !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(input.visibleMonth)) throw new RoadmapStoreError('Choose a valid month.', 400);
   const values: Record<string, unknown> = { title: normalized.value, description: input.description.trim() || null, visible_month: input.visibleMonth };
   if (input.itemType === 'roi_checkpoint') {
-    const provider = typeof input.expenseProvider === 'string' ? input.expenseProvider.trim() : '';
-    const plan = typeof input.expensePlan === 'string' ? input.expensePlan.trim() : '';
-    const verified = normalizeRoadmapExpenseVerifiedAt(input.expenseVerifiedAt);
-    let source = '';
-    try { const url = new URL(String(input.expenseSourceUrl)); if (url.protocol === 'https:') source = url.toString(); } catch { /* invalid source */ }
-    if (!Number.isSafeInteger(input.monthlyCostCents) || (input.monthlyCostCents as number) <= 0 || !provider || provider.length > 80 || !plan || plan.length > 80 || !source || !verified || (input.expenseState !== null && input.expenseState !== 'current' && input.expenseState !== 'planned')) throw new RoadmapStoreError('Expense checkpoints require a positive monthly cost, provider, plan, official HTTPS source, verification date, and valid status.', 400);
-    Object.assign(values, { monthly_cost_cents: input.monthlyCostCents, expense_provider: provider, expense_plan: plan, expense_source_url: source, expense_verified_at: verified, expense_state: input.expenseState });
+    if (input.monthlyCostCents !== undefined) {
+      if (!Number.isSafeInteger(input.monthlyCostCents) || (input.monthlyCostCents as number) <= 0) throw new RoadmapStoreError('Enter a positive monthly cost in cents.', 400);
+      values.monthly_cost_cents = input.monthlyCostCents;
+    }
+    for (const [key, column] of [['expenseProvider', 'expense_provider'], ['expensePlan', 'expense_plan']] as const) {
+      if (input[key] === undefined) continue;
+      const text = typeof input[key] === 'string' ? input[key].trim() : '';
+      if (!text || text.length > 80) throw new RoadmapStoreError('Enter a valid provider and plan.', 400);
+      values[column] = text;
+    }
+    if (input.expenseSourceUrl !== undefined) {
+      let source = '';
+      try { const url = new URL(String(input.expenseSourceUrl)); if (url.protocol === 'https:') source = url.toString(); } catch { /* invalid source */ }
+      if (!source) throw new RoadmapStoreError('Enter an official HTTPS pricing URL.', 400);
+      values.expense_source_url = source;
+    }
+    if (input.expenseVerifiedAt !== undefined) {
+      const verified = normalizeRoadmapExpenseVerifiedAt(input.expenseVerifiedAt);
+      if (!verified) throw new RoadmapStoreError('Enter a valid verification date.', 400);
+      values.expense_verified_at = verified;
+    }
+    if (input.expenseState !== undefined) {
+      if (input.expenseState !== null && input.expenseState !== 'current' && input.expenseState !== 'planned') throw new RoadmapStoreError('Choose a valid expense status.', 400);
+      values.expense_state = input.expenseState;
+    }
   }
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new RoadmapStoreError('Roadmap database is not configured yet.', 503);
@@ -96,6 +112,18 @@ const mapRoadmapAdminItemRow = (row: RoadmapAdminItemRow): RoadmapAdminItem => (
   shippedAt: row.shipped_at,
   updatedAt: row.updated_at,
 });
+
+// Unmasked values are only returned by the authorized item editor route.
+export const getRoadmapEditItem = async (itemId: string): Promise<RoadmapAdminItem> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new RoadmapStoreError('Roadmap database is not configured yet.', 503);
+  const { data, error } = await supabase.from('cardforge_roadmap_items')
+    .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,expense_provider,expense_plan,expense_source_url,expense_verified_at,expense_state,shipped_at,updated_at')
+    .eq('id', itemId).is('release_version', null).maybeSingle();
+  if (error) throw new RoadmapStoreError('Roadmap item is temporarily unavailable.', 503);
+  if (!data) throw new RoadmapStoreError('This item is unavailable or managed as a website release.', 404);
+  return mapRoadmapAdminItemRow(data as unknown as RoadmapAdminItemRow);
+};
 
 export const getRoadmapAdminItems = async (): Promise<RoadmapAdminItem[]> => {
   const supabase = getSupabaseServerClient();

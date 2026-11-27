@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const state = vi.hoisted(() => ({ settingsReads: 0, failAt: 0, writes: [] as string[], count: 0, minVotes: 100, percent: 75, archived: false, votes: [] as {item: string; user: string}[] }));
+const state = vi.hoisted(() => ({ settingsReads: 0, failAt: 0, writes: [] as string[], count: 0, minVotes: 100, percent: 75, archived: false, votes: [] as {item: string; user: string}[], rows: [] as Record<string, unknown>[] }));
 vi.mock('@/infrastructure/database/supabaseServer', () => ({
   getSupabaseServerConfigStatus: () => ({ configured: true }),
   getSupabaseServerClient: () => ({ from: (table: string) => {
@@ -28,6 +28,7 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
               roadmap_estimated_tax_percent: 20, roadmap_operating_reserve_percent: 20 }], error: null,
           }));
         }
+        if (table === 'cardforge_roadmap_items' && operation.startsWith('id,title,')) return Promise.resolve(resolve({ data: state.rows, error: null }));
         if (table === 'cardforge_roadmap_votes' && operation === 'vote') return Promise.resolve(resolve({ data: [...Array(9).fill({ vote: 'up' }), ...Array(12).fill({ vote: 'down' })], error: null }));
         return Promise.resolve(resolve({ data: [], count: state.count, error: null }));
       },
@@ -42,7 +43,7 @@ import { createContributorRoadmapItem, createRoadmapSuggestion, voteRoadmapItem 
 import { GET, POST } from '@/app/api/roadmap/route';
 import { POST as postVote } from '@/app/api/roadmap/votes/route';
 
-beforeEach(() => { state.settingsReads = 0; state.failAt = 0; state.writes = []; state.count = 0; state.minVotes = 100; state.percent = 75; state.archived = false; state.votes = []; });
+beforeEach(() => { state.settingsReads = 0; state.failAt = 0; state.writes = []; state.count = 0; state.minVotes = 100; state.percent = 75; state.archived = false; state.votes = []; state.rows = []; });
 describe('roadmap policy persistence boundary', () => {
   it('does not write votes or suggestions when configured settings cannot be read', async () => {
     state.failAt = 1;
@@ -92,6 +93,14 @@ describe('roadmap policy persistence boundary', () => {
     const suggestion = await POST(request('http://localhost/api/roadmap', { title: 'idea' }));
     expect(suggestion.status).toBe(503);
     expect(state.writes).toEqual([]);
+  });
+  it('does not expose incomplete expense details in the public board payload', async () => {
+    state.rows = [{ id: 'cost', title: 'Expense', description: null, item_type: 'roi_checkpoint', status: 'planned', source: 'official', visible_month: '2026-11', monthly_cost_cents: 1234, expense_provider: 'Private draft value', expense_plan: null, expense_source_url: null, expense_verified_at: null, expense_state: 'current', shipped_at: null, created_at: '2026-11-01T00:00:00Z', updated_at: '2026-11-01T00:00:00Z' }];
+    const response = await GET();
+    const body = await response.json();
+    expect(body.items[0]).toMatchObject({ monthlyCostCents: null, expenseProvider: null, expenseState: null });
+    expect(JSON.stringify(body)).not.toContain('Private draft value');
+    expect(body.items[0]).not.toHaveProperty('expenseDetails');
   });
   it('withdraws only the signed-in user’s vote without reviving an archived item', async () => {
     state.archived = true;

@@ -2,12 +2,30 @@ import { currentUser } from '@clerk/nextjs/server';
 
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { resolveOwnerAccess } from '@/domain/entitlements';
-import { deleteContributorRoadmapItem, RoadmapStoreError } from '@/features/roadmap/server';
+import { deleteContributorRoadmapItem, getRoadmapEditItem, RoadmapStoreError } from '@/features/roadmap/server';
 import { AccountIdentityUnavailableError, AccountToolAccessError, getCurrentAccountToolAccess } from '@/features/account/server';
 import { ContributorAccessStoreError, hasContributionScope, readContributorCapabilities } from '@/features/contributor-access/server';
 import { publishOwnerRoadmapDetails } from '@/features/owner/server/ownerSiteCommands';
 
 export const dynamic = 'force-dynamic';
+
+export async function GET(_request: Request, context: { params: Promise<{ itemId: string }> }) {
+  try {
+    const account = await getCurrentAccountToolAccess();
+    const contribution = account.isOwner ? null : await readContributorCapabilities(account);
+    if (!account.isOwner && (!contribution?.active || !hasContributionScope(contribution.scopes, 'roadmap.edit'))) {
+      return createApiErrorResponse(403, 'contributor_access_required', 'Roadmap editing permission is required.');
+    }
+    const { itemId } = await context.params;
+    return createNoStoreJsonResponse({ item: await getRoadmapEditItem(itemId) });
+  } catch (error) {
+    if (error instanceof AccountIdentityUnavailableError || error instanceof AccountToolAccessError || error instanceof RoadmapStoreError || error instanceof ContributorAccessStoreError) {
+      return createApiErrorResponse(error.status, error.status === 503 ? 'roadmap_database_unavailable' : error.status === 403 ? 'contributor_access_required' : error.status === 401 ? 'sign_in_required' : 'roadmap_request_invalid', error.message);
+    }
+    console.error('Failed to load roadmap editor:', error);
+    return createApiErrorResponse(500, 'roadmap_request_invalid', 'Unable to load roadmap details.');
+  }
+}
 
 export async function PATCH(request: Request, context: { params: Promise<{ itemId: string }> }) {
   try {
@@ -19,9 +37,6 @@ export async function PATCH(request: Request, context: { params: Promise<{ itemI
     const body: unknown = await request.json();
     if (!body || typeof body !== 'object' || Array.isArray(body)) return createApiErrorResponse(400, 'roadmap_request_invalid', 'Provide Roadmap item details.');
     const fields = body as Record<string, unknown>;
-    if (!account.isOwner && (fields.itemType === 'roi_checkpoint' || ['monthlyCostCents', 'expenseProvider', 'expensePlan', 'expenseSourceUrl', 'expenseVerifiedAt', 'expenseState'].some(key => key in fields))) {
-      return createApiErrorResponse(403, 'owner_access_required', 'Only an Owner can edit expense checkpoints.');
-    }
     const { itemId } = await context.params;
     const publication = await publishOwnerRoadmapDetails({ actor: { userId: account.user.id, email: account.email }, input: { ...fields, itemId } });
     return createNoStoreJsonResponse({ publication });
