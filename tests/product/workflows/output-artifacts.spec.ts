@@ -1,8 +1,8 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { expect, test, type Download } from '@playwright/test';
 import JSZip from 'jszip';
 import { createHash } from 'node:crypto';
-import { PDFDocument } from 'pdf-lib';
+import { decodePDFRawStream, PDFArray, PDFDocument, PDFName, PDFRawStream } from 'pdf-lib';
 import sharp from 'sharp';
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
@@ -201,6 +201,10 @@ test('@golden @preview downloads actual card PNG, Set ZIP, PDF and Tabletop shee
     expect(createHash('sha256').update(await pressZip.file(entry)!.async('nodebuffer')).digest('hex')).toBe(candidateReport.profileHashes[key]);
   }
   await testInfo.attach('color-managed-press-candidate.zip', { body: pressBytes, contentType: 'application/zip' });
+  await expect(page.getByRole('button', { name: 'Remove prepared copy', exact: true })).toBeVisible();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Remove prepared copy', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Remove prepared copy', exact: true })).toHaveCount(0);
   const digitalPdfDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download digital PDF', exact: true }).click();
   const digitalPdf = await save(await digitalPdfDownload);
@@ -581,4 +585,206 @@ test('rechecks clean output access before saving a prepared PDF again', async ({
   expect(await repeat.failure()).toBeNull();
   expect(createHash('sha256').update(await readFile(firstPath)).digest('hex')).toBe(createHash('sha256').update(await readFile(secondPath)).digest('hex'));
   expect(count).toBe(1);
+});
+
+test('keeps each downloaded duplex PDF part within ten pages', async ({ page }, testInfo) => {
+  test.setTimeout(240_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 21, staleToolTemplate: true, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  const pending = page.waitForEvent('download', { timeout: 210_000 });
+  await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();
+  const download = await pending;
+  const stream = await download.createReadStream();
+  if (!stream) throw new Error('The ZIP download was unavailable.');
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const archive = Buffer.concat(chunks);
+  await writeFile(testInfo.outputPath('ten-page-parts.zip'), archive);
+  const zip = await JSZip.loadAsync(archive);
+  const pdfs = Object.keys(zip.files).filter((name) => name.endsWith('.pdf')).sort();
+  expect(pdfs.length).toBeGreaterThan(1);
+  const counts: number[] = [];
+  for (const name of pdfs) counts.push((await PDFDocument.load(await zip.file(name)!.async('uint8array'))).getPageCount());
+  expect(counts.every((count) => count > 0 && count <= 10 && count % 2 === 0)).toBe(true);
+});
+
+test('writes numbered PDF parts to a selected file at the simulated picker boundary', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: async () => {
+      const chunks: ArrayBuffer[] = [];
+      return { createWritable: async () => ({
+        write: async (chunk: ArrayBuffer) => { chunks.push(chunk); },
+        abort: async () => { chunks.length = 0; },
+        close: async () => {
+          const url = URL.createObjectURL(new Blob(chunks, { type: 'application/zip' }));
+          const link = document.createElement('a'); link.href = url; link.download = 'selected.zip'; link.click();
+        },
+      }) };
+    } });
+  });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 21, staleToolTemplate: true, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  const result = page.waitForEvent('download', { timeout: 210_000 });
+  await page.getByRole('button', { name: 'Save to chosen file', exact: true }).first().click();
+  const download = await result;
+  const stream = await download.createReadStream();
+  if (!stream) throw new Error('The simulated file was unavailable.');
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const zip = await JSZip.loadAsync(Buffer.concat(chunks));
+  const names = Object.keys(zip.files).filter(name => name.endsWith('.pdf')).sort();
+  expect(names).toHaveLength(2);
+  expect(await Promise.all(names.map(async name => (await PDFDocument.load(await zip.file(name)!.async('uint8array'))).getPageCount()))).toEqual([10, 2]);
+  await expect(page.locator('span[role="status"][aria-live="polite"]').filter({ hasText: 'saved to the selected location' })).toBeVisible();
+});
+
+test('leaves ordinary PDF available when the selected-file picker is cancelled', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: async () => { throw new DOMException('Cancelled', 'AbortError'); } });
+  });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 1, staleToolTemplate: true, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  await page.getByRole('button', { name: 'Save to chosen file', exact: true }).first().click();
+  await expect(page.getByRole('status').filter({ hasText: 'save cancelled' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toBeEnabled();
+});
+
+test('offers ordinary output when selected-file access is denied', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: async () => { throw new DOMException('Blocked', 'NotAllowedError'); } });
+  });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 1, staleToolTemplate: true, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  await page.getByRole('button', { name: 'Save to chosen file', exact: true }).first().click();
+  await expect(page.locator('span[role="status"][aria-live="polite"]').filter({ hasText: 'The browser did not allow access to that file' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Print using browser', exact: true })).toBeEnabled();
+});
+
+test('aborts an incomplete selected file when writing fails', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: async () => ({ createWritable: async () => ({
+      write: async () => { throw new Error('Simulated disk write failure'); },
+      close: async () => { (window as unknown as { selectedFileClosed: boolean }).selectedFileClosed = true; },
+      abort: async () => { (window as unknown as { selectedFileAborted: boolean }).selectedFileAborted = true; },
+    }) }) });
+  });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 1, staleToolTemplate: true, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  await page.getByRole('button', { name: 'Save to chosen file', exact: true }).first().click();
+  await expect(page.locator('span[role="status"][aria-live="polite"]').filter({ hasText: 'Simulated disk write failure' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { selectedFileAborted?: boolean }).selectedFileAborted)).toBe(true);
+  expect(await page.evaluate(() => (window as unknown as { selectedFileClosed?: boolean }).selectedFileClosed)).toBeUndefined();
+});
+
+test('prepares a browser print view and releases it after printing', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => { window.print = () => { (window as unknown as { printRequests: number }).printRequests = 1; }; });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, staleToolTemplate: true, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  await page.getByRole('button', { name: 'Print using browser', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { printRequests?: number }).printRequests)).toBe(1);
+  await expect(page.getByRole('status').filter({ hasText: 'Browser print: browser print requested' })).toBeVisible();
+  const view = page.locator('[data-cardforge-native-print]');
+  await expect(view.locator('[data-cardforge-print-sheet]')).toHaveCount(2);
+  await page.emulateMedia({ media: 'print' });
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(255, 255, 255)');
+  const bytes = await page.pdf({ printBackground: true, preferCSSPageSize: true });
+  await writeFile(testInfo.outputPath('native-print.pdf'), bytes);
+  const pdf = await PDFDocument.load(bytes);
+  expect(pdf.getPageCount()).toBe(2);
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  await expect(view).toHaveCount(0);
+});
+
+test('places nine cards on each side of a tight Letter browser print sheet', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => { window.print = () => { (window as unknown as { printRequests: number }).printRequests = 1; }; });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 9, staleToolTemplate: true, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  await page.locator('#pdfMargin').fill('3');
+  await page.locator('#pdfCardSpacing').fill('4');
+  await page.getByRole('button', { name: 'Print using browser', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { printRequests?: number }).printRequests)).toBe(1);
+  const sheets = page.locator('[data-cardforge-print-sheet]');
+  await expect(sheets).toHaveCount(2);
+  await expect(sheets.nth(0).locator('.tcg-card-preview')).toHaveCount(9);
+  await expect(sheets.nth(1).locator('.tcg-card-preview')).toHaveCount(9);
+  const bytes = await page.pdf({ printBackground: true, preferCSSPageSize: true });
+  await writeFile(testInfo.outputPath('native-nine-up.pdf'), bytes);
+  const pdf = await PDFDocument.load(bytes);
+  expect(pdf.getPageCount()).toBe(2);
+  const textBlocks = pdf.getPages().map((sheet) => {
+    const contents = sheet.node.lookup(PDFName.of('Contents'));
+    const streams = contents instanceof PDFArray ? Array.from({ length: contents.size() }, (_, i) => contents.lookup(i)) : [contents];
+    const text = streams.map((stream) => stream instanceof PDFRawStream ? Buffer.from(decodePDFRawStream(stream).decode()).toString('latin1') : '').join('\n');
+    return (text.match(/\bBT\b/g) ?? []).length;
+  });
+  expect(textBlocks[0]).toBeGreaterThanOrEqual(9);
+  expect(textBlocks[0]).toBe(textBlocks[1]);
+});
+
+
+test('streams ten-page press PDF parts with their reports', async ({ page }) => {
+  test.setTimeout(240_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 6, staleToolTemplate: true, exportSample: true, lowResolutionArtwork: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  const pending = page.waitForEvent('download', { timeout: 210_000 });
+  await page.getByRole('button', { name: 'Download color-managed press candidate ZIP', exact: true }).click();
+  const download = await pending;
+  const stream = await download.createReadStream();
+  if (!stream) throw new Error('The press package was unavailable.');
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const zip = await JSZip.loadAsync(Buffer.concat(chunks));
+  const names = Object.keys(zip.files).filter((name) => /^candidate-part-\d+\.pdf$/.test(name)).sort();
+  expect(names).toHaveLength(2);
+  const counts: number[] = [];
+  for (const name of names) {
+    const bytes = await zip.file(name)!.async('nodebuffer');
+    const report = JSON.parse(await zip.file(name.replace('.pdf', '-report.json'))!.async('string'));
+    expect(report.pdfSha256).toBe(createHash('sha256').update(bytes).digest('hex'));
+    counts.push((await PDFDocument.load(bytes)).getPageCount());
+  }
+  expect(counts).toEqual([10, 2]);
+  expect(zip.file('profiles/sRGB.icc')).not.toBeNull();
+  expect(zip.file('profiles/FOGRA39L_coated.icc')).not.toBeNull();
+  await expect(page.getByRole('button', { name: 'Remove prepared copy', exact: true })).toBeVisible();
+});
+
+
+test('can remove a browser print view after returning to Output', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => { window.print = () => { (window as unknown as { printRequests: number }).printRequests = 1; }; });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, staleToolTemplate: true, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  await page.getByRole('button', { name: 'Print using browser', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { printRequests?: number }).printRequests)).toBe(1);
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  const remove = page.getByRole('button', { name: 'Remove temporary print view', exact: true });
+  await expect(remove).toBeVisible();
+  page.once('dialog', (dialog) => dialog.accept());
+  await remove.click();
+  await expect(page.locator('[data-cardforge-native-print]')).toHaveCount(0);
 });

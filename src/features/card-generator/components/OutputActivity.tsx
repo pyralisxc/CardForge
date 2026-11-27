@@ -5,8 +5,8 @@ import { getProjectPersistenceScope, PROJECT_PERSISTENCE_SCOPE_CHANGE_EVENT } fr
 import { createReadyHandoffGuard, prepareReadyOutputHandoff } from '../lib/outputReadyHandoff';
 import { readReadyOutput, removeReadyOutput, ReadyOutputUnavailableError, type ReadyOutput } from '../lib/outputReadyStorage';
 
-type Activity = { name: string; phase: 'running' | 'checking' | 'removing' | 'ready' | 'requested' | 'failed'; done?: number; total?: number; unit?: 'faces'; detail?: string; persistence?: 'device' | 'session'; canSaveAgain?: boolean; unavailable?: boolean };
-type Handle = { isCurrent: () => boolean; progress: (done: number, total: number, unit?: 'faces') => void; stage: (detail: string) => void; hold: (output: ReadyOutput, detail: string) => void; finish: (phase: 'requested' | 'failed', detail?: string) => void; complete: (output: ReadyOutput, validate?: () => Promise<void>) => boolean };
+type Activity = { name: string; phase: 'running' | 'checking' | 'removing' | 'ready' | 'saved' | 'cancelled' | 'requested' | 'print-requested' | 'failed'; done?: number; total?: number; unit?: 'faces'; detail?: string; persistence?: 'device' | 'session'; canSaveAgain?: boolean; unavailable?: boolean };
+type Handle = { isCurrent: () => boolean; progress: (done: number, total: number, unit?: 'faces') => void; stage: (detail: string) => void; hold: (output: ReadyOutput, detail: string) => void; finish: (phase: 'saved' | 'cancelled' | 'requested' | 'print-requested' | 'failed', detail?: string) => void; complete: (output: ReadyOutput, validate?: () => Promise<void>) => boolean };
 type OutputActivity = { activity: Activity | null; begin: (name: string, options?: { retained: boolean }) => Handle | null; dismiss: () => void; saveAgain: () => Promise<void>; remove: () => Promise<void>; saving: boolean };
 const Context = createContext<OutputActivity | null>(null);
 
@@ -67,7 +67,7 @@ export function OutputActivityProvider({ children }: { children: ReactNode }) {
       finish: (phase, detail) => { if (current()) {
         active.current = false;
         const previous = ready.current;
-        if (previous) setActivity({ name: previous.output.name, phase: 'ready', persistence: previous.output.persistence, canSaveAgain: previous.output.canSaveAgain, unavailable: previous.output.unavailable, detail: phase === 'requested' ? `${name}: download requested. Check your browser downloads.` : `${name}: export failed. ${detail ?? 'Retry from Output.'}` });
+        if (previous) setActivity({ name: previous.output.name, phase: 'ready', persistence: previous.output.persistence, canSaveAgain: previous.output.canSaveAgain, unavailable: previous.output.unavailable, detail: phase === 'saved' ? `${name}: saved to the selected location.` : phase === 'cancelled' ? `${name}: save cancelled.` : phase === 'requested' ? `${name}: download requested. Check your browser downloads.` : phase === 'print-requested' ? `${name}: browser print requested.` : `${name}: export failed. ${detail ?? 'Retry from Output.'}` });
         else setActivity({ name, phase, detail });
       } },
       hold: (output, detail) => {
@@ -143,7 +143,10 @@ export function OutputActivityStatus() {
     ? `${activity.name}: ${activity.detail ?? (activity.total ? activity.done === activity.total ? 'Finishing output' : `Rendering ${activity.done ?? 0} of ${activity.total}${activity.unit ? ` ${activity.unit}` : ''}` : 'Building output')}. Keep this page open.`
     : activity.phase === 'ready'
       ? activity.unavailable ? `${activity.name}: the previously prepared output is unavailable on this device. You can remove its stored copy and record. ${activity.detail ?? ''}` : `${activity.name}: previously prepared output ready on this device${activity.persistence === 'session' ? ' for this tab session' : ' while browser storage remains available'}. Changes made since preparation are not included. ${activity.detail ?? (activity.canSaveAgain === false ? 'This copy needs its original source to be prepared again; you can remove it.' : 'Save again when needed.')}`
+      : activity.phase === 'saved' ? `${activity.name}: saved. ${activity.detail ?? ''}`
+      : activity.phase === 'cancelled' ? `${activity.name}: save cancelled.`
       : activity.phase === 'requested' ? `${activity.name}: download requested. ${activity.detail ?? 'Check your browser downloads.'}`
+        : activity.phase === 'print-requested' ? `${activity.name}: browser print requested. ${activity.detail ?? ''}`
         : `${activity.name}: export failed. ${activity.detail ?? 'Retry from Output.'}`;
   return <span role="status" aria-live="polite" className="flex shrink-0 items-center gap-2 text-xs">
     {message}{(activity.phase === 'ready' || activity.phase === 'checking') && activity.canSaveAgain !== false ? <button type="button" disabled={output.saving} onClick={() => void output.saveAgain()}>{activity.phase === 'checking' ? 'Checking…' : 'Save again'}</button> : null}

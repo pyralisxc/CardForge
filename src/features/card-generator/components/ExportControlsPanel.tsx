@@ -15,6 +15,7 @@ import { getCardExportDimensionsPx, getCardProductionGeometryMm, hasCardBacking 
 import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
 import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
+import { NativePrintButton } from '@/features/card-generator/components/NativePrintButton';
 import { useOutputActivity } from './OutputActivity';
 import type { ZipExportKind } from '@/features/card-generator/hooks/useCardZipExportActions';
 import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
@@ -210,6 +211,10 @@ export function ExportControlsPanel({
                 disabled={exportsDisabled}
                 templateName={firstCard?.template?.name}
               />
+              <p className="text-xs text-muted-foreground">Or use your browser's print dialog. It uses browser rendering rather than the raster-quality setting and does not add the PDF's extended bleed.</p>
+              <NativePrintButton cards={generatedDisplayCards} paper={selectedPaperSize} margin={pdfMarginMm} spacing={pdfCardSpacingMm}
+                cutLines={pdfIncludeCutLines} duplex={pdfDuplexLayout} highlightColor={richTextHighlightColor}
+                canExportClean={canExportClean} disabled={exportsDisabled} beforeExport={beforeExport} />
               <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={onSelectPaperSize} />
               <Label className="text-sm font-medium">PDF layout</Label>
               <TooltipProvider>
