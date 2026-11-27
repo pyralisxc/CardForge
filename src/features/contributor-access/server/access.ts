@@ -91,8 +91,9 @@ export const requireContributionScope = (
   }
 };
 
+/** API callers must receive authentication failures rather than a false inactive profile. */
 export const getCurrentContributorAccessProjection = async (): Promise<ContributorAccessProjection> => (
-  (await getCurrentContributorAccessSessionState()).projection
+  getContributorCapabilities(await getCurrentAccountToolAccess())
 );
 
 export const getCurrentContributorAccessSessionState = async (): Promise<ContributorAccessSessionState> => {
