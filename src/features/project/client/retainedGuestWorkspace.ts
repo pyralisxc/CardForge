@@ -22,8 +22,16 @@ export interface RetainedGuestWorkSummary {
   guestRevision: number;
   snapshotFingerprint: string;
   setCount: number;
+  setNames: string[];
   cardCount: number;
   templateCount: number;
+}
+
+export class RetainedGuestWorkChangedError extends Error {
+  constructor(readonly summary: RetainedGuestWorkSummary) {
+    super('Signed-out work changed. Review the updated work before adding it.');
+    this.name = 'RetainedGuestWorkChangedError';
+  }
 }
 
 const currentAccountScope = (): `account:${string}` | null => {
@@ -38,6 +46,9 @@ const summarize = async (retained: RetainedGuestWorkspace): Promise<RetainedGues
     guestRevision: retained.guestRevision,
     snapshotFingerprint: Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join(''),
     setCount: retained.setCount,
+    setNames: Array.isArray(retained.state.cardSets) ? retained.state.cardSets.map((set: unknown) => (
+      set && typeof set === 'object' && 'name' in set && typeof set.name === 'string' ? set.name : 'Untitled Set'
+    )) : [],
     cardCount: retained.cardCount,
     templateCount: retained.templateCount,
   };
@@ -87,17 +98,21 @@ const buildDocument = (retained: RetainedGuestWorkspace) => {
   return parsed.document;
 };
 
-export const importRetainedGuestWorkspaceAsCopy = async (): Promise<{
+export const importRetainedGuestWorkspaceAsCopy = async (expected: {
+  scope: `account:${string}`;
+  snapshotFingerprint: string;
+}): Promise<{
   summary: RetainedGuestWorkSummary;
   importedSetId: string | null;
   consumed: boolean;
 }> => {
   const scope = currentAccountScope();
-  if (!scope) throw new Error('Sign in to an account before importing signed-out work.');
+  if (!scope || scope !== expected.scope) throw new Error('The account changed. Reopen the intended account before adding signed-out work.');
+  const expectedState = useProjectStore.getState();
   const retained = await readRetainedGuestWorkspaceForAccount(scope);
   if (!retained) throw new Error('No retained signed-out work is available for this account.');
   const summary = await summarize(retained);
-  const expectedState = useProjectStore.getState();
+  if (summary.snapshotFingerprint !== expected.snapshotFingerprint) throw new RetainedGuestWorkChangedError(summary);
   const document = buildDocument(retained);
   await prepareRetainedGuestWorkspaceAssetsForAccount(retained);
   if (getProjectPersistenceScope() !== scope || useProjectStore.getState() !== expectedState) {

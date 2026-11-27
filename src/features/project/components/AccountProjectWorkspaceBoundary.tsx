@@ -25,6 +25,7 @@ import {
 import {
   getRetainedGuestWorkSummary,
   importRetainedGuestWorkspaceAsCopy,
+  RetainedGuestWorkChangedError,
   type RetainedGuestWorkSummary,
 } from '../client/retainedGuestWorkspace';
 import { readProjectPreference, writeProjectPreference } from '../persistence/preferences';
@@ -32,13 +33,18 @@ import { getProjectPersistenceScope } from '../persistence/projectPersistenceSco
 import { BrowserStorageAlerts } from './BrowserStorageAlerts';
 
 const RETAINED_GUEST_DISMISS_KEY = 'retained-guest-work-dismissed-revision';
-const RetainedGuestWorkContext = createContext<{ available: boolean; review: () => void } | null>(null);
+type RetainedOffer = { summary: RetainedGuestWorkSummary; busy: boolean; notice: string | null; dismiss: () => void; add: () => void };
+const RetainedGuestWorkContext = createContext<{ offer: RetainedOffer | null; inline: boolean; review: () => void } | null>(null);
+
+function RetainedGuestOffer({ summary, busy, notice, dismiss, add }: RetainedOffer) {
+  return <><div><p id="retained-guest-work-title" tabIndex={-1} className="font-semibold">Signed-out work is still available</p><p className="mt-1 text-sm leading-5 text-[var(--cf-text-muted)]">{summary.setCount} Set{summary.setCount === 1 ? '' : 's'}, {summary.cardCount} card{summary.cardCount === 1 ? '' : 's'}, and {summary.templateCount} personal Template{summary.templateCount === 1 ? '' : 's'} were kept separate when this existing account resumed. Add independent copies without replacing the work already in this account.</p>{summary.setNames.length ? <p className="mt-1 text-sm">Sets: {summary.setNames.slice(0, 5).join(', ')}{summary.setNames.length > 5 ? ` and ${summary.setNames.length - 5} more` : ''}</p> : null}{notice ? <p role="alert" className="mt-2 text-sm">{notice}</p> : null}</div><div className="flex shrink-0 flex-wrap gap-2"><Button type="button" variant="outline" disabled={busy} onClick={dismiss}>Keep separate</Button><Button type="button" disabled={busy} onClick={add}>{busy ? 'Adding…' : 'Add to this account'}</Button></div></>;
+}
 
 /** Entry in This device; the boundary remains the sole owner of the offer and import. */
 export function RetainedGuestWorkControl() {
   const work = useContext(RetainedGuestWorkContext);
-  if (!work?.available) return null;
-  return <div className="mt-4 border border-[var(--cf-border)] p-3"><p className="font-semibold">Signed-out work on this device</p><p className="mt-1 text-sm text-[var(--cf-text-muted)]">Review the work kept separate from this account.</p><Button type="button" variant="outline" className="mt-3" onClick={work.review}>Review signed-out work</Button></div>;
+  if (!work?.offer) return null;
+  return <div className="mt-4 space-y-3 border border-[var(--cf-border)] p-3">{work.inline ? <RetainedGuestOffer {...work.offer} /> : <><p className="font-semibold">Signed-out work on this device</p><p className="mt-1 text-sm text-[var(--cf-text-muted)]">Review the work kept separate from this account.</p><Button type="button" variant="outline" className="mt-3" onClick={work.review}>Review signed-out work</Button></>}</div>;
 }
 
 export function AccountProjectWorkspaceBoundary({
@@ -55,6 +61,8 @@ export function AccountProjectWorkspaceBoundary({
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
   const [retainedGuestWork, setRetainedGuestWork] = useState<RetainedGuestWorkSummary | null>(null);
   const [showGuestOffer, setShowGuestOffer] = useState(false);
+  const [showInlineGuestOffer, setShowInlineGuestOffer] = useState(false);
+  const [guestNotice, setGuestNotice] = useState<string | null>(null);
   const [guestImportBusy, setGuestImportBusy] = useState(false);
 
   const bootstrap = useCallback(async (signal: AbortSignal) => {
@@ -62,6 +70,8 @@ export function AccountProjectWorkspaceBoundary({
     setError(null);
     setRetainedGuestWork(null);
     setShowGuestOffer(false);
+    setShowInlineGuestOffer(false);
+    setGuestNotice(null);
     try {
       await prepareAccountProjectWorkspace(persistenceScope, undefined, signal);
       if (!signal.aborted) setReadyScope(persistenceScope);
@@ -118,6 +128,8 @@ export function AccountProjectWorkspaceBoundary({
     try {
       await writeProjectPreference(`${RETAINED_GUEST_DISMISS_KEY}:${persistenceScope}`, retainedGuestWork.snapshotFingerprint, { suppressWriteErrors: false });
       setShowGuestOffer(false);
+      setShowInlineGuestOffer(false);
+      setGuestNotice(null);
     } catch {
       toast({ title: 'Could not remember this choice', description: 'Your signed-out work remains separate. Try again or review it later.', variant: 'destructive' });
     } finally {
@@ -128,10 +140,12 @@ export function AccountProjectWorkspaceBoundary({
   const importRetainedGuestWork = async () => {
     setGuestImportBusy(true);
     try {
-      if (getProjectPersistenceScope() !== persistenceScope) throw new Error('The account changed. Reopen the intended account before adding signed-out work.');
-      const result = await importRetainedGuestWorkspaceAsCopy();
+      if (!retainedGuestWork || !persistenceScope.startsWith('account:') || getProjectPersistenceScope() !== persistenceScope) throw new Error('The account changed. Reopen the intended account before adding signed-out work.');
+      const result = await importRetainedGuestWorkspaceAsCopy({ scope: persistenceScope as `account:${string}`, snapshotFingerprint: retainedGuestWork.snapshotFingerprint });
       setRetainedGuestWork(null);
       setShowGuestOffer(false);
+      setShowInlineGuestOffer(false);
+      setGuestNotice(null);
       toast({
         title: 'Signed-out work added to this account',
         description: `${result.summary.setCount} Set${result.summary.setCount === 1 ? '' : 's'} opened as independent account copies.${result.consumed ? ' The imported signed-out snapshot was cleared.' : ' Newer signed-out work was detected and left separate for safety.'}`,
@@ -142,6 +156,10 @@ export function AccountProjectWorkspaceBoundary({
         setShowGuestOffer(Boolean(latest));
       }
     } catch (importError) {
+      if (importError instanceof RetainedGuestWorkChangedError && getProjectPersistenceScope() === persistenceScope) {
+        setRetainedGuestWork(importError.summary);
+        setGuestNotice(importError.message);
+      }
       toast({
         title: 'Signed-out work was not imported',
         description: importError instanceof Error ? importError.message : 'Existing account and signed-out work were left unchanged.',
@@ -174,8 +192,9 @@ export function AccountProjectWorkspaceBoundary({
   }
 
   return (
-    <RetainedGuestWorkContext.Provider value={{ available: Boolean(retainedGuestWork), review: () => {
-      setShowGuestOffer(true);
+    <RetainedGuestWorkContext.Provider value={{ offer: retainedGuestWork ? { summary: retainedGuestWork, busy: guestImportBusy, notice: guestNotice, dismiss: () => void dismissRetainedGuestWork(), add: () => void importRetainedGuestWork() } : null, inline: showInlineGuestOffer, review: () => {
+      setShowGuestOffer(false);
+      setShowInlineGuestOffer(true);
       requestAnimationFrame(() => document.getElementById('retained-guest-work-title')?.focus());
     } }}>
       <BrowserStorageAlerts canUseProjectFiles={canUseProjectFiles} />
@@ -185,16 +204,7 @@ export function AccountProjectWorkspaceBoundary({
           data-retained-guest-work
           className="fixed inset-x-4 bottom-20 z-[85] mx-auto flex max-w-3xl flex-col gap-3 rounded-xl border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 text-[var(--cf-text)] shadow-2xl sm:flex-row sm:items-center sm:justify-between"
         >
-          <div>
-            <p id="retained-guest-work-title" tabIndex={-1} className="font-semibold">Signed-out work is still available</p>
-            <p className="mt-1 text-sm leading-5 text-[var(--cf-text-muted)]">
-              {retainedGuestWork.setCount} Set{retainedGuestWork.setCount === 1 ? '' : 's'}, {retainedGuestWork.cardCount} card{retainedGuestWork.cardCount === 1 ? '' : 's'}, and {retainedGuestWork.templateCount} personal Template{retainedGuestWork.templateCount === 1 ? '' : 's'} were kept separate when this existing account resumed. Add independent copies without replacing the work already in this account.
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Button type="button" variant="outline" disabled={guestImportBusy} onClick={() => void dismissRetainedGuestWork()}>Keep separate</Button>
-            <Button type="button" disabled={guestImportBusy} onClick={() => void importRetainedGuestWork()}>{guestImportBusy ? 'Adding…' : 'Add to this account'}</Button>
-          </div>
+          <RetainedGuestOffer summary={retainedGuestWork} busy={guestImportBusy} notice={guestNotice} dismiss={() => void dismissRetainedGuestWork()} add={() => void importRetainedGuestWork()} />
         </aside>
       ) : null}
       {issue ? (
