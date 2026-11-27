@@ -689,6 +689,34 @@ test('aborts an incomplete selected file when writing fails', async ({ page }) =
   expect(await page.evaluate(() => (window as unknown as { selectedFileClosed?: boolean }).selectedFileClosed)).toBeUndefined();
 });
 
+test('does not commit a clean selected file when current access cannot be verified', async ({ page }) => {
+  test.setTimeout(90_000);
+  let allowAccess = true;
+  await page.route('**/api/account/entitlement', async (route) => {
+    if (!allowAccess) { await route.fulfill({ status: 503, json: { error: 'simulated outage' } }); return; }
+    const response = await route.fetch();
+    const entitlement = await response.json();
+    await route.fulfill({ json: { ...entitlement, canExportClean: true, capabilities: { ...entitlement.capabilities, canExportClean: true } } });
+  });
+  await page.exposeBinding('denyCleanAccess', () => { allowAccess = false; });
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: async () => ({ createWritable: async () => ({
+      write: async () => { await (window as unknown as { denyCleanAccess: () => Promise<void> }).denyCleanAccess(); },
+      close: async () => { (window as unknown as { selectedFileClosed: boolean }).selectedFileClosed = true; },
+      abort: async () => { (window as unknown as { selectedFileAborted: boolean }).selectedFileAborted = true; },
+    }) }) });
+  });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 1, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  await expect(page.getByText('This download has no CardForge watermark.')).toBeVisible();
+  await page.getByRole('button', { name: 'Save to chosen file', exact: true }).first().click();
+  await expect(page.locator('span[role="status"][aria-live="polite"]').filter({ hasText: 'Clean download access could not be verified' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { selectedFileAborted?: boolean }).selectedFileAborted)).toBe(true);
+  expect(await page.evaluate(() => (window as unknown as { selectedFileClosed?: boolean }).selectedFileClosed)).toBeUndefined();
+});
+
 test('prepares a browser print view and releases it after printing', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   await page.addInitScript(() => { window.print = () => { (window as unknown as { printRequests: number }).printRequests = 1; }; });
