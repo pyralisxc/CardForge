@@ -324,7 +324,7 @@ export function PipelineSubmissionPanel({
       });
     } catch (error) {
       toast({
-        title: submitted ? 'Asset submitted' : retained ? 'Submission outcome unconfirmed' : 'Asset not submitted',
+        title: submitted ? 'Asset submitted' : retained ? 'Submission outcome unconfirmed' : 'Submission not started here',
         description: submitted ? 'The submission was recorded, but its follow-up view could not be refreshed.' : error instanceof Error ? error.message : 'Unable to submit asset.',
         variant: submitted ? 'default' : 'destructive',
       });
@@ -632,7 +632,7 @@ export function PipelineSubmissionPanel({
           {recoveryError ? <div><p role="alert">{recoveryError}</p>{!attempt ? <Button type="button" variant="outline" disabled={isSaving} onClick={() => void refreshRecovery()}>Retry recovery access</Button> : null}</div> : null}
           {attempt?.contributorId === contributorId ? <section aria-label="Saved submission attempt" className="grid gap-2 border border-[var(--cf-border)] p-3 text-sm">
             <strong>Saved submission: {attempt.payload.name}</strong>
-            <p>{receipt?.state === 'owned' ? `Submitted to Forge Review. Submission ID: ${receipt.submissionId}` : receipt?.state === 'pending' ? 'This exact upload has not been submitted. You may retry the saved request.' : 'The submission may have completed. Check its outcome before starting another.'}</p>
+            <p>{receipt?.state === 'owned' ? `Submitted to Forge Review. Submission ID: ${receipt.submissionId}` : receipt?.state === 'pending' ? 'No submission is confirmed yet. You may retry the saved request or discard this pending upload.' : 'The submission may have completed. Check its outcome before starting another.'}</p>
             <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={isSaving} onClick={() => void checkAttempt()}>Check submission outcome</Button>
               {receipt?.state === 'pending' ? <><Button type="button" variant="outline" disabled={isSaving} onClick={() => void checkAttempt(true)}>Retry original submission</Button><Button type="button" variant="outline" disabled={isSaving} onClick={() => void discardPendingAttempt()}>Discard pending upload</Button></> : null}
               {receipt?.state === 'owned' ? <Button type="button" variant="outline" disabled={isSaving} onClick={() => void finishRecoveredAttempt()}>Done</Button> : null}</div>
