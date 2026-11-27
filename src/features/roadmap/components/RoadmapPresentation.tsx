@@ -98,6 +98,7 @@ const getTimelinePath = (points: Array<{ x: number; y: number }>) => {
 
 function VoteButton({
   label,
+  voteLabel,
   icon,
   active,
   disabled,
@@ -105,6 +106,7 @@ function VoteButton({
   onClick,
 }: {
   label: string;
+  voteLabel: string;
   icon: ReactNode;
   active: boolean;
   disabled: boolean;
@@ -116,6 +118,8 @@ function VoteButton({
   return (
     <button
       type="button"
+      aria-pressed={active}
+      aria-label={`${active ? 'Withdraw' : 'Cast'} ${voteLabel} vote. ${label} votes`}
       className={`flex items-center border transition ${sizeClass} ${
         active
           ? 'border-[#e6b85c] bg-[#2b1d0e] text-[var(--cf-accent-text)]'
@@ -143,7 +147,7 @@ export function FeatureCard({
   isSignedIn: boolean;
   isSaving: boolean;
   isOwner: boolean;
-  onVote: (itemId: string, vote: RoadmapVoteValue) => void;
+  onVote: (itemId: string, vote: RoadmapVoteValue | null) => void;
   onStatusChange: (itemId: string, status: RoadmapStatus) => void;
 }) {
   return (
@@ -162,19 +166,21 @@ export function FeatureCard({
         <div className="flex shrink-0 gap-2">
           <VoteButton
             label={String(item.upVotes)}
+            voteLabel="thumbs up"
             icon={<ThumbsUp className="h-4 w-4" />}
             active={item.userVote === 'up'}
             disabled={!isSignedIn || isSaving}
             size="sm"
-            onClick={() => onVote(item.id, 'up')}
+            onClick={() => onVote(item.id, item.userVote === 'up' ? null : 'up')}
           />
           <VoteButton
             label={String(item.downVotes)}
+            voteLabel="not for me"
             icon={<ThumbsDown className="h-4 w-4" />}
             active={item.userVote === 'down'}
             disabled={!isSignedIn || isSaving}
             size="sm"
-            onClick={() => onVote(item.id, 'down')}
+            onClick={() => onVote(item.id, item.userVote === 'down' ? null : 'down')}
           />
         </div>
       </div>
@@ -204,7 +210,7 @@ function TimelineNodeCard({
   isSaving: boolean;
   isContributor: boolean;
   isOwner: boolean;
-  onVote: (itemId: string, vote: RoadmapVoteValue) => void;
+  onVote: (itemId: string, vote: RoadmapVoteValue | null) => void;
   onDelete: (itemId: string) => void;
   onStatusChange: (itemId: string, status: RoadmapStatus) => void;
 }) {
@@ -275,19 +281,21 @@ function TimelineNodeCard({
           <div className="flex shrink-0 gap-1.5">
             <VoteButton
               label={String(item.upVotes)}
+              voteLabel="thumbs up"
             icon={<ThumbsUp className="h-3.5 w-3.5" />}
             active={item.userVote === 'up'}
             disabled={!isSignedIn || isSaving}
             size="sm"
-            onClick={() => onVote(item.id, 'up')}
+            onClick={() => onVote(item.id, item.userVote === 'up' ? null : 'up')}
           />
           <VoteButton
             label={String(item.downVotes)}
+            voteLabel="not for me"
             icon={<ThumbsDown className="h-3.5 w-3.5" />}
             active={item.userVote === 'down'}
             disabled={!isSignedIn || isSaving}
             size="sm"
-            onClick={() => onVote(item.id, 'down')}
+            onClick={() => onVote(item.id, item.userVote === 'down' ? null : 'down')}
           />
             {isContributor ? (
               <button
@@ -326,7 +334,7 @@ export function HorizontalTimeline({
   isSignedIn: boolean;
   isSaving: boolean;
   onDelete: (itemId: string) => void;
-  onVote: (itemId: string, vote: RoadmapVoteValue) => void;
+  onVote: (itemId: string, vote: RoadmapVoteValue | null) => void;
   onStatusChange: (itemId: string, status: RoadmapStatus) => void;
 }) {
   if (items.length === 0) {

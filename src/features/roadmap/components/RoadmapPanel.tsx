@@ -127,7 +127,7 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
     void loadRoadmap();
   }, [loadRoadmap]);
 
-  const saveVote = async (itemId: string, vote: RoadmapVoteValue) => {
+  const saveVote = async (itemId: string, vote: RoadmapVoteValue | null) => {
     if (!isSignedIn) {
       toast({
         title: 'Sign in to vote',
@@ -337,7 +337,7 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
             <div>
               <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">Feature requests</h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
-                Signed-in creators can suggest one focused improvement at a time and vote on the requests that matter most.
+                Signed-in creators can suggest one focused improvement at a time and vote on the requests that matter most. Select your vote again to withdraw it, or select the other option to change it.
               </p>
             </div>
             <div className="grid grid-cols-3 border border-[var(--cf-border-strong)] bg-[var(--cf-canvas)] text-center">

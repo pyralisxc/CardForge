@@ -1,18 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const state = vi.hoisted(() => ({ settingsReads: 0, failAt: 0, writes: [] as string[], count: 0, minVotes: 100, percent: 75 }));
+const state = vi.hoisted(() => ({ settingsReads: 0, failAt: 0, writes: [] as string[], count: 0, minVotes: 100, percent: 75, archived: false, votes: [] as {item: string; user: string}[] }));
 vi.mock('@/infrastructure/database/supabaseServer', () => ({
   getSupabaseServerConfigStatus: () => ({ configured: true }),
   getSupabaseServerClient: () => ({ from: (table: string) => {
     let operation = '';
+    const filters: Record<string, string> = {};
     const q = {
       select: (columns: string) => { operation = columns; return q; },
-      eq: () => q, neq: () => q, order: () => q, in: () => q, limit: () => q,
-      maybeSingle: async () => ({ data: { id: 'item', source: 'user', status: 'planned' }, error: null }),
+      eq: (key: string, value: string) => { filters[key] = value; return q; }, neq: () => q, order: () => q, in: () => q, limit: () => q,
+      maybeSingle: async () => ({ data: { id: 'item', source: 'user', status: state.archived ? 'archived_negative_signal' : 'planned' }, error: null }),
       insert: async () => { state.writes.push('insert'); return { error: null }; },
       upsert: async () => { state.writes.push('vote'); return { error: null }; },
       update: () => { state.writes.push('archive'); return q; },
+      delete: () => { operation = 'delete'; return q; },
       then: (resolve: (value: unknown) => unknown) => {
+        if (table === 'cardforge_roadmap_votes' && operation === 'delete') {
+          state.votes = state.votes.filter(v => !(v.item === filters.item_id && v.user === filters.user_id));
+          state.writes.push('withdraw');
+          return Promise.resolve(resolve({ error: null }));
+        }
         if (table === 'cardforge_owner_settings') {
           state.settingsReads++;
           return Promise.resolve(resolve(state.settingsReads === state.failAt ? { data: null, error: { message: 'outage' } } : {
@@ -35,7 +42,7 @@ import { createContributorRoadmapItem, createRoadmapSuggestion, voteRoadmapItem 
 import { GET, POST } from '@/app/api/roadmap/route';
 import { POST as postVote } from '@/app/api/roadmap/votes/route';
 
-beforeEach(() => { state.settingsReads = 0; state.failAt = 0; state.writes = []; state.count = 0; state.minVotes = 100; state.percent = 75; });
+beforeEach(() => { state.settingsReads = 0; state.failAt = 0; state.writes = []; state.count = 0; state.minVotes = 100; state.percent = 75; state.archived = false; state.votes = []; });
 describe('roadmap policy persistence boundary', () => {
   it('does not write votes or suggestions when configured settings cannot be read', async () => {
     state.failAt = 1;
@@ -85,5 +92,14 @@ describe('roadmap policy persistence boundary', () => {
     const suggestion = await POST(request('http://localhost/api/roadmap', { title: 'idea' }));
     expect(suggestion.status).toBe(503);
     expect(state.writes).toEqual([]);
+  });
+  it('withdraws only the signed-in user’s vote without reviving an archived item', async () => {
+    state.archived = true;
+    state.votes = [{ item: 'item', user: 'u' }, { item: 'item', user: 'another' }, { item: 'other', user: 'u' }];
+    const request = new Request('http://localhost/api/roadmap/votes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: 'item', vote: null, userId: 'another' }) });
+    const response = await postVote(request);
+    expect(response.status).toBe(200);
+    expect(state.votes).toEqual([{ item: 'item', user: 'another' }, { item: 'other', user: 'u' }]);
+    expect(state.writes).toEqual(['withdraw']);
   });
 });
