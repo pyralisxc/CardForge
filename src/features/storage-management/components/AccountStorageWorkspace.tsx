@@ -17,6 +17,7 @@ import {
   EnvironmentSectionHeading,
   type EnvironmentSettingRecord,
 } from '@/features/app-shell/client/environment';
+import { RetainedGuestWorkControl } from '@/features/project/client/ui';
 
 type AccountStorageLibraryFocus = 'device' | 'drafts';
 
@@ -84,7 +85,7 @@ export function LibraryStorageConnectionsTool({
       status: 'Available in this browser', tone: 'success', value: 'Browser workspace', icon: Laptop,
       actionSources: [{ id: 'storage:browser-workspace', label: 'This device', source: 'browser-local', currentRevisionAvailable: true }],
       meta: [['Ownership', 'This browser'], ['Removal', 'Only the named local Set and its local cards']],
-      focus: 'device', content: focusedStorageContent(workspaceStorage, 'device'),
+      focus: 'device', content: <>{focusedStorageContent(workspaceStorage, 'device')}<RetainedGuestWorkControl /></>,
     },
     {
       id: 'working-drafts', kind: 'storage-location', eyebrow: 'Temporary work', title: 'Working drafts',

@@ -1,5 +1,6 @@
 export { BrowserStorageAlerts, requestBrowserWorkspaceRecovery } from '../components/BrowserStorageAlerts';
 export { AccountProjectWorkspaceBoundary } from '../components/AccountProjectWorkspaceBoundary';
+export { RetainedGuestWorkControl } from '../components/AccountProjectWorkspaceBoundary';
 export { StudioSaveMoveDialog } from '../components/StudioSaveMoveDialog';
 export { TemplateUpdateReviewDialog } from '../components/TemplateUpdateReviewDialog';
 export { SetUpdates, UpdateAttentionFilter } from '../components/SetUpdates';
