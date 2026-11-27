@@ -119,6 +119,9 @@ export function ExportControlsPanel({
   const rasterDimensions = firstCard
     ? getRasterExportDimensionsPx(firstCard, exportMode, exportDpi)
     : null;
+  const pressDimensions = firstCard
+    ? getRasterExportDimensionsPx(firstCard, 'physical', pressDpi)
+    : null;
   const tabletopSummary = useMemo(() => {
     const preset = getTabletopSimulatorExportPreset(tabletopQuality);
     let sheets: ReturnType<typeof createTabletopSimulatorSheets> = [];
@@ -331,6 +334,11 @@ export function ExportControlsPanel({
                 {rasterDimensions.widthPx} × {rasterDimensions.heightPx}px per face for this template. Enlarging beyond those pixels softens the image.
               </p>
             ) : null}
+            {rasterDimensions ? (
+              <p className="text-xs text-muted-foreground">
+                Approximately {rasterDimensions.effectivePixelsPerInch} PPI for the finished face at this template's intended size. Resizing changes PPI; original artwork may contain less detail. Browser print uses its own rendering.
+              </p>
+            ) : null}
           </div>
 
           {!isEntitlementPending && !canExportClean && exportGateMessage ? (
@@ -471,7 +479,7 @@ export function ExportControlsPanel({
                 This is not an imposed duplex sheet, a PDF/X conformance certificate, or press-ready acceptance.
               </p>
               <p className="text-xs text-muted-foreground">
-                Press candidates require at least 300 PPI at the actual production size, including bleed. This package uses {pressQuality.label} quality{pressDpi !== exportDpi ? ' to meet that minimum' : ''}. Other exports keep your selected raster quality. Higher output density cannot restore missing detail in original artwork.
+                Press candidates require at least 300 PPI at the actual production size, including bleed. This package uses {pressQuality.label} quality{pressDimensions ? ` (approximately ${pressDimensions.effectivePixelsPerInch} PPI at the template's intended size)` : ''}{pressDpi !== exportDpi ? ' to meet that minimum' : ''}. Other exports keep your selected raster quality. Higher output density cannot restore missing detail in original artwork.
               </p>
               <p className="text-xs text-muted-foreground">The ZIP includes PDFs, exact pixel/PDF/profile hashes, geometry, preflight and complete profile notices. Independent PDF/X validation and a representative professional print workflow are still required.</p>
               {pressPreflight.issues.filter((issue) => issue.severity === 'blocker').slice(0, 2).map((issue) => (
