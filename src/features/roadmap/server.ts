@@ -8,6 +8,7 @@ export {
 export { RoadmapStoreError } from './server/RoadmapStoreError';
 export {
   getRoadmapAdminItems,
+  getRoadmapEditItem,
   normalizeRoadmapStatusInput,
   updateRoadmapAdminItemStatus,
   updateRoadmapItemDetails,

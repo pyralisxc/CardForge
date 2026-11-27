@@ -188,7 +188,6 @@ const mapRoadmapPayload = ({
         expenseSourceUrl: hasAuditableExpense ? row.expense_source_url ?? null : null,
         expenseVerifiedAt: hasAuditableExpense ? row.expense_verified_at ?? null : null,
         expenseState: hasAuditableExpense ? row.expense_state ?? null : null,
-        ...(row.item_type === 'roi_checkpoint' ? { expenseDetails: { monthlyCostCents: row.monthly_cost_cents, expenseProvider: row.expense_provider, expensePlan: row.expense_plan, expenseSourceUrl: row.expense_source_url, expenseVerifiedAt: row.expense_verified_at, expenseState: row.expense_state ?? null } } : {}),
         shippedAt: row.shipped_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at,

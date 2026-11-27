@@ -106,9 +106,8 @@ export function RoadmapPanel({ isContributor, isOwner, canEditRoadmap, isSignedI
     ...current, items: current.items.map(item => {
       if (item.id !== value.id) return item;
       if (value.itemType !== 'roi_checkpoint') return { ...item, ...value };
-      const expenseDetails = { monthlyCostCents: value.monthlyCostCents, expenseProvider: value.expenseProvider, expensePlan: value.expensePlan, expenseSourceUrl: value.expenseSourceUrl, expenseVerifiedAt: value.expenseVerifiedAt, expenseState: value.expenseState ?? null };
       const auditable = value.monthlyCostCents !== null && value.monthlyCostCents > 0 && Boolean(value.expenseProvider && value.expensePlan && value.expenseSourceUrl && value.expenseVerifiedAt);
-      return { ...item, ...value, expenseDetails, ...(!auditable ? { monthlyCostCents: null, expenseProvider: null, expensePlan: null, expenseSourceUrl: null, expenseVerifiedAt: null, expenseState: null } : {}) };
+      return { ...item, ...value, ...(!auditable ? { monthlyCostCents: null, expenseProvider: null, expensePlan: null, expenseSourceUrl: null, expenseVerifiedAt: null, expenseState: null } : {}) };
     }),
   } : current);
   const activeUserSuggestionCount = payload?.activeUserSuggestionCount ?? 0;

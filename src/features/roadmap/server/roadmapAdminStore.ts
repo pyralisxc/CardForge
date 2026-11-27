@@ -113,6 +113,18 @@ const mapRoadmapAdminItemRow = (row: RoadmapAdminItemRow): RoadmapAdminItem => (
   updatedAt: row.updated_at,
 });
 
+// Unmasked values are only returned by the authorized item editor route.
+export const getRoadmapEditItem = async (itemId: string): Promise<RoadmapAdminItem> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new RoadmapStoreError('Roadmap database is not configured yet.', 503);
+  const { data, error } = await supabase.from('cardforge_roadmap_items')
+    .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,expense_provider,expense_plan,expense_source_url,expense_verified_at,expense_state,shipped_at,updated_at')
+    .eq('id', itemId).is('release_version', null).maybeSingle();
+  if (error) throw new RoadmapStoreError('Roadmap item is temporarily unavailable.', 503);
+  if (!data) throw new RoadmapStoreError('This item is unavailable or managed as a website release.', 404);
+  return mapRoadmapAdminItemRow(data as unknown as RoadmapAdminItemRow);
+};
+
 export const getRoadmapAdminItems = async (): Promise<RoadmapAdminItem[]> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) return [];
