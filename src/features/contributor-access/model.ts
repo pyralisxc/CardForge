@@ -29,7 +29,7 @@ export const CONTRIBUTOR_SCOPE_LABELS: Record<ContributorScope, string> = {
   'campaigns.draft': 'Draft campaign packages',
   'campaigns.approve': 'Approve campaign packages',
   'campaigns.publish': 'Publish approved campaigns',
-  'roadmap.edit': 'Correct Roadmap item details',
+  'roadmap.edit': 'Edit Roadmap item details, including costs',
   'scopes.manage': 'Manage contributor access',
 };
 

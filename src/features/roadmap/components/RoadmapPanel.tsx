@@ -103,7 +103,12 @@ export function RoadmapPanel({ isContributor, isOwner, canEditRoadmap, isSignedI
     : 0;
   const maxSuggestionLength = payload?.maxSuggestionLength ?? 200;
   const onDetailsSaved = (value: RoadmapAdminItem) => setPayload(current => current ? {
-    ...current, items: current.items.map(item => item.id === value.id ? { ...item, ...value } : item),
+    ...current, items: current.items.map(item => {
+      if (item.id !== value.id) return item;
+      if (value.itemType !== 'roi_checkpoint') return { ...item, ...value };
+      const auditable = value.monthlyCostCents !== null && value.monthlyCostCents > 0 && Boolean(value.expenseProvider && value.expensePlan && value.expenseSourceUrl && value.expenseVerifiedAt);
+      return { ...item, ...value, ...(!auditable ? { monthlyCostCents: null, expenseProvider: null, expensePlan: null, expenseSourceUrl: null, expenseVerifiedAt: null, expenseState: null } : {}) };
+    }),
   } : current);
   const activeUserSuggestionCount = payload?.activeUserSuggestionCount ?? 0;
   const maxActiveUserSuggestions = payload?.maxActiveUserSuggestions ?? 50;

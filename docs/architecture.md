@@ -259,7 +259,7 @@ The [MCP usage observer](../src/features/mcp-usage/server/mcpUsageStore.ts) meas
 
 Supabase `cardforge_roadmap_items` and `cardforge_roadmap_votes` are the live roadmap source of truth. Official capabilities move through `planned`, `in_progress`, `testing`, and `shipped`; shipped records remain as completed history so votes/provenance are not lost. User suggestions may be archived for configured negative signal. Mistaken/duplicate rows may be deleted deliberately; completed legitimate work must not remain presented as future work.
 
-An Owner or an active Contributor with the individual `roadmap.edit` grant can correct ordinary item details through the shared revision-checked Roadmap command. Expense checkpoints are Owner-only; their recurring cost is classified separately as current, planned, or unclassified, without inferring that state from milestone progress or income. Existing unclassified records remain unclassified until the Owner explicitly changes them. Corrections preserve item identity and votes; a meaning-changing rewrite requires a separate proposal and is not provided by this correction control.
+An Owner or an active Contributor with the individual `roadmap.edit` grant can edit Roadmap item details, including expense checkpoint details, through the shared revision-checked Roadmap command. Recurring costs are classified separately as current, planned, or unclassified, without inferring that state from milestone progress or income. Editing preserves item identity, status, and votes; it does not change provider billing. Published website release records retain their separate release controls.
 
 ## Owner operations
 
