@@ -502,7 +502,7 @@ export function RoadmapPanel({ isContributor, isOwner, canEditRoadmap, isSignedI
             />
           </div>
           <p className="mb-4 text-xs leading-5 text-[var(--cf-text-subtle)]">
-            Recorded current recurring costs: {roadmapAvailable ? formatMonthlyCurrency(currentCostCents) ?? '$0/mo' : 'Unavailable'}; planned costs: {roadmapAvailable ? formatMonthlyCurrency(plannedCostCents) ?? '$0/mo' : 'Unavailable'}. {unclassifiedCosts} cost checkpoint{unclassifiedCosts === 1 ? ' is' : 's are'} not classified and excluded from both totals.
+            {roadmapAvailable ? `Recorded current recurring costs: ${formatMonthlyCurrency(currentCostCents) ?? '$0/mo'}; planned costs: ${formatMonthlyCurrency(plannedCostCents) ?? '$0/mo'}. ${unclassifiedCosts} cost checkpoint${unclassifiedCosts === 1 ? ' is' : 's are'} not classified and excluded from both totals.` : 'Recorded cost classifications are temporarily unavailable.'}
           </p>
           <p className="mb-4 text-xs leading-5 text-[var(--cf-text-subtle)]">
             Revenue figures are planning estimates from active Creator Pass subscriptions at their listed recurring prices. The target compares that estimate with {ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× recorded checkpoint costs; it does not establish actual expenses or that income paid for them. Figures do not deduct Stripe fees, discounts, credits, or refunds.
