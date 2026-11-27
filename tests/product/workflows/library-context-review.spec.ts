@@ -1172,7 +1172,11 @@ for (const decision of ['control', 'editorial'] as const) test(`@golden committe
   await page.getByRole('button', { name: decision === 'control' ? 'Save control' : 'Save editorial review', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: decision === 'control' ? 'Asset control committed' : 'Editorial review committed' })).toContainText('Refresh or activity is incomplete');
   await expect(page.getByText('The owner override and automatic recommendation are now synchronized.', { exact: true })).toHaveCount(0);
-  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests);
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string; url: string }[] }).libraryRequests);
+  if (decision === 'editorial') {
+    const reviewRead = requests.findIndex(request => request.method === 'GET' && request.url === '/api/pipeline/10000000-0000-4000-8000-000000000001?view=editorial');
+    expect(reviewRead).toBeGreaterThanOrEqual(0); expect(reviewRead).toBeLessThan(requests.findIndex(request => request.method === 'PUT'));
+  }
   expect(requests.filter(request => request.method === 'PUT')).toHaveLength(1);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
@@ -1217,7 +1221,11 @@ for (const outcome of ['uncertain', 'rejected'] as const) for (const decision of
     await expect(status).toContainText('Read this exact revision before any further write; do not replay automatically');
     await expect(status).not.toContainText('not saved');
   } else await expect(status).toContainText('decision rejected');
-  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string }[] }).libraryRequests);
+  const requests = await page.evaluate(() => (window as typeof window & { libraryRequests: { method: string; url: string }[] }).libraryRequests);
+  if (decision === 'editorial') {
+    const reviewRead = requests.findIndex(request => request.method === 'GET' && request.url === '/api/pipeline/10000000-0000-4000-8000-000000000001?view=editorial');
+    expect(reviewRead).toBeGreaterThanOrEqual(0); expect(reviewRead).toBeLessThan(requests.findIndex(request => request.method === 'PUT'));
+  }
   expect(requests.filter(request => request.method === 'PUT')).toHaveLength(1);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
