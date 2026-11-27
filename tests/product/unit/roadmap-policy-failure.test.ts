@@ -29,7 +29,11 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
   } }),
 }));
 vi.mock('@/features/billing/server', () => ({ getCurrentCreatorPassRevenue: async () => ({ available: false, activeSubscriberCount: 0, grossMonthlyRevenueCents: 0 }) }));
+vi.mock('@clerk/nextjs/server', () => ({ currentUser: async () => ({ id: 'u', primaryEmailAddress: null, emailAddresses: [], publicMetadata: {}, privateMetadata: {} }) }));
+vi.mock('@/infrastructure/security/abuseProtection', () => ({ consumeRateLimit: async () => ({ allowed: true }), RateLimitUnavailableError: class extends Error {} }));
 import { createContributorRoadmapItem, createRoadmapSuggestion, voteRoadmapItem } from '@/features/roadmap/server/roadmapStore';
+import { GET, POST } from '@/app/api/roadmap/route';
+import { POST as postVote } from '@/app/api/roadmap/votes/route';
 
 beforeEach(() => { state.settingsReads = 0; state.failAt = 0; state.writes = []; state.count = 0; state.minVotes = 100; state.percent = 75; });
 describe('roadmap policy persistence boundary', () => {
@@ -67,5 +71,19 @@ describe('roadmap policy persistence boundary', () => {
     const result = await createRoadmapSuggestion({ userId: 'u', userEmail: null, title: 'idea' });
     expect(state.writes).toEqual(['insert']);
     expect(result.mutationWarning).toContain('Saved');
+  });
+  it('returns an unavailable HTTP receipt and recovers the public board after the settings read recovers', async () => {
+    state.failAt = 1;
+    const request = (url: string, body: object) => new Request(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const failed = await postVote(request('http://localhost/api/roadmap/votes', { itemId: 'item', vote: 'down' }));
+    expect(failed.status).toBe(503);
+    expect(state.writes).toEqual([]);
+    const recovered = await GET();
+    expect(recovered.status).toBe(200);
+    expect(await recovered.json()).toMatchObject({ configured: true });
+    state.settingsReads = 0;
+    const suggestion = await POST(request('http://localhost/api/roadmap', { title: 'idea' }));
+    expect(suggestion.status).toBe(503);
+    expect(state.writes).toEqual([]);
   });
 });
