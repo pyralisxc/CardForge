@@ -146,7 +146,9 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
       if (!response.ok) {
         throw new Error(await readApiErrorMessage(response, 'Unable to save vote.'));
       }
-      setPayload(await response.json() as RoadmapPayload);
+      const result = await response.json() as RoadmapPayload;
+      setPayload(result);
+      if (result.mutationWarning) toast({ title: 'Vote saved', description: result.mutationWarning });
     } catch (error) {
       toast({
         title: 'Vote not saved',
@@ -208,11 +210,12 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
       if (!response.ok) {
         throw new Error(await readApiErrorMessage(response, 'Unable to create feature suggestion.'));
       }
-      setPayload(await response.json() as RoadmapPayload);
+      const result = await response.json() as RoadmapPayload;
+      setPayload(result);
       setSuggestion('');
       toast({
         title: 'Feature added',
-        description: 'Your idea is now ready for votes.',
+        description: result.mutationWarning ?? 'Your idea is now ready for votes.',
       });
     } catch (error) {
       toast({
@@ -249,7 +252,8 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
       if (!response.ok) {
         throw new Error(await readApiErrorMessage(response, 'Unable to add timeline item.'));
       }
-      setPayload(await response.json() as RoadmapPayload);
+      const result = await response.json() as RoadmapPayload;
+      setPayload(result);
       setDevForm((current) => ({
         ...current,
         title: '',
@@ -261,7 +265,7 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
       }));
       toast({
         title: 'Roadmap updated',
-        description: 'The CardForge-authored roadmap item has been added.',
+        description: result.mutationWarning ?? 'The CardForge-authored roadmap item has been added.',
       });
     } catch (error) {
       toast({
@@ -283,10 +287,11 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
       if (!response.ok) {
         throw new Error(await readApiErrorMessage(response, 'Unable to delete timeline item.'));
       }
-      setPayload(await response.json() as RoadmapPayload);
+      const result = await response.json() as RoadmapPayload;
+      setPayload(result);
       toast({
         title: 'Roadmap entry deleted',
-        description: 'The timeline item has been removed from the public board.',
+        description: result.mutationWarning ?? 'The timeline item has been removed from the public board.',
       });
     } catch (error) {
       toast({

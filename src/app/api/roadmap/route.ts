@@ -18,6 +18,9 @@ export async function GET() {
     return createNoStoreJsonResponse(await getRoadmapForUser(user?.id ?? null));
   } catch (error) {
     console.error('Failed to load roadmap:', error);
+    if (error instanceof RoadmapStoreError) {
+      return createApiErrorResponse(error.status, 'roadmap_database_unavailable', error.message);
+    }
     return createApiErrorResponse(
       500,
       'roadmap_database_unavailable',

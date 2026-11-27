@@ -93,15 +93,6 @@ const toRoadmapVotingRules = (settings: RoadmapSettings) => ({
   negativeSignalMinDownvotePercent: settings.roadmapNegativeSignalMinDownvotePercent,
 });
 
-const loadRoadmapSettings = async (): Promise<RoadmapSettings> => {
-  try {
-    return await getRoadmapSettings();
-  } catch (error) {
-    console.error('Failed to load roadmap settings:', error);
-    return DEFAULT_ROADMAP_SETTINGS;
-  }
-};
-
 const loadCreatorPassIncome = async (settings: RoadmapSettings) => {
   try {
     const revenue = await getCurrentCreatorPassRevenue();
@@ -214,7 +205,7 @@ const mapRoadmapPayload = ({
 export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapPayload> => {
   const config = getSupabaseServerConfigStatus();
   const supabase = getSupabaseServerClient();
-  const settings = await loadRoadmapSettings();
+  const settings = await getRoadmapSettings();
   const creatorPassIncome = await loadCreatorPassIncome(settings);
   if (!config.configured || !supabase) return createUnavailablePayload(settings, creatorPassIncome);
 
@@ -280,6 +271,25 @@ export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapP
   });
 };
 
+// The write has already committed. A failed display refresh must not turn it
+// into a failed mutation receipt or present fallback policy as current.
+const refreshAfterMutation = async (userId: string, warning?: string): Promise<RoadmapPayload> => {
+  try {
+    const payload = await getRoadmapForUser(userId);
+    const message = warning ?? (!payload.configured ? 'Saved, but the roadmap could not be refreshed. Reload to see the current board.' : undefined);
+    return message ? { ...payload, mutationWarning: message } : payload;
+  } catch (error) {
+    console.error('Failed to refresh roadmap after mutation:', error);
+    return {
+      ...await createUnavailablePayload(DEFAULT_ROADMAP_SETTINGS, buildRoadmapIncomeBreakdown({
+        available: false, activeSubscriberCount: 0, grossMonthlyRevenueCents: 0,
+        estimatedTaxPercent: 0, operatingReservePercent: 0,
+      })),
+      mutationWarning: warning ?? 'Saved, but the roadmap could not be refreshed. Reload to see the current board.',
+    };
+  }
+};
+
 export const createRoadmapSuggestion = async ({
   userId,
   userEmail,
@@ -289,7 +299,7 @@ export const createRoadmapSuggestion = async ({
   userEmail: string | null;
   title: unknown;
 }): Promise<RoadmapPayload> => {
-  const settings = await loadRoadmapSettings();
+  const settings = await getRoadmapSettings();
   const normalized = normalizeRoadmapSuggestion(title, settings);
   if (!normalized.ok) {
     throw new RoadmapStoreError(normalized.message, 400);
@@ -334,7 +344,7 @@ export const createRoadmapSuggestion = async ({
     throw new RoadmapStoreError('Unable to create feature suggestion.', 500);
   }
 
-  return getRoadmapForUser(userId);
+  return refreshAfterMutation(userId);
 };
 
 export const createContributorRoadmapItem = async ({
@@ -364,7 +374,7 @@ export const createContributorRoadmapItem = async ({
   expenseSourceUrl?: unknown;
   expenseVerifiedAt?: unknown;
 }): Promise<RoadmapPayload> => {
-  const settings = await loadRoadmapSettings();
+  const settings = await getRoadmapSettings();
   const normalizedTitle = normalizeRoadmapSuggestion(title, settings);
   if (!normalizedTitle.ok) {
     throw new RoadmapStoreError(normalizedTitle.message, 400);
@@ -421,7 +431,7 @@ export const createContributorRoadmapItem = async ({
     throw new RoadmapStoreError('Unable to create roadmap item.', 500);
   }
 
-  return getRoadmapForUser(userId);
+  return refreshAfterMutation(userId);
 };
 
 export const deleteContributorRoadmapItem = async ({
@@ -451,7 +461,7 @@ export const deleteContributorRoadmapItem = async ({
     throw new RoadmapStoreError('Unable to delete roadmap item.', 500);
   }
 
-  return getRoadmapForUser(userId);
+  return refreshAfterMutation(userId);
 };
 
 export const voteRoadmapItem = async ({
@@ -489,6 +499,8 @@ export const voteRoadmapItem = async ({
     throw new RoadmapStoreError('Roadmap item is no longer available for voting.', 404);
   }
 
+  const settings = await getRoadmapSettings();
+
   const { error: voteError } = await supabase
     .from('cardforge_roadmap_votes')
     .upsert({
@@ -504,43 +516,48 @@ export const voteRoadmapItem = async ({
     throw new RoadmapStoreError('Unable to save vote.', 500);
   }
 
-  const { data: votes, error: votesError } = await supabase
-    .from('cardforge_roadmap_votes')
-    .select('vote')
-    .eq('item_id', itemId);
+  try {
+    const { data: votes, error: votesError } = await supabase
+      .from('cardforge_roadmap_votes')
+      .select('vote')
+      .eq('item_id', itemId);
 
-  if (votesError) {
-    console.error('Failed to recalculate roadmap votes:', votesError);
-    throw new RoadmapStoreError('Unable to recalculate vote totals.', 500);
-  }
-
-  const totals = (votes ?? []).reduce(
-    (accumulator, row) => ({
-      upVotes: accumulator.upVotes + (row.vote === 'up' ? 1 : 0),
-      downVotes: accumulator.downVotes + (row.vote === 'down' ? 1 : 0),
-    }),
-    { upVotes: 0, downVotes: 0 }
-  );
-
-  if (shouldArchiveUserRoadmapItem({
-    source: item.source as RoadmapSource,
-    upVotes: totals.upVotes,
-    downVotes: totals.downVotes,
-    rules: toRoadmapVotingRules(await loadRoadmapSettings()),
-  })) {
-    const { error: archiveError } = await supabase
-      .from('cardforge_roadmap_items')
-      .update({
-        status: 'archived_negative_signal',
-        archived_at: new Date().toISOString(),
-      })
-      .eq('id', itemId);
-
-    if (archiveError) {
-      console.error('Failed to archive roadmap item:', archiveError);
-      throw new RoadmapStoreError('Unable to update feature board status.', 500);
+    if (votesError) {
+      console.error('Failed to recalculate roadmap votes:', votesError);
+      return refreshAfterMutation(userId, 'Vote saved, but the board status could not be recalculated.');
     }
-  }
 
-  return getRoadmapForUser(userId);
+    const totals = (votes ?? []).reduce(
+      (accumulator, row) => ({
+        upVotes: accumulator.upVotes + (row.vote === 'up' ? 1 : 0),
+        downVotes: accumulator.downVotes + (row.vote === 'down' ? 1 : 0),
+      }),
+      { upVotes: 0, downVotes: 0 }
+    );
+
+    if (shouldArchiveUserRoadmapItem({
+      source: item.source as RoadmapSource,
+      upVotes: totals.upVotes,
+      downVotes: totals.downVotes,
+      rules: toRoadmapVotingRules(settings),
+    })) {
+      const { error: archiveError } = await supabase
+        .from('cardforge_roadmap_items')
+        .update({
+          status: 'archived_negative_signal',
+          archived_at: new Date().toISOString(),
+        })
+        .eq('id', itemId);
+
+      if (archiveError) {
+        console.error('Failed to archive roadmap item:', archiveError);
+        return refreshAfterMutation(userId, 'Vote saved, but the board status could not be updated.');
+      }
+    }
+
+    return await refreshAfterMutation(userId);
+  } catch (error) {
+    console.error('Failed to update roadmap status after vote:', error);
+    return refreshAfterMutation(userId, 'Vote saved, but the board status could not be updated.');
+  }
 };
