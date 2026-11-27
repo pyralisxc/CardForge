@@ -183,7 +183,11 @@ test('@golden retained signed-out work remains recoverable after dismissal', asy
   await page.getByRole('button',{name:'Locations & connections'}).click();
   await page.locator('#environment-object-browser-workspace').click();
   await page.getByRole('button',{name:'Review signed-out work'}).click();
-  await page.evaluate(async()=>{const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('cardforge-browser-storage');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});await new Promise<void>((resolve,reject)=>{const tx=db.transaction('key-value','readwrite');const store=tx.objectStore('key-value');const request=store.get('project-workspace:guest:workspace');request.onsuccess=()=>{const payload=JSON.parse(request.result);payload.state.cardSets[0].name='Latest signed-out snapshot';store.put(JSON.stringify(payload),'project-workspace:guest:workspace');};tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error);});db.close();});
+  const otherTab = await page.context().newPage();
+  await otherTab.route('**/guest-proof*',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'}));
+  await otherTab.goto('/guest-proof');
+  await otherTab.evaluate(async()=>{const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('cardforge-browser-storage');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});await new Promise<void>((resolve,reject)=>{const tx=db.transaction('key-value','readwrite');const store=tx.objectStore('key-value');const request=store.get('project-workspace:guest:workspace');request.onsuccess=()=>{const payload=JSON.parse(request.result);payload.state.cardSets[0].name='Latest signed-out snapshot';store.put(JSON.stringify(payload),'project-workspace:guest:workspace');};tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error);});db.close();});
+  await otherTab.close();
   await page.locator('[data-desk-tool-surface]').getByRole('button',{name:'Add to this account'}).click();
   await expect(page.locator('[data-desk-tool-surface]').getByRole('alert')).toContainText('Signed-out work changed. Review the updated work');
   await expect(page.locator('[data-desk-tool-surface]')).toContainText('Latest signed-out snapshot');
