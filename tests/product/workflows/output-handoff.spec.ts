@@ -128,10 +128,12 @@ test('@golden actual Workbench applies exact selection and settings before the e
  });
  const params = new URLSearchParams({ document: id, revision: '2', outputRef: '10000000-0000-4000-8000-000000000001' });
  await page.goto(`http://localhost/proof?${params}`); await page.addScriptTag({ content: workbenchBundle });
+ await page.evaluate(() => { window.print = () => { (window as unknown as { printRequests: number }).printRequests = 1; }; });
  await expect(page.getByText('Prepared selection: 2 cards, in the requested order.')).toBeVisible();
  expect(downloads).toBe(0); await expect(page.getByLabel(/Margins/)).toHaveValue('7'); await expect(page.getByLabel(/Card spacing/)).toHaveValue('2');
- const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download digital sheet PDF', exact: true }).click();
- const pdf = await PDFDocument.load(await readFile((await (await download).path())!)); expect(pdf.getPageCount()).toBe(1); expect(pdf.getPage(0).getWidth()).toBeCloseTo(210 * 72 / 25.4, 1); const faces = pdf.context.enumerateIndirectObjects().filter(([, value]) => value instanceof PDFRawStream && String(value.dict.get(PDFName.of('Subtype'))) === '/Image' && value.dict.has(PDFName.of('SMask'))); expect(faces).toHaveLength(3);
+ await page.getByRole('button', { name: 'Print or save PDF', exact: true }).click();
+ await expect.poll(() => page.evaluate(() => (window as unknown as { printRequests?: number }).printRequests)).toBe(1);
+ const pdf = await PDFDocument.load(await page.pdf({ printBackground: true, preferCSSPageSize: true })); expect(pdf.getPageCount()).toBe(1); expect(pdf.getPage(0).getWidth()).toBeCloseTo(210 * 72 / 25.4, 0);
  const zipDownload = page.waitForEvent('download'); await page.getByRole('button', { name: /Download PNG set/ }).click();
  const zip = await JSZip.loadAsync(await readFile((await (await zipDownload).path())!));
  expect(Object.keys(zip.files).filter((name) => name.endsWith('.png'))).toEqual(['digital-output-images/001_Scale_Card_0002_front.png', 'digital-output-images/001_Scale_Card_0002_back.png', 'digital-output-images/002_Scale_Card_0001_front.png']);
@@ -139,7 +141,7 @@ test('@golden actual Workbench applies exact selection and settings before the e
  await expect(page.getByRole('region', { name: 'Notifications (F8)' }).getByText(/source or account access could not be revalidated/i)).toBeVisible(); expect(downloads).toBe(beforeBlockedZip);
  const beforeReload = sourceRequests; await page.reload(); await page.addScriptTag({ content: workbenchBundle });
  await expect(page.getByRole('alert').filter({ hasText: 'This prepared Output is not active' })).toBeVisible();
- expect(sourceRequests).toBe(beforeReload); await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toHaveCount(0);
+ expect(sourceRequests).toBe(beforeReload); await expect(page.getByRole('button', { name: 'Print or save PDF', exact: true })).toHaveCount(0);
 });
 
 const deskBuild = buildSync({ minify: true, entryPoints: ['tests/product/fixtures/outputHandoffDesk.tsx'], bundle: true, platform: 'browser', format: 'iife', write: false, outfile: '/tmp/cardforge-output-desk-fixture.js', define: { 'process.env.NODE_ENV': '"production"', 'process.env.NEXT_RUNTIME': '"browser"', 'process.env': '{}' } });
@@ -250,7 +252,7 @@ test('@golden @preview actual Desk bootstraps exact prepared Output before a loc
  expect(Object.keys(zip.files).filter(name => name.endsWith('.png'))).toEqual(['digital-output-images/001_CHARLIE_front.png', 'digital-output-images/001_CHARLIE_back.png', 'digital-output-images/002_ALPHA_front.png']);
  await page.reload(); await page.addScriptTag({ content: deskBundle });
  await expect(page.getByRole('alert').filter({ hasText: 'This prepared Output is not active' })).toBeVisible();
- await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toHaveCount(0);
+ await expect(page.getByRole('button', { name: 'Print or save PDF', exact: true })).toHaveCount(0);
 });
 
 test('Desk retries the same prepared Output after browser workspace confirmation fails', async ({ page }) => {
@@ -295,7 +297,7 @@ for (const fault of ['stale', 'invalid', 'cancel', 'concurrent'] as const) test(
  const notices = page.getByRole('region', { name: 'Notifications (F8)' });
  if (fault === 'cancel') await expect.poll(source.confirmations).toBe(1);
  else await expect(notices.getByText(fault === 'stale' ? /source revision is stale/ : fault === 'invalid' ? /valid Output reference/ : /workspace changed/)).toBeVisible();
- await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toHaveCount(0);
+ await expect(page.getByRole('button', { name: 'Print or save PDF', exact: true })).toHaveCount(0);
  const state = await page.evaluate(() => (window as unknown as { outputState: () => { cards: string[] } }).outputState());
  expect(state.cards).toEqual(fault === 'cancel' ? ['existing-local'] : fault === 'concurrent' ? ['concurrent-local'] : []);
  expect(source.requests()).toBe(fault === 'invalid' || fault === 'cancel' ? 0 : 1); expect(downloads).toBe(0);
@@ -322,7 +324,7 @@ test('@golden acknowledged GPT Output survives the actual account focus-key tran
   const readsBeforeReload = source.requests();
   await page.reload(); await page.addScriptTag({ content: deskBundle });
   await expect(page.getByRole('alert').filter({ hasText: 'This prepared Output is not active' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Print or save PDF', exact: true })).toHaveCount(0);
   expect(source.requests()).toBe(readsBeforeReload);
   expect(source.acknowledgements()).toBe(1); expect(source.confirmations()).toBe(1);
  } finally {
