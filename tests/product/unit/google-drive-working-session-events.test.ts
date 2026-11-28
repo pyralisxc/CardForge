@@ -287,6 +287,39 @@ describe('Drive hook recovery barriers and independent copies', () => {
     } finally { vi.useRealTimers(); }
   });
 
+  it('requires a manual save when the linked Set has no local revision baseline', async () => {
+    vi.useFakeTimers();
+    try {
+      harness.preferences.googleDriveAutosaveEnabled = true;
+      harness.current.localProjectRevision = undefined as unknown as string;
+      harness.dirty.mockResolvedValue(true);
+      const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+      await flush();
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Drive save needs review · Save manually to establish a baseline' });
+      harness.subscription?.();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(harness.save).not.toHaveBeenCalled();
+      await session.saveNow();
+      expect(harness.save).toHaveBeenCalledTimes(1);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('rechecks the local baseline before an automatic upload', async () => {
+    vi.useFakeTimers();
+    try {
+      harness.preferences.googleDriveAutosaveEnabled = true;
+      harness.dirty.mockResolvedValueOnce(true).mockImplementationOnce(async () => {
+        harness.current.localProjectRevision = undefined as unknown as string;
+        return true;
+      });
+      useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+      await flush();
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(harness.save).not.toHaveBeenCalled();
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Drive save needs review · Save manually to establish a baseline' });
+    } finally { vi.useRealTimers(); }
+  });
+
   it('keeps a Library-style session manual even when the browser preference is enabled', async () => {
     vi.useFakeTimers();
     try {

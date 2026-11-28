@@ -58,6 +58,7 @@ const initialState: GoogleDriveWorkingSessionState = {
   message: 'Checking work location',
   receipt: null,
 };
+const unverifiedBaselineMessage = 'Drive save needs review · Save manually to establish a baseline';
 const browserOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 const workspaceChangeMessage = (scheduled: boolean) => scheduled
   ? 'Workspace changed · Autosave check scheduled'
@@ -264,6 +265,11 @@ export function useGoogleDriveWorkingSession({
           setState({ phase: 'unlinked', message: 'Browser work', receipt: null });
           return;
         }
+        if (automatic && !binding.localProjectRevision) {
+          clearTimer();
+          setState({ phase: 'dirty', message: unverifiedBaselineMessage, receipt: binding });
+          return;
+        }
         let dirty: boolean;
         const checkedEdit = localCheckRef.current;
         try {
@@ -286,6 +292,17 @@ export function useGoogleDriveWorkingSession({
           return;
         }
         if (!isAuthorized()) return;
+        if (automatic) {
+          const latest = await readCurrentBinding(generation);
+          if (!latest.valid || !isAuthorized()) return;
+          if (!latest.binding?.localProjectRevision) {
+            if (latest.binding && isSameGoogleDriveTarget(latest.binding, binding) && !holdUnresolvedDriveSave(latest.binding)) {
+              setState({ phase: 'dirty', message: unverifiedBaselineMessage, receipt: latest.binding });
+            }
+            return;
+          }
+          if (latest.binding.localProjectRevision !== binding.localProjectRevision) return;
+        }
         if (generation === generationRef.current) setState({ phase: 'saving', message: 'Saving to Drive…', receipt: binding });
         try {
           const controller = automatic ? new AbortController() : null;
@@ -349,7 +366,7 @@ export function useGoogleDriveWorkingSession({
     // A local Set can change while its Drive binding is still being resolved.
     // Never turn that ordinary browser work into a false Drive-pending state;
     // reconcile() will schedule the save if it finds a real linked document.
-    if (!enabled || !setId || writableRef.current === false || !bindingRef.current) return false;
+    if (!enabled || !setId || writableRef.current === false || !bindingRef.current?.localProjectRevision) return false;
     clearTimer();
     if (browserOffline()) return false;
     const current = autosaveRef.current;
@@ -372,6 +389,11 @@ export function useGoogleDriveWorkingSession({
       setState(current => current.phase === 'saving'
         ? { ...current, message: 'Saving earlier edits · workspace changed' }
         : { phase: 'dirty', message: workspaceChangeMessage(false), receipt: binding });
+      return;
+    }
+    if (!binding.localProjectRevision && !inFlightRef.current) {
+      clearTimer();
+      setState({ phase: 'dirty', message: unverifiedBaselineMessage, receipt: binding });
       return;
     }
     if (browserOffline()) {
@@ -449,6 +471,11 @@ export function useGoogleDriveWorkingSession({
         return;
       }
       if (check.binding) {
+        if (!check.binding.localProjectRevision) {
+          clearTimer();
+          setState({ phase: 'dirty', message: unverifiedBaselineMessage, receipt: check.binding });
+          return;
+        }
         const checkedEdit = localCheckRef.current;
         const dirty = await hasGoogleDriveWorkingChanges(check.binding);
         if (!await canPublishForBinding(check.binding, generation) || checkedEdit !== localCheckRef.current) return;
@@ -570,7 +597,7 @@ export function useGoogleDriveWorkingSession({
     const onOffline = () => {
       clearTimer();
       if (!inFlightRef.current) queuedRef.current = false;
-      setState((current) => current.phase === 'dirty'
+      setState((current) => current.phase === 'dirty' && current.message !== unverifiedBaselineMessage
         ? { phase: 'offline', message: current.message.startsWith('Workspace changed ·') ? 'Offline · Set changes not checked' : 'Offline · Drive save pending', receipt: current.receipt }
         : current);
     };
@@ -598,7 +625,7 @@ export function useGoogleDriveWorkingSession({
     clearTimer();
     if (!autosave?.enabled) automaticSaveRef.current?.abort();
     const scheduled = autosave?.enabled ? scheduleSave() : false;
-    setState((current) => current.phase === 'dirty' ? { ...current, message: current.message.startsWith('Workspace changed ·')
+    setState((current) => current.phase === 'dirty' && current.message !== unverifiedBaselineMessage ? { ...current, message: current.message.startsWith('Workspace changed ·')
       ? workspaceChangeMessage(scheduled) : scheduled ? 'Local changes · Autosave scheduled' : 'Unsaved changes · Save to Drive' } : current);
   }, [autosave?.delaySeconds, autosave?.enabled, clearTimer, scheduleSave]);
 
