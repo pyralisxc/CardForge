@@ -12,6 +12,8 @@ import { buildCardForgeProjectSnapshot } from '@/features/project/lib/projectPac
 import { CUSTOM_IMAGE_ASSETS_STORAGE_KEY } from '@/features/project/model/projectDocument';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
 import { removeDeviceWorkAfterVerifiedCopy } from '@/features/project/client/workLocationTransfer';
+import { openTemplateTestSet } from '@/features/project/client/openTemplateTestSet';
+import { selectAllGeneratedDisplayCards } from '@/features/project/store/selectors';
 import { executeSetTrash } from '@/features/storage-management/lib/setTrashLifecycle';
 import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
 
@@ -69,6 +71,51 @@ describe('atomic project apply', () => {
     await persistProjectWorkspaceNow();
   });
   afterEach(() => vi.restoreAllMocks());
+
+  it('saves an independent Template test Set without replacing existing work', async () => {
+    await applyProjectDocumentToWorkspace(fixture(), 'replace');
+    const existing = useProjectStore.getState().activeCardSet!;
+    const template = reconstructMinimalTemplateObject({ id: 'candidate-template', name: 'Candidate', aspectRatio: '63:88',
+      freeformCanvas: { width: 630, height: 880, elements: [] },
+      cardBackgroundImageUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVQImWOQcFn1H4QZYAwAQpAIFb6jDMcAAAAASUVORK5CYII=' });
+    const setId = await openTemplateTestSet({ template, data: { cardName: 'Test face' }, face: 'front', name: 'Candidate test copy' });
+    const after = useProjectStore.getState();
+    expect(after.cardSets.some(set => set.id === existing.id)).toBe(true);
+    expect(after.activeCardSet?.id).toBe(setId);
+    const sample = after.storedCards.find(card => card.setId === setId)!;
+    expect(sample.data.cardName).toBe('Test face');
+    expect(sample.templateId).not.toBe(template.id);
+    expect(after.userTemplates.find(item => item.id === sample.templateId)?.cardBackgroundImageUrl).toMatch(/^cardforge-browser-asset:/);
+    const stored = await createBrowserKeyValueStorage(`project-workspace:${scope}`).getItem('workspace');
+    expect(stored).toContain(setId);
+  });
+
+  it('uses a chosen real front for a back Template and does not invent a front', async () => {
+    const front = reconstructMinimalTemplateObject({ id: 'chosen-front', name: 'Chosen front', aspectRatio: '63:88', freeformCanvas: { width: 630, height: 880, elements: [] } });
+    const back = reconstructMinimalTemplateObject({ id: 'chosen-back', name: 'Candidate back', aspectRatio: '63:88', freeformCanvas: { width: 630, height: 880, elements: [] } });
+    await expect(openTemplateTestSet({ template: back, data: {}, face: 'back', name: 'Back test' })).rejects.toThrow('Choose a front Template');
+    const incompatible = reconstructMinimalTemplateObject({ id: 'wrong-front', name: 'Wrong size', aspectRatio: '70:120', freeformCanvas: { width: 700, height: 1200, elements: [] } });
+    await expect(openTemplateTestSet({ template: back, data: {}, face: 'back', front: incompatible, name: 'Back test' })).rejects.toThrow('matching the size');
+    const nearFront = reconstructMinimalTemplateObject({ id: 'near-front', name: 'Near front', formatId: 'custom', trimWidthMm: 73, trimHeightMm: 103, aspectRatio: '73:103', freeformCanvas: { width: 730, height: 1030, elements: [] } });
+    const nearBack = reconstructMinimalTemplateObject({ ...nearFront, id: 'near-back', name: 'Near back', trimWidthMm: 73.05 });
+    await expect(openTemplateTestSet({ template: nearBack, data: {}, face: 'back', front: nearFront, name: 'Back test' })).rejects.toThrow('matching the size');
+    const setId = await openTemplateTestSet({ template: back, data: { label: 'Back' }, face: 'back', front, name: 'Back test' });
+    const after = useProjectStore.getState();
+    const sample = after.storedCards.find(card => card.setId === setId)!;
+    expect(after.userTemplates.find(item => item.id === sample.templateId)?.name).toBe('Chosen front');
+    expect(after.userTemplates.find(item => item.id === sample.backingTemplateId)?.name).toBe('Candidate back');
+    expect(after.userTemplates.find(item => item.id === sample.backingTemplateId)?.templateUsage).toBe('back-preset');
+    expect(selectAllGeneratedDisplayCards(after).find(card => card.setId === setId)?.backingTemplate?.name).toBe('Candidate back');
+    expect(sample.backingData?.label).toBe('Back');
+  });
+
+  it('does not add a test Set if review changes before the copy commits', async () => {
+    await applyProjectDocumentToWorkspace(fixture(), 'replace');
+    const before = useProjectStore.getState().cardSets.map(set => set.id);
+    const template = reconstructMinimalTemplateObject({ id: 'candidate', name: 'Candidate', aspectRatio: '63:88', freeformCanvas: { width: 630, height: 880, elements: [] } });
+    await expect(openTemplateTestSet({ template, data: {}, face: 'front', name: 'Test', assertCurrent: () => { throw new Error('Review changed'); } })).rejects.toThrow('Review changed');
+    expect(useProjectStore.getState().cardSets.map(set => set.id)).toEqual(before);
+  });
 
   it('prepares another Set without changing the active Set or its selected designs', async () => {
     await applyProjectDocumentToWorkspace(fixture(), 'replace');

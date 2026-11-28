@@ -2,7 +2,7 @@
 
 import { configurationReceipt, pipelineSettingsSnapshot } from '../lib/ownerProgramRoutingContract';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Crown, Save, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,7 @@ import {
   type PipelineVotingPreset,
 } from '@/features/pipeline/lib/pipelineItems';
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
-import type { PipelineTemplateSpecimenRenderer } from './PipelineContributionModel';
+import type { PipelineTemplateSpecimen } from './PipelineContributionModel';
 import { getPipelineTypeLabel } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import { ApiClientError, readApiError, readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -45,7 +45,7 @@ export function OwnerContributorProgramPanel({
   onDirtyChange,
   onRevise,
   onSelectionMutated,
-  renderTemplateSpecimen,
+  renderTemplateOutput,
   onOpenRevisionQueue,
   navigationBlocked = false,
 }: {
@@ -55,7 +55,7 @@ export function OwnerContributorProgramPanel({
   onDirtyChange?: (dirty: boolean) => void;
   onSelectionMutated?: () => void | boolean | Promise<void | boolean>;
   onRevise?: (submission: PipelineProgramView['submissions'][number]) => void;
-  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
+  renderTemplateOutput?: (specimen: PipelineTemplateSpecimen) => ReactNode;
 }) {
   const { toast } = useToast();
   const [program, setProgram] = useState<PipelineProgramView | null>(null);
@@ -310,7 +310,7 @@ export function OwnerContributorProgramPanel({
   if (target) return <TooltipProvider><section aria-label="Exact revision governance" onChangeCapture={() => onDirtyChange?.(true)}>
     <p>Selected revision {target.revisionNumber ?? 'unassigned'} · {target.status}</p>
     <p className="break-all text-xs">{target.assetId ?? 'Not yet cataloged'} · {target.submissionId}</p>
-    <OwnerAssetLibraryPanel key={target.submissionId} focused program={program} renderTemplateSpecimen={renderTemplateSpecimen}
+    <OwnerAssetLibraryPanel key={target.submissionId} focused program={program} renderTemplateOutput={renderTemplateOutput}
       query="" assetTypeFilter="all" statusFilter="all" page={1} onQueryChange={() => {}} onAssetTypeFilterChange={() => {}}
       onStatusFilterChange={() => {}} onPageChange={() => {}} updatingSubmissionId={updatingSubmissionId}
       onUpdateOverride={updateOverride} onUpdateEditorialReview={updateEditorialReview} onDeletePermanently={deletePermanently}

@@ -15,8 +15,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import type { DisplayCard } from '@/domain/rendering';
-import { getCardTitle, type CardFace } from '@/domain/cards';
-import { createCardFaceExportRenderer, getExportProfile } from '@/features/card-generator/client/export';
+import { getCardTitle } from '@/domain/cards';
 import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
 import { LinkedFolderSave, SelectedDriveFileActions } from '@/features/project/client/locations';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
@@ -28,6 +27,7 @@ import {
   type EnvironmentToolSession, type EnvironmentViewer, type SelectionSession,
 } from '@/features/app-shell/client/environment';
 import type { WorkbenchBusinessIdentity } from '@/features/creator-workbench/client';
+import { TemplateTestOutput } from '@/features/creator-workbench/client/template-test-output';
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
 import { buildPipelineContentHealth, PipelineContentHealthPanel, type PipelineSubmission } from '@/features/pipeline/client';
 import { shouldOfferGoogleDriveReconciliation, useGoogleDriveWorkingSession } from '@/features/project/client/provider-google-drive';
@@ -78,20 +78,6 @@ const ignoreAttemptState = () => {};
 const renderTemplatePreview = (card: DisplayCard, face: 'front' | 'back', targetWidthPx: number, highlightedElementId?: string) => (
   <CardPreview card={card} face={face} targetWidthPx={targetWidthPx} highlightedElementId={highlightedElementId} />
 );
-
-const renderPipelineTemplateSpecimen = async (
-  card: DisplayCard,
-  face: CardFace,
-  dpi: number,
-): Promise<Blob> => {
-  const profile = { ...getExportProfile('physical', dpi), canvasPixelRatio: 1 };
-  const renderer = createCardFaceExportRenderer(profile);
-  try {
-    return await renderer.renderToBlob(card, face);
-  } finally {
-    renderer.cleanup();
-  }
-};
 
 const PipelineContributionPanel = dynamic(() => import(
   '@/features/pipeline/client/contribution-panel'
@@ -942,7 +928,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
                 closeContextualTool(); chooseScope('pipeline'); setRevisionMode(true);
                 requestAnimationFrame(() => document.getElementById('library-revision-mode')?.focus());
               } : undefined}
-              onDirtyChange={setToolDirty} onSelectionMutated={() => { closeContextualTool(); refresh(); }} onRevise={reviseSelected} renderTemplateSpecimen={renderPipelineTemplateSpecimen} />}
+              onDirtyChange={setToolDirty} onSelectionMutated={() => { closeContextualTool(); refresh(); }} onRevise={reviseSelected}
+              renderTemplateOutput={specimen => <TemplateTestOutput card={specimen.card} face={specimen.face} label={`revision ${specimen.revisionNumber ?? 'unassigned'} · submission ${specimen.submissionId}`} disabled={toolDirty || Boolean(toolCloseBlocked)} onOpened={setId => {
+                closeContextualTool();
+                projection.router.push(`${createDeskReturnHref(`set:${setId}`, undefined, createLibraryCompatibilityReturnTo())}&tool=output`);
+              }} />} />}
           </div>
         </EnvironmentToolLayer>
       ) : null}

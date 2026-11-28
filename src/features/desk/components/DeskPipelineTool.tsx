@@ -4,24 +4,18 @@ import { useState } from 'react';
 import { EnvironmentToolLayer } from '@/features/app-shell/client/environment';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { LibraryRevisionEntry } from '@/features/storage-management/client';
+import { TemplateTestOutput } from '@/features/creator-workbench/client/template-test-output';
 import { useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
 import type { PipelineReviewTarget, PipelineSubmission } from '@/features/pipeline/client';
-import { createCardFaceExportRenderer, getExportProfile } from '@/features/card-generator/client/export';
-import type { DisplayCard } from '@/domain/rendering';
-import type { CardFace } from '@/domain/cards';
 import type { WorkbenchBusinessIdentity } from '@/features/creator-workbench/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 const OwnerPanel = dynamic(() => import('@/features/pipeline/client/owner').then(module => module.OwnerContributorProgramPanel));
 const Design = dynamic(() => import('@/features/creator-workbench/client').then(module => module.CreatorWorkbench), {ssr:false});
-const renderSpecimen = async (card: DisplayCard, face: CardFace, dpi: number) => {
-  const renderer = createCardFaceExportRenderer({...getExportProfile('physical', dpi), canvasPixelRatio:1});
-  try { return await renderer.renderToBlob(card,face); } finally { renderer.cleanup(); }
-};
 
 /** Composes existing governance and revision owners while Desk retains its scene. */
-export function DeskPipelineTool({target, name, owner, businessIdentity, initialContributorAccess, onClose, onMutated}: {
+export function DeskPipelineTool({target, name, owner, businessIdentity, initialContributorAccess, onClose, onMutated, onTestSetOpened}: {
   target: PipelineReviewTarget; name: string; owner: boolean; businessIdentity: WorkbenchBusinessIdentity;
-  initialContributorAccess: ContributorAccessSessionState; onClose: () => void; onMutated: () => void;
+  initialContributorAccess: ContributorAccessSessionState; onClose: () => void; onMutated: () => void; onTestSetOpened: (setId: string) => void;
 }) {
   const [dirty,setDirty] = useState(false); const [blocked,setBlocked] = useState<string|null>(null);
   const [discard,setDiscard] = useState(false); const [revisionKind,setRevisionKind] = useState<'templates'|'elementPresets'|null>(null);
@@ -38,7 +32,8 @@ export function DeskPipelineTool({target, name, owner, businessIdentity, initial
           const id=project.actions.installTemplate(draft,'user');
           if(id){ project.actions.openTemplateDesign(id); setTemplateId(id); }
         }} />
-        : <OwnerPanel target={target} onDirtyChange={setDirty} onRevise={revise} onSelectionMutated={()=>{onClose();onMutated();}} renderTemplateSpecimen={renderSpecimen} />}
+        : <OwnerPanel target={target} onDirtyChange={setDirty} onRevise={revise} onSelectionMutated={()=>{onClose();onMutated();}}
+          renderTemplateOutput={specimen => <TemplateTestOutput card={specimen.card} face={specimen.face} label={`revision ${specimen.revisionNumber ?? 'unassigned'} · submission ${specimen.submissionId}`} disabled={dirty || Boolean(blocked)} onOpened={onTestSetOpened} />} />}
     </EnvironmentToolLayer>
     <AlertDialog open={discard} onOpenChange={setDiscard}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{blocked ? 'Resolve this attempt before closing' : 'Discard unsaved tool changes?'}</AlertDialogTitle><AlertDialogDescription>{blocked ?? 'Keep editing to preserve this local tool draft. Discard closes the tool; the Desk selection and camera remain unchanged.'}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep editing</AlertDialogCancel>{!blocked && <AlertDialogAction onClick={()=>{setDiscard(false);onClose();}}>Discard</AlertDialogAction>}</AlertDialogFooter></AlertDialogContent></AlertDialog>
   </>;

@@ -5,7 +5,7 @@ import { CatalogTrashControls } from './CatalogTrashControls';
 import { RevisionRecoveryControls } from './RevisionRecoveryControls';
 import { SourceReviewEvidence } from './SourceReviewEvidence';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Archive, CheckCircle2, ChevronLeft, ChevronRight, Eye, Pencil, Search, Settings2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { AssetRow } from './PipelineSubmissionRows';
 import { ContentQualityGuidance } from './ContentQualityGuidance';
 import { CONTENT_QUALITY_STANDARD_VERSION, parseContentQualityReviewNote } from '../lib/contentQualityStandard';
 import { usePipelineTemplatePreviews } from './usePipelineTemplatePreviews';
-import { getTemplatePreviewId, type PipelineTemplateSpecimenRenderer } from './PipelineContributionModel';
+import { getTemplatePreviewId, type PipelineTemplateSpecimen } from './PipelineContributionModel';
 import {
   estimatePipelineCatalogCapacityBytes,
   PIPELINE_ASSET_STORAGE_BUDGET_BYTES,
@@ -49,7 +49,7 @@ interface OwnerAssetLibraryPanelProps {
   focused?: boolean;
   onRevise?: (submission: PipelineProgramView['submissions'][number]) => void;
   program: PipelineProgramView;
-  renderTemplateSpecimen: PipelineTemplateSpecimenRenderer;
+  renderTemplateOutput?: (specimen: PipelineTemplateSpecimen) => ReactNode;
   query: string;
   assetTypeFilter: PipelineType | 'all';
   statusFilter: PipelineStatus | 'all';
@@ -85,7 +85,7 @@ export function OwnerAssetLibraryPanel({
   program,
   focused = false,
   onRevise,
-  renderTemplateSpecimen,
+  renderTemplateOutput,
   query,
   assetTypeFilter,
   statusFilter,
@@ -345,7 +345,7 @@ export function OwnerAssetLibraryPanel({
             key={submission.id}
             submission={submission}
             program={program}
-            renderTemplateSpecimen={renderTemplateSpecimen}
+            renderTemplateOutput={renderTemplateOutput}
             templatePreviews={templatePreviews}
             expanded={expandedId === submission.id}
             editForm={managingId === submission.id ? (

@@ -21,7 +21,7 @@ function Fixture() {
     submissionTypeCounts: Object.fromEntries(PIPELINE_TYPES.map(type => [type, type === 'icons' ? 1 : 0])),
   } as unknown as PipelineProgramView;
   return <OwnerAssetLibraryPanel focused program={program} query="" assetTypeFilter="all" statusFilter="all" page={1}
-    renderTemplateSpecimen={async () => new Blob()} updatingSubmissionId={null}
+    updatingSubmissionId={null}
     onQueryChange={() => undefined} onAssetTypeFilterChange={() => undefined} onStatusFilterChange={() => undefined} onPageChange={() => undefined}
     onUpdateOverride={async () => false} onUpdateEditorialReview={async () => false}
     onDeletePermanently={async () => undefined} onDeleteRevisionNow={async () => undefined}
