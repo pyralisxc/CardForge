@@ -26,7 +26,7 @@ export function StorageLocationProvider({ children, ...value }: StorageLocationC
 /** A view of one location from the surface's existing account-scoped projection. */
 export function StorageLocationContents({ source }: { source: 'device' | 'google-drive' }) {
   const context = useContext(StorageLocationContext);
-  const [moveItem, setMoveItem] = useState<AccountLibraryItem | null>(null);
+  const [moveSelection, setMoveSelection] = useState<{ item: AccountLibraryItem; accountId: string; folderId: string } | null>(null);
   const [trashItem, setTrashItem] = useState<AccountLibraryItem | null>(null);
   if (!context) return null;
   const { projection, isSignedIn, canUseProjectFiles, onDeviceRemoved } = context;
@@ -35,7 +35,7 @@ export function StorageLocationContents({ source }: { source: 'device' | 'google
   const assetStatus = source === 'device' ? projection.sourceStatuses.find((entry) => entry.id === 'device-assets') : null;
   const items = projection.items.filter((item) => item.locations.some((location) => location.source === source)
     && (source !== 'google-drive' || Boolean(item.references.driveFileId)));
-  const driveConnected = Boolean(projection.driveConnection?.connected && projection.driveConnection.rootFolderId);
+  const driveConnected = Boolean(projection.driveConnection?.connected && projection.driveConnection.rootFolderId && projection.driveConnection.accountId);
   const sourceReady = Boolean(sourceStatus && ['ready', 'empty'].includes(sourceStatus.phase));
   const sourceItem = (item: AccountLibraryItem): AccountLibraryItem => {
     const references = { ...item.references };
@@ -61,11 +61,11 @@ export function StorageLocationContents({ source }: { source: 'device' | 'google
       const canDelete = isSet && (source === 'device' ? Boolean(item.references.localSetId) : Boolean(item.references.driveFileId));
       return <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 border border-[var(--cf-border-subtle)] p-3">
         <div className="min-w-0"><p className="break-words font-medium">{name}</p><p className="text-xs text-[var(--cf-text-muted)]">{item.kind === 'set' ? 'Set' : item.kind === 'template' ? 'Template' : 'Asset'}{source === 'google-drive' ? ' · Google Drive' : ' · This device'}</p></div>
-        <div className="flex flex-wrap gap-2">{canMove ? <Button type="button" size="sm" variant="outline" aria-label={`Move ${item.name}`} disabled={!sourceReady} onClick={() => setMoveItem(item)}>Move</Button> : null}{canDelete ? <Button type="button" size="sm" variant="outline" aria-label={`Delete ${name} from ${source === 'device' ? 'this device' : 'Google Drive'}`} disabled={!sourceReady || (source === 'google-drive' && (!isSignedIn || !canUseProjectFiles))} onClick={() => setTrashItem(sourceItem(item))}>Delete</Button> : null}</div>
+        <div className="flex flex-wrap gap-2">{canMove ? <Button type="button" size="sm" variant="outline" aria-label={`Move ${item.name}`} disabled={!sourceReady} onClick={() => { const connection = projection.driveConnection; if (connection?.accountId && connection.rootFolderId) setMoveSelection({ item, accountId: connection.accountId, folderId: connection.rootFolderId }); }}>Move</Button> : null}{canDelete ? <Button type="button" size="sm" variant="outline" aria-label={`Delete ${name} from ${source === 'device' ? 'this device' : 'Google Drive'}`} disabled={!sourceReady || (source === 'google-drive' && (!isSignedIn || !canUseProjectFiles))} onClick={() => setTrashItem(sourceItem(item))}>Delete</Button> : null}</div>
         {!canMove && !canDelete ? <p className="w-full text-xs text-[var(--cf-text-muted)]">Move and Delete are not available here for this item.</p> : source === 'google-drive' ? <p className="w-full text-xs text-[var(--cf-text-muted)]">Moving a Drive original is not available; Delete uses Google Drive Trash.</p> : !canMove ? <p className="w-full text-xs text-[var(--cf-text-muted)]">Move from Locations currently requires a connected Drive destination. Local-folder moves are unavailable here.</p> : null}
       </div>;
     })}
-    {moveItem ? <WorkLocationDialog item={moveItem} open onOpenChange={(open) => { if (!open) setMoveItem(null); }} isSignedIn={isSignedIn} canUseProjectFiles={canUseProjectFiles} driveConnected={driveConnected} localFolderSupported={projection.localFolderSupported} strictMoveDestination onMoved={onDeviceRemoved} onChanged={projection.refresh} /> : null}
+    {moveSelection ? <WorkLocationDialog item={moveSelection.item} open onOpenChange={(open) => { if (!open) setMoveSelection(null); }} isSignedIn={isSignedIn} canUseProjectFiles={canUseProjectFiles} driveConnected={driveConnected} localFolderSupported={projection.localFolderSupported} strictMoveDestination expectedDriveDestination={{ accountId: moveSelection.accountId, folderId: moveSelection.folderId }} onMoved={onDeviceRemoved} onChanged={projection.refresh} /> : null}
     {trashItem ? <SetTrashDialog item={trashItem} canUseDrive={isSignedIn && canUseProjectFiles} onClose={() => setTrashItem(null)} onCompleted={(target) => { if (target === 'device' && trashItem.references.localSetId) onDeviceRemoved?.(trashItem.references.localSetId); projection.refresh(); }} /> : null}
   </section>;
 }

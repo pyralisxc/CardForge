@@ -17,6 +17,7 @@ interface WorkLocationDialogProps {
   localFolderSupported: boolean;
   onChanged?: () => void;
   strictMoveDestination?: boolean;
+  expectedDriveDestination?: { accountId: string; folderId: string };
   onMoved?: (setId: string) => void;
 }
 

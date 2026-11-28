@@ -63,6 +63,7 @@ interface ProjectWorkLocationDialogProps extends ProjectWorkLocationContextProps
   onChanged?: () => void;
   renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
   strictMoveDestination?: boolean;
+  expectedDriveDestination?: { accountId: string; folderId: string };
   onMoved?: (setId: string) => void;
 }
 
@@ -133,6 +134,7 @@ export function ProjectWorkLocationDialog({
   onChanged,
   renderThumbnail,
   strictMoveDestination = false,
+  expectedDriveDestination,
   onMoved,
 }: ProjectWorkLocationDialogProps) {
   const { toast } = useToast();
@@ -168,9 +170,10 @@ export function ProjectWorkLocationDialog({
           const exactDrive = target.driveFileId && target.driveAccountId && target.driveProviderRevision && target.driveProjectRevision
             ? { fileId: target.driveFileId, accountId: target.driveAccountId, providerRevision: target.driveProviderRevision, projectRevision: target.driveProjectRevision }
             : null;
+          if (move && strictMoveDestination && !expectedDriveDestination) throw new Error('Refresh the connected Drive account and folder before moving.');
           if (move && strictMoveDestination && target.locations.includes('google-drive') && !exactDrive) throw new Error('Refresh this Drive location before moving; the account or revision is unavailable.');
           await saveCardSetToGoogleDrive({ setId: target.localSetId, name: target.name, asNew, renderThumbnail,
-            ...(move && strictMoveDestination ? { expectedBinding: exactDrive } : {}) });
+            ...(move && strictMoveDestination ? { expectedBinding: exactDrive, expectedDestination: expectedDriveDestination } : {}) });
         } else if (destination === 'local-folder') {
           if (move && strictMoveDestination) throw new Error('Moving to a local folder is unavailable from Locations. The Set remains on this device.');
           await saveCardSetToAttachedFolder(target.localSetId);

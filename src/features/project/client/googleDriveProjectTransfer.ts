@@ -397,6 +397,7 @@ const prepareUpload = async ({
   binding,
   workId,
   thumbnail,
+  expectedDestination,
 }: {
   name: string;
   size: number;
@@ -404,6 +405,7 @@ const prepareUpload = async ({
   binding: GoogleDriveProjectBinding | null;
   workId?: string | null;
   thumbnail?: string | null;
+  expectedDestination?: { accountId: string; folderId: string };
 }): Promise<GoogleDriveUploadPrepareResult> => {
   const response = await observeProviderBoundaryResponse('google_drive', 'project_prepare', () => fetch('/api/project-sources/google-drive/prepare', {
     method: 'POST',
@@ -416,7 +418,8 @@ const prepareUpload = async ({
       fileId: binding?.fileId ?? null,
       expectedProviderRevision: binding?.providerRevision ?? null,
       expectedProjectRevision: binding?.projectRevision ?? null,
-      expectedAccountId: binding?.accountId ?? null,
+      expectedAccountId: expectedDestination?.accountId ?? binding?.accountId ?? null,
+      expectedFolderId: expectedDestination?.folderId ?? null,
       workId: workId ?? null,
     }),
   }));
@@ -615,6 +618,7 @@ export const saveCardSetToGoogleDrive = async ({
   asNew = false,
   renderThumbnail,
   expectedBinding,
+  expectedDestination,
   signal,
 }: {
   setId: string;
@@ -622,6 +626,7 @@ export const saveCardSetToGoogleDrive = async ({
   asNew?: boolean;
   renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
   expectedBinding?: Pick<GoogleDriveProjectBinding, 'fileId' | 'accountId' | 'providerRevision' | 'projectRevision'> | null;
+  expectedDestination?: { accountId: string; folderId: string };
   signal?: AbortSignal;
 }): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
@@ -662,6 +667,7 @@ export const saveCardSetToGoogleDrive = async ({
         binding: existing,
         workId: existing?.portableWorkId ?? setId,
         thumbnail,
+        expectedDestination,
       });
       assertBindingScope(namespace);
       signal?.throwIfAborted();

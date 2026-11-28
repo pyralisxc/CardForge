@@ -366,6 +366,17 @@ describe('one authoritative Set location across save entry points', () => {
     expect(mock.captureSet).not.toHaveBeenCalled();
   });
 
+  it('passes the selected account and folder through the native save preparation', async () => {
+    const prepares: Record<string, unknown>[] = [];
+    const fetch = vi.fn(async (_url: string, options: RequestInit) => {
+      if (options.method === 'POST') { prepares.push(JSON.parse(options.body as string)); return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C', accountId: 'account-a' }); }
+      return Response.json({ id: 'drive-file-12345', name: 'C', headRevisionId: 'native-1' });
+    });
+    vi.stubGlobal('fetch', fetch);
+    await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: null, expectedDestination: { accountId: 'account-a', folderId: 'folder-12345' } });
+    expect(prepares).toEqual([expect.objectContaining({ expectedAccountId: 'account-a', expectedFolderId: 'folder-12345', fileId: null })]);
+  });
+
   it('refuses a newly linked Drive destination when a move captured no link', async () => {
     mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
