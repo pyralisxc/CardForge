@@ -119,6 +119,11 @@ export function useDeskController({
     ? JSON.stringify([searchParams.get('document'), searchParams.get('revision')])
     : null);
   const [handledHandoffReference, setHandledHandoffReference] = useState<string | null>(null);
+  const [preparedOutputSave, setPreparedOutputSave] = useState<'saving' | 'failed' | null>(null);
+  const preparedOutputRef = useRef<{ setId: string; reference: string; scope: ProjectPersistenceScope } | null>(null);
+  const preparedOutputAttempt = useRef(0);
+  const handoffReferenceRef = useRef(handoffReference);
+  handoffReferenceRef.current = handoffReference;
   const handoffPending = handoffReference !== null && handledHandoffReference !== handoffReference;
   const outputHandoffPending = outputReference !== null && handoffPending;
   const studioDocumentHandoffPending = outputReference === null && handoffPending;
@@ -161,6 +166,7 @@ export function useDeskController({
   }, [deskViewPreferences]);
   const reviewReturnRef = useRef<{focus:HTMLElement|null;itemId:string}|null>(null);
   const [reviewWork, setReviewWork] = useState<AccountLibraryItem | null>(null);
+  const reviewGenerationRef = useRef(0);
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
   const [preparationState, setPreparationStatus] = useState<{ scope: ProjectPersistenceScope; id: string; name: string; operation: 'add' | 'remove' | 'open'; phase: 'preparing' | 'ready' | 'error'; setId?: string; message?: string } | null>(null);
@@ -170,6 +176,7 @@ export function useDeskController({
   const preparingWorkRef = useRef<string | null>(null);
   const {
     navigationReady,
+    outputRestoreFailed,
     closeContextTool,
     confirmDirtyClose,
     dirtyCloseRequested,
@@ -544,6 +551,7 @@ export function useDeskController({
 
   useEffect(() => {
     if (!navigationReady || initialToolHandledRef.current || !initialTool || outputReference !== null || studioDocumentHandoffPending) return;
+    if (initialTool === 'output' && outputRestoreFailed) { initialToolHandledRef.current = true; return; }
     if (initialReturnContextKey && !returnContextRestoredRef.current) return;
     const targetSetId = focusedWorkId ? focusedLocalSetId : activeCardSetId;
     if (!targetSetId) return;
@@ -555,7 +563,7 @@ export function useDeskController({
       && interactionSession.toolStack.at(-1)?.toolId === initialTool) return;
     setActiveCardSetId(targetSetId);
     openContextTool(targetSetId, initialTool);
-  }, [activeCardSetId, focusedLocalSetId, focusedWorkId, initialReturnContextKey, initialTool, outputReference, studioDocumentHandoffPending, interactionSession.focusPath.setId, interactionSession.toolStack, navigationReady, openContextTool, setActiveCardSetId]);
+  }, [activeCardSetId, focusedLocalSetId, focusedWorkId, initialReturnContextKey, initialTool, outputReference, outputRestoreFailed, studioDocumentHandoffPending, interactionSession.focusPath.setId, interactionSession.toolStack, navigationReady, openContextTool, setActiveCardSetId]);
 
   useEffect(() => {
     if (!initialReturnContextKey || returnContextRestoredRef.current) return;
@@ -818,24 +826,53 @@ export function useDeskController({
     openContextTool(setId, tool, { designTemplateId });
   };
 
+  const savePreparedOutput = useCallback((prepared: { setId: string; reference: string; scope: ProjectPersistenceScope }) => {
+    const attempt = ++preparedOutputAttempt.current;
+    setPreparedOutputSave('saving');
+    void navigateToTool(prepared.setId, 'output', [], () => {
+      if (preparedOutputAttempt.current !== attempt || preparedOutputRef.current !== prepared || handoffReferenceRef.current !== prepared.reference || openContext.current.scope !== prepared.scope || getProjectPersistenceScope() !== prepared.scope) throw new Error('The account or prepared Output changed while saving.');
+    }).then((opened) => {
+      if (!deskMounted.current || preparedOutputAttempt.current !== attempt || preparedOutputRef.current !== prepared || handoffReferenceRef.current !== prepared.reference) return;
+      if (!opened) { setPreparedOutputSave('failed'); return; }
+      preparedOutputRef.current = null;
+      initialToolHandledRef.current = true;
+      setHandledHandoffReference(prepared.reference);
+      setPreparedOutputSave(null);
+    });
+  }, [navigateToTool, setHandledHandoffReference, setPreparedOutputSave]);
+
   const completeOutputHandoff = useCallback((setId: string, reference: string) => {
     if (reference !== outputReference) return;
+    const prepared = { setId, reference, scope: persistenceScope };
+    preparedOutputRef.current = prepared;
     placeCreatedSet(setId);
-    initialToolHandledRef.current = true;
-    setHandledHandoffReference(reference);
     setActiveCardSetId(setId);
-    navigateToTool(setId, 'output');
-  }, [navigateToTool, outputReference, placeCreatedSet, setActiveCardSetId, setHandledHandoffReference]);
+    savePreparedOutput(prepared);
+  }, [outputReference, persistenceScope, placeCreatedSet, savePreparedOutput, setActiveCardSetId]);
+
+  const retryPreparedOutput = useCallback(() => {
+    const prepared = preparedOutputRef.current;
+    if (prepared && prepared.reference === handoffReference) savePreparedOutput(prepared);
+  }, [handoffReference, savePreparedOutput]);
 
   const completeStudioDocumentHandoff = useCallback(({ activeSetId: setId }: { activeSetId: string | null }) => {
     if (!setId || outputReference !== null) return;
     placeCreatedSet(setId);
+    if (studioDocumentTool === 'output' && handoffReference !== null) {
+      const prepared = { setId, reference: handoffReference, scope: persistenceScope };
+      preparedOutputRef.current = prepared;
+      savePreparedOutput(prepared);
+      return;
+    }
     initialToolHandledRef.current = true;
     setHandledHandoffReference(handoffReference);
-    navigateToTool(setId, studioDocumentTool);
-  }, [handoffReference, navigateToTool, outputReference, placeCreatedSet, setHandledHandoffReference, studioDocumentTool]);
+    void navigateToTool(setId, studioDocumentTool);
+  }, [handoffReference, navigateToTool, outputReference, persistenceScope, placeCreatedSet, savePreparedOutput, setHandledHandoffReference, studioDocumentTool]);
 
   const closeContextStudio = () => {
+    preparedOutputAttempt.current += 1;
+    preparedOutputRef.current = null;
+    setPreparedOutputSave(null);
     setHandledHandoffReference(handoffReference);
     closeContextTool();
     requestAnimationFrame(() => cardStageRef.current?.focus());
@@ -882,7 +919,7 @@ export function useDeskController({
     commands: {
       createWork: openCreateMenu,
       reviewUpdates: workspaceUpdates.openSet,
-      reviewWork: item => { reviewReturnRef.current = {focus:document.activeElement instanceof HTMLElement ? document.activeElement : null,itemId:item.id}; setReviewWork(item); },
+      reviewWork: item => { reviewGenerationRef.current += 1; reviewReturnRef.current = {focus:document.activeElement instanceof HTMLElement ? document.activeElement : null,itemId:item.id}; setReviewWork(item); },
       focusWork,
       openRemoteWork,
       openGenerate: (setId) => openContextTool(setId, 'generate'),
@@ -975,6 +1012,8 @@ export function useDeskController({
     createPublishedWorkingCopy,
     closeContextStudio,
     completeOutputHandoff,
+    preparedOutputSave,
+    retryPreparedOutput,
     completeStudioDocumentHandoff,
     closeGenerate,
     closePipelineSubmission,
@@ -1030,8 +1069,8 @@ export function useDeskController({
     pendingDeleteCards,
     pendingDeleteWork,
     reviewWork,
-    closeReviewWork: () => { const restore=reviewReturnRef.current; setReviewWork(null); requestAnimationFrame(()=>{ const focus=restore?.focus?.isConnected ? restore.focus : document.getElementById(`set-info-${restore?.itemId}`) ?? document.getElementById(`set-${restore?.itemId}`); focus?.focus({preventScroll:true}); }); },
-    openTestSetOutput: (setId: string) => { setReviewWork(null); placeCreatedSet(setId); setActiveCardSetId(setId); navigateToTool(setId, 'output'); },
+    closeReviewWork: () => { reviewGenerationRef.current += 1; const restore=reviewReturnRef.current; setReviewWork(null); requestAnimationFrame(()=>{ const focus=restore?.focus?.isConnected ? restore.focus : document.getElementById(`set-info-${restore?.itemId}`) ?? document.getElementById(`set-${restore?.itemId}`); focus?.focus({preventScroll:true}); }); },
+    openTestSetOutput: (setId: string) => { const generation = reviewGenerationRef.current; placeCreatedSet(setId); setActiveCardSetId(setId); void navigateToTool(setId, 'output', [], () => { if (reviewGenerationRef.current !== generation) throw new Error('The Pipeline review changed while saving.'); }).then((opened) => { if (opened && reviewGenerationRef.current === generation) { reviewGenerationRef.current += 1; setReviewWork(null); } }); },
     pipelineSubmitSetId,
     preparingWorkId,
     preparationStatus,

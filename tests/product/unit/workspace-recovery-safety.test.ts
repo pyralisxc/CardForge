@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BROWSER_STORAGE_DATABASE, compareAndSetBrowserWorkspaceValue, createBrowserKeyValueStorage, getBrowserWorkspaceSaveStatus } from '@/features/project/persistence/indexedDbStorage';
-import { createScopedProjectStorage, restoreBrowserWorkspaceRecovery, setProjectPersistenceScope } from '@/features/project/persistence/projectPersistenceScope';
+import { confirmBrowserWorkspaceValue, createScopedProjectStorage, restoreBrowserWorkspaceRecovery, setProjectPersistenceScope } from '@/features/project/persistence/projectPersistenceScope';
 import { BrowserWorkspaceConflictError, parseBrowserWorkspaceRecord } from '@/features/project/persistence/workspaceRevision';
 import { clearEditorPreferenceStorage, readEditorPreferenceStorage } from '@/features/project/client/editorPreferenceStorage';
 import * as structured from '@/features/project/persistence/structuredBrowserStorage';
@@ -21,6 +21,39 @@ describe('workspace recovery failure safety', () => {
     namespace = `project-workspace:${scope}`;
   });
   afterEach(() => vi.restoreAllMocks());
+
+  it('reuses only a still-current native workspace receipt and never overwrites newer work', async () => {
+    const storage = createScopedProjectStorage('project-workspace');
+    await storage.getItem('workspace');await storage.setItem('workspace', payload('confirmed'));
+    const raw = createBrowserKeyValueStorage(namespace);
+    await expect(confirmBrowserWorkspaceValue(payload('confirmed'), () => {})).resolves.toBe('reused');
+    expect(parseBrowserWorkspaceRecord((await raw.getItem('workspace'))!).revision).toBe(1);
+    await expect(confirmBrowserWorkspaceValue(payload('changed'), () => {})).resolves.toBe('saved');
+    expect(parseBrowserWorkspaceRecord((await raw.getItem('workspace'))!).revision).toBe(2);
+    await compareAndSetBrowserWorkspaceValue({ namespace, key: 'workspace', value: payload('other tab'), expectedRevision: 2, writerId: 'other' });
+    await expect(confirmBrowserWorkspaceValue(payload('changed'), () => {})).rejects.toBeInstanceOf(BrowserWorkspaceConflictError);
+    expect(parseBrowserWorkspaceRecord((await raw.getItem('workspace'))!)).toMatchObject({ revision: 3, value: payload('other tab') });
+  });
+
+  it('does not commit if the selected work changes before the native transaction', async () => {
+    const storage = createScopedProjectStorage('project-workspace');
+    await storage.getItem('workspace');await storage.setItem('workspace', payload('before'));
+    const raw = createBrowserKeyValueStorage(namespace);const before = await raw.getItem('workspace');
+    let checks = 0;
+    await expect(confirmBrowserWorkspaceValue(payload('after'), () => { if (++checks === 4) throw new Error('selection changed'); })).rejects.toThrow('selection changed');
+    expect(await raw.getItem('workspace')).toBe(before);
+  });
+
+  it('does not commit a pending Output save after an account switch', async () => {
+    const storage = createScopedProjectStorage('project-workspace');
+    await storage.getItem('workspace'); await storage.setItem('workspace', payload('before'));
+    const raw = createBrowserKeyValueStorage(namespace); const before = await raw.getItem('workspace');
+    const saving = confirmBrowserWorkspaceValue(payload('after'), () => {});
+    setProjectPersistenceScope('account:another-output-owner');
+    await expect(saving).rejects.toThrow('account changed');
+    expect(await raw.getItem('workspace')).toBe(before);
+    expect(await createBrowserKeyValueStorage('project-workspace:account:another-output-owner').getItem('workspace')).toBeNull();
+  });
 
   it('omits byte-identical autosaves without granting stale explicit-save or authored-write authority', async () => {
     const autosave = createScopedProjectStorage('project-workspace', { skipUnchangedWorkspaceWrites: true });

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useProjectStore } from '@/features/project/client/workspace';
+import { confirmSetWorkspaceForOutput, useProjectStore } from '@/features/project/client/workspace';
+import { useToast } from '@/components/ui/use-toast';
 
 import {
   closeCreatorContext,
@@ -36,6 +37,11 @@ interface CreatorNavigationOptions {
 }
 
 export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId, transitionToDesk, toolLayerOwnsHistory = false }: CreatorNavigationOptions) {
+  const { toast } = useToast();
+  const outputAttemptRef = useRef(0);
+  const navigationEpochRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; outputAttemptRef.current += 1; }; }, []);
   const externalHistoryRef = useRef(toolLayerOwnsHistory);
   externalHistoryRef.current = toolLayerOwnsHistory;
   const [navigationReady, setNavigationReady] = useState(false);
@@ -85,6 +91,35 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     session: interactionSession,
   });
   currentRef.current = { version: 1, focusedWorkId, inspectorWorkId, session: interactionSession };
+  const [outputRestoreFailed, setOutputRestoreFailed] = useState(false);
+  const [pendingOutputRestore, setPendingOutputRestore] = useState<{ restored: CreatorHistorySnapshot; prior: CreatorHistorySnapshot; epoch: number } | null>(null);
+  const confirmOutput = useCallback(async (setId: string, origin: CreatorHistorySnapshot, assertCurrent: () => void = () => {}): Promise<boolean> => {
+    const attempt = ++outputAttemptRef.current;
+    const epoch = navigationEpochRef.current;
+    // Camera and lens can change while the restored Desk fits its viewport;
+    // only work, selection and tool context determine this handoff's identity.
+    const contextKey = (snapshot: CreatorHistorySnapshot) => JSON.stringify([
+      snapshot.focusedWorkId, snapshot.session.focusPath, snapshot.session.deskSelection,
+      snapshot.session.deskSelectionAnchorId, snapshot.session.selection,
+      snapshot.session.inspectionTargetId, snapshot.session.toolStack,
+    ]);
+    const context = contextKey(origin);
+    const check = () => {
+      if (!mountedRef.current || outputAttemptRef.current !== attempt || navigationEpochRef.current !== epoch
+        || contextKey(currentRef.current) !== context) {
+        throw new Error('The selection changed while saving. Return to the Set and retry Output.');
+      }
+      assertCurrent();
+    };
+    try { await confirmSetWorkspaceForOutput(setId, check); check(); return true; }
+    catch (error) {
+      if (mountedRef.current && outputAttemptRef.current === attempt && navigationEpochRef.current === epoch) {
+        const reason = error instanceof Error ? error.message : 'The browser could not confirm your save.';
+        toast({ title: 'Output not opened', description: `${reason} Your edits remain here; retry Output.`, variant: 'destructive' });
+      }
+      return false;
+    }
+  }, [toast]);
 
   useEffect(() => {
     const previousWorkId = previousFocusedWorkIdRef.current;
@@ -101,6 +136,8 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
       && snapshot.session.toolStack.at(-1)?.toolId !== 'design') {
       useProjectStore.getState().closeEditDialog();
     }
+    navigationEpochRef.current += 1;
+    currentRef.current = snapshot;
     setFocusedWorkId(snapshot.focusedWorkId);
     setInspectorWorkId(snapshot.inspectorWorkId);
     setInteractionSession(snapshot.session);
@@ -146,6 +183,13 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
       restored
       && preserveCreatorLaunchIntent(createCreatorHref(restored), currentHref) === currentHref
     ) {
+      const restoredTool = restored.session.toolStack.at(-1);
+      if (restoredTool?.toolId === 'output' && restored.session.focusPath.setId) {
+        const prior = { ...restored, session: { ...restored.session, toolStack: restored.session.toolStack.slice(0, -1) } };
+        applySnapshot(prior);
+        setPendingOutputRestore({ restored, prior, epoch: navigationEpochRef.current });
+        return;
+      }
       applySnapshot(restored);
       replaceSnapshot(restored);
       setNavigationReady(true);
@@ -174,6 +218,23 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
   }, [applySnapshot, entrySnapshot, pushSnapshot, replaceSnapshot]);
 
   useEffect(() => {
+    if (!pendingOutputRestore) return;
+    const { restored, prior, epoch } = pendingOutputRestore;
+    const setId = restored.session.focusPath.setId;
+    if (!setId) return;
+    let cancelled = false;
+    void confirmOutput(setId, prior).then((confirmed) => {
+      if (cancelled) return;
+      setPendingOutputRestore(null);
+      if (navigationEpochRef.current !== epoch) { setNavigationReady(true); return; }
+      if (confirmed) { applySnapshot(restored); replaceSnapshot(restored); }
+      else { replaceSnapshot(prior); setOutputRestoreFailed(true); }
+      setNavigationReady(true);
+    });
+    return () => { cancelled = true; };
+  }, [pendingOutputRestore, confirmOutput, applySnapshot, replaceSnapshot]);
+
+  useEffect(() => {
     if (!navigationReady) return;
     replaceSnapshot(currentRef.current);
   }, [focusedWorkId, inspectorWorkId, interactionSession, navigationReady, replaceSnapshot]);
@@ -194,6 +255,13 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
       pendingPopSnapshotRef.current = null;
       const target = pending ?? readCreatorHistorySnapshot(event.state);
       if (target) {
+        if (target.session.toolStack.at(-1)?.toolId === 'output' && target.session.focusPath.setId) {
+          replaceSnapshot(current);
+          void confirmOutput(target.session.focusPath.setId, current).then((confirmed) => {
+            if (confirmed) { commitReturnSnapshot(target); replaceSnapshot(target); }
+          });
+          return;
+        }
         commitReturnSnapshot(target, Boolean(pending));
         return;
       }
@@ -207,7 +275,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [commitReturnSnapshot, pushSnapshot, setDirtyCloseRequested]);
+  }, [commitReturnSnapshot, confirmOutput, pushSnapshot, replaceSnapshot, setDirtyCloseRequested]);
 
   const requestHistoryBack = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -288,8 +356,14 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     applySnapshot(next);
   }, [applySnapshot, pushSnapshot, replaceSnapshot]);
 
-  const openContextTool = useCallback((setId: string, toolId: DeskContextualToolId, targetIds: readonly string[] = []) => {
+  const openContextTool = useCallback(async (setId: string, toolId: DeskContextualToolId, targetIds: readonly string[] = [], assertCurrent?: () => void) => {
     const current = currentRef.current;
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const triggerId = active?.closest('[role="menu"]')?.getAttribute('aria-labelledby');
+    const returnFocus = (triggerId ? document.getElementById(triggerId) : null) ?? active;
+    if (toolId === 'output') {
+      if (!await confirmOutput(setId, current, assertCurrent)) return false;
+    }
     let focused = current;
     if (current.focusedWorkId !== `set:${setId}` || current.session.focusPath.setId !== setId) {
       focused = {
@@ -302,9 +376,6 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
       pushSnapshot(focused);
     }
     const tool = createCreatorTool(setId, toolId, targetIds);
-    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const triggerId = active?.closest('[role="menu"]')?.getAttribute('aria-labelledby');
-    const returnFocus = (triggerId ? document.getElementById(triggerId) : null) ?? active;
     if (returnFocus && returnFocus !== document.body && !focused.session.toolStack.some((entry) => entry.instanceId === tool.instanceId)) {
       toolReturnFocusRef.current.set(tool.instanceId, { element: returnFocus, setId: focused.session.focusPath.setId, artifactId: focused.session.focusPath.artifactId });
     }
@@ -315,7 +386,8 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     };
     pushSnapshot(next);
     applySnapshot(next);
-  }, [applySnapshot, pushSnapshot, replaceSnapshot]);
+    return true;
+  }, [applySnapshot, confirmOutput, pushSnapshot, replaceSnapshot]);
 
   const closeContextTool = useCallback((nextSession?: CreatorInteractionSession) => {
     const current = currentRef.current;
@@ -390,6 +462,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
 
   return {
     navigationReady,
+    outputRestoreFailed,
     closeContextTool,
     confirmDirtyClose,
     dirtyCloseRequested,

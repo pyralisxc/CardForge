@@ -6,7 +6,7 @@ import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBro
 
 const workspaceBytes = (page: Page) => page.evaluate(async () => {
   const database = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open('cardforge-browser-storage', 1);
+    const request = indexedDB.open('cardforge-browser-storage');
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -25,6 +25,63 @@ const workspaceBytes = (page: Page) => page.evaluate(async () => {
       transaction.onabort = () => reject(transaction.error);
     });
   } finally { database.close(); }
+});
+
+for (const fail of [false, true]) test(`disposable ordinary Output after ${fail ? 'rejected' : 'confirmed'} browser save`, async ({ page, context }) => {
+  test.setTimeout(180_000);
+  await page.addInitScript(() => {
+    const nativeTransaction = IDBDatabase.prototype.transaction; const errors: string[] = [];
+    Object.assign(window, { __outputQuotaErrors: errors });
+    IDBDatabase.prototype.transaction = function (...args: Parameters<typeof nativeTransaction>) {
+      const transaction = nativeTransaction.apply(this, args);
+      transaction.addEventListener('abort', () => { if (transaction.error) errors.push(transaction.error.name); });
+      return transaction;
+    };
+  });
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, exportSample: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible({ timeout: 60_000 });
+  await openScaleSet(page, 100);await page.locator('button[data-artifact-id="scale-card-1"]').focus();await page.keyboard.press('Enter');
+  await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();
+  const editor=page.locator('[data-artifact-edit-workspace]');await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+  const before=await workspaceBytes(page);const session=await context.newCDPSession(page);const origin=new URL(page.url()).origin;
+  try {
+    if (fail) { await session.send('Storage.overrideQuotaForOrigin', { origin, quotaSize: 1 });await new Promise(resolve=>setTimeout(resolve,31_000));
+      const quota=await session.send('Storage.getUsageAndQuota', { origin });expect(quota.overrideActive).toBe(true);expect(quota.quota).toBe(1); }
+    const value=fail?'Unsaved Output proof':'Saved Output proof';
+    await page.getByRole('textbox', { name: /Card Name/i }).fill(value);await editor.getByRole('button', { name: 'Save & Done', exact: true }).click();
+    if (fail) {
+      await expect(page.getByRole('button', { name: /Local working copy not saved/ })).toBeVisible();
+      expect(await page.evaluate(()=>(window as typeof window & {__outputQuotaErrors:string[]}).__outputQuotaErrors)).toContain('QuotaExceededError');
+      expect(await workspaceBytes(page)).toEqual(before);
+    } else {
+      await expect.poll(async()=>JSON.stringify(await workspaceBytes(page))).toContain(value);
+      await expect(page.getByRole('button', { name: /^Local working copy saved/ })).toBeVisible();
+    }
+    await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
+    await page.getByRole('button', { name: 'Output', exact: true }).click();
+    if (fail) {
+      await expect(page.getByText('Output not opened', { exact: true })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'Output Set', exact: true })).toHaveCount(0);
+      await expect(page.locator('[data-scene-artifact="scale-card-1"]').filter({ hasText: value }).first()).toBeAttached();
+      expect(await workspaceBytes(page)).toEqual(before);
+      await session.send('Storage.overrideQuotaForOrigin', { origin });
+      await page.getByRole('button', { name: 'Output', exact: true }).click();
+    }
+    await expect(page.getByRole('region', { name: 'Output Set', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Print or save PDF', exact: true })).toBeEnabled();
+    await expect(page.locator('[data-scene-artifact="scale-card-1"]').filter({ hasText: value }).first()).toBeAttached();
+    await expect.poll(async()=>JSON.stringify(await workspaceBytes(page))).toContain(value);
+    if (!fail) {
+      await page.getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(page.getByRole('region', { name: 'Output Set', exact: true })).toHaveCount(0);
+      await page.goForward();
+      await expect(page.getByRole('region', { name: 'Output Set', exact: true })).toBeVisible();
+    }
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('region', { name: 'Output Set', exact: true })).toBeVisible();
+    console.info(`[ordinary-output-save] ${JSON.stringify({case:fail?'quota-rejected-then-retried':'committed',outputOpened:true,quotaAbort:fail})}`);
+  } finally { if (fail) await session.send('Storage.overrideQuotaForOrigin', { origin });await session.detach(); }
 });
 
 test('@golden native quota failure preserves saved work and permits emergency editable recovery', async ({ page, context }, testInfo) => {
@@ -140,7 +197,7 @@ test('@golden an unreadable native workspace preserves original bytes through ex
   const original = '{"state":{"authoredRepairMarker":"Preserve these original bytes",';
   await page.evaluate(async (bytes) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('cardforge-browser-storage', 1);
+      const request = indexedDB.open('cardforge-browser-storage');
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });

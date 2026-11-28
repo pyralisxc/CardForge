@@ -216,6 +216,8 @@ function DeskContent({
     createPublishedWorkingCopy,
     closeContextStudio,
     completeOutputHandoff,
+    preparedOutputSave,
+    retryPreparedOutput,
     completeStudioDocumentHandoff,
     closeGenerate,
     closePipelineSubmission,
@@ -886,6 +888,10 @@ function DeskContent({
           sceneVisible={studioTool.tool === 'design'}
           railOwned
         >
+          {preparedOutputSave ? <div role={preparedOutputSave === 'failed' ? 'alert' : 'status'}>
+            {preparedOutputSave === 'failed' ? <><p>The prepared Set could not be saved on this device. Your work is still here.</p><button type="button" onClick={retryPreparedOutput}>Retry prepared Output</button></> : 'Saving the prepared Set on this device…'}
+          </div> : null}
+          <div hidden={preparedOutputSave !== null} className={preparedOutputSave !== null ? 'hidden' : 'flex min-h-0 flex-1 flex-col'}>
           <DeskDesignWorkspace
             tool={studioTool.tool === 'output' ? 'output' : 'design'}
             onCloseTool={confirmDirtyClose}
@@ -900,6 +906,7 @@ function DeskContent({
             contextSetId={studioTool.setId}
             contextTemplateId={studioTool.templateId}
           />
+          </div>
         </EnvironmentToolLayer> : null}
       </EnvironmentShell>
       </div>
