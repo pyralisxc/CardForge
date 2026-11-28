@@ -10,7 +10,7 @@ declare
  vote_unrelated uuid:=gen_random_uuid(); transfer_unrelated uuid:=gen_random_uuid(); owner_target uuid:=gen_random_uuid(); owner_unrelated uuid:=gen_random_uuid();
  l uuid:=gen_random_uuid(); ml uuid:=gen_random_uuid(); pl uuid:=gen_random_uuid();
  legacy_id uuid:=gen_random_uuid(); unknown_id uuid:=gen_random_uuid(); legacy_lineage uuid:=gen_random_uuid(); metadata jsonb;
- snap jsonb; epoch timestamptz; deadline timestamptz; content_version text; total bigint;
+ snap jsonb; owner_unrelated_before jsonb; epoch timestamptz; deadline timestamptz; content_version text; total bigint;
 begin
  update public.cardforge_contributor_program_settings set minimum_votes_for_grading=2,
  free_asset_minimum_positive_vote_percent=50,paid_asset_minimum_positive_vote_percent=75,
@@ -31,17 +31,17 @@ begin
  or not exists(select 1 from public.cardforge_contributor_asset_submissions where id=vote_unrelated and status='voting' and decision_reason='needs_more_votes')
  or exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=vote_unrelated)
  then raise exception 'vote_rebalance_cross_lineage_observation_failed'; end if;
- -- Owner overrides enter the same global pass. An unrelated newly submitted
- -- item can advance even when the Owner only edits a different exact target.
+ -- Owner overrides are target-scoped. Even a newly submitted unrelated item
+ -- must remain unchanged, despite the global pass used for votes.
  insert into public.cardforge_contributor_asset_submissions(id,contributor_id,asset_type,name,status,revision_number,source_url)
  values(owner_target,'owner-proof-author','icons','Owner target','voting',1,'https://example.invalid/owner-target.svg'),
  (owner_unrelated,'unrelated-owner-author','icons','Unrelated Owner pass','submitted',1,'https://example.invalid/unrelated-owner.svg');
+ select to_jsonb(s) into owner_unrelated_before from public.cardforge_contributor_asset_submissions s where s.id=owner_unrelated;
  perform public.cardforge_set_contributor_asset_owner_override(owner_target,true,'voting',false,null,'Disposable Owner note','fixture-owner');
  if not exists(select 1 from public.cardforge_contributor_asset_submissions where id=owner_target and owner_status_override='voting' and owner_note='Disposable Owner note')
- or not exists(select 1 from public.cardforge_contributor_asset_submissions where id=owner_unrelated and status='voting' and decision_reason='needs_more_votes')
- or exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=owner_unrelated)
- then raise exception 'owner_rebalance_cross_lineage_observation_failed'; end if;
- raise notice 'PASS isolated cross-lineage rebalance: target vote/Owner note and unrelated submitted-to-voting transitions';
+ or (select to_jsonb(s) from public.cardforge_contributor_asset_submissions s where s.id=owner_unrelated) is distinct from owner_unrelated_before
+ then raise exception 'owner_override_unrelated_revision_changed'; end if;
+ raise notice 'PASS isolated boundaries: a vote advances an unrelated pending revision; an Owner override leaves another untouched';
  perform public.cardforge_cast_contributor_asset_vote(a,'negative-two','negative');
  select trashed_at,purge_after into epoch,deadline from public.cardforge_contributor_asset_submissions where id=a;
  if epoch is null or deadline-epoch is distinct from interval '30 days'
