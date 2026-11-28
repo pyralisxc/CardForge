@@ -7,9 +7,10 @@ savepoint feedback_recovery_fixture;
 do $$
 declare
  a uuid:=gen_random_uuid(); sibling uuid:=gen_random_uuid(); history_id uuid:=gen_random_uuid(); manual uuid:=gen_random_uuid(); private_id uuid:=gen_random_uuid();
+ vote_unrelated uuid:=gen_random_uuid(); transfer_unrelated uuid:=gen_random_uuid(); owner_target uuid:=gen_random_uuid(); owner_unrelated uuid:=gen_random_uuid();
  l uuid:=gen_random_uuid(); ml uuid:=gen_random_uuid(); pl uuid:=gen_random_uuid();
  legacy_id uuid:=gen_random_uuid(); unknown_id uuid:=gen_random_uuid(); legacy_lineage uuid:=gen_random_uuid(); metadata jsonb;
- snap jsonb; epoch timestamptz; deadline timestamptz; content_version text; total bigint;
+ snap jsonb; owner_unrelated_before jsonb; epoch timestamptz; deadline timestamptz; content_version text; total bigint;
 begin
  update public.cardforge_contributor_program_settings set minimum_votes_for_grading=2,
  free_asset_minimum_positive_vote_percent=50,paid_asset_minimum_positive_vote_percent=75,
@@ -21,7 +22,26 @@ begin
  private_id:=public.cardforge_create_template_pipeline_draft('private-trash-'||pl::text,'Private Trash proof','trash-author','',jsonb_build_object('id','private-trash-'||pl::text,'name','Private Trash proof'),'private-'||pl::text);
  select lineage_id into pl from public.cardforge_contributor_asset_submissions where id=private_id;
  content_version:=public.cardforge_media_parent_content_version(a);
+ -- A vote rebalances the whole Pipeline, not just its target lineage. This
+ -- independent pending item makes the cross-lineage effect observable.
+ insert into public.cardforge_contributor_asset_submissions(id,contributor_id,asset_type,name,status,revision_number,source_url)
+ values(vote_unrelated,'unrelated-author','icons','Unrelated vote pass','submitted',1,'https://example.invalid/unrelated-vote.svg');
  perform public.cardforge_cast_contributor_asset_vote(a,'negative-one','negative');
+ if not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=a and contributor_id='negative-one' and vote_value='negative')
+ or not exists(select 1 from public.cardforge_contributor_asset_submissions where id=vote_unrelated and status='voting' and decision_reason='needs_more_votes')
+ or exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=vote_unrelated)
+ then raise exception 'vote_rebalance_cross_lineage_observation_failed'; end if;
+ -- Owner overrides are target-scoped. Even a newly submitted unrelated item
+ -- must remain unchanged, despite the global pass used for votes.
+ insert into public.cardforge_contributor_asset_submissions(id,contributor_id,asset_type,name,status,revision_number,source_url)
+ values(owner_target,'owner-proof-author','icons','Owner target','voting',1,'https://example.invalid/owner-target.svg'),
+ (owner_unrelated,'unrelated-owner-author','icons','Unrelated Owner pass','submitted',1,'https://example.invalid/unrelated-owner.svg');
+ select to_jsonb(s) into owner_unrelated_before from public.cardforge_contributor_asset_submissions s where s.id=owner_unrelated;
+ perform public.cardforge_set_contributor_asset_owner_override(owner_target,true,'voting',false,null,'Disposable Owner note','fixture-owner');
+ if not exists(select 1 from public.cardforge_contributor_asset_submissions where id=owner_target and owner_status_override='voting' and owner_note='Disposable Owner note')
+ or (select to_jsonb(s) from public.cardforge_contributor_asset_submissions s where s.id=owner_unrelated) is distinct from owner_unrelated_before
+ then raise exception 'owner_override_unrelated_revision_changed'; end if;
+ raise notice 'PASS isolated boundaries: a vote advances an unrelated pending revision; an Owner override leaves another untouched';
  perform public.cardforge_cast_contributor_asset_vote(a,'negative-two','negative');
  select trashed_at,purge_after into epoch,deadline from public.cardforge_contributor_asset_submissions where id=a;
  if epoch is null or deadline-epoch is distinct from interval '30 days'
@@ -78,11 +98,16 @@ begin
  values(history_id,l,'other-author','icons','Retained history proof','archived',3,'https://example.invalid/vote-history.svg',(select registry_asset_id from public.cardforge_pipeline_asset_lineages where id=l));
  if not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=a and contributor_id='transfer-reviewer' and vote_value='positive')
  then raise exception 'new_revision_cleared_existing_vote'; end if;
+ insert into public.cardforge_contributor_asset_submissions(id,contributor_id,asset_type,name,status,revision_number,source_url)
+ values(transfer_unrelated,'unrelated-transfer-author','icons','Unrelated transfer pass','submitted',1,'https://example.invalid/unrelated-transfer.svg');
  perform public.cardforge_cast_contributor_asset_vote(sibling,'transfer-reviewer','negative');
  if (select count(*) from public.cardforge_contributor_asset_votes where lineage_id=l and contributor_id='transfer-reviewer')<>1
  or not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=sibling and contributor_id='transfer-reviewer' and vote_value='negative')
  or not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=a and contributor_id='independent-reviewer' and vote_value='negative')
+ or not exists(select 1 from public.cardforge_contributor_asset_submissions where id=transfer_unrelated and status='voting' and decision_reason='needs_more_votes')
+ or exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=transfer_unrelated)
  then raise exception 'like_to_dislike_transfer_or_other_vote_failed'; end if;
+ raise notice 'PASS isolated vote transfer: exact preference moved and unrelated pending revision advanced';
  perform public.cardforge_cast_contributor_asset_vote(a,'transfer-reviewer','negative');
  if (select count(*) from public.cardforge_contributor_asset_votes where lineage_id=l and contributor_id='transfer-reviewer')<>1
  or not exists(select 1 from public.cardforge_contributor_asset_votes where submission_id=a and contributor_id='transfer-reviewer' and vote_value='negative')
