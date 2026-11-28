@@ -606,6 +606,7 @@ export const saveCardSetToGoogleDrive = async ({
   asNew = false,
   renderThumbnail,
   expectedBinding,
+  expectedLocalProjectRevision,
   signal,
 }: {
   setId: string;
@@ -613,6 +614,7 @@ export const saveCardSetToGoogleDrive = async ({
   asNew?: boolean;
   renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
   expectedBinding?: Pick<GoogleDriveProjectBinding, 'fileId' | 'accountId' | 'providerRevision' | 'projectRevision'>;
+  expectedLocalProjectRevision?: string;
   signal?: AbortSignal;
 }): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
@@ -629,6 +631,12 @@ export const saveCardSetToGoogleDrive = async ({
         || existing.providerRevision !== expectedBinding.providerRevision
         || existing.projectRevision !== expectedBinding.projectRevision)) {
         throw new ProjectPackageError('The linked Drive document changed. Check its location before saving; browser work was left unchanged.');
+      }
+      if (existing && !existing.localProjectRevision) {
+        throw new ProjectPackageError('Cannot compare this browser copy with Drive. Compare the Drive file or use Save & move to create an independent copy; existing work was left unchanged.');
+      }
+      if (expectedLocalProjectRevision && existing?.localProjectRevision !== expectedLocalProjectRevision) {
+        throw new ProjectPackageError('The browser baseline changed before saving. Compare the Drive file or use Save & move for an independent copy; browser work was left unchanged.');
       }
       if (initial && existing?.fileId !== initial.fileId) {
         throw new ProjectPackageError('The Set’s Drive target changed while another save completed. Reopen the current file before saving.');

@@ -265,7 +265,7 @@ describe('Drive hook recovery barriers and independent copies', () => {
       await vi.advanceTimersByTimeAsync(60_000);
       expect(harness.save).not.toHaveBeenCalled();
       await session.saveNow();
-      expect(harness.save).toHaveBeenCalledExactlyOnceWith({ setId: 'set-c', name: 'F', expectedBinding: harness.current, renderThumbnail });
+      expect(harness.save).toHaveBeenCalledExactlyOnceWith({ setId: 'set-c', name: 'F', expectedBinding: harness.current, expectedLocalProjectRevision: harness.current.localProjectRevision, renderThumbnail });
       const confirmedReads = harness.dirty.mock.calls.length;
       for (let edit = 0; edit < 25; edit++) harness.subscription?.();
       await flush();
@@ -284,6 +284,40 @@ describe('Drive hook recovery barriers and independent copies', () => {
       harness.preferences.googleDriveAutosaveEnabled = false;
       await vi.advanceTimersByTimeAsync(60_000);
       expect(harness.save).toHaveBeenCalledTimes(2);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('holds linked saves when the Set has no local revision baseline', async () => {
+    vi.useFakeTimers();
+    try {
+      harness.preferences.googleDriveAutosaveEnabled = true;
+      harness.current.localProjectRevision = undefined as unknown as string;
+      harness.dirty.mockResolvedValue(true);
+      const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+      await flush();
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Cannot compare this browser copy with Drive · Use Save & move for a copy or compare first' });
+      harness.subscription?.();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(harness.save).not.toHaveBeenCalled();
+      await session.saveNow();
+      expect(harness.save).not.toHaveBeenCalled();
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Cannot compare this browser copy with Drive · Use Save & move for a copy or compare first' });
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('rechecks the local baseline before an automatic upload', async () => {
+    vi.useFakeTimers();
+    try {
+      harness.preferences.googleDriveAutosaveEnabled = true;
+      harness.dirty.mockResolvedValueOnce(true).mockImplementationOnce(async () => {
+        harness.current.localProjectRevision = undefined as unknown as string;
+        return true;
+      });
+      useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+      await flush();
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(harness.save).not.toHaveBeenCalled();
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Cannot compare this browser copy with Drive · Use Save & move for a copy or compare first' });
     } finally { vi.useRealTimers(); }
   });
 
