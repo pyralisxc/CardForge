@@ -47,6 +47,15 @@ const DEFAULT_CUSTOM_SAFE_MARGIN_MM = 4;
 
 const roundMm = (value: number): number => Math.round(value * 1000) / 1000;
 
+/** Print duplex requires matching physical measurements, including custom formats. */
+export const equalPrintMeasurements = (a: number, b: number): boolean => Math.abs(a - b) <= 0.001;
+
+export const compatibleDuplexTemplateTrim = (front: TemplateCardFormatSource, back: TemplateCardFormatSource): boolean => {
+  const a = getTemplateProductionGeometryMm(front);
+  const b = getTemplateProductionGeometryMm(back);
+  return equalPrintMeasurements(a.trimWidthMm, b.trimWidthMm) && equalPrintMeasurements(a.trimHeightMm, b.trimHeightMm);
+};
+
 const normalizeProductionMargin = (value: number | undefined, fallback: number): number => (
   Number.isFinite(value) ? Math.max(0, Number(value)) : fallback
 );

@@ -4,6 +4,7 @@ import {
   getCardPhysicalSizeMm,
   getTemplateProductionGeometryMm,
   hasCardBacking,
+  equalPrintMeasurements,
 } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 
@@ -74,8 +75,6 @@ type PdfLayoutItem = DisplayCard | { card: DisplayCard; face: CardFace };
 const getCardLabel = (card: DisplayCard): string => (
   String(card.data?.cardName || card.data?.name || card.template?.name || 'Card')
 );
-
-const nearlyEqual = (a: number, b: number): boolean => Math.abs(a - b) <= 0.001;
 
 const resolveItem = (
   item: PdfLayoutItem,
@@ -232,9 +231,9 @@ export const createPdfDuplexBackPage = (
   if (!hasCardBacking(front.card)) return [];
   const backGeometry = getTemplateProductionGeometryMm(getCardFaceTemplate(front.card, 'back'));
   if (
-    !nearlyEqual(front.trimWidth, backGeometry.trimWidthMm)
-    || !nearlyEqual(front.trimHeight, backGeometry.trimHeightMm)
-    || (!options.trimOnly && !nearlyEqual(front.bleedMm, backGeometry.bleedMm))
+    !equalPrintMeasurements(front.trimWidth, backGeometry.trimWidthMm)
+    || !equalPrintMeasurements(front.trimHeight, backGeometry.trimHeightMm)
+    || (!options.trimOnly && !equalPrintMeasurements(front.bleedMm, backGeometry.bleedMm))
   ) {
     throw new PdfProductionLayoutError(
       `${getCardLabel(front.card)} has front/back physical geometry that does not match. Duplex sheets require the same trim size and bleed on both faces.`,

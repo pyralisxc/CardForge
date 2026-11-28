@@ -1031,6 +1031,7 @@ export function useDeskController({
     pendingDeleteWork,
     reviewWork,
     closeReviewWork: () => { const restore=reviewReturnRef.current; setReviewWork(null); requestAnimationFrame(()=>{ const focus=restore?.focus?.isConnected ? restore.focus : document.getElementById(`set-info-${restore?.itemId}`) ?? document.getElementById(`set-${restore?.itemId}`); focus?.focus({preventScroll:true}); }); },
+    openTestSetOutput: (setId: string) => { setReviewWork(null); placeCreatedSet(setId); setActiveCardSetId(setId); navigateToTool(setId, 'output'); },
     pipelineSubmitSetId,
     preparingWorkId,
     preparationStatus,
