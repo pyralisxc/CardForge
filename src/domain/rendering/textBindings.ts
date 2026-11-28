@@ -44,6 +44,14 @@ export interface ExtractedPlaceholder {
 
 export const TEMPLATE_PLACEHOLDER_REGEX = /\{\{\s*([A-Za-z_][\w.-]*)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g;
 
+/** An omitted fallback and an explicitly empty fallback have different meanings. */
+export const getPlaceholderDefaultFromText = (content: string | undefined, key: string): string | undefined => {
+  for (const match of (content || '').matchAll(new RegExp(TEMPLATE_PLACEHOLDER_REGEX))) {
+    if (match[1] === key && match[2] !== undefined) return unescapeTemplateText(match[2]);
+  }
+  return undefined;
+};
+
 const STATIC_IMAGE_SOURCE_PREFIXES = [
   'http://',
   'https://',
