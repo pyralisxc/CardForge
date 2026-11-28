@@ -1516,6 +1516,14 @@ test('@golden Library refreshes exact displayed vote after another feedback even
   await expect(up).toBeEnabled();
 });
 
+test('@golden Pipeline notice refreshes a stale Library before opening the exact active revision', async ({page}) => {
+  const evidence = await mount(page, '?queueActual=1&noticeProof=1&noticeStaleLibrary=1&noticeContributor=1');
+  await page.getByRole('button',{name:/Notifications/}).click();
+  await page.getByRole('button',{name:/Compare Shared material/}).click();
+  await expect(page.locator('#pipeline-review-revision-10000000-0000-4000-8000-000000000002')).toHaveAttribute('aria-current','true');
+  await expect(page.getByLabel('Shared Pipeline Trash')).toHaveCount(0);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
 test('@golden Pipeline notice selects the exact revision and stays read after moving a vote', async ({page}) => {
   const evidence = await mount(page, '?queueActual=1&noticeProof=1');
   await page.getByRole('button',{name:/Notifications/}).click();
@@ -1555,6 +1563,14 @@ test('@golden Pipeline notice reports an unavailable Library without claiming th
   await page.getByRole('button',{name:/Notifications/}).click();
   await page.getByRole('button',{name:/Compare Shared material/}).click();
   await expect(page.getByText('The exact Pipeline revision could not be confirmed. Try the notice again.',{exact:true})).toBeVisible();
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+test('@golden Pipeline notice does not infer Trash when neither projection confirms the exact revision', async ({page}) => {
+  const evidence = await mount(page, '?queueActual=1&noticeProof=1&noticeMissingEverywhere=1');
+  await page.getByRole('button',{name:/Notifications/}).click();
+  await page.getByRole('button',{name:/Compare Shared material/}).click();
+  await expect(page.getByText('The exact Pipeline revision could not be confirmed. Try the notice again.',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('Shared Pipeline Trash')).toHaveCount(0);
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
 test('@golden Desk notice hands the exact revision to Pipeline Library', async ({page}) => {

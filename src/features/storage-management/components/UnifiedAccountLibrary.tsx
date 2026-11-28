@@ -29,10 +29,10 @@ import {
 import type { WorkbenchBusinessIdentity } from '@/features/creator-workbench/client';
 import { TemplateTestOutput } from '@/features/creator-workbench/client/template-test-output';
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
-import { buildPipelineContentHealth, PipelineContentHealthPanel, type PipelineSubmission } from '@/features/pipeline/client';
+import { buildPipelineContentHealth, PipelineContentHealthPanel, type PipelineProgramView, type PipelineSubmission } from '@/features/pipeline/client';
 import { shouldOfferGoogleDriveReconciliation, useGoogleDriveWorkingSession } from '@/features/project/client/provider-google-drive';
 import { getProjectPersistenceScope, type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
-import { ApiClientError, readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { ApiClientError, readApiError, readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import { NewSetDialog, usePublishedSetStarters } from '@/features/project/client/new-set';
 import { useProjectLibraryWorkspace, type LibraryCardEditSession } from '@/features/project/client/libraryWorkspace';
@@ -45,7 +45,7 @@ import { retainReviewedTemplateAttempt, resolveTemplatePipelineAttempt } from '@
 
 import { useAccountLibraryProjection } from '../hooks/useAccountLibraryProjection';
 import { useAccountLibraryActions } from '../hooks/useAccountLibraryActions';
-import { useLibrarySharedProjection } from '../hooks/useLibrarySharedProjection';
+import { projectPipelineLibraryObjects, useLibrarySharedProjection } from '../hooks/useLibrarySharedProjection';
 import { useLibraryReturnContext } from '../hooks/useLibraryReturnContext';
 import { useUnifiedLibraryView, toPipelineLibraryViewItem } from '../hooks/useUnifiedLibraryView';
 import type { AccountLibraryItem } from '../model/accountLibrary';
@@ -138,6 +138,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const campaignAccess = experience.contributor.canDraftCampaigns || experience.owner;
   const activeScope = resolveLibraryScopeForViewer(scope, { contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
   const shared = useLibrarySharedProjection({ pipelineEnabled: pipelineAccess, activeScope });
+  const { catalog: reviewCatalog, acceptProgram: acceptReviewProgram } = shared;
   const [sharedTrashMode, setSharedTrashMode] = useState(false);
   const [sharedTrashRefreshEpoch, setSharedTrashRefreshEpoch] = useState(0);
 
@@ -363,17 +364,41 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     let current = true;
     const context = setOpenContext.current;
     const target = requestedReviewNotice;
-    const item = [...itemMap.values()].find(candidate => candidate.scope === 'pipeline'
-      && candidate.pipeline.revisions.some(revision => revision.id === target.submissionId && revision.lineageId === target.lineageId));
     void loadPipelineEngagement(target.submissionId, { lineageId: target.lineageId }).then(async engagement => {
       if (!current || persistenceScope !== getProjectPersistenceScope()) return;
       if (setOpenContext.current !== context) { setRequestedReviewNotice(null); return; }
       if (engagement.voteIssue) throw new Error(engagement.voteIssue);
-      // Catalog Trash is separate from revision Trash; the active projection omits both.
-      if (engagement.trashedAt || (!item && !activeFailure)) {
+      if (engagement.trashedAt) {
         setTrashReviewNotice(target); setSharedTrashMode(true); setRequestedReviewNotice(null); return;
       }
-      if (activeFailure || !item) throw new Error('Exact revision is not present in the active Library.');
+      // Notices can arrive after the Library's last load. Re-read its authorized
+      // projection before interpreting absence as a lifecycle change.
+      const response = await fetch('/api/pipeline/library', { cache: 'no-store' });
+      if (!response.ok) throw await readApiError(response, 'Forge Review is unavailable.');
+      const { program } = await response.json() as { program: PipelineProgramView };
+      if (!current || persistenceScope !== getProjectPersistenceScope()) return;
+      if (setOpenContext.current !== context) { setRequestedReviewNotice(null); return; }
+      const item = projectPipelineLibraryObjects(program, reviewCatalog).map(candidate => toPipelineLibraryViewItem(candidate))
+        .find(candidate => candidate.scope === 'pipeline'
+          && candidate.pipeline.revisions.some(revision => revision.id === target.submissionId && revision.lineageId === target.lineageId));
+      if (!item) {
+        // Catalog Trash is independent of revision Trash. Enter it only after
+        // the shared projection confirms this exact revision is there.
+        for (let page = 1; ; page++) {
+          const params = new URLSearchParams({ scope: 'shared', trash: 'trashed', query: engagement.name, page: String(page), pageSize: '50' });
+          const trashResponse = await fetch(`/api/pipeline/library?${params}`, { cache: 'no-store' });
+          if (!trashResponse.ok) throw await readApiError(trashResponse, 'Shared Trash is unavailable.');
+          const { sharedTrash } = await trashResponse.json() as { sharedTrash: { items: Array<{ id: string; lineageId: string | null }>; total: number; pageSize: number } };
+          if (!current || persistenceScope !== getProjectPersistenceScope()) return;
+          if (setOpenContext.current !== context) { setRequestedReviewNotice(null); return; }
+          if (sharedTrash.items.some(row => row.id === target.submissionId && row.lineageId === target.lineageId)) {
+            setTrashReviewNotice(target); setSharedTrashMode(true); setRequestedReviewNotice(null); return;
+          }
+          if (!sharedTrash.items.length || page * sharedTrash.pageSize >= sharedTrash.total) break;
+        }
+        throw new Error('Exact revision is not present in the active Library or shared Trash.');
+      }
+      acceptReviewProgram(program);
       setSelection(previous => openEnvironmentDetail(previous, { objectId: item.id, listOffset: surfaceRef.current?.scrollTop ?? 0, focusReturnId: `library-object-${item.id}` }));
       setFocusedReviewRevision(target.submissionId); setRequestedReviewNotice(null);
       if (!await acknowledgePipelineNotice(target.submissionId)) toast({ title: 'Review opened', description: 'The notice could not be marked read in this browser.' });
@@ -385,7 +410,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       toast({ title: 'Revision unavailable', description: denied ? 'This exact Pipeline revision is no longer available for review.' : 'The exact Pipeline revision could not be confirmed. Try the notice again.', variant: 'destructive' });
     });
     return () => { current = false; };
-  }, [requestedReviewNotice, activeScope, activeTool, activeLoading, activeFailure, itemMap, experience.contributor.canReview, persistenceScope, pipelineNoticeReady, pipelineNoticeError, acknowledgePipelineNotice, toast]);
+  }, [requestedReviewNotice, activeScope, activeTool, activeLoading, reviewCatalog, acceptReviewProgram, experience.contributor.canReview, persistenceScope, pipelineNoticeReady, pipelineNoticeError, acknowledgePipelineNotice, toast]);
   cardEditContext.current = { scope: persistenceScope, itemId: selection.objectId ?? '' };
   setOpenContext.current = JSON.stringify([persistenceScope, activeScope, activeTool, selection.objectId]);
   const contentHealth = useMemo(() => buildPipelineContentHealth({ catalog: shared.catalog, program: shared.program }), [shared.catalog, shared.program]);
