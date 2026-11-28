@@ -532,7 +532,8 @@ function QueueProof() {
   const owner = !params.has('contributor') && !params.has('signedOut');
   const queue = useLibraryRevisionQueue({ enabled: owner && revisions, query, catalog: params.has('catalogMissing') ? null : queueCatalog, catalogLoading: params.has('catalogLoading'), catalogFailure: params.has('catalogFailure') ? { message: 'Catalog unavailable', retryable: true, kind: 'unavailable', code: 'catalog_unavailable', correlationId: null } : null });
   const shared = { publishedItems: [], pipelineItems: projectPipelineLibraryObjects({ ...program, submissions: queueRows }, null), program };
-  const projection = { query, setQuery, sort: 'recent', setSort: () => {}, items: [], visibleItems: [], failures: [], isLoading: false };
+  const projection = { query, setQuery, sort: 'recent', setSort: () => {}, items: [], visibleItems: [], failures: [], isLoading: false,
+    savedViews: [], saveView: async () => false, applySavedView: () => {}, resetView: () => setQuery('') };
   const view = useUnifiedLibraryView({ activeScope: 'pipeline', pipelineAccess: true, projection: projection as never, shared: shared as never, sharedType: 'all', revisionPage: owner && revisions ? queue : undefined });
   const close = () => { setTarget(undefined); setDirty(false); setConfirm(false); requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true })); };
   return <main style={{ padding: 12 }}>
