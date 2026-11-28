@@ -6,5 +6,5 @@ export const isEditableKeyboardTarget = (target: EventTarget | null): boolean =>
 
 export const hasBlockingKeyboardLayer = (): boolean => (
   typeof document !== 'undefined' && Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]'))
-    .some((element) => !element.hasAttribute('data-desk-tool-surface') && element.getClientRects().length > 0)
+    .some((element) => element.getAttribute('data-state') !== 'closed' && !element.hasAttribute('data-desk-tool-surface') && element.getClientRects().length > 0)
 );

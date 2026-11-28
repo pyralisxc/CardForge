@@ -170,6 +170,17 @@ test('@golden appearance effect completion keeps independent history',async({pag
  await angle.fill('18');await angle.press('ArrowUp');await angle.press('Tab');await angle.fill('72');await angle.press('Tab');await ui.history('Undo');await expect(angle).toHaveValue('19');await ui.history('Undo');await expect(angle).toHaveValue('135');await expect(page.getByTestId('working-dirty')).toHaveText('saved');
  await angle.fill('180');await angle.press('Tab');await ui.save();await ui.history('Undo');await expect(angle).toHaveValue('135');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');await ui.history('Redo');await expect(angle).toHaveValue('180');await expect(page.getByTestId('working-dirty')).toHaveText('saved');const saved=await ui.snapshot();expect(saved.freeformCanvas.elements.filter((e:{id:string})=>e.id!==shape.id)).toEqual(baseline.freeformCanvas.elements.filter((e:{id:string})=>e.id!==shape.id));expect(saved.fieldContracts).toEqual(baseline.fieldContracts);await ui.reopen(shape.id);await page.getByRole('button',{name:'Look',exact:true}).click();await expect(angle).toHaveValue('180');await page.screenshot({path:info.outputPath('appearance-effect-history.png')});
 });
+test('@golden open color picker owns Undo until dismissed',async({page})=>{
+ await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?historyContracts=1');
+ const ui=await inspectorHistory(page,1440);await page.getByRole('button',{name:'Look',exact:true}).click();
+ const trigger=page.getByText('Text',{exact:true}).locator('..').getByRole('button',{name:/^Color /});
+ const original=await trigger.getAttribute('aria-label');await trigger.click();
+ const hex=page.getByTitle('Hex color value');await hex.fill('#654321');await hex.press('Enter');
+ await expect(trigger).toHaveAttribute('aria-label','Color #654321');
+ const hue=page.getByRole('slider',{name:'Hue',exact:true});await hue.focus();await page.keyboard.press('ControlOrMeta+z');
+ await expect(trigger).toHaveAttribute('aria-label','Color #654321');
+ await page.keyboard.press('Escape');await ui.history('Undo');await expect(trigger).toHaveAttribute('aria-label',original!);
+});
 test('@golden appearance color commits and native picker gestures preserve history',async({page},info)=>{
  const width=1440;
  test.setTimeout(120000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1',true);const ui=await inspectorHistory(page,width);
@@ -231,6 +242,15 @@ test('@golden completed typography spacing preserves grouped Undo and Save', asy
  expect(saved.freeformCanvas.elements.find((element:{id:string})=>element.id==='neighbor')).toEqual(baseline.freeformCanvas.elements.find((element:{id:string})=>element.id==='neighbor'));expect(saved.fieldContracts).toEqual(baseline.fieldContracts);
  const stored=await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'));await reopen();await expect(height).toHaveValue('2.25');await expect(spacing).toHaveValue('0.08em');expect(await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'))).toBe(stored);
  await page.screenshot({path:info.outputPath('spacing-history-reopened.png')});
+});
+test('@golden Studio saves a CSV example without making it a default',async({page})=>{
+ test.setTimeout(90000);await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?normalizedSave=1');
+ const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Rank: {{Rank}}');
+ const card=page.locator('div').filter({has:page.getByRole('textbox',{name:'Variable name for Rank'})}).filter({hasText:'CSV Example'}).last();
+ await card.getByPlaceholder('Sample value').fill('King');
+ await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');const field=saved.fieldContracts.find((item:{key:string})=>item.key==='Rank');
+ expect(field.example).toBe('King');expect(field.defaultValue).toBeUndefined();
 });
 test('@golden Template variable transactions and Save share one undo history',async({page},info)=>{
  const width=1440;
