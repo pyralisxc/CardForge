@@ -136,7 +136,7 @@ interface UnifiedAccountLibraryProps {
 export function UnifiedAccountLibrary({ persistenceScope, experience, businessIdentity, initialReturnContextKey = null, initialTool = null, initialCampaignNotice, storageConnections }: UnifiedAccountLibraryProps) {
   const isSignedIn = experience.signedIn;
   const pipelineAccess = experience.contributor.canSubmit || experience.contributor.canReview || experience.contributor.canPublish;
-  const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
+  const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn, manageLibraryView: true });
   const { toast } = useToast();
   const workspaceUpdates = useWorkspaceUpdates();
   const pipelineNotices = usePipelineReviewNotices(isSignedIn && experience.contributor.canReview, persistenceScope);
