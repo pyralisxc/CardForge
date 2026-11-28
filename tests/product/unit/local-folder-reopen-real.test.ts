@@ -11,10 +11,18 @@ const binding = vi.hoisted(() => ({ current: null as LocalProjectFolderBinding |
 vi.mock('@/features/project/persistence/structuredBrowserStorage', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/features/project/persistence/structuredBrowserStorage')>();
   return { ...actual, readStructuredBrowserValue: (key: string) => key.endsWith(`:local-work-folder-binding:${binding.current?.workId}`)
-    ? Promise.resolve(binding.current) : actual.readStructuredBrowserValue(key) };
+    ? Promise.resolve(binding.current) : actual.readStructuredBrowserValue(key),
+  writeStructuredBrowserValue: (key: string, value: unknown) => {
+    if (key.endsWith(`:local-work-folder-binding:${binding.current?.workId}`)) {
+      binding.current = value as LocalProjectFolderBinding;
+      return Promise.resolve();
+    }
+    return actual.writeStructuredBrowserValue(key, value);
+  } };
 });
 
 beforeEach(async () => {
+  vi.stubGlobal('navigator', { locks: { request: async (_key: string, run: () => Promise<unknown>) => await run() } });
   binding.current = null;
   await hydrateProjectWorkspaceForScope('account:folder-real-reopen');
   await persistProjectWorkspaceNow();
@@ -102,4 +110,27 @@ it('restores moved-out work with real package decoding while preserving unrelate
   await openRememberedLocalProject(workId);
   expect(useProjectStore.getState().cardSets).toEqual(restored.cardSets);
   expect(useProjectStore.getState().storedCards).toEqual(restored.storedCards);
+
+  // A second tab has its own in-memory workspace but reads the same binding.
+  // Its cold open must not replace the mapping used by the first tab's save.
+  const firstMapping = structuredClone(binding.current!.identities);
+  useProjectStore.setState(before, true);
+  await openRememberedLocalProject(workId);
+  expect(binding.current!.identities).toEqual(firstMapping);
+  expect(useProjectStore.getState().storedCards.filter((card) => card.setId === workId).map((card) => card.uniqueId))
+    .toEqual(restoredCards.map((card) => card.uniqueId));
+
+  // A shared Template that the merge would rekey cannot silently invalidate
+  // the inverse mapping used on the next save.
+  useProjectStore.setState(before, true);
+  const sourceTemplateId = document.userTemplates[0]!.id!;
+  binding.current!.identities!.template![sourceTemplateId] = before.userTemplates[0]!.id!;
+  const collisionMapping = structuredClone(binding.current!.identities);
+  await expect(openRememberedLocalProject(workId)).rejects.toThrow('shares a Template identity');
+  expect(binding.current!.identities).toEqual(collisionMapping);
+  expect(useProjectStore.getState().cardSets).toEqual(before.cardSets);
+
+  vi.stubGlobal('navigator', {});
+  await expect(openRememberedLocalProject(workId)).rejects.toThrow('cannot safely coordinate');
+  expect(useProjectStore.getState().cardSets).toEqual(before.cardSets);
 });

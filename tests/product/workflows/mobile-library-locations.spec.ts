@@ -219,6 +219,23 @@ test.describe('mobile Library location tools', () => {
     await expect(optIn).toBeChecked();
   });
 
+  for (const surface of ['Desk', 'Library'] as const) test(`@golden ${surface} Locations names device work and targets its Delete action`, async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100, { additionalSets: 1, cardLimit: 0 });
+    await page.goto(surface === 'Desk' ? '/account' : '/account?section=library&tool=locations', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+    if (surface === 'Desk') await page.getByTitle('Open Locations & connections').click();
+    const tool = page.getByRole('region', { name: 'Locations & connections', exact: true });
+    await tool.getByRole('button', { name: /This device/ }).click();
+    const contents = tool.getByRole('region', { name: 'This device contents' });
+    const row = contents.locator('div').filter({ has: page.getByText('Touch Companion Set 1', { exact: true }) }).filter({ has: page.getByRole('button', { name: 'Delete Touch Companion Set 1 from this device', exact: true }) }).last();
+    await expect(row).toBeVisible();
+    await row.getByRole('button', { name: 'Delete Touch Companion Set 1 from this device', exact: true }).click();
+    const confirm = page.getByRole('alertdialog');
+    await expect(confirm).toContainText('Touch Companion Set 1');
+    await expect(confirm).toContainText('permanently deleted');
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(row).toBeVisible();
+  });
+
   test('@golden gives Locations the compact Task viewport while keeping its controls scrollable', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.setViewportSize({ width: 320, height: 640 });

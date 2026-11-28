@@ -373,7 +373,7 @@ describe('account library model', () => {
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
       kind: 'set',
-      references: { localSetId: 'set-1', driveFileId: 'drive-project', localFolder: true },
+      references: { localSetId: 'set-1', driveFileId: 'drive-project', driveFileName: 'Arcane Deck.cardforge', localFolder: true },
     });
     expect(items[0]?.locations.map((location) => location.source)).toEqual(['device', 'google-drive', 'local-folder']);
   });

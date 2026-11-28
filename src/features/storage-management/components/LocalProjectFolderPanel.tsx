@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FolderInput, FolderOpen, HardDriveDownload, Link2Off, Loader2, RefreshCw, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { disconnectLocalProjectFolder, getLocalProjectFileName, getLocalProjectFolderStatus, openProjectFromFolder, reconnectAttachedProjectFolder, saveCurrentProjectToNewFolder, saveProjectToAttachedFolder, type LocalProjectFolderStatus } from '@/features/project/client/provider-local-folder';
+import { disconnectLocalProjectFolder, getLocalProjectFileName, getLocalProjectFolderStatus, listLocalProjectFolderContents, openProjectFromFolder, reconnectAttachedProjectFolder, saveCurrentProjectToNewFolder, saveProjectToAttachedFolder, type LocalProjectFolderStatus } from '@/features/project/client/provider-local-folder';
 import { hydrateProjectWorkspaceForScope } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 
@@ -26,6 +26,10 @@ export function LocalProjectFolderPanel({
   const [status, setStatus] = useState<LocalProjectFolderStatus | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [contents, setContents] = useState<Array<{ name: string; kind: 'file' | 'directory' }> | null>(null);
+  const [contentsError, setContentsError] = useState<string | null>(null);
+  const refreshEpoch = useRef(0);
+  useEffect(() => () => { refreshEpoch.current += 1; }, [persistenceScope]);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,11 +50,24 @@ export function LocalProjectFolderPanel({
 
   const refresh = useCallback(async () => {
     if (!ready) return;
+    const epoch = ++refreshEpoch.current;
     try {
-      setStatus(await getLocalProjectFolderStatus());
+      const next = await getLocalProjectFolderStatus();
+      if (epoch !== refreshEpoch.current) return;
+      setStatus(next);
+      setContents(null);
+      setContentsError(null);
       setLoadError(null);
+      if (next.binding && next.readPermission === 'granted') {
+        try {
+          const entries = await listLocalProjectFolderContents(next.binding);
+          if (epoch === refreshEpoch.current) setContents(entries);
+        } catch (error) {
+          if (epoch === refreshEpoch.current) setContentsError(error instanceof Error ? error.message : 'Folder contents are unavailable.');
+        }
+      }
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Saved folder locations are unavailable.');
+      if (epoch === refreshEpoch.current) setLoadError(error instanceof Error ? error.message : 'Saved folder locations are unavailable.');
     }
   }, [ready]);
 
@@ -135,6 +152,12 @@ export function LocalProjectFolderPanel({
           <p className="mt-1">Last project revision: {binding.sourceRevision ? binding.sourceRevision.slice(0, 12) : 'unknown'}{binding.lastSavedAt ? ` · saved ${new Date(binding.lastSavedAt).toLocaleString()}` : ''}</p>
         </div>
       ) : null}
+
+      {binding ? <section className="mt-4 space-y-2" aria-label="Local project folder contents">
+        <h3 className="font-semibold">In “{binding.folderName}”</h3>
+        <p className="text-xs">The browser provides the folder name, not its full filesystem path. Manage folder files in your file manager.</p>
+        {readPermission !== 'granted' ? <p role="status">Reconnect this folder to see its contents.</p> : contentsError ? <p role="alert">{contentsError}</p> : contents === null ? <p role="status">Loading folder contents…</p> : contents.length ? contents.map((entry) => <p key={`${entry.kind}:${entry.name}`} className="break-words border border-[var(--cf-border-subtle)] p-2 text-sm">{entry.name} · {entry.kind === 'directory' ? 'Folder' : 'File'}</p>) : <p>The selected folder is empty.</p>}
+      </section> : null}
 
       <div className="mt-3 flex flex-wrap gap-2">
         {!binding ? (

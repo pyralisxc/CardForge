@@ -156,7 +156,7 @@ export function AccountStorageLibrary({
           <p className="mt-4 text-sm text-[var(--cf-text-muted)]">Open or remove individual Sets from Desk or Library.</p>
         </div> : null}
 
-        {showDrafts ? <AssistantDraftLibrary isSignedIn={isSignedIn} refreshVersion={draftRefreshVersion} /> : null}
+        {showDrafts ? <AssistantDraftLibrary isSignedIn={isSignedIn} refreshVersion={draftRefreshVersion} locationOnly={focus === 'drafts'} /> : null}
       </div>
     </section>
   );

@@ -232,6 +232,7 @@ const toConnectionSummary = (
     provider: GOOGLE_DRIVE_PROJECT_PROVIDER,
     configured: true,
     connected: true,
+    accountId: row.external_account_id,
     displayName: row.display_name,
     rootFolderId: row.root_folder_id,
     status: row.status,
@@ -809,6 +810,7 @@ export const prepareGoogleDriveProjectUpload = async ({
   expectedProviderRevision = null,
   expectedProjectRevision = null,
   expectedAccountId = null,
+  expectedFolderId = null,
   workId = null,
   thumbnail = null,
 }: {
@@ -820,6 +822,7 @@ export const prepareGoogleDriveProjectUpload = async ({
   expectedProviderRevision?: string | null;
   expectedProjectRevision?: string | null;
   expectedAccountId?: string | null;
+  expectedFolderId?: string | null;
   workId?: string | null;
   thumbnail?: string | null;
 }): Promise<GoogleDriveUploadPrepareResult> => {
@@ -837,6 +840,9 @@ export const prepareGoogleDriveProjectUpload = async ({
   const rootFolderId = requireSelectedRootFolderId(row);
   if (expectedAccountId && row.external_account_id !== expectedAccountId) {
     throw new ProjectStorageProviderError('The connected Google account changed. Reconnect the document’s account before saving; the Drive file was left unchanged.', 409, { kind: 'conflict' });
+  }
+  if (expectedFolderId && rootFolderId !== expectedFolderId) {
+    throw new ProjectStorageProviderError('The selected Google Drive folder changed. Review the destination before moving; browser work was left unchanged.', 409, { kind: 'conflict' });
   }
   const normalizedName = normalizeDriveProjectName(name);
   const requestedWorkId = workId?.trim() ?? '';

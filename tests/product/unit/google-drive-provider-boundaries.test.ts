@@ -162,6 +162,14 @@ describe('Google Drive provider boundaries', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('rejects a move to a changed Drive folder before creating an upload session', async () => {
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(selectConnectionQuery()) } as never);
+    const fetch = vi.fn().mockResolvedValueOnce(Response.json({ access_token: 'private-access' }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(prepareGoogleDriveProjectUpload({ ownerUserId: 'user-1', name: 'Set', size: 3, projectRevision: 'a'.repeat(64), expectedAccountId: 'google-user-1', expectedFolderId: 'other_folder_123' })).rejects.toMatchObject({ status: 409 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('supplies the canonical PNG through native Drive contentHints and rejects invalid thumbnails before provider calls', async () => {
     mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(selectConnectionQuery()) } as never);
     const fetch = vi.fn()

@@ -1,3 +1,4 @@
+export { StorageLocationProvider } from './components/StorageLocationContents';
 export { AccountStorageLibrary } from './components/AccountStorageLibrary';
 export { AccountStorageWorkspace, LibraryStorageConnectionsTool } from './components/AccountStorageWorkspace';
 export type { LibraryStorageConnectionsToolProps } from './components/AccountStorageWorkspace';

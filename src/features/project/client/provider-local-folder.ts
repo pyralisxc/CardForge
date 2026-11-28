@@ -8,6 +8,7 @@ export {
   openRememberedLocalProject,
   getLocalProjectWorkBinding,
   listLocalProjectWorkBindings,
+  listLocalProjectFolderContents,
   reconnectAttachedProjectFolder,
   saveCurrentProjectToNewFolder,
   saveCardSetToNewFolder,

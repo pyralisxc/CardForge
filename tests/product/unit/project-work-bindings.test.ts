@@ -55,7 +55,7 @@ vi.mock('@/features/project/lib/projectPackageCodec', () => ({
 vi.mock('@/features/project/lib/projectPackageWriter', () => ({ verifyProjectPackageSnapshot: mock.verifySnapshot }));
 vi.mock('@/features/analytics/client/tracking', () => ({ observeProviderBoundaryResponse: (_provider: string, _action: string, run: () => unknown) => run() }));
 vi.mock('@/features/project/store/workspaceStore', () => {
-  const state = { get cardSets() { return mock.localSets; }, storedCards: [] };
+  const state = { get cardSets() { return mock.localSets; }, storedCards: [], defaultTemplates: [], userTemplates: [] };
   return { useProjectStore: { getState: () => state } };
 });
 
@@ -79,6 +79,7 @@ const folder = (name: string) => {
 };
 
 beforeEach(() => {
+  vi.stubGlobal('navigator', { locks: { request: async (_key: string, run: () => Promise<unknown>) => await run() } });
   resetGoogleDriveTargetSaveStateForTests();
   vi.clearAllMocks();
   mock.values.clear();
@@ -93,11 +94,56 @@ beforeEach(() => {
   mock.failRemoveKey = null;
   mock.localSets = [];
   mock.read.mockImplementation(async (key: string) => mock.values.get(key) ?? null);
-  mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64) });
+  mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [{ id: 'set-c', name: 'C' }] } });
   vi.stubGlobal('window', { showDirectoryPicker: vi.fn(), dispatchEvent: vi.fn() });
 });
 
 describe('one authoritative Set location across save entry points', () => {
+  it('retains the selected Drive folder name across a paginated project read', async () => {
+    const connection = { connected: true, accountId: 'account-a', rootFolderId: 'folder12345', displayName: 'Account' };
+    const selectedFolder = { id: 'folder12345', name: 'QA folder' };
+    const fetch = vi.fn().mockResolvedValueOnce(Response.json({ connection, selectedFolder, projects: [], nextPageToken: 'next' }))
+      .mockResolvedValueOnce(Response.json({ connection, selectedFolder, projects: [], nextPageToken: null }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(loadDirectGoogleDriveProjectLibrary()).resolves.toMatchObject({ selectedFolder, projects: [] });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not present a repeated Drive page as a complete folder', async () => {
+    const connection = { connected: true, accountId: 'account-a', rootFolderId: 'folder12345', displayName: 'Account' };
+    const page = { connection, selectedFolder: { id: 'folder12345', name: 'QA folder' }, projects: [], nextPageToken: 'repeat' };
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json(page)));
+    await expect(loadDirectGoogleDriveProjectLibrary()).rejects.toThrow('repeated a project-list page');
+  });
+
+  it('rejects mixed Drive accounts across empty pages even if names and folders match', async () => {
+    const connection = { connected: true, accountId: 'account-a', rootFolderId: 'folder12345', displayName: 'Account' };
+    const selectedFolder = { id: 'folder12345', name: 'QA folder' };
+    const fetch = vi.fn().mockResolvedValueOnce(Response.json({ connection, selectedFolder, projects: [], nextPageToken: 'next' }))
+      .mockResolvedValueOnce(Response.json({ connection: { ...connection, accountId: 'account-b' }, selectedFolder, projects: [], nextPageToken: null }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(loadDirectGoogleDriveProjectLibrary()).rejects.toThrow('connection changed');
+  });
+
+  it('lists the remembered folder only with existing read permission and never writes', async () => {
+    const handle = { ...folder('Saved folder'), values: async function* () { yield { name: 'notes.txt', kind: 'file' as const }; yield { name: 'project.cardforge', kind: 'file' as const }; } };
+    const binding = { handle, folderName: 'Saved folder', sourceRevision: 'b'.repeat(64), packageScope: 'workspace' };
+    mock.values.set('test:local-project-folder-binding', binding);
+    const before = [...mock.values.entries()];
+    await expect(localFolder.listLocalProjectFolderContents(binding as never)).resolves.toEqual([{ name: 'notes.txt', kind: 'file' }, { name: 'project.cardforge', kind: 'file' }]);
+    expect([...mock.values.entries()]).toEqual(before);
+    expect(handle.queryPermission).toHaveBeenCalledWith({ mode: 'read' });
+  });
+
+  it('does not request permission or enumerate a folder that needs reconnecting', async () => {
+    const handle = { ...folder('Locked folder'), queryPermission: vi.fn(async () => 'prompt' as const), requestPermission: vi.fn(), values: vi.fn() };
+    const binding = { handle, folderName: 'Locked folder', sourceRevision: 'b'.repeat(64), packageScope: 'workspace' };
+    mock.values.set('test:local-project-folder-binding', binding);
+    await expect(localFolder.listLocalProjectFolderContents(binding as never)).rejects.toThrow('Reconnect this folder');
+    expect(handle.requestPermission).not.toHaveBeenCalled();
+    expect(handle.values).not.toHaveBeenCalled();
+  });
+
   it('prepares an already-loaded Set without downloading or importing it again', () => {
     mock.localSets = [{ id: 'set-c' }];
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
@@ -321,6 +367,25 @@ describe('one authoritative Set location across save entry points', () => {
     expect(mock.captureSet).not.toHaveBeenCalled();
   });
 
+  it('passes the selected account and folder through the native save preparation', async () => {
+    const prepares: Record<string, unknown>[] = [];
+    const fetch = vi.fn(async (_url: string, options: RequestInit) => {
+      if (options.method === 'POST') { prepares.push(JSON.parse(options.body as string)); return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C', accountId: 'account-a' }); }
+      return Response.json({ id: 'drive-file-12345', name: 'C', headRevisionId: 'native-1' });
+    });
+    vi.stubGlobal('fetch', fetch);
+    await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: null, expectedDestination: { accountId: 'account-a', folderId: 'folder-12345' } });
+    expect(prepares).toEqual([expect.objectContaining({ expectedAccountId: 'account-a', expectedFolderId: 'folder-12345', fileId: null })]);
+  });
+
+  it('refuses a newly linked Drive destination when a move captured no link', async () => {
+    mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: null })).rejects.toThrow('linked after this move opened');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mock.captureSet).not.toHaveBeenCalled();
+  });
+
   it('does not open a new folder when a direct save loses its captured link', async () => {
     const handle = folder('C');
     const binding = { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'b'.repeat(64) };
@@ -331,10 +396,128 @@ describe('one authoritative Set location across save entry points', () => {
     expect(mock.captureSet).not.toHaveBeenCalled();
   });
 
+  it('preserves a legacy folder package Set identity after the browser assigned a different ID', async () => {
+    const handle = folder('C');
+    const binding = { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'b'.repeat(64), packageScope: 'set', verifiedSetScope: true };
+    mock.values.set('test:local-project-folder-binding', { workId: 'set-c' });
+    mock.values.set('test:local-work-folder-binding:set-c', binding);
+    mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [{ id: 'portable-original' }] } });
+    const saved = await saveCardSetToAttachedFolder('set-c', binding as never);
+    expect(saved.portableWorkId).toBe('portable-original');
+    expect(mock.build).toHaveBeenCalledWith(expect.objectContaining({ document: expect.objectContaining({ cardSets: [expect.objectContaining({ id: 'portable-original' })] }) }));
+  });
+
+  it('never updates a workspace backup or a different Set even when the folder name matches', async () => {
+    const handle = folder('C');
+    const binding = { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'b'.repeat(64), packageScope: 'set', verifiedSetScope: true, portableWorkId: 'portable-original' };
+    mock.values.set('test:local-project-folder-binding', { workId: 'set-c' });
+    mock.values.set('test:local-work-folder-binding:set-c', binding);
+    mock.decode.mockResolvedValueOnce({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [{ id: 'a' }, { id: 'b' }] } });
+    await expect(saveCardSetToAttachedFolder('set-c', binding as never)).rejects.toThrow('single-Set');
+    mock.decode.mockResolvedValueOnce({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [{ id: 'different-set' }] } });
+    await expect(saveCardSetToAttachedFolder('set-c', binding as never)).rejects.toThrow('different Set');
+    expect(mock.captureSet).not.toHaveBeenCalled();
+  });
+
+  it('keeps a changed same-identity file because it could be a one-Set workspace backup', async () => {
+    const handle = folder('C');
+    const binding = { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'a'.repeat(64), packageScope: 'set', verifiedSetScope: true, portableWorkId: 'portable-original' };
+    mock.values.set('test:local-project-folder-binding', { workId: 'set-c' });
+    mock.values.set('test:local-work-folder-binding:set-c', binding);
+    mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [{ id: 'portable-original' }] } });
+    await expect(saveCardSetToAttachedFolder('set-c', binding as never)).rejects.toMatchObject({ reason: 'changed' });
+    expect(mock.captureSet).not.toHaveBeenCalled();
+    expect(handle.getFileHandle).not.toHaveBeenCalledWith('project.cardforge', { create: true });
+  });
+
+  it('does not update an unmarked one-Set file that could be a workspace backup', async () => {
+    const handle = folder('C');
+    const binding = { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'b'.repeat(64), packageScope: 'set', portableWorkId: 'set-c' };
+    mock.values.set('test:local-project-folder-binding', { workId: 'set-c' });
+    mock.values.set('test:local-work-folder-binding:set-c', binding);
+    await expect(saveCardSetToAttachedFolder('set-c', binding as never)).rejects.toMatchObject({ reason: 'unverified' });
+    expect(handle.getFileHandle).not.toHaveBeenCalled();
+    expect(mock.captureSet).not.toHaveBeenCalled();
+  });
+
+  it('saves a separate named folder copy and reopens that exact file', async () => {
+    const handle = folder('C');
+    const binding = { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'b'.repeat(64), packageScope: 'set', verifiedSetScope: true, portableWorkId: 'portable-original' };
+    mock.values.set('test:local-project-folder-binding', { workId: 'set-c' });
+    mock.values.set('test:local-work-folder-binding:set-c', binding);
+    const newFile = { getFile: async () => new Blob(['package']), createWritable: async () => ({ abort: async () => {} }) };
+    handle.getFileHandle.mockImplementation(async (name: string, options?: { create: boolean }) => {
+      if (name !== 'project.cardforge' && !options?.create) throw new DOMException('Missing', 'NotFoundError');
+      return newFile;
+    });
+    const saved = await saveCardSetToAttachedFolder('set-c', binding as never, { asNew: true });
+    expect(saved.fileName).toMatch(/^project-.*\.cardforge$/);
+    expect(saved.portableWorkId).not.toBe('portable-original');
+    expect(handle.getFileHandle).toHaveBeenCalledWith(saved.fileName, { create: true });
+    expect(handle.getFileHandle).not.toHaveBeenCalledWith('project.cardforge', { create: true });
+    handle.getFileHandle.mockImplementation(async (name: string) => {
+      if (name !== saved.fileName) throw new DOMException('Missing', 'NotFoundError');
+      return newFile;
+    });
+    mock.localSets = [{ id: 'set-c' }];
+    mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [{ id: saved.portableWorkId }] } });
+    await expect(openRememberedLocalProject('set-c')).resolves.toMatchObject({ setId: 'set-c' });
+    expect(handle.getFileHandle).toHaveBeenLastCalledWith(saved.fileName);
+  });
+
+  it('does not materialize a remapped folder Set if its portable identity map cannot be saved', async () => {
+    const handle = folder('C');
+    const binding = { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'b'.repeat(64), packageScope: 'set', verifiedSetScope: true };
+    mock.values.set('test:local-work-folder-binding:set-c', binding);
+    mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: await mock.captureSet('portable-original') });
+    mock.failWriteKey = 'test:local-work-folder-binding:set-c';
+    await expect(openRememberedLocalProject('set-c')).rejects.toThrow('Browser storage rejected the binding');
+    expect(mock.apply).not.toHaveBeenCalled();
+    expect(mock.values.get('test:local-work-folder-binding:set-c')).toBe(binding);
+  });
+
+  it('keeps a verified folder receipt if device removal fails', async () => {
+    const handle = folder('C');
+    const binding = { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'b'.repeat(64), packageScope: 'set', verifiedSetScope: true, portableWorkId: 'set-c' };
+    mock.values.set('test:local-project-folder-binding', { workId: 'set-c' });
+    mock.values.set('test:local-work-folder-binding:set-c', binding);
+    const request = vi.fn(async (_key: string, run: () => Promise<unknown>) => await run());
+    vi.stubGlobal('navigator', { locks: { request } });
+    const remove = vi.fn(async () => { throw new Error('The device Set changed'); });
+    await expect(saveCardSetToAttachedFolder('set-c', binding as never, { requireSelected: true, afterVerified: remove })).rejects.toBeInstanceOf(localFolder.LocalFolderSavedSourceRetainedError);
+    expect(request).toHaveBeenCalledOnce();
+    expect(remove).toHaveBeenCalledOnce();
+    expect(mock.values.get('test:local-work-folder-binding:set-c')).toMatchObject({ sourceRevision: 'b'.repeat(64), portableWorkId: 'set-c' });
+    vi.unstubAllGlobals();
+  });
+
+  it('does not begin a source-removing folder move without cross-tab coordination', async () => {
+    const handle = folder('C');
+    const binding = { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'b'.repeat(64), packageScope: 'set', verifiedSetScope: true };
+    vi.stubGlobal('navigator', {});
+    await expect(saveCardSetToAttachedFolder('set-c', binding as never, { afterVerified: async () => {} })).rejects.toThrow('cannot safely coordinate');
+    expect(handle.getFileHandle).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps device work when a new folder is linked while the picker is open', async () => {
+    const handle = folder('Chosen folder');
+    vi.stubGlobal('navigator', { locks: { request: async (_key: string, run: () => Promise<unknown>) => await run() } });
+    vi.stubGlobal('window', { dispatchEvent: vi.fn(), showDirectoryPicker: async () => {
+      mock.values.set('test:local-work-folder-binding:set-c', { handle: folder('Other'), folderName: 'Other', workId: 'set-c', sourceRevision: 'b'.repeat(64) });
+      return handle;
+    } });
+    const remove = vi.fn();
+    await expect(saveCardSetToAttachedFolder('set-c', undefined, { afterVerified: remove })).rejects.toThrow('linked to a folder while choosing');
+    expect(handle.getFileHandle).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
   it('saves a folder attachment using its canonical Set revision and scope', async () => {
     const handle = folder('C');
     mock.values.set('test:local-project-folder-binding', { workId: 'set-c', sourceRevision: 'stale' });
-    mock.values.set('test:local-work-folder-binding:set-c', { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'b'.repeat(64) });
+    mock.values.set('test:local-work-folder-binding:set-c', { handle, folderName: 'C', workId: 'set-c', sourceRevision: 'b'.repeat(64), packageScope: 'set', verifiedSetScope: true });
     await saveProjectToAttachedFolder();
     await saveCardSetToAttachedFolder('set-c');
     expect(mock.captureWorkspace).not.toHaveBeenCalled();
@@ -352,7 +535,7 @@ describe('one authoritative Set location across save entry points', () => {
       if (requestedName !== filename) throw new DOMException('File not found', 'NotFoundError');
       return { getFile: async () => new Blob(['package']), createWritable: async () => ({ abort: async () => {} }) };
     });
-    mock.values.set('test:local-work-folder-binding:set-c', { handle, folderName: 'C', workId: 'set-c', sourceRevision: revision });
+    mock.values.set('test:local-work-folder-binding:set-c', { handle, folderName: 'C', workId: 'set-c', sourceRevision: revision, packageScope: 'set', verifiedSetScope: true });
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: revision, document });
     const saved = await saveCardSetToAttachedFolder('set-c');
     expect(saved).toMatchObject({ workId: 'set-c', sourceRevision: revision });
@@ -401,7 +584,7 @@ describe('one authoritative Set location across save entry points', () => {
       preserveOutputPreferences: true,
     });
     expect(mock.localSets).toEqual([{ id: 'other-set' }]);
-    expect(mock.values.get('test:local-work-folder-binding:set-c')).toBe(binding);
+    expect(mock.values.get('test:local-work-folder-binding:set-c')).toMatchObject({ ...binding, identities: { set: { 'portable-set': 'set-c' } } });
     expect(handle.getFileHandle).toHaveBeenCalledWith('project.cardforge');
     expect(mock.decode).toHaveBeenCalledTimes(1);
     expect(mock.materialize).toHaveBeenCalledTimes(1);
@@ -558,7 +741,7 @@ describe('location failure and detach safety', () => {
 
   it('never transfers a verified folder binding to another account during persistence', async () => {
     const handle = folder('A');
-    mock.values.set('test:local-work-folder-binding:set-c', { handle, folderName: 'A', workId: 'set-c', sourceRevision: 'b'.repeat(64) });
+    mock.values.set('test:local-work-folder-binding:set-c', { handle, folderName: 'A', workId: 'set-c', sourceRevision: 'b'.repeat(64), packageScope: 'set', verifiedSetScope: true });
     mock.onWrite = () => { mock.namespace = 'other'; };
     await expect(saveCardSetToAttachedFolder('set-c')).rejects.toThrow('account changed');
     expect([...mock.values.keys()].some((key) => key.startsWith('other:'))).toBe(false);

@@ -290,6 +290,7 @@ export const loadGoogleDriveProjectLibraryFromProvider = async (): Promise<Googl
   const namespace = getScopedProjectStorageNamespace('project-assets');
   let cursor: string | null = null;
   let connection: GoogleDriveProjectListResult['connection'] | null = null;
+  let selectedFolder: GoogleDriveProjectListResult['selectedFolder'];
   const projects: GoogleDriveProjectListResult['projects'] = [];
   const seenCursors = new Set<string>();
   do {
@@ -299,19 +300,27 @@ export const loadGoogleDriveProjectLibraryFromProvider = async (): Promise<Googl
     ));
     if (!response.ok) throw await readApiError(response, 'Unable to load Google Drive projects.');
     const page = await response.json() as GoogleDriveProjectListResult;
+    if (connection && (!connection.accountId || !page.connection.accountId || connection.accountId !== page.connection.accountId || connection.rootFolderId !== page.connection.rootFolderId)) {
+      throw new ProjectPackageError('The Drive connection changed while listing projects. Refresh the selected folder.');
+    }
+    if (page.connection.accountId && page.projects.some((project) => project.accountId !== page.connection.accountId)) {
+      throw new ProjectPackageError('Google Drive returned projects from a different connected account. Refresh the selected folder.');
+    }
     connection = page.connection;
+    selectedFolder = page.selectedFolder;
     projects.push(...page.projects);
     const next = page.nextPageToken ?? null;
-    if (!next || seenCursors.has(next)) {
+    if (!next) {
       cursor = null;
     } else {
+      if (seenCursors.has(next)) throw new ProjectPackageError('Google Drive repeated a project-list page. Refresh before treating this folder as complete.');
       seenCursors.add(next);
       cursor = next;
     }
   } while (cursor);
   if (!connection) throw new ProjectPackageError('Google Drive did not return a project-library connection state.');
   assertBindingScope(namespace);
-  return { connection, projects, nextPageToken: null };
+  return { connection, projects, selectedFolder, nextPageToken: null };
 };
 
 /** Re-read device bindings after a shared provider read; the workspace may have changed while it was in flight. */
@@ -388,6 +397,7 @@ const prepareUpload = async ({
   binding,
   workId,
   thumbnail,
+  expectedDestination,
 }: {
   name: string;
   size: number;
@@ -395,6 +405,7 @@ const prepareUpload = async ({
   binding: GoogleDriveProjectBinding | null;
   workId?: string | null;
   thumbnail?: string | null;
+  expectedDestination?: { accountId: string; folderId: string };
 }): Promise<GoogleDriveUploadPrepareResult> => {
   const response = await observeProviderBoundaryResponse('google_drive', 'project_prepare', () => fetch('/api/project-sources/google-drive/prepare', {
     method: 'POST',
@@ -407,7 +418,8 @@ const prepareUpload = async ({
       fileId: binding?.fileId ?? null,
       expectedProviderRevision: binding?.providerRevision ?? null,
       expectedProjectRevision: binding?.projectRevision ?? null,
-      expectedAccountId: binding?.accountId ?? null,
+      expectedAccountId: expectedDestination?.accountId ?? binding?.accountId ?? null,
+      expectedFolderId: expectedDestination?.folderId ?? null,
       workId: workId ?? null,
     }),
   }));
@@ -606,13 +618,15 @@ export const saveCardSetToGoogleDrive = async ({
   asNew = false,
   renderThumbnail,
   expectedBinding,
+  expectedDestination,
   signal,
 }: {
   setId: string;
   name: string;
   asNew?: boolean;
   renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
-  expectedBinding?: Pick<GoogleDriveProjectBinding, 'fileId' | 'accountId' | 'providerRevision' | 'projectRevision'>;
+  expectedBinding?: Pick<GoogleDriveProjectBinding, 'fileId' | 'accountId' | 'providerRevision' | 'projectRevision'> | null;
+  expectedDestination?: { accountId: string; folderId: string };
   signal?: AbortSignal;
 }): Promise<GoogleDriveProjectBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
@@ -625,6 +639,9 @@ export const saveCardSetToGoogleDrive = async ({
       signal?.throwIfAborted();
       const existing = asNew ? null : await getGoogleDriveWorkBinding(setId);
       assertBindingScope(namespace);
+      if (expectedBinding === null && existing) {
+        throw new ProjectPackageError('A Drive location was linked after this move opened. Review the current destination; browser work was left unchanged.');
+      }
       if (expectedBinding && (!existing || !isSameGoogleDriveTarget(existing, expectedBinding)
         || existing.providerRevision !== expectedBinding.providerRevision
         || existing.projectRevision !== expectedBinding.projectRevision)) {
@@ -650,6 +667,7 @@ export const saveCardSetToGoogleDrive = async ({
         binding: existing,
         workId: existing?.portableWorkId ?? setId,
         thumbnail,
+        expectedDestination,
       });
       assertBindingScope(namespace);
       signal?.throwIfAborted();

@@ -52,6 +52,7 @@ import {
 import {
   getAccountLibraryWorkPreview,
   SetTrashDialog,
+  StorageLocationProvider,
   WorkLocationDialog,
   type AccountLibraryItem,
 } from '@/features/storage-management/client';
@@ -801,7 +802,9 @@ function DeskContent({
           manageHistory={false}
           railOwned
         >
-          {storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}
+          <StorageLocationProvider key={persistenceScope} projection={projection} isSignedIn={isSignedIn} canUseProjectFiles={experience.capabilities.canUseProjectFiles} onDeviceRemoved={(id) => { if (id === focusedLocalSetId) resetToDesk(); }}>
+            {storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}
+          </StorageLocationProvider>
         </EnvironmentToolLayer> : null}
         {pipelineSubmitSetId ? <EnvironmentToolLayer
           id="desk-pipeline-submit-title"

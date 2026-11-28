@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
-import { buildCardForgeProjectSnapshot, createCardForgeProjectPackageBlob } from '@/features/project/lib/projectPackageCodec';
+import { buildCardForgeProjectSnapshot, createCardForgeProjectPackageBlob, decodeCardForgeProjectPackage, hydrateCardForgeProjectSnapshot } from '@/features/project/lib/projectPackageCodec';
 import { seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
+import { mapProjectDocumentIdentity } from '@/features/project/model/projectDocumentIdentity';
 
 // Exercise persisted native handles in Chrome Stable, not the bundled Chromium build.
 test.use({ channel: 'chrome', trace: 'retain-on-failure' });
@@ -45,7 +46,7 @@ for (const surface of ['desk', 'library', 'library-edit'] as const) {
         const store = transaction.objectStore('key-value');
         for (const scope of ['guest', 'local']) {
           store.put([workId], `project-assets:${scope}:local-work-folder-binding-index`);
-          store.put({ handle, workId, folderName: 'Saved folder Set', sourceRevision: 'a'.repeat(64), lastSavedAt: null, packageScope: 'set' }, `project-assets:${scope}:local-work-folder-binding:${workId}`);
+          store.put({ handle, workId, folderName: 'Saved folder Set', sourceRevision: 'a'.repeat(64), lastSavedAt: null, packageScope: 'set', verifiedSetScope: true }, `project-assets:${scope}:local-work-folder-binding:${workId}`);
         }
         transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
@@ -120,6 +121,55 @@ for (const surface of ['desk', 'library', 'library-edit'] as const) {
       await expect(page.getByRole('button', { name: 'Edit Scale Card 0002', exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Save to folder Saved folder Set', exact: true }).click();
       await expect(page.getByText('Saved to folder-opening-fixture.', { exact: true })).toBeVisible();
+      const original = await page.evaluate(async () => {
+        const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('folder-opening-fixture');
+        const file = await (await dir.getFileHandle('project.cardforge')).getFile();
+        return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer())));
+      });
+      await page.getByRole('button', { name: 'Save as new copy', exact: true }).click();
+      await expect(page.getByText('New folder copy saved', { exact: true })).toBeVisible();
+      const evidence = await page.evaluate(async ({ workId }) => {
+        const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('folder-opening-fixture');
+        const originalFile = await (await dir.getFileHandle('project.cardforge')).getFile();
+        const originalHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await originalFile.arrayBuffer())));
+        const database = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open('cardforge-browser-storage');
+          request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+        });
+        const bindings = await Promise.all(['guest', 'local'].map((scope) => new Promise<{ fileName?: string; portableWorkId?: string } | undefined>((resolve, reject) => {
+          const request = database.transaction('key-value').objectStore('key-value').get(`project-assets:${scope}:local-work-folder-binding:${workId}`);
+          request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+        })));
+        database.close();
+        const binding = bindings.find((item) => item?.fileName);
+        const fileName = binding?.fileName;
+        const newFile = fileName ? await (await dir.getFileHandle(fileName)).getFile() : null;
+        return { originalHash, fileName, portableWorkId: binding?.portableWorkId, newBytes: newFile?.size ?? 0 };
+      }, { workId });
+      expect(evidence.originalHash).toEqual(original);
+      expect(evidence.fileName).toMatch(/^project-.*\.cardforge$/);
+      expect(evidence.newBytes).toBeGreaterThan(0);
+      const changed = mapProjectDocumentIdentity(document, { set: { [document.cardSets[0]!.id]: evidence.portableWorkId! } }, 'open');
+      changed.cardSets[0]!.name = 'Newer folder copy';
+      const changedSnapshot = await buildCardForgeProjectSnapshot({ document: changed, name: 'Newer folder copy' });
+      const changedBytes = Array.from(new Uint8Array(await (await createCardForgeProjectPackageBlob(changedSnapshot)).arrayBuffer()));
+      await page.evaluate(async ({ fileName, changedBytes }) => {
+        const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('folder-opening-fixture');
+        const writable = await (await dir.getFileHandle(fileName!)).createWritable();
+        await writable.write(new Uint8Array(changedBytes)); await writable.close();
+      }, { fileName: evidence.fileName, changedBytes });
+      await page.getByRole('button', { name: 'Save to folder folder-opening-fixture', exact: true }).click();
+      const conflict = page.getByRole('alert').filter({ hasText: 'folder file has changed' });
+      await expect(conflict).toBeVisible();
+      await expect(conflict.getByRole('button', { name: 'Update existing copy', exact: true })).toHaveCount(0);
+      await conflict.getByRole('button', { name: 'Save as new copy', exact: true }).click();
+      await expect(conflict).toHaveCount(0);
+      const preservedChanged = await page.evaluate(async ({ fileName }) => {
+        const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('folder-opening-fixture');
+        return Array.from(new Uint8Array(await (await (await dir.getFileHandle(fileName!)).getFile()).arrayBuffer()));
+      }, { fileName: evidence.fileName });
+      expect(preservedChanged).toEqual(changedBytes);
+      await expect(page.getByRole('button', { name: 'Edit Scale Card 0001', exact: true })).toBeVisible();
       await expect(page).toHaveURL(/section=library/);
     } else {
       await detail.getByRole('button', { name: 'Open saved Set', exact: true }).click();
@@ -144,6 +194,44 @@ for (const surface of ['desk', 'library', 'library-edit'] as const) {
       await page.getByRole('button', { name: 'Save to folder folder-opening-fixture', exact: true }).click();
       await expect(page.getByText('Saved to folder-opening-fixture.', { exact: true })).toBeVisible();
       await expect(page.locator('[data-set-spatial-stage]')).toBeVisible();
+      await page.getByTitle('Open Locations & connections').click();
+      const locations = page.getByRole('region', { name: 'Locations & connections', exact: true });
+      await locations.getByRole('button', { name: /This device/ }).click();
+      await locations.getByRole('button', { name: 'Move Saved folder Set', exact: true }).click();
+      const move = page.getByRole('dialog', { name: 'Move Saved folder Set' });
+      await move.getByRole('button', { name: 'Move here', exact: true }).click();
+      await expect(page.getByText('Set moved', { exact: true })).toBeVisible();
+      const readLinkedFile = async () => await page.evaluate(async ({ workId }) => {
+        const database = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open('cardforge-browser-storage');
+          request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+        });
+        const records = await Promise.all(['guest', 'local'].map((scope) => new Promise<{ fileName?: string } | undefined>((resolve, reject) => {
+          const request = database.transaction('key-value').objectStore('key-value').get(`project-assets:${scope}:local-work-folder-binding:${workId}`);
+          request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+        })));
+        database.close();
+        const name = records.find((item) => item?.fileName)?.fileName;
+        if (!name) throw new Error('The saved folder copy has no file binding.');
+        const directory = await (await navigator.storage.getDirectory()).getDirectoryHandle('folder-opening-fixture');
+        return Array.from(new Uint8Array(await (await (await directory.getFileHandle(name)).getFile()).arrayBuffer()));
+      }, { workId });
+      const movedBytes = await readLinkedFile();
+      const movedDocument = hydrateCardForgeProjectSnapshot(await decodeCardForgeProjectPackage(new Uint8Array(movedBytes)));
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.getByRole('button', { name: 'Add from Library', exact: true }).first().click();
+      const picker = page.getByRole('dialog', { name: 'Add from Library' });
+      await picker.getByText('Saved folder Set', { exact: true }).locator('../..').getByRole('button', { name: 'Add to Desk', exact: true }).click();
+      await expect(picker.getByRole('button', { name: 'Remove Saved folder Set from Desk', exact: true })).toBeEnabled();
+      await picker.getByRole('button', { name: 'Done', exact: true }).click();
+      const restored = page.getByRole('button', { name: /^(Select|Selected) Saved folder Set\./ });
+      await restored.click(); await restored.press('Enter');
+      await page.getByRole('button', { name: 'Save to folder folder-opening-fixture', exact: true }).click();
+      await expect(page.getByText('Saved to folder-opening-fixture.', { exact: true })).toBeVisible();
+      const resavedDocument = hydrateCardForgeProjectSnapshot(await decodeCardForgeProjectPackage(new Uint8Array(await readLinkedFile())));
+      expect(resavedDocument.cardSets.map((set) => set.id)).toEqual(movedDocument.cardSets.map((set) => set.id));
+      expect(resavedDocument.storedCards.map((card) => [card.uniqueId, card.templateId, card.backingTemplateId])).toEqual(movedDocument.storedCards.map((card) => [card.uniqueId, card.templateId, card.backingTemplateId]));
+      expect(resavedDocument.userTemplates.map((template) => template.id)).toEqual(movedDocument.userTemplates.map((template) => template.id));
     }
   });
 }

@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       expectedProviderRevision: optionalString(body.expectedProviderRevision),
       expectedProjectRevision: optionalString(body.expectedProjectRevision),
       expectedAccountId: optionalString(body.expectedAccountId),
+      expectedFolderId: optionalString(body.expectedFolderId),
       workId,
     });
     return Response.json(result);
