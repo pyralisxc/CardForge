@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildScopedFieldDataKey,
+  buildStaticSegmentFieldKey,
   parseTemplateTextSegments,
   parseTextBinding,
   renamePlaceholderKeyInText,
@@ -54,5 +55,13 @@ describe('text bindings helpers', () => {
       },
       true
     )).toBe('Shared Title');
+  });
+
+  it('keeps mixed-text literals in the design while still reading older card overrides', () => {
+    const content = 'Rank: {{Rank}} of the realm';
+    expect(resolveTemplateTextSegments('caption', content, { Rank: 'Queen' }, false)).toBe('Rank: Queen of the realm');
+    expect(resolveTemplateTextSegments('caption', content, {
+      Rank: 'Queen', [buildStaticSegmentFieldKey('caption', 0)]: 'Title: ',
+    }, false)).toBe('Title: Queen of the realm');
   });
 });

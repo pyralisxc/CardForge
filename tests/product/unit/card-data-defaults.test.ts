@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { extractTemplateFieldDefinitions, normalizeTemplateFieldContracts, type TCGCardTemplate, type TemplateFieldDefinition } from '@/domain/templates';
 import { createBulkDisplayCards } from '@/features/card-generator/lib/bulkPreview';
 import { buildResolvedTextSegments } from '@/features/card-rendering/components/CardTextContent';
+import { buildStaticSegmentFieldKey } from '@/domain/rendering';
 import {
   getMissingRequiredFieldLabels,
   initializeCardDataFromTemplate,
@@ -33,6 +34,7 @@ describe('card data defaults', () => {
     expect(extractTemplateFieldDefinitions(template)[0].defaultValue).toBeUndefined();
     const normalized = normalizeTemplateFieldContracts(template);
     const fields = extractTemplateFieldDefinitions(normalized);
+    expect(fields.map((field) => field.key)).toEqual(['Rank']);
     expect(fields[0]).toMatchObject({ key: 'Rank', required: true, example: 'King' });
     expect(fields[0].defaultValue).toBeUndefined();
     expect(normalized.fieldContracts?.[0].defaultValue).toBeUndefined();
@@ -61,6 +63,7 @@ describe('card data defaults', () => {
     expect(buildResolvedTextSegments(normalized, element, card.data).map((segment) => segment.text).join('')).toBe('Rank: ');
     expect(buildResolvedTextSegments(normalized, element, { Rank: 'Queen' }).map((segment) => segment.text).join('')).toBe('Rank: Queen');
     expect(buildResolvedTextSegments(normalized, element, { Rank: '' }).map((segment) => segment.text).join('')).toBe('Rank: ');
+    expect(buildResolvedTextSegments(normalized, element, { Rank: 'Queen', [buildStaticSegmentFieldKey('label', 0)]: 'Title: ' }).map((segment) => segment.text).join('')).toBe('Title: Queen');
   });
   it('resolves saved preview defaults before inline fallbacks while preserving explicit empty and companion values', () => {
     const template: TCGCardTemplate = {

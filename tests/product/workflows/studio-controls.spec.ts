@@ -6,6 +6,8 @@ import postcss from 'postcss';
 import tailwindcss from 'tailwindcss';
 import tailwindConfig from '../../../tailwind.config';
 import { expect, test } from '@playwright/test';
+import { extractTemplateFieldDefinitions } from '@/domain/templates';
+import { resolveTemplateTextSegments } from '@/domain/rendering';
 const bundle = buildSync({ entryPoints:['tests/product/fixtures/studioControls.tsx'],bundle:true,platform:'browser',format:'iife',write:false,outfile:join(tmpdir(),'studio-controls.js'),define:{'process.env.NODE_ENV':'"production"','process.env':'{}'} });
 const css=postcss([tailwindcss(tailwindConfig)]).process((readFileSync('src/app/cardforgePresentation.css','utf8')+readFileSync('src/app/globals.css','utf8')).replace(/@import ['"]([^'"]+)['"];?/g,(_,path:string)=>readFileSync(join('src/app',path),'utf8')),{from:'src/app/globals.css'});
 for(const width of [390,1440]) test(`@golden @preview Studio controls preserve selected geometry and texture-only strength at ${width}px`,async({page},info)=>{
@@ -247,10 +249,15 @@ test('@golden Studio saves a CSV example without making it a default',async({pag
  test.setTimeout(90000);await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?normalizedSave=1');
  const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Rank: {{Rank}}');
  const card=page.locator('div').filter({has:page.getByRole('textbox',{name:'Variable name for Rank'})}).filter({hasText:'CSV Example'}).last();
+ await expect(page.getByLabel(/Base field for/)).toHaveCount(0);
  await card.getByPlaceholder('Sample value').fill('King');
  await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByTestId('working-dirty')).toHaveText('saved');
  const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');const field=saved.fieldContracts.find((item:{key:string})=>item.key==='Rank');
  expect(field.example).toBe('King');expect(field.defaultValue).toBeUndefined();
+ const element=saved.freeformCanvas.elements.find((item:{content?:string})=>item.content?.includes('{{Rank}}'));
+ expect(extractTemplateFieldDefinitions(saved).map(item=>item.key)).toContain('Rank');
+ expect(extractTemplateFieldDefinitions(saved).some(item=>item.isStaticBaseText)).toBe(false);
+ expect(resolveTemplateTextSegments(element.id,element.content,{Rank:'Queen'},false)).toBe('Rank: Queen');
 });
 test('@golden Template variable transactions and Save share one undo history',async({page},info)=>{
  const width=1440;

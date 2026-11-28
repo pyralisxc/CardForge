@@ -16,7 +16,7 @@ const textContractTypeOptions: Array<{ value: TextFieldContractType; label: stri
   {
     value: 'text',
     label: 'Text',
-    description: 'One editable value with rich text controls and optional [ability] or [effect] markers.',
+    description: 'Fill the variables with rich text and optional [ability] or [effect] markers.',
   },
   {
     value: 'structuredRows',
@@ -48,7 +48,7 @@ export function TextElementFieldModeControl({
 
   const description = mode === 'structuredRows'
     ? 'Use this text element as a repeatable list. In Make cards, each item fills these variables and uses a chosen separator.'
-    : 'Use this text element as normal card text. Base copy and inline variables combine into one editable field.';
+    : 'Base text stays in the Template. Inline variables are the parts creators can fill on each card.';
   const baseTextCount = parseTemplateTextSegments(element.content)
     .filter((segment) => segment.type === 'text' && segment.text.trim().length > 0)
     .length;
@@ -97,7 +97,7 @@ export function TextElementFieldModeControl({
           <span className="rounded border border-[var(--cf-editor-border)] bg-[#090d13] px-2 py-1">Base text zones: {baseTextCount}</span>
           <span className="rounded border border-[var(--cf-editor-border)] bg-[#090d13] px-2 py-1">Inline variables: {variableCount}</span>
           <span className="rounded border border-[var(--cf-editor-border)] bg-[#090d13] px-2 py-1">
-            {mode === 'structuredRows' ? `${variableCount} editable ${variableCount === 1 ? 'part' : 'parts'}` : 'One composed field'}
+            {`${variableCount} editable ${variableCount === 1 ? 'part' : 'parts'}`}
           </span>
         </div>
         {variableFields.length > 0 && (

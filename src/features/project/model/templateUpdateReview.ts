@@ -149,8 +149,8 @@ export const previewTemplateUpdateReview = (
   for (const change of comparison.changes) if (choices[change.key] === 'use') apply(proposed, change.path, change.after);
   const template = canonical(proposed);
   if (validateNativeTemplateStructure(template)) fail('Those choices do not form a valid design. Keep or defer the affected changes and review again.');
-  const fields = new Set(extractTemplateFieldDefinitions(template).map((field) => field.key));
-  const removed = extractTemplateFieldDefinitions(comparison.current).filter((field) => !fields.has(field.key));
+  const fields = new Set(extractTemplateFieldDefinitions(template, { includeLegacyStatic: true }).map((field) => field.key));
+  const removed = extractTemplateFieldDefinitions(comparison.current, { includeLegacyStatic: true }).filter((field) => !fields.has(field.key));
   if (removed.length && JSON.parse(comparison.bindings).length) fail('Those choices remove fields used by this Set. Keep or defer the affected changes so authored Artifact data stays intact.');
   return { template, changesTemplate: !authoredPlanValuesEqual(templateUpdateContent(template), templateUpdateContent(comparison.current)) };
 };

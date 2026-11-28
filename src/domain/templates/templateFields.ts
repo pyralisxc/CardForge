@@ -168,7 +168,7 @@ const fieldIsRequired = (key: string, isImage: boolean, defaultValue?: string): 
   return true;
 };
 
-export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): TemplateFieldDefinition[] {
+export function extractTemplateFieldDefinitions(template?: TCGCardTemplate, options?: { includeLegacyStatic?: boolean }): TemplateFieldDefinition[] {
   if (!template) return [];
   const imageFieldKeys = getTemplateImageFieldKeys(template);
   const contracts = template.fieldContracts || [];
@@ -307,6 +307,10 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
       helperText: resolvedContract.helperText,
     };
   }).filter((field) => !scopedCollisionKeys.has(field.key));
+
+  // Literal text belongs to the Template. The update-review owner may still
+  // inspect legacy keys to protect existing card values across revisions.
+  if (!options?.includeLegacyStatic) return [...scopedCollisionFields, ...placeholderFields];
 
   const staticSegmentFields: TemplateFieldDefinition[] = [];
   (template.freeformCanvas?.elements || []).forEach((element) => {
