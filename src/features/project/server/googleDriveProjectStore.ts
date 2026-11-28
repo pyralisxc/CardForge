@@ -232,6 +232,7 @@ const toConnectionSummary = (
     provider: GOOGLE_DRIVE_PROJECT_PROVIDER,
     configured: true,
     connected: true,
+    accountId: row.external_account_id,
     displayName: row.display_name,
     rootFolderId: row.root_folder_id,
     status: row.status,

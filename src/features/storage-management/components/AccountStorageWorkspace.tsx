@@ -18,6 +18,7 @@ import {
   type EnvironmentSettingRecord,
 } from '@/features/app-shell/client/environment';
 import { RetainedGuestWorkControl } from '@/features/project/client/ui';
+import { StorageLocationContents } from './StorageLocationContents';
 
 type AccountStorageLibraryFocus = 'device' | 'drafts';
 
@@ -85,7 +86,7 @@ export function LibraryStorageConnectionsTool({
       status: 'Available in this browser', tone: 'success', value: 'Browser workspace', icon: Laptop,
       actionSources: [{ id: 'storage:browser-workspace', label: 'This device', source: 'browser-local', currentRevisionAvailable: true }],
       meta: [['Ownership', 'This browser'], ['Removal', 'Only the named local Set and its local cards']],
-      focus: 'device', content: <>{focusedStorageContent(workspaceStorage, 'device')}<RetainedGuestWorkControl /></>,
+      focus: 'device', content: <>{focusedStorageContent(workspaceStorage, 'device')}<StorageLocationContents source="device" /><RetainedGuestWorkControl /></>,
     },
     {
       id: 'working-drafts', kind: 'storage-location', eyebrow: 'Temporary work', title: 'Working drafts',
@@ -109,7 +110,7 @@ export function LibraryStorageConnectionsTool({
       status: 'Provider-owned', tone: 'neutral', value: 'Google Drive', icon: HardDrive,
       actionSources: [{ id: 'storage:google-drive-projects', label: 'Google Drive', source: 'google-drive', currentRevisionAvailable: true }],
       meta: [['Ownership', 'Your Google Drive'], ['Permission', 'Explicit per-file drive.file access']],
-      content: googleDriveProjects,
+      content: <>{googleDriveProjects}<StorageLocationContents source="google-drive" /></>,
     },
     {
       id: 'connected-assets', kind: 'storage-location', eyebrow: 'Connected source', title: 'Google Drive assets',

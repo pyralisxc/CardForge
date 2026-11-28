@@ -40,6 +40,7 @@ export interface ProjectWorkLocationTarget {
   locations: WorkLocationId[];
   localSetId?: string;
   driveFileId?: string;
+  driveAccountId?: string;
   driveProviderRevision?: string;
   driveProjectRevision?: string;
 }
@@ -61,6 +62,8 @@ interface ProjectWorkLocationDialogProps extends ProjectWorkLocationContextProps
   onOpenChange: (open: boolean) => void;
   onChanged?: () => void;
   renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
+  strictMoveDestination?: boolean;
+  onMoved?: (setId: string) => void;
 }
 
 const locationIcon = {
@@ -129,6 +132,8 @@ export function ProjectWorkLocationDialog({
   localFolderSupported,
   onChanged,
   renderThumbnail,
+  strictMoveDestination = false,
+  onMoved,
 }: ProjectWorkLocationDialogProps) {
   const { toast } = useToast();
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -154,19 +159,32 @@ export function ProjectWorkLocationDialog({
     const saveLinkedLocation = source === 'device' && target.locations.includes(destination);
     let destinationCreated = false;
     let sourceReceiptKnown = false;
+    let sourceRemoved = false;
     setDriveConflict(null);
     setBusyAction(actionKey);
     try {
       if (source === 'device' && target.localSetId) {
         if (destination === 'google-drive') {
-          await saveCardSetToGoogleDrive({ setId: target.localSetId, name: target.name, asNew, renderThumbnail });
+          const exactDrive = target.driveFileId && target.driveAccountId && target.driveProviderRevision && target.driveProjectRevision
+            ? { fileId: target.driveFileId, accountId: target.driveAccountId, providerRevision: target.driveProviderRevision, projectRevision: target.driveProjectRevision }
+            : null;
+          if (move && strictMoveDestination && target.locations.includes('google-drive') && !exactDrive) throw new Error('Refresh this Drive location before moving; the account or revision is unavailable.');
+          await saveCardSetToGoogleDrive({ setId: target.localSetId, name: target.name, asNew, renderThumbnail,
+            ...(move && strictMoveDestination ? { expectedBinding: exactDrive } : {}) });
         } else if (destination === 'local-folder') {
+          if (move && strictMoveDestination) throw new Error('Moving to a local folder is unavailable from Locations. The Set remains on this device.');
           await saveCardSetToAttachedFolder(target.localSetId);
         } else {
           throw new Error('This Set already lives on this device.');
         }
         destinationCreated = true;
-        if (move) await removeDeviceWorkAfterVerifiedCopy({ setId: target.localSetId, expectedState, scope });
+        if (move) {
+          await removeDeviceWorkAfterVerifiedCopy({ setId: target.localSetId, expectedState, scope });
+          sourceRemoved = true;
+          try { onMoved?.(target.localSetId); } catch {
+            toast({ title: 'Set moved', description: 'The move completed, but the view could not refresh. Reload before another action.' });
+          }
+        }
       } else if (source === 'google-drive' && destination === 'device' && target.driveFileId) {
         if (move) throw new Error('Copy this document to the device, then manage the original in Drive. Automatic Drive source removal is unavailable.');
         await copyGoogleDriveProjectToBrowser({ fileId: target.driveFileId, name: target.name });
@@ -187,6 +205,10 @@ export function ProjectWorkLocationDialog({
       onChanged?.();
       onOpenChange(false);
     } catch (error) {
+      if (sourceRemoved) {
+        toast({ title: 'Set moved', description: 'The move completed, but the view could not refresh. Reload before another action.' });
+        return;
+      }
       if (error instanceof GoogleDriveSaveLinkageError) {
         destinationCreated = true;
         sourceReceiptKnown = true;
@@ -210,11 +232,11 @@ export function ProjectWorkLocationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={styles.dialog}>
         <DialogHeader>
-          <DialogTitle className={styles.title}>Save &amp; move {target?.name ?? 'Set'}</DialogTitle>
+          <DialogTitle className={styles.title}>{strictMoveDestination ? 'Move' : 'Save & move'} {target?.name ?? 'Set'}</DialogTitle>
           <DialogDescription className={styles.description}>
-            Save changes to a linked location, or copy or move the Set to another location.
+            {strictMoveDestination ? 'Choose a destination for this Set.' : 'Save changes to a linked location, or copy or move the Set to another location.'}
             {' '}A move always writes and verifies the destination first. If verification fails, the source stays unchanged.
-            {' '}Drive documents can be copied here; remove the original separately in Drive when you are ready.
+            {!strictMoveDestination ? ' Drive documents can be copied here; remove the original separately in Drive when you are ready.' : null}
           </DialogDescription>
         </DialogHeader>
 
@@ -231,7 +253,7 @@ export function ProjectWorkLocationDialog({
         {driveConflict ? <div className={styles.conflict} role="alert">
           <strong>Drive has a newer revision</strong>
           <span>{driveConflict}</span>
-          <span>The existing Drive copy is protected. Save this browser work as a new Drive document to keep both versions.</span>
+          <span>The existing Drive copy is protected. {strictMoveDestination ? 'Use Save & move from the Set to save a new Drive copy.' : 'Save this browser work as a new Drive document to keep both versions.'}</span>
         </div> : null}
 
         {driveAvailabilityMessage ? <div className={styles.conflict} role="status">
@@ -240,6 +262,7 @@ export function ProjectWorkLocationDialog({
           <span>This dialog will not treat a failed Drive check as a disconnected account or update the Drive copy until it can be checked.</span>
         </div> : null}
 
+        {strictMoveDestination && localFolderSupported ? <p className="text-sm">Moving to a local folder is unavailable from Locations. The Set remains on this device.</p> : null}
         <div className={styles.locationList}>
           {orderedCapabilities.map((capability) => {
             const Icon = locationIcon[capability.id];
@@ -256,9 +279,9 @@ export function ProjectWorkLocationDialog({
                   <span>{isCurrent ? 'Current copy' : capability.available ? capability.revisionSafe ? 'Revision-safe provider copy' : 'User-owned portable copy' : capability.reason}</span>
                 </div>
                 <div className={styles.locationActions}>
-                  {copyAvailable ? <Button type="button" size="sm" variant="outline" disabled={busyAction !== null || driveUpdateBlocked} onClick={() => void transfer(capability.id, false)}>{busyAction === `${capability.id}:copy` ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}{isCurrent ? 'Save changes' : 'Copy here'}</Button> : null}
-                  {driveUpdateBlocked && target?.localSetId ? <Button type="button" size="sm" disabled={busyAction !== null} onClick={() => void transfer('google-drive', false, true)}>{busyAction === 'google-drive:save-new' ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}Save as new</Button> : null}
-                  {moveAvailable ? <Button type="button" size="sm" disabled={busyAction !== null || driveUpdateBlocked} onClick={() => void transfer(capability.id, true)}>{busyAction === `${capability.id}:move` ? <Loader2 className="animate-spin" aria-hidden="true" /> : <MoveRight aria-hidden="true" />}Move here</Button> : null}
+                  {!strictMoveDestination && copyAvailable ? <Button type="button" size="sm" variant="outline" disabled={busyAction !== null || driveUpdateBlocked} onClick={() => void transfer(capability.id, false)}>{busyAction === `${capability.id}:copy` ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}{isCurrent ? 'Save changes' : 'Copy here'}</Button> : null}
+                  {!strictMoveDestination && driveUpdateBlocked && target?.localSetId ? <Button type="button" size="sm" disabled={busyAction !== null} onClick={() => void transfer('google-drive', false, true)}>{busyAction === 'google-drive:save-new' ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}Save as new</Button> : null}
+                  {moveAvailable ? <Button type="button" size="sm" disabled={busyAction !== null || driveUpdateBlocked || (strictMoveDestination && capability.id === 'local-folder')} onClick={() => void transfer(capability.id, true)}>{busyAction === `${capability.id}:move` ? <Loader2 className="animate-spin" aria-hidden="true" /> : <MoveRight aria-hidden="true" />}Move here</Button> : null}
                   {!copyAvailable && !isCurrent ? <span className={styles.unavailable}>{capability.available ? 'Open on device first' : 'Not available'}</span> : null}
                 </div>
               </div>

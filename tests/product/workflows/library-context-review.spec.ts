@@ -23,6 +23,25 @@ async function mount(page: import('@playwright/test').Page, query = '') {
   await page.addScriptTag({ content: bundle.outputFiles.find(f => f.path.endsWith('.js'))!.text });
   return { mutations, errors };
 }
+test('Drive location Delete identifies only the selected provider copy', async ({ page }) => {
+  const evidence = await mount(page, '?storageContentsProof=1');
+  await page.getByRole('button', { name: /Google Drive projects/ }).click();
+  const contents = page.getByRole('region', { name: 'Google Drive project folder contents' });
+  await expect(contents.getByText('Original Drive File.cardforge', { exact: true })).toBeVisible();
+  await expect(contents.getByRole('button', { name: 'Move Disposable linked Set' })).toHaveCount(0);
+  await contents.getByRole('button', { name: 'Delete Original Drive File.cardforge from Google Drive' }).click();
+  const confirmation = page.getByRole('alertdialog');
+  await expect(confirmation).toContainText('Original Drive File.cardforge');
+  await expect(confirmation).toContainText('Device and local-folder copies remain unchanged');
+  await confirmation.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('button', { name: /This device/ }).click();
+  const device = page.getByRole('region', { name: 'This device contents' });
+  await device.getByRole('button', { name: 'Move Disposable linked Set' }).click();
+  const move = page.getByRole('dialog', { name: 'Move Disposable linked Set' });
+  await expect(move.getByRole('button', { name: 'Move here' })).toBeVisible();
+  await expect(move.getByRole('button', { name: /Copy here|Save changes/ })).toHaveCount(0);
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
 for (const mode of ['unknown', 'confirmed', 'changed'] as const) test(`Drive disconnect review ${mode} preserves provider boundary`, async ({ page }) => {
   const evidence = await mount(page, `?disconnectProof=${mode}`);
   page.on('dialog', dialog => void dialog.accept());

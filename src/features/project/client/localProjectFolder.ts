@@ -274,6 +274,23 @@ export const getLocalProjectFolderStatus = async (): Promise<LocalProjectFolderS
   };
 };
 
+/** List the remembered directory without requesting permission or touching its files. */
+export const listLocalProjectFolderContents = async (binding: LocalProjectFolderBinding): Promise<Array<{ name: string; kind: 'file' | 'directory' }>> => {
+  const namespace = getScopedProjectStorageNamespace('project-assets');
+  const attached = await readAttachedBinding(namespace);
+  if (!attached || !await attached.handle.isSameEntry(binding.handle)) throw new ProjectPackageError('The selected project folder changed. Refresh before listing its contents.');
+  if (await getPermission(attached.handle, false, 'read') !== 'granted') throw new ProjectPackageError('Reconnect this folder to see its contents.');
+  const directory = attached.handle as FileSystemDirectoryHandle & { values?: () => AsyncIterable<FileSystemHandle> };
+  if (!directory.values) throw new ProjectPackageError('This browser cannot list the selected folder. Open it in your file manager.');
+  const entries: Array<{ name: string; kind: 'file' | 'directory' }> = [];
+  for await (const entry of directory.values()) entries.push({ name: entry.name, kind: entry.kind });
+  assertFolderScope(namespace);
+  const latest = await readAttachedBinding(namespace);
+  if (!latest || !await latest.handle.isSameEntry(binding.handle)) throw new ProjectPackageError('The selected project folder changed. Refresh before listing its contents.');
+  assertFolderScope(namespace);
+  return entries.toSorted((a, b) => a.name.localeCompare(b.name));
+};
+
 export const saveCurrentProjectToNewFolder = async (): Promise<LocalProjectFolderBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const directory = await chooseDirectory();

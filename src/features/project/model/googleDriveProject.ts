@@ -17,6 +17,8 @@ export interface GoogleDriveProjectConnectionSummary {
   provider: typeof GOOGLE_DRIVE_PROJECT_PROVIDER;
   configured: boolean;
   connected: boolean;
+  /** Stable connected Google identity; separate from the display name. */
+  accountId?: string | null;
   displayName: string | null;
   rootFolderId: string | null;
   status: 'active' | 'error' | 'unconfigured' | 'disconnected';
