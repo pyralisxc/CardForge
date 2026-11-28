@@ -190,6 +190,35 @@ test.describe('mobile Library location tools', () => {
     }
   });
 
+  test('@golden Profile makes the Desk-only Drive autosave opt-in explicit', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100, { cardLimit: 2 });
+    await page.goto('/account?section=profile');
+    const optIn = page.getByRole('checkbox', { name: 'Autosave the focused, linked Set to Google Drive' });
+    await expect(optIn).toBeEnabled();
+    await expect(optIn).not.toBeChecked();
+    await expect(page.getByText(/Only a Set already linked to Drive can autosave while focused on Desk/)).toBeVisible();
+    await optIn.check();
+    await expect(optIn).toBeChecked();
+    await expect.poll(() => page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('cardforge-browser-storage'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+      const saved = await new Promise<boolean>((resolve, reject) => {
+        const store = db.transaction('key-value').objectStore('key-value');
+        const keys = store.getAllKeys();
+        keys.onsuccess = () => {
+          const key = keys.result.find((entry) => typeof entry === 'string' && entry.startsWith('project-preferences:editor-preferences:v1:'));
+          if (!key) { resolve(false); return; }
+          const request = store.get(key);
+          request.onsuccess = () => { try { resolve(JSON.parse(request.result).googleDriveAutosaveEnabled === true); } catch { resolve(false); } };
+          request.onerror = () => reject(request.error);
+        };
+        keys.onerror = () => reject(keys.error);
+      });
+      db.close(); return saved;
+    })).toBe(true);
+    await page.reload();
+    await expect(optIn).toBeChecked();
+  });
+
   test('@golden gives Locations the compact Task viewport while keeping its controls scrollable', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.setViewportSize({ width: 320, height: 640 });

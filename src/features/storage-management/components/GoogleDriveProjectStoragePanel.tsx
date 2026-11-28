@@ -382,8 +382,9 @@ export function GoogleDriveProjectStoragePanel({
                   <p className="mt-1 text-sm font-semibold text-[var(--cf-warning)]">Choose an existing project folder or create a new one before saving to Drive.</p>
                 )}
                 <p className="mt-1 text-xs text-[var(--cf-text-muted)]">
-                  {disconnectNotice ? 'The saved connection needs review before using Google Drive.' : connection.statusNote || (connection.status === 'active' ? 'This Drive location is ready for Set saves and opens. A writable linked Set saves after you pause editing.' : 'This connection needs attention.')}
+                  {disconnectNotice ? 'The saved connection needs review before using Google Drive.' : connection.statusNote || (connection.status === 'active' ? 'This Drive location is ready for Set saves and opens.' : 'This connection needs attention.')}
                 </p>
+                {!disconnectNotice && connection.status === 'active' ? <p className="mt-1 text-xs text-[var(--cf-text-muted)]">Save from Desk or Library. Optional autosave applies only to the focused linked Set on Desk and is configured in Profile.</p> : null}
               </div>
               <div className="flex flex-wrap gap-2">
                 {bindingError ? <p role="alert" className="w-full text-sm text-[var(--cf-warning)]">{bindingError} Open a Set in Desk or Library to manage its file.</p> : null}

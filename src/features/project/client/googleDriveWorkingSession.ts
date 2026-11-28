@@ -58,6 +58,10 @@ const initialState: GoogleDriveWorkingSessionState = {
   message: 'Checking work location',
   receipt: null,
 };
+const browserOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+const workspaceChangeMessage = (scheduled: boolean) => scheduled
+  ? 'Workspace changed · Autosave check scheduled'
+  : 'Workspace changed · Save to check this Set';
 
 const canWriteProject = (project: GoogleDriveProjectSummary | null) => (
   !project?.capabilities || (project.capabilities.canEdit && project.capabilities.canModifyContent)
@@ -175,7 +179,7 @@ export function useGoogleDriveWorkingSession({
   const queuedRef = useRef<false | 'manual' | 'automatic'>(false);
   const generationRef = useRef(0);
   const saveNowRef = useRef<(options?: { automatic?: boolean }) => Promise<void>>(async () => undefined);
-  const scheduleSaveRef = useRef<() => void>(() => undefined);
+  const scheduleSaveRef = useRef<() => boolean>(() => false);
   const localCheckRef = useRef(0);
   const reconcileRef = useRef<() => Promise<void>>(async () => undefined);
 
@@ -295,10 +299,12 @@ export function useGoogleDriveWorkingSession({
             const changedSinceSave = await hasGoogleDriveWorkingChanges(saved);
             if (!await canPublishForBinding(saved, generation)) return;
             const stillDirty = changedSinceSave || checkedSavedEdit !== localCheckRef.current;
+            const offline = stillDirty && browserOffline();
+            const scheduled = stillDirty && !offline && scheduleSaveRef.current();
             setState(stillDirty
-              ? { phase: 'dirty', message: 'Unsaved changes · Save to Drive', receipt: saved }
+              ? offline ? { phase: 'offline', message: changedSinceSave ? 'Offline · Drive save pending' : 'Offline · Set changes not checked', receipt: saved }
+                : { phase: 'dirty', message: changedSinceSave ? (scheduled ? 'Local changes · Autosave scheduled' : 'Unsaved changes · Save to Drive') : workspaceChangeMessage(scheduled), receipt: saved }
               : { phase: 'clean', message: 'Saved to Drive', receipt: saved });
-            if (stillDirty) scheduleSaveRef.current();
           }
         } catch (error) {
           if (automatic && error instanceof DOMException && error.name === 'AbortError') {
@@ -343,14 +349,16 @@ export function useGoogleDriveWorkingSession({
     // A local Set can change while its Drive binding is still being resolved.
     // Never turn that ordinary browser work into a false Drive-pending state;
     // reconcile() will schedule the save if it finds a real linked document.
-    if (!enabled || !setId || writableRef.current === false || !bindingRef.current) return;
+    if (!enabled || !setId || writableRef.current === false || !bindingRef.current) return false;
     clearTimer();
+    if (browserOffline()) return false;
     const current = autosaveRef.current;
-    if (!current?.enabled || !current.isEnabled()) return;
+    if (!current?.enabled || !current.isEnabled()) return false;
     // Store subscriptions include camera, selection, and other UI-only changes.
     // Keep the visible receipt authoritative until saveNow compares the canonical
     // project package and proves that the linked document is actually dirty.
     timerRef.current = setTimeout(() => { void saveNowRef.current({ automatic: true }); }, current.delaySeconds * 1_000);
+    return true;
   }, [clearTimer, enabled, setId]);
   scheduleSaveRef.current = scheduleSave;
 
@@ -359,15 +367,22 @@ export function useGoogleDriveWorkingSession({
     if (!enabled || !setId || !binding || writableRef.current === false || scope !== getProjectPersistenceScope()) return;
     localCheckRef.current += 1;
     if (holdUnresolvedDriveSave(binding)) return;
-    setState(current => current.phase === 'saving'
-      ? { ...current, message: 'Saving earlier edits · newer changes pending' }
-      : { phase: 'dirty', message: 'Local changes · Save to check Drive', receipt: binding });
     if (inFlightRef.current) {
       if (!queuedRef.current && autosaveRef.current?.isEnabled()) queuedRef.current = 'automatic';
+      setState(current => current.phase === 'saving'
+        ? { ...current, message: 'Saving earlier edits · workspace changed' }
+        : { phase: 'dirty', message: workspaceChangeMessage(false), receipt: binding });
       return;
     }
-    scheduleSave();
-  }, [enabled, holdUnresolvedDriveSave, scheduleSave, scope, setId]);
+    if (browserOffline()) {
+      queuedRef.current = false;
+      clearTimer();
+      setState((current) => ({ phase: 'offline', message: (current.phase === 'dirty' && !current.message.startsWith('Workspace changed ·')) || (current.phase === 'offline' && current.message === 'Offline · Drive save pending') ? 'Offline · Drive save pending' : 'Offline · Set changes not checked', receipt: binding }));
+      return;
+    }
+    const scheduled = scheduleSave();
+    setState({ phase: 'dirty', message: workspaceChangeMessage(scheduled), receipt: binding });
+  }, [clearTimer, enabled, holdUnresolvedDriveSave, scheduleSave, scope, setId]);
 
   const reconcile = useCallback(async (knownCheck?: GoogleDriveBindingCheck) => {
     if (!enabled || !setId) return;
@@ -437,11 +452,13 @@ export function useGoogleDriveWorkingSession({
         const checkedEdit = localCheckRef.current;
         const dirty = await hasGoogleDriveWorkingChanges(check.binding);
         if (!await canPublishForBinding(check.binding, generation) || checkedEdit !== localCheckRef.current) return;
+        const offline = dirty && browserOffline();
+        const scheduled = dirty && !offline && scheduleSave();
         setState(dirty
-          ? { phase: 'dirty', message: 'Unsaved changes · Save to Drive', receipt: check.binding }
+          ? offline ? { phase: 'offline', message: 'Offline · Drive save pending', receipt: check.binding }
+            : { phase: 'dirty', message: scheduled ? 'Local changes · Autosave scheduled' : 'Unsaved changes · Save to Drive', receipt: check.binding }
           : { phase: 'clean', message: 'Saved to Drive', receipt: check.binding });
-        if (dirty) scheduleSave();
-        else clearTimer();
+        if (!dirty) clearTimer();
       }
     } catch (error) {
       if (shouldPauseGoogleDriveAutosaveForError(error)) {
@@ -550,11 +567,19 @@ export function useGoogleDriveWorkingSession({
       // presented a clean, refreshed Set as pending Drive work after reconnect.
       void reconcile();
     };
+    const onOffline = () => {
+      clearTimer();
+      if (!inFlightRef.current) queuedRef.current = false;
+      setState((current) => current.phase === 'dirty'
+        ? { phase: 'offline', message: current.message.startsWith('Workspace changed ·') ? 'Offline · Set changes not checked' : 'Offline · Drive save pending', receipt: current.receipt }
+        : current);
+    };
     const refreshInterval = window.setInterval(() => {
       void pollRemote();
     }, GOOGLE_DRIVE_SHARED_FILE_REFRESH_INTERVAL_MS);
     window.addEventListener('focus', onFocus);
     window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
     window.addEventListener(GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT, onWorkingCopyRefreshed);
     return () => {
       generationRef.current += 1;
@@ -564,6 +589,7 @@ export function useGoogleDriveWorkingSession({
       window.clearInterval(refreshInterval);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
       window.removeEventListener(GOOGLE_DRIVE_WORKING_COPY_REFRESHED_EVENT, onWorkingCopyRefreshed);
     };
   }, [checkLocalChanges, clearTimer, enabled, pollRemote, reconcile, setId]);
@@ -571,7 +597,9 @@ export function useGoogleDriveWorkingSession({
   useEffect(() => {
     clearTimer();
     if (!autosave?.enabled) automaticSaveRef.current?.abort();
-    if (autosave?.enabled) scheduleSave();
+    const scheduled = autosave?.enabled ? scheduleSave() : false;
+    setState((current) => current.phase === 'dirty' ? { ...current, message: current.message.startsWith('Workspace changed ·')
+      ? workspaceChangeMessage(scheduled) : scheduled ? 'Local changes · Autosave scheduled' : 'Unsaved changes · Save to Drive' } : current);
   }, [autosave?.delaySeconds, autosave?.enabled, clearTimer, scheduleSave]);
 
   return { state, saveNow, reconcile, repairLink };
