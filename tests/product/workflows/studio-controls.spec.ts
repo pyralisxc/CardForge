@@ -232,6 +232,15 @@ test('@golden completed typography spacing preserves grouped Undo and Save', asy
  const stored=await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'));await reopen();await expect(height).toHaveValue('2.25');await expect(spacing).toHaveValue('0.08em');expect(await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'))).toBe(stored);
  await page.screenshot({path:info.outputPath('spacing-history-reopened.png')});
 });
+test('@golden Studio saves a CSV example without making it a default',async({page})=>{
+ test.setTimeout(90000);await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?normalizedSave=1');
+ const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Rank: {{Rank}}');
+ const card=page.locator('div').filter({has:page.getByRole('textbox',{name:'Variable name for Rank'})}).filter({hasText:'CSV Example'}).last();
+ await card.getByPlaceholder('Sample value').fill('King');
+ await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');const field=saved.fieldContracts.find((item:{key:string})=>item.key==='Rank');
+ expect(field.example).toBe('King');expect(field.defaultValue).toBeUndefined();
+});
 test('@golden Template variable transactions and Save share one undo history',async({page},info)=>{
  const width=1440;
  test.setTimeout(90000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1');

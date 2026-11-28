@@ -45,7 +45,7 @@ describe('card data defaults', () => {
     expect(extractTemplateFieldDefinitions(withEmptyDefault)[0].defaultValue).toBe('');
   });
 
-  it('does not print an omitted example on an appended card, but preserves an explicit value', () => {
+  it('does not resolve an omitted example in an appended card, but preserves an explicit value', () => {
     const template: TCGCardTemplate = {
       id: 'example-output', name: 'Example output', aspectRatio: '63:88',
       fieldContracts: [{ key: 'Rank', elementId: 'label', type: 'text', required: false, example: 'King' }],
