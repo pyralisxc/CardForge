@@ -197,7 +197,7 @@ test('@golden an unreadable native workspace preserves original bytes through ex
   const original = '{"state":{"authoredRepairMarker":"Preserve these original bytes",';
   await page.evaluate(async (bytes) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('cardforge-browser-storage', 1);
+      const request = indexedDB.open('cardforge-browser-storage');
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });

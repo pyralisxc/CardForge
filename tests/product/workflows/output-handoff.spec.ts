@@ -191,8 +191,9 @@ async function mountDesk(page: import('@playwright/test').Page, fault: 'stale' |
 
 for (const { entry, tool, fault } of [
  { entry: 'studio-empty', tool: 'design', fault: null },
+ { entry: 'studio-existing', tool: 'output', fault: null },
  { entry: 'studio-existing', tool: 'output', fault: 'acknowledgement' },
-] as const) test(`@golden @preview document handoff preserves Set scope and ${tool} intent from ${entry}`, async ({ page }) => {
+] as const) test(`@golden @preview document handoff preserves Set scope and ${tool} intent from ${entry}${fault ? ' with acknowledgement unavailable' : ''}`, async ({ page }) => {
  const source = await mountDesk(page, fault, 'gpt', entry, tool);
  await expect.poll(source.acknowledgements).toBe(1);
  await expect(page.getByRole('navigation', { name: 'Creative context' })).toContainText('100 Card Scale Set');
@@ -202,6 +203,7 @@ for (const { entry, tool, fault } of [
  if (fault) await expect(page.getByRole('region', { name: 'Notifications (F8)' })).toContainText('Revision applied locally');
  if (tool === 'output') await expect(page.getByRole('region', { name: 'Output Set', exact: true })).toBeVisible();
  expect(source.requests()).toBe(1);
+ expect(source.acknowledgements()).toBe(1);
  expect(source.confirmations()).toBe(0);
  const state = await page.evaluate(() => (window as unknown as { outputState: () => { cards: string[]; activeSet: string } }).outputState());
  expect(state.activeSet).toBe('scale-set-100');
