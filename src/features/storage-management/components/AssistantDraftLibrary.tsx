@@ -48,9 +48,11 @@ const formatDate = (value: string) => {
 export function AssistantDraftLibrary({
   isSignedIn,
   refreshVersion,
+  locationOnly = false,
 }: {
   isSignedIn: boolean;
   refreshVersion: number;
+  locationOnly?: boolean;
 }) {
   const { toast } = useToast();
   const siteContent = useSiteContent();
@@ -152,6 +154,7 @@ export function AssistantDraftLibrary({
       <div className="mt-6 border-t border-[var(--cf-border-subtle)] pt-5">
         <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-[var(--cf-accent-strong)]" /><h3 className="font-serif text-xl text-[var(--cf-text-strong)]">AI &amp; Studio working drafts</h3></div>
         <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">{retentionCopy}</p>
+        {locationOnly ? <p className="mt-1 text-xs text-[var(--cf-text-muted)]">Private drafts cannot be moved between storage locations.</p> : null}
         {!isSignedIn ? (
           <p className="mt-3 text-sm text-[var(--cf-text-muted)]">Sign in to see private working drafts.</p>
         ) : loadingDocuments ? (
@@ -165,7 +168,7 @@ export function AssistantDraftLibrary({
                   <p className="mt-1 text-xs text-[#bba57c]">Revision {document.revision} · {document.creationSource === 'gpt' ? 'ChatGPT working draft' : 'Studio working document'} · active until {formatDate(document.expiresAt)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button asChild size="sm" variant="outline"><Link href={`/studio?document=${encodeURIComponent(document.id)}&revision=${document.revision}`}>Continue <ExternalLink className="ml-2 h-3.5 w-3.5" /></Link></Button>
+                  {!locationOnly ? <Button asChild size="sm" variant="outline"><Link href={`/studio?document=${encodeURIComponent(document.id)}&revision=${document.revision}`}>Continue <ExternalLink className="ml-2 h-3.5 w-3.5" /></Link></Button> : null}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -173,7 +176,7 @@ export function AssistantDraftLibrary({
                     onClick={() => setPendingDocumentDelete(document)}
                   >
                     {deletingDocumentId === document.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                    Delete draft
+                    {locationOnly ? 'Delete' : 'Delete draft'}
                   </Button>
                 </div>
               </div>

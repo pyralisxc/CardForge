@@ -58,6 +58,7 @@ import { LibraryRevisionQueueControls } from './LibraryRevisionQueueControls';
 import { SharedPipelineTrashCollection } from './SharedPipelineTrashCollection';
 import { LibraryCollection } from './LibraryCollection';
 import { SetTrashDialog } from './SetTrashDialog';
+import { StorageLocationProvider } from './StorageLocationContents';
 import {
   LibraryDetailVisual,
   PipelineDetailContent,
@@ -947,7 +948,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           presentation={activeToolSession?.presentation}
         >
           <DefaultWorkLocationControl isSignedIn={isSignedIn} canUseProjectFiles={experience.capabilities.canUseProjectFiles} driveConnected={Boolean(projection.driveConnection?.connected && projection.driveConnection.rootFolderId)} localFolderSupported={projection.localFolderSupported} />
-          {storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}
+          <StorageLocationProvider key={persistenceScope} projection={projection} isSignedIn={isSignedIn} canUseProjectFiles={experience.capabilities.canUseProjectFiles} onDeviceRemoved={() => closeDetail()}>
+            {storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}
+          </StorageLocationProvider>
         </EnvironmentToolLayer>
       ) : null}
       {activeTool === 'contribute' ? (

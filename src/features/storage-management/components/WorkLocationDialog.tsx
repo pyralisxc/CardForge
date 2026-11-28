@@ -16,6 +16,9 @@ interface WorkLocationDialogProps {
   driveConnected: boolean;
   localFolderSupported: boolean;
   onChanged?: () => void;
+  strictMoveDestination?: boolean;
+  expectedDriveDestination?: { accountId: string; folderId: string };
+  onMoved?: (setId: string) => void;
 }
 
 const toProjectTarget = (item: AccountLibraryItem | null): ProjectWorkLocationTarget | null => {
@@ -27,6 +30,7 @@ const toProjectTarget = (item: AccountLibraryItem | null): ProjectWorkLocationTa
       .filter((location) => location !== null),
     ...(item.references.localSetId ? { localSetId: item.references.localSetId } : {}),
     ...(item.references.driveFileId ? { driveFileId: item.references.driveFileId } : {}),
+    ...(item.references.driveAccountId ? { driveAccountId: item.references.driveAccountId } : {}),
     ...(item.references.driveProviderRevision ? { driveProviderRevision: item.references.driveProviderRevision } : {}),
     ...(item.references.driveProjectRevision ? { driveProjectRevision: item.references.driveProjectRevision } : {}),
   };

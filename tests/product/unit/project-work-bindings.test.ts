@@ -98,6 +98,51 @@ beforeEach(() => {
 });
 
 describe('one authoritative Set location across save entry points', () => {
+  it('retains the selected Drive folder name across a paginated project read', async () => {
+    const connection = { connected: true, accountId: 'account-a', rootFolderId: 'folder12345', displayName: 'Account' };
+    const selectedFolder = { id: 'folder12345', name: 'QA folder' };
+    const fetch = vi.fn().mockResolvedValueOnce(Response.json({ connection, selectedFolder, projects: [], nextPageToken: 'next' }))
+      .mockResolvedValueOnce(Response.json({ connection, selectedFolder, projects: [], nextPageToken: null }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(loadDirectGoogleDriveProjectLibrary()).resolves.toMatchObject({ selectedFolder, projects: [] });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not present a repeated Drive page as a complete folder', async () => {
+    const connection = { connected: true, accountId: 'account-a', rootFolderId: 'folder12345', displayName: 'Account' };
+    const page = { connection, selectedFolder: { id: 'folder12345', name: 'QA folder' }, projects: [], nextPageToken: 'repeat' };
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json(page)));
+    await expect(loadDirectGoogleDriveProjectLibrary()).rejects.toThrow('repeated a project-list page');
+  });
+
+  it('rejects mixed Drive accounts across empty pages even if names and folders match', async () => {
+    const connection = { connected: true, accountId: 'account-a', rootFolderId: 'folder12345', displayName: 'Account' };
+    const selectedFolder = { id: 'folder12345', name: 'QA folder' };
+    const fetch = vi.fn().mockResolvedValueOnce(Response.json({ connection, selectedFolder, projects: [], nextPageToken: 'next' }))
+      .mockResolvedValueOnce(Response.json({ connection: { ...connection, accountId: 'account-b' }, selectedFolder, projects: [], nextPageToken: null }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(loadDirectGoogleDriveProjectLibrary()).rejects.toThrow('connection changed');
+  });
+
+  it('lists the remembered folder only with existing read permission and never writes', async () => {
+    const handle = { ...folder('Saved folder'), values: async function* () { yield { name: 'notes.txt', kind: 'file' as const }; yield { name: 'project.cardforge', kind: 'file' as const }; } };
+    const binding = { handle, folderName: 'Saved folder', sourceRevision: 'b'.repeat(64), packageScope: 'workspace' };
+    mock.values.set('test:local-project-folder-binding', binding);
+    const before = [...mock.values.entries()];
+    await expect(localFolder.listLocalProjectFolderContents(binding as never)).resolves.toEqual([{ name: 'notes.txt', kind: 'file' }, { name: 'project.cardforge', kind: 'file' }]);
+    expect([...mock.values.entries()]).toEqual(before);
+    expect(handle.queryPermission).toHaveBeenCalledWith({ mode: 'read' });
+  });
+
+  it('does not request permission or enumerate a folder that needs reconnecting', async () => {
+    const handle = { ...folder('Locked folder'), queryPermission: vi.fn(async () => 'prompt' as const), requestPermission: vi.fn(), values: vi.fn() };
+    const binding = { handle, folderName: 'Locked folder', sourceRevision: 'b'.repeat(64), packageScope: 'workspace' };
+    mock.values.set('test:local-project-folder-binding', binding);
+    await expect(localFolder.listLocalProjectFolderContents(binding as never)).rejects.toThrow('Reconnect this folder');
+    expect(handle.requestPermission).not.toHaveBeenCalled();
+    expect(handle.values).not.toHaveBeenCalled();
+  });
+
   it('prepares an already-loaded Set without downloading or importing it again', () => {
     mock.localSets = [{ id: 'set-c' }];
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
@@ -317,6 +362,25 @@ describe('one authoritative Set location across save entry points', () => {
     await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: driveBinding })).rejects.toThrow('linked Drive document changed');
     mock.values.set('test:google-drive-work-binding:set-c', { ...driveBinding, fileId: 'drive-file-other' });
     await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: driveBinding })).rejects.toThrow('linked Drive document changed');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mock.captureSet).not.toHaveBeenCalled();
+  });
+
+  it('passes the selected account and folder through the native save preparation', async () => {
+    const prepares: Record<string, unknown>[] = [];
+    const fetch = vi.fn(async (_url: string, options: RequestInit) => {
+      if (options.method === 'POST') { prepares.push(JSON.parse(options.body as string)); return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C', accountId: 'account-a' }); }
+      return Response.json({ id: 'drive-file-12345', name: 'C', headRevisionId: 'native-1' });
+    });
+    vi.stubGlobal('fetch', fetch);
+    await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: null, expectedDestination: { accountId: 'account-a', folderId: 'folder-12345' } });
+    expect(prepares).toEqual([expect.objectContaining({ expectedAccountId: 'account-a', expectedFolderId: 'folder-12345', fileId: null })]);
+  });
+
+  it('refuses a newly linked Drive destination when a move captured no link', async () => {
+    mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: null })).rejects.toThrow('linked after this move opened');
     expect(fetch).not.toHaveBeenCalled();
     expect(mock.captureSet).not.toHaveBeenCalled();
   });
