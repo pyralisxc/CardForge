@@ -41,7 +41,7 @@ import { ArtifactScene, type ArtifactSceneHandle, AuthoredObjectPreview } from '
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 import { usePipelineReviewNotices } from '@/features/pipeline/client/review-notices';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
-import { beginProjectCardEdit, saveProjectCardEdit, type ProjectCardEditSession } from '@/features/project/client/cardEditSession';
+import { useCardEditLifecycle } from '@/features/project/client/useCardEditLifecycle';
 import {
   requestBrowserWorkspaceRecovery,
   WorkspaceUpdateNotices,
@@ -186,10 +186,11 @@ function DeskContent({
   const [designIntent, setDesignIntent] = useState<DesignToolIntent | null>(null);
   const [storageOpen, setStorageOpen] = useState(false);
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
-  const [artifactEditSession, setArtifactEditSession] = useState<ProjectCardEditSession | null>(null);
+  const cardEdit = useCardEditLifecycle(persistenceScope);
+  const clearCardEdit = cardEdit.clear;
+  const artifactEditSession = cardEdit.session;
   const [artifactEditItem, setArtifactEditItem] = useState<AccountLibraryItem | null>(null);
   const artifactEditId = artifactEditSession?.card.uniqueId ?? null;
-  const [artifactEditDirty, setArtifactEditDirty] = useState(false);
   const [artifactDiscardOpen, setArtifactDiscardOpen] = useState(false);
   const [touchMultiSelect, setTouchMultiSelect] = useState(false);
   const pendingArtifactExitRef = useRef<(() => void) | null>(null);
@@ -435,25 +436,21 @@ function DeskContent({
   useEffect(() => {
     // An account/workspace switch closes the draft to prevent it crossing scopes.
     if (artifactEditSession && (artifactEditId !== focusedArtifactId || artifactEditSession.scope !== persistenceScope)) {
-      setArtifactEditSession(null);
+      clearCardEdit();
       setArtifactEditItem(null);
-      setArtifactEditDirty(false);
     }
-  }, [artifactEditId, artifactEditSession, focusedArtifactId, persistenceScope]);
+  }, [artifactEditId, artifactEditSession, clearCardEdit, focusedArtifactId, persistenceScope]);
+  useEffect(() => { setArtifactEditItem(null); }, [persistenceScope]);
   const startArtifactEdit = (artifactId: string) => {
-    const session = focusedLocalSetId ? beginProjectCardEdit(focusedLocalSetId, artifactId) : null;
-    if (!session || session.scope !== persistenceScope) { toast({ title: 'Card unavailable', description: 'Refresh this Set before editing. No work was changed.', variant: 'destructive' }); return; }
-    setArtifactEditSession(session);
+    if (!focusedLocalSetId || !cardEdit.begin(focusedLocalSetId, artifactId)) { toast({ title: 'Card unavailable', description: 'Refresh this Set before editing. No work was changed.', variant: 'destructive' }); return; }
     setArtifactEditItem(focusedItem);
-    setArtifactEditDirty(false);
   };
   const finishArtifactEdit = () => {
-    setArtifactEditSession(null);
+    cardEdit.clear();
     setArtifactEditItem(null);
-    setArtifactEditDirty(false);
   };
   const requestArtifactExit = (afterExit: () => void) => {
-    if (!artifactEditing || !artifactEditDirty) {
+    if (!artifactEditing || cardEdit.requestClose() === 'closed') {
       finishArtifactEdit();
       afterExit();
       return;
@@ -725,16 +722,12 @@ function DeskContent({
               editingArtifactId={artifactEditId}
               editingCard={artifactEditSession?.scope === persistenceScope ? artifactEditSession.card : null}
               onCancelArtifactEdit={() => requestArtifactExit(() => undefined)}
-              onArtifactEditDirtyChange={setArtifactEditDirty}
+              onArtifactEditDirtyChange={cardEdit.setDirty}
               onSaveArtifact={(card) => {
-                try {
-                  if (!artifactEditSession || !saveProjectCardEdit(artifactEditSession, card)) throw new Error('This card, Template or account changed while you were editing. Your draft is still open; copy your changes and reopen the current card.');
-                  finishArtifactEdit();
-                  return true;
-                } catch (error) {
-                  toast({ title: 'Card was not updated', description: error instanceof Error ? error.message : 'The card could not be updated.', variant: 'destructive' });
-                  return false;
-                }
+                const result = cardEdit.save(card);
+                if (result.kind === 'saved') { finishArtifactEdit(); return true; }
+                toast({ title: 'Card was not updated', description: result.message, variant: 'destructive' });
+                return false;
               }}
               onDesignArtifact={(card, face) => { finishArtifactEdit(); designCard(card, face); }}
               onDuplicateSelected={duplicateSelectedCards}

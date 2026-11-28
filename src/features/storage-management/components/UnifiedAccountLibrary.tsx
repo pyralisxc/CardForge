@@ -5,6 +5,7 @@ import { PIPELINE_ENGAGEMENT_CHANGED, notifyPipelineEngagementChanged, loadPipel
 import { usePipelineReviewNotices } from '@/features/pipeline/client/review-notices';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { HardDrive } from 'lucide-react';
 
 import {
@@ -35,6 +36,7 @@ import { ApiClientError, readApiErrorMessage } from '@/infrastructure/http/clien
 
 import { NewSetDialog, usePublishedSetStarters } from '@/features/project/client/new-set';
 import { useProjectLibraryWorkspace, type LibraryCardEditSession } from '@/features/project/client/libraryWorkspace';
+import { useCardEditLifecycle } from '@/features/project/client/useCardEditLifecycle';
 import { FocusedArtifactWorkspace } from '@/features/artifact-edit/client';
 import { CardRemovalUndo, SetDirection, SetTemplates, SetUpdates, WorkspaceUpdateNotices, useWorkspaceUpdates, useProjectDownload } from '@/features/project/client/ui';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
@@ -166,14 +168,18 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const activeToolSession = toolStack.at(-1) ?? null;
   const activeTool = activeToolSession?.toolId ?? null;
   const sharedTrashSessionKey = JSON.stringify([activeScope, isSignedIn, experience.owner, persistenceScope, sharedTrashMode, activeTool]);
-  const toolDirty = activeToolSession?.dirty ?? false;
-  const [cardEditSession, setCardEditSession] = useState<LibraryCardEditSession | null>(null);
+  const cardEdit = useCardEditLifecycle(persistenceScope);
+  const toolDirty = activeTool === 'card-edit' ? cardEdit.dirty : activeToolSession?.dirty ?? false;
+  const clearCardEdit = cardEdit.clear;
+  const cardEditSession = cardEdit.session;
   const [pendingCardRemoval, setPendingCardRemoval] = useState<{ session: LibraryCardEditSession; itemId: string; name: string } | null>(null);
   const cardsSectionRef = useRef<HTMLElement | null>(null);
   const removedCardFocusRef = useRef(false);
   const [cardQuery, setCardQuery] = useState('');
   const cardEditContext = useRef({ scope: persistenceScope, itemId: '' });
   const libraryMounted = useRef(false);
+  const cardReturnFocusEpoch = useRef(0);
+  const pendingCardTransition = useRef<{ cardId: string; templateId?: string } | null>(null);
   const setOpenContext = useRef('');
   useEffect(() => { libraryMounted.current = true; return () => { libraryMounted.current = false; }; }, []);
   const [designSourceState, setDesignSourceState] = useState<{ scope: string; source: PipelineDesignSource } | null>(null);
@@ -269,12 +275,26 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const zones = visibleZones.some((zone) => zone.id === 'library') ? visibleZones : [{ ...libraryDefinition, minimumAccess: 'guest' as const }, ...visibleZones];
 
   const openTool = (toolId: LibraryToolId, targetIds: readonly string[] = []) => {
+    cardReturnFocusEpoch.current += 1;
     setToolStack(openEnvironmentToolSession([], createLibraryToolSession(toolId, targetIds)));
   };
   const closeTool = () => {
+    const transition = pendingCardTransition.current;
+    pendingCardTransition.current = null;
     setDesignSource(null);
-    setCardEditSession(null);
+    clearCardEdit();
+    if (transition?.templateId) {
+      openTemplateDesign(transition.templateId);
+      setDesignReturnFocusId(`library-edit-card-${transition.cardId}`);
+      openTool('design', [transition.templateId]);
+      requestAnimationFrame(() => { if (libraryMounted.current) document.querySelector<HTMLButtonElement>('[aria-label="Close Design"]')?.focus(); });
+      return;
+    }
     setToolStack((current) => closeEnvironmentToolSession(current).stack);
+    if (transition) {
+      const returnEpoch = ++cardReturnFocusEpoch.current;
+      requestAnimationFrame(() => { if (libraryMounted.current && cardReturnFocusEpoch.current === returnEpoch) document.getElementById(`library-edit-card-${transition.cardId}`)?.focus(); });
+    }
   };
   const setToolDirty = useCallback((dirty: boolean) => {
     setToolStack((current) => {
@@ -401,10 +421,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   });
   useEffect(() => { setCardQuery(''); }, [selectedLocalSet?.id]);
   useEffect(() => {
-    setCardEditSession(null);
+    pendingCardTransition.current = null;
+    cardReturnFocusEpoch.current += 1;
+    clearCardEdit();
     setPendingCardRemoval(null);
     setToolStack((current) => current.at(-1)?.toolId === 'card-edit' ? [] : current);
-  }, [persistenceScope]);
+  }, [clearCardEdit, persistenceScope]);
   const prepareSelectedSetHere = async (item: AccountLibraryItem) => {
     const captured = setOpenContext.current;
     try {
@@ -424,9 +446,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     cardTitle(card).toLocaleLowerCase().includes(cardQuery.trim().toLocaleLowerCase())
   ));
   const startCardEdit = (setId: string, cardId: string) => {
-    const session = projectWorkspace.actions.beginCardEdit(setId, cardId);
-    if (!session) { toast({ title: 'Card unavailable', description: 'Refresh this Set before editing. No work was changed.', variant: 'destructive' }); return; }
-    setCardEditSession(session);
+    if (!cardEdit.begin(setId, cardId)) { toast({ title: 'Card unavailable', description: 'Refresh this Set before editing. No work was changed.', variant: 'destructive' }); return; }
     setDesignReturnFocusId(`library-edit-card-${cardId}`);
     openTool('card-edit', [setId, cardId]);
   };
@@ -666,6 +686,13 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       return;
     }
     executeAction(action);
+  };
+  const finishCardEditAfterSave = (cardId: string) => {
+    pendingCardTransition.current = { cardId };
+    const returnEpoch = ++cardReturnFocusEpoch.current;
+    requestAnimationFrame(() => {
+      if (libraryMounted.current && cardReturnFocusEpoch.current === returnEpoch) closeOrExecute(actions[0]!);
+    });
   };
   const requestDirtyToolClose = () => {
     if (toolCloseBlocked) { toast({ title: 'Keep the submission attempt open', description: toolCloseBlocked }); return; }
@@ -995,7 +1022,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           summary="Edit this card in its Set without leaving Library."
           closeLabel="Close card editor" onClose={() => runAction(actions[0]!)} dirty={toolDirty}
           onDirtyCloseRequest={requestDirtyToolClose} presentation={activeToolSession?.presentation}>
-          <div className={`${styles.libraryCardEditor} relative h-full min-h-0 w-full min-w-0`}>
+          {cardEdit.closing ? <p role="status">Finishing card save…</p> : null}
+          <div inert={cardEdit.closing} className={`${styles.libraryCardEditor} relative h-full min-h-0 w-full min-w-0`}>
             <FocusedArtifactWorkspace key={cardEditSession.card.uniqueId}
               artifactId={cardEditSession.card.uniqueId} card={cardEditSession.card}
               canExportClean={experience.capabilities.canExportClean} canUseProjectFiles={experience.capabilities.canUseProjectFiles}
@@ -1003,23 +1031,22 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
               subtitle={cardEditSession.card.template.name ?? 'Card'}
               availableDirections={{ up: false, down: false, left: false, right: false }} onBrowse={() => {}}
               editing onEdit={() => {}} onExitFocus={() => runAction(actions[0]!)}
-              onCancelEdit={() => { if (toolDirty) requestDirtyToolClose(); else runAction(actions[0]!); }}
-              onDirtyChange={setToolDirty}
+              onCancelEdit={() => { if (cardEdit.requestClose() === 'confirm-discard') requestDirtyToolClose(); else runAction(actions[0]!); }}
+              onDirtyChange={cardEdit.setDirty}
               onSave={(card) => {
-                try {
-                  if (!projectWorkspace.actions.saveCardEdit(cardEditSession, card)) throw new Error('This card, Template or account changed while you were editing. Your draft is still open; copy your changes and reopen the current card.');
-                  setToolDirty(false); closeTool();
-                  requestAnimationFrame(() => document.getElementById(`library-edit-card-${card.uniqueId}`)?.focus());
-                  return true;
-                } catch (error) {
-                  toast({ title: 'Card was not updated', description: error instanceof Error ? error.message : 'The card could not be updated.', variant: 'destructive' });
-                  return false;
-                }
+                const result = flushSync(() => cardEdit.save(card));
+                if (result.kind !== 'saved') { toast({ title: 'Card was not updated', description: result.message, variant: 'destructive' }); return false; }
+                finishCardEditAfterSave(card.uniqueId);
+                return true;
               }}
               onDesign={(card, face) => {
                 const id = face === 'back' ? card.backingTemplate?.id : card.template.id;
                 if (!id) { toast({ title: 'Template unavailable', description: 'Refresh this Set before opening Design.', variant: 'destructive' }); return; }
-                openTemplateDesign(id); setDesignReturnFocusId(`library-edit-card-${card.uniqueId}`); openTool('design', [id]);
+                if (!pendingCardTransition.current) {
+                  if (!flushSync(() => cardEdit.beginClosing())) { toast({ title: 'Finish the current card edit first', description: 'Save or discard the card changes before opening Design.', variant: 'destructive' }); return; }
+                  finishCardEditAfterSave(card.uniqueId);
+                }
+                pendingCardTransition.current = { cardId: card.uniqueId, templateId: id };
               }} />
           </div>
         </EnvironmentToolLayer>
@@ -1076,7 +1103,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>Keep editing</AlertDialogCancel>
-        <AlertDialogAction onClick={() => { if (toolCloseBlocked) { requestDirtyToolClose(); return; } setToolDirty(false); setDiscardToolRequested(false); closeOrExecute(actions[0]!); }}>Discard changes</AlertDialogAction>
+        <AlertDialogAction onClick={() => { if (toolCloseBlocked) { requestDirtyToolClose(); return; } flushSync(() => { if (activeTool === 'card-edit') cardEdit.setDirty(false); else setToolDirty(false); setDiscardToolRequested(false); }); closeOrExecute(actions[0]!); }}>Discard changes</AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>

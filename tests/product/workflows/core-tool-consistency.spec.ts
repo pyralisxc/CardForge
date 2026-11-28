@@ -275,6 +275,13 @@ for (const width of [1440, 390]) test(`Library edits the same card and retains t
   await expect(page.getByRole('alertdialog')).toContainText('unsaved');
   await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
   await expect(title).toHaveValue('Revised in Library');
+  await page.getByRole('button', { name: 'Close card editor', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Discard changes', exact: true }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Edit Scale Card 0001', exact: true })).toBeFocused();
+  await page.getByRole('button', { name: 'Edit Scale Card 0001', exact: true }).click();
+  await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+  await title.fill('Revised in Library');
   await editor.getByRole('button', { name: 'Save & Done', exact: true }).click();
   await expect(page).toHaveURL(/section=library/);
   await expect(page.getByRole('button', { name: 'Edit Revised in Library', exact: true })).toBeVisible();
@@ -290,6 +297,46 @@ for (const width of [1440, 390]) test(`Library edits the same card and retains t
   expect(saved.storedCards).toHaveLength(2);
   expect(saved.storedCards[0]).toMatchObject({ uniqueId: 'scale-card-1', setId: 'scale-set-100', templateId: before[scope].storedCards[0].templateId, data: { cardName: 'Revised in Library', artwork: `cardforge-browser-asset://${'1'.padStart(64, '0')}` } });
   expect(saved.storedCards[1]).toMatchObject({ uniqueId: 'scale-card-2', setId: 'scale-set-100', templateId: before[scope].storedCards[1].templateId, data: { cardName: 'Scale Card 0002', artwork: `cardforge-browser-asset://${'2'.padStart(64, '0')}` } });
+});
+
+test('Library Save & Design keeps focus in Design after saving the card', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, exportSample: true });
+  await page.goto('/account?section=library');
+  await page.locator('[id^="library-object-set:"]').filter({ hasText: '100 Card Scale Set' }).click();
+  await page.getByRole('button', { name: 'Edit Scale Card 0001', exact: true }).click();
+  const editor = page.locator('[data-artifact-edit-workspace]');
+  await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+  await editor.getByRole('textbox', { name: /Card title|Card name/i }).first().fill('Card before Design');
+  await editor.getByRole('button', { name: 'Save & Design Template', exact: true }).first().click();
+  const design = page.getByRole('region', { name: 'Design Template', exact: true });
+  await expect(design).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.activeElement?.id)).not.toBe('library-edit-card-scale-card-1');
+  await expect(page.getByRole('button', { name: 'Close Design', exact: true })).toBeFocused();
+  await page.goBack();
+  await expect(design).toHaveCount(0);
+  await page.getByRole('button', { name: 'Edit Card before Design', exact: true }).click();
+  await editor.getByRole('button', { name: 'Design Template', exact: true }).first().click();
+  await expect(design).toBeVisible();
+  await page.goBack();
+  await expect(design).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Edit Card before Design', exact: true })).toBeVisible();
+});
+
+test('Library card Save & Done leaves Back at the originating Desk', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, exportSample: true });
+  await page.goto('/account');
+  await page.getByRole('link', { name: 'Library', exact: true }).first().click();
+  await page.locator('[id^="library-object-set:"]').filter({ hasText: '100 Card Scale Set' }).click();
+  await page.getByRole('button', { name: 'Edit Scale Card 0001', exact: true }).click();
+  const editor = page.locator('[data-artifact-edit-workspace]');
+  await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+  await editor.getByRole('textbox', { name: /Card title|Card name/i }).first().fill('Saved before Back');
+  await editor.getByRole('button', { name: 'Save & Done', exact: true }).click();
+  await expect(editor).toHaveCount(0);
+  await page.goBack();
+  await expect(page.getByRole('region', { name: 'CardForge Desk' })).toBeVisible();
 });
 
 test('Library opens an already-local Set on Desk while an unrelated source is still loading', async ({ page }) => {
