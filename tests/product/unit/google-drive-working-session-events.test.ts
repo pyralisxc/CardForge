@@ -275,6 +275,7 @@ describe('Drive hook recovery barriers and independent copies', () => {
 
       harness.preferences = { googleDriveAutosaveEnabled: true, googleDriveAutosaveDelaySeconds: 5 };
       await session.reconcile();
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Local changes · Autosave scheduled' });
       await vi.advanceTimersByTimeAsync(4_999);
       expect(harness.save).toHaveBeenCalledTimes(1);
       await vi.advanceTimersByTimeAsync(1);
@@ -284,6 +285,87 @@ describe('Drive hook recovery barriers and independent copies', () => {
       await vi.advanceTimersByTimeAsync(60_000);
       expect(harness.save).toHaveBeenCalledTimes(2);
     } finally { vi.useRealTimers(); }
+  });
+
+  it('keeps a Library-style session manual even when the browser preference is enabled', async () => {
+    vi.useFakeTimers();
+    try {
+      harness.preferences.googleDriveAutosaveEnabled = true;
+      harness.dirty.mockResolvedValue(true);
+      useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F' });
+      await flush();
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Unsaved changes · Save to Drive' });
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(harness.save).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('keeps offline edits offline without promising or attempting an autosave', async () => {
+    vi.useFakeTimers();
+    try {
+      harness.preferences.googleDriveAutosaveEnabled = true;
+      useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+      await flush();
+      harness.subscription?.();
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Workspace changed · Autosave check scheduled' });
+      vi.stubGlobal('navigator', { onLine: false });
+      harness.listeners.get('offline')?.(new Event('offline'));
+      expect(latest()).toMatchObject({ phase: 'offline', message: 'Offline · Set changes not checked' });
+      harness.subscription?.();
+      expect(latest()).toMatchObject({ phase: 'offline', message: 'Offline · Set changes not checked' });
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(harness.save).not.toHaveBeenCalled();
+      vi.stubGlobal('navigator', { onLine: true });
+      harness.dirty.mockResolvedValue(true);
+      harness.listeners.get('online')?.(new Event('online'));
+      await flush();
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Local changes · Autosave scheduled' });
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('keeps a manual-save cue when a newer edit overtakes an earlier clean check', async () => {
+    let release!: (dirty: boolean) => void;
+    const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+    await flush();
+    harness.dirty.mockImplementationOnce(() => new Promise<boolean>((resolve) => { release = resolve; }));
+    const pending = session.saveNow();
+    await flush();
+    harness.subscription?.();
+    release(false);
+    await pending;
+    expect(latest()).toMatchObject({ phase: 'dirty', message: 'Workspace changed · Save to check this Set' });
+    expect(harness.save).not.toHaveBeenCalled();
+  });
+
+  it('treats a workspace change as provisional until the focused Set is compared', async () => {
+    vi.useFakeTimers();
+    try {
+      harness.preferences.googleDriveAutosaveEnabled = true;
+      useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+      await flush();
+      const reads = harness.dirty.mock.calls.length;
+      harness.subscription?.(); // May be an edit to another Set.
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Workspace changed · Autosave check scheduled' });
+      expect(harness.dirty).toHaveBeenCalledTimes(reads);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await flush();
+      expect(latest()).toMatchObject({ phase: 'clean', message: 'Saved to Drive' });
+      expect(harness.save).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('keeps a post-save workspace-only change provisional when the Set check was clean', async () => {
+    const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
+    await flush();
+    let release!: (dirty: boolean) => void;
+    harness.dirty.mockResolvedValueOnce(true).mockImplementationOnce(() => new Promise<boolean>((resolve) => { release = resolve; }));
+    const pending = session.saveNow();
+    await flush();
+    expect(harness.save).toHaveBeenCalledTimes(1);
+    harness.subscription?.(); // This could be a different Set.
+    release(false);
+    await pending;
+    expect(latest()).toMatchObject({ phase: 'dirty', message: 'Workspace changed · Save to check this Set' });
   });
 
   it('rechecks opt-in and account scope after asynchronous dirty reads before issuing an automatic write', async () => {
