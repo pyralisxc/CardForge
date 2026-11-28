@@ -120,7 +120,7 @@ export function useDeskController({
     : null);
   const [handledHandoffReference, setHandledHandoffReference] = useState<string | null>(null);
   const [preparedOutputSave, setPreparedOutputSave] = useState<'saving' | 'failed' | null>(null);
-  const preparedOutputRef = useRef<{ setId: string; reference: string } | null>(null);
+  const preparedOutputRef = useRef<{ setId: string; reference: string; scope: ProjectPersistenceScope } | null>(null);
   const preparedOutputAttempt = useRef(0);
   const outputReferenceRef = useRef(outputReference);
   outputReferenceRef.current = outputReference;
@@ -826,13 +826,13 @@ export function useDeskController({
     openContextTool(setId, tool, { designTemplateId });
   };
 
-  const savePreparedOutput = useCallback((prepared: { setId: string; reference: string }) => {
+  const savePreparedOutput = useCallback((prepared: { setId: string; reference: string; scope: ProjectPersistenceScope }) => {
     const attempt = ++preparedOutputAttempt.current;
     setPreparedOutputSave('saving');
     void navigateToTool(prepared.setId, 'output', [], () => {
-      if (preparedOutputAttempt.current !== attempt || preparedOutputRef.current !== prepared || outputReferenceRef.current !== prepared.reference) throw new Error('The prepared Output changed while saving.');
+      if (preparedOutputAttempt.current !== attempt || preparedOutputRef.current !== prepared || outputReferenceRef.current !== prepared.reference || openContext.current.scope !== prepared.scope || getProjectPersistenceScope() !== prepared.scope) throw new Error('The account or prepared Output changed while saving.');
     }).then((opened) => {
-      if (preparedOutputAttempt.current !== attempt || preparedOutputRef.current !== prepared || outputReferenceRef.current !== prepared.reference) return;
+      if (!deskMounted.current || preparedOutputAttempt.current !== attempt || preparedOutputRef.current !== prepared || outputReferenceRef.current !== prepared.reference) return;
       if (!opened) { setPreparedOutputSave('failed'); return; }
       preparedOutputRef.current = null;
       initialToolHandledRef.current = true;
@@ -843,12 +843,12 @@ export function useDeskController({
 
   const completeOutputHandoff = useCallback((setId: string, reference: string) => {
     if (reference !== outputReference) return;
-    const prepared = { setId, reference };
+    const prepared = { setId, reference, scope: persistenceScope };
     preparedOutputRef.current = prepared;
     placeCreatedSet(setId);
     setActiveCardSetId(setId);
     savePreparedOutput(prepared);
-  }, [outputReference, placeCreatedSet, savePreparedOutput, setActiveCardSetId]);
+  }, [outputReference, persistenceScope, placeCreatedSet, savePreparedOutput, setActiveCardSetId]);
 
   const retryPreparedOutput = useCallback(() => {
     const prepared = preparedOutputRef.current;

@@ -270,6 +270,20 @@ test('Desk retries the same prepared Output after browser workspace confirmation
  expect(source.requests()).toBe(1); expect(source.acknowledgements()).toBe(1); expect(downloads).toBe(0);
 });
 
+test('prepared Output retry cannot switch to a different account', async ({ page }) => {
+ const source = await mountDesk(page, 'save-read', 'gpt');
+ const retry = page.getByRole('button', { name: 'Retry prepared Output', exact: true });
+ await expect(retry).toBeVisible();
+ await page.evaluate(() => {
+  const w = window as unknown as { restoreOutputRead: () => void; switchOutputScope: () => void };
+  w.restoreOutputRead(); w.switchOutputScope();
+ });
+ await retry.click();
+ await expect(page.getByRole('region', { name: 'Notifications (F8)' })).toContainText('account or prepared Output changed');
+ await expect(page.getByText('Prepared selection: 2 cards, in the requested order.')).toBeHidden();
+ expect(source.requests()).toBe(1); expect(source.acknowledgements()).toBe(1);
+});
+
 for (const fault of ['stale', 'invalid', 'cancel', 'concurrent'] as const) test(`@golden @preview actual Desk keeps ${fault} Output handoff fail-closed`, async ({ page }) => {
  let downloads = 0; page.on('download', () => downloads++);
  const source = await mountDesk(page, fault);

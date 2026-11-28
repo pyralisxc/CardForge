@@ -10,6 +10,7 @@ import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitle
 import { projectAccountExperience } from '@/features/account/lib/accountExperience';
 import { materializeProjectTemplateOwnership } from '@/features/project/model/projectDocument';
 import { hydrateProjectWorkspaceForScope, useProjectStore } from '@/features/project/client/workspace';
+import { setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { normalizeStudioDocumentPayload } from '@/features/studio-documents/model';
 import { Toaster } from '@/components/ui/toaster';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
@@ -22,12 +23,13 @@ document.storedCards[2].backingData = { cardName: 'CHARLIE BACK' };
 const normalizedDocument = normalizeStudioDocumentPayload(document);
 if (!normalizedDocument) throw new Error('The synthetic Studio document is invalid.');
 const entitlement = resolveAccountEntitlement({ authConfigured: true, isSignedIn: true, accountUserId: 'synthetic', privateMetadata: { cardforgeAccess: 'paid' } });
-const proof = window as unknown as { outputDocument: unknown; outputEntitlement: unknown; outputState: () => unknown; changeWorkspace: () => void; removeFixtureCard: (id: string) => void; removeFixtureSet: (id: string) => void; outputLifecycle: { mounts: number; unmounts: number; routes: string[] } };
+const proof = window as unknown as { outputDocument: unknown; outputEntitlement: unknown; outputState: () => unknown; changeWorkspace: () => void; switchOutputScope: () => void; removeFixtureCard: (id: string) => void; removeFixtureSet: (id: string) => void; outputLifecycle: { mounts: number; unmounts: number; routes: string[] } };
 proof.outputLifecycle = { mounts: 0, unmounts: 0, routes: [] };
 proof.outputDocument = normalizedDocument;
 proof.outputEntitlement = entitlement;
 proof.outputState = () => ({ cards: useProjectStore.getState().storedCards.map(card => card.uniqueId), activeSet: useProjectStore.getState().activeCardSet?.id });
 proof.changeWorkspace = () => useProjectStore.setState(state => ({ storedCards: [...state.storedCards, { uniqueId: 'concurrent-local', templateId: 'local', data: {} }] }));
+proof.switchOutputScope = () => setProjectPersistenceScope('account:another-output-proof');
 proof.removeFixtureCard = (id) => useProjectStore.setState(state => ({ storedCards: state.storedCards.filter(card => card.uniqueId !== id) }));
 proof.removeFixtureSet = (id) => useProjectStore.setState(state => ({ cardSets: state.cardSets.filter(set => set.id !== id), storedCards: state.storedCards.filter(card => card.setId !== id), activeCardSet: state.activeCardSet?.id === id ? null : state.activeCardSet }));
 
