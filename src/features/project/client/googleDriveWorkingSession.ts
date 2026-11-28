@@ -58,7 +58,7 @@ const initialState: GoogleDriveWorkingSessionState = {
   message: 'Checking work location',
   receipt: null,
 };
-const unverifiedBaselineMessage = 'Drive save needs review · Save manually to establish a baseline';
+const unverifiedBaselineMessage = 'Cannot compare this browser copy with Drive · Use Save & move for a copy or compare first';
 const browserOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 const workspaceChangeMessage = (scheduled: boolean) => scheduled
   ? 'Workspace changed · Autosave check scheduled'
@@ -265,7 +265,7 @@ export function useGoogleDriveWorkingSession({
           setState({ phase: 'unlinked', message: 'Browser work', receipt: null });
           return;
         }
-        if (automatic && !binding.localProjectRevision) {
+        if (!binding.localProjectRevision) {
           clearTimer();
           setState({ phase: 'dirty', message: unverifiedBaselineMessage, receipt: binding });
           return;
@@ -309,6 +309,7 @@ export function useGoogleDriveWorkingSession({
           automaticSaveRef.current = controller;
           const saved = await saveCardSetToGoogleDrive({ setId, name, expectedBinding: binding,
             ...(thumbnailRef.current ? { renderThumbnail: thumbnailRef.current } : {}),
+            expectedLocalProjectRevision: binding.localProjectRevision,
             ...(controller ? { signal: controller.signal } : {}) });
           if (await canPublishForBinding(saved, generation)) {
             bindingRef.current = saved;

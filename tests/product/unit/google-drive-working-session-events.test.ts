@@ -265,7 +265,7 @@ describe('Drive hook recovery barriers and independent copies', () => {
       await vi.advanceTimersByTimeAsync(60_000);
       expect(harness.save).not.toHaveBeenCalled();
       await session.saveNow();
-      expect(harness.save).toHaveBeenCalledExactlyOnceWith({ setId: 'set-c', name: 'F', expectedBinding: harness.current, renderThumbnail });
+      expect(harness.save).toHaveBeenCalledExactlyOnceWith({ setId: 'set-c', name: 'F', expectedBinding: harness.current, expectedLocalProjectRevision: harness.current.localProjectRevision, renderThumbnail });
       const confirmedReads = harness.dirty.mock.calls.length;
       for (let edit = 0; edit < 25; edit++) harness.subscription?.();
       await flush();
@@ -287,7 +287,7 @@ describe('Drive hook recovery barriers and independent copies', () => {
     } finally { vi.useRealTimers(); }
   });
 
-  it('requires a manual save when the linked Set has no local revision baseline', async () => {
+  it('holds linked saves when the Set has no local revision baseline', async () => {
     vi.useFakeTimers();
     try {
       harness.preferences.googleDriveAutosaveEnabled = true;
@@ -295,12 +295,13 @@ describe('Drive hook recovery barriers and independent copies', () => {
       harness.dirty.mockResolvedValue(true);
       const session = useGoogleDriveWorkingSession({ setId: 'set-c', name: 'F', autosave: autosaveSettings() });
       await flush();
-      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Drive save needs review · Save manually to establish a baseline' });
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Cannot compare this browser copy with Drive · Use Save & move for a copy or compare first' });
       harness.subscription?.();
       await vi.advanceTimersByTimeAsync(60_000);
       expect(harness.save).not.toHaveBeenCalled();
       await session.saveNow();
-      expect(harness.save).toHaveBeenCalledTimes(1);
+      expect(harness.save).not.toHaveBeenCalled();
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Cannot compare this browser copy with Drive · Use Save & move for a copy or compare first' });
     } finally { vi.useRealTimers(); }
   });
 
@@ -316,7 +317,7 @@ describe('Drive hook recovery barriers and independent copies', () => {
       await flush();
       await vi.advanceTimersByTimeAsync(15_000);
       expect(harness.save).not.toHaveBeenCalled();
-      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Drive save needs review · Save manually to establish a baseline' });
+      expect(latest()).toMatchObject({ phase: 'dirty', message: 'Cannot compare this browser copy with Drive · Use Save & move for a copy or compare first' });
     } finally { vi.useRealTimers(); }
   });
 

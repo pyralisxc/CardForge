@@ -67,7 +67,7 @@ import { disconnectLocalProjectFolder, getLocalProjectFolderStatus, saveCardSetT
 import { openRememberedLocalProject, LOCAL_PROJECT_FOLDER_CHANGE_EVENT, reconnectAttachedProjectFolder } from '@/features/project/client/localProjectFolder';
 import { prepareSelectedSet } from '@/features/project/client/prepareSelectedSet';
 
-const driveBinding = { fileId: 'drive-file-12345', name: 'C', providerRevision: '1', projectRevision: 'a'.repeat(64), workId: 'set-c' };
+const driveBinding = { fileId: 'drive-file-12345', name: 'C', providerRevision: '1', projectRevision: 'a'.repeat(64), localProjectRevision: 'b'.repeat(64), workId: 'set-c' };
 const folder = (name: string) => {
   const handle = {
     name,
@@ -317,6 +317,30 @@ describe('one authoritative Set location across save entry points', () => {
     await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: driveBinding })).rejects.toThrow('linked Drive document changed');
     mock.values.set('test:google-drive-work-binding:set-c', { ...driveBinding, fileId: 'drive-file-other' });
     await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: driveBinding })).rejects.toThrow('linked Drive document changed');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mock.captureSet).not.toHaveBeenCalled();
+  });
+
+  it('refuses an existing-target save without a local baseline', async () => {
+    mock.values.set('test:google-drive-work-binding:set-c', { ...driveBinding, localProjectRevision: undefined });
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' })).rejects.toThrow('Cannot compare this browser copy with Drive');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mock.captureSet).not.toHaveBeenCalled();
+  });
+
+  it('refuses an automatic save when the local baseline disappears inside the serialized save', async () => {
+    const linked = { ...driveBinding, accountId: 'account-a', localProjectRevision: 'b'.repeat(64) };
+    mock.values.set('test:google-drive-work-binding:set-c', linked);
+    let reads = 0;
+    mock.read.mockImplementation(async (key: string) => {
+      if (key === 'test:google-drive-work-binding:set-c' && ++reads >= 3) return { ...linked, localProjectRevision: undefined };
+      return mock.values.get(key) ?? null;
+    });
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', expectedBinding: linked, expectedLocalProjectRevision: linked.localProjectRevision })).rejects.toThrow('Cannot compare this browser copy with Drive');
     expect(fetch).not.toHaveBeenCalled();
     expect(mock.captureSet).not.toHaveBeenCalled();
   });
