@@ -52,6 +52,7 @@ import {
 import {
   getAccountLibraryWorkPreview,
   SetTrashDialog,
+  StorageLocationProvider,
   WorkLocationDialog,
   type AccountLibraryItem,
 } from '@/features/storage-management/client';
@@ -216,6 +217,8 @@ function DeskContent({
     createPublishedWorkingCopy,
     closeContextStudio,
     completeOutputHandoff,
+    preparedOutputSave,
+    retryPreparedOutput,
     completeStudioDocumentHandoff,
     closeGenerate,
     closePipelineSubmission,
@@ -801,7 +804,9 @@ function DeskContent({
           manageHistory={false}
           railOwned
         >
-          {storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}
+          <StorageLocationProvider key={persistenceScope} projection={projection} isSignedIn={isSignedIn} canUseProjectFiles={experience.capabilities.canUseProjectFiles} onDeviceRemoved={(id) => { if (id === focusedLocalSetId) resetToDesk(); }}>
+            {storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}
+          </StorageLocationProvider>
         </EnvironmentToolLayer> : null}
         {pipelineSubmitSetId ? <EnvironmentToolLayer
           id="desk-pipeline-submit-title"
@@ -886,6 +891,10 @@ function DeskContent({
           sceneVisible={studioTool.tool === 'design'}
           railOwned
         >
+          {preparedOutputSave ? <div role={preparedOutputSave === 'failed' ? 'alert' : 'status'}>
+            {preparedOutputSave === 'failed' ? <><p>The prepared Set could not be saved on this device. Your work is still here.</p><button type="button" onClick={retryPreparedOutput}>Retry prepared Output</button></> : 'Saving the prepared Set on this device…'}
+          </div> : null}
+          <div hidden={preparedOutputSave !== null} className={preparedOutputSave !== null ? 'hidden' : 'flex min-h-0 flex-1 flex-col'}>
           <DeskDesignWorkspace
             tool={studioTool.tool === 'output' ? 'output' : 'design'}
             onCloseTool={confirmDirtyClose}
@@ -900,6 +909,7 @@ function DeskContent({
             contextSetId={studioTool.setId}
             contextTemplateId={studioTool.templateId}
           />
+          </div>
         </EnvironmentToolLayer> : null}
       </EnvironmentShell>
       </div>

@@ -128,12 +128,10 @@ test('@golden actual Workbench applies exact selection and settings before the e
  });
  const params = new URLSearchParams({ document: id, revision: '2', outputRef: '10000000-0000-4000-8000-000000000001' });
  await page.goto(`http://localhost/proof?${params}`); await page.addScriptTag({ content: workbenchBundle });
- await page.evaluate(() => { window.print = () => { (window as unknown as { printRequests: number }).printRequests = 1; }; });
  await expect(page.getByText('Prepared selection: 2 cards, in the requested order.')).toBeVisible();
  expect(downloads).toBe(0); await expect(page.getByLabel(/Margins/)).toHaveValue('7'); await expect(page.getByLabel(/Card spacing/)).toHaveValue('2');
- await page.getByRole('button', { name: 'Print or save PDF', exact: true }).click();
- await expect.poll(() => page.evaluate(() => (window as unknown as { printRequests?: number }).printRequests)).toBe(1);
- const pdf = await PDFDocument.load(await page.pdf({ printBackground: true, preferCSSPageSize: true })); expect(pdf.getPageCount()).toBe(1); expect(pdf.getPage(0).getWidth()).toBeCloseTo(210 * 72 / 25.4, 0);
+ const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download digital sheet PDF', exact: true }).click();
+ const pdf = await PDFDocument.load(await readFile((await (await download).path())!)); expect(pdf.getPageCount()).toBe(1); expect(pdf.getPage(0).getWidth()).toBeCloseTo(210 * 72 / 25.4, 1); const faces = pdf.context.enumerateIndirectObjects().filter(([, value]) => value instanceof PDFRawStream && String(value.dict.get(PDFName.of('Subtype'))) === '/Image' && value.dict.has(PDFName.of('SMask'))); expect(faces).toHaveLength(3);
  const zipDownload = page.waitForEvent('download'); await page.getByRole('button', { name: /Download PNG set/ }).click();
  const zip = await JSZip.loadAsync(await readFile((await (await zipDownload).path())!));
  expect(Object.keys(zip.files).filter((name) => name.endsWith('.png'))).toEqual(['digital-output-images/001_Scale_Card_0002_front.png', 'digital-output-images/001_Scale_Card_0002_back.png', 'digital-output-images/002_Scale_Card_0001_front.png']);
@@ -141,12 +139,12 @@ test('@golden actual Workbench applies exact selection and settings before the e
  await expect(page.getByRole('region', { name: 'Notifications (F8)' }).getByText(/source or account access could not be revalidated/i)).toBeVisible(); expect(downloads).toBe(beforeBlockedZip);
  const beforeReload = sourceRequests; await page.reload(); await page.addScriptTag({ content: workbenchBundle });
  await expect(page.getByRole('alert').filter({ hasText: 'This prepared Output is not active' })).toBeVisible();
- expect(sourceRequests).toBe(beforeReload); await expect(page.getByRole('button', { name: 'Print or save PDF', exact: true })).toHaveCount(0);
+ expect(sourceRequests).toBe(beforeReload); await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toHaveCount(0);
 });
 
 const deskBuild = buildSync({ minify: true, entryPoints: ['tests/product/fixtures/outputHandoffDesk.tsx'], bundle: true, platform: 'browser', format: 'iife', write: false, outfile: '/tmp/cardforge-output-desk-fixture.js', define: { 'process.env.NODE_ENV': '"production"', 'process.env.NEXT_RUNTIME': '"browser"', 'process.env': '{}' } });
 const deskBundle = deskBuild.outputFiles.find(file => file.path.endsWith('.js'))!.text;
-async function mountDesk(page: import('@playwright/test').Page, fault: 'stale' | 'invalid' | 'cancel' | 'concurrent' | 'acknowledgement' | null = null, source: 'studio' | 'gpt' = 'studio', entry: 'output' | 'studio-empty' | 'studio-existing' = 'output', tool: 'design' | 'output' = 'design') {
+async function mountDesk(page: import('@playwright/test').Page, fault: 'stale' | 'invalid' | 'cancel' | 'concurrent' | 'acknowledgement' | 'save-read' | null = null, source: 'studio' | 'gpt' = 'studio', entry: 'output' | 'studio-empty' | 'studio-existing' = 'output', tool: 'design' | 'output' = 'design') {
  let requests = 0; let acknowledgements = 0; let confirmations = 0; let release!: () => void;
  const pending = new Promise<void>(resolve => { release = resolve; });
  page.on('dialog', dialog => { confirmations++; return fault === 'cancel' ? dialog.dismiss() : dialog.accept(); });
@@ -157,7 +155,18 @@ async function mountDesk(page: import('@playwright/test').Page, fault: 'stale' |
   if (url.pathname === '/api/account/entitlement') return route.fulfill({ json: await page.evaluate(() => (window as unknown as { outputEntitlement: unknown }).outputEntitlement) });
   if (url.pathname === '/api/catalog/studio-bootstrap') return route.fulfill({ json: { templates: { defaults: [], userTemplates: [] }, styles: { styles: [] }, fonts: { fonts: [] }, studioDefaults: { defaultTemplateId: null } } });
   if (url.pathname === '/api/catalog/completed-deletions') return route.fulfill({ json: { deleted: [] } });
-  if (url.pathname === `/api/studio-documents/${id}/installation`) { acknowledgements++; return fault === 'acknowledgement' ? route.fulfill({ status: 503, json: { error: 'Acknowledgement unavailable' } }) : route.fulfill({ json: { ok: true, lastInstalledRevision: 2 } }); }
+  if (url.pathname === `/api/studio-documents/${id}/installation`) {
+   acknowledgements++;
+   if (fault === 'save-read') await page.evaluate(() => {
+    const original = IDBObjectStore.prototype.get;
+    (window as unknown as { restoreOutputRead: () => void }).restoreOutputRead = () => { IDBObjectStore.prototype.get = original; };
+    IDBObjectStore.prototype.get = function (key) {
+     if (String(key) === 'project-workspace:account:synthetic-output-proof:workspace') throw new DOMException('Browser workspace read unavailable', 'UnknownError');
+     return original.call(this, key);
+    };
+   });
+   return fault === 'acknowledgement' ? route.fulfill({ status: 503, json: { error: 'Acknowledgement unavailable' } }) : route.fulfill({ json: { ok: true, lastInstalledRevision: 2 } });
+  }
   if (url.pathname === `/api/studio-documents/${id}`) {
    requests++; if (fault === 'concurrent') await pending;
    if (fault === 'stale') return route.fulfill({ status: 409, json: { error: { code: 'revision_conflict', kind: 'conflict', message: 'Exact source revision is stale', retryable: false, correlationId: 'synthetic-output-stale' } } });
@@ -241,7 +250,24 @@ test('@golden @preview actual Desk bootstraps exact prepared Output before a loc
  expect(Object.keys(zip.files).filter(name => name.endsWith('.png'))).toEqual(['digital-output-images/001_CHARLIE_front.png', 'digital-output-images/001_CHARLIE_back.png', 'digital-output-images/002_ALPHA_front.png']);
  await page.reload(); await page.addScriptTag({ content: deskBundle });
  await expect(page.getByRole('alert').filter({ hasText: 'This prepared Output is not active' })).toBeVisible();
- await expect(page.getByRole('button', { name: 'Print or save PDF', exact: true })).toHaveCount(0);
+ await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toHaveCount(0);
+});
+
+test('Desk retries the same prepared Output after browser workspace confirmation fails', async ({ page }) => {
+ let downloads = 0; page.on('download', () => downloads++);
+ const source = await mountDesk(page, 'save-read', 'gpt');
+ const retry = page.getByRole('button', { name: 'Retry prepared Output', exact: true });
+ await expect(retry).toBeVisible();
+ await expect(page.getByText('Prepared selection: 2 cards, in the requested order.')).toBeHidden();
+ expect((await page.evaluate(() => (window as unknown as { outputState: () => { activeSet: string } }).outputState())).activeSet).toBe('scale-set-100');
+ expect(source.requests()).toBe(1); expect(source.acknowledgements()).toBe(1); expect(downloads).toBe(0);
+ await page.evaluate(() => (window as unknown as { restoreOutputRead: () => void }).restoreOutputRead());
+ await retry.click();
+ await expect(page.getByText('Prepared selection: 2 cards, in the requested order.')).toBeVisible();
+ await expect(page.getByLabel(/Margins/)).toHaveValue('7');
+ expect(new URL(page.url()).searchParams.get('focus')).toBe('set:scale-set-100');
+ expect(new URL(page.url()).searchParams.get('outputRef')).toBe('10000000-0000-4000-8000-000000000001');
+ expect(source.requests()).toBe(1); expect(source.acknowledgements()).toBe(1); expect(downloads).toBe(0);
 });
 
 for (const fault of ['stale', 'invalid', 'cancel', 'concurrent'] as const) test(`@golden @preview actual Desk keeps ${fault} Output handoff fail-closed`, async ({ page }) => {
@@ -251,7 +277,7 @@ for (const fault of ['stale', 'invalid', 'cancel', 'concurrent'] as const) test(
  const notices = page.getByRole('region', { name: 'Notifications (F8)' });
  if (fault === 'cancel') await expect.poll(source.confirmations).toBe(1);
  else await expect(notices.getByText(fault === 'stale' ? /source revision is stale/ : fault === 'invalid' ? /valid Output reference/ : /workspace changed/)).toBeVisible();
- await expect(page.getByRole('button', { name: 'Print or save PDF', exact: true })).toHaveCount(0);
+ await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toHaveCount(0);
  const state = await page.evaluate(() => (window as unknown as { outputState: () => { cards: string[] } }).outputState());
  expect(state.cards).toEqual(fault === 'cancel' ? ['existing-local'] : fault === 'concurrent' ? ['concurrent-local'] : []);
  expect(source.requests()).toBe(fault === 'invalid' || fault === 'cancel' ? 0 : 1); expect(downloads).toBe(0);
@@ -278,7 +304,7 @@ test('@golden acknowledged GPT Output survives the actual account focus-key tran
   const readsBeforeReload = source.requests();
   await page.reload(); await page.addScriptTag({ content: deskBundle });
   await expect(page.getByRole('alert').filter({ hasText: 'This prepared Output is not active' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Print or save PDF', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Save as PDF', exact: true })).toHaveCount(0);
   expect(source.requests()).toBe(readsBeforeReload);
   expect(source.acknowledgements()).toBe(1); expect(source.confirmations()).toBe(1);
  } finally {

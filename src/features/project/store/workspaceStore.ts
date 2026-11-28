@@ -16,6 +16,7 @@ import {
   createScopedProjectStorage,
   getProjectPersistenceScope,
   commitBrowserWorkspaceImport,
+  confirmBrowserWorkspaceValue,
   setProjectPersistenceScope,
   type ProjectPersistenceScope,
 } from '../persistence/projectPersistenceScope';
@@ -48,6 +49,25 @@ export const persistProjectWorkspaceNow = async (): Promise<void> => {
     state: options.partialize ? options.partialize(state) : state,
     version: options.version,
   }));
+};
+
+/** Save and confirm the exact selected Set's current browser workspace before Output. */
+export const confirmSetWorkspaceForOutput = async (setId: string, assertCurrent: () => void = () => {}): Promise<'reused' | 'saved'> => {
+  const scope = getProjectPersistenceScope();
+  const options = useProjectStore.persist.getOptions();
+  const serialize = () => JSON.stringify({ state: options.partialize ? options.partialize(useProjectStore.getState()) : useProjectStore.getState(), version: options.version });
+  if (!useProjectStore.getState().cardSets.some((set) => set.id === setId)) throw new Error('This Set is no longer available. Return to it and retry Output.');
+  const value = serialize();
+  const check = () => {
+    if (getProjectPersistenceScope() !== scope || !useProjectStore.getState().cardSets.some((set) => set.id === setId) || serialize() !== value) {
+      throw new Error('The account or Set changed while saving. Your work is unchanged; retry Output.');
+    }
+    assertCurrent();
+  };
+  check();
+  const result = await confirmBrowserWorkspaceValue(value, check);
+  check();
+  return result;
 };
 
 type WorkspacePersistedState = Pick<

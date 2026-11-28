@@ -281,6 +281,40 @@ export const createScopedProjectStorage = (
   ).removeItem(key),
 });
 
+/** Confirm an exact current workspace, reusing a native receipt only after readback. */
+export const confirmBrowserWorkspaceValue = async (value: string, assertCurrent: () => void): Promise<'reused' | 'saved'> => {
+  const scope = activeProjectPersistenceScope;
+  if (scope === DISABLED_SCOPE) throw new Error('Wait for your browser workspace to finish opening, then retry Output.');
+  const namespace = getScopedProjectStorageNamespace('project-workspace', scope);
+  const revisionKey = getWorkspaceRevisionKey(namespace, WORKSPACE_STORAGE_KEY);
+  const check = () => {
+    if (activeProjectPersistenceScope !== scope) throw new Error('The account changed while saving. Reopen Output in the intended account.');
+    assertCurrent();
+  };
+  return await enqueueWorkspaceWrite(revisionKey, async () => {
+      check();
+      if (restoredWorkspaces.has(revisionKey)) throw new Error('This workspace was restored. Reload before opening Output.');
+      if (!isValidWorkspacePayload(value)) throw new Error('The browser workspace is not readable. Your work was left unchanged.');
+      const externalized = await externalizeBrowserProjectAssetJson(value, scope);
+      check();
+      const raw = await createBrowserKeyValueStorage(namespace).getItem(WORKSPACE_STORAGE_KEY);
+      check();
+      const expectedRevision = workspaceRevisions.get(revisionKey) ?? 0;
+      const record = raw === null ? null : parseBrowserWorkspaceRecord(raw);
+      if (record && record.revision === expectedRevision && record.value === externalized.storedValue) return 'reused';
+      const revision = await compareAndSetBrowserWorkspaceValue({
+        namespace, key: WORKSPACE_STORAGE_KEY, value: externalized.storedValue,
+        expectedRevision, writerId: workspaceWriterId, keepRecoverySnapshot: true,
+        recoveryKeys: workspaceAssetKeys(scope), beforeCommit: check,
+      });
+      workspaceRevisions.set(revisionKey, revision);
+      workspaceValues.set(revisionKey, externalized.storedValue);
+      getWorkspaceRevisionChannel()?.postMessage({ namespace, key: WORKSPACE_STORAGE_KEY, revision, writerId: workspaceWriterId });
+      check();
+      return 'saved';
+  });
+};
+
 /** One native commit for imported workspace state and its asset catalogs. */
 export const commitBrowserWorkspaceImport = async ({ value, relatedWrites, beforeCommit, signal }: {
   value: string;

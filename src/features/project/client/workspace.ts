@@ -17,7 +17,7 @@ export {
   selectGeneratedDisplayCards,
   resolveGeneratorFrontTemplateId,
 } from '../store/selectors';
-export { hydrateProjectWorkspaceForScope, useProjectStore } from '../store/workspaceStore';
+export { confirmSetWorkspaceForOutput, hydrateProjectWorkspaceForScope, useProjectStore } from '../store/workspaceStore';
 export type { ProjectState } from '../store/workspaceStore';
 export type { TemplateCommitChangeInput } from '../store/types';
 export { getTemplateOwnerSetId } from '../model/setTemplateOwnership';
