@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { extractTemplateFieldDefinitions } from '@/domain/templates';
-import { buildScopedFieldDataKey, buildStaticSegmentFieldKey } from '@/domain/rendering';
+import { buildScopedFieldDataKey } from '@/domain/rendering';
 import type { TCGCardTemplate } from '@/domain/templates';
 
 describe('extractTemplateFieldDefinitions', () => {
@@ -275,17 +275,7 @@ describe('extractTemplateFieldDefinitions', () => {
     };
 
     const fields = extractTemplateFieldDefinitions(template);
-    expect(fields).toHaveLength(2);
-
-    const baseField = fields.find((field) => field.key === buildStaticSegmentFieldKey('text-1', 0));
-    expect(baseField).toMatchObject({
-      label: 'Title',
-      contentModel: 'text',
-      editor: 'text-editor',
-      control: 'textarea',
-      defaultValue: 'Legendary ',
-      sourceElementName: 'Title',
-    });
+    expect(fields).toHaveLength(1);
 
     const field = fields.find((item) => item.key === 'title_var_1');
     expect(field).toBeDefined();
@@ -482,7 +472,7 @@ describe('extractTemplateFieldDefinitions', () => {
     expect(fields.every((field) => field.editor === 'structured-rows')).toBe(true);
   });
 
-  it('adds a base text field for mixed static and variable text elements', () => {
+  it('keeps literal text fixed while exposing the variables in mixed text', () => {
     const template: TCGCardTemplate = {
       id: 'template-8',
       name: 'Rules Box Template',
@@ -507,9 +497,7 @@ describe('extractTemplateFieldDefinitions', () => {
     };
 
     const fields = extractTemplateFieldDefinitions(template);
-    expect(fields.map((field) => field.label)).toEqual(['Rules Box', 'Ability', 'Sub Text']);
-    expect(fields[0].key).toBe(buildStaticSegmentFieldKey('rules-1', 1));
-    expect(fields[0].defaultValue).toContain('When Emberclaw Whelp enters the battlefield');
+    expect(fields.map((field) => field.label)).toEqual(['Ability', 'Sub Text']);
   });
 
   it('marks placeholder-bound image layers as image fields', () => {

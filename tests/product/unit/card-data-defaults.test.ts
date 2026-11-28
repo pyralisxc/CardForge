@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { TCGCardTemplate, TemplateFieldDefinition } from '@/domain/templates';
+import { extractTemplateFieldDefinitions, normalizeTemplateFieldContracts, type TCGCardTemplate, type TemplateFieldDefinition } from '@/domain/templates';
+import { createBulkDisplayCards } from '@/features/card-generator/lib/bulkPreview';
+import { buildResolvedTextSegments } from '@/features/card-rendering/components/CardTextContent';
+import { buildStaticSegmentFieldKey } from '@/domain/rendering';
 import {
   getMissingRequiredFieldLabels,
   initializeCardDataFromTemplate,
@@ -20,6 +23,48 @@ const requiredField: TemplateFieldDefinition = {
 };
 
 describe('card data defaults', () => {
+  it('keeps an example as guidance rather than a card default through Template normalization', () => {
+    const template: TCGCardTemplate = {
+      id: 'example-only', name: 'Example only', aspectRatio: '63:88',
+      fieldContracts: [{ key: 'Rank', elementId: 'rank', type: 'text', required: true, example: 'King' }],
+      freeformCanvas: { width: 630, height: 880, elements: [
+        { id: 'rank', type: 'text', name: 'Rank', content: '{{Rank}}', x: 0, y: 0, width: 100, height: 100, zIndex: 0 },
+      ] },
+    };
+    expect(extractTemplateFieldDefinitions(template)[0].defaultValue).toBeUndefined();
+    const normalized = normalizeTemplateFieldContracts(template);
+    const fields = extractTemplateFieldDefinitions(normalized);
+    expect(fields.map((field) => field.key)).toEqual(['Rank']);
+    expect(fields[0]).toMatchObject({ key: 'Rank', required: true, example: 'King' });
+    expect(fields[0].defaultValue).toBeUndefined();
+    expect(normalized.fieldContracts?.[0].defaultValue).toBeUndefined();
+    expect(getMissingRequiredFieldLabels(fields, completeCardDataWithTemplateDefaults(fields, {}))).toEqual(['Rank']);
+    expect(initializeCardDataFromTemplate(normalized, { Rank: '' })[1].Rank).toBe('');
+    expect(initializeCardDataFromTemplate(normalized, { Rank: 'Queen' })[1].Rank).toBe('Queen');
+    const withDefault = normalizeTemplateFieldContracts({ ...template, fieldContracts: [{ ...template.fieldContracts![0], defaultValue: 'Ace' }] });
+    expect(completeCardDataWithTemplateDefaults(extractTemplateFieldDefinitions(withDefault), {}).Rank).toBe('Ace');
+    const withEmptyDefault = normalizeTemplateFieldContracts({ ...template, fieldContracts: [{ ...template.fieldContracts![0], defaultValue: '' }] });
+    expect(extractTemplateFieldDefinitions(withEmptyDefault)[0].defaultValue).toBe('');
+  });
+
+  it('does not resolve an omitted example in an appended card, but preserves an explicit value', () => {
+    const template: TCGCardTemplate = {
+      id: 'example-output', name: 'Example output', aspectRatio: '63:88',
+      fieldContracts: [{ key: 'Rank', elementId: 'label', type: 'text', required: false, example: 'King' }],
+      freeformCanvas: { width: 630, height: 880, elements: [
+        { id: 'label', type: 'text', name: 'Label', content: 'Rank: {{Rank}}', x: 0, y: 0, width: 100, height: 100, zIndex: 0 },
+      ] },
+    };
+    const normalized = normalizeTemplateFieldContracts(template);
+    const fields = extractTemplateFieldDefinitions(normalized);
+    const [card] = createBulkDisplayCards({ template: normalized, fieldDefinitions: fields, rows: [['Other'], ['value']], columnMapping: {} });
+    const element = normalized.freeformCanvas!.elements[0];
+    expect(card.data.Rank).toBe('');
+    expect(buildResolvedTextSegments(normalized, element, card.data).map((segment) => segment.text).join('')).toBe('Rank: ');
+    expect(buildResolvedTextSegments(normalized, element, { Rank: 'Queen' }).map((segment) => segment.text).join('')).toBe('Rank: Queen');
+    expect(buildResolvedTextSegments(normalized, element, { Rank: '' }).map((segment) => segment.text).join('')).toBe('Rank: ');
+    expect(buildResolvedTextSegments(normalized, element, { Rank: 'Queen', [buildStaticSegmentFieldKey('label', 0)]: 'Title: ' }).map((segment) => segment.text).join('')).toBe('Title: Queen');
+  });
   it('resolves saved preview defaults before inline fallbacks while preserving explicit empty and companion values', () => {
     const template: TCGCardTemplate = {
       id: 'review-copy', name: 'Review copy', aspectRatio: '63:88',

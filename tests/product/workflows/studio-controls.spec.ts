@@ -6,6 +6,8 @@ import postcss from 'postcss';
 import tailwindcss from 'tailwindcss';
 import tailwindConfig from '../../../tailwind.config';
 import { expect, test } from '@playwright/test';
+import { extractTemplateFieldDefinitions } from '@/domain/templates';
+import { resolveTemplateTextSegments } from '@/domain/rendering';
 const bundle = buildSync({ entryPoints:['tests/product/fixtures/studioControls.tsx'],bundle:true,platform:'browser',format:'iife',write:false,outfile:join(tmpdir(),'studio-controls.js'),define:{'process.env.NODE_ENV':'"production"','process.env':'{}'} });
 const css=postcss([tailwindcss(tailwindConfig)]).process((readFileSync('src/app/cardforgePresentation.css','utf8')+readFileSync('src/app/globals.css','utf8')).replace(/@import ['"]([^'"]+)['"];?/g,(_,path:string)=>readFileSync(join('src/app',path),'utf8')),{from:'src/app/globals.css'});
 for(const width of [390,1440]) test(`@golden @preview Studio controls preserve selected geometry and texture-only strength at ${width}px`,async({page},info)=>{
@@ -170,6 +172,17 @@ test('@golden appearance effect completion keeps independent history',async({pag
  await angle.fill('18');await angle.press('ArrowUp');await angle.press('Tab');await angle.fill('72');await angle.press('Tab');await ui.history('Undo');await expect(angle).toHaveValue('19');await ui.history('Undo');await expect(angle).toHaveValue('135');await expect(page.getByTestId('working-dirty')).toHaveText('saved');
  await angle.fill('180');await angle.press('Tab');await ui.save();await ui.history('Undo');await expect(angle).toHaveValue('135');await expect(page.getByTestId('working-dirty')).toHaveText('dirty');await ui.history('Redo');await expect(angle).toHaveValue('180');await expect(page.getByTestId('working-dirty')).toHaveText('saved');const saved=await ui.snapshot();expect(saved.freeformCanvas.elements.filter((e:{id:string})=>e.id!==shape.id)).toEqual(baseline.freeformCanvas.elements.filter((e:{id:string})=>e.id!==shape.id));expect(saved.fieldContracts).toEqual(baseline.fieldContracts);await ui.reopen(shape.id);await page.getByRole('button',{name:'Look',exact:true}).click();await expect(angle).toHaveValue('180');await page.screenshot({path:info.outputPath('appearance-effect-history.png')});
 });
+test('@golden open color picker owns Undo until dismissed',async({page})=>{
+ await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?historyContracts=1');
+ const ui=await inspectorHistory(page,1440);await page.getByRole('button',{name:'Look',exact:true}).click();
+ const trigger=page.getByText('Text',{exact:true}).locator('..').getByRole('button',{name:/^Color /});
+ const original=await trigger.getAttribute('aria-label');await trigger.click();
+ const hex=page.getByTitle('Hex color value');await hex.fill('#654321');await hex.press('Enter');
+ await expect(trigger).toHaveAttribute('aria-label','Color #654321');
+ const hue=page.getByRole('slider',{name:'Hue',exact:true});await hue.focus();await page.keyboard.press('ControlOrMeta+z');
+ await expect(trigger).toHaveAttribute('aria-label','Color #654321');
+ await page.keyboard.press('Escape');await ui.history('Undo');await expect(trigger).toHaveAttribute('aria-label',original!);
+});
 test('@golden appearance color commits and native picker gestures preserve history',async({page},info)=>{
  const width=1440;
  test.setTimeout(120000);await page.setViewportSize({width,height:960});await mountHistoryProof(page,'?historyContracts=1',true);const ui=await inspectorHistory(page,width);
@@ -231,6 +244,20 @@ test('@golden completed typography spacing preserves grouped Undo and Save', asy
  expect(saved.freeformCanvas.elements.find((element:{id:string})=>element.id==='neighbor')).toEqual(baseline.freeformCanvas.elements.find((element:{id:string})=>element.id==='neighbor'));expect(saved.fieldContracts).toEqual(baseline.fieldContracts);
  const stored=await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'));await reopen();await expect(height).toHaveValue('2.25');await expect(spacing).toHaveValue('0.08em');expect(await page.evaluate(()=>localStorage.getItem('synthetic-saved-template'))).toBe(stored);
  await page.screenshot({path:info.outputPath('spacing-history-reopened.png')});
+});
+test('@golden Studio saves a CSV example without making it a default',async({page})=>{
+ test.setTimeout(90000);await page.setViewportSize({width:1440,height:960});await mountHistoryProof(page,'?normalizedSave=1');
+ const editor=page.locator('.tiptap[contenteditable="true"]');await editor.fill('Rank: {{Rank}}');
+ const card=page.locator('div').filter({has:page.getByRole('textbox',{name:'Variable name for Rank'})}).filter({hasText:'CSV Example'}).last();
+ await expect(page.getByLabel(/Base field for/)).toHaveCount(0);
+ await card.getByPlaceholder('Sample value').fill('King');
+ await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.getByTestId('working-dirty')).toHaveText('saved');
+ const saved=JSON.parse(await page.getByTestId('saved').textContent()||'{}');const field=saved.fieldContracts.find((item:{key:string})=>item.key==='Rank');
+ expect(field.example).toBe('King');expect(field.defaultValue).toBeUndefined();
+ const element=saved.freeformCanvas.elements.find((item:{content?:string})=>item.content?.includes('{{Rank}}'));
+ expect(extractTemplateFieldDefinitions(saved).map(item=>item.key)).toContain('Rank');
+ expect(extractTemplateFieldDefinitions(saved).some(item=>item.isStaticBaseText)).toBe(false);
+ expect(resolveTemplateTextSegments(element.id,element.content,{Rank:'Queen'},false)).toBe('Rank: Queen');
 });
 test('@golden Template variable transactions and Save share one undo history',async({page},info)=>{
  const width=1440;
@@ -394,7 +421,8 @@ test('@golden structured-row creation and multi-field mode changes are atomic Te
  await page.getByRole('radio',{name:/Repeating Text/}).click();await page.getByRole('button',{name:'Add Label + Value',exact:true}).click();
  await expect(page.getByRole('textbox',{name:/Variable name for/})).toHaveCount(3);await page.getByRole('button',{name:'Undo',exact:true}).first().click();await expect(page.getByRole('textbox',{name:/Variable name for/})).toHaveCount(1);
  await page.getByRole('button',{name:'Redo',exact:true}).first().click();await expect(page.getByRole('textbox',{name:/Variable name for/})).toHaveCount(3);
- await page.getByRole('radio',{name:/^Text One editable/}).click();await page.getByRole('button',{name:'Save',exact:true}).click();
+ const textMode=page.getByRole('radiogroup',{name:'Make cards field mode for this text element'}).getByRole('radio',{name:/^Text\b/});
+ await expect(textMode).toBeEnabled();await textMode.click();await expect(textMode).toBeChecked();await page.getByRole('button',{name:'Save',exact:true}).click();
  const text=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(text.fieldContracts).toHaveLength(3);expect(text.fieldContracts.every((field:{type:string})=>field.type==='text')).toBe(true);
  await page.getByRole('button',{name:'Undo',exact:true}).first().click();await page.getByRole('button',{name:'Save',exact:true}).click();
  const rows=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(rows.fieldContracts).toHaveLength(3);expect(rows.fieldContracts.every((field:{type:string})=>field.type==='structuredRows')).toBe(true);

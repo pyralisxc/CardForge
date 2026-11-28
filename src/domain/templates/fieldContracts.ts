@@ -6,8 +6,7 @@ import {
   deriveImageFieldKey,
   extractPlaceholderKeysFromText,
   getGeneratorImageFieldKeyForElement,
-  parseTemplateTextSegments,
-  parseTextBinding,
+  getPlaceholderDefaultFromText,
 } from '@/domain/rendering';
 import { toTitleCase } from '@/shared/text';
 
@@ -86,7 +85,7 @@ export const resolveFieldContractV1 = ({
   inferredMultiline,
   inferredHelperText,
 }: ResolveFieldContractV1Options): ResolvedFieldContractV1 => {
-  const defaultValue = contract?.defaultValue ?? inferredDefaultValue ?? contract?.example;
+  const defaultValue = contract?.defaultValue ?? inferredDefaultValue;
   const description = contract?.description?.trim() || undefined;
   const example = contract?.example;
   const allowedFormatting = Array.isArray(contract?.allowedFormatting)
@@ -211,11 +210,7 @@ const inferRequiredForContract = (key: string, element: FreeformCardElement, fal
 };
 
 const getFallbackForElementKey = (element: FreeformCardElement, key: string): string | undefined => {
-  const simple = parseTextBinding(element.content);
-  if (simple.field === key) return simple.fallback;
-  return parseTemplateTextSegments(element.content).find((segment) => (
-    segment.type === 'variable' && segment.key === key
-  ))?.text;
+  return getPlaceholderDefaultFromText(element.content, key);
 };
 
 const buildContractFromElementKey = (

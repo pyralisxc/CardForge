@@ -14,6 +14,16 @@ const workspace = (current: TCGCardTemplate, source: TCGCardTemplate, face: 'fro
 const fingerprint = 'a'.repeat(64);
 
 describe('Set-owned selective Template Update review', () => {
+  it('keeps the legacy mixed-text field guard when a revision shifts literal segments', () => {
+    const current = template('current', ['name']);
+    const source = template('incoming', ['name']);
+    current.freeformCanvas!.elements[0].content = 'Rank: {{name}}';
+    source.freeformCanvas!.elements[0].content = '{{Prefix}}Rank: {{name}}';
+    const state = workspace(current, source);
+    const comparison = createTemplateUpdateComparison(state, 'set', 'current', source);
+    expect(() => previewTemplateUpdateReview(comparison, Object.fromEntries(comparison.changes.map((change) => [change.key, 'use']))))
+      .toThrow(/remove fields/i);
+  });
   it('reviews properties without auto-acceptance and completes an all-kept review without changing content', () => {
     const current = template('current', ['name']);
     const source = template('incoming', ['name']);

@@ -4,6 +4,7 @@ import {
   buildScopedFieldDataKey,
   buildStaticSegmentFieldKey,
   extractUniquePlaceholderKeys,
+  getPlaceholderDefaultFromText,
   parseTemplateTextSegments,
   parseTextBinding,
 } from '@/domain/rendering';
@@ -97,12 +98,7 @@ const getTextElementsForField = (template: TCGCardTemplate, key: string) =>
   ) || [];
 
 const getPlaceholderFallbackForElement = (element: FreeformCardElement | undefined, key: string): string | undefined => {
-  if (!element?.content) return undefined;
-  const simple = parseTextBinding(element.content);
-  if (simple.field === key) return simple.fallback;
-  return parseTemplateTextSegments(element.content).find((segment) => (
-    segment.type === 'variable' && segment.key === key
-  ))?.text;
+  return getPlaceholderDefaultFromText(element?.content, key);
 };
 
 const buildSourceElementPreview = (
@@ -172,7 +168,7 @@ const fieldIsRequired = (key: string, isImage: boolean, defaultValue?: string): 
   return true;
 };
 
-export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): TemplateFieldDefinition[] {
+export function extractTemplateFieldDefinitions(template?: TCGCardTemplate, options?: { includeLegacyStatic?: boolean }): TemplateFieldDefinition[] {
   if (!template) return [];
   const imageFieldKeys = getTemplateImageFieldKeys(template);
   const contracts = template.fieldContracts || [];
@@ -213,7 +209,7 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
         contentModel,
         contract,
         inferredDefaultValue: getPlaceholderFallbackForElement(element, key),
-        inferredRequired: fieldIsRequired(key, false, contract.example),
+        inferredRequired: fieldIsRequired(key, false, getPlaceholderFallbackForElement(element, key)),
         inferredMultiline: isMultiline,
         inferredHelperText: buildHelperText(contentModel),
       });
@@ -311,6 +307,10 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
       helperText: resolvedContract.helperText,
     };
   }).filter((field) => !scopedCollisionKeys.has(field.key));
+
+  // Literal text belongs to the Template. The update-review owner may still
+  // inspect legacy keys to protect existing card values across revisions.
+  if (!options?.includeLegacyStatic) return [...scopedCollisionFields, ...placeholderFields];
 
   const staticSegmentFields: TemplateFieldDefinition[] = [];
   (template.freeformCanvas?.elements || []).forEach((element) => {
