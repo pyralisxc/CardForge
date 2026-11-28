@@ -10,7 +10,7 @@ import { hydrateProjectWorkspaceForScope } from '../store/workspaceStore';
 import { selectAllGeneratedDisplayCards, selectAllTemplates } from '../store/selectors';
 import { useProjectStore } from '../store/workspaceStore';
 import type { ProjectPersistenceScope } from '../persistence/projectPersistenceScope';
-import { beginProjectCardEdit, removeProjectCard, saveProjectCardEdit } from './cardEditSession';
+import { beginProjectCardEdit, removeProjectCard } from './cardEditSession';
 
 export const hydrateProjectLibraryWorkspaceForScope = (
   scope: ProjectPersistenceScope,
@@ -76,7 +76,6 @@ export function useProjectLibraryWorkspace() {
     actions: {
       createSet: createCardSet,
       beginCardEdit: beginProjectCardEdit,
-      saveCardEdit: saveProjectCardEdit,
       removeCard: removeProjectCard,
       setDefaultTemplatesFromFiles,
       updateSetMetadata: (setId: string, patch: Partial<Omit<CardSetMetadata, 'workflow'>>) => updateCardSetMetadata(setId, patch),
