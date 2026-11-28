@@ -1,13 +1,15 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   Boxes, Copy, ExternalLink, Grid2X2, Heart, LayoutList, Loader2, MoreHorizontal,
   PanelRightOpen, RefreshCcw, ThumbsDown, ThumbsUp, Trash2, UploadCloud,
 } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { MultiSelectionFilterMenu } from '@/components/ui/multi-selection-filter-menu';
 import { SelectionFilterMenu } from '@/components/ui/selection-filter-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
@@ -108,6 +110,24 @@ export function LibraryCollection({
   serverFiltered = false, interactionDisabled = false,
 }: LibraryCollectionProps) {
   const [faces, setFaces] = useState<Record<string, CardFace>>({});
+  const [viewName, setViewName] = useState('');
+  const [namingScope, setNamingScope] = useState<LibraryScope | null>(null);
+  const scopeSession = useRef({ scope: activeScope, epoch: 0 });
+  if (scopeSession.current.scope !== activeScope) scopeSession.current = { scope: activeScope, epoch: scopeSession.current.epoch + 1 };
+  useEffect(() => { setNamingScope(null); setViewName(''); setSavingView(false); setSaveFailed(false); }, [activeScope]);
+  const [includeSearch, setIncludeSearch] = useState(true);
+  const [savingView, setSavingView] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const saveView = async () => {
+    if (savingView || !viewName.trim() || activeScope === 'campaigns' || namingScope !== activeScope) return;
+    const session = scopeSession.current.epoch;
+    setSavingView(true); setSaveFailed(false);
+    const saved = await projection.saveView(viewName, includeSearch, activeScope, sharedType);
+    if (scopeSession.current.epoch !== session) return;
+    setSavingView(false);
+    if (!saved) { setSaveFailed(true); return; }
+    setViewName(''); setNamingScope(null);
+  };
   return <section className={styles.collection} aria-labelledby="library-collection-heading">
     <div className={styles.collectionHeading}><div><h2 id="library-collection-heading">{scopeDefinition.label}</h2><p>{scopeDefinition.description}</p></div>{activeScope === 'campaigns' ? null : <span>{viewItems.length} {serverFiltered ? 'on this page' : 'shown'}</span>}</div>
     {activeScope === 'campaigns' ? isOwner
@@ -122,6 +142,17 @@ export function LibraryCollection({
           {projection.tagFilters.length > 1 ? <SelectionFilterMenu allLabel="Any tag" ariaLabel="Choose Library tag matching" compactLabel="Tags" className={styles.filterSelect} value={projection.tagMatch} onChange={(value) => projection.setTagMatch(value === 'all' ? 'all' : 'any')} options={[{ value: 'any', label: 'Any tag' }, { value: 'all', label: 'All tags' }]} /> : null}
         </> : serverFiltered ? null : <SelectionFilterMenu allLabel={activeScope === 'pipeline' ? 'All work' : 'All types'} ariaLabel={activeScope === 'pipeline' ? 'Filter Pipeline' : 'Filter by type'} className={styles.filterSelect} value={sharedType} onChange={onSharedTypeChange} options={sharedTypes.map((value) => ({ value, label: value }))} />}
         {activeScope === 'personal' ? <UpdateAttentionFilter active={projection.updatesOnly} onChange={projection.setUpdatesOnly} /> : null}
+        {!serverFiltered ? <>
+          {projection.savedViews.some((view) => view.scope === activeScope) ? <SelectionFilterMenu allLabel="Saved views" ariaLabel="Apply a saved Library view" compactLabel="Saved" value="all" onChange={(id) => { const view = projection.savedViews.find((entry) => entry.id === id && entry.scope === activeScope); if (view) { projection.applySavedView(view); onSharedTypeChange(view.sharedType); } }} options={projection.savedViews.filter((view) => view.scope === activeScope).map((view) => ({ value: view.id, label: view.name }))} /> : null}
+          {namingScope === activeScope ? <>
+            <Input aria-label="Name this Library view" value={viewName} disabled={savingView} onChange={(event) => setViewName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void saveView(); } else if (event.key === 'Escape' && !savingView) { event.preventDefault(); setNamingScope(null); setViewName(''); setSaveFailed(false); } }} />
+            <label><input type="checkbox" checked={includeSearch} disabled={savingView} onChange={(event) => setIncludeSearch(event.target.checked)} /> Include search</label>
+            <Button type="button" size="sm" variant="ghost" disabled={savingView || !viewName.trim()} onClick={() => void saveView()}>{savingView ? 'Saving…' : 'Save'}</Button>
+            <Button type="button" size="sm" variant="ghost" disabled={savingView} onClick={() => { setNamingScope(null); setViewName(''); setSaveFailed(false); }}>Cancel</Button>
+            {saveFailed ? <span role="alert">Could not save this view. Try again.</span> : null}
+          </> : <Button type="button" size="sm" variant="ghost" onClick={() => { setIncludeSearch(true); setViewName(''); setNamingScope(activeScope); }}>Save view</Button>}
+          <Button type="button" size="sm" variant="ghost" onClick={() => { projection.resetView(); onSharedTypeChange('all'); }}>Reset</Button>
+        </> : null}
         {!serverFiltered ? <Select value={projection.sort === 'updates' && activeScope !== 'personal' ? 'recent' : projection.sort} onValueChange={(value) => projection.setSort(value as 'recent' | 'name' | 'kind' | 'updates')}><SelectTrigger aria-label="Sort library" className={styles.sortSelect}><span>{projection.sort === 'name' ? 'Name' : projection.sort === 'kind' ? 'Type' : projection.sort === 'updates' && activeScope === 'personal' ? 'Updates first' : 'Recent'}</span></SelectTrigger><SelectContent><SelectItem value="recent">Recently updated</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="kind">Type</SelectItem>{activeScope === 'personal' ? <SelectItem value="updates">Updates first</SelectItem> : null}</SelectContent></Select> : <span>Newest submissions first</span>}
         <div className={styles.densityControls} aria-label="Collection view"><button type="button" aria-label="Gallery view" aria-pressed={density === 'gallery'} onClick={() => onDensityChange('gallery')}><Grid2X2 aria-hidden="true" /></button><button type="button" aria-label="Compact list view" aria-pressed={density === 'list'} onClick={() => onDensityChange('list')}><LayoutList aria-hidden="true" /></button><button type="button" aria-label="Expanded view" aria-pressed={density === 'expanded'} onClick={() => onDensityChange('expanded')}><PanelRightOpen aria-hidden="true" /></button></div>
         {canSubmit && activeScope === 'published' ? <button id="library-contribute-trigger" type="button" className={styles.contributeButton} onClick={onOpenContribution}><UploadCloud size={16} aria-hidden="true" />Submit new</button> : null}

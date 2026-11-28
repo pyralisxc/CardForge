@@ -103,6 +103,7 @@ export function useUnifiedLibraryView({
   const normalizedQuery = projection.query.trim().toLocaleLowerCase();
   const viewItems = useMemo(() => revisionItems ? pipelineItems : scopeItems.filter((item) => {
     if (item.scope === 'personal' && projection.updatesOnly && !updateSetIds.has(item.personal.references.localSetId ?? '')) return false;
+    if (item.scope === 'personal') return true; // Personal search is owned by the projection.
     if (activeScope !== 'personal' && sharedType !== 'all' && item.kindLabel !== sharedType && item.statusLabel !== sharedType && !semanticFacetLabels(item).includes(sharedType)) return false;
     const tags = item.scope === 'published'
       ? [

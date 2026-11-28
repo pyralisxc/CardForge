@@ -96,7 +96,7 @@ export interface DeskOverviewSurfaceProps {
   onTagMatchChange: (value: DeskTagMatch) => void;
   onDeskViewsChange: (values: DeskViewId[]) => void;
   onApplySavedView: (id: string) => void;
-  onSaveView: (name: string) => boolean;
+  onSaveView: (name: string, includeSearch: boolean) => Promise<boolean>;
   onResetViews: () => void;
   onUpdateSelectedOrganization: (operation: AccountLibraryOrganizationOperation) => void;
   onShowGridChange: () => void;
@@ -117,6 +117,9 @@ export interface DeskOverviewSurfaceProps {
 
 export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
   const [viewName, setViewName] = useState('');
+  const [includeSearch, setIncludeSearch] = useState(true);
+  const [savingView, setSavingView] = useState(false);
+  const [saveViewFailed, setSaveViewFailed] = useState(false);
   const [isSavingView, setIsSavingView] = useState(false);
   const [isOrganizingSelection, setIsOrganizingSelection] = useState(false);
   const [touchMultiSelect, setTouchMultiSelect] = useState(false);
@@ -160,8 +163,13 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
       document.removeEventListener('keydown', closeOnEscape);
     };
   }, []);
-  const saveView = () => {
-    if (!props.onSaveView(viewName)) return;
+  const saveView = async () => {
+    if (savingView) return;
+    setSavingView(true);
+    setSaveViewFailed(false);
+    const saved = await props.onSaveView(viewName, includeSearch);
+    setSavingView(false);
+    if (!saved) { setSaveViewFailed(true); return; }
     setViewName('');
     setIsSavingView(false);
   };
@@ -190,19 +198,21 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     {props.savedViews.length ? <SelectionFilterMenu allLabel="Saved views" ariaLabel="Apply a saved Desk view" compactLabel="Saved" value="all" onChange={(value) => { if (value !== 'all') props.onApplySavedView(value); }} options={props.savedViews.map((view) => ({ value: view.id, label: view.name }))} /> : null}
     <span className={styles.deskRestrictionLabel} aria-live="polite">{props.activeRestrictionsLabel}{props.updatesOnly ? ' · Updates to review' : ''}</span>
     {isSavingView ? <>
-      <Input value={viewName} onChange={(event) => setViewName(event.target.value)} onKeyDown={(event) => {
+      <Input value={viewName} disabled={savingView} onChange={(event) => setViewName(event.target.value)} onKeyDown={(event) => {
         if (event.key === 'Enter') {
           event.preventDefault();
-          saveView();
+          void saveView();
         } else if (event.key === 'Escape') {
           event.preventDefault();
           setViewName('');
           setIsSavingView(false);
         }
       }} className={styles.deskSaveViewInput} aria-label="Name this Desk view" placeholder="Name this view" />
-      <Button type="button" size="sm" variant="ghost" onClick={saveView} disabled={!viewName.trim()}>Save</Button>
-      <Button type="button" size="sm" variant="ghost" onClick={() => { setViewName(''); setIsSavingView(false); }}>Cancel</Button>
-    </> : <Button type="button" size="sm" variant="ghost" onClick={() => setIsSavingView(true)}>Save view</Button>}
+      <label><input type="checkbox" checked={includeSearch} disabled={savingView} onChange={(event) => setIncludeSearch(event.target.checked)} /> Include search</label>
+      <Button type="button" size="sm" variant="ghost" onClick={() => void saveView()} disabled={!viewName.trim() || savingView}>{savingView ? 'Saving…' : 'Save'}</Button>
+      {saveViewFailed ? <span role="alert">Could not save this view. Try again.</span> : null}
+      <Button type="button" size="sm" variant="ghost" disabled={savingView} onClick={() => { setViewName(''); setSaveViewFailed(false); setIsSavingView(false); }}>Cancel</Button>
+    </> : <Button type="button" size="sm" variant="ghost" onClick={() => { setIncludeSearch(true); setIsSavingView(true); }}>Save view</Button>}
     <UpdateAttentionFilter active={props.updatesOnly} onChange={props.onUpdatesOnlyChange} />
     <Button type="button" size="sm" variant="ghost" onClick={props.onResetViews}>Reset</Button>
     {props.selectedWorkItems.length ? <>

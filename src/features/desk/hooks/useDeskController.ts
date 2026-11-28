@@ -126,8 +126,26 @@ export function useDeskController({
   const originHref = normalizeStudioReturnTo(searchParams.get('returnTo'));
   const libraryOrigin = originHref && new URL(originHref, 'https://cardforge.local').searchParams.get('section') === 'library' ? originHref : null;
   const zones = getVisibleEnvironmentZones(viewer).map((zone) => zone.id === 'library' && libraryOrigin ? { ...zone, href: libraryOrigin } : zone);
-  const [query, setQuery] = useState('');
   const deskViewPreferences = useDeskViewPreferences(persistenceScope);
+  const updateDeskView = deskViewPreferences.update;
+  const queryScope = useRef({ scope: persistenceScope, epoch: 0 });
+  if (queryScope.current.scope !== persistenceScope) queryScope.current = { scope: persistenceScope, epoch: queryScope.current.epoch + 1 };
+  const queryEpoch = queryScope.current.epoch;
+  const [queryState, setQueryState] = useState({ epoch: queryEpoch, value: '', touched: false });
+  const [queryRestoredEpoch, setQueryRestoredEpoch] = useState<number | null>(null);
+  const query = queryState.epoch === queryEpoch ? queryState.value : '';
+  const setQuery = useCallback((value: string) => setQueryState({ epoch: queryEpoch, value, touched: true }), [queryEpoch]);
+  useEffect(() => {
+    if (!deskViewPreferences.ready || queryRestoredEpoch === queryEpoch) return;
+    setQueryState((current) => current.epoch === queryEpoch && current.touched
+      ? current : { epoch: queryEpoch, value: deskViewPreferences.preferences.query, touched: false });
+    setQueryRestoredEpoch(queryEpoch);
+  }, [deskViewPreferences.preferences.query, deskViewPreferences.ready, queryEpoch, queryRestoredEpoch]);
+  useEffect(() => {
+    if (queryRestoredEpoch === queryEpoch && deskViewPreferences.ready && query !== deskViewPreferences.preferences.query) {
+      updateDeskView((current) => ({ ...current, query }));
+    }
+  }, [deskViewPreferences.preferences.query, deskViewPreferences.ready, query, queryEpoch, queryRestoredEpoch, updateDeskView]);
   const availableDeskViews = useMemo(() => ([
     'my-work',
     ...(discoveredWork.canLoadCampaigns ? ['campaigns'] : []),
@@ -585,7 +603,7 @@ export function useDeskController({
       ), { query: context.cardQuery, filterIds: context.tagFilter === 'all' ? [] : [context.tagFilter] }),
     });
     requestAnimationFrame(() => surfaceRef.current?.scrollTo({ top: context.scrollTop }));
-  }, [deskProjection.failures.length, deskProjection.sourceStatuses, deskViewPreferences, initialReturnContextKey, initialSourceSnapshotReady, itemById, navigationReady, recoverMissingWork, restoreFocusedContext]);
+  }, [deskProjection.failures.length, deskProjection.sourceStatuses, deskViewPreferences, initialReturnContextKey, initialSourceSnapshotReady, itemById, navigationReady, recoverMissingWork, restoreFocusedContext, setQuery]);
 
   const statuses = createDeskAccountStatuses({ accessStatus, isSignedIn, projection, securityStatus });
 
