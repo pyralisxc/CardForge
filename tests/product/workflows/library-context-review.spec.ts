@@ -389,16 +389,63 @@ for (const width of [390, 1440]) for (const missing of [false, true]) test(`@gol
   await expect(review.getByText(/Live in the shared library|Currently available through/)).toHaveCount(0);
   if (missing) {
     await expect(review.getByText('Exact selected Template source is unavailable; no current revision was substituted.').first()).toBeVisible();
-    await expect(review.getByRole('button', { name: 'Download exact submission PNG' })).toHaveCount(0);
+    await expect(review.getByRole('button', { name: 'Open test copy in Output' })).toHaveCount(0);
   } else {
     await expect(review.getByText('Selected historical revision 1', { exact: true })).toBeVisible();
     await expect(review.getByText('Exact submitted payload', { exact: false })).toContainText('10000000-0000-4000-8000-000000000015');
-    await expect(review.getByRole('button', { name: 'Download exact submission PNG' })).toBeVisible();
+    await expect(review.getByRole('button', { name: 'Open test copy in Output' })).toBeVisible();
     const colorCount = await review.evaluate(node => Array.from(node.querySelectorAll('*')).filter(e => getComputedStyle(e).backgroundColor === 'rgb(0, 255, 0)').length);
     expect(colorCount).toBeGreaterThan(0);
     expect(await review.evaluate(node => Array.from(node.querySelectorAll('*')).some(e => getComputedStyle(e).backgroundColor === 'rgb(0, 0, 255)'))).toBe(false);
   }
   await info.attach('historical-template-source', { body: await page.screenshot(), contentType: 'image/png' });
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+test('Library opens a saved historical Template test copy in normal Output', async ({ page }) => {
+  const evidence = await mount(page, '?queueActual=1&scope=pipeline&historyTemplate=1&templateOutput=1');
+  await page.evaluate(async () => { await (window as unknown as { templateOutputReady: Promise<void> }).templateOutputReady; });
+  await page.getByLabel('Pipeline discovery mode').selectOption('revisions');
+  await page.getByRole('button', { name: 'Next revisions' }).click();
+  await page.locator('[id="library-object-pipeline:submission:10000000-0000-4000-8000-000000000015"]').click();
+  await page.getByRole('button', { name: 'Review & manage Revision 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Open test copy in Output' }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { libraryNavigations: string[] }).libraryNavigations)).not.toEqual([]);
+  const result = await page.evaluate(() => {
+    const w = window as unknown as { libraryNavigations: string[]; templateOutputState: () => { activeCardSet: { id: string; name: string }; storedCards: { setId: string }[] } };
+    const state = w.templateOutputState();
+    return { navigations: w.libraryNavigations, set: state.activeCardSet, cards: state.storedCards.filter(card => card.setId === state.activeCardSet?.id).length };
+  });
+  expect(result.set.name).toContain('Historical green Template');
+  expect(result.cards).toBe(1);
+  expect(result.navigations.at(-1)).toContain('tool=output');
+  expect(result.navigations.at(-1)).toContain(encodeURIComponent(result.set.id));
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+test('Desk opens a saved Pipeline Template test copy in normal Output', async ({ page }) => {
+  const evidence = await mount(page, '?deskActual=1&published=1&templateOutput=1');
+  await page.evaluate(async () => { await (window as unknown as { templateOutputReady: Promise<void> }).templateOutputReady; });
+  await page.getByRole('button', { name: 'Actions for Saved desk Template', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Review & manage', exact: true }).click();
+  await page.getByRole('button', { name: 'Open test copy in Output' }).click();
+  await expect(page.getByRole('button', { name: 'Print or save PDF' })).toBeVisible();
+  const saved = await page.evaluate(() => (window as unknown as { templateOutputState: () => { activeCardSet: { name: string } } }).templateOutputState().activeCardSet?.name);
+  expect(saved).toContain('submission 10000000-0000-4000-8000-000000000001');
+  expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
+});
+
+test('Desk pairs a role-only back with a saved matching front in Output', async ({ page }) => {
+  const evidence = await mount(page, '?deskActual=1&published=1&templateOutput=1&templateOutputBack=1');
+  await page.evaluate(async () => { await (window as unknown as { templateOutputReady: Promise<void> }).templateOutputReady; });
+  await page.getByRole('button', { name: 'Actions for Saved desk Template', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Review & manage', exact: true }).click();
+  const open = page.getByRole('button', { name: 'Open test copy in Output' });
+  await expect(open).toBeDisabled();
+  await page.getByRole('button', { name: 'Matching saved front' }).click();
+  await open.click();
+  await expect(page.getByRole('button', { name: 'Print or save PDF' })).toBeVisible();
+  await expect(page.getByText('Preview print sheets (2 pages)')).toBeVisible();
   expect(evidence.mutations).toEqual([]); expect(evidence.errors).toEqual([]);
 });
 

@@ -277,6 +277,7 @@ function DeskContent({
     dismissPreparationStatus,
     reviewWork,
     closeReviewWork,
+    openTestSetOutput,
     pipelineSubmitSetId,
     projection,
     publishedSets,
@@ -902,7 +903,7 @@ function DeskContent({
         </EnvironmentToolLayer> : null}
       </EnvironmentShell>
       </div>
-      {reviewWork?.references.pipelineReviewTarget && <DeskPipelineTool key={reviewWork.references.pipelineReviewTarget.submissionId} target={reviewWork.references.pipelineReviewTarget} name={reviewWork.name} owner={experience.owner && experience.signedIn} businessIdentity={businessIdentity} initialContributorAccess={initialContributorAccess} onClose={closeReviewWork} onMutated={()=>projection.refresh()} />}
+      {reviewWork?.references.pipelineReviewTarget && <DeskPipelineTool key={reviewWork.references.pipelineReviewTarget.submissionId} target={reviewWork.references.pipelineReviewTarget} name={reviewWork.name} owner={experience.owner && experience.signedIn} businessIdentity={businessIdentity} initialContributorAccess={initialContributorAccess} onClose={closeReviewWork} onMutated={()=>projection.refresh()} onTestSetOpened={openTestSetOutput} />}
 
       <WorkLocationDialog
         item={locationItem}
