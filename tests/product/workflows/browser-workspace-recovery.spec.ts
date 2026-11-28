@@ -69,7 +69,7 @@ for (const fail of [false, true]) test(`disposable ordinary Output after ${fail 
       await page.getByRole('button', { name: 'Output', exact: true }).click();
     }
     await expect(page.getByRole('region', { name: 'Output Set', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Download digital PDF', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Print or save PDF', exact: true })).toBeEnabled();
     await expect(page.locator('[data-scene-artifact="scale-card-1"]').filter({ hasText: value }).first()).toBeAttached();
     await expect.poll(async()=>JSON.stringify(await workspaceBytes(page))).toContain(value);
     if (!fail) {
