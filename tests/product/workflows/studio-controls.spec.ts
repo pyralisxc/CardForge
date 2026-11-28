@@ -421,7 +421,8 @@ test('@golden structured-row creation and multi-field mode changes are atomic Te
  await page.getByRole('radio',{name:/Repeating Text/}).click();await page.getByRole('button',{name:'Add Label + Value',exact:true}).click();
  await expect(page.getByRole('textbox',{name:/Variable name for/})).toHaveCount(3);await page.getByRole('button',{name:'Undo',exact:true}).first().click();await expect(page.getByRole('textbox',{name:/Variable name for/})).toHaveCount(1);
  await page.getByRole('button',{name:'Redo',exact:true}).first().click();await expect(page.getByRole('textbox',{name:/Variable name for/})).toHaveCount(3);
- await page.getByRole('radio',{name:/^Text One editable/}).click();await page.getByRole('button',{name:'Save',exact:true}).click();
+ const textMode=page.getByRole('radiogroup',{name:'Make cards field mode for this text element'}).getByRole('radio',{name:/^Text\b/});
+ await expect(textMode).toBeEnabled();await textMode.click();await expect(textMode).toBeChecked();await page.getByRole('button',{name:'Save',exact:true}).click();
  const text=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(text.fieldContracts).toHaveLength(3);expect(text.fieldContracts.every((field:{type:string})=>field.type==='text')).toBe(true);
  await page.getByRole('button',{name:'Undo',exact:true}).first().click();await page.getByRole('button',{name:'Save',exact:true}).click();
  const rows=JSON.parse(await page.getByTestId('saved').textContent()||'{}');expect(rows.fieldContracts).toHaveLength(3);expect(rows.fieldContracts.every((field:{type:string})=>field.type==='structuredRows')).toBe(true);
