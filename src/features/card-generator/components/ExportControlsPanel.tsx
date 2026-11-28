@@ -375,7 +375,7 @@ export function ExportControlsPanel({
               <p className="font-semibold text-foreground">{exportEntitlementLabel}</p>
               <p className="mt-1 text-muted-foreground">{exportEntitlementMessage}</p>
               <p className="mt-2 text-muted-foreground">
-                CardForge builds exports locally, then your browser saves the single finished file to its configured download location. No server copy is created.
+                CardForge prepares exports locally. Image downloads use your browser downloads; printing opens your browser&apos;s print dialog. No server copy is created.
               </p>
             </div>
           ) : null}
