@@ -268,6 +268,10 @@ test('Desk retries the same prepared Output after browser workspace confirmation
  expect(new URL(page.url()).searchParams.get('focus')).toBe('set:scale-set-100');
  expect(new URL(page.url()).searchParams.get('outputRef')).toBe('10000000-0000-4000-8000-000000000001');
  expect(source.requests()).toBe(1); expect(source.acknowledgements()).toBe(1); expect(downloads).toBe(0);
+ const download = page.waitForEvent('download');
+ await page.getByRole('button', { name: /Download PNG set/ }).click();
+ const zip = await JSZip.loadAsync(await readFile((await (await download).path())!));
+ expect(Object.keys(zip.files).filter(name => name.endsWith('.png'))).toEqual(['digital-output-images/001_CHARLIE_front.png', 'digital-output-images/001_CHARLIE_back.png', 'digital-output-images/002_ALPHA_front.png']);
 });
 
 test('prepared Output retry cannot switch to a different account', async ({ page }) => {
