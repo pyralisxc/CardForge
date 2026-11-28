@@ -5,6 +5,7 @@ import { SearchParamsContext } from 'next/dist/shared/lib/hooks-client-context.s
 import { CreatorWorkbench } from '@/features/creator-workbench/components/CreatorWorkbench';
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
 import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
+import { createProjectPersistenceScope, setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { Toaster } from '@/components/ui/toaster';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
 const doc = createProjectScaleFixture(100); doc.storedCards = doc.storedCards.slice(0, 3);
@@ -12,6 +13,7 @@ doc.userTemplates[0].freeformCanvas!.elements = [{ id: 'label', name: 'Label', t
 const back = { ...doc.userTemplates[0], id: 'synthetic-back', templateUsage: 'back-preset' as const, name: 'Back' }; doc.userTemplates.push(back); doc.storedCards[1].backingTemplateId = back.id; doc.storedCards[1].backingData = {};
 (window as unknown as { outputDocument: unknown }).outputDocument = doc;
 (window as unknown as { outputEntitlement: unknown }).outputEntitlement = resolveAccountEntitlement({ authConfigured: true, isSignedIn: true, accountUserId: 'synthetic', privateMetadata: { cardforgeAccess: 'paid' } });
+setProjectPersistenceScope(createProjectPersistenceScope({ authConfigured: true, accountUserId: 'synthetic' }));
 function App() {
  const [params, setParams] = useState(() => new URLSearchParams(location.search));
  useEffect(() => { const onPop = () => setParams(new URLSearchParams(location.search)); window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop); }, []);

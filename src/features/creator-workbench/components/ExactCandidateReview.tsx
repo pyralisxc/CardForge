@@ -4,7 +4,6 @@ import { useState } from 'react';
 import type { DisplayCard } from '@/domain/rendering';
 import { reconstructMinimalTemplateObject } from '@/domain/templates';
 import { renderCardToPngBlob } from '@/features/card-generator/client';
-import { SaveAsPdfButton } from '@/features/card-generator/client/export';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import type { ExactCandidateSpecimen } from '@/features/pipeline/client';
 
@@ -22,7 +21,7 @@ export function ExactCandidateReview() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [review, setReview] = useState<{ specimen: Specimen; card: DisplayCard; png: string } | null>(null);
+  const [review, setReview] = useState<{ specimen: Specimen; png: string } | null>(null);
   async function load() {
     setBusy(true); setError(''); setReview(null);
     try {
@@ -33,16 +32,9 @@ export function ExactCandidateReview() {
       const card: DisplayCard = { template, data, uniqueId: specimen.identity.submissionId };
       const blob = await renderCardToPngBlob(card, 'virtual', 150);
       const png = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(blob); });
-      setReview({ specimen, card, png });
+      setReview({ specimen, png });
     } catch (e) { setError(e instanceof Error ? e.message : 'Specimen rendering failed.'); }
     finally { setBusy(false); }
-  }
-  async function revalidate() {
-    if (!review) throw new Error('No verified specimen.');
-    try {
-      const latest = await requestSpecimen(review.specimen.identity);
-      if (latest.hydratedSha256 !== review.specimen.hydratedSha256 || await digest(review.specimen.template) !== latest.hydratedSha256) throw new Error('Candidate media changed. Reload the specimen.');
-    } catch (e) { setError(e instanceof Error ? e.message : 'Candidate recheck failed.'); setReview(null); throw e; }
   }
   return <main className="mx-auto max-w-3xl space-y-4 p-6">
     <h1>Exact candidate review</h1>
@@ -55,8 +47,7 @@ export function ExactCandidateReview() {
       <p className="break-all">Source SHA-256: {review.specimen.identity.sourceSha256}</p>
       {/* Canonical rendered pixels, never a published catalog thumbnail. */}
       <img src={review.png} alt="Exact pending candidate specimen" style={{ maxWidth: '100%', maxHeight: 600 }} />
-      <SaveAsPdfButton generatedDisplayCards={[review.card]} selectedPaperSize={{ name: 'A4', widthMm: 210, heightMm: 297 }} pdfMarginMm={10} pdfCardSpacingMm={0} pdfIncludeCutLines={false} pdfDuplexLayout="same-page" exportMode="virtual" pdfProfile="screen" exportDpi={150} richTextHighlightColor="#fbbf24" canExportClean={false} templateName={`review-${review.specimen.identity.submissionId}-r${review.specimen.identity.revisionNumber}-${review.specimen.identity.sourceSha256}`} beforeExport={revalidate} />
-      <p>Watermarked reviewer PDF; no publication or editable project is created. Identity is preserved in the filename.</p>
+      <p>This is a review preview; no publication or editable project is created. Render again to check the current submission.</p>
     </section>}
   </main>;
 }

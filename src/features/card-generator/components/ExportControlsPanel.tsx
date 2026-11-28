@@ -14,19 +14,19 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { getCardExportDimensionsPx, getCardProductionGeometryMm, hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
-import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
 import { NativePrintButton } from '@/features/card-generator/components/NativePrintButton';
+import { CardPreview, CardWatermarkOverlay } from '@/features/card-rendering/client';
 import { useOutputActivity } from './OutputActivity';
 import type { ZipExportKind } from '@/features/card-generator/hooks/useCardZipExportActions';
 import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 import {
   RASTER_EXPORT_QUALITY_OPTIONS,
-  getPressCandidateDpi,
   getRasterExportDimensionsPx,
   getRasterExportQualityOption,
   type ExportMode,
 } from '@/features/card-generator/lib/printValidation';
 import {
+  createCardGridSheets,
   createTabletopSimulatorSheets,
   getTabletopSimulatorCardCellSize,
   getTabletopSimulatorExportPreset,
@@ -58,7 +58,7 @@ interface ExportControlsPanelProps {
   onExportAllAsZip: () => void;
   onExportPrintPngSet: () => void;
   onExportPressCandidate: () => void;
-  onExportTabletopSimulatorSpritesheets: (quality: TabletopSimulatorExportQuality) => void;
+  onExportTabletopSimulatorSpritesheets: (quality: TabletopSimulatorExportQuality, grid?: { columns: number; rows: number }) => void;
   onSelectPaperSize: (size: PaperSize) => void;
   onSetExportDpi: (dpi: number) => void;
   onSetExportMode: (mode: ExportMode) => void;
@@ -66,8 +66,31 @@ interface ExportControlsPanelProps {
   onStartCheckout: () => void;
 }
 
+function GridPreview({ cards, columns, rows, forTabletop, canExportClean, highlightColor }: {
+  cards: DisplayCard[]; columns: number; rows: number; forTabletop: boolean; canExportClean: boolean; highlightColor: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [face, setFace] = useState<'front' | 'back'>('front');
+  const geometry = cards[0] ? getCardProductionGeometryMm(cards[0]) : null;
+  const previewCells = Math.min(columns * rows, 16);
+  return <details onToggle={event => setOpen(event.currentTarget.open)}><summary className="cursor-pointer text-sm font-medium">Preview {forTabletop ? 'TTS ' : ''}grid</summary>
+    <p className="text-xs text-muted-foreground">Showing up to the first 16 slots on the first sheet.{forTabletop ? ' The final TTS slot is reserved.' : ' Empty slots are transparent.'}</p>
+    {open ? <><div className="flex gap-2"><Button type="button" size="sm" variant={face === 'front' ? 'default' : 'outline'} onClick={() => setFace('front')}>Preview fronts</Button>{cards.some(hasCardBacking) ? <Button type="button" size="sm" variant={face === 'back' ? 'default' : 'outline'} onClick={() => setFace('back')}>Preview backs</Button> : null}</div>
+      <div className="max-w-full overflow-auto"><div className="grid w-max gap-0" style={{ gridTemplateColumns: `repeat(${Math.min(columns, 16)}, 72px)` }}>
+        {Array.from({ length: previewCells }, (_, index) => {
+          const card = cards[index];
+          const blank = !card || (face === 'back' && !hasCardBacking(card) && !forTabletop);
+          const visibleFace = card && face === 'back' && hasCardBacking(card) ? 'back' : 'front';
+          return <div key={index} aria-label={blank ? 'Empty grid slot' : undefined} className={`relative w-[72px] overflow-hidden ${forTabletop ? 'bg-white' : 'bg-muted/30'}`} style={{ aspectRatio: geometry ? `${geometry.trimWidthMm} / ${geometry.trimHeightMm}` : undefined }}>
+            {card && !blank ? <><CardPreview card={card} face={visibleFace} isPrintMode targetWidthPx={72} highlightColor={highlightColor} />{!canExportClean ? <CardWatermarkOverlay /> : null}</> : null}
+          </div>;
+        })}
+      </div></div>
+      {face === 'back' && forTabletop ? <p className="text-xs text-muted-foreground">For cards without a back, the front is used in the TTS back sheet.</p> : null}</> : null}
+  </details>;
+}
+
 export function ExportControlsPanel({
-  setName,
   beforeExport,
   canExportClean,
   isEntitlementPending,
@@ -89,7 +112,6 @@ export function ExportControlsPanel({
   zipProgress,
   onExportAllAsZip,
   onExportPrintPngSet,
-  onExportPressCandidate,
   onExportTabletopSimulatorSpritesheets,
   onSelectPaperSize,
   onSetExportDpi,
@@ -99,29 +121,29 @@ export function ExportControlsPanel({
 }: ExportControlsPanelProps) {
   const outputActivity = useOutputActivity();
   const [tabletopQuality, setTabletopQuality] = useState<TabletopSimulatorExportQuality>('standard');
+  const [pdfLayout, setPdfLayout] = useState<'sheets' | 'cards'>('sheets');
+  const [spriteColumns, setSpriteColumns] = useState(4);
+  const [spriteRows, setSpriteRows] = useState(4);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [imagePreviewFace, setImagePreviewFace] = useState<'front' | 'back'>('front');
   const firstCard = generatedDisplayCards[0];
   const exportFaceCount = generatedDisplayCards.reduce(
     (count, card) => count + (hasCardBacking(card) ? 2 : 1),
     0
   );
   const rasterQuality = getRasterExportQualityOption(exportDpi);
-  const pressDpi = getPressCandidateDpi(exportDpi);
-  const pressQuality = getRasterExportQualityOption(pressDpi);
   const productionGeometry = firstCard ? getCardProductionGeometryMm(firstCard) : null;
   const printPreflight = useMemo(
     () => createPrintProductionPreflight(generatedDisplayCards, exportDpi),
     [exportDpi, generatedDisplayCards],
   );
-  const pressPreflight = useMemo(
-    () => createPrintProductionPreflight(generatedDisplayCards, pressDpi),
-    [pressDpi, generatedDisplayCards],
-  );
   const rasterDimensions = firstCard
     ? getRasterExportDimensionsPx(firstCard, exportMode, exportDpi)
     : null;
-  const pressDimensions = firstCard
-    ? getRasterExportDimensionsPx(firstCard, 'physical', pressDpi)
-    : null;
+  const spritePlan = useMemo(() => {
+    try { return { sheets: createCardGridSheets(generatedDisplayCards, { columns: spriteColumns, rows: spriteRows, cardsPerSheet: spriteColumns * spriteRows }, true), error: null }; }
+    catch (error) { return { sheets: [], error: error instanceof Error ? error.message : 'The grid could not be prepared.' }; }
+  }, [generatedDisplayCards, spriteColumns, spriteRows]);
   const tabletopSummary = useMemo(() => {
     const preset = getTabletopSimulatorExportPreset(tabletopQuality);
     let sheets: ReturnType<typeof createTabletopSimulatorSheets> = [];
@@ -165,8 +187,8 @@ export function ExportControlsPanel({
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-semibold">
-            {zipExportKind === 'tabletop-simulator'
-              ? 'Tabletop Simulator export running'
+            {zipExportKind === 'tabletop-simulator' || zipExportKind === 'spritesheet'
+              ? (zipExportKind === 'spritesheet' ? 'PNG spritesheet export running' : 'Tabletop Simulator export running')
               : zipExportKind === 'print-png-set'
                 ? 'Print production PNG export running'
                 : zipExportKind === 'press-candidate'
@@ -174,8 +196,8 @@ export function ExportControlsPanel({
                   : 'PNG set export running'}
           </p>
           <p className="text-xs text-muted-foreground">
-            {zipExportKind === 'tabletop-simulator'
-              ? `Rendering ${zipProgress.done} of ${zipProgress.total} 4K spritesheet faces.`
+            {zipExportKind === 'tabletop-simulator' || zipExportKind === 'spritesheet'
+              ? `Rendering ${zipProgress.done} of ${zipProgress.total} spritesheet faces.`
               : (zipExportKind === 'print-png-set' || zipExportKind === 'press-candidate')
                 ? `Rendering ${zipProgress.done} of ${zipProgress.total} bleed-bearing production faces.`
                 : `Rendering ${zipProgress.done} of ${zipProgress.total} individual card faces.`}
@@ -192,32 +214,22 @@ export function ExportControlsPanel({
 
   const printPdf = (
           <details className="rounded-md border bg-muted/20 p-3" open>
-            <summary className="cursor-pointer font-semibold">Print PDF</summary>
+            <summary className="cursor-pointer font-semibold">Print or save PDF</summary>
             <div className="mt-4 space-y-3">
               <p className="text-xs text-muted-foreground">
-                PDF arranges cards on paper using your selected raster quality. Page geometry and cut lines remain sharp, but the cards are RGB raster images—not vector, CMYK, PDF/X, or printer-specific prepress output.
+                Use your browser's print dialog to print or save a PDF. Browser print uses the shared card design and its own rendering, not the image quality setting. It does not add extended bleed or certify professional print standards.
               </p>
-              <p className="text-xs text-muted-foreground">{isEntitlementPending ? 'Checking download access…' : canExportClean ? 'This download has no CardForge watermark.' : 'This download includes the CardForge watermark.'} Raster quality: {rasterQuality.label}.</p>
-              <SaveAsPdfButton
-                setName={setName}
-                beforeExport={beforeExport}
-                generatedDisplayCards={generatedDisplayCards}
-                selectedPaperSize={selectedPaperSize}
-                pdfMarginMm={pdfMarginMm}
-                pdfCardSpacingMm={pdfCardSpacingMm}
-                pdfIncludeCutLines={pdfIncludeCutLines}
-                pdfDuplexLayout={pdfDuplexLayout}
-                exportMode="physical"
-                exportDpi={exportDpi}
-                richTextHighlightColor={richTextHighlightColor}
-                canExportClean={canExportClean}
-                disabled={exportsDisabled}
-                templateName={firstCard?.template?.name}
-              />
-              <p className="text-xs text-muted-foreground">Or use your browser's print dialog. It uses browser rendering rather than the raster-quality setting and does not add the PDF's extended bleed.</p>
+              <p className="text-xs text-muted-foreground">{isEntitlementPending ? 'Checking download access…' : canExportClean ? 'This output has no CardForge watermark.' : 'This output includes the CardForge watermark.'}</p>
+              <div className="space-y-1"><Label htmlFor="browserPdfLayout" className="text-sm font-medium">PDF layout</Label>
+                <Select value={pdfLayout} onValueChange={value => setPdfLayout(value as 'sheets' | 'cards')}>
+                  <SelectTrigger id="browserPdfLayout"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="sheets">Cards on paper sheets</SelectItem><SelectItem value="cards">One face per card-sized page</SelectItem></SelectContent>
+                </Select>
+              </div>
               <NativePrintButton cards={generatedDisplayCards} paper={selectedPaperSize} margin={pdfMarginMm} spacing={pdfCardSpacingMm}
                 cutLines={pdfIncludeCutLines} duplex={pdfDuplexLayout} highlightColor={richTextHighlightColor}
-                canExportClean={canExportClean} disabled={exportsDisabled} beforeExport={beforeExport} />
+                canExportClean={canExportClean} disabled={exportsDisabled} beforeExport={beforeExport} layout={pdfLayout} />
+              {pdfLayout === 'sheets' ? <>
               <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={onSelectPaperSize} />
               <Label className="text-sm font-medium">PDF layout</Label>
               <TooltipProvider>
@@ -290,6 +302,7 @@ export function ExportControlsPanel({
                   Duplex sheets pair every front sheet with its back, placing backs for the selected paper-flip edge. Match that edge in your printer settings and print a two-sided alignment proof at actual size. Same sheet places each back after its front for review, hand cutting, or manual assembly.
                 </p>
               </div>
+              </> : <p className="text-xs text-muted-foreground">Each front and back is a separate trim-sized page, in card order. This view does not add bleed or crop marks.</p>}
             </div>
           </details>
   );
@@ -362,7 +375,7 @@ export function ExportControlsPanel({
               <p className="font-semibold text-foreground">{exportEntitlementLabel}</p>
               <p className="mt-1 text-muted-foreground">{exportEntitlementMessage}</p>
               <p className="mt-2 text-muted-foreground">
-                CardForge builds exports locally, then your browser saves the single finished file to its configured download location. No server copy is created.
+                CardForge prepares exports locally. Image downloads use your browser downloads; printing opens your browser&apos;s print dialog. No server copy is created.
               </p>
             </div>
           ) : null}
@@ -374,9 +387,14 @@ export function ExportControlsPanel({
                 Raster images have fixed pixels. PNG is lossless and best for card masters; JPEG and WebP are smaller, lossy choices in each card&apos;s download menu.
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                The selected raster quality also controls the card images embedded in both PDF downloads.
+                This quality setting applies to the individual card images, not browser print.
               </p>
             </div>
+            {firstCard ? <details onToggle={event => setImagePreviewOpen(event.currentTarget.open)}><summary className="cursor-pointer text-sm font-medium">Preview first card image</summary>
+              <p className="text-xs text-muted-foreground">Trim preview; print-production PNGs add bleed outside this design.</p>
+              {imagePreviewOpen ? <><div className="flex gap-2"><Button type="button" variant={imagePreviewFace === 'front' ? 'default' : 'outline'} onClick={() => setImagePreviewFace('front')}>Front</Button>{hasCardBacking(firstCard) ? <Button type="button" variant={imagePreviewFace === 'back' ? 'default' : 'outline'} onClick={() => setImagePreviewFace('back')}>Back</Button> : null}</div>
+                <div className="relative w-[180px] overflow-hidden"><CardPreview card={firstCard} face={imagePreviewFace === 'back' && hasCardBacking(firstCard) ? 'back' : 'front'} isPrintMode targetWidthPx={180} highlightColor={richTextHighlightColor} />{!canExportClean ? <CardWatermarkOverlay /> : null}</div></> : null}
+            </details> : null}
             <div className="space-y-1">
               <Label htmlFor="exportMode" className="text-sm font-medium">Individual image profile</Label>
               <Select value={exportMode} onValueChange={(value) => onSetExportMode(value as ExportMode)}>
@@ -389,7 +407,7 @@ export function ExportControlsPanel({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Changes image filenames and quality warnings. Print and digital PDFs use their own formats.
+                Changes image filenames and quality warnings. Browser print uses its own settings.
               </p>
             </div>
             <Button
@@ -441,7 +459,7 @@ export function ExportControlsPanel({
                 </p>
                 {!printPreflight.pressReady ? (
                   <p className="text-muted-foreground">
-                    These PNGs and sheet PDFs have no ICC output intent. The separate color-managed press candidate below still requires independent prepress and professional-workflow acceptance.
+                    These PNGs have no printer-specific color contract. Confirm the file and color requirements with your printer.
                   </p>
                 ) : null}
                 {printPreflight.issues.filter((issue) => issue.severity === 'blocker').slice(0, 2).map((issue) => (
@@ -470,74 +488,17 @@ export function ExportControlsPanel({
             </section>
           ) : null}
 
-          {productionGeometry ? (
-            <section aria-labelledby="press-candidate-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
-              <h3 id="press-candidate-heading" className="font-semibold">Color-managed press candidate · validation pending</h3>
-              <p className="text-xs text-muted-foreground">
-                One bleed-bearing face per page, with exact trim/bleed boxes, white-paper compositing and tagged sRGB pixels.
-                The embedded FOGRA39L coated-offset reference is an older printing condition, not printer/stock calibration or preconverted CMYK.
-                This is not an imposed duplex sheet, a PDF/X conformance certificate, or press-ready acceptance.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Press candidates require at least 300 PPI at the actual production size, including bleed. This package uses {pressQuality.label} quality{pressDimensions ? ` (approximately ${pressDimensions.effectivePixelsPerInch} PPI at the template's intended size)` : ''}{pressDpi !== exportDpi ? ' to meet that minimum' : ''}. Other exports keep your selected raster quality. Higher output density cannot restore missing detail in original artwork.
-              </p>
-              <p className="text-xs text-muted-foreground">The ZIP includes PDFs, exact pixel/PDF/profile hashes, geometry, preflight and complete profile notices. Independent PDF/X validation and a representative professional print workflow are still required.</p>
-              {pressPreflight.issues.filter((issue) => issue.severity === 'blocker').slice(0, 2).map((issue) => (
-                <p key={`${issue.code}:${issue.scope}:${issue.message}`} className="text-xs text-[var(--cf-danger)]">{issue.message}</p>
-              ))}
-              <Button variant="outline" onClick={onExportPressCandidate} disabled={exportsDisabled || !pressPreflight.productionPrepared} className="w-full gap-2">
-                <Download className="h-4 w-4" />
-                {isZipExporting && zipExportKind === 'press-candidate'
-                  ? `Preparing press candidate… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
-                  : 'Download color-managed press candidate ZIP'}
-              </Button>
-              {zipExportKind === 'press-candidate' ? exportProgress : null}
-            </section>
-          ) : null}
-
-          <section aria-labelledby="screen-pdf-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
-            <div>
-              <h3 id="screen-pdf-heading" className="font-semibold">Digital PDF · easy sharing</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                One card face per trimmed page, front followed by back, for viewing in ordinary PDF readers on phones, tablets and computers.
-                No print bleed, cut marks or paper layout settings. This is a visual RGB copy, not an editable project or selectable, screen-reader-tagged text.
-              </p>
+          <section aria-labelledby="sprite-grid-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
+            <h3 id="sprite-grid-heading" className="font-semibold">PNG spritesheets</h3>
+            <p className="text-xs text-muted-foreground">Arrange cards in a grid for games or other tools. Fronts and backs are separate PNGs; missing backs stay transparent. Different card proportions start a new sheet. A card's front and back must have matching proportions.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label htmlFor="spriteColumns">Columns</Label><Input id="spriteColumns" type="number" min="1" value={spriteColumns} onChange={event => { const n = Number(event.target.value); setSpriteColumns(Number.isSafeInteger(n) && n > 0 ? n : 1); }} /></div>
+              <div><Label htmlFor="spriteRows">Rows</Label><Input id="spriteRows" type="number" min="1" value={spriteRows} onChange={event => { const n = Number(event.target.value); setSpriteRows(Number.isSafeInteger(n) && n > 0 ? n : 1); }} /></div>
             </div>
-            <SaveAsPdfButton
-                setName={setName}
-              beforeExport={beforeExport}
-              pdfProfile="screen"
-              generatedDisplayCards={generatedDisplayCards}
-              selectedPaperSize={selectedPaperSize}
-              pdfMarginMm={pdfMarginMm}
-              pdfCardSpacingMm={pdfCardSpacingMm}
-              pdfIncludeCutLines={pdfIncludeCutLines}
-              pdfDuplexLayout={pdfDuplexLayout}
-              exportMode="virtual"
-              exportDpi={exportDpi}
-              richTextHighlightColor={richTextHighlightColor}
-              canExportClean={canExportClean}
-              disabled={exportsDisabled}
-              templateName={firstCard?.template?.name}
-            />
-            <p className="text-xs text-muted-foreground">For a digital sheet with multiple card faces per page, use the selected paper size, margins and spacing without print bleed or cut lines.</p>
-            <SaveAsPdfButton
-              buttonLabel="Download digital sheet PDF"
-              setName={setName}
-              beforeExport={beforeExport}
-              generatedDisplayCards={generatedDisplayCards}
-              selectedPaperSize={selectedPaperSize}
-              pdfMarginMm={pdfMarginMm}
-              pdfCardSpacingMm={pdfCardSpacingMm}
-              pdfIncludeCutLines={pdfIncludeCutLines}
-              pdfDuplexLayout={pdfDuplexLayout}
-              exportMode="virtual"
-              exportDpi={exportDpi}
-              richTextHighlightColor={richTextHighlightColor}
-              canExportClean={canExportClean}
-              disabled={exportsDisabled}
-              templateName={firstCard?.template?.name}
-            />
+            {spritePlan.error ? <p role="alert" className="text-xs text-[var(--cf-danger)]">{spritePlan.error}</p> : rasterDimensions ? <p className="text-xs text-muted-foreground">{spritePlan.sheets.length} front sheet{spritePlan.sheets.length === 1 ? '' : 's'}; up to {spriteColumns * spriteRows} cards per sheet; approximately {rasterDimensions.widthPx * spriteColumns} × {rasterDimensions.heightPx * spriteRows}px for this template. Larger sheets use more memory.</p> : null}
+            <GridPreview cards={spritePlan.sheets[0]?.cards.map(item => item.card) ?? []} columns={spriteColumns} rows={spriteRows} forTabletop={false} canExportClean={canExportClean} highlightColor={richTextHighlightColor} />
+            <Button variant="outline" className="w-full gap-2" disabled={exportsDisabled || Boolean(spritePlan.error)} onClick={() => onExportTabletopSimulatorSpritesheets('standard', { columns: spriteColumns, rows: spriteRows })}><Download className="h-4 w-4" />Download PNG spritesheets</Button>
+            {zipExportKind === 'spritesheet' ? exportProgress : null}
           </section>
 
           <section aria-labelledby="tabletop-export-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
@@ -562,6 +523,7 @@ export function ExportControlsPanel({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">{tabletopSummary.preset.description}</p>
+              <p className="text-xs text-muted-foreground">The final slot is reserved for the hidden card image. Back sheets use the same slot order.</p>
               {tabletopSummary.geometryError ? (
                 <p role="alert" className="text-xs text-[var(--cf-danger)]">{tabletopSummary.geometryError}</p>
               ) : null}
@@ -574,6 +536,7 @@ export function ExportControlsPanel({
                 </p>
               ) : null}
             </div>
+            <GridPreview cards={tabletopSummary.sheets[0]?.cards.map(item => item.card) ?? []} columns={tabletopSummary.preset.grid.columns} rows={tabletopSummary.preset.grid.rows} forTabletop canExportClean={canExportClean} highlightColor={richTextHighlightColor} />
             <Button
               variant="outline"
               onClick={() => onExportTabletopSimulatorSpritesheets(tabletopQuality)}

@@ -1,7 +1,6 @@
 import { buildSync } from 'esbuild';
 import { expect, test } from '@playwright/test';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { getFreshDefaultTemplateObject } from '../../../src/domain/templates';
@@ -14,7 +13,7 @@ const hash = createHash('sha256').update(JSON.stringify(template)).digest('hex')
 const publishedBase = { assetId: template.id!, lineageId:'00000000-0000-4000-8000-000000000001', parentSubmissionId:'00000000-0000-4000-8000-000000000003', baseRevisionNumber:1, revisionHighWater:1, parentContentVersion:'a'.repeat(32), registryContentVersion:'b'.repeat(32) };
 const identity = { submissionId:'00000000-0000-4000-8000-000000000002', lineageId:publishedBase.lineageId, assetId:template.id!, revisionNumber:2, baseRevisionNumber:1, publishedBase, sourceSha256:hash };
 // Synthetic intercepted read only: not hosted Owner/provider acceptance.
-for (const failure of ['none','stale','altered','missing'] as const) test(`@golden exact specimen PDF ${failure}`, async ({ page }, info) => {
+for (const failure of ['none','stale','altered','missing'] as const) test(`@golden exact specimen review ${failure}`, async ({ page }, info) => {
   let reads = 0;
   await page.route('**/api/pipeline/candidate-review', route => {
     reads++;
@@ -36,20 +35,12 @@ for (const failure of ['none','stale','altered','missing'] as const) test(`@gold
   await expect(page.getByAltText('Exact pending candidate specimen')).toBeVisible();
   await page.screenshot({ path:info.outputPath('specimen.png'), fullPage:true });
   await info.attach('Exact candidate specimen', { path:info.outputPath('specimen.png'), contentType:'image/png' });
-  const downloads: string[] = []; page.on('download', d=>downloads.push(d.suggestedFilename()));
+  await expect(page.getByRole('button',{ name:/PDF/ })).toHaveCount(0);
   if (failure === 'stale') {
-    await page.getByRole('button',{ name:/PDF/ }).click();
+    await page.getByRole('button',{ name:'Render exact specimen' }).click();
     await expect(page.getByRole('alert')).toBeVisible();
-    expect(downloads).toEqual([]); return;
+    await expect(page.getByAltText('Exact pending candidate specimen')).toHaveCount(0);
+    return;
   }
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button',{ name:/PDF/ }).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toContain(`${identity.submissionId}-r2-${hash}`);
-  const path = info.outputPath('exact-candidate.pdf'); await download.saveAs(path);
-  await info.attach('Exact candidate PDF', { path, contentType:'application/pdf' });
-  const pdf = await readFile(path);
-  expect(pdf.subarray(0,5).toString()).toBe('%PDF-');
-  expect(pdf.toString('latin1')).toContain('/Subtype /Image');
-  expect(reads).toBe(3); // initial, before render, before delivery
+  expect(reads).toBe(1);
 });

@@ -7,6 +7,7 @@ import {
   areTabletopSimulatorAspectRatiosCompatible,
   assertTabletopSimulatorRenderedFaceAspect,
   createCardZipExportItems,
+  createCardGridSheets,
   createPrintProductionManifest,
   createTabletopSimulatorSheets,
   createTabletopSimulatorManifest,
@@ -306,4 +307,12 @@ describe('zip export helpers', () => {
       { cardWidthPx: 300, cardHeightPx: 400 },
     ]);
   });
+});
+
+it('fills every slot of a general spritesheet grid without a TTS reserved cell', () => {
+  const cards = Array.from({ length: 5 }, (_, index) => makeCard({ uniqueId: `grid-${index}` }));
+  const sheets = createCardGridSheets(cards, { columns: 2, rows: 2, cardsPerSheet: 4 });
+  expect(sheets.map(sheet => sheet.cards.map(item => item.card.uniqueId))).toEqual([
+    ['grid-0', 'grid-1', 'grid-2', 'grid-3'], ['grid-4'],
+  ]);
 });

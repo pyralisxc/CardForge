@@ -282,21 +282,22 @@ export const assertTabletopSimulatorRenderedFaceAspect = (
   }
 };
 
-export const createTabletopSimulatorSheets = (
+export const createCardGridSheets = (
   cards: DisplayCard[],
-  quality: TabletopSimulatorExportQuality = 'standard'
+  grid: TabletopSimulatorSheetGrid,
+  requireMatchingBack = false,
 ): TabletopSimulatorSheet[] => {
-  const grid = getTabletopSimulatorExportPreset(quality).grid;
+  if (!Number.isSafeInteger(grid.columns) || !Number.isSafeInteger(grid.rows) || !Number.isSafeInteger(grid.cardsPerSheet) || grid.columns < 1 || grid.rows < 1 || grid.cardsPerSheet < 1 || grid.cardsPerSheet > grid.columns * grid.rows) throw new Error('Choose valid positive grid dimensions.');
   const sheets: TabletopSimulatorSheet[] = [];
   // TTS slices each image into uniform grid cells. Only adjacent compatible
   // cards may share a sheet: global geometry buckets would reorder the Set.
   let current: TabletopSimulatorSheet | null = null;
   for (const [sourceIndex, card] of cards.entries()) {
     const front = getTemplateProductionGeometryMm(getCardFaceTemplate(card, 'front'));
-    if (hasCardBacking(card)) {
+    if (requireMatchingBack && hasCardBacking(card)) {
       const back = getTemplateProductionGeometryMm(getCardFaceTemplate(card, 'back'));
       if (!areTabletopSimulatorAspectRatiosCompatible(front.trimWidthMm, front.trimHeightMm, back.trimWidthMm, back.trimHeightMm)) {
-        throw new Error(`Card ${sourceIndex + 1} has a back with a different shape from its front. Tabletop Simulator requires matching front/back proportions; edit the backing Template before exporting.`);
+        throw new Error(`Card ${sourceIndex + 1} has a back with a different shape from its front. Spritesheets require matching front/back proportions; edit the backing Template before exporting.`);
       }
     }
     const first = current?.cards[0]?.card;
@@ -313,6 +314,9 @@ export const createTabletopSimulatorSheets = (
   }
   return sheets;
 };
+
+export const createTabletopSimulatorSheets = (cards: DisplayCard[], quality: TabletopSimulatorExportQuality = 'standard'): TabletopSimulatorSheet[] =>
+  createCardGridSheets(cards, getTabletopSimulatorExportPreset(quality).grid, true);
 
 export const getTabletopSimulatorSheetFileName = (
   sheet: Pick<TabletopSimulatorSheet, 'sheetIndex'>,
