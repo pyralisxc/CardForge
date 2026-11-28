@@ -166,6 +166,7 @@ interface DriveProjectInput {
 interface LocalWorkFolderInput {
   workId: string;
   folderName: string;
+  workName?: string;
   sourceRevision: string | null;
   lastSavedAt: string | null;
   permission: 'granted' | 'denied' | 'prompt' | 'unavailable';
@@ -401,7 +402,7 @@ export const buildAccountLibraryItems = ({
       items.push({
         id: `local-folder-work:${localFolder.workId}`,
         kind: 'set',
-        name: localFolder.folderName,
+        name: localFolder.workName ?? localFolder.folderName,
         locations: [location],
         details: [needsPermission ? 'Folder permission required' : 'Saved folder work'],
         sizeBytes: null,

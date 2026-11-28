@@ -5,6 +5,7 @@ import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/cli
 import { DefaultWorkLocationControl, ProjectWorkLocationDialog, type ProjectWorkLocationTarget } from '@/features/project/client/locations';
 
 import type { AccountLibraryItem } from '../model/accountLibrary';
+import type { LocalProjectFolderBinding } from '@/features/project/client/provider-local-folder';
 import { accountSourceToWorkLocation } from '../model/workLocations';
 
 interface WorkLocationDialogProps {
@@ -18,6 +19,7 @@ interface WorkLocationDialogProps {
   onChanged?: () => void;
   strictMoveDestination?: boolean;
   expectedDriveDestination?: { accountId: string; folderId: string };
+  expectedFolderBinding?: LocalProjectFolderBinding | null;
   onMoved?: (setId: string) => void;
 }
 

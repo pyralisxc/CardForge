@@ -18,7 +18,8 @@ import {
   writeStructuredBrowserValue,
 } from '../persistence/structuredBrowserStorage';
 import { useProjectStore } from '../store/workspaceStore';
-import { mapProjectDocumentIdentity } from '../model/projectDocumentIdentity';
+import { selectAllTemplates } from '../store/selectors';
+import { mapProjectDocumentIdentity, type ProjectDocumentIdentityMap } from '../model/projectDocumentIdentity';
 import { applyProjectDocumentToWorkspace, captureCardSetProjectDocument, captureCurrentProjectDocument } from './projectWorkspaceDocument';
 
 const LOCAL_PROJECT_FILE_NAME = `project${CARDFORGE_PROJECT_FILE_EXTENSION}`;
@@ -53,7 +54,31 @@ export interface LocalProjectFolderBinding {
   sourceRevision: string | null;
   lastSavedAt: string | null;
   workId?: string | null;
+  workName?: string;
   packageScope?: 'set' | 'workspace';
+  /** True only when CardForge wrote this exact file using the Set-only owner. */
+  verifiedSetScope?: boolean;
+  /** The original Set identity in the portable package, before browser import. */
+  portableWorkId?: string;
+  identities?: ProjectDocumentIdentityMap;
+  /** Legacy folder links always refer to project.cardforge. */
+  fileName?: string;
+}
+
+const folderFileName = (binding?: LocalProjectFolderBinding | null): string => binding?.fileName ?? LOCAL_PROJECT_FILE_NAME;
+
+export class LocalFolderRevisionConflict extends ProjectPackageError {
+  constructor(readonly reason: 'unverified' | 'changed') {
+    super(reason === 'changed'
+      ? 'This folder file changed and its newer scope cannot be confirmed. Save a new copy to keep it safe.'
+      : 'CardForge cannot confirm this older folder file is a Set rather than a workspace backup. Save a new copy to keep it safe.');
+  }
+}
+
+export class LocalFolderSavedSourceRetainedError extends ProjectPackageError {
+  constructor(readonly saved: LocalProjectFolderBinding, cause: unknown) {
+    super(`The folder copy was saved, but the device Set was kept. ${cause instanceof Error ? cause.message : 'Review the device work before retrying.'}`);
+  }
 }
 
 export interface LocalProjectFolderStatus {
@@ -156,18 +181,27 @@ const writeSnapshotToDirectory = async (
   existingBinding?: LocalProjectFolderBinding | null,
   workId?: string,
   namespace = getScopedProjectStorageNamespace('project-assets'),
+  options: { fileName?: string; portableWorkId?: string; identities?: ProjectDocumentIdentityMap; expectedCurrentRevision?: string; asNew?: boolean; assertCurrent?: () => Promise<void> } = {},
 ): Promise<LocalProjectFolderBinding> => {
   assertFolderScope(namespace);
   if (workId) await readWorkBindingIndex(namespace);
   await requireWritePermission(directory);
   assertFolderScope(namespace);
-  const document = workId ? await captureCardSetProjectDocument(workId) : await captureCurrentProjectDocument();
+  let document = workId ? await captureCardSetProjectDocument(workId) : await captureCurrentProjectDocument();
+  if (workId && options.portableWorkId) {
+    const identities = options.identities ?? {};
+    identities.set = { ...identities.set, [options.portableWorkId]: workId };
+    document = mapProjectDocumentIdentity(document, identities, 'save');
+  }
   const snapshot = await buildBrowserCardForgeProjectSnapshot({ document, name: directory.name });
   if (existingBinding) {
-    await assertLocalProjectFolderRevisionCurrent(directory, existingBinding);
+    await assertLocalProjectFolderRevisionCurrent(directory, existingBinding, options.expectedCurrentRevision);
   }
+  await options.assertCurrent?.();
   assertFolderScope(namespace);
-  const fileHandle = await directory.getFileHandle(LOCAL_PROJECT_FILE_NAME, { create: true });
+  const fileName = options.fileName ?? folderFileName(existingBinding);
+  if (options.asNew && await fileExists(directory, fileName)) throw new ProjectPackageError('A file with this name already exists. No folder file was replaced; try saving a new copy again.');
+  const fileHandle = await directory.getFileHandle(fileName, { create: true });
   assertFolderScope(namespace);
   const writable = await fileHandle.createWritable();
   try {
@@ -190,7 +224,6 @@ const writeSnapshotToDirectory = async (
   if (verified.format !== 'cardforge-package' || verified.sourceRevision !== snapshot.manifest.projectRevision) {
     throw new ProjectPackageError('The local folder write could not be verified. The browser copy was left unchanged.');
   }
-  assertFolderScope(namespace);
   const binding: LocalProjectFolderBinding = {
     ...(existingBinding ?? {}),
     handle: directory,
@@ -199,18 +232,30 @@ const writeSnapshotToDirectory = async (
     lastSavedAt: snapshot.manifest.savedAt,
     workId: workId ?? null,
     packageScope: workId ? 'set' : 'workspace',
+    ...(workId ? { workName: document.cardSets[0]?.name } : { workName: undefined }),
+    ...(workId ? { verifiedSetScope: true } : { verifiedSetScope: undefined }),
+    ...(workId ? { portableWorkId: options.portableWorkId ?? document.cardSets[0]?.id } : {}),
+    ...(workId && options.identities ? { identities: options.identities } : {}),
+    ...(fileName !== LOCAL_PROJECT_FILE_NAME ? { fileName } : { fileName: undefined }),
   };
-  if (workId) {
-    await writeStructuredBrowserValue(getWorkBindingStorageKey(workId, namespace), binding);
-    await indexWorkBinding(workId, namespace);
+  try {
+    assertFolderScope(namespace);
+    await options.assertCurrent?.();
+    if (workId) {
+      await writeStructuredBrowserValue(getWorkBindingStorageKey(workId, namespace), binding);
+      await indexWorkBinding(workId, namespace);
+    }
+    await persistBinding(binding, namespace);
+  } catch (error) {
+    throw new LocalFolderSavedSourceRetainedError(binding, error);
   }
-  await persistBinding(binding, namespace);
   return binding;
 };
 
 export const assertLocalProjectFolderRevisionCurrent = async (
   directory: FileSystemDirectoryHandle,
   binding: LocalProjectFolderBinding,
+  expectedCurrentRevision?: string,
 ): Promise<void> => {
   if (!binding.sourceRevision) {
     throw new ProjectPackageError('Reload this local-folder project before saving so CardForge can protect its exact revision. Existing folder work was left unchanged.');
@@ -218,7 +263,7 @@ export const assertLocalProjectFolderRevisionCurrent = async (
 
   let file: File;
   try {
-    const fileHandle = await directory.getFileHandle(LOCAL_PROJECT_FILE_NAME);
+    const fileHandle = await directory.getFileHandle(folderFileName(binding));
     file = await fileHandle.getFile();
   } catch (error) {
     if (!(error instanceof DOMException && error.name === 'NotFoundError')) {
@@ -236,7 +281,7 @@ export const assertLocalProjectFolderRevisionCurrent = async (
   }
 
   const conflict = getProjectSourceConflict({
-    expected: { projectRevision: binding.sourceRevision },
+    expected: { projectRevision: expectedCurrentRevision ?? binding.sourceRevision },
     current: { projectRevision: currentRevision },
   });
   if (conflict) {
@@ -294,6 +339,7 @@ export const listLocalProjectFolderContents = async (binding: LocalProjectFolder
 export const saveCurrentProjectToNewFolder = async (): Promise<LocalProjectFolderBinding> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const directory = await chooseDirectory();
+  return await serializeFolderSave(namespace, async () => {
   assertFolderScope(namespace);
   await requireWritePermission(directory);
   assertFolderScope(namespace);
@@ -301,18 +347,35 @@ export const saveCurrentProjectToNewFolder = async (): Promise<LocalProjectFolde
     throw new ProjectPackageError(`“${directory.name}” already contains a CardForge project. Open that project instead, or choose an empty folder to avoid overwriting it.`);
   }
   return await writeSnapshotToDirectory(directory, null, undefined, namespace);
+  });
 };
 
-export const saveCardSetToNewFolder = async ({ setId }: { setId: string }): Promise<LocalProjectFolderBinding> => {
+export const saveCardSetToNewFolder = async ({ setId }: { setId: string }, options: {
+  requireUnlinked?: boolean;
+  afterVerified?: (binding: LocalProjectFolderBinding) => Promise<void>;
+} = {}): Promise<LocalProjectFolderBinding> => {
+  if (options.afterVerified && (typeof navigator === 'undefined' || !navigator.locks?.request)) {
+    throw new ProjectPackageError('This browser cannot safely coordinate a folder move between tabs. Save a folder copy and keep the device Set.');
+  }
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const directory = await chooseDirectory();
+  return await serializeFolderSave(namespace, async () => {
   assertFolderScope(namespace);
+  if (options.requireUnlinked && await getLocalProjectWorkBinding(setId, namespace)) {
+    throw new ProjectPackageError('This Set was linked to a folder while choosing a destination. Review its location; no folder file was changed.');
+  }
   await requireWritePermission(directory);
   assertFolderScope(namespace);
   if (await fileExists(directory, LOCAL_PROJECT_FILE_NAME)) {
     throw new ProjectPackageError(`“${directory.name}” already contains a CardForge project. Choose an empty folder so existing authored work is not overwritten.`);
   }
-  return await writeSnapshotToDirectory(directory, null, setId, namespace);
+  const saved = await writeSnapshotToDirectory(directory, null, setId, namespace);
+  if (options.afterVerified) {
+    try { await options.afterVerified(saved); }
+    catch (error) { throw new LocalFolderSavedSourceRetainedError(saved, error); }
+  }
+  return saved;
+  });
 };
 
 export const getLocalProjectWorkBinding = async (workId: string, namespace = getScopedProjectStorageNamespace('project-assets')): Promise<LocalProjectFolderBinding | null> => {
@@ -337,17 +400,98 @@ export const listLocalProjectWorkBindings = async (): Promise<LocalProjectWorkBi
   return bindings.flatMap((binding) => binding ? [binding] : []);
 };
 
-export const saveCardSetToAttachedFolder = async (setId: string, expectedBinding?: LocalProjectFolderBinding): Promise<LocalProjectFolderBinding> => {
-  const namespace = getScopedProjectStorageNamespace('project-assets');
-  const binding = await getLocalProjectWorkBinding(setId, namespace);
-  assertFolderScope(namespace);
-  if (expectedBinding && (!binding?.handle || binding.sourceRevision !== expectedBinding.sourceRevision
-    || !await binding.handle.isSameEntry(expectedBinding.handle))) {
-    throw new ProjectPackageError('The linked folder changed or is unavailable. Check its location before saving; browser work was left unchanged.');
+const activeFolderSaves = new Map<string, Promise<unknown>>();
+const serializeFolderSave = async <T>(namespace: string, save: () => Promise<T>): Promise<T> => {
+  const key = 'cardforge-local-folder';
+  const run = async () => {
+    const prior = activeFolderSaves.get(key);
+    const pending = (async () => { if (prior) await prior.catch(() => {}); assertFolderScope(namespace); return await save(); })();
+    activeFolderSaves.set(key, pending);
+    try { return await pending; } finally { if (activeFolderSaves.get(key) === pending) activeFolderSaves.delete(key); }
+  };
+  return typeof navigator !== 'undefined' && navigator.locks?.request
+    ? await navigator.locks.request(key, run)
+    : await run();
+};
+
+export const saveCardSetToAttachedFolder = async (setId: string, expectedBinding?: LocalProjectFolderBinding, options: {
+  asNew?: boolean;
+  afterVerified?: (binding: LocalProjectFolderBinding) => Promise<void>;
+  requireSelected?: boolean;
+} = {}): Promise<LocalProjectFolderBinding> => {
+  if (options.afterVerified && (typeof navigator === 'undefined' || !navigator.locks?.request)) {
+    throw new ProjectPackageError('This browser cannot safely coordinate a folder move between tabs. Save a folder copy and keep the device Set.');
   }
-  assertFolderScope(namespace);
-  if (!binding?.handle) return await saveCardSetToNewFolder({ setId });
-  return await writeSnapshotToDirectory(binding.handle, binding, setId, namespace);
+  const namespace = getScopedProjectStorageNamespace('project-assets');
+  if (!expectedBinding && !await getLocalProjectWorkBinding(setId, namespace)) return await saveCardSetToNewFolder({ setId }, { requireUnlinked: true, afterVerified: options.afterVerified });
+  return await serializeFolderSave(namespace, async () => {
+    const binding = await getLocalProjectWorkBinding(setId, namespace);
+    assertFolderScope(namespace);
+    if (expectedBinding && (!binding?.handle || binding.sourceRevision !== expectedBinding.sourceRevision
+      || binding.workId !== expectedBinding.workId || binding.packageScope !== expectedBinding.packageScope || binding.verifiedSetScope !== expectedBinding.verifiedSetScope || binding.portableWorkId !== expectedBinding.portableWorkId
+      || folderFileName(binding) !== folderFileName(expectedBinding) || !await binding.handle.isSameEntry(expectedBinding.handle))) {
+      throw new ProjectPackageError('The linked folder changed or is unavailable. Check its location before saving; browser work was left unchanged.');
+    }
+    assertFolderScope(namespace);
+    if (!binding?.handle) throw new ProjectPackageError('The linked folder changed or is unavailable. The device Set remains unchanged.');
+    await readWorkBindingIndex(namespace);
+    const ensureBindingCurrent = async () => {
+      const current = await getLocalProjectWorkBinding(setId, namespace);
+      const attached = await readAttachedBinding(namespace);
+      assertFolderScope(namespace);
+      if (!current || current.sourceRevision !== binding.sourceRevision || current.workId !== binding.workId || current.packageScope !== binding.packageScope || current.verifiedSetScope !== binding.verifiedSetScope || current.portableWorkId !== binding.portableWorkId || folderFileName(current) !== folderFileName(binding)
+        || !await current.handle.isSameEntry(binding.handle)
+        || (options.requireSelected && (!attached || attached.workId !== setId || !await attached.handle.isSameEntry(binding.handle)))) {
+        throw new ProjectPackageError('The selected folder link changed. The device Set remains available; check the folder before retrying.');
+      }
+      assertFolderScope(namespace);
+    };
+    await ensureBindingCurrent();
+    let portableWorkId: string;
+    let revision: string | undefined;
+    if (options.asNew) {
+      portableWorkId = `set-${globalThis.crypto.randomUUID()}`;
+    } else {
+      if (binding.packageScope === 'workspace') throw new ProjectPackageError('This folder contains a workspace backup, not a Set copy. The backup was left unchanged.');
+      if (!binding.verifiedSetScope) throw new LocalFolderRevisionConflict('unverified');
+      const fileHandle = await binding.handle.getFileHandle(folderFileName(binding));
+      const decoded = await decodeProjectFile(await fileHandle.getFile());
+      if (decoded.format !== 'cardforge-package' || !decoded.sourceRevision || decoded.document.cardSets.length !== 1) {
+        throw new ProjectPackageError('This folder file is not a verified single-Set package. It was left unchanged.');
+      }
+      portableWorkId = decoded.document.cardSets[0]!.id;
+      if (binding.portableWorkId && binding.portableWorkId !== portableWorkId) {
+        throw new ProjectPackageError('This folder file contains a different Set. It was left unchanged; save a new copy instead.');
+      }
+      if (!binding.portableWorkId && decoded.sourceRevision !== binding.sourceRevision) {
+        throw new LocalFolderRevisionConflict('changed');
+      }
+      if (decoded.sourceRevision !== binding.sourceRevision) throw new LocalFolderRevisionConflict('changed');
+      revision = decoded.sourceRevision;
+    }
+    const fileName = options.asNew ? `project-${globalThis.crypto.randomUUID()}${CARDFORGE_PROJECT_FILE_EXTENSION}` : folderFileName(binding);
+    const identities = options.asNew ? {} : structuredClone(binding.identities ?? {});
+    const saved = await writeSnapshotToDirectory(binding.handle, options.asNew ? null : binding, setId, namespace, {
+      fileName, portableWorkId, identities, expectedCurrentRevision: revision, asNew: options.asNew, assertCurrent: ensureBindingCurrent,
+    });
+    if (options.afterVerified) {
+      try {
+        const current = await getLocalProjectWorkBinding(setId, namespace);
+        const attached = await readAttachedBinding(namespace);
+        assertFolderScope(namespace);
+        if (!current || current.sourceRevision !== saved.sourceRevision || folderFileName(current) !== folderFileName(saved)
+          || !await current.handle.isSameEntry(saved.handle)
+          || (options.requireSelected && (!attached || attached.workId !== setId || !await attached.handle.isSameEntry(saved.handle)))) {
+          throw new ProjectPackageError('The folder link changed after saving. Review the saved copy before removing device work.');
+        }
+        await assertLocalProjectFolderRevisionCurrent(saved.handle, saved);
+        assertFolderScope(namespace);
+        await options.afterVerified(saved);
+      }
+      catch (error) { throw new LocalFolderSavedSourceRetainedError(saved, error); }
+    }
+    return saved;
+  });
 };
 
 const openProjectDirectory = async (
@@ -361,7 +505,7 @@ const openProjectDirectory = async (
   assertFolderScope(namespace);
   let fileHandle: FileSystemFileHandle;
   try {
-    fileHandle = await directory.getFileHandle(LOCAL_PROJECT_FILE_NAME);
+    fileHandle = await directory.getFileHandle(folderFileName(remembered));
   } catch (error) {
     if (error instanceof DOMException && error.name === 'NotFoundError') {
       throw new ProjectPackageError(`“${directory.name}” does not contain ${LOCAL_PROJECT_FILE_NAME}. Choose the saved project folder; use “Save workspace backup to folder” to create a new backup.`);
@@ -382,16 +526,32 @@ const openProjectDirectory = async (
     if (!remembered.sourceRevision || snapshot.manifest.projectRevision !== remembered.sourceRevision) {
       throw new ProjectPackageError('The folder has changed or its saved revision is unavailable. Browser and folder work were left unchanged. Back up both copies before comparing them; do not save over the folder.');
     }
+    if (remembered.portableWorkId && remembered.portableWorkId !== inspected.cardSets[0]!.id) {
+      throw new ProjectPackageError('This folder file contains a different Set. Browser and folder work were left unchanged.');
+    }
     if (useProjectStore.getState().cardSets.some((set) => set.id === remembered.workId)) return remembered;
+    if (typeof navigator === 'undefined' || !navigator.locks?.request) {
+      throw new ProjectPackageError('This browser cannot safely coordinate opening this linked folder Set across tabs. Your folder and device work remain unchanged.');
+    }
     const importedDocument = await materializeBrowserProjectSnapshot(snapshot);
     assertFolderScope(namespace);
-    // Restore the saved Set identity, but isolate its resources from other work.
-    const document = mapProjectDocumentIdentity(importedDocument, {
-      set: { [importedDocument.cardSets[0]!.id]: remembered.workId },
-    }, 'open');
+    // Reuse the shared mapping across tabs; replacing it would make a tab
+    // that already opened this Set unable to restore its portable identities.
+    const identities: ProjectDocumentIdentityMap = structuredClone(remembered.identities ?? {});
+    identities.set = { ...identities.set, [importedDocument.cardSets[0]!.id]: remembered.workId };
+    const document = mapProjectDocumentIdentity(importedDocument, identities, 'open');
+    const existingTemplateIds = new Set(selectAllTemplates(expectedState).map((template) => template.id));
+    if (document.userTemplates.some((template) => template.id && existingTemplateIds.has(template.id))) {
+      throw new ProjectPackageError('This folder Set shares a Template identity with other device work. Open the Set file as an independent copy instead; the folder and device work remain unchanged.');
+    }
+    // Persist the inverse mapping before publishing remapped work into the
+    // workspace, so a later save cannot silently replace portable identities.
+    const mappedBinding = { ...remembered, identities };
+    await writeStructuredBrowserValue(getWorkBindingStorageKey(remembered.workId, namespace), mappedBinding);
+    assertFolderScope(namespace);
     await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, preserveOutputPreferences: true, ...(preserveActiveSet ? { preserveActiveSet: true } : {}), ...(assertCurrent ? { assertCurrent } : {}) });
     assertFolderScope(namespace);
-    return remembered;
+    return mappedBinding;
   }
   const inspected = await decodeProjectFile(file);
   assertFolderScope(namespace);
@@ -409,6 +569,8 @@ const openProjectDirectory = async (
     lastSavedAt: file.lastModified ? new Date(file.lastModified).toISOString() : null,
     workId: decoded.document.cardSets.length === 1 ? imported.activeSetId : null,
     packageScope: decoded.document.cardSets.length === 1 ? 'set' : 'workspace',
+    ...(decoded.document.cardSets.length === 1 ? { workName: decoded.document.cardSets[0]!.name } : {}),
+    ...(decoded.document.cardSets.length === 1 ? { portableWorkId: decoded.document.cardSets[0]!.id } : {}),
   };
   if (binding.workId && decoded.document.cardSets.length === 1) {
     await writeStructuredBrowserValue(getWorkBindingStorageKey(binding.workId, namespace), binding);
@@ -420,6 +582,7 @@ const openProjectDirectory = async (
 
 export const openRememberedLocalProject = async (workId: string, options: { preserveActiveSet?: boolean; assertCurrent?: () => void } = {}): Promise<{ setId: string; sourceRevision: string }> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
+  return await serializeFolderSave(namespace, async () => {
   const expectedState = useProjectStore.getState();
   const binding = await getLocalProjectWorkBinding(workId, namespace);
   assertFolderScope(namespace);
@@ -431,12 +594,14 @@ export const openRememberedLocalProject = async (workId: string, options: { pres
   }
   const opened = await openProjectDirectory(binding.handle, namespace, expectedState, { ...binding, workId }, options.preserveActiveSet, options.assertCurrent);
   return { setId: workId, sourceRevision: opened.sourceRevision! };
+  });
 };
 
 export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding> => {
   const expectedState = useProjectStore.getState();
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const directory = await chooseDirectory('read');
+  return await serializeFolderSave(namespace, async () => {
   assertFolderScope(namespace);
   // A picker open is a user gesture; reading must not require write access.
   if (await getPermission(directory, false, 'read') !== 'granted') {
@@ -458,6 +623,7 @@ export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding
     assertFolderScope(namespace);
   }
   return opened;
+  });
 };
 
 export const saveProjectToAttachedFolder = async (): Promise<LocalProjectFolderBinding> => {
@@ -468,7 +634,15 @@ export const saveProjectToAttachedFolder = async (): Promise<LocalProjectFolderB
   if (!binding.workId && binding.packageScope !== 'workspace') {
     throw new ProjectPackageError('Reopen this folder before saving so CardForge can verify whether it contains one Set or a workspace backup. Existing files were left unchanged.');
   }
-  return await writeSnapshotToDirectory(binding.handle, binding, binding.workId ?? undefined, namespace);
+  if (binding.workId) return await saveCardSetToAttachedFolder(binding.workId, binding);
+  return await serializeFolderSave(namespace, async () => {
+    const current = await readAttachedBinding(namespace);
+    assertFolderScope(namespace);
+    if (!current || current.workId || current.packageScope !== 'workspace' || current.sourceRevision !== binding.sourceRevision || !await current.handle.isSameEntry(binding.handle)) {
+      throw new ProjectPackageError('The attached folder changed. The workspace backup was left unchanged.');
+    }
+    return await writeSnapshotToDirectory(current.handle, current, undefined, namespace);
+  });
 };
 
 export const reconnectAttachedProjectFolder = async (presentedHandle?: FileSystemDirectoryHandle): Promise<LocalProjectFolderBinding> => {
@@ -476,6 +650,7 @@ export const reconnectAttachedProjectFolder = async (presentedHandle?: FileSyste
   // The panel already has this handle. Request permission before awaiting IDB,
   // so the browser still sees the explicit click's transient user activation.
   if (presentedHandle) await requireWritePermission(presentedHandle);
+  return await serializeFolderSave(namespace, async () => {
   assertFolderScope(namespace);
   const binding = await readAttachedBinding(namespace);
   assertFolderScope(namespace);
@@ -490,10 +665,12 @@ export const reconnectAttachedProjectFolder = async (presentedHandle?: FileSyste
   assertFolderScope(namespace);
   await persistBinding(binding, namespace);
   return binding;
+  });
 };
 
 export const disconnectLocalProjectFolder = async (): Promise<void> => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
+  return await serializeFolderSave(namespace, async () => {
   const attached = await readAttachedBinding(namespace);
   assertFolderScope(namespace);
   if (!attached) return;
@@ -510,6 +687,7 @@ export const disconnectLocalProjectFolder = async (): Promise<void> => {
   await removeStructuredBrowserValue(getBindingStorageKey(namespace));
   assertFolderScope(namespace);
   notifyLocalProjectFolderChange();
+  });
 };
 
 export const getLocalProjectFileName = () => LOCAL_PROJECT_FILE_NAME;

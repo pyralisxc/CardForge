@@ -582,6 +582,7 @@ export function useAccountLibraryProjection({
     localWorkFolders: localWorkFolders.map((binding) => ({
       workId: binding.workId,
       folderName: binding.folderName,
+      workName: binding.workName,
       sourceRevision: binding.sourceRevision,
       lastSavedAt: binding.lastSavedAt,
       permission: binding.permission,
@@ -773,6 +774,7 @@ export function useAccountLibraryProjection({
     refresh: () => { void refreshLibrarySources(); },
     driveConnection: driveLibrary?.connection ?? null,
     localFolderSupported: localFolder?.supported ?? false,
+    selectedLocalFolder: localFolder,
     typeFacets,
     tagFacets,
     router,
