@@ -23,6 +23,14 @@ async function mount(page: import('@playwright/test').Page, query = '') {
   await page.addScriptTag({ content: bundle.outputFiles.find(f => f.path.endsWith('.js'))!.text });
   return { mutations, errors };
 }
+test('linked Drive location offers an independent copy without a conflict first', async ({ page }) => {
+  const evidence = await mount(page, '?linkedLocationProof=1');
+  const dialog = page.getByRole('dialog', { name: 'Save & move Disposable linked Set' });
+  await expect(dialog.getByRole('button', { name: 'Save changes' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Save as new' })).toBeVisible();
+  expect(evidence.mutations).toEqual([]);
+  expect(evidence.errors).toEqual([]);
+});
 for (const mode of ['unknown', 'confirmed', 'changed'] as const) test(`Drive disconnect review ${mode} preserves provider boundary`, async ({ page }) => {
   const evidence = await mount(page, `?disconnectProof=${mode}`);
   page.on('dialog', dialog => void dialog.accept());
