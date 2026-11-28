@@ -78,6 +78,8 @@ for (const fail of [false, true]) test(`disposable ordinary Output after ${fail 
       await page.goForward();
       await expect(page.getByRole('region', { name: 'Output Set', exact: true })).toBeVisible();
     }
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('region', { name: 'Output Set', exact: true })).toBeVisible();
     console.info(`[ordinary-output-save] ${JSON.stringify({case:fail?'quota-rejected-then-retried':'committed',outputOpened:true,quotaAbort:fail})}`);
   } finally { if (fail) await session.send('Storage.overrideQuotaForOrigin', { origin });await session.detach(); }
 });

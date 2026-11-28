@@ -92,13 +92,21 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
   });
   currentRef.current = { version: 1, focusedWorkId, inspectorWorkId, session: interactionSession };
   const [outputRestoreFailed, setOutputRestoreFailed] = useState(false);
+  const [pendingOutputRestore, setPendingOutputRestore] = useState<{ restored: CreatorHistorySnapshot; prior: CreatorHistorySnapshot; epoch: number } | null>(null);
   const confirmOutput = useCallback(async (setId: string, origin: CreatorHistorySnapshot, assertCurrent: () => void = () => {}): Promise<boolean> => {
     const attempt = ++outputAttemptRef.current;
     const epoch = navigationEpochRef.current;
-    const context = JSON.stringify([origin.focusedWorkId, origin.session]);
+    // Camera and lens can change while the restored Desk fits its viewport;
+    // only work, selection and tool context determine this handoff's identity.
+    const contextKey = (snapshot: CreatorHistorySnapshot) => JSON.stringify([
+      snapshot.focusedWorkId, snapshot.session.focusPath, snapshot.session.deskSelection,
+      snapshot.session.deskSelectionAnchorId, snapshot.session.selection,
+      snapshot.session.inspectionTargetId, snapshot.session.toolStack,
+    ]);
+    const context = contextKey(origin);
     const check = () => {
       if (!mountedRef.current || outputAttemptRef.current !== attempt || navigationEpochRef.current !== epoch
-        || JSON.stringify([currentRef.current.focusedWorkId, currentRef.current.session]) !== context) {
+        || contextKey(currentRef.current) !== context) {
         throw new Error('The selection changed while saving. Return to the Set and retry Output.');
       }
       assertCurrent();
@@ -179,12 +187,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
       if (restoredTool?.toolId === 'output' && restored.session.focusPath.setId) {
         const prior = { ...restored, session: { ...restored.session, toolStack: restored.session.toolStack.slice(0, -1) } };
         applySnapshot(prior);
-        replaceSnapshot(prior);
-        void confirmOutput(restored.session.focusPath.setId, prior).then((confirmed) => {
-          if (confirmed) { applySnapshot(restored); replaceSnapshot(restored); }
-          else setOutputRestoreFailed(true);
-          setNavigationReady(true);
-        });
+        setPendingOutputRestore({ restored, prior, epoch: navigationEpochRef.current });
         return;
       }
       applySnapshot(restored);
@@ -212,7 +215,24 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     }
     replaceSnapshot(initial);
     setNavigationReady(true);
-  }, [applySnapshot, confirmOutput, entrySnapshot, pushSnapshot, replaceSnapshot]);
+  }, [applySnapshot, entrySnapshot, pushSnapshot, replaceSnapshot]);
+
+  useEffect(() => {
+    if (!pendingOutputRestore) return;
+    const { restored, prior, epoch } = pendingOutputRestore;
+    const setId = restored.session.focusPath.setId;
+    if (!setId) return;
+    let cancelled = false;
+    void confirmOutput(setId, prior).then((confirmed) => {
+      if (cancelled) return;
+      setPendingOutputRestore(null);
+      if (navigationEpochRef.current !== epoch) { setNavigationReady(true); return; }
+      if (confirmed) { applySnapshot(restored); replaceSnapshot(restored); }
+      else { replaceSnapshot(prior); setOutputRestoreFailed(true); }
+      setNavigationReady(true);
+    });
+    return () => { cancelled = true; };
+  }, [pendingOutputRestore, confirmOutput, applySnapshot, replaceSnapshot]);
 
   useEffect(() => {
     if (!navigationReady) return;
